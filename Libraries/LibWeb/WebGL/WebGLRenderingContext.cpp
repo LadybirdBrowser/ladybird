@@ -60,7 +60,7 @@ JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::cre
         fire_webgl_context_creation_error(canvas_element);
         return GC::Ptr<WebGLRenderingContext> { nullptr };
     }
-    auto context = OpenGLContext::create(*skia_backend_context);
+    auto context = OpenGLContext::create(*skia_backend_context, OpenGLContext::WebGLVersion::WebGL1);
     if (!context) {
         fire_webgl_context_creation_error(canvas_element);
         return GC::Ptr<WebGLRenderingContext> { nullptr };
@@ -106,16 +106,7 @@ void WebGLRenderingContext::present()
         return;
 
     m_should_present = false;
-
-    // "Before the drawing buffer is presented for compositing the implementation shall ensure that all rendering operations have been flushed to the drawing buffer."
-    glFlush();
-
-    // "By default, after compositing the contents of the drawing buffer shall be cleared to their default values, as shown in the table above.
-    // This default behavior can be changed by setting the preserveDrawingBuffer attribute of the WebGLContextAttributes object.
-    // If this flag is true, the contents of the drawing buffer shall be preserved until the author either clears or overwrites them."
-    if (!m_context_creation_parameters.preserve_drawing_buffer) {
-        context().clear_buffer_to_default_values();
-    }
+    context().present(m_context_creation_parameters.preserve_drawing_buffer);
 }
 
 GC::Ref<HTML::HTMLCanvasElement> WebGLRenderingContext::canvas_for_binding() const

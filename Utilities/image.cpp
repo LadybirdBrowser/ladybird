@@ -14,7 +14,7 @@
 #include <LibGfx/ImageFormats/WebPSharedLossless.h>
 #include <LibGfx/ImageFormats/WebPWriter.h>
 
-using AnyBitmap = Variant<RefPtr<Gfx::Bitmap>, RefPtr<Gfx::CMYKBitmap>>;
+using AnyBitmap = Variant<NonnullRefPtr<Gfx::Bitmap>, NonnullRefPtr<Gfx::CMYKBitmap>>;
 struct LoadedImage {
     Gfx::NaturalFrameFormat internal_format;
     AnyBitmap bitmap;
@@ -33,7 +33,7 @@ static ErrorOr<LoadedImage> load_image(RefPtr<Gfx::ImageDecoder> const& decoder,
         case Gfx::NaturalFrameFormat::Vector:
             return TRY(decoder->frame(frame_index)).image;
         case Gfx::NaturalFrameFormat::CMYK:
-            return RefPtr(TRY(decoder->cmyk_frame()));
+            return TRY(decoder->cmyk_frame());
         }
         VERIFY_NOT_REACHED();
     }());
@@ -43,9 +43,9 @@ static ErrorOr<LoadedImage> load_image(RefPtr<Gfx::ImageDecoder> const& decoder,
 
 static ErrorOr<void> invert_cmyk(LoadedImage& image)
 {
-    if (!image.bitmap.has<RefPtr<Gfx::CMYKBitmap>>())
+    if (!image.bitmap.has<NonnullRefPtr<Gfx::CMYKBitmap>>())
         return Error::from_string_literal("Can't --invert-cmyk with RGB bitmaps");
-    auto& frame = image.bitmap.get<RefPtr<Gfx::CMYKBitmap>>();
+    auto& frame = image.bitmap.get<NonnullRefPtr<Gfx::CMYKBitmap>>();
 
     for (auto& pixel : *frame) {
         pixel.c = ~pixel.c;
@@ -58,18 +58,18 @@ static ErrorOr<void> invert_cmyk(LoadedImage& image)
 
 static ErrorOr<void> crop_image(LoadedImage& image, Gfx::IntRect const& rect)
 {
-    if (!image.bitmap.has<RefPtr<Gfx::Bitmap>>())
+    if (!image.bitmap.has<NonnullRefPtr<Gfx::Bitmap>>())
         return Error::from_string_literal("Can't --crop CMYK bitmaps yet");
-    auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
+    auto& frame = image.bitmap.get<NonnullRefPtr<Gfx::Bitmap>>();
     frame = TRY(frame->cropped(rect));
     return {};
 }
 
 static ErrorOr<void> move_alpha_to_rgb(LoadedImage& image)
 {
-    if (!image.bitmap.has<RefPtr<Gfx::Bitmap>>())
+    if (!image.bitmap.has<NonnullRefPtr<Gfx::Bitmap>>())
         return Error::from_string_literal("Can't --move-alpha-to-rgb with CMYK bitmaps");
-    auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
+    auto& frame = image.bitmap.get<NonnullRefPtr<Gfx::Bitmap>>();
 
     switch (frame->format()) {
     case Gfx::BitmapFormat::Invalid:
@@ -96,9 +96,9 @@ static ErrorOr<void> move_alpha_to_rgb(LoadedImage& image)
 
 static ErrorOr<void> strip_alpha(LoadedImage& image)
 {
-    if (!image.bitmap.has<RefPtr<Gfx::Bitmap>>())
+    if (!image.bitmap.has<NonnullRefPtr<Gfx::Bitmap>>())
         return Error::from_string_literal("Can't --strip-alpha with CMYK bitmaps");
-    auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
+    auto& frame = image.bitmap.get<NonnullRefPtr<Gfx::Bitmap>>();
 
     switch (frame->format()) {
     case Gfx::BitmapFormat::Invalid:
@@ -128,7 +128,7 @@ static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, u8 jpeg
         return Core::OutputBufferedFile::create(move(output_stream));
     };
 
-    auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
+    auto& frame = image.bitmap.get<NonnullRefPtr<Gfx::Bitmap>>();
 
     if (out_path.ends_with(".jpg"sv, CaseSensitivity::CaseInsensitive) || out_path.ends_with(".jpeg"sv, CaseSensitivity::CaseInsensitive)) {
         TRY(Gfx::JPEGWriter::encode(*TRY(stream()), *frame, { .icc_data = image.icc_data, .quality = jpeg_quality }));
@@ -242,7 +242,7 @@ static ErrorOr<Options> parse_options(Main::Arguments arguments)
     return options;
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     Options options = TRY(parse_options(arguments));
 

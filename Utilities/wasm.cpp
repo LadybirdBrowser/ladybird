@@ -515,7 +515,7 @@ static void print_link_error(Wasm::LinkError const& error)
         warnln("Missing import '{}'", missing);
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView filename;
     bool print = false;

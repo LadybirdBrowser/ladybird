@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>CSS Conditional Rules IDL tests</title>
+  <link rel="help" href="https://drafts.csswg.org/css-conditional/">
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/WebIDLParser.js"></script>
+  <script src="../../resources/idlharness.js"></script>
+  <!-- used to provide objects -->
+  <style>
+    div { display: block; }
+  </style>
+  <style>
+    @media print { }
+  </style>
+  <style>
+    @supports (display: block) { }
+  </style>
+</head>
+
+<body>
+  <div id="log"></div>
+
+  <script>
+    'use strict';
+    idl_test(
+      ['css-conditional'],
+      ['cssom', 'dom'],
+      idl_array => {
+        idl_array.add_objects({
+          CSSRule: ['cssRule'],
+          CSSMediaRule: ['cssMediaRule'],
+          CSSSupportsRule: ['cssSupportsRule'],
+        });
+        self.cssRule = document.styleSheets[0].cssRules[0];
+        self.cssMediaRule = document.styleSheets[1].cssRules[0];
+        self.cssSupportsRule = document.styleSheets[2].cssRules[0];
+      }
+    );
+  </script>
+
+</body>
+
+</html>

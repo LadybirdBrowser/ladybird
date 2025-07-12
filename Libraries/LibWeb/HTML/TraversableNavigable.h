@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,13 +9,12 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationType.h>
-#include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/StorageAPI/StorageShed.h>
 
 #ifdef AK_OS_MACOS
@@ -100,9 +101,6 @@ public:
 
     [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
-    RefPtr<Painting::DisplayList> record_display_list(DevicePixelRect const&, PaintOptions);
-    void start_display_list_rendering(NonnullRefPtr<Painting::DisplayList>, NonnullRefPtr<Painting::BackingStore>, Function<void()>&& callback);
-
     enum class CheckIfUnloadingIsCanceledResult {
         CanceledByBeforeUnload,
         CanceledByNavigate,
@@ -110,15 +108,19 @@ public:
     };
     CheckIfUnloadingIsCanceledResult check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload);
 
-    RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const { return m_skia_backend_context; }
-
     StorageAPI::StorageShed& storage_shed() { return m_storage_shed; }
     StorageAPI::StorageShed const& storage_shed() const { return m_storage_shed; }
 
-    void set_viewport_size(CSSPixelSize) override;
+    // https://w3c.github.io/geolocation/#dfn-emulated-position-data
+    Geolocation::EmulatedPositionData const& emulated_position_data() const;
+    void set_emulated_position_data(Geolocation::EmulatedPositionData data);
 
-    bool needs_repaint() const { return m_needs_repaint; }
-    void set_needs_repaint() { m_needs_repaint = true; }
+    void process_screenshot_requests();
+    void queue_screenshot_task(Optional<UniqueNodeID> node_id)
+    {
+        m_screenshot_tasks.enqueue({ node_id });
+        set_needs_repaint();
+    }
 
 private:
     TraversableNavigable(GC::Ref<Page>);
@@ -143,8 +145,6 @@ private:
 
     [[nodiscard]] bool can_go_forward() const;
 
-    RenderingThread m_rendering_thread;
-
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     int m_current_session_history_step { 0 };
 
@@ -164,15 +164,19 @@ private:
 
     // https://storage.spec.whatwg.org/#traversable-navigable-storage-shed
     // A traversable navigable holds a storage shed, which is a storage shed. A traversable navigable’s storage shed holds all session storage data.
-    StorageAPI::StorageShed m_storage_shed;
+    GC::Ref<StorageAPI::StorageShed> m_storage_shed;
 
     GC::Ref<SessionHistoryTraversalQueue> m_session_history_traversal_queue;
 
     String m_window_handle;
 
-    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
+    // https://w3c.github.io/geolocation/#dfn-emulated-position-data
+    Geolocation::EmulatedPositionData m_emulated_position_data;
 
-    bool m_needs_repaint { true };
+    struct ScreenshotTask {
+        Optional<Web::UniqueNodeID> node_id;
+    };
+    Queue<ScreenshotTask> m_screenshot_tasks;
 };
 
 struct BrowsingContextAndDocument {

@@ -74,6 +74,7 @@ Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsT
 
         Parser parser(lexer, regex_options);
         parser_result = parser.parse();
+        parser_result.bytecode.flatten();
 
         run_optimization_passes();
 
@@ -90,6 +91,7 @@ Regex<Parser>::Regex(regex::Parser::Result parse_result, ByteString pattern, typ
     : pattern_value(move(pattern))
     , parser_result(move(parse_result))
 {
+    parser_result.bytecode.flatten();
     run_optimization_passes();
     if (parser_result.error == regex::Error::NoError)
         matcher = make<Matcher<Parser>>(this, regex_options | static_cast<decltype(regex_options.value())>(parser_result.options.value()));
@@ -286,8 +288,14 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             if (match_length_minimum && match_length_minimum > view_length - view_index)
                 break;
 
+            auto const insensitive = input.regex_options.has_flag_set(AllFlags::Insensitive);
             if (auto& starting_ranges = m_pattern->parser_result.optimization_data.starting_ranges; !starting_ranges.is_empty()) {
-                if (!binary_search(starting_ranges, input.view.code_unit_at(view_index), nullptr, compare_range))
+                auto ranges = insensitive ? m_pattern->parser_result.optimization_data.starting_ranges_insensitive.span() : starting_ranges.span();
+                auto ch = input.view.code_unit_at(view_index);
+                if (insensitive)
+                    ch = to_ascii_lowercase(ch);
+
+                if (!binary_search(ranges, ch, nullptr, compare_range))
                     goto done_matching;
             }
 

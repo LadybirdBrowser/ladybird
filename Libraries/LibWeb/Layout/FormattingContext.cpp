@@ -37,6 +37,10 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
     if (box.is_replaced_box())
         return false;
 
+    // AD-HOC: We create a BFC for SVG foreignObject.
+    if (box.is_svg_foreign_object_box())
+        return true;
+
     // display: table
     if (box.display().is_table_inside()) {
         return false;
@@ -148,8 +152,8 @@ Optional<FormattingContext::Type> FormattingContext::formatting_context_type_cre
         return Type::Grid;
 
     if (display.is_math_inside())
-        // HACK: Instead of crashing, create a dummy formatting context that does nothing.
-        return Type::InternalDummy;
+        // FIXME: We should create a MathML-specific formatting context here, but for now use a BFC, so _something_ is displayed
+        return Type::Block;
 
     if (creates_block_formatting_context(box))
         return Type::Block;
@@ -1513,8 +1517,11 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
     if (box.is_block_container() || box.display().is_table_inside())
         return calculate_max_content_height(box, width);
 
-    if (box.has_natural_height())
+    if (box.has_natural_height()) {
+        if (box.has_natural_aspect_ratio())
+            return width / *box.natural_aspect_ratio();
         return *box.natural_height();
+    }
 
     auto& cache = box.cached_intrinsic_sizes().min_content_height.ensure(width);
     if (cache.has_value())

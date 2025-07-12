@@ -37,7 +37,7 @@ GC_DEFINE_ALLOCATOR(CanvasRenderingContext2D);
 
 JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> CanvasRenderingContext2D::create(JS::Realm& realm, HTMLCanvasElement& element, JS::Value options)
 {
-    auto context_attributes = TRY(context_attributes_from_options(realm.vm(), options));
+    auto context_attributes = TRY(CanvasRenderingContext2DSettings::from_js_value(realm.vm(), options));
     return realm.create<CanvasRenderingContext2D>(realm, element, context_attributes);
 }
 
@@ -62,52 +62,6 @@ void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2dsettings
-JS::ThrowCompletionOr<CanvasRenderingContext2DSettings> CanvasRenderingContext2D::context_attributes_from_options(JS::VM& vm, JS::Value value)
-{
-    if (!value.is_nullish() && !value.is_object())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CanvasRenderingContext2DSettings");
-
-    CanvasRenderingContext2DSettings settings;
-    if (value.is_nullish())
-        return settings;
-
-    auto& value_object = value.as_object();
-
-    JS::Value alpha = TRY(value_object.get("alpha"_fly_string));
-    settings.alpha = alpha.is_undefined() ? true : alpha.to_boolean();
-
-    JS::Value desynchronized = TRY(value_object.get("desynchronized"_fly_string));
-    settings.desynchronized = desynchronized.is_undefined() ? false : desynchronized.to_boolean();
-
-    JS::Value color_space = TRY(value_object.get("colorSpace"_fly_string));
-    if (!color_space.is_undefined()) {
-        auto color_space_string = TRY(color_space.to_string(vm));
-        if (color_space_string == "srgb"sv)
-            settings.color_space = Bindings::PredefinedColorSpace::Srgb;
-        else if (color_space_string == "display-p3"sv)
-            settings.color_space = Bindings::PredefinedColorSpace::DisplayP3;
-        else
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, color_space_string, "colorSpace");
-    }
-
-    JS::Value color_type = TRY(value_object.get("colorType"_fly_string));
-    if (!color_type.is_undefined()) {
-        auto color_type_string = TRY(color_type.to_string(vm));
-        if (color_type_string == "unorm8"sv)
-            settings.color_type = Bindings::CanvasColorType::Unorm8;
-        else if (color_type_string == "float16"sv)
-            settings.color_type = Bindings::CanvasColorType::Float16;
-        else
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, color_type_string, "colorType");
-    }
-
-    JS::Value will_read_frequently = TRY(value_object.get("willReadFrequently"_fly_string));
-    settings.will_read_frequently = will_read_frequently.is_undefined() ? false : will_read_frequently.to_boolean();
-
-    return settings;
 }
 
 HTMLCanvasElement& CanvasRenderingContext2D::canvas_element()
@@ -181,6 +135,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
         [](GC::Root<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return source->current_image_bitmap();
         },
+        [](GC::Root<OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
         [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             auto surface = source->surface();
             if (!surface)
@@ -598,7 +553,7 @@ GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(StringView text)
 {
     // The measureText(text) method steps are to run the text preparation
     // algorithm, passing it text and the object implementing the CanvasText
-    // interface, and then using the returned inline box must return a new
+    // interface, and then using the returned inline box return a new
     // TextMetrics object with members behaving as described in the following
     // list:
     auto prepared_text = prepare_text(text);
@@ -783,8 +738,14 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             return Optional<CanvasImageSourceUsability> {};
         },
 
+        // OffscreenCanvas
+        [](GC::Root<OffscreenCanvas> const& offscreen_canvas) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
+            if (offscreen_canvas->width() == 0 || offscreen_canvas->height() == 0)
+                return WebIDL::InvalidStateError::create(offscreen_canvas->realm(), "OffscreenCanvas width or height is zero"_string);
+            return Optional<CanvasImageSourceUsability> {};
+        },
         // HTMLCanvasElement
-        // FIXME: OffscreenCanvas
         [](GC::Root<HTMLCanvasElement> const& canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (canvas_element->width() == 0 || canvas_element->height() == 0)
@@ -824,8 +785,8 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
             // FIXME: image's media data is CORS-cross-origin.
             return false;
         },
-        // HTMLCanvasElement
-        [](OneOf<GC::Root<HTMLCanvasElement>, GC::Root<ImageBitmap>> auto const&) {
+        // HTMLCanvasElement, ImageBitmap or OffscreenCanvas
+        [](OneOf<GC::Root<HTMLCanvasElement>, GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>> auto const&) {
             // FIXME: image's bitmap's origin-clean flag is false.
             return false;
         });
@@ -976,11 +937,20 @@ String CanvasRenderingContext2D::shadow_color() const
 void CanvasRenderingContext2D::set_shadow_color(String color)
 {
     // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
+    auto& context = canvas_element();
 
     // 2. Let parsedValue be the result of parsing the given value with context if non-null.
     auto style_value = parse_css_value(CSS::Parser::ParsingParams(), color, CSS::PropertyID::Color);
     if (style_value && style_value->has_color()) {
-        auto parsedValue = style_value->to_color(OptionalNone());
+        Optional<Layout::NodeWithStyle const&> layout_node;
+        CSS::CalculationResolutionContext resolution_context;
+
+        if (auto node = context.layout_node()) {
+            layout_node = *node;
+            resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*node);
+        }
+
+        auto parsedValue = style_value->to_color(layout_node, resolution_context);
 
         // 4. Set this's shadow color to parsedValue.
         drawing_state().shadow_color = parsedValue;
@@ -1079,7 +1049,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
             item.visit(
                 [&](CSS::FilterOperation::Blur const& blur_filter) {
                     float radius = blur_filter.resolved_radius(*layout_node);
-                    auto new_filter = Gfx::Filter::blur(radius);
+                    auto new_filter = Gfx::Filter::blur(radius, radius);
 
                     drawing_state().filter = drawing_state().filter.has_value()
                         ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
@@ -1123,6 +1093,11 @@ void CanvasRenderingContext2D::set_filter(String filter)
                     drawing_state().filter = drawing_state().filter.has_value()
                         ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
                         : new_filter;
+                },
+                [&](CSS::URL const& url) {
+                    (void)url;
+                    // FIXME: Resolve the SVG filter
+                    dbgln("FIXME: SVG filters are not implemented for Canvas2D");
                 });
         }
 

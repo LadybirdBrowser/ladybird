@@ -11,6 +11,7 @@
 #pragma once
 
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/CalculatedOr.h>
 
 namespace Web::CSS {
 
@@ -35,7 +36,7 @@ public:
         bool operator==(Linear const&) const = default;
 
         double evaluate_at(double input_progress, bool before_flag) const;
-        String to_string() const;
+        String to_string(SerializationMode) const;
 
         Linear(Vector<Stop> stops);
     };
@@ -46,10 +47,10 @@ public:
         static CubicBezier ease_out();
         static CubicBezier ease_in_out();
 
-        double x1;
-        double y1;
-        double x2;
-        double y2;
+        NumberOrCalculated x1 { 0 };
+        NumberOrCalculated y1 { 0 };
+        NumberOrCalculated x2 { 0 };
+        NumberOrCalculated y2 { 0 };
 
         struct CachedSample {
             double x;
@@ -62,7 +63,7 @@ public:
         bool operator==(CubicBezier const&) const;
 
         double evaluate_at(double input_progress, bool before_flag) const;
-        String to_string() const;
+        String to_string(SerializationMode) const;
     };
 
     struct Steps {
@@ -78,20 +79,20 @@ public:
         static Steps step_start();
         static Steps step_end();
 
-        unsigned int number_of_intervals;
+        IntegerOrCalculated number_of_intervals { 1 };
         Position position { Position::End };
 
         bool operator==(Steps const&) const = default;
 
         double evaluate_at(double input_progress, bool before_flag) const;
-        String to_string() const;
+        String to_string(SerializationMode) const;
     };
 
     struct Function : public Variant<Linear, CubicBezier, Steps> {
         using Variant::Variant;
 
         double evaluate_at(double input_progress, bool before_flag) const;
-        String to_string() const;
+        String to_string(SerializationMode) const;
     };
 
     static ValueComparingNonnullRefPtr<EasingStyleValue const> create(Function const& function)
@@ -102,7 +103,7 @@ public:
 
     Function const& function() const { return m_function; }
 
-    virtual String to_string(SerializationMode) const override { return m_function.to_string(); }
+    virtual String to_string(SerializationMode mode) const override { return m_function.to_string(mode); }
 
     bool properties_equal(EasingStyleValue const& other) const { return m_function == other.m_function; }
 

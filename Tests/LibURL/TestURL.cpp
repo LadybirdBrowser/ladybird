@@ -641,3 +641,71 @@ TEST_CASE(get_registrable_domain)
         EXPECT_EQ(*domain, "ladybird.github.io"sv);
     }
 }
+
+TEST_CASE(public_suffix)
+{
+    {
+        auto domain = URL::Parser::parse_host("com"sv);
+        EXPECT_EQ(domain->public_suffix(), "com"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("example.com"sv);
+        EXPECT_EQ(domain->public_suffix(), "com"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("www.example.com"sv);
+        EXPECT_EQ(domain->public_suffix(), "com"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("EXAMPLE.COM"sv);
+        EXPECT_EQ(domain->public_suffix(), "com"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("www.example.com."sv);
+        EXPECT_EQ(domain->public_suffix(), "com."sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("github.io"sv);
+        EXPECT_EQ(domain->public_suffix(), "github.io"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("whatwg.github.io"sv);
+        EXPECT_EQ(domain->public_suffix(), "github.io"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("إختبار"sv);
+        EXPECT_EQ(domain->public_suffix(), "xn--kgbechtv"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("example.إختبار"sv);
+        EXPECT_EQ(domain->public_suffix(), "xn--kgbechtv"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("sub.example.إختبار"sv);
+        EXPECT_EQ(domain->public_suffix(), "xn--kgbechtv"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"sv);
+        EXPECT_EQ(domain->public_suffix(), OptionalNone {});
+    }
+}
+
+TEST_CASE(same_site)
+{
+    auto opaque_origin = URL::Origin::create_opaque();
+    auto second_opaque_origin = URL::Origin::create_opaque();
+
+    auto site1_https_url = URL::Parser::basic_parse("https://www.ladybird.org"sv).value();
+    auto site1_https_second_url = URL::Parser::basic_parse("https://www.ladybird.org/some/file/path"sv).value();
+    auto site1_http_url = URL::Parser::basic_parse("http://www.ladybird.org"sv).value();
+
+    auto site2_https_url = URL::Parser::basic_parse("https://www.serenityos.org"sv).value();
+
+    EXPECT(!opaque_origin.is_same_site(second_opaque_origin));
+    EXPECT(opaque_origin.is_same_site(opaque_origin));
+    EXPECT(!opaque_origin.is_same_site(site1_https_url.origin()));
+
+    EXPECT(site1_https_url.origin().is_same_site(site1_https_second_url.origin()));
+    EXPECT(!site1_https_url.origin().is_same_site(site1_http_url.origin()));
+    EXPECT(!site1_https_url.origin().is_same_site(site2_https_url.origin()));
+}

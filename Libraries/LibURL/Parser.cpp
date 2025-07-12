@@ -12,6 +12,7 @@
 #include <AK/Optional.h>
 #include <AK/SourceLocation.h>
 #include <AK/StringBuilder.h>
+#include <AK/StringConversions.h>
 #include <AK/StringUtils.h>
 #include <AK/Utf8View.h>
 #include <LibTextCodec/Decoder.h>
@@ -138,15 +139,7 @@ static Optional<ParsedIPv4Number> parse_ipv4_number(StringView input)
     }
 
     // 8. Let output be the mathematical integer value that is represented by input in radix-R notation, using ASCII hex digits for digits with values 0 through 15.
-    Optional<u32> maybe_output;
-    if (radix == 8)
-        maybe_output = AK::StringUtils::convert_to_uint_from_octal(input, TrimWhitespace::No);
-    else if (radix == 10)
-        maybe_output = input.to_number<u32>(TrimWhitespace::No);
-    else if (radix == 16)
-        maybe_output = AK::StringUtils::convert_to_uint_from_hex(input, TrimWhitespace::No);
-    else
-        VERIFY_NOT_REACHED();
+    auto maybe_output = AK::parse_number<u32>(input, TrimWhitespace::No, radix);
 
     // NOTE: Parsing may have failed due to overflow.
     if (!maybe_output.has_value())
@@ -551,7 +544,7 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
 }
 
 // https://url.spec.whatwg.org/#concept-host-parser
-static Optional<Host> parse_host(StringView input, bool is_opaque = false)
+Optional<Host> Parser::parse_host(StringView input, bool is_opaque)
 {
     // 1. If input starts with U+005B ([), then:
     if (input.starts_with('[')) {
@@ -575,7 +568,8 @@ static Optional<Host> parse_host(StringView input, bool is_opaque = false)
     // 3. Assert: input is not the empty string.
     VERIFY(!input.is_empty());
 
-    // FIXME: 4. Let domain be the result of running UTF-8 decode without BOM on the percent-decoding of input.
+    // 4. Let domain be the result of running UTF-8 decode without BOM on the percent-decoding of input.
+    // NOTE: We do not need to do the UTF-8 decode without BOM as replacement is handled within domain_to_ascii.
     auto domain = percent_decode(input);
 
     // 5. Let asciiDomain be the result of running domain to ASCII with domain and false.
@@ -705,6 +699,25 @@ String Parser::percent_encode_after_encoding(TextCodec::Encoder& encoder, String
     return MUST(output.to_string());
 }
 
+static bool contains_ascii_tab_or_newline(StringView input)
+{
+    return any_of(input, [](char character) {
+        return character == '\t' || character == '\n' || character == '\r';
+    });
+}
+
+static String remove_ascii_tab_or_newline(StringView input)
+{
+    StringBuilder output;
+
+    for (auto c : input) {
+        if (c != '\t' && c != '\n' && c != '\r')
+            output.append(c);
+    }
+
+    return MUST(output.to_string());
+}
+
 // https://url.spec.whatwg.org/#concept-basic-url-parser
 Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> base_url, URL* url, Optional<State> state_override, Optional<StringView> encoding)
 {
@@ -739,16 +752,16 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             report_validation_error();
     }
 
-    ByteString processed_input = raw_input.substring_view(start_index, end_index - start_index);
+    raw_input = raw_input.substring_view(start_index, end_index - start_index);
+
+    // NOTE: URL Parsing expects a well formed UTF-8 'scalar' string but we may be passed through a String with lone surrogates.
+    auto processed_input = String::from_utf8_with_replacement_character(raw_input, String::WithBOMHandling::No);
 
     // 2. If input contains any ASCII tab or newline, invalid-URL-unit validation error.
     // 3. Remove all ASCII tab or newline from input.
-    for (auto const ch : processed_input) {
-        if (ch == '\t' || ch == '\n' || ch == '\r') {
-            report_validation_error();
-            processed_input = processed_input.replace("\t"sv, ""sv, ReplaceMode::All).replace("\n"sv, ""sv, ReplaceMode::All).replace("\r"sv, ""sv, ReplaceMode::All);
-            break;
-        }
+    if (contains_ascii_tab_or_newline(processed_input)) {
+        report_validation_error();
+        processed_input = remove_ascii_tab_or_newline(processed_input);
     }
 
     // 4. Let state be state override if given, or scheme start state otherwise.

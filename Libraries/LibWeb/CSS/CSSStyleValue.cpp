@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
@@ -103,6 +104,12 @@ BasicShapeStyleValue const& CSSStyleValue::as_basic_shape() const
 {
     VERIFY(is_basic_shape());
     return static_cast<BasicShapeStyleValue const&>(*this);
+}
+
+BorderImageSliceStyleValue const& CSSStyleValue::as_border_image_slice() const
+{
+    VERIFY(is_border_image_slice());
+    return static_cast<BorderImageSliceStyleValue const&>(*this);
 }
 
 BorderRadiusStyleValue const& CSSStyleValue::as_border_radius() const

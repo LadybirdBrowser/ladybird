@@ -93,15 +93,37 @@ ThrowCompletionOr<void> copy_name_and_length(VM& vm, FunctionObject& function, F
 }
 
 // 3.1.3 PerformShadowRealmEval ( sourceText: a String, callerRealm: a Realm Record, evalRealm: a Realm Record, ), https://tc39.es/proposal-shadowrealm/#sec-performshadowrealmeval
-ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, StringView source_text, Realm& caller_realm, Realm& eval_realm)
+ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& caller_realm, Realm& eval_realm)
 {
-    // 1. Perform ? HostEnsureCanCompileStrings(evalRealm, « », sourceText, false).
-    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, source_text, EvalMode::Indirect));
+    // 1. Perform ? HostEnsureCanCompileStrings(evalRealm, « », sourceText, false).
+    // FIXME: ShadowRealm doesn't yet intersect with the Dynamic Code Brand Checks proposal.
+    //        This is a close approximation, following the PerformEval implementation.
+    //        See: https://github.com/tc39/proposal-dynamic-code-brand-checks/issues/19
+    //             https://github.com/tc39/proposal-shadowrealm/issues/414
+    GC::Ptr<PrimitiveString> source_text;
+
+    if (source.is_string()) {
+        source_text = source.as_string();
+    } else if (source.is_object()) {
+        auto code = vm.host_get_code_for_eval(source.as_object());
+
+        if (code) {
+            source_text = code;
+        } else {
+            return vm.throw_completion<TypeError>(ErrorType::NotAString, source);
+        }
+    } else {
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, source);
+    }
+
+    VERIFY(source_text);
+
+    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, source_text->utf8_string_view(), source_text->utf8_string_view(), CompilationType::IndirectEval, {}, source));
 
     // 2. Perform the following substeps in an implementation-defined order, possibly interleaving parsing and error detection:
 
     // a. Let script be ParseText(StringToCodePoints(sourceText), Script).
-    auto parser = Parser(Lexer(source_text), Program::Type::Script, Parser::EvalInitialState {});
+    auto parser = Parser(Lexer(source_text->utf8_string_view()), Program::Type::Script, Parser::EvalInitialState {});
     auto program = parser.parse_program();
 
     // b. If script is a List of errors, throw a SyntaxError exception.

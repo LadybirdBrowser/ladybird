@@ -1,0 +1,24 @@
+[Desktop Entry]
+Name=Ladybird
+GenericName=Web Browser
+GenericName[eo]=Retumilo
+GenericName[fr]=Navigateur Web
+GenericName[ru]=Веб-браузер
+GenericName[sv]=Webbläsare
+Exec=Ladybird --force-new-process %U
+Icon=org.ladybird.Ladybird
+DBusActivatable=false
+Type=Application
+Categories=Network;WebBrowser;Qt;KDE;
+StartupNotify=false
+MimeType=text/html;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+Actions=new-window;
+X-Purism-FormFactor=Workstation;
+
+[Desktop Action new-window]
+Name=New Window
+Name[eo]=Nova fenestro
+Name[fr]=Nouvelle Fenêtre
+Name[ru]=Новое окно
+Name[sv]=Nytt fönster
+Exec=Ladybird --new-window

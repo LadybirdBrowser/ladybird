@@ -265,7 +265,7 @@ async_test(t => {
                     assert_true(db3.objectStoreNames.contains("store"), "third objectStoreNames contains store");
                     assert_false(db3.objectStoreNames.contains("store2"), "third objectStoreNames contains store2");
 
-                    let st = db3.transaction("store", "readonly", { durability: 'relaxed' }).objectStore("store");
+                    let st = db3.transaction("store", "readonly").objectStore("store");
 
                     assert_equals(db3.version, 9, "db3.version");
 
@@ -322,7 +322,7 @@ async_test(t => {
         store.add("data2", 2);
     };
     open_rq.onsuccess = function (e) {
-        let store = db.transaction("store", "readonly", { durability: 'relaxed' }).objectStore("store");
+        let store = db.transaction("store", "readonly").objectStore("store");
         assert_equals(store.name, "store", "store.name");
         store.count().onsuccess = t.step_func(function (e) {
             assert_equals(e.target.result, 2, "count()");

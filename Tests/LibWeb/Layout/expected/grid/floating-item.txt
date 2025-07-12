@@ -9,3 +9,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x106]
       PaintableBox (Box<DIV>.grid) [10,10 780x104]
         PaintableWithLines (BlockContainer<DIV>.float-left) [11,11 102x102]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x122] [children: 0] (z-index: auto)

@@ -30,10 +30,18 @@ ValueComparingNonnullRefPtr<CSSColorValue const> CSSColorValue::create_from_colo
         name);
 }
 
-Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value)
+Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value, CalculationResolutionContext const& resolution_context)
 {
     // <number> | <angle> | none
     auto normalized = [](double number) {
+        // +inf should be clamped to 360
+        if (!isfinite(number) && number > 0)
+            number = 360.0;
+
+        // -inf and NaN should be clamped to 0
+        if (!isfinite(number) || isnan(number))
+            number = 0.0;
+
         return JS::modulo(number, 360.0);
     };
 
@@ -43,8 +51,13 @@ Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value)
     if (style_value.is_angle())
         return normalized(style_value.as_angle().angle().to_degrees());
 
-    if (style_value.is_calculated() && style_value.as_calculated().resolves_to_angle())
-        return normalized(style_value.as_calculated().resolve_angle({}).value().to_degrees());
+    if (style_value.is_calculated()) {
+        if (style_value.as_calculated().resolves_to_number())
+            return normalized(style_value.as_calculated().resolve_number(resolution_context).value());
+
+        if (style_value.as_calculated().resolves_to_angle())
+            return normalized(style_value.as_calculated().resolve_angle(resolution_context).value().to_degrees());
+    }
 
     if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
         return 0;
@@ -52,7 +65,7 @@ Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value)
     return {};
 }
 
-Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const& style_value, float one_hundred_percent_value)
+Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const& style_value, float one_hundred_percent_value, CalculationResolutionContext const& resolution_context)
 {
     // <percentage> | <number> | none
     auto normalize_percentage = [one_hundred_percent_value](Percentage const& percentage) {
@@ -67,11 +80,10 @@ Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const
 
     if (style_value.is_calculated()) {
         auto const& calculated = style_value.as_calculated();
-        CalculationResolutionContext context {};
         if (calculated.resolves_to_number())
-            return calculated.resolve_number(context).value();
+            return calculated.resolve_number(resolution_context).value();
         if (calculated.resolves_to_percentage())
-            return normalize_percentage(calculated.resolve_percentage(context).value());
+            return normalize_percentage(calculated.resolve_percentage(resolution_context).value());
     }
 
     if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
@@ -80,7 +92,7 @@ Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const
     return {};
 }
 
-Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value)
+Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value, CalculationResolutionContext const& resolution_context)
 {
     // <number> | <percentage> | none
     auto normalized = [](double number) {
@@ -97,11 +109,10 @@ Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value)
 
     if (style_value.is_calculated()) {
         auto const& calculated = style_value.as_calculated();
-        CalculationResolutionContext context {};
         if (calculated.resolves_to_number())
-            return normalized(calculated.resolve_number(context).value());
+            return normalized(calculated.resolve_number(resolution_context).value());
         if (calculated.resolves_to_percentage())
-            return normalized(calculated.resolve_percentage(context).value().as_fraction());
+            return normalized(calculated.resolve_percentage(resolution_context).value().as_fraction());
     }
 
     if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
@@ -120,7 +131,7 @@ void CSSColorValue::serialize_color_component(StringBuilder& builder, Serializat
         builder.append(component.to_string(mode));
         return;
     }
-    auto resolved_value = resolve_with_reference_value(component, one_hundred_percent_value).value_or(0);
+    auto resolved_value = resolve_with_reference_value(component, one_hundred_percent_value, {}).value_or(0);
     if (clamp_min.has_value() && resolved_value < *clamp_min)
         resolved_value = *clamp_min;
     if (clamp_max.has_value() && resolved_value > *clamp_max)
@@ -143,7 +154,7 @@ void CSSColorValue::serialize_alpha_component(StringBuilder& builder, Serializat
         builder.append(component.to_string(mode));
         return;
     }
-    auto resolved_value = resolve_alpha(component).value_or(0);
+    auto resolved_value = resolve_alpha(component, {}).value_or(0);
     builder.appendff("{}", resolved_value);
 }
 
@@ -157,7 +168,7 @@ void CSSColorValue::serialize_hue_component(StringBuilder& builder, Serializatio
         builder.append(component.to_string(mode));
         return;
     }
-    builder.appendff("{:.4}", resolve_hue(component).value_or(0));
+    builder.appendff("{:.4}", resolve_hue(component, {}).value_or(0));
 }
 
 }

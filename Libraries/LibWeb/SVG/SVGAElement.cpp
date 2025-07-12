@@ -32,6 +32,7 @@ void SVGAElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_rel_list);
+    visitor.visit(m_target);
 }
 
 void SVGAElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -59,6 +60,14 @@ i32 SVGAElement::default_tab_index_value() const
 {
     // See the base function for the spec comments.
     return 0;
+}
+
+// https://svgwg.org/svg2-draft/linking.html#__svg__SVGAElement__target
+GC::Ref<SVGAnimatedString> SVGAElement::target()
+{
+    if (!m_target)
+        m_target = SVGAnimatedString::create(realm(), *this, HTML::AttributeNames::target);
+    return *m_target;
 }
 
 // https://svgwg.org/svg2-draft/linking.html#__svg__SVGAElement__relList

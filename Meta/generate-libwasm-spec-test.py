@@ -1,10 +1,13 @@
 import json
-import sys
 import struct
 import subprocess
+import sys
+
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union, Literal, Any
+from typing import Any
+from typing import Literal
+from typing import Union
 
 
 class ParseException(Exception):

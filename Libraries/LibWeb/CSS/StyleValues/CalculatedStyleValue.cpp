@@ -1702,7 +1702,7 @@ static Optional<CalculatedStyleValue::CalculationResult> run_asin_acos_or_atan_o
         break;
     }
 
-    return CalculatedStyleValue::CalculationResult { result, CSSNumericType {}.made_consistent_with(child.numeric_type().value()) };
+    return CalculatedStyleValue::CalculationResult { result, CSSNumericType { CSSNumericType::BaseType::Angle, 1 }.made_consistent_with(child.numeric_type().value()) };
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-asin
@@ -2096,7 +2096,7 @@ Optional<CalculatedStyleValue::CalculationResult> HypotCalculationNode::run_oper
     // <percentage>, but must have a consistent type or else the function is invalid; the result’s type will be the
     // consistent type.
 
-    CSSNumericType consistent_type;
+    Optional<CSSNumericType> consistent_type;
     double value = 0;
 
     for (auto const& child : m_values) {
@@ -2104,13 +2104,19 @@ Optional<CalculatedStyleValue::CalculationResult> HypotCalculationNode::run_oper
         if (!canonical_child.has_value())
             return {};
 
-        auto maybe_type = consistent_type.consistent_type(canonical_child->type().value());
-        if (!maybe_type.has_value())
+        if (!consistent_type.has_value())
+            consistent_type = canonical_child->type();
+        else
+            consistent_type = consistent_type->consistent_type(canonical_child->type().value());
+
+        if (!consistent_type.has_value())
             return {};
 
-        consistent_type = maybe_type.release_value();
         value += canonical_child->value() * canonical_child->value();
     }
+
+    if (!consistent_type.has_value())
+        return {};
 
     return CalculatedStyleValue::CalculationResult { sqrt(value), consistent_type };
 }

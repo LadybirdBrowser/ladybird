@@ -280,6 +280,7 @@ public:
     Vector<Function> functions;
     Vector<Function> static_functions;
     bool has_stringifier { false };
+    Optional<HashMap<ByteString, ByteString>> stringifier_extended_attributes;
     Optional<Attribute> stringifier_attribute;
     bool has_unscopable_member { false };
 

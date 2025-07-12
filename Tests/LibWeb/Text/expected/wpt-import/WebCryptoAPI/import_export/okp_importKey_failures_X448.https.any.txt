@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 224 tests
+Found 231 tests
 
-208 Pass
+215 Pass
 16 Fail
 Pass	Bad usages: importKey(spki, {name: X448}, true, [encrypt])
 Pass	Bad usages: importKey(spki, {name: X448}, false, [encrypt])
@@ -228,3 +228,10 @@ Pass	Missing algorithm name: importKey(jwk(private), {}, true, deriveKey)
 Pass	Missing algorithm name: importKey(jwk(private), {}, false, deriveKey)
 Pass	Missing algorithm name: importKey(jwk(private), {}, true, deriveBits)
 Pass	Missing algorithm name: importKey(jwk(private), {}, false, deriveBits)
+Pass	Invalid 'kty' field: importKey(jwk(private), {name: X448}, true, [deriveKey, deriveBits])
+Pass	Invalid 'kty' field: importKey(jwk (public) , {name: X448}, true, [])
+Pass	Import from a non-extractable: importKey(jwk(private), {name: X448}, true, [deriveKey, deriveBits])
+Pass	Import from a non-extractable: importKey(jwk (public) , {name: X448}, true, [])
+Pass	Invalid 'use' field: importKey(jwk(private), {name: X448}, true, [deriveKey, deriveBits])
+Pass	Invalid 'crv' field: importKey(jwk(private), {name: X448}, true, [deriveKey, deriveBits])
+Pass	Invalid 'crv' field: importKey(jwk (public) , {name: X448}, true, [])

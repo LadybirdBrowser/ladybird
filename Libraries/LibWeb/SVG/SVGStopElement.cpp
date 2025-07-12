@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,7 +10,6 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGStopElement.h>
 
 namespace Web::SVG {
@@ -21,23 +21,12 @@ SVGStopElement::SVGStopElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-void SVGStopElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
-{
-    Base::attribute_changed(name, old_value, value, namespace_);
-
-    if (name == SVG::AttributeNames::offset) {
-        m_offset = AttributeParser::parse_number_percentage(value.value_or(String {}));
-    }
-}
-
 bool SVGStopElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
 
-    return first_is_one_of(name,
-        "stop-color"sv,
-        "stop-opacity"sv);
+    return first_is_one_of(name, SVG::AttributeNames::stopColor, SVG::AttributeNames::stopOpacity);
 }
 
 void SVGStopElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
@@ -45,11 +34,11 @@ void SVGStopElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties>
     CSS::Parser::ParsingParams parsing_context { document() };
     for_each_attribute([&](auto& name, auto& value) {
         CSS::Parser::ParsingParams parsing_context { document() };
-        if (name.equals_ignoring_ascii_case("stop-color"sv)) {
+        if (name == SVG::AttributeNames::stopColor) {
             if (auto stop_color = parse_css_value(parsing_context, value, CSS::PropertyID::StopColor)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::StopColor, stop_color.release_nonnull());
             }
-        } else if (name.equals_ignoring_ascii_case("stop-opacity"sv)) {
+        } else if (name == SVG::AttributeNames::stopOpacity) {
             if (auto stop_opacity = parse_css_value(parsing_context, value, CSS::PropertyID::StopOpacity)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::StopOpacity, stop_opacity.release_nonnull());
             }
@@ -71,16 +60,24 @@ float SVGStopElement::stop_opacity() const
     return 1;
 }
 
-GC::Ref<SVGAnimatedNumber> SVGStopElement::offset() const
+// https://svgwg.org/svg2-draft/pservers.html#StopElementOffsetAttribute
+GC::Ref<SVGAnimatedNumber> SVGStopElement::offset()
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedNumber::create(realm(), 0, 0);
+    if (!m_stop_offset)
+        m_stop_offset = SVGAnimatedNumber::create(realm(), *this, AttributeNames::offset, 0.f);
+    return *m_stop_offset;
 }
 
 void SVGStopElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGStopElement);
     Base::initialize(realm);
+}
+
+void SVGStopElement::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_stop_offset);
 }
 
 }

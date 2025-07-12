@@ -49,7 +49,7 @@ namespace JS {
     })
 
 // 6.2.3 The Completion Record Specification Type, https://tc39.es/ecma262/#sec-completion-record-specification-type
-class [[nodiscard]] Completion {
+class [[nodiscard]] JS_API Completion {
 public:
     enum class Type {
         Empty,
@@ -335,7 +335,7 @@ private:
     Value m_value;
 };
 
-ThrowCompletionOr<Value> await(VM&, Value);
+JS_API ThrowCompletionOr<Value> await(VM&, Value);
 
 // 6.2.4.1 NormalCompletion ( value ), https://tc39.es/ecma262/#sec-normalcompletion
 inline Completion normal_completion(Value value)
@@ -345,6 +345,6 @@ inline Completion normal_completion(Value value)
 }
 
 // 6.2.4.2 ThrowCompletion ( value ), https://tc39.es/ecma262/#sec-throwcompletion
-Completion throw_completion(Value);
+JS_API Completion throw_completion(Value);
 
 }

@@ -40,6 +40,7 @@
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/InvalidationSet.h>
+#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -55,6 +56,7 @@
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
@@ -627,108 +629,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
-    auto map_logical_property_to_real_property = [](PropertyID property_id) -> Optional<PropertyID> {
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        switch (property_id) {
-        case PropertyID::BlockSize:
-            return PropertyID::Height;
-        case PropertyID::BorderBlockEndColor:
-            return PropertyID::BorderBottomColor;
-        case PropertyID::BorderBlockEndStyle:
-            return PropertyID::BorderBottomStyle;
-        case PropertyID::BorderBlockEndWidth:
-            return PropertyID::BorderBottomWidth;
-        case PropertyID::BorderBlockStartColor:
-            return PropertyID::BorderTopColor;
-        case PropertyID::BorderBlockStartStyle:
-            return PropertyID::BorderTopStyle;
-        case PropertyID::BorderBlockStartWidth:
-            return PropertyID::BorderTopWidth;
-        case PropertyID::BorderInlineStartColor:
-            return PropertyID::BorderLeftColor;
-        case PropertyID::BorderInlineStartStyle:
-            return PropertyID::BorderLeftStyle;
-        case PropertyID::BorderInlineStartWidth:
-            return PropertyID::BorderLeftWidth;
-        case PropertyID::BorderInlineEndColor:
-            return PropertyID::BorderRightColor;
-        case PropertyID::BorderInlineEndStyle:
-            return PropertyID::BorderRightStyle;
-        case PropertyID::BorderInlineEndWidth:
-            return PropertyID::BorderRightWidth;
-        case PropertyID::MarginBlockStart:
-            return PropertyID::MarginTop;
-        case PropertyID::MarginBlockEnd:
-            return PropertyID::MarginBottom;
-        case PropertyID::MarginInlineStart:
-            return PropertyID::MarginLeft;
-        case PropertyID::MarginInlineEnd:
-            return PropertyID::MarginRight;
-        case PropertyID::PaddingBlockStart:
-            return PropertyID::PaddingTop;
-        case PropertyID::PaddingBlockEnd:
-            return PropertyID::PaddingBottom;
-        case PropertyID::PaddingInlineStart:
-            return PropertyID::PaddingLeft;
-        case PropertyID::PaddingInlineEnd:
-            return PropertyID::PaddingRight;
-        case PropertyID::InlineSize:
-            return PropertyID::Width;
-        case PropertyID::InsetBlockStart:
-            return PropertyID::Top;
-        case PropertyID::InsetBlockEnd:
-            return PropertyID::Bottom;
-        case PropertyID::InsetInlineStart:
-            return PropertyID::Left;
-        case PropertyID::InsetInlineEnd:
-            return PropertyID::Right;
-        default:
-            return {};
-        }
-    };
-
-    struct StartAndEndPropertyIDs {
-        PropertyID start;
-        PropertyID end;
-    };
-    auto map_logical_property_to_real_properties = [](PropertyID property_id) -> Optional<StartAndEndPropertyIDs> {
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        switch (property_id) {
-        case PropertyID::MarginBlock:
-            return StartAndEndPropertyIDs { PropertyID::MarginTop, PropertyID::MarginBottom };
-        case PropertyID::MarginInline:
-            return StartAndEndPropertyIDs { PropertyID::MarginLeft, PropertyID::MarginRight };
-        case PropertyID::PaddingBlock:
-            return StartAndEndPropertyIDs { PropertyID::PaddingTop, PropertyID::PaddingBottom };
-        case PropertyID::PaddingInline:
-            return StartAndEndPropertyIDs { PropertyID::PaddingLeft, PropertyID::PaddingRight };
-        case PropertyID::InsetBlock:
-            return StartAndEndPropertyIDs { PropertyID::Top, PropertyID::Bottom };
-        case PropertyID::InsetInline:
-            return StartAndEndPropertyIDs { PropertyID::Left, PropertyID::Right };
-        default:
-            return {};
-        }
-    };
-
-    if (auto real_property_id = map_logical_property_to_real_property(property_id); real_property_id.has_value()) {
-        for_each_property_expanding_shorthands(real_property_id.value(), value, set_longhand_property);
-        return;
-    }
-
-    if (auto real_property_ids = map_logical_property_to_real_properties(property_id); real_property_ids.has_value()) {
-        if (value.is_value_list() && value.as_value_list().size() == 2) {
-            auto const& start = value.as_value_list().values()[0];
-            auto const& end = value.as_value_list().values()[1];
-            for_each_property_expanding_shorthands(real_property_ids->start, start, set_longhand_property);
-            for_each_property_expanding_shorthands(real_property_ids->end, end, set_longhand_property);
-            return;
-        }
-        for_each_property_expanding_shorthands(real_property_ids->start, value, set_longhand_property);
-        for_each_property_expanding_shorthands(real_property_ids->end, value, set_longhand_property);
-        return;
-    }
-
     if (value.is_shorthand()) {
         auto& shorthand_value = value.as_shorthand();
         auto& properties = shorthand_value.sub_properties();
@@ -738,78 +638,91 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
-    auto assign_edge_values = [&](PropertyID top_property, PropertyID right_property, PropertyID bottom_property, PropertyID left_property, auto const& values) {
-        if (values.size() == 4) {
-            set_longhand_property(top_property, values[0]);
-            set_longhand_property(right_property, values[1]);
-            set_longhand_property(bottom_property, values[2]);
-            set_longhand_property(left_property, values[3]);
-        } else if (values.size() == 3) {
-            set_longhand_property(top_property, values[0]);
-            set_longhand_property(right_property, values[1]);
-            set_longhand_property(bottom_property, values[2]);
-            set_longhand_property(left_property, values[1]);
-        } else if (values.size() == 2) {
-            set_longhand_property(top_property, values[0]);
-            set_longhand_property(right_property, values[1]);
-            set_longhand_property(bottom_property, values[0]);
-            set_longhand_property(left_property, values[1]);
-        } else if (values.size() == 1) {
-            set_longhand_property(top_property, values[0]);
-            set_longhand_property(right_property, values[0]);
-            set_longhand_property(bottom_property, values[0]);
-            set_longhand_property(left_property, values[0]);
+    auto assign_edge_values = [&](PropertyID top_property, PropertyID right_property, PropertyID bottom_property, PropertyID left_property, CSSStyleValue const& value) {
+        if (value.is_value_list()) {
+            auto values = value.as_value_list().values();
+
+            if (values.size() == 4) {
+                set_longhand_property(top_property, values[0]);
+                set_longhand_property(right_property, values[1]);
+                set_longhand_property(bottom_property, values[2]);
+                set_longhand_property(left_property, values[3]);
+            } else if (values.size() == 3) {
+                set_longhand_property(top_property, values[0]);
+                set_longhand_property(right_property, values[1]);
+                set_longhand_property(bottom_property, values[2]);
+                set_longhand_property(left_property, values[1]);
+            } else if (values.size() == 2) {
+                set_longhand_property(top_property, values[0]);
+                set_longhand_property(right_property, values[1]);
+                set_longhand_property(bottom_property, values[0]);
+                set_longhand_property(left_property, values[1]);
+            } else if (values.size() == 1) {
+                set_longhand_property(top_property, values[0]);
+                set_longhand_property(right_property, values[0]);
+                set_longhand_property(bottom_property, values[0]);
+                set_longhand_property(left_property, values[0]);
+            }
+        } else {
+            set_longhand_property(top_property, value);
+            set_longhand_property(right_property, value);
+            set_longhand_property(bottom_property, value);
+            set_longhand_property(left_property, value);
         }
     };
 
-    if (property_id == CSS::PropertyID::Border) {
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderTop, value, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderRight, value, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderBottom, value, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderLeft, value, set_longhand_property);
-        // FIXME: Also reset border-image, in line with the spec: https://www.w3.org/TR/css-backgrounds-3/#border-shorthands
+    auto assign_start_and_end_values = [&](PropertyID start_property, PropertyID end_property, auto const& values) {
+        if (values.is_value_list()) {
+            set_longhand_property(start_property, value.as_value_list().values()[0]);
+            set_longhand_property(end_property, value.as_value_list().values()[1]);
+        } else {
+            set_longhand_property(start_property, value);
+            set_longhand_property(end_property, value);
+        }
+    };
+
+    if (property_id == CSS::PropertyID::BorderStyle) {
+        assign_edge_values(PropertyID::BorderTopStyle, PropertyID::BorderRightStyle, PropertyID::BorderBottomStyle, PropertyID::BorderLeftStyle, value);
         return;
     }
 
-    if (property_id == CSS::PropertyID::BorderStyle) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::BorderTopStyle, PropertyID::BorderRightStyle, PropertyID::BorderBottomStyle, PropertyID::BorderLeftStyle, values_list.values());
-            return;
-        }
+    if (property_id == CSS::PropertyID::BorderBlockStyle) {
+        assign_start_and_end_values(PropertyID::BorderBlockStartStyle, PropertyID::BorderBlockEndStyle, value);
+        return;
+    }
 
-        set_longhand_property(CSS::PropertyID::BorderTopStyle, value);
-        set_longhand_property(CSS::PropertyID::BorderRightStyle, value);
-        set_longhand_property(CSS::PropertyID::BorderBottomStyle, value);
-        set_longhand_property(CSS::PropertyID::BorderLeftStyle, value);
+    if (property_id == CSS::PropertyID::BorderInlineStyle) {
+        assign_start_and_end_values(PropertyID::BorderInlineStartStyle, PropertyID::BorderInlineEndStyle, value);
         return;
     }
 
     if (property_id == CSS::PropertyID::BorderWidth) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::BorderTopWidth, PropertyID::BorderRightWidth, PropertyID::BorderBottomWidth, PropertyID::BorderLeftWidth, values_list.values());
-            return;
-        }
+        assign_edge_values(PropertyID::BorderTopWidth, PropertyID::BorderRightWidth, PropertyID::BorderBottomWidth, PropertyID::BorderLeftWidth, value);
+        return;
+    }
 
-        set_longhand_property(CSS::PropertyID::BorderTopWidth, value);
-        set_longhand_property(CSS::PropertyID::BorderRightWidth, value);
-        set_longhand_property(CSS::PropertyID::BorderBottomWidth, value);
-        set_longhand_property(CSS::PropertyID::BorderLeftWidth, value);
+    if (property_id == CSS::PropertyID::BorderBlockWidth) {
+        assign_start_and_end_values(PropertyID::BorderBlockStartWidth, PropertyID::BorderBlockEndWidth, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::BorderInlineWidth) {
+        assign_start_and_end_values(PropertyID::BorderInlineStartWidth, PropertyID::BorderInlineEndWidth, value);
         return;
     }
 
     if (property_id == CSS::PropertyID::BorderColor) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::BorderTopColor, PropertyID::BorderRightColor, PropertyID::BorderBottomColor, PropertyID::BorderLeftColor, values_list.values());
-            return;
-        }
+        assign_edge_values(PropertyID::BorderTopColor, PropertyID::BorderRightColor, PropertyID::BorderBottomColor, PropertyID::BorderLeftColor, value);
+        return;
+    }
 
-        set_longhand_property(CSS::PropertyID::BorderTopColor, value);
-        set_longhand_property(CSS::PropertyID::BorderRightColor, value);
-        set_longhand_property(CSS::PropertyID::BorderBottomColor, value);
-        set_longhand_property(CSS::PropertyID::BorderLeftColor, value);
+    if (property_id == CSS::PropertyID::BorderBlockColor) {
+        assign_start_and_end_values(PropertyID::BorderBlockStartColor, PropertyID::BorderBlockEndColor, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::BorderInlineColor) {
+        assign_start_and_end_values(PropertyID::BorderInlineStartColor, PropertyID::BorderInlineEndColor, value);
         return;
     }
 
@@ -846,44 +759,47 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     }
 
     if (property_id == CSS::PropertyID::Inset) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left, values_list.values());
-            return;
-        }
+        assign_edge_values(PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left, value);
+        return;
+    }
 
-        set_longhand_property(CSS::PropertyID::Top, value);
-        set_longhand_property(CSS::PropertyID::Right, value);
-        set_longhand_property(CSS::PropertyID::Bottom, value);
-        set_longhand_property(CSS::PropertyID::Left, value);
+    if (property_id == CSS::PropertyID::InsetBlock) {
+        assign_start_and_end_values(PropertyID::InsetBlockStart, PropertyID::InsetBlockEnd, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::InsetInline) {
+        assign_start_and_end_values(PropertyID::InsetInlineStart, PropertyID::InsetInlineEnd, value);
         return;
     }
 
     if (property_id == CSS::PropertyID::Margin) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft, values_list.values());
-            return;
-        }
+        assign_edge_values(PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft, value);
+        return;
+    }
 
-        set_longhand_property(CSS::PropertyID::MarginTop, value);
-        set_longhand_property(CSS::PropertyID::MarginRight, value);
-        set_longhand_property(CSS::PropertyID::MarginBottom, value);
-        set_longhand_property(CSS::PropertyID::MarginLeft, value);
+    if (property_id == CSS::PropertyID::MarginBlock) {
+        assign_start_and_end_values(PropertyID::MarginBlockStart, PropertyID::MarginBlockEnd, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::MarginInline) {
+        assign_start_and_end_values(PropertyID::MarginInlineStart, PropertyID::MarginInlineEnd, value);
         return;
     }
 
     if (property_id == CSS::PropertyID::Padding) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::PaddingTop, PropertyID::PaddingRight, PropertyID::PaddingBottom, PropertyID::PaddingLeft, values_list.values());
-            return;
-        }
+        assign_edge_values(PropertyID::PaddingTop, PropertyID::PaddingRight, PropertyID::PaddingBottom, PropertyID::PaddingLeft, value);
+        return;
+    }
 
-        set_longhand_property(CSS::PropertyID::PaddingTop, value);
-        set_longhand_property(CSS::PropertyID::PaddingRight, value);
-        set_longhand_property(CSS::PropertyID::PaddingBottom, value);
-        set_longhand_property(CSS::PropertyID::PaddingLeft, value);
+    if (property_id == CSS::PropertyID::PaddingBlock) {
+        assign_start_and_end_values(PropertyID::PaddingBlockStart, PropertyID::PaddingBlockEnd, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::PaddingInline) {
+        assign_start_and_end_values(PropertyID::PaddingInlineStart, PropertyID::PaddingInlineEnd, value);
         return;
     }
 
@@ -899,86 +815,40 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
-    if (property_id == CSS::PropertyID::MaxInlineSize || property_id == CSS::PropertyID::MinInlineSize) {
-        // FIXME: Use writing-mode to determine if we should set width or height.
-        bool is_horizontal = true;
-
-        if (is_horizontal) {
-            if (property_id == CSS::PropertyID::MaxInlineSize) {
-                set_longhand_property(CSS::PropertyID::MaxWidth, value);
-            } else {
-                set_longhand_property(CSS::PropertyID::MinWidth, value);
-            }
-        } else {
-            if (property_id == CSS::PropertyID::MaxInlineSize) {
-                set_longhand_property(CSS::PropertyID::MaxHeight, value);
-            } else {
-                set_longhand_property(CSS::PropertyID::MinHeight, value);
-            }
-        }
-        return;
-    }
-
-    if (property_id == CSS::PropertyID::MaxBlockSize || property_id == CSS::PropertyID::MinBlockSize) {
-        // FIXME: Use writing-mode to determine if we should set width or height.
-        bool is_horizontal = true;
-
-        if (is_horizontal) {
-            if (property_id == CSS::PropertyID::MaxBlockSize) {
-                set_longhand_property(CSS::PropertyID::MaxHeight, value);
-            } else {
-                set_longhand_property(CSS::PropertyID::MinHeight, value);
-            }
-        } else {
-            if (property_id == CSS::PropertyID::MaxBlockSize) {
-                set_longhand_property(CSS::PropertyID::MaxWidth, value);
-            } else {
-                set_longhand_property(CSS::PropertyID::MinWidth, value);
-            }
-        }
-        return;
-    }
-
     if (property_id == CSS::PropertyID::Transition) {
-        if (!value.is_transition()) {
+        if (value.to_keyword() == Keyword::None) {
             // Handle `none` as a shorthand for `all 0s ease 0s`.
             set_longhand_property(CSS::PropertyID::TransitionProperty, CSSKeywordValue::create(Keyword::All));
             set_longhand_property(CSS::PropertyID::TransitionDuration, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionDelay, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionTimingFunction, EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()));
             set_longhand_property(CSS::PropertyID::TransitionBehavior, CSSKeywordValue::create(Keyword::Normal));
-            return;
-        }
-        auto const& transitions = value.as_transition().transitions();
-        Array<Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>, 5> transition_values;
-        for (auto const& transition : transitions) {
-            transition_values[0].append(*transition.property_name);
-            transition_values[1].append(transition.duration.as_style_value());
-            transition_values[2].append(transition.delay.as_style_value());
-            if (transition.easing)
-                transition_values[3].append(*transition.easing);
-            transition_values[4].append(CSSKeywordValue::create(to_keyword(transition.transition_behavior)));
+        } else if (value.is_transition()) {
+            auto const& transitions = value.as_transition().transitions();
+            Array<Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>, 5> transition_values;
+            for (auto const& transition : transitions) {
+                transition_values[0].append(*transition.property_name);
+                transition_values[1].append(transition.duration.as_style_value());
+                transition_values[2].append(transition.delay.as_style_value());
+                if (transition.easing)
+                    transition_values[3].append(*transition.easing);
+                transition_values[4].append(CSSKeywordValue::create(to_keyword(transition.transition_behavior)));
+            }
+
+            set_longhand_property(CSS::PropertyID::TransitionProperty, StyleValueList::create(move(transition_values[0]), StyleValueList::Separator::Comma));
+            set_longhand_property(CSS::PropertyID::TransitionDuration, StyleValueList::create(move(transition_values[1]), StyleValueList::Separator::Comma));
+            set_longhand_property(CSS::PropertyID::TransitionDelay, StyleValueList::create(move(transition_values[2]), StyleValueList::Separator::Comma));
+            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, StyleValueList::create(move(transition_values[3]), StyleValueList::Separator::Comma));
+            set_longhand_property(CSS::PropertyID::TransitionBehavior, StyleValueList::create(move(transition_values[4]), StyleValueList::Separator::Comma));
+        } else {
+            set_longhand_property(CSS::PropertyID::TransitionProperty, value);
+            set_longhand_property(CSS::PropertyID::TransitionDuration, value);
+            set_longhand_property(CSS::PropertyID::TransitionDelay, value);
+            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, value);
+            set_longhand_property(CSS::PropertyID::TransitionBehavior, value);
         }
 
-        set_longhand_property(CSS::PropertyID::TransitionProperty, StyleValueList::create(move(transition_values[0]), StyleValueList::Separator::Comma));
-        set_longhand_property(CSS::PropertyID::TransitionDuration, StyleValueList::create(move(transition_values[1]), StyleValueList::Separator::Comma));
-        set_longhand_property(CSS::PropertyID::TransitionDelay, StyleValueList::create(move(transition_values[2]), StyleValueList::Separator::Comma));
-        set_longhand_property(CSS::PropertyID::TransitionTimingFunction, StyleValueList::create(move(transition_values[3]), StyleValueList::Separator::Comma));
-        set_longhand_property(CSS::PropertyID::TransitionBehavior, StyleValueList::create(move(transition_values[4]), StyleValueList::Separator::Comma));
         return;
-    }
-
-    if (property_id == CSS::PropertyID::Float) {
-        auto keyword = value.to_keyword();
-
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        if (keyword == Keyword::InlineStart) {
-            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(Keyword::Left));
-            return;
-        } else if (keyword == Keyword::InlineEnd) {
-            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(Keyword::Right));
-            return;
-        }
     }
 
     if (property_is_shorthand(property_id)) {
@@ -996,57 +866,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     set_longhand_property(property_id, value);
 }
 
-void StyleComputer::set_property_expanding_shorthands(
-    CascadedProperties& cascaded_properties,
-    PropertyID property_id,
-    CSSStyleValue const& value,
-    GC::Ptr<CSSStyleDeclaration const> declaration,
-    CascadeOrigin cascade_origin,
-    Important important,
-    Optional<FlyString> layer_name)
-{
-    for_each_property_expanding_shorthands(property_id, value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
-        if (longhand_value.is_revert()) {
-            cascaded_properties.revert_property(longhand_id, important, cascade_origin);
-        } else if (longhand_value.is_revert_layer()) {
-            cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
-        } else {
-            cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration);
-        }
-    });
-}
-
-void StyleComputer::set_all_properties(
-    CascadedProperties& cascaded_properties,
-    DOM::Element& element,
-    Optional<PseudoElement> pseudo_element,
-    CSSStyleValue const& value,
-    DOM::Document& document,
-    GC::Ptr<CSSStyleDeclaration const> declaration,
-    CascadeOrigin cascade_origin,
-    Important important,
-    Optional<FlyString> layer_name) const
-{
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        auto property_id = (CSS::PropertyID)i;
-
-        if (value.is_revert()) {
-            cascaded_properties.revert_property(property_id, important, cascade_origin);
-            continue;
-        }
-
-        if (value.is_revert_layer()) {
-            cascaded_properties.revert_layer_property(property_id, important, layer_name);
-            continue;
-        }
-
-        NonnullRefPtr<CSSStyleValue const> property_value = value;
-        if (property_value->is_unresolved())
-            property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, pseudo_element, property_id, property_value->as_unresolved());
-        set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
-    }
-}
-
 void StyleComputer::cascade_declarations(
     CascadedProperties& cascaded_properties,
     DOM::Element& element,
@@ -1054,7 +873,8 @@ void StyleComputer::cascade_declarations(
     Vector<MatchingRule const*> const& matching_rules,
     CascadeOrigin cascade_origin,
     Important important,
-    Optional<FlyString> layer_name) const
+    Optional<FlyString> layer_name,
+    Optional<LogicalAliasMappingContext> logical_alias_mapping_context) const
 {
     auto seen_properties = MUST(Bitmap::create(to_underlying(last_property_id) + 1, false));
     auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
@@ -1091,12 +911,6 @@ void StyleComputer::cascade_declarations(
                 }
             }
 
-            if (property.property_id == PropertyID::All) {
-                set_all_properties(cascaded_properties, element, pseudo_element, property_value, m_document, &declaration, cascade_origin, important, layer_name);
-                continue;
-            }
-
-            // NOTE: This is a duplicate of set_property_expanding_shorthands() with some extra checks.
             for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
                 // If we're a PSV that's already been seen, that should mean that our shorthand already got
                 // resolved and gave us a value, so we don't want to overwrite it with a PSV.
@@ -1104,12 +918,22 @@ void StyleComputer::cascade_declarations(
                     return;
                 seen_properties.set(to_underlying(longhand_id), true);
 
-                if (longhand_value.is_revert()) {
-                    cascaded_properties.revert_property(longhand_id, important, cascade_origin);
-                } else if (longhand_value.is_revert_layer()) {
-                    cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
+                PropertyID physical_property_id;
+
+                if (property_is_logical_alias(longhand_id)) {
+                    if (!logical_alias_mapping_context.has_value())
+                        return;
+                    physical_property_id = map_logical_alias_to_physical_property(longhand_id, logical_alias_mapping_context.value());
                 } else {
-                    cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration);
+                    physical_property_id = longhand_id;
+                }
+
+                if (longhand_value.is_revert()) {
+                    cascaded_properties.revert_property(physical_property_id, important, cascade_origin);
+                } else if (longhand_value.is_revert_layer()) {
+                    cascaded_properties.revert_layer_property(physical_property_id, important, layer_name);
+                } else {
+                    cascaded_properties.set_property(physical_property_id, longhand_value, important, cascade_origin, layer_name, declaration);
                 }
             });
         }
@@ -1185,8 +1009,10 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             return keyframes.begin();
         }
         auto potential_match = keyframes.find_largest_not_above_iterator(key);
-        if (output_progress.value() >= 0) {
-            return --potential_match;
+        auto next = potential_match;
+        ++next;
+        if (next.is_end()) {
+            --potential_match;
         }
         return potential_match;
     }();
@@ -1207,15 +1033,63 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
     }
 
     // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
-    auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element](auto const& keyframe_values) {
+    auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element, this](auto const& keyframe_values) {
         HashMap<PropertyID, RefPtr<CSSStyleValue const>> result;
+        HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
+        auto property_is_set_by_use_initial = MUST(Bitmap::create(to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1, false));
+
+        auto property_is_logical_alias_including_shorthands = [&](PropertyID property_id) {
+            if (property_is_shorthand(property_id))
+                // NOTE: All expanded longhands for a logical alias shorthand are logical aliases so we only need to check the first one.
+                return property_is_logical_alias(expanded_longhands_for_shorthand(property_id)[0]);
+
+            return property_is_logical_alias(property_id);
+        };
+
+        // https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes
+        auto is_property_preferred = [&](PropertyID a, PropertyID b) {
+            // If conflicts arise when expanding shorthand properties or replacing logical properties with physical properties, apply the following rules in order until the conflict is resolved:
+            // 1. Longhand properties override shorthand properties (e.g. border-top-color overrides border-top).
+            if (property_is_shorthand(a) != property_is_shorthand(b))
+                return !property_is_shorthand(a);
+
+            // 2. Shorthand properties with fewer longhand components override those with more longhand components (e.g. border-top overrides border-color).
+            if (property_is_shorthand(a)) {
+                auto number_of_expanded_shorthands_a = expanded_longhands_for_shorthand(a).size();
+                auto number_of_expanded_shorthands_b = expanded_longhands_for_shorthand(b).size();
+
+                if (number_of_expanded_shorthands_a != number_of_expanded_shorthands_b)
+                    return number_of_expanded_shorthands_a < number_of_expanded_shorthands_b;
+            }
+
+            auto property_a_is_logical_alias = property_is_logical_alias_including_shorthands(a);
+            auto property_b_is_logical_alias = property_is_logical_alias_including_shorthands(b);
+
+            // 3. Physical properties override logical properties.
+            if (property_a_is_logical_alias != property_b_is_logical_alias)
+                return !property_a_is_logical_alias;
+
+            // 4. For shorthand properties with an equal number of longhand components, properties whose IDL name (see
+            //    the CSS property to IDL attribute algorithm [CSSOM]) appears earlier when sorted in ascending order
+            //    by the Unicode codepoints that make up each IDL name, override those who appear later.
+            return camel_case_string_from_property_id(a) < camel_case_string_from_property_id(b);
+        };
+
+        compute_font(computed_properties, &element, pseudo_element);
+        Length::FontMetrics font_metrics {
+            root_element_font_metrics_for_element(element).font_size,
+            computed_properties.first_available_computed_font().pixel_metrics()
+        };
         for (auto const& [property_id, value] : keyframe_values.properties) {
+            bool is_use_initial = false;
+
             auto style_value = value.visit(
                 [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<CSSStyleValue const> {
                     if (refresh == AnimationRefresh::Yes)
                         return {};
                     if (property_is_shorthand(property_id))
                         return {};
+                    is_use_initial = true;
                     return computed_properties.property(property_id);
                 },
                 [&](RefPtr<CSSStyleValue const> value) -> RefPtr<CSSStyleValue const> {
@@ -1227,13 +1101,31 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 continue;
             }
 
+            // If the style value is a PendingSubstitutionStyleValue we should skip it to avoid overwriting any value
+            // already set by resolving the relevant shorthand's value.
+            if (style_value->is_pending_substitution())
+                continue;
+
             if (style_value->is_revert() || style_value->is_revert_layer())
                 style_value = computed_properties.property(property_id);
             if (style_value->is_unresolved())
                 style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, property_id, style_value->as_unresolved());
 
-            for_each_property_expanding_shorthands(property_id, *style_value, [&result](PropertyID id, CSSStyleValue const& longhand_value) {
-                result.set(id, { longhand_value });
+            for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+                auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, LogicalAliasMappingContext { computed_properties.writing_mode(), computed_properties.direction() });
+                auto physical_longhand_id_bitmap_index = to_underlying(physical_longhand_id) - to_underlying(first_longhand_property_id);
+
+                // Don't overwrite values if this is the result of a UseInitial
+                if (result.contains(physical_longhand_id) && result.get(physical_longhand_id) != nullptr && is_use_initial)
+                    return;
+
+                // Don't overwrite unless the value was originally set by a UseInitial or this property is preferred over the one that set it originally
+                if (result.contains(physical_longhand_id) && result.get(physical_longhand_id) != nullptr && !property_is_set_by_use_initial.get(physical_longhand_id_bitmap_index) && !is_property_preferred(property_id, longhands_set_by_property_id.get(physical_longhand_id).value()))
+                    return;
+
+                longhands_set_by_property_id.set(physical_longhand_id, property_id);
+                property_is_set_by_use_initial.set(physical_longhand_id_bitmap_index, is_use_initial);
+                result.set(physical_longhand_id, { longhand_value.absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics) });
             });
         }
         return result;
@@ -1339,7 +1231,7 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
     effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(direction));
 
     if (play_state != effect.last_css_animation_play_state()) {
-        if (play_state == CSS::AnimationPlayState::Running && animation.play_state() == Bindings::AnimationPlayState::Paused) {
+        if (play_state == CSS::AnimationPlayState::Running && animation.play_state() != Bindings::AnimationPlayState::Running) {
             HTML::TemporaryExecutionContext context(document.realm());
             animation.play().release_value_but_fixme_should_propagate_errors();
         } else if (play_state == CSS::AnimationPlayState::Paused && animation.play_state() != Bindings::AnimationPlayState::Paused) {
@@ -1645,7 +1537,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
 
 // https://www.w3.org/TR/css-cascade/#cascading
 // https://drafts.csswg.org/css-cascade-5/#layering
-GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, bool& did_match_any_pseudo_element_rules, PseudoClassBitmap& attempted_pseudo_class_matches, ComputeStyleMode mode) const
+GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, bool& did_match_any_pseudo_element_rules, PseudoClassBitmap& attempted_pseudo_class_matches, ComputeStyleMode mode, Optional<LogicalAliasMappingContext> logical_alias_mapping_context) const
 {
     auto cascaded_properties = m_document->heap().allocate<CascadedProperties>();
 
@@ -1689,10 +1581,10 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
     // Then we apply the declarations from the matched rules in cascade order:
 
     // Normal user agent declarations
-    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {});
+    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {}, logical_alias_mapping_context);
 
     // Normal user declarations
-    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {});
+    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {}, logical_alias_mapping_context);
 
     // Author presentational hints
     // The spec calls this a special "Author presentational hint origin":
@@ -1715,23 +1607,23 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
     for (auto const& layer : matching_rule_set.author_rules) {
-        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name);
+        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, logical_alias_mapping_context);
     }
 
     // Important author declarations, with un-@layer-ed rules first, followed by each @layer in reverse order.
     for (auto const& layer : matching_rule_set.author_rules.in_reverse()) {
-        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes, {});
+        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes, {}, logical_alias_mapping_context);
     }
 
     // Important user declarations
-    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {});
+    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {}, logical_alias_mapping_context);
 
     // Important user agent declarations
-    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {});
+    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {}, logical_alias_mapping_context);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
-    // so they're not done here, but as the final step in compute_style_impl()
+    // so they're not done here, but as the final step in compute_properties()
 
     return cascaded_properties;
 }
@@ -2229,10 +2121,43 @@ void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* 
     }
 }
 
+LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(DOM::Element& element, Optional<PseudoElement> pseudo_element, ComputeStyleMode mode) const
+{
+    auto normalize_value = [&](auto property_id, auto value) {
+        if (!value || value->is_inherit() || value->is_unset()) {
+            if (auto const* inheritance_parent = element_to_inherit_style_from(&element, pseudo_element)) {
+                value = inheritance_parent->computed_properties()->property(property_id);
+            } else {
+                value = property_initial_value(property_id);
+            }
+        }
+
+        if (value->is_initial())
+            value = property_initial_value(property_id);
+
+        return value;
+    };
+
+    bool did_match_any_pseudo_element_rules = false;
+    PseudoClassBitmap attempted_pseudo_class_matches;
+
+    // FIXME: Ideally we wouldn't run the whole cascade just for these few properties.
+    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, attempted_pseudo_class_matches, mode, {});
+
+    auto writing_mode = normalize_value(PropertyID::WritingMode, cascaded_properties->property(PropertyID::WritingMode));
+    auto direction = normalize_value(PropertyID::Direction, cascaded_properties->property(PropertyID::Direction));
+
+    return LogicalAliasMappingContext {
+        .writing_mode = keyword_to_writing_mode(writing_mode->to_keyword()).release_value(),
+        .direction = keyword_to_direction(direction->to_keyword()).release_value()
+    };
+}
+
 Gfx::Font const& StyleComputer::initial_font() const
 {
     // FIXME: This is not correct.
-    return ComputedProperties::font_fallback(false, false, 12);
+    static auto font = ComputedProperties::font_fallback(false, false, 12);
+    return font;
 }
 
 void StyleComputer::absolutize_values(ComputedProperties& style, GC::Ptr<DOM::Element const> element) const
@@ -2242,8 +2167,17 @@ void StyleComputer::absolutize_values(ComputedProperties& style, GC::Ptr<DOM::El
         style.first_available_computed_font().pixel_metrics()
     };
 
-    auto font_size = style.property(CSS::PropertyID::FontSize).as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
+    // "A percentage value specifies an absolute font size relative to the parent element’s computed font-size. Negative percentages are invalid."
+    auto& font_size_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::FontSize)];
+    if (font_size_value_slot && font_size_value_slot->is_percentage()) {
+        auto parent_font_size = get_inherit_value(CSS::PropertyID::FontSize, element)->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
+        font_size_value_slot = LengthStyleValue::create(
+            Length::make_px(CSSPixels::nearest_value_for(parent_font_size * font_size_value_slot->as_percentage().percentage().as_fraction())));
+    }
+
+    auto font_size = font_size_value_slot->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
     font_metrics.font_size = font_size;
+    style.set_font_size({}, font_size);
 
     // NOTE: Percentage line-height values are relative to the font-size of the element.
     //       We have to resolve them right away, so that the *computed* line-height is ready for inheritance.
@@ -2505,8 +2439,8 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
     PseudoClassBitmap attempted_pseudo_class_matches;
-    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, attempted_pseudo_class_matches, mode);
-
+    auto logical_alias_mapping_context = compute_logical_alias_mapping_context(element, pseudo_element, mode);
+    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, attempted_pseudo_class_matches, mode, logical_alias_mapping_context);
     element.set_cascaded_properties(pseudo_element, cascaded_properties);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
@@ -2628,6 +2562,7 @@ RefPtr<CSSStyleValue const> StyleComputer::recascade_font_size_if_needed(
 
 GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& element, Optional<PseudoElement> pseudo_element, CascadedProperties& cascaded_properties) const
 {
+    DOM::AbstractElement abstract_element { element, pseudo_element };
     auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
 
     auto new_font_size = recascade_font_size_if_needed(element, pseudo_element, cascaded_properties);
@@ -2643,6 +2578,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
         if (property_id == PropertyID::FontSize && !value && new_font_size)
             continue;
 
+        // FIXME: Logical properties should inherit from their parent's equivalent unmapped logical property.
         if ((!value && is_inherited_property(property_id))
             || (value && value->is_inherit())) {
             if (auto inheritance_parent = element_to_inherit_style_from(&element, pseudo_element)) {
@@ -2712,11 +2648,6 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
 
                 effect->set_target(&element);
                 element.set_cached_animation_name_animation(animation, pseudo_element);
-
-                if (!element.has_inclusive_ancestor_with_display_none()) {
-                    HTML::TemporaryExecutionContext context(realm);
-                    animation->play().release_value_but_fixme_should_propagate_errors();
-                }
             } else {
                 // The animation hasn't changed, but some properties of the animation may have
                 if (auto animation = element.cached_animation_name_animation(pseudo_element); animation)
@@ -2744,6 +2675,9 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
             }
         }
     }
+
+    // Compute the value of custom properties
+    compute_custom_properties(computed_style, abstract_element);
 
     // 2. Compute the math-depth property, since that might affect the font-size
     compute_math_depth(computed_style, &element, pseudo_element);
@@ -3153,6 +3087,63 @@ void StyleComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     }
 }
 
+NonnullRefPtr<CSSStyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
+{
+    // https://drafts.csswg.org/css-variables/#propdef-
+    // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
+    // FIXME: These should probably be part of ComputedProperties.
+
+    auto value = abstract_element.get_custom_property(name);
+    if (!value)
+        return GuaranteedInvalidStyleValue::create();
+
+    // Initial value is the guaranteed-invalid value.
+    if (value->is_initial())
+        return GuaranteedInvalidStyleValue::create();
+
+    // Unset is the same as inherit for inherited properties, and by default all custom properties are inherited.
+    // FIXME: Update handling of css-wide keywords once we support @property properly.
+    if (value->is_inherit() || value->is_unset()) {
+        auto inherited_value = DOM::AbstractElement { const_cast<DOM::Element&>(*abstract_element.parent_element()) }.get_custom_property(name);
+        if (!inherited_value)
+            return GuaranteedInvalidStyleValue::create();
+        return inherited_value.release_nonnull();
+    }
+
+    if (value->is_revert()) {
+        // FIXME: Implement reverting custom properties.
+    }
+    if (value->is_revert_layer()) {
+        // FIXME: Implement reverting custom properties.
+    }
+
+    if (!value->is_unresolved() || !value->as_unresolved().contains_arbitrary_substitution_function())
+        return value.release_nonnull();
+
+    auto& unresolved = value->as_unresolved();
+    return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams {}, abstract_element.element(), abstract_element.pseudo_element(), name, unresolved, guarded_contexts);
+}
+
+void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::AbstractElement abstract_element) const
+{
+    // https://drafts.csswg.org/css-variables/#propdef-
+    // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
+    // FIXME: These should probably be part of ComputedProperties.
+    auto custom_properties = abstract_element.custom_properties();
+    decltype(custom_properties) resolved_custom_properties;
+
+    for (auto const& [name, style_property] : custom_properties) {
+        resolved_custom_properties.set(name,
+            StyleProperty {
+                .important = style_property.important,
+                .property_id = style_property.property_id,
+                .value = compute_value_of_custom_property(abstract_element, name),
+                .custom_name = style_property.custom_name,
+            });
+    }
+    abstract_element.set_custom_properties(move(resolved_custom_properties));
+}
+
 void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
 {
     // https://w3c.github.io/mathml-core/#propdef-math-depth
@@ -3343,7 +3334,7 @@ void RuleCache::for_each_matching_rules(DOM::Element const& element, Optional<Ps
                 return;
         }
     }
-    if (auto it = rules_by_tag_name.find(element.local_name()); it != rules_by_tag_name.end()) {
+    if (auto it = rules_by_tag_name.find(element.lowercased_local_name()); it != rules_by_tag_name.end()) {
         if (callback(it->value) == IterationDecision::Break)
             return;
     }

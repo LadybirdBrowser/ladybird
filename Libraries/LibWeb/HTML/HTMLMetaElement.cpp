@@ -121,7 +121,7 @@ void HTMLMetaElement::inserted()
             if (!has_attribute(AttributeNames::content))
                 break;
 
-            // 2. If the element's content attribute contains a U+002C COMMA character (,) then return.
+            // 2. If the element's content attribute contains a U+002C COMMA character (,), then return.
             auto content = get_attribute_value(AttributeNames::content);
             if (content.contains(","sv))
                 break;

@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class ObjectPrototype final : public Object {
+class JS_API ObjectPrototype final : public Object {
     JS_OBJECT(ObjectPrototype, Object);
     GC_DECLARE_ALLOCATOR(ObjectPrototype);
 

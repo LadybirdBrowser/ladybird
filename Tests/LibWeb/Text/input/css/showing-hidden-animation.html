@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<style>
+    #paused, #running, #pseudo::before, #pseudo::after {
+        width: 100px;
+        height: 100px;
+        background-color: #3498db;
+        position: relative;
+        animation: moveRight 1s linear;
+        animation-iteration-count: infinite;
+    }
+
+    #paused {
+        animation-play-state: paused;
+    }
+
+    #running {
+        animation-play-state: running;
+    }
+
+    #pseudo::before {
+        content: 'running';
+        animation-play-state: running;
+    }
+
+    #pseudo::after {
+        content: 'paused';
+        animation-play-state: paused;
+    }
+
+    @keyframes moveRight {
+        0% {
+            left: 0;
+        }
+
+        100% {
+            left: 100px;
+        }
+    }
+</style>
+
+<body>
+    <script src="../include.js"></script>
+    <div id="outer" style="display: none;">
+        <div id="paused"></div>
+        <div id="running"></div>
+        <div id="pseudo"></div>
+    </div>
+    <script>
+        asyncTest((done) => {
+            setTimeout(() => {
+                document.getElementById("outer").style.display = "block";
+                println(document.getElementById("paused").getAnimations()[0].playState);
+                println(document.getElementById("running").getAnimations()[0].playState);
+                println(document.getElementById("pseudo").getAnimations()[0].playState);
+                println(document.getElementById("pseudo").getAnimations()[1].playState);
+                done();
+            }, 100);
+        });
+    </script>

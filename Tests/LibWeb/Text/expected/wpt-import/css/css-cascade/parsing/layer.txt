@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	@layer A; should be a valid rule
+Pass	@layer A, B, C; should be a valid rule
+Pass	@layer A.A; should be a valid rule
+Pass	@layer A, B.C.D, C; should be a valid rule
+Pass	@layer; should be an invalid rule
+Pass	@layer A . A; should be an invalid rule
+Pass	@layer {
+} should be a valid rule
+Pass	@layer A {
+} should be a valid rule
+Pass	@layer A.B {
+} should be a valid rule
+Pass	@layer A . B {
+} should be an invalid rule
+Pass	@layer A, B, C {
+} should be an invalid rule

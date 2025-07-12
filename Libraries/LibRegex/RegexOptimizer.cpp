@@ -28,8 +28,6 @@ using Detail::Block;
 template<typename Parser>
 void Regex<Parser>::run_optimization_passes()
 {
-    parser_result.bytecode.flatten();
-
     rewrite_with_useless_jumps_removed();
 
     auto blocks = split_basic_blocks(parser_result.bytecode);
@@ -225,8 +223,11 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
             if (!compares.char_classes.is_empty() || !compares.negated_char_classes.is_empty() || !compares.negated_ranges.is_empty())
                 return;
 
-            for (auto it = compares.ranges.begin(); it != compares.ranges.end(); ++it)
+            for (auto it = compares.ranges.begin(); it != compares.ranges.end(); ++it) {
                 parser_result.optimization_data.starting_ranges.append({ it.key(), *it });
+                parser_result.optimization_data.starting_ranges_insensitive.append({ to_ascii_lowercase(it.key()), to_ascii_lowercase(*it) });
+                quick_sort(parser_result.optimization_data.starting_ranges_insensitive, [](CharRange a, CharRange b) { return a.from < b.from; });
+            }
             return;
         }
         case OpCodeId::CheckBegin:
@@ -1015,8 +1016,10 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
         AlternateForm form;
     };
     Vector<CandidateBlock> candidate_blocks;
+    auto state = MatchState::only_for_enumeration();
 
-    auto is_an_eligible_jump = [](OpCode const& opcode, size_t ip, size_t block_start, AlternateForm alternate_form) {
+    auto is_an_eligible_jump = [&state](OpCode& opcode, size_t ip, size_t block_start, AlternateForm alternate_form) {
+        opcode.set_state(state);
         switch (opcode.opcode_id()) {
         case OpCodeId::JumpNonEmpty: {
             auto const& op = static_cast<OpCode_JumpNonEmpty const&>(opcode);
@@ -1051,7 +1054,6 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
         Optional<Block> fork_fallback_block;
         if (i + 1 < basic_blocks.size())
             fork_fallback_block = basic_blocks[i + 1];
-        auto state = MatchState::only_for_enumeration();
         // Check if the last instruction in this block is a jump to the block itself:
         {
             state.instruction_position = forking_block.end;
@@ -1864,10 +1866,13 @@ void Optimizer::append_character_class(ByteCode& target, Vector<CompareTypeAndVa
             auto append_table = [&](auto& table) {
                 ++argument_count;
                 arguments.append(to_underlying(CharacterCompareType::LookupTable));
-                auto size_index = arguments.size();
+                auto sensitive_size_index = arguments.size();
+                auto insensitive_size_index = sensitive_size_index + 1;
                 arguments.append(0);
+                arguments.append(0);
+
                 Optional<CharRange> active_range;
-                size_t range_count = 0;
+                Vector<ByteCodeValueType> range_data;
                 for (auto& range : table) {
                     if (!active_range.has_value()) {
                         active_range = range;
@@ -1877,16 +1882,25 @@ void Optimizer::append_character_class(ByteCode& target, Vector<CompareTypeAndVa
                     if (range.from <= active_range->to + 1 && range.to + 1 >= active_range->from) {
                         active_range = CharRange { min(range.from, active_range->from), max(range.to, active_range->to) };
                     } else {
-                        ++range_count;
-                        arguments.append(active_range.release_value());
+                        range_data.append(active_range.release_value());
                         active_range = range;
                     }
                 }
-                if (active_range.has_value()) {
-                    ++range_count;
-                    arguments.append(active_range.release_value());
+                if (active_range.has_value())
+                    range_data.append(active_range.release_value());
+                arguments.extend(range_data);
+                arguments[sensitive_size_index] = range_data.size();
+
+                if (!all_of(range_data, [](CharRange range) { return range.from == to_ascii_lowercase(range.from) && range.to == to_ascii_lowercase(range.to); })) {
+                    Vector<ByteCodeValueType> insensitive_data;
+                    insensitive_data.ensure_capacity(range_data.size());
+                    for (CharRange range : range_data)
+                        insensitive_data.append(CharRange { to_ascii_lowercase(range.from), to_ascii_lowercase(range.to) });
+                    quick_sort(insensitive_data, [](CharRange a, CharRange b) { return a.from < b.from; });
+
+                    arguments.extend(insensitive_data);
+                    arguments[insensitive_size_index] = insensitive_data.size();
                 }
-                arguments[size_index] = range_count;
             };
 
             auto contains_regular_table = !table.is_empty();

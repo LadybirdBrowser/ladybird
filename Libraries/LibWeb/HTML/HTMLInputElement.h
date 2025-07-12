@@ -80,6 +80,7 @@ public:
     String default_value() const { return get_attribute_value(HTML::AttributeNames::value); }
 
     virtual String value() const override;
+    virtual Optional<String> optional_value() const override;
     WebIDL::ExceptionOr<void> set_value(String const&);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value

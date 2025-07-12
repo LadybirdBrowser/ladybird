@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 42 tests
+Found 45 tests
 
-38 Pass
-4 Fail
+42 Pass
+3 Fail
 Pass	clip-path presentation attribute supported on an unknown SVG element
 Pass	clip-rule presentation attribute supported on an unknown SVG element
 Pass	color presentation attribute supported on an unknown SVG element
@@ -13,7 +13,9 @@ Pass	display presentation attribute supported on an unknown SVG element
 Pass	fill presentation attribute supported on an unknown SVG element
 Pass	fill-opacity presentation attribute supported on an unknown SVG element
 Pass	fill-rule presentation attribute supported on an unknown SVG element
-Fail	filter presentation attribute supported on an unknown SVG element
+Pass	filter presentation attribute supported on an unknown SVG element
+Pass	flood-color presentation attribute supported on an unknown SVG element
+Pass	flood-opacity presentation attribute supported on an unknown SVG element
 Pass	font-family presentation attribute supported on an unknown SVG element
 Pass	font-size presentation attribute supported on an unknown SVG element
 Fail	font-stretch presentation attribute supported on an unknown SVG element
@@ -40,6 +42,7 @@ Pass	stroke-width presentation attribute supported on an unknown SVG element
 Pass	text-anchor presentation attribute supported on an unknown SVG element
 Fail	text-decoration presentation attribute supported on an unknown SVG element
 Pass	text-overflow presentation attribute supported on an unknown SVG element
+Pass	text-rendering presentation attribute supported on an unknown SVG element
 Pass	transform-origin presentation attribute supported on an unknown SVG element
 Pass	unicode-bidi presentation attribute supported on an unknown SVG element
 Pass	visibility presentation attribute supported on an unknown SVG element

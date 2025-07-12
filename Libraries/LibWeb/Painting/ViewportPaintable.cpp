@@ -81,8 +81,8 @@ void ViewportPaintable::assign_scroll_frames()
             }
             sticky_scroll_frame = m_scroll_state.create_sticky_frame_for(paintable_box, parent_scroll_frame);
 
-            const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(sticky_scroll_frame);
-            const_cast<PaintableBox&>(paintable_box).set_own_scroll_frame(sticky_scroll_frame);
+            paintable_box.set_enclosing_scroll_frame(sticky_scroll_frame);
+            paintable_box.set_own_scroll_frame(sticky_scroll_frame);
         }
 
         if (paintable_box.has_scrollable_overflow() || is<ViewportPaintable>(paintable_box)) {
@@ -99,19 +99,15 @@ void ViewportPaintable::assign_scroll_frames()
         return TraversalDecision::Continue;
     });
 
-    for_each_in_subtree([&](auto const& paintable) {
-        if (paintable.is_fixed_position()) {
+    for_each_in_subtree([&](auto& paintable) {
+        if (paintable.is_fixed_position() || paintable.is_sticky_position())
             return TraversalDecision::Continue;
-        }
-        if (paintable.is_sticky_position()) {
-            return TraversalDecision::Continue;
-        }
+
         for (auto block = paintable.containing_block(); block; block = block->containing_block()) {
             if (auto scroll_frame = block->own_scroll_frame(); scroll_frame) {
-                if (paintable.is_paintable_box()) {
-                    auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
-                    const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(*scroll_frame);
-                }
+                if (auto* paintable_box = as_if<PaintableBox>(paintable))
+                    paintable_box->set_enclosing_scroll_frame(*scroll_frame);
+
                 return TraversalDecision::Continue;
             }
             if (block->is_fixed_position()) {
@@ -136,18 +132,18 @@ void ViewportPaintable::assign_clip_frames()
         return TraversalDecision::Continue;
     });
 
-    for_each_in_subtree([&](auto const& paintable) {
+    for_each_in_subtree([&](auto& paintable) {
         if (paintable.is_paintable_box()) {
-            auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
+            auto& paintable_box = static_cast<PaintableBox&>(paintable);
             if (auto clip_frame = clip_state.get(paintable_box); clip_frame.has_value()) {
-                const_cast<PaintableBox&>(paintable_box).set_own_clip_frame(clip_frame.value());
+                paintable_box.set_own_clip_frame(clip_frame.value());
             }
         }
         for (auto block = paintable.containing_block(); !block->is_viewport(); block = block->containing_block()) {
             if (auto clip_frame = clip_state.get(block); clip_frame.has_value()) {
                 if (paintable.is_paintable_box()) {
-                    auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
-                    const_cast<PaintableBox&>(paintable_box).set_enclosing_clip_frame(clip_frame.value());
+                    auto& paintable_box = static_cast<PaintableBox&>(paintable);
+                    paintable_box.set_enclosing_clip_frame(clip_frame.value());
                 }
                 break;
             }
@@ -366,19 +362,23 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 
     // 4. Mark the selection end node as End (if text) or Full (if anything else).
     if (auto* paintable = end_container->paintable(); paintable && !range.end().node->is_inert()) {
-        if (is<DOM::Text>(*end_container) || end_container->is_ancestor_of(start_container)) {
+        if (is<DOM::Text>(*end_container))
             paintable->set_selection_state(SelectionState::End);
-        } else {
-            paintable->for_each_in_inclusive_subtree([&](auto& layout_node) {
-                if (!layout_node.dom_node() || !layout_node.dom_node()->is_inert())
-                    layout_node.set_selection_state(SelectionState::Full);
-                return TraversalDecision::Continue;
-            });
-        }
+        else
+            paintable->set_selection_state(SelectionState::Full);
     }
 
     // 5. Mark the nodes between start node and end node (in tree order) as Full.
-    for (auto* node = start_container->next_in_pre_order(); node && (node->is_before(end_container) || node->is_descendant_of(end_container)); node = node->next_in_pre_order()) {
+    // NOTE: If the start node is a descendant of the end node, we cannot traverse from it to the end node since the end node is before it in tree order.
+    //       Instead, we need to stop traversal somewhere inside the end node, or right after it.
+    DOM::Node* stop_at;
+    if (start_container->is_descendant_of(end_container)) {
+        stop_at = end_container->child_at_index(range.end_offset());
+    } else {
+        stop_at = end_container;
+    }
+
+    for (auto* node = start_container->next_in_pre_order(); node && node != stop_at; node = node->next_in_pre_order(end_container)) {
         if (node->is_inert())
             continue;
         if (auto* paintable = node->paintable())
@@ -395,6 +395,7 @@ void ViewportPaintable::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(clip_state);
+    visitor.visit(m_paintable_boxes_with_auto_content_visibility);
 }
 
 }

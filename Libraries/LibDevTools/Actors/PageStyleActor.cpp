@@ -16,18 +16,21 @@
 
 namespace DevTools {
 
-static void received_layout(JsonObject& response, JsonObject const& node_box_sizing)
+static void received_layout(JsonObject& response, JsonValue const& node_box_sizing)
 {
+    if (!node_box_sizing.is_object())
+        return;
+
     response.set("autoMargins"sv, JsonObject {});
 
     auto pixel_value = [&](auto key) {
-        return node_box_sizing.get_double_with_precision_loss(key).value_or(0);
+        return node_box_sizing.as_object().get_double_with_precision_loss(key).value_or(0);
     };
     auto set_pixel_value = [&](auto key) {
         response.set(key, MUST(String::formatted("{}px", pixel_value(key))));
     };
     auto set_computed_value = [&](auto key) {
-        response.set(key, node_box_sizing.get_string(key).value_or(String {}));
+        response.set(key, node_box_sizing.as_object().get_string(key).value_or(String {}));
     };
 
     // FIXME: This response should also contain "top", "right", "bottom", and "left", but our box model metrics in
@@ -59,47 +62,51 @@ static void received_layout(JsonObject& response, JsonObject const& node_box_siz
     set_computed_value("z-index"sv);
 }
 
-static void received_computed_style(JsonObject& response, JsonObject const& computed_style)
+static void received_computed_style(JsonObject& response, JsonValue const& computed_style)
 {
     JsonObject computed;
 
-    computed_style.for_each_member([&](String const& name, JsonValue const& value) {
-        JsonObject property;
-        property.set("matched"sv, true);
-        property.set("value"sv, value);
-        computed.set(name, move(property));
-    });
+    if (computed_style.is_object()) {
+        computed_style.as_object().for_each_member([&](String const& name, JsonValue const& value) {
+            JsonObject property;
+            property.set("matched"sv, true);
+            property.set("value"sv, value);
+            computed.set(name, move(property));
+        });
+    }
 
     response.set("computed"sv, move(computed));
 }
 
-static void received_fonts(JsonObject& response, JsonArray const& fonts)
+static void received_fonts(JsonObject& response, JsonValue const& fonts)
 {
     JsonArray font_faces;
 
-    fonts.for_each([&](JsonValue const& font) {
-        if (!font.is_object())
-            return;
+    if (fonts.is_array()) {
+        fonts.as_array().for_each([&](JsonValue const& font) {
+            if (!font.is_object())
+                return;
 
-        auto name = font.as_object().get_string("name"sv).value_or({});
-        auto weight = font.as_object().get_integer<i64>("weight"sv).value_or(0);
+            auto name = font.as_object().get_string("name"sv).value_or({});
+            auto weight = font.as_object().get_integer<i64>("weight"sv).value_or(0);
 
-        JsonObject font_face;
-        font_face.set("CSSFamilyName"sv, name);
-        font_face.set("CSSGeneric"sv, JsonValue {});
-        font_face.set("format"sv, ""sv);
-        font_face.set("localName"sv, ""sv);
-        font_face.set("metadata"sv, ""sv);
-        font_face.set("name"sv, name);
-        font_face.set("srcIndex"sv, -1);
-        font_face.set("style"sv, ""sv);
-        font_face.set("URI"sv, ""sv);
-        font_face.set("variationAxes"sv, JsonArray {});
-        font_face.set("variationInstances"sv, JsonArray {});
-        font_face.set("weight"sv, weight);
+            JsonObject font_face;
+            font_face.set("CSSFamilyName"sv, name);
+            font_face.set("CSSGeneric"sv, JsonValue {});
+            font_face.set("format"sv, ""sv);
+            font_face.set("localName"sv, ""sv);
+            font_face.set("metadata"sv, ""sv);
+            font_face.set("name"sv, name);
+            font_face.set("srcIndex"sv, -1);
+            font_face.set("style"sv, ""sv);
+            font_face.set("URI"sv, ""sv);
+            font_face.set("variationAxes"sv, JsonArray {});
+            font_face.set("variationInstances"sv, JsonArray {});
+            font_face.set("weight"sv, weight);
 
-        font_faces.must_append(move(font_face));
-    });
+            font_faces.must_append(move(font_face));
+        });
+    }
 
     response.set("fontFaces"sv, move(font_faces));
 }
@@ -209,16 +216,13 @@ void PageStyleActor::received_dom_node_properties(WebView::DOMNodeProperties con
 
     switch (properties.type) {
     case WebView::DOMNodeProperties::Type::ComputedStyle:
-        if (properties.properties.is_object())
-            received_computed_style(response, properties.properties.as_object());
+        received_computed_style(response, properties.properties);
         break;
     case WebView::DOMNodeProperties::Type::Layout:
-        if (properties.properties.is_object())
-            received_layout(response, properties.properties.as_object());
+        received_layout(response, properties.properties);
         break;
     case WebView::DOMNodeProperties::Type::UsedFonts:
-        if (properties.properties.is_array())
-            received_fonts(response, properties.properties.as_array());
+        received_fonts(response, properties.properties);
         break;
     }
 

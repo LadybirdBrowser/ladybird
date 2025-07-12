@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<title>Form validation features of ElementInternals, and :valid :invalid pseudo classes</title>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="container"></div>
+<script>
+class MyControl extends HTMLElement {
+  static get formAssociated() { return true; }
+
+  constructor() {
+    super();
+    this.internals_ = this.attachInternals();
+  }
+  get i() { return this.internals_; }
+}
+customElements.define('my-control', MyControl);
+
+class NotFormAssociatedElement extends HTMLElement {
+  constructor() {
+    super();
+    this.internals_ = this.attachInternals();
+  }
+  get i() { return this.internals_; }
+}
+customElements.define('not-form-associated-element', NotFormAssociatedElement);
+
+test(() => {
+  const control = new MyControl();
+  assert_true(control.i.willValidate, 'default value is true');
+
+  const datalist = document.createElement('datalist');
+  datalist.appendChild(control);
+  assert_false(control.i.willValidate, 'false in DATALIST');
+  datalist.removeChild(control);
+  assert_true(control.i.willValidate, 'remove from DATALIST');
+
+  const fieldset = document.createElement('fieldset');
+  fieldset.disabled = true;
+  fieldset.appendChild(control);
+  assert_false(control.i.willValidate, 'append to disabled FIELDSET');
+  fieldset.disabled = false;
+  assert_true(control.i.willValidate, 'FIELDSET becomes enabled');
+  fieldset.disabled = true;
+  assert_false(control.i.willValidate, 'FIELDSET becomes disabled');
+  fieldset.removeChild(control);
+  assert_true(control.i.willValidate, 'remove from disabled FIELDSET');
+
+  control.setAttribute('disabled', '');
+  assert_false(control.i.willValidate, 'with disabled attribute');
+  control.removeAttribute('disabled');
+  assert_true(control.i.willValidate, 'without disabled attribute');
+
+  control.setAttribute('readonly', '');
+  assert_false(control.i.willValidate, 'with readonly attribute');
+  control.removeAttribute('readonly');
+  assert_true(control.i.willValidate, 'without readonly attribute');
+}, 'willValidate');
+
+test(() => {
+  const container = document.getElementById("container");
+  container.innerHTML = '<will-be-defined></will-be-defined>' +
+                        '<will-be-defined disabled></will-be-defined>' +
+                        '<will-be-defined readonly></will-be-defined>' +
+                        '<datalist><will-be-defined></will-be-defined></datalist>' +
+                        '<fieldset disabled><will-be-defined></will-be-defined></fieldset>';
+
+  class WillBeDefined extends HTMLElement {
+    static get formAssociated() { return true; }
+
+    constructor() {
+      super();
+      this.internals_ = this.attachInternals();
+    }
+    get i() { return this.internals_; }
+  }
+  customElements.define('will-be-defined', WillBeDefined);
+  customElements.upgrade(container);
+
+  const controls = document.querySelectorAll('will-be-defined');
+  assert_true(controls[0].i.willValidate, 'default value');
+  assert_false(controls[1].i.willValidate, 'with disabled attribute');
+  assert_false(controls[2].i.willValidate, 'with readOnly attribute');
+  assert_false(controls[3].i.willValidate, 'in datalist');
+  assert_false(controls[4].i.willValidate, 'in disabled fieldset');
+}, 'willValidate after upgrade');
+
+test(t => {
+  const control = document.createElement('will-be-defined-2');
+
+  customElements.define('will-be-defined-2', class extends HTMLElement {
+    static get formAssociated() { return true; }
+  });
+
+  container.append(control);
+  t.add_cleanup(() => { container.innerHTML = ''; });
+
+  const i = control.attachInternals();
+  assert_true(i.willValidate);
+}, 'willValidate after upgrade (document.createElement)');
+
+test(() => {
+  const element = new NotFormAssociatedElement();
+  assert_throws_dom('NotSupportedError', () => element.i.willValidate);
+}, "willValidate should throw NotSupportedError if the target element is not a form-associated custom element");
+
+test(() => {
+  const control = document.createElement('my-control');
+  const validity = control.i.validity;
+  assert_false(validity.valueMissing, 'default valueMissing');
+  assert_false(validity.typeMismatch, 'default typeMismatch');
+  assert_false(validity.patternMismatch, 'default patternMismatch');
+  assert_false(validity.tooLong, 'default tooLong');
+  assert_false(validity.tooShort, 'default tooShort');
+  assert_false(validity.rangeUnderflow, 'default rangeUnderflow');
+  assert_false(validity.rangeOverflow, 'default rangeOverflow');
+  assert_false(validity.stepMismatch, 'default stepMismatch');
+  assert_false(validity.badInput, 'default badInput');
+  assert_false(validity.customError, 'default customError');
+  assert_true(validity.valid, 'default valid');
+
+  control.i.setValidity({valueMissing: true}, 'valueMissing message');
+  assert_true(validity.valueMissing);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'valueMissing message');
+
+  control.i.setValidity({typeMismatch: true}, 'typeMismatch message');
+  assert_true(validity.typeMismatch);
+  assert_false(validity.valueMissing);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'typeMismatch message');
+
+  control.i.setValidity({patternMismatch: true}, 'patternMismatch message');
+  assert_true(validity.patternMismatch);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'patternMismatch message');
+
+  control.i.setValidity({tooLong: true}, 'tooLong message');
+  assert_true(validity.tooLong);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'tooLong message');
+
+  control.i.setValidity({tooShort: true}, 'tooShort message');
+  assert_true(validity.tooShort);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'tooShort message');
+
+  control.i.setValidity({rangeUnderflow: true}, 'rangeUnderflow message');
+  assert_true(validity.rangeUnderflow);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'rangeUnderflow message');
+
+  control.i.setValidity({rangeOverflow: true}, 'rangeOverflow message');
+  assert_true(validity.rangeOverflow);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'rangeOverflow message');
+
+  control.i.setValidity({stepMismatch: true}, 'stepMismatch message');
+  assert_true(validity.stepMismatch);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'stepMismatch message');
+
+  control.i.setValidity({badInput: true}, 'badInput message');
+  assert_true(validity.badInput);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'badInput message');
+
+  control.i.setValidity({customError: true}, 'customError message');
+  assert_true(validity.customError, 'customError should be true.');
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'customError message');
+
+  // Set multiple flags
+  control.i.setValidity({badInput: true, customError: true}, 'multiple errors');
+  assert_true(validity.badInput);
+  assert_true(validity.customError);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'multiple errors');
+
+  // Clear flags
+  control.i.setValidity({}, 'unnecessary message');
+  assert_false(validity.badInput);
+  assert_false(validity.customError);
+  assert_true(validity.valid);
+  assert_equals(control.i.validationMessage, '');
+
+  assert_throws_js(TypeError, () => { control.i.setValidity({valueMissing: true}); },
+      'setValidity() requires the second argument if the first argument contains true');
+}, 'validity and setValidity()');
+
+test(() => {
+  const control = document.createElement('my-control');
+  control.i.setValidity({badInput: true}, 'error message');
+  const validity = control.i.validity;
+  assert_false(validity.customError);
+  assert_false(validity.valid);
+  assert_equals(control.i.validationMessage, 'error message');
+}, "validity.customError should be false if not explicitly set via setValidity()");
+
+test(() => {
+  document.body.insertAdjacentHTML('afterbegin', '<my-control><light-child></my-control>');
+  let control = document.body.firstChild;
+  const flags = {valueMissing: true};
+  const m = 'non-empty message';
+
+  assert_throws_dom('NotFoundError', () => {
+    control.i.setValidity(flags, m, document.body);
+  }, 'Not a descendant');
+
+  let notHTMLElement = document.createElementNS('some-random-namespace', 'foo');
+  control.appendChild(notHTMLElement);
+  assert_throws_js(TypeError, () => {
+    control.i.setValidity(flags, m, notHTMLElement);
+  }, 'Not a HTMLElement');
+  notHTMLElement.remove();
+
+  // A descendant
+  control.i.setValidity(flags, m, control.querySelector('light-child'));
+
+  // An element in the direct shadow tree
+  let shadow1 = control.attachShadow({mode: 'open'});
+  let shadowChild = document.createElement('div');
+  shadow1.appendChild(shadowChild);
+  control.i.setValidity(flags, m, shadowChild);
+
+  // An element in an nested shadow trees
+  let shadow2 = shadowChild.attachShadow({mode: 'closed'});
+  let nestedShadowChild = document.createElement('span');
+  shadow2.appendChild(nestedShadowChild);
+  control.i.setValidity(flags, m, nestedShadowChild);
+}, '"anchor" argument of setValidity()');
+
+test(t => {
+  const control = document.createElement('my-control');
+  document.body.appendChild(control);
+  t.add_cleanup(() => control.remove());
+  const flags = {valueMissing: true};
+  const m = 'non-empty message';
+
+  // Self
+  control.i.setValidity(flags, m, control);
+}, '"anchor" argument of setValidity(): passing self');
+
+test(() => {
+  const element = new NotFormAssociatedElement();
+  assert_throws_dom('NotSupportedError', () => element.i.checkValidity());
+}, "checkValidity() should throw NotSupportedError if the target element is not a form-associated custom element");
+
+test(() => {
+  const control = document.createElement('my-control');
+  let invalidCount = 0;
+  control.addEventListener('invalid', e => {
+    assert_equals(e.target, control);
+    assert_true(e.cancelable);
+    ++invalidCount;
+  });
+
+  assert_true(control.i.checkValidity(), 'default state');
+  assert_equals(invalidCount, 0);
+
+  control.i.setValidity({customError:true}, 'foo');
+  assert_false(control.i.checkValidity());
+  assert_equals(invalidCount, 1);
+}, 'checkValidity()');
+
+test(() => {
+  const element = new NotFormAssociatedElement();
+  assert_throws_dom('NotSupportedError', () => element.i.reportValidity());
+}, "reportValidity() should throw NotSupportedError if the target element is not a form-associated custom element");
+
+test(() => {
+  const control = document.createElement('my-control');
+  document.body.appendChild(control);
+  control.tabIndex = 0;
+  let invalidCount = 0;
+  control.addEventListener('invalid', e => {
+    assert_equals(e.target, control);
+    assert_true(e.cancelable);
+    ++invalidCount;
+  });
+
+  assert_true(control.i.reportValidity(), 'default state');
+  assert_equals(invalidCount, 0);
+
+  control.i.setValidity({customError:true}, 'foo');
+  assert_false(control.i.reportValidity());
+  assert_equals(invalidCount, 1);
+
+  control.blur();
+  control.addEventListener('invalid', e => e.preventDefault());
+  assert_false(control.i.reportValidity());
+}, 'reportValidity()');
+
+test(() => {
+  const container = document.getElementById('container');
+  container.innerHTML = '<form><input type=submit><my-control>';
+  const form = container.querySelector('form');
+  const control = container.querySelector('my-control');
+  control.tabIndex = 0;
+  let invalidCount = 0;
+  control.addEventListener('invalid', e => { ++invalidCount; });
+
+  assert_true(control.i.checkValidity());
+  assert_true(form.checkValidity());
+  control.i.setValidity({valueMissing: true}, 'Please fill out this field');
+  assert_false(form.checkValidity());
+  assert_equals(invalidCount, 1);
+
+  assert_false(form.reportValidity());
+  assert_equals(invalidCount, 2);
+
+  container.querySelector('input[type=submit]').click();
+  assert_equals(invalidCount, 3);
+}, 'Custom control affects validation at the owner form');
+
+function isValidAccordingToCSS(element, comment) {
+  assert_true(element.matches(':valid'), comment ? (comment + ' - :valid') : undefined);
+  assert_false(element.matches(':invalid'), comment ? (comment + ' - :invalid') : undefined);
+}
+
+function isInvalidAccordingToCSS(element, comment) {
+  assert_false(element.matches(':valid'), comment ? (comment + ' - :valid') : undefined);
+  assert_true(element.matches(':invalid'), comment ? (comment + ' - :invalid') : undefined);
+}
+
+test(() => {
+  const container = document.getElementById('container');
+  container.innerHTML = '<form><fieldset><my-control>';
+  const form = container.querySelector('form');
+  const fieldset = container.querySelector('fieldset');
+  const control = container.querySelector('my-control');
+
+  isValidAccordingToCSS(control);
+  isValidAccordingToCSS(form);
+  isValidAccordingToCSS(fieldset);
+
+  control.i.setValidity({typeMismatch: true}, 'Invalid format');
+  isInvalidAccordingToCSS(control);
+  isInvalidAccordingToCSS(form);
+  isInvalidAccordingToCSS(fieldset);
+
+  control.remove();
+  isInvalidAccordingToCSS(control);
+  isValidAccordingToCSS(form);
+  isValidAccordingToCSS(fieldset);
+
+  fieldset.appendChild(control);
+  isInvalidAccordingToCSS(form);
+  isInvalidAccordingToCSS(fieldset);
+
+  control.i.setValidity({});
+  isValidAccordingToCSS(control);
+  isValidAccordingToCSS(form);
+  isValidAccordingToCSS(fieldset);
+}, 'Custom control affects :valid :invalid for FORM and FIELDSET');
+</script>
+</body>

@@ -1,0 +1,176 @@
+<!doctype html>
+<title>Urange Parsing</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+
+@font-face {
+    font-family: foo;
+    src: url(http://example.com);
+}
+
+.error {}
+
+</style>
+
+<meta name=author title="Tab Atkins-Bittner">
+<link rel=help href="https://drafts.csswg.org/css-syntax/#urange-syntax">
+
+<script>
+
+function testUrange(input, expected) {
+    test(()=>{
+        const rule = document.styleSheets[0].cssRules[0];
+        rule.style.setProperty("unicode-range", "U+1357");
+        rule.style.setProperty("unicode-range", input);
+        assert_equals(rule.style.getPropertyValue("unicode-range").toUpperCase(), expected.toUpperCase());
+    }, `"${input}" => "${expected}"`)
+}
+function testInvalidUrange(input) {
+    test(()=>{
+        const rule = document.styleSheets[0].cssRules[0];
+        rule.style.setProperty("unicode-range", "U+1357");
+        rule.style.setProperty("unicode-range", input);
+        assert_equals(rule.style.getPropertyValue("unicode-range").toUpperCase(), "U+1357");
+    }, `"${input}" is invalid`);
+}
+
+/* First exercise all the clauses individually */
+//<urange> =
+//  u '+' <ident-token> '?'* |
+/* comments can go between tokens */
+testUrange("u/**/+/**/a/**/?", "U+A0-AF");
+/* capitalization doesn't matter */
+testUrange("u+abc", "U+ABC");
+testUrange("U+abc", "U+ABC");
+testUrange("u+ABC", "U+ABC");
+testUrange("U+ABC", "U+ABC");
+testUrange("u+AbC", "U+ABC");
+/* only hex */
+testInvalidUrange("u+efg");
+/* no spacing */
+testInvalidUrange("u+ abc");
+testInvalidUrange("u +abc");
+testInvalidUrange("u + abc");
+testInvalidUrange("U + a b c");
+/* 1-6 characters */
+testUrange("u+a", "U+A");
+testUrange("u+aa", "U+AA");
+testUrange("u+aaa", "U+AAA");
+testUrange("u+aaaa", "U+AAAA");
+testUrange("u+aaaaa", "U+AAAAA");
+testInvalidUrange("u+aaaaaaa");
+/* Or ? at the end, still up to 6 */
+testUrange("u+a?", "U+A0-AF");
+testUrange("u+a??", "U+A00-AFF");
+testUrange("u+a???", "U+A000-AFFF");
+testUrange("u+a????", "U+A0000-AFFFF");
+testInvalidUrange("u+aaaaaa?");
+testInvalidUrange("u+aaaaa??");
+testInvalidUrange("u+aaaa???");
+testInvalidUrange("u+aaa????");
+testInvalidUrange("u+aa?????");
+testInvalidUrange("u+a??????");
+/* no characters after ? */
+testInvalidUrange("u+a?a");
+// Too large!
+testInvalidUrange("u+aaaaaa");
+testInvalidUrange("u+a?????");
+
+//  u <dimension-token> '?'* |
+testUrange("u/**/+0a/**/?", "U+A0-AF");
+testUrange("u+0a", "U+A");
+testUrange("U+0a0", "U+A0");
+testUrange("u+0aaaaa", "U+AAAAA");
+testInvalidUrange("u+0aaaaaa");
+testUrange("u+0a0000", "U+A0000");
+testInvalidUrange("u+0a00000");
+testInvalidUrange("u+0aaaaa0");
+testUrange("u+00000a", "U+A");
+testInvalidUrange("u+00000aa");
+testInvalidUrange("u+00000a0")
+testInvalidUrange("u+000000a");
+testUrange("u+0a????", "U+A0000-AFFFF");
+testInvalidUrange("u+0a?????");
+testInvalidUrange("u+00a????");
+// Too large!
+testInvalidUrange("u+22222a");
+// Scinot!
+testUrange("u+1e9a", "U+1E9A");
+
+//  u <number-token> '?'* |
+testUrange("u/**/+0/**/?", "U+0-F");
+testInvalidUrange("u/**/0");
+testUrange("u+0", "U+0");
+testUrange("u+00", "U+0");
+testUrange("u+000", "U+0");
+testUrange("u+0000", "U+0");
+testUrange("u+00000", "U+0");
+testUrange("u+000000", "U+0");
+testInvalidUrange("u+0000000");
+testUrange("u+00000?", "U+0-F");
+testUrange("u+0?????", "U+0-FFFFF");
+testInvalidUrange("u+0?a");
+testInvalidUrange("u+000000?");
+testInvalidUrange("u+00000??");
+testInvalidUrange("u+0??????");
+// Scinot!
+testUrange("u+1e3", "U+1E3");
+testUrange("u+1e-20", "U+1E-20");
+// Too large!
+testInvalidUrange("u+222222");
+testInvalidUrange("u+2?????");
+
+//  u <number-token> <dimension-token> |
+testUrange("u/**/+0/**/-0a", "U+0-A");
+testUrange("u+0-0a", "U+0-A");
+testUrange("u+000000-0aaaaa", "U+0-AAAAA");
+testInvalidUrange("u+0000000-0a");
+testInvalidUrange("u+0-0aaaaaa");
+testInvalidUrange("u+0-000000a");
+testInvalidUrange("u+0+0a");
+testInvalidUrange("u+0?-0a");
+testInvalidUrange("u+0-0a?");
+// Too large!
+testInvalidUrange("u+222222-22222a");
+
+//  u <number-token> <number-token> |
+testUrange("u/**/+0/**/-1", "U+0-1");
+testUrange("u+0-1", "U+0-1");
+testInvalidUrange("u-0-1");
+testInvalidUrange("u-0+1");
+testInvalidUrange("u+0+1");
+testUrange("u+000000-000001", "U+0-1");
+testInvalidUrange("u+0000000-1");
+testInvalidUrange("u+0-0000001");
+testUrange("u+0-10ffff", "U+0-10FFFF");
+// Too large!
+testInvalidUrange("u+0-110000");
+testInvalidUrange("u+0-222222");
+
+//  u '+' '?'+
+testUrange("u/**/+/**/?", "U+0-F");
+testUrange("u+?", "U+0-F");
+testUrange("u+?????", "u+0-FFFFF");
+testInvalidUrange("u+???????");
+testInvalidUrange("u+?a");
+// U+FFFFFF is too large!
+testInvalidUrange("u+??????");
+
+testInvalidUrange("()U+123");
+
+/* Finally, verify that u+a is properly parsed
+   as IDENT(u) DELIM(+) IDENT(a) in other contexts */
+
+test(()=>{
+    const rule = document.styleSheets[0].cssRules[1];
+    // Establish that it works with whitespace...
+    rule.selectorText = "u + a";
+    assert_equals(rule.selectorText, "u + a");
+    // And then again without...
+    rule.selectorText = ".error";
+    rule.selectorText = "u+a";
+    assert_equals(rule.selectorText, "u + a");
+}, "u+a is a valid selector");
+
+</script>

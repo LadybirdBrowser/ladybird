@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: parsing columns with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-columns">
+<meta name="assert" content="columns supports only the grammar '<column-width> || <column-count>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// Invalid keyword.
+test_invalid_value("columns", "none");
+
+// Only column-count can be unitless.
+test_invalid_value("columns", "10px 20px");
+test_invalid_value("columns", "10 20");
+
+// column-count needs to be 1 or more.
+test_invalid_value("columns", "0 0");
+test_invalid_value("columns", "0 7px");
+
+// Excess keywords.
+test_invalid_value("columns", "auto auto auto");
+test_invalid_value("columns", "10em auto auto");
+test_invalid_value("columns", "initial initial");
+test_invalid_value("columns", "inherit inherit");
+</script>
+</body>
+</html>

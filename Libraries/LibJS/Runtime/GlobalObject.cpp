@@ -7,8 +7,8 @@
 
 #include <AK/BuiltinWrappers.h>
 #include <AK/CharacterTypes.h>
-#include <AK/FloatingPointStringConversions.h>
 #include <AK/Hex.h>
+#include <AK/StringConversions.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
@@ -269,12 +269,10 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_float)
     // 6. Assert: parsedNumber is a Parse Node.
     // 7. Return StringNumericValue of parsedNumber.
     auto trimmed_string_view = trimmed_string.bytes_as_string_view();
-    auto const* begin = trimmed_string_view.characters_without_null_termination();
-    auto const* end = begin + trimmed_string_view.length();
 
-    auto parsed_number = parse_first_floating_point<double>(begin, end);
-    if (parsed_number.parsed_value())
-        return parsed_number.value;
+    auto parsed_number = AK::parse_first_number<double>(trimmed_string_view, TrimWhitespace::No);
+    if (parsed_number.has_value())
+        return parsed_number->value;
 
     auto first_code_point = *trimmed_string.code_points().begin();
     if (first_code_point == '-' || first_code_point == '+')

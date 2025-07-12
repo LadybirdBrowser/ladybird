@@ -3,4 +3,4 @@ set(SOURCES
     Generator.cpp
 )
 
-serenity_lib(LibDiff diff)
+ladybird_lib(LibDiff diff)

@@ -17,7 +17,7 @@
 namespace JS {
 namespace Detail {
 
-class Utf16StringImpl : public RefCounted<Utf16StringImpl> {
+class JS_API Utf16StringImpl : public RefCounted<Utf16StringImpl> {
 public:
     ~Utf16StringImpl() = default;
 
@@ -48,12 +48,12 @@ private:
     mutable bool m_has_hash { false };
     mutable u32 m_hash { 0 };
     Utf16Data m_string;
-    Utf16View m_cached_view { m_string.span() };
+    Utf16View m_cached_view { m_string };
 };
 
 }
 
-class Utf16String {
+class JS_API Utf16String {
 public:
     [[nodiscard]] static Utf16String create();
     [[nodiscard]] static Utf16String create(Utf16Data);

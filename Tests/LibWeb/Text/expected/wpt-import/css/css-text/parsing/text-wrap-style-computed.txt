@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property text-wrap-style value 'auto'
+Pass	Property text-wrap-style value 'balance'
+Pass	Property text-wrap-style value 'stable'

@@ -9,6 +9,7 @@
 
 #include <AK/Error.h>
 #include <AK/Vector.h>
+#include <LibIPC/AutoCloseFileDescriptor.h>
 #include <LibIPC/Transport.h>
 
 namespace IPC {

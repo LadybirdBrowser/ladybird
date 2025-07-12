@@ -19,7 +19,7 @@
 
 namespace JS {
 
-class Array : public Object {
+class JS_API Array : public Object {
     JS_OBJECT(Array, Object);
     GC_DECLARE_ALLOCATOR(Array);
 
@@ -50,6 +50,7 @@ public:
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const override final;
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata*, PropertyLookupPhase) override;
     virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override final;
+    virtual ThrowCompletionOr<bool> internal_has_property(PropertyKey const&) const override final;
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override final;
 
@@ -80,7 +81,7 @@ enum class Holes {
     ReadThroughHoles,
 };
 
-ThrowCompletionOr<GC::RootVector<Value>> sort_indexed_properties(VM&, Object const&, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes);
-ThrowCompletionOr<double> compare_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
+JS_API ThrowCompletionOr<GC::RootVector<Value>> sort_indexed_properties(VM&, Object const&, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes);
+JS_API ThrowCompletionOr<double> compare_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
 
 }

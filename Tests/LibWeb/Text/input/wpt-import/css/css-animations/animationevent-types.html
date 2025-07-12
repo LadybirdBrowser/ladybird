@@ -35,7 +35,6 @@
 
   async_test(function(t) {
     testDiv.addEventListener("animationstart", t.step_func(function(evt) {
-        console.log("animationstart")
       assert_true(evt instanceof window.AnimationEvent);
 
       assert_idl_attribute(evt, "animationName", "animationstart has animationName property");
@@ -52,8 +51,6 @@
 
   async_test(function(t) {
     testDiv.addEventListener("animationend", t.step_func(function(evt) {
-        console.log("animationend")
-
       assert_true(evt instanceof window.AnimationEvent);
 
       assert_idl_attribute(evt, "animationName", "animationend has animationName property");
@@ -70,8 +67,6 @@
 
   async_test(function(t) {
     testDiv.addEventListener("animationiteration", t.step_func(function(evt) {
-        console.log("animationiteration")
-
       assert_true(evt instanceof window.AnimationEvent);
 
       assert_idl_attribute(evt, "animationName", "animationiteration has animationName property");

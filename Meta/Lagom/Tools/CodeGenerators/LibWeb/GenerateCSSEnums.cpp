@@ -13,7 +13,7 @@
 ErrorOr<void> generate_header_file(JsonObject& enums_data, Core::File& file);
 ErrorOr<void> generate_implementation_file(JsonObject& enums_data, Core::File& file);
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
     StringView generated_implementation_path;

@@ -1,11 +1,14 @@
 # The generated file here is read by vcpkg/base-triplets/base.cmake to ensure consistency between the project
 # build and the vcpkg build.
 set(EXTRA_VCPKG_VARIABLES "")
-if (NOT "${CMAKE_C_COMPILER}" STREQUAL "")
-    string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CC} ${CMAKE_C_COMPILER})\n")
-endif()
-if (NOT "${CMAKE_CXX_COMPILER}" STREQUAL "")
-    string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CXX} ${CMAKE_CXX_COMPILER})\n")
+if (NOT WIN32)
+    # Supporting Clang-CL for all our vcpkg ports is an adventure in itself, so let's not
+    if (NOT "${CMAKE_C_COMPILER}" STREQUAL "")
+        string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CC} ${CMAKE_C_COMPILER})\n")
+    endif()
+    if (NOT "${CMAKE_CXX_COMPILER}" STREQUAL "")
+        string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CXX} ${CMAKE_CXX_COMPILER})\n")
+    endif()
 endif()
 
 # Workaround for bad patchelf interaction with binutils 2.43.50
@@ -33,8 +36,8 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
     endif()
 
     # And then, only tweak settings if the triplets are ours
-    string(FIND "${VCPKG_OVERLAY_TRIPLETS}" "${CMAKE_CURRENT_SOURCE_DIR}" VCPKG_OVERLAY_TRIPLETS_MATCH)
-    if (VCPKG_OVERLAY_TRIPLETS_MATCH EQUAL -1)
+    cmake_path(IS_PREFIX CMAKE_CURRENT_SOURCE_DIR "${VCPKG_OVERLAY_TRIPLETS}" NORMALIZE TRIPLET_IS_OURS)
+    if (NOT TRIPLET_IS_OURS)
         return()
     endif()
 

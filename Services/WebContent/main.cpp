@@ -24,6 +24,7 @@
 #include <LibWeb/Loader/ContentFilter.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
@@ -35,13 +36,10 @@
 #include <WebContent/PageClient.h>
 #include <WebContent/WebDriverConnection.h>
 
-#if defined(HAVE_QT)
+#if defined(HAVE_QT_MULTIMEDIA)
 #    include <LibWebView/EventLoop/EventLoopImplementationQt.h>
 #    include <QCoreApplication>
-
-#    if defined(HAVE_QT_MULTIMEDIA)
-#        include <UI/Qt/AudioCodecPluginQt.h>
-#    endif
+#    include <UI/Qt/AudioCodecPluginQt.h>
 #endif
 
 #if defined(AK_OS_MACOS)
@@ -71,11 +69,11 @@ extern bool g_http_cache_enabled;
 
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-#if defined(HAVE_QT)
+#if defined(HAVE_QT_MULTIMEDIA)
     QCoreApplication app(arguments.argc, arguments.argv);
 
     Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
@@ -186,7 +184,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         // FIXME: For some reason, our implementation of IOSurface does not work on Intel macOS. Remove this conditional
         //        compilation when that is resolved.
 #    if ARCH(AARCH64)
-        WebContent::BackingStoreManager::set_browser_mach_port(move(server_port));
+        Web::Painting::BackingStoreManager::set_browser_mach_port(move(server_port));
 #    endif
     }
 #endif

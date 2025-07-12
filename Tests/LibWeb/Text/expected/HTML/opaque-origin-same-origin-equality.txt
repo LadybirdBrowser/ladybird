@@ -1,0 +1,1 @@
+Can't access property 'thing' on cross-origin object

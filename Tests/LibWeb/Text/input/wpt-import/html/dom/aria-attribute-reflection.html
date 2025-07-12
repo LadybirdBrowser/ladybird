@@ -1,11 +1,11 @@
 <!DOCTYPE HTML>
-
-<meta charset="utf-8"/>
+<meta charset="utf-8" />
 <title>Element Reflection for ARIA properties</title>
-<link href="https://wicg.github.io/aom/spec/aria-reflection.html" rel="help"/>
-<link href="meredithl@chromium.org" rel="author" title="Meredith Lane"/>
+<link rel=help href="https://wicg.github.io/aom/spec/aria-reflection.html">
+<link rel="author" title="Meredith Lane" href="meredithl@chromium.org">
 <script src="../../resources/testharness.js"></script>
 <script src="../../resources/testharnessreport.js"></script>
+
 <script>
 function testNullable(element, jsAttr, contentAttr) {
     var originalValue = element[jsAttr];
@@ -20,6 +20,7 @@ function testNullable(element, jsAttr, contentAttr) {
     assert_false(element.hasAttribute(contentAttr));
 }
 </script>
+
 <div id="role" role="button"></div>
 <script>
 test(function(t) {
@@ -30,7 +31,8 @@ test(function(t) {
     testNullable(element, "role", "role");
 }, "role attribute reflects.");
 </script>
-<div aria-atomic="true" id="atomic"></div>
+
+<div id="atomic" aria-atomic="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("atomic");
@@ -40,7 +42,8 @@ test(function(t) {
     testNullable(element, "ariaAtomic", "aria-atomic");
 }, "aria-atomic attribute reflects.");
 </script>
-<div aria-autocomplete="list" id="autocomplete"></div>
+
+<div id="autocomplete" aria-autocomplete="list"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("autocomplete");
@@ -50,7 +53,8 @@ test(function(t) {
     testNullable(element, "ariaAutoComplete", "aria-autocomplete");
 }, "aria-autocomplete attribute reflects.");
 </script>
-<div aria-braillelabel="x" id="braillelabel"></div>
+
+<div id="braillelabel" aria-braillelabel="x"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("braillelabel");
@@ -60,7 +64,8 @@ test(function(t) {
     testNullable(element, "ariaBrailleLabel", "aria-braillelabel");
 }, "aria-braillelabel attribute reflects.");
 </script>
-<div aria-brailleroledescription="x" id="brailleroledescription"></div>
+
+<div id="brailleroledescription" aria-brailleroledescription="x"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("brailleroledescription");
@@ -70,7 +75,8 @@ test(function(t) {
     testNullable(element, "ariaBrailleRoleDescription", "aria-brailleroledescription");
 }, "aria-brailleroledescription attribute reflects.");
 </script>
-<div aria-busy="true" id="busy"></div>
+
+<div id="busy" aria-busy="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("busy");
@@ -80,7 +86,8 @@ test(function(t) {
     testNullable(element, "ariaBusy", "aria-busy");
 }, "aria-busy attribute reflects.");
 </script>
-<div aria-checked="mixed" id="checked"></div>
+
+<div id="checked" aria-checked="mixed"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("checked");
@@ -90,7 +97,8 @@ test(function(t) {
     testNullable(element, "ariaChecked", "aria-checked");
 }, "aria-checked attribute reflects.");
 </script>
-<div aria-colcount="5" id="colcount"></div>
+
+<div id="colcount" aria-colcount="5"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("colcount");
@@ -100,7 +108,8 @@ test(function(t) {
     testNullable(element, "ariaColCount", "aria-colcount");
 }, "aria-colcount attribute reflects.");
 </script>
-<div aria-colindex="1" id="colindex"></div>
+
+<div id="colindex" aria-colindex="1"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("colindex");
@@ -110,8 +119,10 @@ test(function(t) {
     testNullable(element, "ariaColIndex", "aria-colindex");
 }, "aria-colindex attribute reflects.");
 </script>
+
 <!-- colindextext -> aria-attribute-reflection.tentative.html -->
-<div aria-colspan="2" id="colspan"></div>
+
+<div id="colspan" aria-colspan="2"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("colspan");
@@ -121,7 +132,8 @@ test(function(t) {
     testNullable(element, "ariaColSpan", "aria-colspan");
 }, "aria-colspan attribute reflects.");
 </script>
-<div aria-current="page" id="current"></div>
+
+<div id="current" aria-current="page"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("current");
@@ -131,8 +143,10 @@ test(function(t) {
     testNullable(element, "ariaCurrent", "aria-current");
 }, "aria-current attribute reflects.");
 </script>
+
 <!-- description -> aria-attribute-reflection.tentative.html -->
-<div aria-disabled="true" id="disabled"></div>
+
+<div id="disabled" aria-disabled="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("disabled");
@@ -142,7 +156,8 @@ test(function(t) {
     testNullable(element, "ariaDisabled", "aria-disabled");
 }, "aria-disabled attribute reflects.");
 </script>
-<div aria-expanded="true" id="expanded"></div>
+
+<div id="expanded" aria-expanded="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("expanded");
@@ -152,7 +167,8 @@ test(function(t) {
     testNullable(element, "ariaExpanded", "aria-expanded");
 }, "aria-expanded attribute reflects.");
 </script>
-<div aria-haspopup="menu" id="haspopup"></div>
+
+<div id="haspopup" aria-haspopup="menu"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("haspopup");
@@ -162,7 +178,8 @@ test(function(t) {
     testNullable(element, "ariaHasPopup", "aria-haspopup");
 }, "aria-haspopup attribute reflects.");
 </script>
-<div aria-hidden="true" id="hidden" tabindex="-1"></div>
+
+<div id="hidden" aria-hidden="true" tabindex="-1"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("hidden");
@@ -172,7 +189,8 @@ test(function(t) {
     testNullable(element, "ariaHidden", "aria-hidden");
 }, "aria-hidden attribute reflects.");
 </script>
-<div aria-invalid="true" id="invalid"></div>
+
+<div id="invalid" aria-invalid="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("invalid");
@@ -182,7 +200,8 @@ test(function(t) {
     testNullable(element, "ariaInvalid", "aria-invalid");
 }, "aria-invalid attribute reflects.");
 </script>
-<div aria-keyshortcuts="x" id="keyshortcuts"></div>
+
+<div id="keyshortcuts" aria-keyshortcuts="x"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("keyshortcuts");
@@ -192,7 +211,8 @@ test(function(t) {
     testNullable(element, "ariaKeyShortcuts", "aria-keyshortcuts");
 }, "aria-keyshortcuts attribute reflects.");
 </script>
-<div aria-label="x" id="label"></div>
+
+<div id="label" aria-label="x"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("label");
@@ -202,7 +222,8 @@ test(function(t) {
     testNullable(element, "ariaLabel", "aria-label");
 }, "aria-label attribute reflects.");
 </script>
-<div aria-level="1" id="level"></div>
+
+<div id="level" aria-level="1"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("level");
@@ -212,7 +233,8 @@ test(function(t) {
     testNullable(element, "ariaLevel", "aria-level");
 }, "aria-level attribute reflects.");
 </script>
-<div aria-live="polite" id="live"></div>
+
+<div id="live" aria-live="polite"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("live");
@@ -222,7 +244,8 @@ test(function(t) {
     testNullable(element, "ariaLive", "aria-live");
 }, "aria-live attribute reflects.");
 </script>
-<div aria-modal="true" id="modal"></div>
+
+<div id="modal" aria-modal="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("modal");
@@ -232,7 +255,8 @@ test(function(t) {
     testNullable(element, "ariaModal", "aria-modal");
 }, "aria-modal attribute reflects.");
 </script>
-<div aria-multiline="true" id="multiline"></div>
+
+<div id="multiline" aria-multiline="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("multiline");
@@ -242,7 +266,8 @@ test(function(t) {
     testNullable(element, "ariaMultiLine", "aria-multiline");
 }, "aria-multiline attribute reflects.");
 </script>
-<div aria-multiselectable="true" id="multiselectable"></div>
+
+<div id="multiselectable" aria-multiselectable="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("multiselectable");
@@ -252,7 +277,8 @@ test(function(t) {
     testNullable(element, "ariaMultiSelectable", "aria-multiselectable");
 }, "aria-multiselectable attribute reflects.");
 </script>
-<div aria-orientation="vertical" id="orientation"></div>
+
+<div id="orientation" aria-orientation="vertical"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("orientation");
@@ -262,7 +288,8 @@ test(function(t) {
     testNullable(element, "ariaOrientation", "aria-orientation");
 }, "aria-orientation attribute reflects.");
 </script>
-<div aria-placeholder="x" id="placeholder"></div>
+
+<div id="placeholder" aria-placeholder="x"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("placeholder");
@@ -272,7 +299,8 @@ test(function(t) {
     testNullable(element, "ariaPlaceholder", "aria-placeholder");
 }, "aria-placeholder attribute reflects.");
 </script>
-<div aria-posinset="10" id="posinset"></div>
+
+<div id="posinset" aria-posinset="10"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("posinset");
@@ -282,7 +310,8 @@ test(function(t) {
     testNullable(element, "ariaPosInSet", "aria-posinset");
 }, "aria-posinset attribute reflects.");
 </script>
-<button aria-pressed="true" id="pressed"></button>
+
+<button id="pressed" aria-pressed="true"></button>
 <script>
 test(function(t) {
     var element = document.getElementById("pressed");
@@ -292,7 +321,8 @@ test(function(t) {
     testNullable(element, "ariaPressed", "aria-pressed");
 }, "aria-pressed attribute reflects.");
 </script>
-<div aria-readonly="true" id="readonly"></div>
+
+<div id="readonly" aria-readonly="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("readonly");
@@ -302,7 +332,8 @@ test(function(t) {
     testNullable(element, "ariaReadOnly", "aria-readonly");
 }, "aria-readonly attribute reflects.");
 </script>
-<div aria-relevant="text" id="relevant"></div>
+
+<div id="relevant" aria-relevant="text"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("relevant");
@@ -312,7 +343,8 @@ test(function(t) {
     testNullable(element, "ariaRelevant", "aria-relevant");
 }, "aria-relevant attribute reflects.");
 </script>
-<div aria-required="true" id="required"></div>
+
+<div id="required" aria-required="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("required");
@@ -322,7 +354,8 @@ test(function(t) {
     testNullable(element, "ariaRequired", "aria-required");
 }, "aria-required attribute reflects.");
 </script>
-<div aria-roledescription="x" id="roledescription"></div>
+
+<div id="roledescription" aria-roledescription="x"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("roledescription");
@@ -332,7 +365,8 @@ test(function(t) {
     testNullable(element, "ariaRoleDescription", "aria-roledescription");
 }, "aria-roledescription attribute reflects.");
 </script>
-<div aria-rowcount="10" id="rowcount"></div>
+
+<div id="rowcount" aria-rowcount="10"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("rowcount");
@@ -342,7 +376,8 @@ test(function(t) {
     testNullable(element, "ariaRowCount", "aria-rowcount");
 }, "aria-rowcount attribute reflects.");
 </script>
-<div aria-rowindex="1" id="rowindex"></div>
+
+<div id="rowindex" aria-rowindex="1"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("rowindex");
@@ -352,8 +387,10 @@ test(function(t) {
     testNullable(element, "ariaRowIndex", "aria-rowindex");
 }, "aria-rowindex attribute reflects.");
 </script>
+
 <!-- rowindextext -> aria-attribute-reflection.tentative.html -->
-<div aria-rowspan="2" id="rowspan"></div>
+
+<div id="rowspan" aria-rowspan="2"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("rowspan");
@@ -363,7 +400,8 @@ test(function(t) {
     testNullable(element, "ariaRowSpan", "aria-rowspan");
 }, "aria-rowspan attribute reflects.");
 </script>
-<div aria-selected="true" id="selected"></div>
+
+<div id="selected" aria-selected="true"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("selected");
@@ -373,7 +411,8 @@ test(function(t) {
     testNullable(element, "ariaSelected", "aria-selected");
 }, "aria-selected attribute reflects.");
 </script>
-<div aria-setsize="10" id="setsize"></div>
+
+<div id="setsize" aria-setsize="10"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("setsize");
@@ -383,7 +422,8 @@ test(function(t) {
     testNullable(element, "ariaSetSize", "aria-setsize");
 }, "aria-setsize attribute reflects.");
 </script>
-<div aria-sort="descending" id="sort"></div>
+
+<div id="sort" aria-sort="descending"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("sort");
@@ -393,7 +433,8 @@ test(function(t) {
     testNullable(element, "ariaSort", "aria-sort");
 }, "aria-sort attribute reflects.");
 </script>
-<div aria-valuemax="99" id="valuemax"></div>
+
+<div id="valuemax" aria-valuemax="99"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("valuemax");
@@ -403,7 +444,8 @@ test(function(t) {
     testNullable(element, "ariaValueMax", "aria-valuemax");
 }, "aria-valuemax attribute reflects.");
 </script>
-<div aria-valuemin="3" id="valuemin"></div>
+
+<div id="valuemin" aria-valuemin="3"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("valuemin");
@@ -413,7 +455,8 @@ test(function(t) {
     testNullable(element, "ariaValueMin", "aria-valuemin");
 }, "aria-valuemin attribute reflects.");
 </script>
-<div aria-valuenow="50" id="valuenow"></div>
+
+<div id="valuenow" aria-valuenow="50"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("valuenow");
@@ -423,7 +466,8 @@ test(function(t) {
     testNullable(element, "ariaValueNow", "aria-valuenow");
 }, "aria-valuenow attribute reflects.");
 </script>
-<div aria-valuetext="50%" id="valuetext"></div>
+
+<div id="valuetext" aria-valuetext="50%"></div>
 <script>
 test(function(t) {
     var element = document.getElementById("valuetext");
@@ -434,3 +478,4 @@ test(function(t) {
 }, "aria-valuetext attribute reflects.");
 </script>
 
+</html>

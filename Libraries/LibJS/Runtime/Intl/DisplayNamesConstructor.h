@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-class DisplayNamesConstructor final : public NativeFunction {
+class JS_API DisplayNamesConstructor final : public NativeFunction {
     JS_OBJECT(DisplayNamesConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(DisplayNamesConstructor);
 

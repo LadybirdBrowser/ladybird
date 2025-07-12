@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 48 tests
 
-46 Pass
-2 Fail
+48 Pass
 Pass	e.style['border-left-width'] = "min()" should not set the property value
 Pass	e.style['border-left-width'] = "min( )" should not set the property value
 Pass	e.style['border-left-width'] = "min(,)" should not set the property value
@@ -14,7 +13,7 @@ Pass	e.style['border-left-width'] = "min(1px + )" should not set the property va
 Pass	e.style['border-left-width'] = "min(1px - )" should not set the property value
 Pass	e.style['border-left-width'] = "min(1px * )" should not set the property value
 Pass	e.style['border-left-width'] = "min(1px / )" should not set the property value
-Fail	e.style['border-left-width'] = "min(1px 2px)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px 2px)" should not set the property value
 Pass	e.style['border-left-width'] = "min(1px, , 2px)" should not set the property value
 Pass	e.style['border-left-width'] = "max()" should not set the property value
 Pass	e.style['border-left-width'] = "max( )" should not set the property value
@@ -26,7 +25,7 @@ Pass	e.style['border-left-width'] = "max(1px + )" should not set the property va
 Pass	e.style['border-left-width'] = "max(1px - )" should not set the property value
 Pass	e.style['border-left-width'] = "max(1px * )" should not set the property value
 Pass	e.style['border-left-width'] = "max(1px / )" should not set the property value
-Fail	e.style['border-left-width'] = "max(1px 2px)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px 2px)" should not set the property value
 Pass	e.style['border-left-width'] = "max(1px, , 2px)" should not set the property value
 Pass	e.style['border-left-width'] = "min(0)" should not set the property value
 Pass	e.style['border-left-width'] = "min(0%)" should not set the property value

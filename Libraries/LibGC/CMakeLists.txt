@@ -12,7 +12,7 @@ set(SOURCES
     WeakContainer.cpp
 )
 
-serenity_lib(LibGC gc)
+ladybird_lib(LibGC gc EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibGC PRIVATE LibCore)
 
 if (ENABLE_SWIFT)

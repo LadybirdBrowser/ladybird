@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: Parsing text-shadow with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-shadow-property">
+<meta name="assert" content="text-shadow supports the full grammar 'none | [ <color>? && <length>{2,3} ]#'.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_valid_value("text-shadow", "none");
+
+test_valid_value("text-shadow", "10px 20px");
+test_valid_value("text-shadow", "10px 20px 30px");
+test_valid_value("text-shadow", "calc(1em + 2px) calc(3em + 4px) calc(5em + 6px)");
+test_valid_value("text-shadow", "-10px 20px 30px");
+test_valid_value("text-shadow", "10px -20px 30px");
+test_valid_value("text-shadow", "rgb(255, 0, 0) 10px 20px");
+test_valid_value("text-shadow", "10px 20px 30px lime", "lime 10px 20px 30px");
+
+test_valid_value("text-shadow", "10px 20px, 30px 40px");
+test_valid_value("text-shadow", "lime 10px 20px 30px, blue 40px 50px");
+</script>

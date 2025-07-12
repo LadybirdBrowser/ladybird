@@ -44,9 +44,10 @@ EnvironmentSettingsObject::EnvironmentSettingsObject(NonnullOwnPtr<JS::Execution
     responsible_event_loop().register_environment_settings_object({}, *this);
 }
 
-EnvironmentSettingsObject::~EnvironmentSettingsObject()
+void EnvironmentSettingsObject::finalize()
 {
     responsible_event_loop().unregister_environment_settings_object({}, *this);
+    Base::finalize();
 }
 
 void EnvironmentSettingsObject::initialize(JS::Realm& realm)
@@ -564,20 +565,18 @@ bool is_non_secure_context(Environment const& environment)
 
 SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 {
-    SerializedEnvironmentSettingsObject object;
-
-    object.id = this->id;
-    object.creation_url = this->creation_url;
-    object.top_level_creation_url = this->top_level_creation_url;
-    object.top_level_origin = this->top_level_origin;
-
-    object.api_url_character_encoding = api_url_character_encoding();
-    object.api_base_url = api_base_url();
-    object.origin = origin();
-    object.policy_container = policy_container()->serialize();
-    object.cross_origin_isolated_capability = cross_origin_isolated_capability();
-
-    return object;
+    return SerializedEnvironmentSettingsObject {
+        .id = this->id,
+        .creation_url = this->creation_url,
+        .top_level_creation_url = this->top_level_creation_url,
+        .top_level_origin = this->top_level_origin,
+        .api_url_character_encoding = api_url_character_encoding(),
+        .api_base_url = api_base_url(),
+        .origin = origin(),
+        .policy_container = policy_container()->serialize(),
+        .cross_origin_isolated_capability = cross_origin_isolated_capability(),
+        .time_origin = this->time_origin(),
+    };
 }
 
 GC::Ref<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()

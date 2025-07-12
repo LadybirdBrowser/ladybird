@@ -42,6 +42,17 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
                 source_height = source->video_height();
             }
         },
+        [&source_width, &source_height](GC::Root<OffscreenCanvas> const& source) {
+            auto const bitmap = source->bitmap();
+
+            if (!bitmap) {
+                source_width = 0;
+                source_height = 0;
+                return;
+            }
+            source_width = bitmap->width();
+            source_height = bitmap->height();
+        },
         [&source_width, &source_height](GC::Root<HTMLCanvasElement> const& source) {
             if (source->surface()) {
                 source_width = source->surface()->size().width();

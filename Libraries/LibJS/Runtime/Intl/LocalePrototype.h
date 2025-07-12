@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-class LocalePrototype final : public PrototypeObject<LocalePrototype, Locale> {
+class JS_API LocalePrototype final : public PrototypeObject<LocalePrototype, Locale> {
     JS_PROTOTYPE_OBJECT(LocalePrototype, Locale, Intl.Locale);
     GC_DECLARE_ALLOCATOR(LocalePrototype);
 
@@ -37,6 +37,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(numeric);
     JS_DECLARE_NATIVE_FUNCTION(region);
     JS_DECLARE_NATIVE_FUNCTION(script);
+    JS_DECLARE_NATIVE_FUNCTION(variants);
     JS_DECLARE_NATIVE_FUNCTION(get_calendars);
     JS_DECLARE_NATIVE_FUNCTION(get_collations);
     JS_DECLARE_NATIVE_FUNCTION(get_hour_cycles);

@@ -539,8 +539,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
             }
         }
 
-        m_current_index
-            = next_grapheme_boundary();
+        m_current_index = next_grapheme_boundary();
     }
 
     if (start_of_chunk != m_utf8_view.byte_length()) {

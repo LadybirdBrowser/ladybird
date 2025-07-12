@@ -81,6 +81,7 @@ struct ParsingParams {
     ParsingMode mode { ParsingMode::Normal };
 
     Vector<RuleContext> rule_context;
+    HashTable<FlyString> declared_namespaces;
 };
 
 // The very large CSS Parser implementation code is broken up among several .cpp files:
@@ -93,6 +94,7 @@ class Parser {
 public:
     static Parser create(ParsingParams const&, StringView input, StringView encoding = "utf-8"sv);
 
+    GC::RootVector<GC::Ref<CSSRule>> convert_rules(Vector<Rule> const& raw_rules);
     GC::Ref<CSS::CSSStyleSheet> parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list = {});
 
     struct PropertiesAndCustomProperties {
@@ -132,9 +134,15 @@ public:
 
     Vector<ComponentValue> parse_as_list_of_component_values();
 
-    static NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(ParsingParams const&, DOM::Element&, Optional<PseudoElement>, PropertyID, UnresolvedStyleValue const&);
+    static NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(ParsingParams const&, DOM::Element&, Optional<PseudoElement>, PropertyIDOrCustomPropertyName, UnresolvedStyleValue const&, Optional<GuardedSubstitutionContexts&> = {});
 
     [[nodiscard]] LengthOrCalculated parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
+
+    enum class StopAtComma : u8 {
+        No,
+        Yes,
+    };
+    static Optional<Vector<ComponentValue>> parse_declaration_value(TokenStream<ComponentValue>&, StopAtComma = StopAtComma::No);
 
 private:
     Parser(ParsingParams const&, Vector<Token>);
@@ -282,11 +290,35 @@ private:
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);
     Vector<Gfx::UnicodeRange> parse_unicode_ranges(TokenStream<ComponentValue>&);
     RefPtr<UnicodeRangeStyleValue const> parse_unicode_range_value(TokenStream<ComponentValue>&);
-    Optional<GridSize> parse_grid_size(ComponentValue const&);
-    Optional<GridFitContent> parse_grid_fit_content(Vector<ComponentValue> const&);
-    Optional<GridMinMax> parse_min_max(Vector<ComponentValue> const&);
-    Optional<GridRepeat> parse_repeat(Vector<ComponentValue> const&);
-    Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);
+
+    Optional<GridSize> parse_grid_track_breadth(TokenStream<ComponentValue>&);
+    Optional<GridSize> parse_grid_inflexible_breadth(TokenStream<ComponentValue>&);
+    Optional<GridSize> parse_grid_fixed_breadth(TokenStream<ComponentValue>&);
+
+    Optional<GridLineNames> parse_grid_line_names(TokenStream<ComponentValue>&);
+
+    Optional<GridRepeat> parse_grid_track_repeat(TokenStream<ComponentValue>&);
+    Optional<GridRepeat> parse_grid_auto_repeat(TokenStream<ComponentValue>&);
+    Optional<GridRepeat> parse_grid_fixed_repeat(TokenStream<ComponentValue>&);
+
+    using GridRepeatTypeParser = AK::Function<Optional<GridRepeatParams>(TokenStream<ComponentValue>&)>;
+    using GridTrackParser = AK::Function<Optional<ExplicitGridTrack>(TokenStream<ComponentValue>&)>;
+    Optional<GridRepeat> parse_grid_track_repeat_impl(TokenStream<ComponentValue>&, GridRepeatTypeParser const&, GridTrackParser const&);
+
+    using GridMinMaxParamParser = AK::Function<Optional<GridSize>(TokenStream<ComponentValue>&)>;
+    Optional<ExplicitGridTrack> parse_grid_minmax(TokenStream<ComponentValue>&, GridMinMaxParamParser const&, GridMinMaxParamParser const&);
+
+    Optional<ExplicitGridTrack> parse_grid_track_size(TokenStream<ComponentValue>&);
+    Optional<ExplicitGridTrack> parse_grid_fixed_size(TokenStream<ComponentValue>&);
+
+    enum class AllowTrailingLineNamesForEachTrack {
+        Yes,
+        No
+    };
+    [[nodiscard]] size_t parse_track_list_impl(TokenStream<ComponentValue>& tokens, GridTrackSizeList& output, GridTrackParser const& track_parsing_callback, AllowTrailingLineNamesForEachTrack = AllowTrailingLineNamesForEachTrack::No);
+    GridTrackSizeList parse_grid_track_list(TokenStream<ComponentValue>&);
+    GridTrackSizeList parse_grid_auto_track_list(TokenStream<ComponentValue>&);
+    GridTrackSizeList parse_explicit_track_list(TokenStream<ComponentValue>&);
 
     Optional<URL> parse_url_function(TokenStream<ComponentValue>&);
     RefPtr<URLStyleValue const> parse_url_value(TokenStream<ComponentValue>&);
@@ -386,6 +418,8 @@ private:
     RefPtr<CSSStyleValue const> parse_single_background_repeat_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_single_background_size_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_border_value(PropertyID, TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_border_image_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_border_image_slice_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_border_radius_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_border_radius_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_columns_value(TokenStream<ComponentValue>&);
@@ -412,6 +446,7 @@ private:
     RefPtr<CSSStyleValue const> parse_font_variant_numeric_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_list_style_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_math_depth_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_opacity_value(PropertyID property_id, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_overflow_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_place_content_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_place_items_value(TokenStream<ComponentValue>&);
@@ -436,10 +471,10 @@ private:
     RefPtr<CSSStyleValue const> parse_transition_property_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_translate_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_scale_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue const> parse_grid_track_size_list(TokenStream<ComponentValue>&, bool allow_separate_line_name_blocks = false);
+    RefPtr<CSSStyleValue const> parse_grid_track_size_list(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_auto_track_sizes(TokenStream<ComponentValue>&);
     RefPtr<GridAutoFlowStyleValue const> parse_grid_auto_flow_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue const> parse_grid_track_size_list_shorthand_value(PropertyID, TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_grid_track_size_list_shorthand_value(PropertyID, TokenStream<ComponentValue>&, bool include_grid_auto_properties = false);
     RefPtr<GridTrackPlacementStyleValue const> parse_grid_track_placement(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_track_placement_shorthand_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_template_areas_value(TokenStream<ComponentValue>&);
@@ -478,10 +513,7 @@ private:
 
     OwnPtr<BooleanExpression> parse_supports_feature(TokenStream<ComponentValue>&);
 
-    NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(DOM::Element&, Optional<PseudoElement>, PropertyID, UnresolvedStyleValue const&);
-    bool expand_variables(DOM::Element&, Optional<PseudoElement>, FlyString const& property_name, HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>>& dependencies, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest);
-    bool expand_unresolved_values(DOM::Element&, FlyString const& property_name, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest);
-    bool substitute_attr_function(DOM::Element& element, FlyString const& property_name, Function const& attr_function, Vector<ComponentValue>& dest);
+    NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(DOM::AbstractElement&, GuardedSubstitutionContexts&, PropertyIDOrCustomPropertyName, UnresolvedStyleValue const&);
 
     static bool has_ignored_vendor_prefix(StringView);
 
@@ -517,6 +549,7 @@ private:
     bool context_allows_quirky_length() const;
 
     Vector<RuleContext> m_rule_context;
+    HashTable<FlyString> m_declared_namespaces;
 
     Vector<PseudoClass> m_pseudo_class_context; // Stack of pseudo-class functions we're currently inside
 };

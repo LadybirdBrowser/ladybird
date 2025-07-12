@@ -105,8 +105,10 @@ template<>
 ErrorOr<URL::Origin> decode(Decoder& decoder)
 {
     auto is_opaque = TRY(decoder.decode<bool>());
-    if (is_opaque)
-        return URL::Origin {};
+    if (is_opaque) {
+        auto nonce = TRY(decoder.decode<URL::Origin::Nonce>());
+        return URL::Origin { nonce };
+    }
 
     auto scheme = TRY(decoder.decode<Optional<String>>());
     auto host = TRY(decoder.decode<URL::Host>());

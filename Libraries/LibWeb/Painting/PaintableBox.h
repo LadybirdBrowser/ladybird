@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022-2025, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,21 +14,17 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/BorderPainting.h>
-#include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ClipFrame.h>
-#include <LibWeb/Painting/ClippableAndScrollable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
-#include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {
 
 extern bool g_paint_viewport_scrollbars;
 
 class PaintableBox : public Paintable
-    , public Weakable<PaintableBox>
-    , public ClippableAndScrollable {
+    , public Weakable<PaintableBox> {
     GC_CELL(PaintableBox, Paintable);
 
 public:
@@ -117,15 +113,11 @@ public:
 
     [[nodiscard]] bool has_css_transform() const
     {
-        if (!computed_values().transformations().is_empty())
-            return true;
-        if (computed_values().rotate().has_value())
-            return true;
-        if (computed_values().translate().has_value())
-            return true;
-        if (computed_values().scale().has_value())
-            return true;
-        return false;
+        auto const& computed_values = this->computed_values();
+        return !computed_values.transformations().is_empty()
+            || computed_values.rotate().has_value()
+            || computed_values.translate().has_value()
+            || computed_values.scale().has_value();
     }
 
     [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const
@@ -142,14 +134,15 @@ public:
 
     virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
 
-    virtual void apply_scroll_offset(PaintContext&, PaintPhase) const override;
-    virtual void reset_scroll_offset(PaintContext&, PaintPhase) const override;
+    void apply_scroll_offset(PaintContext&) const;
+    void reset_scroll_offset(PaintContext&) const;
 
-    virtual void apply_clip_overflow_rect(PaintContext&, PaintPhase) const override;
-    virtual void clear_clip_overflow_rect(PaintContext&, PaintPhase) const override;
+    void apply_clip_overflow_rect(PaintContext&, PaintPhase) const;
+    void clear_clip_overflow_rect(PaintContext&, PaintPhase) const;
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType) const;
+    [[nodiscard]] TraversalDecision hit_test_children(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const&) const;
     [[nodiscard]] TraversalDecision hit_test_continuation(Function<TraversalDecision(HitTestResult)> const& callback) const;
 
     virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, int wheel_delta_x, int wheel_delta_y) override;
@@ -246,6 +239,28 @@ public:
     void set_used_values_for_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_rows = move(style_value); }
     RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
 
+    void set_enclosing_scroll_frame(RefPtr<ScrollFrame const> const& scroll_frame) { m_enclosing_scroll_frame = scroll_frame; }
+    void set_own_scroll_frame(RefPtr<ScrollFrame> const& scroll_frame) { m_own_scroll_frame = scroll_frame; }
+    void set_enclosing_clip_frame(RefPtr<ClipFrame const> const& clip_frame) { m_enclosing_clip_frame = clip_frame; }
+    void set_own_clip_frame(RefPtr<ClipFrame const> const& clip_frame) { m_own_clip_frame = clip_frame; }
+
+    [[nodiscard]] RefPtr<ScrollFrame const> enclosing_scroll_frame() const { return m_enclosing_scroll_frame; }
+    [[nodiscard]] Optional<int> scroll_frame_id() const;
+    [[nodiscard]] CSSPixelPoint cumulative_offset_of_enclosing_scroll_frame() const;
+    [[nodiscard]] Optional<CSSPixelRect> clip_rect_for_hit_testing() const;
+
+    [[nodiscard]] RefPtr<ScrollFrame const> own_scroll_frame() const { return m_own_scroll_frame; }
+    [[nodiscard]] Optional<int> own_scroll_frame_id() const;
+    [[nodiscard]] CSSPixelPoint own_scroll_frame_offset() const
+    {
+        if (m_own_scroll_frame)
+            return m_own_scroll_frame->own_offset();
+        return {};
+    }
+
+    [[nodiscard]] RefPtr<ClipFrame const> enclosing_clip_frame() const { return m_enclosing_clip_frame; }
+    [[nodiscard]] RefPtr<ClipFrame const> own_clip_frame() const { return m_own_clip_frame; }
+
 protected:
     explicit PaintableBox(Layout::Box const&);
     explicit PaintableBox(Layout::InlineNode const&);
@@ -277,6 +292,9 @@ protected:
     TraversalDecision hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const;
     CSSPixelPoint adjust_position_for_cumulative_scroll_offset(CSSPixelPoint) const;
 
+    Gfx::AffineTransform const& combined_css_transform() const { return m_combined_css_transform; }
+    void set_combined_css_transform(Gfx::AffineTransform const& transform) { m_combined_css_transform = transform; }
+
 private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
 
@@ -285,7 +303,10 @@ private:
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
 
     bool scrollbar_contains_mouse_position(ScrollDirection, CSSPixelPoint);
-    void scroll_to_mouse_postion(CSSPixelPoint);
+    void scroll_to_mouse_position(CSSPixelPoint);
+
+    static void apply_clip(PaintContext&, RefPtr<ClipFrame const> const&);
+    static void restore_clip(PaintContext&, RefPtr<ClipFrame const> const&);
 
     OwnPtr<StackingContext> m_stacking_context;
 
@@ -298,7 +319,9 @@ private:
     Optional<CSSPixelRect> mutable m_absolute_paint_rect;
 
     RefPtr<ScrollFrame const> m_enclosing_scroll_frame;
+    RefPtr<ScrollFrame const> m_own_scroll_frame;
     RefPtr<ClipFrame const> m_enclosing_clip_frame;
+    RefPtr<ClipFrame const> m_own_clip_frame;
 
     Optional<BordersDataWithElementKind> m_override_borders_data;
     Optional<TableCellCoordinates> m_table_cell_coordinates;
@@ -307,11 +330,12 @@ private:
     Vector<ShadowData> m_box_shadow_data;
     Gfx::FloatMatrix4x4 m_transform { Gfx::FloatMatrix4x4::identity() };
     CSSPixelPoint m_transform_origin;
+    Gfx::AffineTransform m_combined_css_transform;
 
     Optional<BordersData> m_outline_data;
     CSSPixels m_outline_offset { 0 };
 
-    Optional<CSSPixelPoint> m_last_mouse_tracking_position;
+    Optional<CSSPixels> m_scroll_thumb_grab_position;
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
     bool m_draw_enlarged_horizontal_scrollbar { false };
     bool m_draw_enlarged_vertical_scrollbar { false };

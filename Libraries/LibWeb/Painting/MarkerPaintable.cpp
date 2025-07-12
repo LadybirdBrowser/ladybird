@@ -32,6 +32,9 @@ constexpr float sin_60_deg = 0.866025403f;
 
 void MarkerPaintable::paint(PaintContext& context, PaintPhase phase) const
 {
+    if (!is_visible())
+        return;
+
     if (phase == PaintPhase::Overlay)
         PaintableBox::paint(context, phase);
     if (phase != PaintPhase::Foreground)

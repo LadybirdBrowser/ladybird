@@ -171,10 +171,6 @@ ErrorOr<void> ICOImageDecoderPlugin::load_ico_bitmap(ICOLoadingContext& context)
     if (PNGImageDecoderPlugin::sniff({ context.data + desc.offset, desc.size })) {
         auto png_decoder = TRY(PNGImageDecoderPlugin::create({ context.data + desc.offset, desc.size }));
         auto decoded_png_frame = TRY(png_decoder->frame(0));
-        if (!decoded_png_frame.image) {
-            dbgln_if(ICO_DEBUG, "load_ico_bitmap: failed to load PNG encoded image index: {}", real_index);
-            return Error::from_string_literal("Encoded image not null");
-        }
         desc.bitmap = decoded_png_frame.image;
         return {};
     } else {
@@ -184,10 +180,6 @@ ErrorOr<void> ICOImageDecoderPlugin::load_ico_bitmap(ICOLoadingContext& context)
         // inside an ICO image.
         if (bmp_decoder->sniff_dib()) {
             auto decoded_bmp_frame = TRY(bmp_decoder->frame(0));
-            if (!decoded_bmp_frame.image) {
-                dbgln_if(ICO_DEBUG, "load_ico_bitmap: failed to load BMP encoded image index: {}", real_index);
-                return Error::from_string_literal("Encoded image not null");
-            }
             desc.bitmap = decoded_bmp_frame.image;
         } else {
             dbgln_if(ICO_DEBUG, "load_ico_bitmap: encoded image not supported at index: {}", real_index);
@@ -244,7 +236,7 @@ ErrorOr<ImageFrameDescriptor> ICOImageDecoderPlugin::frame(size_t index, Optiona
     }
 
     VERIFY(m_context->images[m_context->largest_index].bitmap);
-    return ImageFrameDescriptor { m_context->images[m_context->largest_index].bitmap, 0 };
+    return ImageFrameDescriptor { *m_context->images[m_context->largest_index].bitmap, 0 };
 }
 
 }

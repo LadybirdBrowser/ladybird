@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Altomani Gianluca <altomanigianluca@gmail.com>
+ * Copyright (c) 2024-2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,8 +11,7 @@
 
 namespace Crypto::PK {
 
-template<>
-ErrorOr<ByteBuffer> ECPrivateKey<IntegerType>::export_as_der() const
+ErrorOr<ByteBuffer> ECPrivateKey::export_as_der() const
 {
     ASN1::Encoder encoder;
     TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
@@ -43,7 +42,7 @@ ErrorOr<ByteBuffer> ECPrivateKey<IntegerType>::export_as_der() const
     return encoder.finish();
 }
 
-static ErrorOr<ECPublicKey<>> read_ec_public_key(ReadonlyBytes bytes, Vector<StringView> current_scope)
+static ErrorOr<ECPublicKey> read_ec_public_key(ReadonlyBytes bytes, Vector<StringView> current_scope)
 {
     // NOTE: Public keys do not have an ASN1 structure
     if (bytes.size() < 1) {
@@ -56,14 +55,24 @@ static ErrorOr<ECPublicKey<>> read_ec_public_key(ReadonlyBytes bytes, Vector<Str
             ERROR_WITH_SCOPE("Invalid public key length");
         }
 
-        return ::Crypto::PK::ECPublicKey<> {
+        return ::Crypto::PK::ECPublicKey {
             UnsignedBigInteger::import_data(bytes.slice(1, half_size)),
             UnsignedBigInteger::import_data(bytes.slice(1 + half_size, half_size)),
             half_size,
         };
-    } else {
-        ERROR_WITH_SCOPE("Unsupported public key format");
     }
+
+    if (bytes.size() % 2 == 0) {
+        // Raw public key, without the 0x04 prefix
+        auto half_size = bytes.size() / 2;
+        return ::Crypto::PK::ECPublicKey {
+            UnsignedBigInteger::import_data(bytes.slice(0, half_size)),
+            UnsignedBigInteger::import_data(bytes.slice(half_size, half_size)),
+            half_size,
+        };
+    }
+
+    ERROR_WITH_SCOPE("Unsupported public key format");
 }
 
 // https://www.rfc-editor.org/rfc/rfc5915#section-3
@@ -108,7 +117,7 @@ ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Ve
             }
         }
 
-        Optional<ECPublicKey<>> public_key;
+        Optional<ECPublicKey> public_key;
         if (!decoder.eof()) {
             auto tag = TRY(decoder.peek());
             if (static_cast<u8>(tag.kind) == 1) {

@@ -35,6 +35,8 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(gradientUnits, "gradientUnits")             \
     __ENUMERATE_SVG_ATTRIBUTE(height, "height")                           \
     __ENUMERATE_SVG_ATTRIBUTE(href, "href")                               \
+    __ENUMERATE_SVG_ATTRIBUTE(in, "in")                                   \
+    __ENUMERATE_SVG_ATTRIBUTE(in2, "in2")                                 \
     __ENUMERATE_SVG_ATTRIBUTE(kernelMatrix, "kernelMatrix")               \
     __ENUMERATE_SVG_ATTRIBUTE(kernelUnitLength, "kernelUnitLength")       \
     __ENUMERATE_SVG_ATTRIBUTE(keyPoints, "keyPoints")                     \
@@ -47,6 +49,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(markerWidth, "markerWidth")                 \
     __ENUMERATE_SVG_ATTRIBUTE(maskContentUnits, "maskContentUnits")       \
     __ENUMERATE_SVG_ATTRIBUTE(maskUnits, "maskUnits")                     \
+    __ENUMERATE_SVG_ATTRIBUTE(mode, "mode")                               \
     __ENUMERATE_SVG_ATTRIBUTE(numOctaves, "numOctaves")                   \
     __ENUMERATE_SVG_ATTRIBUTE(offset, "offset")                           \
     __ENUMERATE_SVG_ATTRIBUTE(opacity, "opacity")                         \
@@ -68,6 +71,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(repeatDur, "repeatDur")                     \
     __ENUMERATE_SVG_ATTRIBUTE(requiredExtensions, "requiredExtensions")   \
     __ENUMERATE_SVG_ATTRIBUTE(requiredFeatures, "requiredFeatures")       \
+    __ENUMERATE_SVG_ATTRIBUTE(result, "result")                           \
     __ENUMERATE_SVG_ATTRIBUTE(rx, "rx")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(ry, "ry")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(specularConstant, "specularConstant")       \
@@ -76,6 +80,8 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(startOffset, "startOffset")                 \
     __ENUMERATE_SVG_ATTRIBUTE(stdDeviation, "stdDeviation")               \
     __ENUMERATE_SVG_ATTRIBUTE(stitchTiles, "stitchTiles")                 \
+    __ENUMERATE_SVG_ATTRIBUTE(stopColor, "stop-color")                    \
+    __ENUMERATE_SVG_ATTRIBUTE(stopOpacity, "stop-opacity")                \
     __ENUMERATE_SVG_ATTRIBUTE(surfaceScale, "surfaceScale")               \
     __ENUMERATE_SVG_ATTRIBUTE(systemLanguage, "systemLanguage")           \
     __ENUMERATE_SVG_ATTRIBUTE(tableValues, "tableValues")                 \

@@ -9,3 +9,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableBox (Box<HTML>) [0,0 60x50]
     PaintableBox (Box<BODY>) [8,3 44x44]
       ImagePaintable (ImageBox<IMG>) [8,3 44x44]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for Box<HTML> [0,0 60x50] [children: 0] (z-index: auto)

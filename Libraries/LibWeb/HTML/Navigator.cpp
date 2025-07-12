@@ -2,6 +2,7 @@
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +13,7 @@
 #include <LibWeb/Bindings/NavigatorPrototype.h>
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/CredentialManagement/CredentialsContainer.h>
+#include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
@@ -66,6 +68,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_mime_type_array);
     visitor.visit(m_plugin_array);
     visitor.visit(m_clipboard);
+    visitor.visit(m_geolocation);
     visitor.visit(m_user_activation);
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
@@ -91,6 +94,13 @@ GC::Ref<Clipboard::Clipboard> Navigator::clipboard()
     if (!m_clipboard)
         m_clipboard = realm().create<Clipboard::Clipboard>(realm());
     return *m_clipboard;
+}
+
+GC::Ref<Geolocation::Geolocation> Navigator::geolocation()
+{
+    if (!m_geolocation)
+        m_geolocation = realm().create<Geolocation::Geolocation>(realm());
+    return *m_geolocation;
 }
 
 GC::Ref<UserActivation> Navigator::user_activation()

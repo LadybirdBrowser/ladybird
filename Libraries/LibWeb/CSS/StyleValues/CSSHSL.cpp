@@ -7,15 +7,16 @@
 #include "CSSHSL.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
 namespace Web::CSS {
 
-Color CSSHSL::to_color(Optional<Layout::NodeWithStyle const&>) const
+Color CSSHSL::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto const h_val = resolve_hue(m_properties.h).value_or(0);
-    auto const s_val = resolve_with_reference_value(m_properties.s, 100.0).value_or(0);
-    auto const l_val = resolve_with_reference_value(m_properties.l, 100.0).value_or(0);
-    auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+    auto const h_val = resolve_hue(m_properties.h, resolution_context).value_or(0);
+    auto const s_val = resolve_with_reference_value(m_properties.s, 100.0, resolution_context).value_or(0);
+    auto const l_val = resolve_with_reference_value(m_properties.l, 100.0, resolution_context).value_or(0);
+    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
 
     return Color::from_hsla(h_val, s_val / 100.0f, l_val / 100.0f, alpha_val);
 }
@@ -35,7 +36,7 @@ bool CSSHSL::equals(CSSStyleValue const& other) const
 String CSSHSL::to_string(SerializationMode) const
 {
     // FIXME: Do this properly, taking unresolved calculated values into account.
-    return serialize_a_srgb_value(to_color({}));
+    return serialize_a_srgb_value(to_color({}, {}));
 }
 
 }

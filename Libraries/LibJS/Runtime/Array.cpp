@@ -276,6 +276,22 @@ ThrowCompletionOr<double> compare_array_elements(VM& vm, Value x, Value y, Funct
 // NON-STANDARD: Used to return the value of the ephemeral length property
 ThrowCompletionOr<Optional<PropertyDescriptor>> Array::internal_get_own_property(PropertyKey const& property_key) const
 {
+    // OPTIMIZATION: Fast path for arrays with simple indexed properties storage.
+    auto const* storage = indexed_properties().storage();
+    if (property_key.is_number() && storage && storage->is_simple_storage()) {
+        auto const& simple_storage = static_cast<SimpleIndexedPropertyStorage const&>(*storage);
+        auto value_and_attributes = simple_storage.get(property_key.as_number());
+        if (value_and_attributes.has_value()) {
+            PropertyDescriptor descriptor;
+            descriptor.value = value_and_attributes->value;
+            descriptor.writable = true;
+            descriptor.enumerable = true;
+            descriptor.configurable = true;
+            return descriptor;
+        }
+        return Optional<PropertyDescriptor> {};
+    }
+
     auto& vm = this->vm();
     if (property_key.is_string() && property_key.as_string() == vm.names.length.as_string())
         return PropertyDescriptor { .value = Value(indexed_properties().array_like_size()), .writable = m_length_writable, .enumerable = false, .configurable = false };
@@ -374,7 +390,21 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
             return false;
 
         // h. Let succeeded be ! OrdinaryDefineOwnProperty(A, P, Desc).
-        auto succeeded = MUST(Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property));
+        bool succeeded = true;
+        auto* storage = indexed_properties().storage();
+        auto attributes = property_descriptor.attributes();
+        // OPTIMIZATION: Fast path for arrays with simple indexed properties storage.
+        if (property_descriptor.is_data_descriptor() && attributes == default_attributes && storage && storage->is_simple_storage()) {
+            if (!m_is_extensible) {
+                auto existing_descriptor = TRY(internal_get_own_property(property_key));
+                if (!existing_descriptor.has_value())
+                    return false;
+            }
+
+            storage->put(property_key.as_number(), property_descriptor.value.value());
+        } else {
+            succeeded = MUST(Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property));
+        }
 
         // i. If succeeded is false, return false.
         if (!succeeded)
@@ -391,6 +421,19 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
 
     // 3. Return ? OrdinaryDefineOwnProperty(A, P, Desc).
     return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
+}
+
+// NON-STANDARD: Fast path to quickly check if an indexed property exists in array without holes
+ThrowCompletionOr<bool> Array::internal_has_property(PropertyKey const& property_key) const
+{
+    auto const* storage = indexed_properties().storage();
+    if (property_key.is_number() && !m_is_proxy_target && storage && storage->is_simple_storage()) {
+        auto const& simple_storage = static_cast<SimpleIndexedPropertyStorage const&>(*storage);
+        if (!simple_storage.has_empty_elements() && property_key.as_number() < simple_storage.array_like_size()) {
+            return true;
+        }
+    }
+    return Object::internal_has_property(property_key);
 }
 
 // NON-STANDARD: Used to reject deletes to ephemeral (non-configurable) length property

@@ -57,6 +57,7 @@ public:
     WebIDL::ExceptionOr<bool> report_validity() const;
 
     WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> labels();
+    GC::Ptr<CustomStateSet> states();
 
 private:
     explicit ElementInternals(JS::Realm&, HTMLElement& target_element);

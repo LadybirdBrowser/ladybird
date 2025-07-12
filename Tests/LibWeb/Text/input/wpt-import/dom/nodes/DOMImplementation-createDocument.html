@@ -1,0 +1,172 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>DOMImplementation.createDocument(namespace, qualifiedName, doctype)</title>
+<link rel=help href="https://dom.spec.whatwg.org/#dom-domimplementation-createdocument">
+<link rel=help href="https://dom.spec.whatwg.org/#dom-document-createelementns">
+<link rel=help href="https://dom.spec.whatwg.org/#dom-node-nodetype">
+<link rel=help href="https://dom.spec.whatwg.org/#dom-document-documentelement">
+<link rel=help href="https://dom.spec.whatwg.org/#dom-document-doctype">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="Document-createElementNS.js"></script>
+<div id="log"></div>
+<script>
+var htmlNamespace = "http://www.w3.org/1999/xhtml"
+var svgNamespace = "http://www.w3.org/2000/svg"
+var mathMLNamespace = "http://www.w3.org/1998/Math/MathML"
+
+// Make DocumentTypes distinct
+function my_format_value(val) {
+  if (val instanceof DocumentType) {
+    return "DocumentType node <!DOCTYPE " + val.name
+      + (val.publicId ? " " + val.publicId : "")
+      + (val.systemId ? " " + val.systemId : "")
+      + ">";
+  }
+  return format_value(val);
+}
+
+test(function() {
+  var tests = createElementNS_tests.map(function(t) {
+    return [t[0], t[1], null, t[2]]
+  }).concat([
+    /* Arrays with four elements:
+     *   the namespace argument
+     *   the qualifiedName argument
+     *   the doctype argument
+     *   the expected exception, or null if none
+     */
+    [null, null, false, TypeError],
+    [null, "", null, null],
+    [undefined, null, undefined, null],
+    [undefined, undefined, undefined, null],
+    [undefined, "", undefined, null],
+    ["http://example.com/", null, null, null],
+    ["http://example.com/", "", null, null],
+    ["/", null, null, null],
+    ["/", "", null, null],
+    ["http://www.w3.org/XML/1998/namespace", null, null, null],
+    ["http://www.w3.org/XML/1998/namespace", "", null, null],
+    ["http://www.w3.org/2000/xmlns/", null, null, null],
+    ["http://www.w3.org/2000/xmlns/", "", null, null],
+    ["foo:", null, null, null],
+    ["foo:", "", null, null],
+    [null, null, document.implementation.createDocumentType("foo", "", ""), null],
+    [null, null, document.doctype, null], // This causes a horrible WebKit bug (now fixed in trunk).
+    [null, null, function() {
+        var foo = document.implementation.createDocumentType("bar", "", "");
+        document.implementation.createDocument(null, null, foo);
+        return foo;
+     }(), null], // DOCTYPE already associated with a document.
+    [null, null, function() {
+        var bar = document.implementation.createDocument(null, null, null);
+        return bar.implementation.createDocumentType("baz", "", "");
+     }(), null], // DOCTYPE created by a different implementation.
+    [null, null, function() {
+        var bar = document.implementation.createDocument(null, null, null);
+        var magic = bar.implementation.createDocumentType("quz", "", "");
+        bar.implementation.createDocument(null, null, magic);
+        return magic;
+     }(), null], // DOCTYPE created by a different implementation and already associated with a document.
+    [null, "foo", document.implementation.createDocumentType("foo", "", ""), null],
+    ["foo", null, document.implementation.createDocumentType("foo", "", ""), null],
+    ["foo", "bar", document.implementation.createDocumentType("foo", "", ""), null],
+    [htmlNamespace, "", null, null],
+    [svgNamespace, "", null, null],
+    [mathMLNamespace, "", null, null],
+    [null, "html", null, null],
+    [null, "svg", null, null],
+    [null, "math", null, null],
+    [null, "", document.implementation.createDocumentType("html",
+        "-//W3C//DTD XHTML 1.0 Transitional//EN",
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd")],
+    [null, "", document.implementation.createDocumentType("svg",
+        "-//W3C//DTD SVG 1.1//EN",
+        "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd")],
+    [null, "", document.implementation.createDocumentType("math",
+        "-//W3C//DTD MathML 2.0//EN",
+        "http://www.w3.org/Math/DTD/mathml2/mathml2.dtd")],
+  ])
+
+  tests.forEach(function(t, i) {
+    var namespace = t[0], qualifiedName = t[1], doctype = t[2], expected = t[3]
+    test(function() {
+      if (expected != null) {
+        if (typeof expected == "string") {
+          assert_throws_dom(expected, function() { document.implementation.createDocument(namespace, qualifiedName, doctype) });
+        } else {
+          assert_throws_js(expected, function() { document.implementation.createDocument(namespace, qualifiedName, doctype) });
+        }
+      } else {
+        var doc = document.implementation.createDocument(namespace, qualifiedName, doctype)
+        assert_equals(doc.nodeType, Node.DOCUMENT_NODE)
+        assert_equals(doc.nodeType, doc.DOCUMENT_NODE)
+        assert_equals(doc.nodeName, "#document")
+        assert_equals(doc.nodeValue, null)
+        assert_equals(Object.getPrototypeOf(doc), XMLDocument.prototype)
+        var omitRootElement = qualifiedName === null || String(qualifiedName) === ""
+        if (omitRootElement) {
+          assert_equals(doc.documentElement, null)
+        } else {
+          var element = doc.documentElement
+          assert_not_equals(element, null)
+          assert_equals(element.nodeType, Node.ELEMENT_NODE)
+          assert_equals(element.ownerDocument, doc)
+          var qualified = String(qualifiedName)
+          var names = []
+          var firstColonIndex = qualified.indexOf(":")
+          if (firstColonIndex >= 0) {
+            names = qualifiedName.split(":", 2);
+          } else {
+            names = [null, qualified]
+          }
+          assert_equals(element.prefix, names[0], 'element.prefix')
+          assert_equals(element.localName, names[1], 'element.localName')
+          assert_equals(element.namespaceURI, namespace === undefined || namespace === "" ? null : namespace, 'element.namespaceURI')
+        }
+        if (!doctype) {
+          assert_equals(doc.doctype, null)
+        } else {
+          assert_equals(doc.doctype, doctype)
+          assert_equals(doc.doctype.ownerDocument, doc)
+        }
+        assert_equals(doc.childNodes.length, !omitRootElement + !!doctype)
+      }
+    }, "createDocument test: " + t.map(my_format_value))
+
+    if (expected === null) {
+      test(function() {
+        var doc = document.implementation.createDocument(namespace, qualifiedName, doctype)
+        assert_equals(doc.location, null)
+        assert_equals(doc.compatMode, "CSS1Compat")
+        assert_equals(doc.characterSet, "UTF-8")
+        assert_equals(doc.contentType, namespace == htmlNamespace ? "application/xhtml+xml"
+                                 : namespace == svgNamespace ?  "image/svg+xml"
+                                 : "application/xml")
+        assert_equals(doc.URL, "about:blank")
+        assert_equals(doc.documentURI, "about:blank")
+        assert_equals(doc.createElement("DIV").localName, "DIV");
+      }, "createDocument test: metadata for " +
+      [namespace, qualifiedName, doctype].map(my_format_value))
+
+      test(function() {
+        var doc = document.implementation.createDocument(namespace, qualifiedName, doctype)
+        assert_equals(doc.characterSet, "UTF-8", "characterSet");
+        assert_equals(doc.charset, "UTF-8", "charset");
+        assert_equals(doc.inputEncoding, "UTF-8", "inputEncoding");
+      }, "createDocument test: characterSet aliases for " +
+      [namespace, qualifiedName, doctype].map(my_format_value))
+    }
+  })
+})
+
+test(function() {
+  assert_throws_js(TypeError, function() {
+    document.implementation.createDocument()
+  }, "createDocument() should throw")
+
+  assert_throws_js(TypeError, function() {
+    document.implementation.createDocument('')
+  }, "createDocument('') should throw")
+}, "createDocument with missing arguments");
+</script>

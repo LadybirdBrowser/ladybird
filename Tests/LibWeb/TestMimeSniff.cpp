@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2023-2024, Kemal Zebari <kemalzebra@gmail.com>.
+ * Copyright (c) 2023-2024, Kemal Zebari <kemalzebra@gmail.com>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2025, Ben Eidson <b.e.eidson@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -311,6 +312,96 @@ TEST_CASE(determine_computed_mime_type_when_trying_to_match_webm_signature)
     mime_type_to_headers_map.set("video/webm"sv, {
                                                      // Input that should parse correctly.
                                                      "\x1A\x45\xDF\xA3\x42\x82\x84\x77\x65\x62\x6D\x00"sv,
+                                                 });
+
+    for (auto const& mime_type_to_headers : mime_type_to_headers_map) {
+        auto mime_type = mime_type_to_headers.key;
+
+        for (auto const& header : mime_type_to_headers.value) {
+            auto computed_mime_type = Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo });
+            EXPECT_EQ(mime_type, computed_mime_type.serialized());
+        }
+    }
+}
+
+// http://mpgedit.org/mpgedit/mpeg_format/mpeghdr.htm
+struct MP3FrameOptions {
+    bool validLength = true;
+    // include the 0xFFF sync word?
+    bool sync = true;
+    // 3=MPEG-1, 2=MPEG-2, 0=MPEG-2.5
+    u8 version = 3;
+    // 1=III, 2=II, 3=I
+    u8 layer = 1;
+    // true=no CRC, false=CRC follows
+    bool protect = true;
+    // 1–14 valid
+    u8 bitrate_index = 9;
+    // 0=44.1k,1=48k,2=32k
+    u8 samplerate_index = 0;
+    // padding bit
+    bool padded = false;
+    // filler bytes
+    size_t payload_bytes = 100;
+};
+
+static ByteBuffer make_mp3_frame(MP3FrameOptions opts)
+{
+    if (!opts.validLength)
+        return MUST(ByteBuffer::create_zeroed(2));
+
+    size_t total_size = 4 + opts.payload_bytes;
+    auto buffer = MUST(ByteBuffer::create_zeroed(total_size));
+    auto* data = buffer.data();
+
+    // first 8 bits of sync (0xFFF)
+    if (opts.sync)
+        data[0] = 0xFF;
+
+    // 1110 0000 = last three sync bits
+    data[1] = 0xE0
+        // bits 4–3: version
+        | ((opts.version & 0x3) << 3)
+        // bits 2–1: layer
+        | ((opts.layer & 0x3) << 1)
+        // bit 0:  protection
+        | (opts.protect & 0x1);
+
+    // bits 7–4: bitrate index
+    data[2] = ((opts.bitrate_index & 0xF) << 4)
+        // bits 3–2: samplerate index
+        | ((opts.samplerate_index & 0x3) << 2)
+        // bit 1: pad
+        | ((opts.padded & 0x1) << 1);
+    // bit 0: private (keep zero)
+
+    // 3) Rest of header (channel flags, etc.) – not needed for sniff
+    data[3] = 0x00;
+
+    // Payload bytes are already zeroed
+
+    return buffer;
+}
+
+TEST_CASE(determine_computed_mime_type_when_trying_to_match_mp3_no_id3_signature)
+{
+
+    HashMap<StringView, Vector<ByteBuffer>> mime_type_to_headers_map;
+    mime_type_to_headers_map.set("application/octet-stream"sv, {
+                                                                   // Payload length < 4.
+                                                                   make_mp3_frame({ .validLength = false }),
+                                                                   // invalid sync
+                                                                   make_mp3_frame({ .sync = false }),
+                                                                   // invalid layer (reserved)
+                                                                   make_mp3_frame({ .layer = 0 }),
+                                                                   // invalid bitrate
+                                                                   make_mp3_frame({ .bitrate_index = 15 }),
+                                                                   // invalid sample rate
+                                                                   make_mp3_frame({ .samplerate_index = 3 }),
+                                                               });
+    mime_type_to_headers_map.set("audio/mpeg"sv, {
+                                                     make_mp3_frame({ .padded = true }),
+                                                     make_mp3_frame({ .padded = false }),
                                                  });
 
     for (auto const& mime_type_to_headers : mime_type_to_headers_map) {

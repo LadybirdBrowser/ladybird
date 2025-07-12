@@ -148,22 +148,16 @@ static Alignment to_alignment(CSS::AlignItems value)
     }
 }
 
-GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_definition(CSS::ExplicitGridTrack const& definition)
+GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_definition(CSS::ExplicitGridTrack const& definition, bool is_auto_fit = false)
 {
     // NOTE: repeat() is expected to be expanded beforehand.
     VERIFY(!definition.is_repeat());
-
-    if (definition.is_fit_content()) {
-        return GridTrack {
-            .min_track_sizing_function = CSS::GridSize::make_auto(),
-            .max_track_sizing_function = definition.fit_content().max_grid_size(),
-        };
-    }
 
     if (definition.is_minmax()) {
         return GridTrack {
             .min_track_sizing_function = definition.minmax().min_grid_size(),
             .max_track_sizing_function = definition.minmax().max_grid_size(),
+            .is_auto_fit = is_auto_fit,
         };
     }
 
@@ -180,6 +174,7 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_d
     return GridTrack {
         .min_track_sizing_function = min_track_sizing_function,
         .max_track_sizing_function = max_track_sizing_function,
+        .is_auto_fit = is_auto_fit,
     };
 }
 
@@ -209,20 +204,12 @@ GridFormattingContext::GridFormattingContext(LayoutState& state, LayoutMode layo
 
 GridFormattingContext::~GridFormattingContext() = default;
 
-CSSPixels GridFormattingContext::resolve_definite_track_size(CSS::GridSize const& grid_size, AvailableSpace const& available_space)
+CSSPixels GridFormattingContext::resolve_definite_track_size(CSS::GridSize const& grid_size, AvailableSpace const& available_space) const
 {
     VERIFY(grid_size.is_definite());
-    switch (grid_size.type()) {
-    case CSS::GridSize::Type::LengthPercentage: {
-        if (!grid_size.length_percentage().is_auto()) {
-            return grid_size.css_size().to_px(grid_container(), available_space.width.to_px_or_zero());
-        }
-        break;
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
-    return 0;
+    if (grid_size.type() == CSS::GridSize::Type::LengthPercentage)
+        return grid_size.css_size().to_px(grid_container(), available_space.width.to_px_or_zero());
+    VERIFY_NOT_REACHED();
 }
 
 int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimension dimension, CSS::ExplicitGridTrack const& repeated_track)
@@ -269,19 +256,16 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
         return 0;
 
     auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
-    auto free_space = get_free_space(*m_available_space, dimension).to_px_or_zero();
     auto const& gap = dimension == GridDimension::Column ? grid_computed_values.column_gap() : grid_computed_values.row_gap();
     auto gap_px = gap_to_px(gap, grid_container(), available_size.to_px_or_zero());
     auto size_of_repeated_tracks_with_gap = size_of_repeated_tracks + repeat_track_list.size() * gap_px;
-    // If any number of repetitions would overflow, then 1 repetition.
-    if (free_space <= size_of_repeated_tracks_with_gap) {
-        return 1;
-    }
     // Otherwise, if the grid container has a definite min size in the relevant axis, the number of repetitions is the
     // smallest possible positive integer that fulfills that minimum requirement
-    else if (available_size.is_definite()) {
+    if (available_size.is_definite()) {
         // NOTE: Gap size is added to free space to compensate for the fact that the last track does not have a gap
+        auto free_space = available_size.to_px_or_zero();
         auto number_of_repetitions = ((free_space + gap_px) / size_of_repeated_tracks_with_gap).to_int();
+        // If any number of repetitions would overflow, then 1 repetition.
         return max(1, number_of_repetitions);
     }
     // Otherwise, the specified track list repeats only once.
@@ -298,16 +282,21 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     auto const& placement_start = dimension == GridDimension::Row ? computed_values.grid_row_start() : computed_values.grid_column_start();
     auto const& placement_end = dimension == GridDimension::Row ? computed_values.grid_row_end() : computed_values.grid_column_end();
 
+    CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
+
+    Optional<i64> placement_start_line_number = placement_start.has_line_number() ? placement_start.line_number().resolved(resolution_context) : Optional<i64> {};
+    Optional<i64> placement_end_line_number = placement_end.has_line_number() ? placement_end.line_number().resolved(resolution_context) : Optional<i64> {};
+
     PlacementPosition result;
 
-    if (placement_start.has_line_number() && placement_start.line_number() > 0)
-        result.start = placement_start.line_number() - 1;
-    else if (placement_start.has_line_number()) {
+    if (placement_start_line_number.has_value() && placement_start_line_number.value() > 0)
+        result.start = placement_start_line_number.value() - 1;
+    else if (placement_start_line_number.has_value()) {
         auto explicit_line_count = dimension == GridDimension::Row ? m_explicit_rows_line_count : m_explicit_columns_line_count;
-        result.start = explicit_line_count + placement_start.line_number();
+        result.start = explicit_line_count + placement_start_line_number.value();
     }
-    if (placement_end.has_line_number())
-        result.end = placement_end.line_number() - 1;
+    if (placement_end_line_number.has_value())
+        result.end = *placement_end_line_number - 1;
 
     if (result.end < 0) {
         if (dimension == GridDimension::Row)
@@ -316,10 +305,13 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
             result.end = m_occupation_grid.column_count() + result.end + 2;
     }
 
+    // FIXME: If a name is given as a <custom-ident>, only lines with that name are counted. If not enough lines with
+    //        that name exist, all implicit grid lines on the side of the explicit grid corresponding to the search
+    //        direction are assumed to have that name for the purpose of counting this span.
     if (placement_end.is_span())
-        result.span = placement_end.span();
+        result.span = placement_end.span().resolved(resolution_context).value();
     if (placement_start.is_span()) {
-        result.span = placement_start.span();
+        result.span = placement_start.span().resolved(resolution_context).value();
         result.start = result.end - result.span;
         // FIXME: Remove me once have implemented spans overflowing into negative indexes, e.g., grid-row: span 2 / 1
         if (result.start < 0)
@@ -328,7 +320,7 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
 
     if (placement_end.has_identifier()) {
         auto area_end_line_name = MUST(String::formatted("{}-end", placement_end.identifier()));
-        auto line_number = placement_end.has_line_number() ? placement_end.line_number() : 1;
+        auto line_number = placement_end_line_number.value_or(1);
         if (auto area_end_line_index = get_nth_line_index_by_line_name(dimension, area_end_line_name, line_number); area_end_line_index.has_value()) {
             result.end = area_end_line_index.value();
         } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_end.identifier(), line_number); line_name_index.has_value()) {
@@ -341,7 +333,7 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
 
     if (placement_start.has_identifier()) {
         auto area_start_line_name = MUST(String::formatted("{}-start", placement_start.identifier()));
-        auto line_number = placement_start.has_line_number() ? placement_start.line_number() : 1;
+        auto line_number = placement_start_line_number.value_or(1);
         if (auto area_start_line_index = get_nth_line_index_by_line_name(dimension, area_start_line_name, line_number); area_start_line_index.has_value()) {
             result.start = area_start_line_index.value();
         } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_start.identifier(), line_number); line_name_index.has_value()) {
@@ -349,6 +341,14 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
         } else {
             result.start = 0;
         }
+    }
+
+    if (!placement_start.is_positioned() && placement_end.is_positioned() && !placement_end.is_span()) {
+        if (result.span == 0)
+            result.span = 1;
+        result.start = result.end - result.span;
+        if (result.start < 0)
+            result.start = 0;
     }
 
     if (placement_start.is_positioned() && placement_end.is_positioned()) {
@@ -365,7 +365,7 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     // If the placement contains two spans, remove the one contributed by the end grid-placement
     // property.
     if (placement_start.is_span() && placement_end.is_span())
-        result.span = placement_start.span();
+        result.span = placement_start.span().resolved(resolution_context).value();
 
     return result;
 }
@@ -397,7 +397,7 @@ void GridFormattingContext::place_item_with_row_position(Box const& child_box)
 
     auto const& grid_column_start = child_box.computed_values().grid_column_start();
     int column_start = 0;
-    size_t column_span = grid_column_start.is_span() ? grid_column_start.span() : 1;
+    size_t column_span = grid_column_start.is_span() ? grid_column_start.span().resolved({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) }).value() : 1;
 
     bool found_available_column = false;
     for (size_t column_index = column_start; column_index < m_occupation_grid.column_count(); column_index++) {
@@ -427,7 +427,7 @@ void GridFormattingContext::place_item_with_column_position(Box const& child_box
     size_t column_span = placement_position.span;
 
     auto const& grid_row_start = child_box.computed_values().grid_row_start();
-    size_t row_span = grid_row_start.is_span() ? grid_row_start.span() : 1;
+    size_t row_span = grid_row_start.is_span() ? grid_row_start.span().resolved({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) }).value() : 1;
 
     // 4.1.1.1. Set the column position of the cursor to the grid item's column-start line. If this is
     // less than the previous column position of the cursor, increment the row position by 1.
@@ -492,18 +492,20 @@ void GridFormattingContext::place_item_with_no_declared_position(Box const& chil
     auto const& grid_column_start = computed_values.grid_column_start();
     auto const& grid_column_end = computed_values.grid_column_end();
 
+    CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
+
     auto column_start = 0;
     size_t column_span = 1;
     if (grid_column_start.is_span())
-        column_span = grid_column_start.span();
+        column_span = grid_column_start.span().resolved(resolution_context).value();
     else if (grid_column_end.is_span())
-        column_span = grid_column_end.span();
+        column_span = grid_column_end.span().resolved(resolution_context).value();
     auto row_start = 0;
     size_t row_span = 1;
     if (grid_row_start.is_span())
-        row_span = grid_row_start.span();
+        row_span = grid_row_start.span().resolved(resolution_context).value();
     else if (grid_row_end.is_span())
-        row_span = grid_row_end.span();
+        row_span = grid_row_end.span().resolved(resolution_context).value();
 
     auto const& auto_flow = grid_container().computed_values().grid_auto_flow();
     auto dimension = auto_flow.row ? GridDimension::Column : GridDimension::Row;
@@ -562,25 +564,22 @@ void GridFormattingContext::initialize_grid_tracks_from_definition(GridDimension
     auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
     for (auto const& track_definition : tracks_definition) {
         int repeat_count = 1;
+        bool is_auto_fit = false;
         if (track_definition.is_repeat()) {
-            if (track_definition.repeat().is_auto_fill() || track_definition.repeat().is_auto_fit())
+            is_auto_fit = track_definition.repeat().is_auto_fit();
+            if (track_definition.repeat().is_auto_fill() || is_auto_fit)
                 repeat_count = count_of_repeated_auto_fill_or_fit_tracks(dimension, track_definition);
             else
                 repeat_count = track_definition.repeat().repeat_count();
         }
         for (auto _ = 0; _ < repeat_count; _++) {
-            switch (track_definition.type()) {
-            case CSS::ExplicitGridTrack::Type::Default:
-            case CSS::ExplicitGridTrack::Type::FitContent:
-            case CSS::ExplicitGridTrack::Type::MinMax:
-                tracks.append(GridTrack::create_from_definition(track_definition));
-                break;
-            case CSS::ExplicitGridTrack::Type::Repeat:
+            if (track_definition.is_default() || track_definition.is_minmax()) {
+                tracks.append(GridTrack::create_from_definition(track_definition, is_auto_fit));
+            } else if (track_definition.is_repeat()) {
                 for (auto& explicit_grid_track : track_definition.repeat().grid_track_size_list().track_list()) {
-                    tracks.append(GridTrack::create_from_definition(explicit_grid_track));
+                    tracks.append(GridTrack::create_from_definition(explicit_grid_track, is_auto_fit));
                 }
-                break;
-            default:
+            } else {
                 VERIFY_NOT_REACHED();
             }
         }
@@ -638,6 +637,9 @@ void GridFormattingContext::initialize_grid_tracks_for_columns_and_rows()
         }
         implicit_row_index++;
     }
+
+    m_column_lines.resize(m_grid_columns.size() + 1);
+    m_row_lines.resize(m_grid_rows.size() + 1);
 }
 
 void GridFormattingContext::initialize_gap_tracks(AvailableSpace const& available_space)
@@ -1393,10 +1395,10 @@ void GridFormattingContext::build_grid_areas()
     // and column-end lines of the named grid area.
     for (auto const& it : grid_areas) {
         auto const& grid_area = it.value;
-        m_column_lines[grid_area.column_start].names.append(MUST(String::formatted("{}-start", grid_area.name)));
-        m_column_lines[grid_area.column_end].names.append(MUST(String::formatted("{}-end", grid_area.name)));
-        m_row_lines[grid_area.row_start].names.append(MUST(String::formatted("{}-start", grid_area.name)));
-        m_row_lines[grid_area.row_end].names.append(MUST(String::formatted("{}-end", grid_area.name)));
+        m_column_lines[grid_area.column_start].append({ .name = MUST(String::formatted("{}-start", grid_area.name)), .implicit = true });
+        m_column_lines[grid_area.column_end].append({ .name = MUST(String::formatted("{}-end", grid_area.name)), .implicit = true });
+        m_row_lines[grid_area.row_start].append({ .name = MUST(String::formatted("{}-start", grid_area.name)), .implicit = true });
+        m_row_lines[grid_area.row_end].append({ .name = MUST(String::formatted("{}-end", grid_area.name)), .implicit = true });
     }
 }
 
@@ -1491,11 +1493,13 @@ void GridFormattingContext::place_grid_items()
             auto const& grid_column_start = child_box->computed_values().grid_column_start();
             auto const& grid_column_end = child_box->computed_values().grid_column_end();
 
+            CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
+
             int column_span = 1;
             if (grid_column_start.is_span())
-                column_span = grid_column_start.span();
+                column_span = grid_column_start.span().resolved(resolution_context).value();
             else if (grid_column_end.is_span())
-                column_span = grid_column_end.span();
+                column_span = grid_column_end.span().resolved(resolution_context).value();
 
             if (column_span - 1 > m_occupation_grid.max_column_index())
                 m_occupation_grid.set_max_column_index(column_span - 1);
@@ -1823,18 +1827,16 @@ void GridFormattingContext::collapse_auto_fit_tracks_if_needed(GridDimension dim
     // The auto-fit keyword behaves the same as auto-fill, except that after grid item placement any
     // empty repeated tracks are collapsed. An empty track is one with no in-flow grid items placed into
     // or spanning across it. (This can result in all tracks being collapsed, if they’re all empty.)
-    auto const& grid_computed_values = grid_container().computed_values();
-    auto const& tracks_definition = dimension == GridDimension::Column ? grid_computed_values.grid_template_columns().track_list() : grid_computed_values.grid_template_rows().track_list();
     auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
-    if (tracks_definition.size() == 1 && tracks_definition.first().is_repeat() && tracks_definition.first().repeat().is_auto_fit()) {
-        for (size_t track_index = 0; track_index < tracks.size(); track_index++) {
-            if (m_occupation_grid.is_occupied(dimension == GridDimension::Column ? track_index : 0, dimension == GridDimension::Row ? track_index : 0))
-                continue;
+    for (size_t track_index = 0; track_index < tracks.size(); track_index++) {
+        if (!tracks[track_index].is_auto_fit)
+            continue;
+        if (m_occupation_grid.is_occupied(dimension == GridDimension::Column ? track_index : 0, dimension == GridDimension::Row ? track_index : 0))
+            continue;
 
-            // NOTE: A collapsed track is treated as having a fixed track sizing function of 0px
-            tracks[track_index].min_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
-            tracks[track_index].max_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
-        }
+        // NOTE: A collapsed track is treated as having a fixed track sizing function of 0px
+        tracks[track_index].min_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
+        tracks[track_index].max_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
     }
 }
 
@@ -2068,17 +2070,29 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
             independent_formatting_context->parent_context_did_dimension_child_root_box();
     }
 
-    Vector<Variant<CSS::ExplicitGridTrack, CSS::GridLineNames>> grid_track_columns;
-    grid_track_columns.ensure_capacity(m_grid_columns.size());
-    for (auto const& column : m_grid_columns) {
-        grid_track_columns.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthPercentage(CSS::Length::make_px(column.base_size)) } });
-    }
+    auto serialize = [](auto const& tracks, auto const& lines) {
+        CSS::GridTrackSizeList result;
+        for (size_t i = 0; i < lines.size(); ++i) {
+            auto const& names = lines[i];
+            if (!names.is_empty()) {
+                CSS::GridLineNames grid_line_names;
+                for (auto const& [name, implicit] : names) {
+                    if (!implicit)
+                        grid_line_names.append(name);
+                }
+                result.append(CSS::GridLineNames { move(grid_line_names) });
+            }
 
-    Vector<Variant<CSS::ExplicitGridTrack, CSS::GridLineNames>> grid_track_rows;
-    grid_track_rows.ensure_capacity(m_grid_rows.size());
-    for (auto const& row : m_grid_rows) {
-        grid_track_rows.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthPercentage(CSS::Length::make_px(row.base_size)) } });
-    }
+            if (i < tracks.size()) {
+                auto const& track = tracks[i];
+                result.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthPercentage(CSS::Length::make_px(track.base_size)) } });
+            }
+        }
+        return result;
+    };
+
+    auto grid_track_columns = serialize(m_grid_columns, m_column_lines);
+    auto grid_track_rows = serialize(m_grid_rows, m_row_lines);
 
     // getComputedStyle() needs to return the resolved values of grid-template-columns and grid-template-rows
     // so they need to be saved in the state, and then assigned to paintables in LayoutState::commit()
@@ -2276,8 +2290,8 @@ Optional<int> GridFormattingContext::get_nth_line_index_by_line_name(GridDimensi
     // of the explicit grid corresponding to the search direction are assumed to have that name for the purpose of counting this span.
     // Source: https://drafts.csswg.org/css-grid/#line-placement
     for (size_t actual_line_index = 0; actual_line_index < lines.size(); actual_line_index++) {
-        for (auto const& name : lines[actual_line_index].names) {
-            if (name == line_name) {
+        for (auto const& line : lines[actual_line_index]) {
+            if (line.name == line_name) {
                 // https://drafts.csswg.org/css-grid/#line-placement
                 // Contributes the nth grid line to the grid item’s placement.
                 if (line_index == 0)
@@ -2296,15 +2310,15 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
     auto const& lines_definition = dimension == GridDimension::Column ? grid_computed_values.grid_template_columns() : grid_computed_values.grid_template_rows();
     auto& lines = dimension == GridDimension::Column ? m_column_lines : m_row_lines;
 
-    Vector<String> line_names;
+    Vector<CSS::GridLineName> line_names;
     Function<void(CSS::GridTrackSizeList const&)> expand_lines_definition = [&](CSS::GridTrackSizeList const& lines_definition) {
         for (auto const& item : lines_definition.list()) {
             if (item.has<CSS::GridLineNames>()) {
-                line_names.extend(item.get<CSS::GridLineNames>().names);
+                line_names.extend(item.get<CSS::GridLineNames>().names());
             } else if (item.has<CSS::ExplicitGridTrack>()) {
                 auto const& explicit_track = item.get<CSS::ExplicitGridTrack>();
-                if (explicit_track.is_default() || explicit_track.is_minmax() || explicit_track.is_fit_content()) {
-                    lines.append({ .names = line_names });
+                if (explicit_track.is_default() || explicit_track.is_minmax()) {
+                    lines.append(line_names);
                     line_names.clear();
                 } else if (explicit_track.is_repeat()) {
                     int repeat_count = 0;
@@ -2323,7 +2337,7 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
     };
 
     expand_lines_definition(lines_definition);
-    lines.append({ .names = line_names });
+    lines.append(line_names);
 }
 
 void OccupationGrid::set_occupied(int column_start, int column_end, int row_start, int row_end)

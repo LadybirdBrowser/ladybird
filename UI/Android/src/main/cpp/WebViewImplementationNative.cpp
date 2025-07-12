@@ -7,7 +7,8 @@
 #include "WebViewImplementationNative.h"
 #include "JNIHelpers.h"
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/DeprecatedPainter.h>
+#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/Painter.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -20,7 +21,7 @@ static Gfx::BitmapFormat to_gfx_bitmap_format(i32 f)
 {
     switch (f) {
     case ANDROID_BITMAP_FORMAT_RGBA_8888:
-        return Gfx::BitmapFormat::BGRA8888;
+        return Gfx::BitmapFormat::RGBA8888;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -62,6 +63,8 @@ void WebViewImplementationNative::initialize_client(WebView::ViewImplementation:
 
     client().async_set_device_pixels_per_css_pixel(0, m_device_pixel_ratio);
 
+    set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+
     // FIXME: update_palette, update system fonts
 }
 
@@ -71,25 +74,11 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
     VERIFY((info.flags & ANDROID_BITMAP_FLAGS_IS_HARDWARE) == 0);
 
     auto android_bitmap = MUST(Gfx::Bitmap::create_wrapper(to_gfx_bitmap_format(info.format), Gfx::AlphaType::Premultiplied, { info.width, info.height }, info.stride, android_bitmap_raw));
-    Gfx::DeprecatedPainter painter(android_bitmap);
+    auto painter = Gfx::Painter::create(android_bitmap);
     if (auto* bitmap = m_client_state.has_usable_bitmap ? m_client_state.front_bitmap.bitmap.ptr() : m_backup_bitmap.ptr())
-        painter.blit({ 0, 0 }, *bitmap, bitmap->rect());
+        painter->draw_bitmap(android_bitmap->rect().to_type<float>(), Gfx::ImmutableBitmap::create(MUST(bitmap->clone())), bitmap->rect(), Gfx::ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::Copy);
     else
-        painter.clear_rect(painter.clip_rect(), Gfx::Color::Magenta);
-
-    // Convert our internal BGRA into RGBA. This will be slowwwwwww
-    // FIXME: Don't do a color format swap here.
-    for (auto y = 0; y < android_bitmap->height(); ++y) {
-        auto* scanline = android_bitmap->scanline(y);
-        for (auto x = 0; x < android_bitmap->width(); ++x) {
-            auto current_pixel = scanline[x];
-            u32 alpha = (current_pixel & 0xFF000000U) >> 24;
-            u32 red = (current_pixel & 0x00FF0000U) >> 16;
-            u32 green = (current_pixel & 0x0000FF00U) >> 8;
-            u32 blue = (current_pixel & 0x000000FFU);
-            scanline[x] = (alpha << 24U) | (blue << 16U) | (green << 8U) | red;
-        }
-    }
+        painter->fill_rect(android_bitmap->rect().to_type<float>(), Gfx::Color::Magenta);
 }
 
 void WebViewImplementationNative::set_viewport_geometry(int w, int h)
@@ -139,7 +128,7 @@ NonnullRefPtr<WebView::WebContentClient> WebViewImplementationNative::bind_web_c
     auto socket = MUST(Core::LocalSocket::adopt_fd(ui_fd));
     MUST(socket->set_blocking(true));
 
-    auto new_client = make_ref_counted<WebView::WebContentClient>(move(socket), *this);
+    auto new_client = make_ref_counted<WebView::WebContentClient>(make<IPC::Transport>(move(socket)), *this);
 
     return new_client;
 }

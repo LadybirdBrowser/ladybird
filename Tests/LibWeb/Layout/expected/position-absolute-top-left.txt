@@ -40,7 +40,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x616]
     PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x600]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-        PaintableWithLines (BlockContainer<DIV>.blue.absolute) [208,208 200x200]
+        PaintableWithLines (BlockContainer<DIV>.blue.absolute) [208,208 200x200] overflow: [208,208 400x400]
           PaintableWithLines (BlockContainer<DIV>.red.absolute) [308,308 100x100]
           PaintableWithLines (BlockContainer<DIV>.yellow.absolute) [258,258 100x100]
             PaintableWithLines (BlockContainer<DIV>.black.absolute) [308,308 50x50]
@@ -56,3 +56,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x616]
       PaintableWithLines (BlockContainer(anonymous)) [8,208 784x0]
       PaintableWithLines (BlockContainer<DIV>.blue_margin) [408,408 200x200]
       PaintableWithLines (BlockContainer(anonymous)) [8,608 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x616] [children: 0] (z-index: auto)

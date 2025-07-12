@@ -4,8 +4,8 @@ typedef (ImageBitmap or
          ImageData or
          HTMLImageElement or
          HTMLCanvasElement or
-         HTMLVideoElement
-         // FIXME: OffscreenCanvas or
+         HTMLVideoElement or
+         OffscreenCanvas
          // FIXME: VideoFrame
          ) TexImageSource;
 

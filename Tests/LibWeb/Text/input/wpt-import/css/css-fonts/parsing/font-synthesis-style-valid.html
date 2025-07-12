@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <title>CSS Fonts Module Level 4: parsing font-synthesis-style with valid values</title>
-<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-synthesis-style">
-<meta name="assert" content="font-synthesis-style supports the full grammar 'auto | none'.">
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-synthesis-style">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/9390#issuecomment-2625297188">
+<meta name="assert" content="font-synthesis-style supports the full grammar 'auto | none | oblique-only'.">
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
 <script src="../../../css/support/parsing-testcommon.js"></script>
@@ -13,6 +14,7 @@
 <script>
 test_valid_value('font-synthesis-style', 'auto');
 test_valid_value('font-synthesis-style', 'none');
+test_valid_value('font-synthesis-style', 'oblique-only');
 </script>
 </body>
 </html>

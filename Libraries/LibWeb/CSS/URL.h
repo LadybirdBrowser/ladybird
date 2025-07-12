@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
@@ -35,6 +36,7 @@ public:
 private:
     using Value = Variant<CrossOriginModifierValue, ReferrerPolicyModifierValue, FlyString>;
     RequestURLModifier(Type, Value);
+
     Type m_type;
     Value m_value;
 };
@@ -42,7 +44,12 @@ private:
 // https://drafts.csswg.org/css-values-4/#urls
 class URL {
 public:
-    URL(String url, Vector<RequestURLModifier> = {});
+    enum class Type : u8 {
+        Url,
+        Src,
+    };
+
+    URL(String url, Type = Type::Url, Vector<RequestURLModifier> = {});
 
     String const& url() const { return m_url; }
     Vector<RequestURLModifier> const& request_url_modifiers() const { return m_request_url_modifiers; }
@@ -51,6 +58,7 @@ public:
     bool operator==(URL const&) const;
 
 private:
+    Type m_type;
     String m_url;
     Vector<RequestURLModifier> m_request_url_modifiers;
 };

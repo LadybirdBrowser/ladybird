@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing border-image-slice with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-image-slice">
+<meta name="assert" content="border-image-slice supports only the grammar '[<number> | <percentage>]{1,4} && fill?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("border-image-slice", "fill");
+
+test_invalid_value("border-image-slice", "1 -2% fill");
+test_invalid_value("border-image-slice", "-1 2% fill");
+
+test_invalid_value("border-image-slice", "1 2 3 4 5");
+
+test_invalid_value("border-image-slice", "1% fill 2%");
+
+test_invalid_value("border-image-slice", "-10");
+</script>
+</body>
+</html>

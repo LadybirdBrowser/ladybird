@@ -5,18 +5,10 @@
  */
 
 #include <AK/Enumerate.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibMain/Main.h>
-#include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
-#include <LibWebView/EventLoop/EventLoopImplementationMacOS.h>
-#include <LibWebView/MachPortServer.h>
-#include <LibWebView/Settings.h>
 #include <LibWebView/URL.h>
-#include <LibWebView/Utilities.h>
-#include <LibWebView/ViewImplementation.h>
-#include <LibWebView/WebContentClient.h>
 
 #import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
@@ -43,52 +35,34 @@ static void open_urls_from_client(Vector<URL::URL> const& urls, WebView::NewWind
     }
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-    Application* application = [Application sharedApplication];
-
-    Core::EventLoopManager::install(*new WebView::EventLoopManagerMacOS);
-
-    [application setupWebViewApplication:arguments];
-
-    WebView::platform_init();
-
+    auto app = TRY(Ladybird::Application::create(arguments));
     WebView::BrowserProcess browser_process;
 
-    if (auto const& browser_options = WebView::Application::browser_options(); browser_options.force_new_process == WebView::ForceNewProcess::No) {
-        auto disposition = TRY(browser_process.connect(browser_options.raw_urls, browser_options.new_window));
+    if (auto const& browser_options = WebView::Application::browser_options(); !browser_options.headless_mode.has_value()) {
+        if (browser_options.force_new_process == WebView::ForceNewProcess::No) {
+            auto disposition = TRY(browser_process.connect(browser_options.raw_urls, browser_options.new_window));
 
-        if (disposition == WebView::BrowserProcess::ProcessDisposition::ExitProcess) {
-            outln("Opening in existing process");
-            return 0;
+            if (disposition == WebView::BrowserProcess::ProcessDisposition::ExitProcess) {
+                outln("Opening in existing process");
+                return 0;
+            }
         }
+
+        browser_process.on_new_tab = [&](auto const& raw_urls) {
+            open_urls_from_client(raw_urls, WebView::NewWindow::No);
+        };
+
+        browser_process.on_new_window = [&](auto const& raw_urls) {
+            open_urls_from_client(raw_urls, WebView::NewWindow::Yes);
+        };
+
+        auto* delegate = [[ApplicationDelegate alloc] init];
+        [NSApp setDelegate:delegate];
     }
-
-    browser_process.on_new_tab = [&](auto const& raw_urls) {
-        open_urls_from_client(raw_urls, WebView::NewWindow::No);
-    };
-
-    browser_process.on_new_window = [&](auto const& raw_urls) {
-        open_urls_from_client(raw_urls, WebView::NewWindow::Yes);
-    };
-
-    auto mach_port_server = make<WebView::MachPortServer>();
-    WebView::set_mach_server_name(mach_port_server->server_port_name());
-
-    mach_port_server->on_receive_child_mach_port = [&](auto pid, auto port) {
-        WebView::Application::the().set_process_mach_port(pid, move(port));
-    };
-    mach_port_server->on_receive_backing_stores = [](WebView::MachPortServer::BackingStoresMessage message) {
-        if (auto view = WebView::WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id); view.has_value())
-            view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
-    };
-
-    TRY([application launchServices]);
-
-    auto* delegate = [[ApplicationDelegate alloc] init];
-    [NSApp setDelegate:delegate];
 
     return WebView::Application::the().execute();
 }

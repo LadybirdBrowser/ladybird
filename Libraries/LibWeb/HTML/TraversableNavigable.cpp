@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +10,7 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/Navigation.h>
@@ -17,53 +19,20 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BackingStore.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TraversableNavigable);
 
-static RefPtr<Gfx::SkiaBackendContext> g_cached_skia_backend_context;
-
-static RefPtr<Gfx::SkiaBackendContext> get_skia_backend_context()
-{
-    if (!g_cached_skia_backend_context) {
-#ifdef AK_OS_MACOS
-        auto metal_context = Gfx::get_metal_context();
-        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
-#elif USE_VULKAN
-        auto maybe_vulkan_context = Gfx::create_vulkan_context();
-        if (maybe_vulkan_context.is_error()) {
-            dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
-            return {};
-        }
-
-        auto vulkan_context = maybe_vulkan_context.release_value();
-        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_vulkan_context(vulkan_context);
-#endif
-    }
-    return g_cached_skia_backend_context;
-}
-
 TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
-    : Navigable(page)
+    : Navigable(page, page->client().is_svg_page_client())
+    , m_storage_shed(StorageAPI::StorageShed::create(page->heap()))
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
-    auto display_list_player_type = page->client().display_list_player_type();
-    OwnPtr<Painting::DisplayListPlayerSkia> skia_player;
-    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-        m_skia_backend_context = get_skia_backend_context();
-        skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
-    } else {
-        skia_player = make<Painting::DisplayListPlayerSkia>();
-    }
-
-    m_rendering_thread.set_skia_player(move(skia_player));
-    m_rendering_thread.set_skia_backend_context(m_skia_backend_context);
-    m_rendering_thread.start(display_list_player_type);
 }
 
 TraversableNavigable::~TraversableNavigable() = default;
@@ -71,8 +40,11 @@ TraversableNavigable::~TraversableNavigable() = default;
 void TraversableNavigable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    if (m_emulated_position_data.has<GC::Ref<Geolocation::GeolocationCoordinates>>())
+        visitor.visit(m_emulated_position_data.get<GC::Ref<Geolocation::GeolocationCoordinates>>());
     visitor.visit(m_session_history_entries);
     visitor.visit(m_session_history_traversal_queue);
+    visitor.visit(m_storage_shed);
 }
 
 static OrderedHashTable<TraversableNavigable*>& user_agent_top_level_traversable_set()
@@ -159,6 +131,24 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
     auto traversable = TRY(create_a_new_top_level_traversable(page, nullptr, {}));
     page->set_top_level_traversable(traversable);
+
+    // AD-HOC: Set the default top-level emulated position data for the traversable, which points to Market St. SF.
+    // FIXME: We should not emulate by default, but ask the user what to do. E.g. disable Geolocation, set an emulated
+    //        position, or allow Ladybird to engage with the system's geolocation services. This is completely separate
+    //        from the permission model for "powerful features" such as Geolocation.
+    auto& realm = traversable->active_document()->realm();
+    auto emulated_position_coordinates = realm.create<Geolocation::GeolocationCoordinates>(
+        realm,
+        Geolocation::CoordinatesData {
+            .accuracy = 100.0,
+            .latitude = 37.7647658,
+            .longitude = -122.4345892,
+            .altitude = 60.0,
+            .altitude_accuracy = 10.0,
+            .heading = 0.0,
+            .speed = 0.0,
+        });
+    traversable->set_emulated_position_data(emulated_position_coordinates);
 
     // AD-HOC: Mark the about:blank document as finished parsing if we're only going to about:blank
     //         Skip the initial navigation as well. This matches the behavior of the window open steps.
@@ -1236,7 +1226,7 @@ void TraversableNavigable::definitely_close_top_level_traversable()
     // 1. Let toUnload be traversable's active document's inclusive descendant navigables.
     auto to_unload = active_document()->inclusive_descendant_navigables();
 
-    // 2. If the result of checking if unloading is canceled for toUnload is true, then return.
+    // 2. If the result of checking if unloading is canceled for toUnload is not "continue", then return.
     if (check_if_unloading_is_canceled(to_unload) != CheckIfUnloadingIsCanceledResult::Continue)
         return;
 
@@ -1346,7 +1336,7 @@ void TraversableNavigable::set_system_visibility_state(VisibilityState visibilit
         return;
     m_system_visibility_state = visibility_state;
 
-    // When a user-agent determines that the system visibility state for
+    // When a user agent determines that the system visibility state for
     // traversable navigable traversable has changed to newState, it must run the following steps:
 
     // 1. Let navigables be the inclusive descendant navigables of traversable's active document.
@@ -1395,39 +1385,49 @@ GC::Ptr<DOM::Node> TraversableNavigable::currently_focused_area()
     return candidate;
 }
 
-void TraversableNavigable::set_viewport_size(CSSPixelSize size)
+// https://w3c.github.io/geolocation/#dfn-emulated-position-data
+Geolocation::EmulatedPositionData const& TraversableNavigable::emulated_position_data() const
 {
-    Navigable::set_viewport_size(size);
-
-    // Invalidate the surface cache if the traversable changed size.
-    m_rendering_thread.clear_bitmap_to_surface_cache();
+    VERIFY(is_top_level_traversable());
+    return m_emulated_position_data;
 }
 
-RefPtr<Painting::DisplayList> TraversableNavigable::record_display_list(DevicePixelRect const& content_rect, PaintOptions paint_options)
+// https://w3c.github.io/geolocation/#dfn-emulated-position-data
+void TraversableNavigable::set_emulated_position_data(Geolocation::EmulatedPositionData data)
 {
-    m_needs_repaint = false;
+    VERIFY(is_top_level_traversable());
+    m_emulated_position_data = data;
+}
 
-    auto document = active_document();
-    if (!document)
-        return {};
-
-    for (auto& navigable : all_navigables()) {
-        if (auto active_document = navigable->active_document(); active_document && active_document->paintable())
-            active_document->paintable()->refresh_scroll_state();
+void TraversableNavigable::process_screenshot_requests()
+{
+    auto& client = page().client();
+    while (!m_screenshot_tasks.is_empty()) {
+        auto task = m_screenshot_tasks.dequeue();
+        if (task.node_id.has_value()) {
+            auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
+            if (!dom_node || !dom_node->paintable_box()) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
+            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
+            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
+            PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
+            start_display_list_rendering(painting_surface, paint_config, [bitmap, &client] {
+                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
+            });
+        } else {
+            auto scrollable_overflow_rect = active_document()->layout_node()->paintable_box()->scrollable_overflow_rect();
+            auto rect = page().enclosing_device_rect(scrollable_overflow_rect.value());
+            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
+            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
+            PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
+            start_display_list_rendering(painting_surface, paint_config, [bitmap, &client] {
+                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
+            });
+        }
     }
-
-    DOM::Document::PaintConfig paint_config;
-    paint_config.paint_overlay = paint_options.paint_overlay == PaintOptions::PaintOverlay::Yes;
-    paint_config.should_show_line_box_borders = paint_options.should_show_line_box_borders;
-    paint_config.has_focus = paint_options.has_focus;
-    paint_config.canvas_fill_rect = Gfx::IntRect { {}, content_rect.size() };
-    return document->record_display_list(paint_config);
-}
-
-void TraversableNavigable::start_display_list_rendering(NonnullRefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Painting::BackingStore> backing_store, Function<void()>&& callback)
-{
-    auto scroll_state_snapshot = active_document()->paintable()->scroll_state().snapshot();
-    m_rendering_thread.enqueue_rendering_task(move(display_list), move(scroll_state_snapshot), move(backing_store), move(callback));
 }
 
 }

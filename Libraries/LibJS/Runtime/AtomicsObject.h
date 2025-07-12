@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class AtomicsObject : public Object {
+class JS_API AtomicsObject : public Object {
     JS_OBJECT(AtomicsObject, Object);
     GC_DECLARE_ALLOCATOR(AtomicsObject);
 

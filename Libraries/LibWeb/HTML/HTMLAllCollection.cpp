@@ -166,7 +166,7 @@ Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllColle
 
     // 2. Let subCollection be an HTMLCollection object rooted at the same Document as collection, whose filter matches only elements that are either:
     auto sub_collection = DOM::HTMLCollection::create(m_root, DOM::HTMLCollection::Scope::Descendants, [name](DOM::Element const& element) {
-        // * "all"-named elements with a name attribute equal to name, or,
+        // * "all"-named elements with a name attribute equal to name, or
         if (is_all_named_element(element) && element.name() == name)
             return true;
 

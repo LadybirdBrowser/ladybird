@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@laybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@laybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -33,7 +33,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& socket_path, bool force_cpu_painting, Optional<StringView> debug_process)
+static Vector<ByteString> create_arguments(ByteString const& socket_path, bool headless, bool force_cpu_painting, Optional<StringView> debug_process)
 {
     Vector<ByteString> arguments {
         "--webdriver-content-path"sv,
@@ -45,6 +45,9 @@ static Vector<ByteString> create_arguments(ByteString const& socket_path, bool f
         certificate_args.append(ByteString::formatted("--certificate={}", certificate));
         arguments.append(certificate_args.last().view().characters_without_null_termination());
     }
+
+    if (headless)
+        arguments.append("--headless"sv);
 
     arguments.append("--allow-popups"sv);
     arguments.append("--force-new-process"sv);
@@ -63,19 +66,7 @@ static Vector<ByteString> create_arguments(ByteString const& socket_path, bool f
     return arguments;
 }
 
-static ErrorOr<Core::Process> launch_browser(ByteString const& socket_path, bool force_cpu_painting, Optional<StringView> debug_process)
-{
-    auto arguments = create_arguments(socket_path, force_cpu_painting, move(debug_process));
-    return launch_process("Ladybird"sv, arguments.span());
-}
-
-static ErrorOr<Core::Process> launch_headless_browser(ByteString const& socket_path, bool force_cpu_painting, Optional<StringView> debug_process)
-{
-    auto arguments = create_arguments(socket_path, force_cpu_painting, move(debug_process));
-    return launch_process("headless-browser"sv, arguments.span());
-}
-
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
@@ -129,15 +120,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             return;
         }
 
-        auto launch_browser_callback = [&](ByteString const& socket_path) {
-            return launch_browser(socket_path, force_cpu_painting, debug_process);
+        auto launch_browser_callback = [&](ByteString const& socket_path, bool headless) {
+            auto arguments = create_arguments(socket_path, headless, force_cpu_painting, debug_process);
+            return launch_process("Ladybird"sv, arguments.span());
         };
 
-        auto launch_headless_browser_callback = [&](ByteString const& socket_path) {
-            return launch_headless_browser(socket_path, force_cpu_painting, debug_process);
-        };
-
-        auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), { move(launch_browser_callback), move(launch_headless_browser_callback) }, server);
+        auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), move(launch_browser_callback), server);
         if (maybe_client.is_error()) {
             warnln("Could not create a WebDriver client: {}", maybe_client.error());
             return;

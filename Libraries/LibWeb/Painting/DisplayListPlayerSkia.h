@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
+#include <LibWeb/Painting/Command.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
 class GrDirectContext;
@@ -18,6 +19,7 @@ class DisplayListPlayerSkia final : public DisplayListPlayer {
 public:
     DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext>);
     DisplayListPlayerSkia();
+    ~DisplayListPlayerSkia();
 
 private:
     void flush() override;
@@ -63,6 +65,10 @@ private:
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
     RefPtr<Gfx::SkiaBackendContext> m_context;
+
+    struct CachedRuntimeEffects;
+    OwnPtr<CachedRuntimeEffects> m_cached_runtime_effects;
+    CachedRuntimeEffects& cached_runtime_effects();
 };
 
 }

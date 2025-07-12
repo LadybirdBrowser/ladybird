@@ -14,6 +14,9 @@
 namespace AK::Detail {
 
 struct ShortString {
+    static constexpr ShortString create_empty();
+    static constexpr ShortString create_with_byte_count(size_t byte_count);
+
     ReadonlyBytes bytes() const;
     size_t byte_count() const;
 
@@ -31,9 +34,13 @@ static_assert(sizeof(ShortString) == sizeof(StringData*));
 
 class StringBase {
 public:
+    // NOTE: If the least significant bit of the pointer is set, this is a short string.
+    static constexpr uintptr_t SHORT_STRING_FLAG = 1;
+    static constexpr unsigned SHORT_STRING_BYTE_COUNT_SHIFT_COUNT = 2;
+
     // Creates an empty (zero-length) String.
     constexpr StringBase()
-        : StringBase(ShortString { .byte_count_and_short_string_flag = SHORT_STRING_FLAG })
+        : StringBase(ShortString::create_empty())
     {
     }
 
@@ -42,7 +49,7 @@ public:
     constexpr StringBase(StringBase&& other)
         : m_impl(other.m_impl)
     {
-        other.m_impl = { .short_string = { .byte_count_and_short_string_flag = SHORT_STRING_FLAG } };
+        other.m_impl = { .short_string = ShortString::create_empty() };
     }
 
     StringBase& operator=(StringBase&&);
@@ -79,6 +86,12 @@ public:
         return replace_with_new_string(byte_count, forward<Func>(callback));
     }
 
+    template<typename Func>
+    ALWAYS_INLINE ErrorOr<void> replace_with_new_string(Badge<Utf16View>, size_t byte_count, Func&& callback)
+    {
+        return replace_with_new_string(byte_count, forward<Func>(callback));
+    }
+
 protected:
     template<typename Func>
     ErrorOr<void> replace_with_new_string(size_t byte_count, Func&& callback)
@@ -108,10 +121,6 @@ private:
     friend class ::AK::FlyString;
     friend struct ::AK::Detail::ShortString;
 
-    // NOTE: If the least significant bit of the pointer is set, this is a short string.
-    static constexpr uintptr_t SHORT_STRING_FLAG = 1;
-    static constexpr unsigned SHORT_STRING_BYTE_COUNT_SHIFT_COUNT = 2;
-
     explicit StringBase(NonnullRefPtr<Detail::StringData const>);
 
     explicit constexpr StringBase(nullptr_t)
@@ -131,8 +140,7 @@ private:
         VERIFY(is_short_string());
         VERIFY(byte_count <= MAX_SHORT_STRING_BYTE_COUNT);
 
-        m_impl = { .short_string = {} };
-        m_impl.short_string.byte_count_and_short_string_flag = (byte_count << SHORT_STRING_BYTE_COUNT_SHIFT_COUNT) | SHORT_STRING_FLAG;
+        m_impl = { .short_string = ShortString::create_with_byte_count(byte_count) };
         return { m_impl.short_string.storage, byte_count };
     }
 
@@ -172,6 +180,19 @@ private:
     } m_impl;
 };
 
+constexpr ShortString ShortString::create_empty()
+{
+    return create_with_byte_count(0);
+}
+
+constexpr ShortString ShortString::create_with_byte_count(size_t byte_count)
+{
+    ShortString string {};
+    string.byte_count_and_short_string_flag = (byte_count << StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT) | StringBase::SHORT_STRING_FLAG;
+
+    return string;
+}
+
 inline ReadonlyBytes ShortString::bytes() const
 {
     return { storage, byte_count() };
@@ -205,7 +226,7 @@ inline u32 StringBase::hash() const
 inline size_t StringBase::byte_count() const
 {
     if (is_short_string())
-        return m_impl.short_string.byte_count_and_short_string_flag >> StringBase::SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
+        return m_impl.short_string.byte_count();
 
     if (!m_impl.data)
         return 0;
@@ -235,7 +256,7 @@ inline StringBase& StringBase::operator=(StringBase&& other)
     if (!is_short_string() && m_impl.data)
         data_without_union_member_assertion()->unref();
 
-    m_impl = exchange(other.m_impl, { .short_string = { .byte_count_and_short_string_flag = SHORT_STRING_FLAG } });
+    m_impl = exchange(other.m_impl, { .short_string = ShortString::create_empty() });
     return *this;
 }
 

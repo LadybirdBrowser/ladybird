@@ -350,6 +350,27 @@ bool FormAssociatedElement::satisfies_its_constraints() const
         suffering_from_being_missing() || suffering_from_a_type_mismatch() || suffering_from_a_pattern_mismatch() || suffering_from_being_too_long() || suffering_from_being_too_short() || suffering_from_an_underflow() || suffering_from_an_overflow() || suffering_from_a_step_mismatch() || suffering_from_bad_input() || suffering_from_a_custom_error());
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fs-novalidate
+bool FormAssociatedElement::novalidate_state() const
+{
+    // The no-validate state of an element is true if the element is a submit button ...
+    if (!is_submit_button())
+        return false;
+
+    // ..., and the element's formnovalidate attribute is present, ...
+    auto const& html_element = form_associated_element_to_html_element();
+    if (html_element.has_attribute(HTML::AttributeNames::formnovalidate))
+        return true;
+
+    // ... or if the element's form owner's novalidate attribute is present, ...
+    auto* form = this->form();
+    if (form && form->has_attribute(HTML::AttributeNames::novalidate))
+        return true;
+
+    // ... and false otherwise.
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#limiting-user-input-length%3A-the-maxlength-attribute%3Asuffering-from-being-too-long
 bool FormAssociatedElement::suffering_from_being_too_long() const
 {
@@ -722,10 +743,10 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#set-the-selection-range
 void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction, SelectionSource source)
 {
-    // 1. If start is null, let start be zero.
+    // 1. If start is null, let start be 0.
     start = start.value_or(0);
 
-    // 2. If end is null, let end be zero.
+    // 2. If end is null, let end be 0.
     end = end.value_or(0);
 
     // 3. Set the selection of the text control to the sequence of code units within the relevant
@@ -738,7 +759,7 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     auto new_selection_start = AK::min(start.value(), relevant_value_length);
     auto new_selection_end = AK::min(end.value(), relevant_value_length);
 
-    //    If end is less than or equal to start then the start of the selection and the end of the
+    //    If end is less than or equal to start, then the start of the selection and the end of the
     //    selection must both be placed immediately before the character with offset end. In UAs
     //    where there is no concept of an empty selection, this must set the cursor to be just
     //    before the character with offset end.

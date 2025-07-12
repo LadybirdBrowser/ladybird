@@ -81,7 +81,7 @@ WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, Geometry::DOMMa
     if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))
         return {};
 
-    // 4. Create a copy of all the subpaths in path. Let this copy be known as c.
+    // 4. Create a copy of all the subpaths in path. Let c be this copy.
     // 5. Transform all the coordinates and lines in c by the transform matrix matrix.
     auto copy = path->path().copy_transformed(Gfx::AffineTransform { static_cast<float>(matrix->m11()), static_cast<float>(matrix->m12()), static_cast<float>(matrix->m21()), static_cast<float>(matrix->m22()), static_cast<float>(matrix->m41()), static_cast<float>(matrix->m42()) });
 

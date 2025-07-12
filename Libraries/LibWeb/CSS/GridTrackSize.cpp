@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Martin Falisse <mfalisse@outlook.com>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -34,12 +35,6 @@ GridSize::GridSize(Type type)
 {
     VERIFY(type == Type::MinContent || type == Type::MaxContent);
     m_type = type;
-}
-
-GridSize::GridSize()
-    : m_type(Type::LengthPercentage)
-    , m_value { Length::make_auto() }
-{
 }
 
 GridSize::~GridSize() = default;
@@ -95,8 +90,9 @@ String GridSize::to_string() const
 {
     switch (m_type) {
     case Type::LengthPercentage:
-    case Type::FitContent:
         return m_value.get<LengthPercentage>().to_string();
+    case Type::FitContent:
+        return MUST(String::formatted("fit-content({})", m_value.get<LengthPercentage>().to_string()));
     case Type::FlexibleLength:
         return m_value.get<Flex>().to_string();
     case Type::MaxContent:
@@ -124,35 +120,10 @@ String GridMinMax::to_string() const
     return MUST(builder.to_string());
 }
 
-GridFitContent::GridFitContent(GridSize max_grid_size)
-    : m_max_grid_size(max_grid_size)
-{
-}
-
-GridFitContent::GridFitContent()
-    : m_max_grid_size(GridSize::make_auto())
-{
-}
-
-String GridFitContent::to_string() const
-{
-    return MUST(String::formatted("fit-content({})", m_max_grid_size.to_string()));
-}
-
-GridRepeat::GridRepeat(GridTrackSizeList grid_track_size_list, int repeat_count)
-    : m_type(Type::Default)
-    , m_grid_track_size_list(grid_track_size_list)
-    , m_repeat_count(repeat_count)
-{
-}
-
-GridRepeat::GridRepeat(GridTrackSizeList grid_track_size_list, Type type)
-    : m_type(type)
-    , m_grid_track_size_list(grid_track_size_list)
-{
-}
-
-GridRepeat::GridRepeat()
+GridRepeat::GridRepeat(GridTrackSizeList&& grid_track_size_list, GridRepeatParams const& params)
+    : m_type(params.type)
+    , m_grid_track_size_list(move(grid_track_size_list))
+    , m_repeat_count(params.count)
 {
 }
 
@@ -161,13 +132,13 @@ String GridRepeat::to_string() const
     StringBuilder builder;
     builder.append("repeat("sv);
     switch (m_type) {
-    case Type::AutoFit:
-        builder.append("auto-fill"sv);
-        break;
-    case Type::AutoFill:
+    case GridRepeatType::AutoFit:
         builder.append("auto-fit"sv);
         break;
-    case Type::Default:
+    case GridRepeatType::AutoFill:
+        builder.append("auto-fill"sv);
+        break;
+    case GridRepeatType::Fixed:
         builder.appendff("{}", m_repeat_count);
         break;
     default:
@@ -179,62 +150,29 @@ String GridRepeat::to_string() const
     return MUST(builder.to_string());
 }
 
-ExplicitGridTrack::ExplicitGridTrack(CSS::GridFitContent grid_fit_content)
-    : m_type(Type::FitContent)
-    , m_grid_fit_content(grid_fit_content)
-{
-}
-
-ExplicitGridTrack::ExplicitGridTrack(CSS::GridMinMax grid_minmax)
-    : m_type(Type::MinMax)
-    , m_grid_minmax(grid_minmax)
-{
-}
-
-ExplicitGridTrack::ExplicitGridTrack(CSS::GridRepeat grid_repeat)
-    : m_type(Type::Repeat)
-    , m_grid_repeat(grid_repeat)
-{
-}
-
-ExplicitGridTrack::ExplicitGridTrack(CSS::GridSize grid_size)
-    : m_type(Type::Default)
-    , m_grid_size(grid_size)
+ExplicitGridTrack::ExplicitGridTrack(Variant<GridRepeat, GridMinMax, GridSize>&& value)
+    : m_value(move(value))
 {
 }
 
 String ExplicitGridTrack::to_string() const
 {
-    switch (m_type) {
-    case Type::FitContent:
-        return m_grid_fit_content.to_string();
-    case Type::MinMax:
-        return m_grid_minmax.to_string();
-    case Type::Repeat:
-        return m_grid_repeat.to_string();
-    case Type::Default:
-        return m_grid_size.to_string();
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    return m_value.visit([](auto const& track) {
+        return track.to_string();
+    });
 }
 
 String GridLineNames::to_string() const
 {
     StringBuilder builder;
     builder.append("["sv);
-    builder.join(' ', names);
+    for (size_t i = 0; i < m_names.size(); ++i) {
+        if (i > 0)
+            builder.append(" "sv);
+        builder.append(m_names[i].name);
+    }
     builder.append("]"sv);
     return MUST(builder.to_string());
-}
-
-GridTrackSizeList::GridTrackSizeList(Vector<Variant<ExplicitGridTrack, GridLineNames>>&& list)
-    : m_list(move(list))
-{
-}
-
-GridTrackSizeList::GridTrackSizeList()
-{
 }
 
 GridTrackSizeList GridTrackSizeList::make_none()
@@ -271,15 +209,22 @@ Vector<ExplicitGridTrack> GridTrackSizeList::track_list() const
     return track_list;
 }
 
-bool GridTrackSizeList::operator==(GridTrackSizeList const& other) const
+bool GridTrackSizeList::operator==(GridTrackSizeList const& other) const = default;
+
+void GridTrackSizeList::append(GridLineNames&& line_names)
 {
-    if (m_list.size() != other.m_list.size())
-        return false;
-    for (size_t i = 0; i < m_list.size(); ++i) {
-        if (m_list[i] != other.m_list[i])
-            return false;
+    if (!m_list.is_empty() && m_list.last().has<GridLineNames>()) {
+        auto& last_line_names = m_list.last().get<GridLineNames>();
+        for (auto const& name : line_names.names())
+            last_line_names.append(name.name);
+        return;
     }
-    return true;
+    m_list.append(move(line_names));
+}
+
+void GridTrackSizeList::append(ExplicitGridTrack&& explicit_track)
+{
+    m_list.append(move(explicit_track));
 }
 
 }

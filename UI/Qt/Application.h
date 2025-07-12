@@ -15,16 +15,11 @@
 
 namespace Ladybird {
 
-class Application
-    : public QApplication
-    , public WebView::Application {
-    Q_OBJECT
+class Application : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
 
 public:
     virtual ~Application() override;
-
-    virtual bool event(QEvent* event) override;
 
     Function<void(URL::URL)> on_open_file;
 
@@ -34,10 +29,14 @@ public:
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
 
 private:
+    explicit Application();
+
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions&) override;
+    virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop() override;
 
     virtual Optional<ByteString> ask_user_for_download_folder() const override;
 
+    OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };
 };
 

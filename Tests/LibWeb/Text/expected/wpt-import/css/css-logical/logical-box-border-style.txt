@@ -1,0 +1,49 @@
+Harness status: OK
+
+Found 44 tests
+
+44 Pass
+Pass	Test that logical border-*-style properties are supported.
+Pass	Test that border-inline-style shorthand sets longhands and serializes correctly.
+Pass	Test that border-block-style shorthand sets longhands and serializes correctly.
+Pass	Test that border-style shorthand sets longhands and serializes correctly.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: vertical-rl; direction: rtl; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: vertical-rl; direction: rtl; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: rtl; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: rtl; '.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: sideways-rl; direction: rtl; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: sideways-rl; direction: rtl; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: rtl; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: rtl; '.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: vertical-rl; direction: ltr; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: vertical-rl; direction: ltr; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: ltr; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: ltr; '.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: sideways-rl; direction: ltr; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: sideways-rl; direction: ltr; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: ltr; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: ltr; '.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: vertical-lr; direction: rtl; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: vertical-lr; direction: rtl; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: rtl; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: rtl; '.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: sideways-lr; direction: ltr; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: sideways-lr; direction: ltr; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: ltr; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: ltr; '.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: vertical-lr; direction: ltr; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: vertical-lr; direction: ltr; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: ltr; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: ltr; '.
+Pass	Test that logical border-*-style properties share computed values with their physical associates, with 'writing-mode: sideways-lr; direction: rtl; '.
+Pass	Test that border-*-style shorthands set the computed value of both logical and physical longhands, with 'writing-mode: sideways-lr; direction: rtl; '.
+Pass	Test that border-*-style properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: rtl; '.
+Pass	Test that border-*-style properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: rtl; '.

@@ -190,6 +190,9 @@ TEST_CASE(with_replacement_character)
 
     auto string6 = String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, String::WithBOMHandling::No);
     EXPECT_EQ(string6, "\xEF\xBB\xBFWHF!"sv);
+
+    auto string7 = String::from_utf8_with_replacement_character("\xED\xA0\x80WHF!"sv); // U+D800
+    EXPECT_EQ(string7, "\ufffdWHF!"sv);
 }
 
 TEST_CASE(from_code_points)

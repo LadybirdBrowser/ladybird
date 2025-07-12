@@ -28,4 +28,12 @@ void DocumentType::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+// https://dom.spec.whatwg.org/#valid-doctype-name
+bool is_valid_doctype_name(String const& name)
+{
+    // A string is a valid doctype name if it does not contain ASCII whitespace, U+0000 NULL, or U+003E (>).
+    constexpr Array<u32, 7> INVALID_DOCTYPE_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '>' };
+    return !name.code_points().contains_any_of(INVALID_DOCTYPE_CHARACTERS);
+}
+
 }

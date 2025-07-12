@@ -23,6 +23,7 @@ static constexpr Array libweb_interface_namespaces = {
     "Encoding"sv,
     "Fetch"sv,
     "FileAPI"sv,
+    "Geolocation"sv,
     "Geometry"sv,
     "HTML"sv,
     "HighResolutionTime"sv,

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Box Alignment Level 3: parsing grid-gap with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-align/#grid-gap-legacy">
+<link rel="author" title="Takuya Kurimoto" href="mailto:takuya004869@gmail.com">
+<meta name="assert" content="grid-gap supports only the grammar '<grid-row-gap> <grid-column-gap>?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("grid-gap", "auto");
+test_invalid_value("grid-gap", "-10px");
+
+test_invalid_value("grid-gap", "10px 20% 30px");
+test_invalid_value("grid-gap", "normal 10px normal");
+</script>
+</body>
+</html>

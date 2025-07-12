@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Self-cycle
+Pass	Simple a/b cycle
+Pass	Three-var cycle
+Pass	Cycle that starts in the middle of a chain
+Pass	Cycle with extra edge
+Pass	Cycle with extra edge (2)
+Pass	Cycle with extra edge (3)
+Pass	Cycle with secondary cycle
+Pass	Cycle with overlapping secondary cycle
+Pass	Cycle with deeper secondary cycle
+Pass	Cycle in unused fallback

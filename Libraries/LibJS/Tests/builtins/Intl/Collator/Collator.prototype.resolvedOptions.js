@@ -54,12 +54,21 @@ describe("correct behavior", () => {
     });
 
     test("collation", () => {
-        // Only "default" collation is parsed for now.
-        const en = new Intl.Collator("en");
-        expect(en.resolvedOptions().collation).toBe("default");
+        const en1 = new Intl.Collator("en");
+        expect(en1.resolvedOptions().locale).toBe("en");
+        expect(en1.resolvedOptions().collation).toBe("default");
+
+        const en2 = new Intl.Collator("en-u-co-phonebk", { collation: "pinyin" });
+        expect(en2.resolvedOptions().locale).toBe("en");
+        expect(en2.resolvedOptions().collation).toBe("default");
 
         const el = new Intl.Collator("el", { collation: "foo" });
+        expect(el.resolvedOptions().locale).toBe("el");
         expect(el.resolvedOptions().collation).toBe("default");
+
+        const de = new Intl.Collator("de-u-co-phonebk", { collation: "pinyin" });
+        expect(de.resolvedOptions().locale).toBe("de-u-co-phonebk");
+        expect(de.resolvedOptions().collation).toBe("phonebk");
     });
 
     test("numeric may be set by locale extension", () => {

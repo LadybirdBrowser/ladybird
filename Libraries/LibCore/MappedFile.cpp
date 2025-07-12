@@ -22,7 +22,7 @@ ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map(StringView path, Mode mode)
 
 ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_file(NonnullOwnPtr<Core::File> stream, StringView path)
 {
-    return map_from_fd_and_close(stream->leak_fd(Badge<MappedFile> {}), path);
+    return map_from_fd_and_close(stream->leak_fd(), path);
 }
 
 ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_fd_and_close(int fd, [[maybe_unused]] StringView path, Mode mode)

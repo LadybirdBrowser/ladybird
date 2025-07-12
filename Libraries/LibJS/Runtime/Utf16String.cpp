@@ -44,9 +44,12 @@ NonnullRefPtr<Utf16StringImpl> Utf16StringImpl::create(Utf16View const& view)
 {
     Utf16Data string;
     string.ensure_capacity(view.length_in_code_units());
-    string.unchecked_append(view.data(), view.length_in_code_units());
+    string.unchecked_append(view.span().data(), view.length_in_code_units());
+
     auto impl = create(move(string));
-    impl->m_cached_view.unsafe_set_code_point_length(view.length_in_code_units());
+    if (auto length_in_code_points = view.length_in_code_points_if_known(); length_in_code_points.has_value())
+        impl->m_cached_view.unsafe_set_code_point_length(*length_in_code_points);
+
     return impl;
 }
 
@@ -122,12 +125,12 @@ Utf16View Utf16String::substring_view(size_t code_unit_offset) const
 
 String Utf16String::to_utf8() const
 {
-    return MUST(view().to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(view().to_utf8());
 }
 
 ByteString Utf16String::to_byte_string() const
 {
-    return MUST(view().to_byte_string(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(view().to_byte_string());
 }
 
 u16 Utf16String::code_unit_at(size_t index) const

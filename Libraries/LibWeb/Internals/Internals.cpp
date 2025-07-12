@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibUnicode/TimeZone.h>
 #include <LibWeb/Bindings/InternalsPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
@@ -53,6 +55,17 @@ void Internals::gc()
     vm().heap().collect_garbage();
 }
 
+WebIDL::ExceptionOr<String> Internals::set_time_zone(StringView time_zone)
+{
+    auto current_time_zone = Unicode::current_time_zone();
+
+    if (auto result = Unicode::set_current_time_zone(time_zone); result.is_error())
+        return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
+
+    JS::clear_system_time_zone_cache();
+    return current_time_zone;
+}
+
 JS::Object* Internals::hit_test(double x, double y)
 {
     auto& active_document = window().associated_document();
@@ -62,10 +75,10 @@ JS::Object* Internals::hit_test(double x, double y)
     active_document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
     auto result = active_document.paintable_box()->hit_test({ x, y }, Painting::HitTestType::Exact);
     if (result.has_value()) {
-        auto hit_tеsting_result = JS::Object::create(realm(), nullptr);
-        hit_tеsting_result->define_direct_property("node"_fly_string, result->dom_node(), JS::default_attributes);
-        hit_tеsting_result->define_direct_property("indexInNode"_fly_string, JS::Value(result->index_in_node), JS::default_attributes);
-        return hit_tеsting_result;
+        auto hit_testing_result = JS::Object::create(realm(), nullptr);
+        hit_testing_result->define_direct_property("node"_fly_string, result->dom_node(), JS::default_attributes);
+        hit_testing_result->define_direct_property("indexInNode"_fly_string, JS::Value(result->index_in_node), JS::default_attributes);
+        return hit_testing_result;
     }
     return nullptr;
 }

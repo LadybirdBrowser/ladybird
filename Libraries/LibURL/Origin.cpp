@@ -1,14 +1,20 @@
 /*
- * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCrypto/SecureRandom.h>
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
 #include <LibURL/Site.h>
 
 namespace URL {
+
+Origin Origin::create_opaque()
+{
+    return Origin { Crypto::get_secure_random<Nonce>() };
+}
 
 // https://html.spec.whatwg.org/multipage/browsers.html#same-site
 bool Origin::is_same_site(Origin const& other) const
@@ -60,8 +66,14 @@ namespace AK {
 
 unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
 {
-    if (origin.is_opaque())
-        return 0;
+    if (origin.is_opaque()) {
+        auto const& nonce = origin.nonce();
+        // Random data, so the first u32 is as good as hashing the entire thing.
+        return (static_cast<u32>(nonce[0]) << 24)
+            | (static_cast<u32>(nonce[1]) << 16)
+            | (static_cast<u32>(nonce[2]) << 8)
+            | (static_cast<u32>(nonce[3]));
+    }
 
     unsigned hash = origin.scheme().value_or(String {}).hash();
 

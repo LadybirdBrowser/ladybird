@@ -98,15 +98,9 @@ set(THEMES
 list(TRANSFORM THEMES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/themes/")
 
 set(CONFIG_RESOURCES
-    bookmarks.json
     BrowserContentFilters.txt
 )
 list(TRANSFORM CONFIG_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/default-config/")
-
-set(DOWNLOADED_RESOURCES
-    cacert.pem
-)
-list(TRANSFORM DOWNLOADED_RESOURCES PREPEND "${Lagom_BINARY_DIR}/")
 
 function(copy_resource_set subdir)
     cmake_parse_arguments(PARSE_ARGV 1 "COPY" "" "TARGET;DESTINATION" "RESOURCES")
@@ -136,7 +130,7 @@ function(copy_resource_set subdir)
             set(target_name "${target_name}_")
         endwhile()
         add_custom_target(${target_name} DEPENDS ${outputs})
-        add_dependencies(all_generated ${target_name})
+        add_dependencies(ladybird_codegen_accumulator ${target_name})
         add_dependencies("${COPY_TARGET}_build_resource_files" ${target_name})
     endif()
 endfunction()
@@ -192,22 +186,20 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
-    copy_resource_set(ladybird RESOURCES ${DOWNLOADED_RESOURCES}
-        DESTINATION ${base_directory} TARGET ${bundle_target}
-    )
-
     add_dependencies(${bundle_target} "${bundle_target}_build_resource_files")
 endfunction()
 
 function(install_ladybird_resources destination component)
+    install(FILES ${FONTS} DESTINATION "${destination}/fonts" COMPONENT ${component})
     install(FILES ${16x16_ICONS} DESTINATION "${destination}/icons/16x16" COMPONENT ${component})
     install(FILES ${32x32_ICONS} DESTINATION "${destination}/icons/32x32" COMPONENT ${component})
     install(FILES ${48x48_ICONS} DESTINATION "${destination}/icons/48x48" COMPONENT ${component})
     install(FILES ${128x128_ICONS} DESTINATION "${destination}/icons/128x128" COMPONENT ${component})
     install(FILES ${BROWSER_ICONS} DESTINATION "${destination}/icons/browser" COMPONENT ${component})
     install(FILES ${THEMES} DESTINATION "${destination}/themes" COMPONENT ${component})
+    install(FILES ${INTERNAL_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
     install(FILES ${ABOUT_PAGES} DESTINATION "${destination}/ladybird/about-pages" COMPONENT ${component})
+    install(FILES ${ABOUT_SETTINGS_RESOURCES} DESTINATION "${destination}/ladybird/about-pages/settings" COMPONENT ${component})
     install(FILES ${WEB_TEMPLATES} DESTINATION "${destination}/ladybird/templates" COMPONENT ${component})
     install(FILES ${CONFIG_RESOURCES} DESTINATION "${destination}/ladybird/default-config" COMPONENT ${component})
-    install(FILES ${DOWNLOADED_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
 endfunction()

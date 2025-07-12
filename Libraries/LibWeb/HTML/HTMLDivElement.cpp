@@ -33,7 +33,7 @@ bool HTMLDivElement::is_presentational_hint(FlyString const& name) const
 void HTMLDivElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {
-        if (name.equals_ignoring_ascii_case("align"sv)) {
+        if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case("left"sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebLeft));
             else if (value.equals_ignoring_ascii_case("right"sv))

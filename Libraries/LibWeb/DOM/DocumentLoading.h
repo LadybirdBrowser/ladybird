@@ -24,7 +24,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     VERIFY(navigable->active_document());
 
     // 1. Let origin be a new opaque origin.
-    URL::Origin origin {};
+    auto origin = URL::Origin::create_opaque();
 
     // 2. Let coop be a new opener policy.
     auto coop = HTML::OpenerPolicy {};
@@ -57,21 +57,21 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     //    user involvement: userInvolvement
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(URL::about_error()); // AD-HOC: https://github.com/whatwg/html/issues/9122
-    auto navigation_params = vm.heap().allocate<HTML::NavigationParams>();
-    navigation_params->id = move(navigation_id);
-    navigation_params->navigable = navigable;
-    navigation_params->request = nullptr;
-    navigation_params->response = response;
-    navigation_params->fetch_controller = nullptr;
-    navigation_params->commit_early_hints = nullptr;
-    navigation_params->coop_enforcement_result = move(coop_enforcement_result);
-    navigation_params->reserved_environment = {};
-    navigation_params->origin = move(origin);
-    navigation_params->policy_container = vm.heap().allocate<HTML::PolicyContainer>(vm.heap());
-    navigation_params->final_sandboxing_flag_set = HTML::SandboxingFlagSet {};
-    navigation_params->opener_policy = move(coop);
-    navigation_params->about_base_url = {};
-    navigation_params->user_involvement = user_involvement;
+    auto navigation_params = vm.heap().allocate<HTML::NavigationParams>(
+        move(navigation_id),
+        navigable,
+        nullptr,
+        response,
+        nullptr,
+        nullptr,
+        move(coop_enforcement_result),
+        nullptr,
+        move(origin),
+        vm.heap().allocate<HTML::PolicyContainer>(vm.heap()),
+        HTML::SandboxingFlagSet {},
+        move(coop),
+        OptionalNone {},
+        user_involvement);
 
     // 5. Let document be the result of creating and initializing a Document object given "html", "text/html", and navigationParams.
     auto document = DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params).release_value_but_fixme_should_propagate_errors();

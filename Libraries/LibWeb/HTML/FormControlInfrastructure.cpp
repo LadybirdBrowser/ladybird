@@ -47,6 +47,7 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
             if (filename.has_value()) {
                 FileAPI::FilePropertyBag options {};
                 options.type = blob->type();
+                options.last_modified = as<FileAPI::File>(*blob).last_modified();
 
                 blob = TRY(FileAPI::File::create(realm, { GC::make_root(*blob) }, *filename, move(options)));
             }

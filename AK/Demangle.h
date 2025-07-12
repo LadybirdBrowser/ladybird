@@ -26,11 +26,7 @@ inline ByteString demangle(StringView name)
     return string;
 }
 #else
-inline ByteString demangle(StringView name)
-{
-    // FIXME: Implement AK::demangle on Windows
-    return name;
-}
+ByteString demangle(StringView name);
 #endif
 
 }

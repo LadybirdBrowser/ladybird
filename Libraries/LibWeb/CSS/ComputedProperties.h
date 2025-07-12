@@ -83,6 +83,7 @@ public:
     TextAlign text_align() const;
     TextJustify text_justify() const;
     TextOverflow text_overflow() const;
+    TextRendering text_rendering() const;
     Length border_spacing_horizontal(Layout::Node const&) const;
     Length border_spacing_vertical(Layout::Node const&) const;
     CaptionSide caption_side() const;
@@ -96,7 +97,7 @@ public:
         ContentData content_data;
         u32 final_quote_nesting_level { 0 };
     };
-    ContentDataAndQuoteNestingLevel content(DOM::Element&, u32 initial_quote_nesting_level) const;
+    ContentDataAndQuoteNestingLevel content(DOM::AbstractElement&, u32 initial_quote_nesting_level) const;
     ContentVisibility content_visibility() const;
     Vector<CursorData> cursor() const;
     Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
@@ -146,6 +147,7 @@ public:
     Optional<Gfx::FontVariantLigatures> font_variant_ligatures() const;
     Optional<Gfx::FontVariantNumeric> font_variant_numeric() const;
     FontVariantPosition font_variant_position() const;
+    FontKerning font_kerning() const;
     Optional<FlyString> font_language_override() const;
     Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const;
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const;
@@ -159,6 +161,7 @@ public:
     GridTrackPlacement grid_row_end() const;
     GridTrackPlacement grid_row_start() const;
     BorderCollapse border_collapse() const;
+    CSS::EmptyCells empty_cells() const;
     Vector<Vector<String>> grid_template_areas() const;
     ObjectFit object_fit() const;
     ObjectPosition object_position() const;
@@ -191,6 +194,8 @@ public:
     float stroke_opacity() const;
     FillRule fill_rule() const;
     ClipRule clip_rule() const;
+    Color flood_color(Layout::NodeWithStyle const&) const;
+    float flood_opacity() const;
 
     Gfx::FontCascadeList const& computed_font_list() const
     {
@@ -216,6 +221,8 @@ public:
 
     [[nodiscard]] CSSPixels line_height() const { return *m_line_height; }
     void set_line_height(Badge<StyleComputer> const&, CSSPixels line_height) { m_line_height = line_height; }
+    [[nodiscard]] CSSPixels font_size() const { return *m_font_size; }
+    void set_font_size(Badge<StyleComputer> const&, CSSPixels font_size) { m_font_size = font_size; }
 
     bool operator==(ComputedProperties const&) const;
 
@@ -269,6 +276,7 @@ private:
     RefPtr<Gfx::Font const> m_first_available_computed_font;
 
     Optional<CSSPixels> m_line_height;
+    Optional<CSSPixels> m_font_size;
 
     PseudoClassBitmap m_attempted_pseudo_class_matches;
 };

@@ -1,26 +1,26 @@
 
 include(${CMAKE_CURRENT_LIST_DIR}/code_generators.cmake)
 
-function(serenity_generated_sources target_name)
+function(ladybird_generated_sources target_name)
     if(DEFINED GENERATED_SOURCES)
         set_source_files_properties(${GENERATED_SOURCES} PROPERTIES GENERATED 1)
         foreach(generated ${GENERATED_SOURCES})
             get_filename_component(generated_name ${generated} NAME)
             add_dependencies(${target_name} generate_${generated_name})
-            add_dependencies(all_generated generate_${generated_name})
+            add_dependencies(ladybird_codegen_accumulator generate_${generated_name})
         endforeach()
     endif()
 endfunction()
 
-function(serenity_testjs_test test_src sub_dir)
-    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_TEST "" "CUSTOM_MAIN" "LIBS")
-    if ("${SERENITY_TEST_CUSTOM_MAIN}" STREQUAL "")
-        set(SERENITY_TEST_CUSTOM_MAIN "$<TARGET_OBJECTS:JavaScriptTestRunnerMain>")
+function(ladybird_testjs_test test_src sub_dir)
+    cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_TEST "" "CUSTOM_MAIN" "LIBS")
+    if ("${LADYBIRD_TEST_CUSTOM_MAIN}" STREQUAL "")
+        set(LADYBIRD_TEST_CUSTOM_MAIN "$<TARGET_OBJECTS:JavaScriptTestRunnerMain>")
     endif()
-    list(APPEND SERENITY_TEST_LIBS LibJS LibCore LibFileSystem)
-    serenity_test(${test_src} ${sub_dir}
-        CUSTOM_MAIN "${SERENITY_TEST_CUSTOM_MAIN}"
-        LIBS ${SERENITY_TEST_LIBS})
+    list(APPEND LADYBIRD_TEST_LIBS LibJS LibCore LibFileSystem)
+    ladybird_test(${test_src} ${sub_dir}
+        CUSTOM_MAIN "${LADYBIRD_TEST_CUSTOM_MAIN}"
+        LIBS ${LADYBIRD_TEST_LIBS})
 endfunction()
 
 function(remove_path_if_version_changed version version_file cache_path)
@@ -40,23 +40,49 @@ function(remove_path_if_version_changed version version_file cache_path)
     endif()
 endfunction()
 
-function(invoke_generator name generator primary_source header implementation)
-    cmake_parse_arguments(invoke_generator "" "" "arguments;dependencies" ${ARGN})
-
+function(invoke_generator_impl name generator primary_source header implementation)
+    cmake_parse_arguments(invoke_generator_impl "" "" "command;arguments;dependencies" ${ARGN})
     add_custom_command(
         OUTPUT "${header}" "${implementation}"
-        COMMAND $<TARGET_FILE:${generator}> -h "${header}.tmp" -c "${implementation}.tmp" ${invoke_generator_arguments}
+        COMMAND ${invoke_generator_impl_command} ${generator} -h "${header}.tmp" -c "${implementation}.tmp" ${invoke_generator_impl_arguments}
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${header}.tmp" "${header}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${implementation}.tmp" "${implementation}"
         COMMAND "${CMAKE_COMMAND}" -E remove "${header}.tmp" "${implementation}.tmp"
         VERBATIM
-        DEPENDS ${generator} ${invoke_generator_dependencies} "${primary_source}"
+        DEPENDS ${generator} ${invoke_generator_impl_dependencies} "${primary_source}"
     )
 
     add_custom_target("generate_${name}" DEPENDS "${header}" "${implementation}")
-    add_dependencies(all_generated "generate_${name}")
+    add_dependencies(ladybird_codegen_accumulator "generate_${name}")
     list(APPEND CURRENT_LIB_GENERATED "${name}")
     set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
+endfunction()
+
+function(invoke_cpp_generator name generator primary_source header implementation)
+    cmake_parse_arguments(invoke_cpp_generator "" "" "arguments;dependencies" ${ARGN})
+    invoke_generator_impl(
+        ${name}
+        $<TARGET_FILE:${generator}>
+        ${primary_source}
+        ${header}
+        ${implementation}
+        arguments ${invoke_cpp_generator_arguments}
+        dependencies ${invoke_cpp_generator_dependencies}
+    )
+endfunction()
+
+function(invoke_py_generator name script primary_source header implementation)
+    cmake_parse_arguments(invoke_py_generator "" "" "arguments" ${ARGN})
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    invoke_generator_impl(
+        ${name}
+        "${LADYBIRD_PROJECT_ROOT}/Meta/${script}"
+        ${primary_source}
+        ${header}
+        ${implementation}
+        command ${Python3_EXECUTABLE}
+        arguments ${invoke_py_generator_arguments}
+    )
 endfunction()
 
 function(invoke_idl_generator cpp_name idl_name generator primary_source header implementation idl)
@@ -75,8 +101,8 @@ function(invoke_idl_generator cpp_name idl_name generator primary_source header 
 
     add_custom_target("generate_${cpp_name}" DEPENDS "${header}" "${implementation}" "${idl}")
     add_custom_target("generate_${idl_name}" DEPENDS "generate_${cpp_name}")
-    add_dependencies(all_generated "generate_${cpp_name}")
-    add_dependencies(all_generated "generate_${idl_name}")
+    add_dependencies(ladybird_codegen_accumulator "generate_${cpp_name}")
+    add_dependencies(ladybird_codegen_accumulator "generate_${idl_name}")
     list(APPEND CURRENT_LIB_GENERATED "${name}")
     set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
 endfunction()

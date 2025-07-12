@@ -79,9 +79,6 @@ private:
     [[nodiscard]] U32Twin start_of_input_stream_twin();
     [[nodiscard]] U32Triplet start_of_input_stream_triplet();
 
-    [[nodiscard]] static Token create_new_token(Token::Type);
-    [[nodiscard]] static Token create_value_token(Token::Type, FlyString&& value, String&& representation);
-    [[nodiscard]] static Token create_value_token(Token::Type, u32 value, String&& representation);
     [[nodiscard]] Token consume_a_token();
     [[nodiscard]] Token consume_string_token(u32 ending_code_point);
     [[nodiscard]] Token consume_a_numeric_token();

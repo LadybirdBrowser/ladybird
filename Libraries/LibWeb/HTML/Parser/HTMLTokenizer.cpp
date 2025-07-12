@@ -1696,22 +1696,46 @@ _StartOfFunction:
             // 13.2.5.73 Named character reference state, https://html.spec.whatwg.org/multipage/parsing.html#named-character-reference-state
             BEGIN_STATE(NamedCharacterReference)
             {
-                if (current_input_character.has_value()) {
-                    if (m_named_character_reference_matcher.try_consume_code_point(current_input_character.value())) {
-                        m_temporary_buffer.append(current_input_character.value());
-                        continue;
-                    } else {
+                if (stop_at_insertion_point == StopAtInsertionPoint::Yes && is_insertion_point_defined()) {
+                    // If there is an insertion point, match code-point-by-code-point to handle the possibility of
+                    // document.write being used to insert a named character reference one-code-point-at-a-time.
+                    if (current_input_character.has_value()) {
+                        if (m_named_character_reference_matcher.try_consume_code_point(current_input_character.value())) {
+                            m_temporary_buffer.append(current_input_character.value());
+                            continue;
+                        } else {
+                            DONT_CONSUME_NEXT_INPUT_CHARACTER;
+                        }
+                    }
+                } else {
+                    // If there's no insertion point (this is the common case), it is safe to look ahead at the rest
+                    // of the input and try to match a named character reference all-at-once. This is worthwhile
+                    // because matching all-at-once ends up being more efficient.
+                    auto starting_consumed_count = m_temporary_buffer.size();
+                    auto remaining_source = m_decoded_input.span().slice(m_prev_offset);
+
+                    for (auto const code_point : remaining_source) {
+                        if (m_named_character_reference_matcher.try_consume_code_point(code_point)) {
+                            m_temporary_buffer.append(code_point);
+                        } else {
+                            break;
+                        }
+                    }
+
+                    auto num_consumed = m_temporary_buffer.size() - starting_consumed_count;
+                    if (num_consumed == 0) {
                         DONT_CONSUME_NEXT_INPUT_CHARACTER;
+                    } else {
+                        skip(num_consumed - 1);
                     }
                 }
 
                 // Only consume the characters within the longest match. It's possible that we've overconsumed code points,
                 // though, so we want to backtrack to the longest match found. For example, `&notindo` (which could still
-                // have lead to `&notindot;`) would need to backtrack back to `&not`),
+                // have lead to `&notindot;`) would need to backtrack back to `&not`.
                 auto overconsumed_code_points = m_named_character_reference_matcher.overconsumed_code_points();
                 if (overconsumed_code_points > 0) {
-                    auto current_byte_offset = m_current_offset;
-                    restore_to(current_byte_offset - overconsumed_code_points);
+                    restore_to(m_current_offset - overconsumed_code_points);
                     m_temporary_buffer.resize_and_keep_capacity(m_temporary_buffer.size() - overconsumed_code_points);
                 }
 

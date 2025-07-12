@@ -110,10 +110,10 @@ private:
 }
 ```
 
-## The `serenity_main(..)` program entry point
+## The `ladybird_main(..)` program entry point
 
 Ladybird has moved to a pattern where executables do not expose a normal C
-main function. A `serenity_main(..)` is exposed instead. The main reasoning
+main function. A `ladybird_main(..)` is exposed instead. The main reasoning
 is that the `Main::Arguments` struct can provide arguments in a more idiomatic
 way that fits with the Ladybird's internal API surface area. The ErrorOr<int> likewise
 allows the program to propagate errors seamlessly with the `TRY(...)` macro,
@@ -121,7 +121,7 @@ avoiding a significant amount of clunky C style error handling.
 
 These executables are then linked with the `LibMain` library, which will link in
 the normal C `int main(int, char**)` function which will call into the programs
-`serenity_main(..)` on program startup.
+`ladybird_main(..)` on program startup.
 
 The creation of the pattern was documented in the following video:
 [OS hacking: A better main() for SerenityOS C++ programs](https://www.youtube.com/watch?v=5PciKJW1rUc)
@@ -137,14 +137,14 @@ int main(int argc, char** argv)
 }
 ```
 
-Instead, `serenity_main(..)` is defined like this:
+Instead, `ladybird_main(..)` is defined like this:
 
 ```cpp
 #include <LibMain/Main.h>
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
-    return 0; 
+    return 0;
 }
 ```
 

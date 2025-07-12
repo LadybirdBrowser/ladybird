@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibURL/Parser.h>
+#include <LibURL/PublicSuffixData.h>
 #include <LibWebView/URL.h>
 
 namespace WebView {
@@ -61,7 +62,7 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
         if (any_of(RESERVED_TLDS, [&](StringView const& tld) { return domain.byte_count() > tld.length() && domain.ends_with_bytes(tld); }))
             return url;
 
-        auto public_suffix = URL::get_public_suffix(domain);
+        auto public_suffix = URL::PublicSuffixData::the()->get_public_suffix(domain);
         if (!public_suffix.has_value() || *public_suffix == domain) {
             if (append_tld == AppendTLD::Yes)
                 url->set_host(MUST(String::formatted("{}.com", domain)));
@@ -120,7 +121,7 @@ static URLParts break_web_url_into_parts(URL::URL const& url, StringView url_str
         domain = url_without_scheme;
     }
 
-    auto public_suffix = URL::get_public_suffix(domain);
+    auto public_suffix = URL::PublicSuffixData::the()->get_public_suffix(domain);
     if (!public_suffix.has_value() || !domain.ends_with(*public_suffix))
         return { scheme, domain, remainder };
 

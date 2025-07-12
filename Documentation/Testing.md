@@ -13,30 +13,28 @@ Tests of internal C++ code go in their own `TestFoo.cpp` file in `Tests/LibWeb`.
 
 The easiest way to run tests is to use the `ladybird.py` script. The LibWeb tests are registered with CMake as a test in
 `UI/CMakeLists.txt`. Using the built-in test filtering, you can run all tests with `Meta/ladybird.py test` or run
-just the LibWeb tests with `Meta/ladybird.py test LibWeb`. The second way is to invoke the headless browser test runner
-directly. See the invocation in `UI/CMakeLists.txt` for the expected command line arguments.
+just the LibWeb tests with `Meta/ladybird.py test LibWeb`. The second way is to invoke the `test-web` test runner
+directly with `Meta/ladybird.py run test-web`.
 
-A third way is to invoke `ctest` directly. The simplest method is to use the `default` preset from `CMakePresets.json`:
-
-```sh
-cmake --preset default
-cmake --build --preset default
-ctest --preset default
-```
-
-If you want to avoid building and running LibWeb tests, you can use a Lagom-only build.
+A third way is to invoke `ctest` directly. The simplest method is to use the `Release` preset from `CMakePresets.json`:
 
 ```sh
-cmake -GNinja -S Meta/Lagom -B Build/lagom
+cmake --preset Release
+cmake --build --preset Release
+ctest --preset Release
 ```
 
-The tests can be run via ninja after doing a build. Note that `test-js` requires the `LADYBIRD_SOURCE_DIR` environment
-variable to be set to the root of the ladybird source tree.
+Note that some tests require the `LADYBIRD_SOURCE_DIR` environment variable to be set to the root of the ladybird source tree.
 
 ```sh
 # /path/to/ladybird repository
 export LADYBIRD_SOURCE_DIR=${PWD}
-cd Build/lagom
+```
+
+The tests can be run via ninja after doing a build.
+
+```sh
+cd Build/release
 ninja
 ninja test
 ```
@@ -137,14 +135,18 @@ you will need to regenerate the corresponding expectations file to match the act
 For Text or Layout tests, you can "rebaseline" the tests to regenerate the expectation file:
 
 ```bash
-./Meta/ladybird.py run headless-browser --run-tests "./Tests/LibWeb" --rebaseline -f Text/input/your-new-test-name.html
+./Meta/ladybird.py run test-web --rebaseline -f Text/input/your-new-test-name.html
 ```
 
 For Ref and Screenshot tests, you will need to supply the equivalently rendering HTML manually. Though for Screenshot
-tests, you can generate the reference screenshot itself by running headless-browser in test mode:
+tests, you can generate the reference screenshot itself by running Ladybird in headless mode:
 
 ```bash
-./Meta/ladybird.py run headless-browser --layout-test-mode Tests/LibWeb/Screenshot/input/your-new-test-name.html --screenshot-path Tests/LibWeb/Screenshot/images/your-new-test-name.png
+./Meta/ladybird.py run ladybird --headless --layout-test-mode Tests/LibWeb/Screenshot/input/your-new-test-name.html
+
+# This will log something like: "Saved screenshot to: ~/Downloads/screenshot-2025-06-07-08-37-45.png"
+
+mv ~/Downloads/screenshot-2025-06-07-08-37-45.png Tests/LibWeb/Screenshot/images/your-new-test-name.png
 ```
 
 ### Text tests

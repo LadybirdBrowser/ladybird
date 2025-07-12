@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
     document_state->set_about_base_url(document->about_base_url());
 
     // 7. Let navigable be a new navigable.
-    GC::Ref<Navigable> navigable = *heap().allocate<Navigable>(page);
+    GC::Ref<Navigable> navigable = *heap().allocate<Navigable>(page, false);
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
     TRY_OR_THROW_OOM(vm(), navigable->initialize_navigable(document_state, parent_navigable));
@@ -209,14 +209,15 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     // 1. Let url be the URL record about:blank.
     auto url = URL::about_blank();
 
-    // 2. If element has a src attribute specified, and its value is not the empty string,
-    //    then parse the value of that attribute relative to element's node document.
-    //    If this is successful, then set url to the resulting URL record.
+    // 2. If element has a src attribute specified, and its value is not the empty string, then:
     auto src_attribute_value = get_attribute_value(HTML::AttributeNames::src);
     if (!src_attribute_value.is_empty()) {
-        auto parsed_src = document().parse_url(src_attribute_value);
-        if (parsed_src.has_value())
-            url = parsed_src.release_value();
+        // 1. Let maybeURL be the result of encoding-parsing a URL given that attribute's value, relative to element's node document.
+        auto maybe_url = document().encoding_parse_url(src_attribute_value);
+
+        // 2. If maybeURL is not failure, then set url to maybeURL.
+        if (maybe_url.has_value())
+            url = maybe_url.release_value();
     }
 
     // 3. If the inclusive ancestor navigables of element's node navigable contains a navigable

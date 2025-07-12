@@ -14,11 +14,8 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibURL/Parser.h>
+#include <LibURL/PublicSuffixData.h>
 #include <LibURL/URL.h>
-
-#if defined(ENABLE_PUBLIC_SUFFIX)
-#    include <LibURL/PublicSuffixData.h>
-#endif
 
 namespace URL {
 
@@ -345,14 +342,14 @@ Origin URL::origin() const
 
         // 3. If pathURL is failure, then return a new opaque origin.
         if (!path_url.has_value())
-            return Origin {};
+            return Origin::create_opaque();
 
         // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
         if (path_url->scheme().is_one_of("http"sv, "https"sv, "file"sv))
             return path_url->origin();
 
         // 5. Return a new opaque origin.
-        return Origin {};
+        return Origin::create_opaque();
     }
 
     // -> "ftp"
@@ -375,7 +372,7 @@ Origin URL::origin() const
 
     // -> Otherwise
     // Return a new opaque origin.
-    return Origin {};
+    return Origin::create_opaque();
 }
 
 bool URL::equals(URL const& other, ExcludeFragment exclude_fragments) const
@@ -494,29 +491,16 @@ ByteString percent_decode(StringView input)
     return builder.to_byte_string();
 }
 
-bool is_public_suffix([[maybe_unused]] StringView host)
+bool is_public_suffix(StringView host)
 {
-#if defined(ENABLE_PUBLIC_SUFFIX)
     return PublicSuffixData::the()->is_public_suffix(host);
-#else
-    return false;
-#endif
-}
-
-Optional<String> get_public_suffix([[maybe_unused]] StringView host)
-{
-#if defined(ENABLE_PUBLIC_SUFFIX)
-    return MUST(PublicSuffixData::the()->get_public_suffix(host));
-#else
-    return {};
-#endif
 }
 
 // https://github.com/publicsuffix/list/wiki/Format#algorithm
 Optional<String> get_registrable_domain(StringView host)
 {
     // The registered or registrable domain is the public suffix plus one additional label.
-    auto public_suffix = get_public_suffix(host);
+    auto public_suffix = PublicSuffixData::the()->get_public_suffix(host);
     if (!public_suffix.has_value() || !host.ends_with(*public_suffix))
         return {};
 

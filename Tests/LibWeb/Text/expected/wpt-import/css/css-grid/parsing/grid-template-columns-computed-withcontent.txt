@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 30 tests
 
-19 Pass
-11 Fail
+24 Pass
+6 Fail
 Pass	Property grid-template-columns value 'none'
 Pass	Property grid-template-columns value '20%'
 Fail	Property grid-template-columns value 'calc(-0.5em + 10px)'
@@ -21,15 +21,15 @@ Pass	Property grid-template-columns value 'fit-content(70px)'
 Pass	Property grid-template-columns value 'fit-content(20%)'
 Fail	Property grid-template-columns value 'fit-content(calc(-0.5em + 10px))'
 Pass	Property grid-template-columns value 'repeat(1, 10px)'
-Fail	Property grid-template-columns value 'repeat(1, [one two] 20%)'
+Pass	Property grid-template-columns value 'repeat(1, [one two] 20%)'
 Pass	Property grid-template-columns value 'repeat(2, minmax(10px, auto))'
-Fail	Property grid-template-columns value 'repeat(2, fit-content(20%) [three four] 30px 40px [five six])'
+Pass	Property grid-template-columns value 'repeat(2, fit-content(20%) [three four] 30px 40px [five six])'
 Pass	Property grid-template-columns value 'min-content repeat(5, minmax(10px, auto))'
 Pass	Property grid-template-columns value '[] 150px [] 1fr []'
 Pass	Property grid-template-columns value 'repeat(auto-fill, 200px)'
-Fail	Property grid-template-columns value 'repeat(auto-fit, [one] 20%)'
-Fail	Property grid-template-columns value 'repeat(auto-fill, minmax(100px, 5fr) [two])'
-Fail	Property grid-template-columns value 'repeat(auto-fit, [three] minmax(max-content, 6em) [four])'
+Pass	Property grid-template-columns value 'repeat(auto-fit, [one] 20%)'
+Pass	Property grid-template-columns value 'repeat(auto-fill, minmax(100px, 5fr) [two])'
+Pass	Property grid-template-columns value 'repeat(auto-fit, [three] minmax(max-content, 6em) [four])'
 Fail	Property grid-template-columns value '[a] 21px [b] repeat(auto-fill, [c] 22px [d] 23px [e]) [f] 24px [g]'
 Fail	Property grid-template-columns value '[a] 21px [b c] repeat(auto-fill, [d e] 22px [f g h] 23px [i j k l]) [m n] 24px [o]'
 Fail	Property grid-template-columns value '[a] repeat(2, [b] 20px [c d] 21px [e f g]) [h i] repeat(auto-fit, [j] 22px [k l m] 23px [n o p q]) [r s]'

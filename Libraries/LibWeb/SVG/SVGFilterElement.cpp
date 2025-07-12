@@ -1,11 +1,15 @@
 /*
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2025, Lucien Fiorini <lucienfiorini@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibWeb/Bindings/SVGFilterElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/SVG/SVGFEBlendElement.h>
+#include <LibWeb/SVG/SVGFEFloodElement.h>
+#include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 
 namespace Web::SVG {
@@ -21,6 +25,12 @@ void SVGFilterElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFilterElement);
     Base::initialize(realm);
+}
+
+void SVGFilterElement::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    SVGURIReferenceMixin::visit_edges(visitor);
 }
 
 void SVGFilterElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
@@ -61,6 +71,82 @@ void SVGFilterElement::attribute_changed(FlyString const& name, Optional<String>
         m_filter_units = AttributeParser::parse_units(value.value_or({}));
     else if (name == AttributeNames::primitiveUnits)
         m_primitive_units = AttributeParser::parse_units(value.value_or({}));
+}
+
+Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
+{
+    HashMap<String, Gfx::Filter> result_map;
+    Optional<Gfx::Filter> root_filter;
+
+    // https://www.w3.org/TR/filter-effects-1/#element-attrdef-filter-primitive-in
+    auto resolve_input_filter = [&](String const& name) -> Optional<Gfx::Filter> {
+        // TODO: Add missing ones.
+        if (name == "SourceGraphic"sv)
+            return {};
+        if (name == "SourceAlpha"sv) {
+            float matrix[20] = {
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 1, 0
+            };
+            return Gfx::Filter::color_matrix(matrix);
+        }
+
+        auto filter_from_map = result_map.get(name).copy();
+
+        if (filter_from_map.has_value())
+            return filter_from_map;
+
+        return root_filter;
+    };
+
+    for_each_child([&](auto& node) {
+        if (is<SVGFEFloodElement>(node)) {
+            auto& flood_primitive = static_cast<SVGFEFloodElement&>(node);
+
+            root_filter = Gfx::Filter::flood(flood_primitive.flood_color(), flood_primitive.flood_opacity());
+
+            auto result = flood_primitive.result()->base_val();
+            if (!result.is_empty()) {
+                result_map.set(result, *root_filter);
+            }
+        } else if (is<SVGFEBlendElement>(node)) {
+            auto& blend_primitive = static_cast<SVGFEBlendElement&>(node);
+
+            auto foreground = resolve_input_filter(blend_primitive.in1()->base_val());
+
+            auto background = resolve_input_filter(blend_primitive.in2()->base_val());
+
+            // FIXME: Actually resolve the blend mode
+            auto blend_mode = Gfx::CompositingAndBlendingOperator::Normal;
+
+            root_filter = Gfx::Filter::blend(background, foreground, blend_mode);
+
+            auto result = blend_primitive.result()->base_val();
+            if (!result.is_empty()) {
+                result_map.set(result, *root_filter);
+            }
+        } else if (is<SVGFEGaussianBlurElement>(node)) {
+            auto& blur_primitive = static_cast<SVGFEGaussianBlurElement&>(node);
+
+            auto input = resolve_input_filter(blur_primitive.in1()->base_val());
+
+            auto radius_x = blur_primitive.std_deviation_x()->base_val();
+            auto radius_y = blur_primitive.std_deviation_y()->base_val();
+
+            root_filter = Gfx::Filter::blur(radius_x, radius_y, input);
+
+            auto result = blur_primitive.result()->base_val();
+            if (!result.is_empty()) {
+                result_map.set(result, *root_filter);
+            }
+        }
+
+        return IterationDecision::Continue;
+    });
+
+    return root_filter;
 }
 
 // https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-filterunits

@@ -56,6 +56,7 @@ QualifiedName::QualifiedName(FlyString const& local_name, Optional<FlyString> co
 
 QualifiedName::Impl::Impl(FlyString const& a_local_name, Optional<FlyString> const& a_prefix, Optional<FlyString> const& a_namespace)
     : local_name(a_local_name)
+    , lowercased_local_name(local_name.to_ascii_lowercase())
     , prefix(a_prefix)
     , namespace_(a_namespace)
 {

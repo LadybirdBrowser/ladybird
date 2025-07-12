@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSSOM View —— scrollParent test</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-htmlelement-scrollparent">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.scroller {
+  overflow: scroll;
+  height: 100px;
+}
+.hidden {
+  overflow: hidden;
+}
+.clip {
+  overflow: clip;
+}
+.relpos {
+  position: relative;
+}
+.abspos {
+  position: absolute;
+}
+.fixedpos {
+  position: fixed;
+}
+#noBox {
+  display: none;
+}
+.contains-fixed {
+  contain: paint;
+}
+</style>
+</head>
+<body>
+<div id="childOfRoot"></div>
+<div class="contains-fixed">
+  <div id="fixedContainedByRoot" class="fixedpos"></div>
+</div>
+<div id="scroller3" class="scroller">
+  <div id="fixedToRoot" class="fixedpos"></div>
+  <!-- Contains the fixed positioned descendant. -->
+  <div class="contains-fixed">
+    <div id="scroller2" class="scroller">
+      <!-- Contains the absolute positioned descendant. -->
+      <div class="relpos">
+        <div id="scroller1" class="scroller">
+          <div>
+            <div id="normalChild"></div>
+            <div id="noBox"></div>
+            <div id="absPosChild" class="abspos"></div>
+            <div id="fixedPosChild" class="fixedpos"></div>
+          </div>
+          <!-- Overflow: hidden is also a scroll container. -->
+          <div id="hidden" class="hidden">
+            <div id="childOfHidden"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+<script>
+test(() => { assert_equals(normalChild.scrollParent, scroller1); },
+    "scrollParent returns the nearest scroll container.");
+test(() => { assert_equals(childOfHidden.scrollParent, hidden); },
+    "hidden element is a scroll container.");
+test(() => { assert_equals(noBox.scrollParent, null); },
+    "Element with no box has null scrollParent.");
+test(() => { assert_equals(absPosChild.scrollParent, scroller2); },
+    "scrollParent follows absolute positioned containing block chain.");
+test(() => { assert_equals(fixedPosChild.scrollParent, scroller3); },
+    "scrollParent follows fixed positioned containing block chain.");
+test(() => { assert_equals(fixedToRoot.scrollParent, null); },
+    "scrollParent of element fixed to root is null.");
+test(() => { assert_equals(childOfRoot.scrollParent, document.scrollingElement); },
+    "scrollParent of child in root viewport returns document scrolling element.");
+test(() => { assert_equals(fixedContainedByRoot.scrollParent, document.scrollingElement); },
+    "scrollParent of fixed element contained within root is document scrolling element.");
+test(() => { assert_equals(document.body.scrollParent, null); },
+    "scrollParent of body is null.");
+
+</script>
+</html>

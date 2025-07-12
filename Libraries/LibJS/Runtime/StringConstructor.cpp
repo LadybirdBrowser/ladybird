@@ -5,8 +5,8 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <AK/UnicodeUtils.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf32View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Error.h>
@@ -129,7 +129,9 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_code_point)
             return vm.throw_completion<RangeError>(ErrorType::InvalidCodePoint, next_code_point.to_string_without_side_effects());
 
         // d. Set result to the string-concatenation of result and UTF16EncodeCodePoint(ℝ(nextCP)).
-        MUST(code_point_to_utf16(string, static_cast<u32>(code_point)));
+        (void)AK::UnicodeUtils::code_point_to_utf16(static_cast<u32>(code_point), [&](auto code_unit) {
+            string.append(code_unit);
+        });
     }
 
     // 3. Assert: If codePoints is empty, then result is the empty String.

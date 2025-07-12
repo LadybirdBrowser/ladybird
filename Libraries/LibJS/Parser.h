@@ -45,7 +45,7 @@ struct FunctionNodeParseOptions {
 
 class ScopePusher;
 
-class Parser {
+class JS_API Parser {
 public:
     struct EvalInitialState {
         bool in_eval_function_context { false };
@@ -208,9 +208,6 @@ public:
     struct TokenMemoization {
         bool try_parse_arrow_function_expression_failed;
     };
-
-    // Needs to mess with m_state, and we're not going to expose a non-const getter for that :^)
-    friend ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create_dynamic_function(VM&, FunctionObject&, FunctionObject*, FunctionKind, ReadonlySpan<String> parameter_args, String const& body_arg);
 
     static Parser parse_function_body_from_string(ByteString const& body_string, u16 parse_options, NonnullRefPtr<FunctionParameters const>, FunctionKind kind, FunctionParsingInsights&);
 

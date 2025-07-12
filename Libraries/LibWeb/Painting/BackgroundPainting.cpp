@@ -12,6 +12,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/Blending.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
@@ -90,8 +91,11 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
         display_list_recorder.save_layer();
     }
 
-    DisplayListRecorderStateSaver state { display_list_recorder };
-    if (resolved_background.needs_text_clip) {
+    bool is_root_element = paintable_box.layout_node().is_root_element();
+    bool needs_text_clip = resolved_background.needs_text_clip && !is_root_element;
+
+    if (needs_text_clip) {
+        display_list_recorder.save();
         auto display_list = compute_text_clip_paths(context, paintable_box, resolved_background.background_rect.location());
         auto rect = context.rounded_device_rect(resolved_background.background_rect);
         display_list_recorder.add_mask(move(display_list), rect.to_type<int>());
@@ -104,13 +108,19 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
 
     auto const& color_box = resolved_background.color_box;
 
-    display_list_recorder.fill_rect_with_rounded_corners(
-        context.rounded_device_rect(color_box.rect).to_type<int>(),
-        resolved_background.color,
-        color_box.radii.top_left.as_corner(context),
-        color_box.radii.top_right.as_corner(context),
-        color_box.radii.bottom_right.as_corner(context),
-        color_box.radii.bottom_left.as_corner(context));
+    if (is_root_element) {
+        display_list_recorder.fill_rect(
+            context.enclosing_device_rect(color_box.rect).to_type<int>(),
+            resolved_background.color);
+    } else {
+        display_list_recorder.fill_rect_with_rounded_corners(
+            context.rounded_device_rect(color_box.rect).to_type<int>(),
+            resolved_background.color,
+            color_box.radii.top_left.as_corner(context),
+            color_box.radii.top_right.as_corner(context),
+            color_box.radii.bottom_right.as_corner(context),
+            color_box.radii.bottom_left.as_corner(context));
+    }
 
     struct {
         DevicePixels top { 0 };
@@ -141,13 +151,15 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
 
         CSSPixelRect const& css_clip_rect = clip_box.rect;
         auto clip_rect = context.rounded_device_rect(css_clip_rect);
-        display_list_recorder.add_clip_rect(clip_rect.to_type<int>());
-        ScopedCornerRadiusClip corner_clip { context, context.rounded_device_rect(css_clip_rect), clip_box.radii };
+        ScopedCornerRadiusClip corner_clip { context, context.rounded_device_rect(css_clip_rect), clip_box.radii, CornerClip::Outside, !is_root_element };
+        if (!is_root_element) {
+            display_list_recorder.add_clip_rect(clip_rect.to_type<int>());
 
-        if (layer.clip == CSS::BackgroundBox::BorderBox) {
-            // Shrink the effective clip rect if to account for the bits the borders will definitely paint over
-            // (if they all have alpha == 255).
-            clip_rect.shrink(clip_shrink.top, clip_shrink.right, clip_shrink.bottom, clip_shrink.left);
+            if (layer.clip == CSS::BackgroundBox::BorderBox) {
+                // Shrink the effective clip rect if to account for the bits the borders will definitely paint over
+                // (if they all have alpha == 255).
+                clip_rect.shrink(clip_shrink.top, clip_shrink.right, clip_shrink.bottom, clip_shrink.left);
+            }
         }
 
         auto const& image = *layer.background_image;
@@ -268,6 +280,12 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
                 while (image_x < css_clip_rect.right()) {
                     image_rect.set_x(image_x);
                     auto image_device_rect = context.rounded_device_rect(image_rect);
+                    // If the image's dimensions were rounded to zero then they need to be restored to avoid a crash.
+                    // There's no need to check that !image_rect.is_empty() because empty images are discarded in resolve_background_layers.
+                    if (image_device_rect.width() == 0)
+                        image_device_rect.set_width(1);
+                    if (image_device_rect.height() == 0)
+                        image_device_rect.set_height(1);
                     callback(image_device_rect);
                     if (!repeat_x)
                         break;
@@ -299,9 +317,16 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
             // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
             // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
             auto dest_rect = context.rounded_device_rect(image_rect);
+            // If the image's dimensions were rounded to zero then they need to be restored to avoid a crash.
+            // There's no need to check that !image_rect.is_empty() because empty images are discarded in resolve_background_layers.
+            if (dest_rect.width() == 0)
+                dest_rect.set_width(1);
+            if (dest_rect.height() == 0)
+                dest_rect.set_height(1);
+
             auto const* bitmap = static_cast<CSS::ImageStyleValue const&>(image).current_frame_bitmap(dest_rect);
             auto scaling_mode = to_gfx_scaling_mode(image_rendering, bitmap->rect(), dest_rect.to_type<int>());
-            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y });
+            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, repeat_x, repeat_y);
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
                 image.paint(context, image_device_rect, image_rendering);
@@ -313,6 +338,9 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
         }
     }
 
+    if (needs_text_clip) {
+        display_list_recorder.restore();
+    }
     if (paint_into_isolated_group) {
         display_list_recorder.restore();
     }

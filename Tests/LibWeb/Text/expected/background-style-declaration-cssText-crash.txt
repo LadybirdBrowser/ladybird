@@ -1,2 +1,2 @@
-:root { background: transparent none 1px 1px auto auto repeat scroll padding-box border-box; }
+:root { background: 1px 1px; }
 PASS (didn't crash)

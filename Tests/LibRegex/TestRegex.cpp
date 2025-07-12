@@ -736,6 +736,8 @@ TEST_CASE(ECMA262_match)
         { "(?!(b))\\1"sv, "a"sv, false },
         // String table merge bug: inverse map should be merged regardless of available direct mappings.
         { "((?<x>a)|(?<x>b))"sv, "aa"sv, false },
+        // Insensitive charclasses should accept upper/lowercase in pattern (lookup table should still be ordered if insensitive lookup is used), ladybird#5399.
+        { "[aBc]"sv, "b"sv, true, ECMAScriptFlags::Insensitive },
     };
 
     for (auto& test : tests) {
@@ -750,6 +752,23 @@ TEST_CASE(ECMA262_match)
         }
         EXPECT_EQ(re.parser_result.error, regex::Error::NoError);
         EXPECT_EQ(re.match(test.subject).success, test.matches);
+    }
+}
+
+TEST_CASE(ECMA262_unicode_parser_error)
+{
+    struct _test {
+        StringView pattern;
+        regex::Error error;
+    };
+
+    constexpr _test tests[] {
+        { "([^\\:]+?)"sv, regex::Error::InvalidPattern },
+    };
+
+    for (auto test : tests) {
+        Regex<ECMA262> re(test.pattern, (ECMAScriptFlags)regex::AllFlags::Unicode);
+        EXPECT_EQ(re.parser_result.error, test.error);
     }
 }
 
@@ -859,6 +878,7 @@ TEST_CASE(ECMA262_unicode_sets_match)
         { "[[0-9\\w]--x--6]"sv, "9"sv, true },
         { "[\\w&&\\d]"sv, "a"sv, false },
         { "[\\w&&\\d]"sv, "4"sv, true },
+        { "([^\\:]+?)"sv, "a"sv, true },
     };
 
     for (auto& test : tests) {

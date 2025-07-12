@@ -2,8 +2,13 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
+        let elements = [];
         for (const elementName of ["link", "a", "area", "img", "iframe", "script"]) {
-            const element = document.createElement(elementName);
+            elements.push([document.createElement(elementName), elementName]);
+        }
+        elements.push([document.createElementNS("http://www.w3.org/2000/svg", "a"), "svg:a"]);
+
+        for (const [element, elementName] of elements) {
             println(`${elementName} referrerPolicy initial value: '${element.referrerPolicy}'`);
             element.referrerPolicy = "invalid";
             println(`${elementName} referrerPolicy value after setting to "invalid": '${element.referrerPolicy}'`);

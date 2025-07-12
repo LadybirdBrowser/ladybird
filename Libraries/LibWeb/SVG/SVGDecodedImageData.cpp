@@ -37,13 +37,21 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     GC::Ref<HTML::Navigable> navigable = page->top_level_traversable();
     auto response = Fetch::Infrastructure::Response::create(navigable->vm());
     response->url_list().append(url);
-    auto navigation_params = navigable->heap().allocate<HTML::NavigationParams>();
-    navigation_params->navigable = navigable;
-    navigation_params->response = response;
-    navigation_params->origin = URL::Origin {};
-    navigation_params->policy_container = navigable->heap().allocate<HTML::PolicyContainer>(realm.heap());
-    navigation_params->final_sandboxing_flag_set = HTML::SandboxingFlagSet {};
-    navigation_params->opener_policy = HTML::OpenerPolicy {};
+    auto origin = URL::Origin::create_opaque();
+    auto navigation_params = navigable->heap().allocate<HTML::NavigationParams>(OptionalNone {},
+        navigable,
+        nullptr,
+        response,
+        nullptr,
+        nullptr,
+        HTML::OpenerPolicyEnforcementResult { .url = url, .origin = origin, .opener_policy = HTML::OpenerPolicy {} },
+        nullptr,
+        origin,
+        navigable->heap().allocate<HTML::PolicyContainer>(realm.heap()),
+        HTML::SandboxingFlagSet {},
+        HTML::OpenerPolicy {},
+        OptionalNone {},
+        HTML::UserNavigationInvolvement::None);
 
     // FIXME: Use Navigable::navigate() instead of manually replacing the navigable's document.
     auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params));

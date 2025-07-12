@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -27,27 +26,26 @@ public:
         Session,
     };
 
-    [[nodiscard]] static GC::Ref<Storage> create(JS::Realm&, Type, NonnullRefPtr<StorageAPI::StorageBottle>);
+    [[nodiscard]] static GC::Ref<Storage> create(JS::Realm&, Type, GC::Ref<StorageAPI::StorageBottle>);
 
     ~Storage();
 
     size_t length() const;
     Optional<String> key(size_t index);
-    Optional<String> get_item(StringView key) const;
+    Optional<String> get_item(String const& key) const;
     WebIDL::ExceptionOr<void> set_item(String const& key, String const& value);
     void remove_item(String const& key);
     void clear();
-    auto const& map() const { return m_storage_bottle->map; }
-    auto& map() { return m_storage_bottle->map; }
     Type type() const { return m_type; }
 
     void dump() const;
 
 private:
-    Storage(JS::Realm&, Type, NonnullRefPtr<StorageAPI::StorageBottle>);
+    Storage(JS::Realm&, Type, GC::Ref<StorageAPI::StorageBottle>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void finalize() override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // ^PlatformObject
     virtual Optional<JS::Value> item_value(size_t index) const override;
@@ -61,8 +59,7 @@ private:
     void broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value);
 
     Type m_type {};
-    NonnullRefPtr<StorageAPI::StorageBottle> m_storage_bottle;
-    u64 m_stored_bytes { 0 };
+    GC::Ref<StorageAPI::StorageBottle> m_storage_bottle;
 };
 
 }

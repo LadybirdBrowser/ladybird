@@ -25,6 +25,8 @@ public:
     virtual ~CSSSupportsRule() = default;
 
     String condition_text() const override;
+    bool matches() const { return condition_matches(); }
+
     virtual bool condition_matches() const override { return m_supports->matches(); }
 
     Supports const& supports() const { return m_supports; }

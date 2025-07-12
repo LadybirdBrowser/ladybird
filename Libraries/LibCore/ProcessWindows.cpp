@@ -111,7 +111,7 @@ ErrorOr<String> Process::get_name()
     if (!length)
         return Error::from_windows_error();
 
-    return String::from_utf16(Utf16View { { (u16*)path, length } });
+    return String::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(path), length });
 }
 
 ErrorOr<void> Process::set_name(StringView, SetThreadName)

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
-if (NOT APPLE AND NOT ANDROID AND NOT WIN32 AND NOT LAGOM_USE_LINKER)
+if (NOT APPLE AND NOT ANDROID AND NOT VCPKG_TARGET_ANDROID AND NOT WIN32 AND NOT LAGOM_USE_LINKER)
     find_program(LLD_LINKER NAMES "ld.lld")
     if (LLD_LINKER)
         message(STATUS "Using LLD to link Lagom.")
@@ -16,6 +16,12 @@ if (NOT APPLE AND NOT ANDROID AND NOT WIN32 AND NOT LAGOM_USE_LINKER)
             set(LAGOM_USE_LINKER "mold" CACHE STRING "" FORCE)
         endif()
     endif()
+endif()
+
+if(WIN32 AND NOT LAGOM_USE_LINKER)
+    # We do not need to check for its presence.
+    # We know it is there with the installation of clang-cl which we require.
+    set(LAGOM_USE_LINKER "lld" CACHE STRING "" FORCE)
 endif()
 
 if (LAGOM_USE_LINKER)

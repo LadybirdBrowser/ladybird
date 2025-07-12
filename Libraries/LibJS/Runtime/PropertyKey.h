@@ -14,7 +14,7 @@
 
 namespace JS {
 
-class PropertyKey {
+class JS_API PropertyKey {
 public:
     enum class StringMayBeNumber {
         Yes,

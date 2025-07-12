@@ -25,12 +25,12 @@ static HashTable<GC::RawRef<Storage>>& all_storages()
     return storages;
 }
 
-GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, NonnullRefPtr<StorageAPI::StorageBottle> storage_bottle)
+GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
 {
     return realm.create<Storage>(realm, type, move(storage_bottle));
 }
 
-Storage::Storage(JS::Realm& realm, Type type, NonnullRefPtr<StorageAPI::StorageBottle> storage_bottle)
+Storage::Storage(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
     : Bindings::PlatformObject(realm)
     , m_type(type)
     , m_storage_bottle(move(storage_bottle))
@@ -45,9 +45,6 @@ Storage::Storage(JS::Realm& realm, Type type, NonnullRefPtr<StorageAPI::StorageB
         .named_property_setter_has_identifier = true,
         .named_property_deleter_has_identifier = true,
     };
-
-    for (auto const& item : map())
-        m_stored_bytes += item.key.byte_count() + item.value.byte_count();
 
     all_storages().set(*this);
 }
@@ -65,78 +62,56 @@ void Storage::finalize()
     all_storages().remove(*this);
 }
 
+void Storage::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_storage_bottle);
+}
+
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-length
 size_t Storage::length() const
 {
     // The length getter steps are to return this's map's size.
-    return map().size();
+    return m_storage_bottle->size();
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-key
 Optional<String> Storage::key(size_t index)
 {
     // 1. If index is greater than or equal to this's map's size, then return null.
-    if (index >= map().size())
+    if (index >= m_storage_bottle->size())
         return {};
 
     // 2. Let keys be the result of running get the keys on this's map.
-    auto keys = map().keys();
+    auto keys = m_storage_bottle->keys();
 
     // 3. Return keys[index].
     return keys[index];
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-getitem
-Optional<String> Storage::get_item(StringView key) const
+Optional<String> Storage::get_item(String const& key) const
 {
     // 1. If this's map[key] does not exist, then return null.
-    auto it = map().find(key);
-    if (it == map().end())
-        return {};
-
     // 2. Return this's map[key].
-    return it->value;
+    return m_storage_bottle->get(key);
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-setitem
 WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& value)
 {
-    auto& realm = this->realm();
-
     // 1. Let oldValue be null.
     Optional<String> old_value;
 
     // 2. Let reorder be true.
-    bool reorder = true;
-
     // 3. If this's map[key] exists:
-    auto new_size = m_stored_bytes;
-    if (auto it = map().find(key); it != map().end()) {
-        // 1. Set oldValue to this's map[key].
-        old_value = it->value;
 
-        // 2. If oldValue is value, then return.
-        if (old_value == value)
-            return {};
-
-        // 3. Set reorder to false.
-        reorder = false;
-    } else {
-        new_size += key.bytes().size();
-    }
-
-    // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException exception.
-    new_size += value.bytes().size() - old_value.value_or(String {}).bytes().size();
-    if (m_storage_bottle->quota.has_value() && new_size > *m_storage_bottle->quota)
-        return WebIDL::QuotaExceededError::create(realm, MUST(String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota)));
-
+    // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException.
     // 5. Set this's map[key] to value.
-    map().set(key, value);
-    m_stored_bytes = new_size;
-
-    // 6. If reorder is true, then reorder this.
-    if (reorder)
-        this->reorder();
+    auto error = m_storage_bottle->set(key, value);
+    if (error == WebView::StorageOperationError::QuotaExceededError) {
+        return WebIDL::QuotaExceededError::create(realm(), MUST(String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota())));
+    }
 
     // 7. Broadcast this with key, oldValue, and value.
     broadcast(key, old_value, value);
@@ -148,16 +123,13 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
 void Storage::remove_item(String const& key)
 {
     // 1. If this's map[key] does not exist, then return.
-    auto it = map().find(key);
-    if (it == map().end())
+    // 2. Set oldValue to this's map[key].
+    auto old_value = m_storage_bottle->get(key);
+    if (!old_value.has_value())
         return;
 
-    // 2. Set oldValue to this's map[key].
-    auto old_value = it->value;
-
     // 3. Remove this's map[key].
-    map().remove(it);
-    m_stored_bytes = m_stored_bytes - key.bytes().size() - old_value.bytes().size();
+    m_storage_bottle->remove(key);
 
     // 4. Reorder this.
     reorder();
@@ -170,7 +142,7 @@ void Storage::remove_item(String const& key)
 void Storage::clear()
 {
     // 1. Clear this's map.
-    map().clear();
+    m_storage_bottle->clear();
 
     // 2. Broadcast this with null, null, and null.
     broadcast({}, {}, {});
@@ -205,7 +177,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
         if (storage->type() != type())
             continue;
 
-        // * relevant settings object's origin is same origin with storage's relevant settings object's origin.
+        // * relevant settings object's origin is same origin with storage's relevant settings object's origin
         if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(storage).origin()))
             continue;
 
@@ -247,8 +219,9 @@ Vector<FlyString> Storage::supported_property_names() const
 {
     // The supported property names on a Storage object storage are the result of running get the keys on storage's map.
     Vector<FlyString> names;
-    names.ensure_capacity(map().size());
-    for (auto const& key : map().keys())
+    auto keys = m_storage_bottle->keys();
+    names.ensure_capacity(keys.size());
+    for (auto const& key : keys)
         names.unchecked_append(key);
     return names;
 }
@@ -265,7 +238,7 @@ Optional<JS::Value> Storage::item_value(size_t index) const
 
 JS::Value Storage::named_item_value(FlyString const& name) const
 {
-    auto value = get_item(name);
+    auto value = get_item(String(name));
     if (!value.has_value())
         // AD-HOC: Spec leaves open to a description at: https://html.spec.whatwg.org/multipage/webstorage.html#the-storage-interface
         // However correct behavior expected here: https://github.com/whatwg/html/issues/8684
@@ -296,10 +269,12 @@ WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(String const& key
 
 void Storage::dump() const
 {
-    dbgln("Storage ({} key(s))", map().size());
+    auto keys = m_storage_bottle->keys();
+    dbgln("Storage ({} key(s))", keys.size());
     size_t i = 0;
-    for (auto const& it : map()) {
-        dbgln("[{}] \"{}\": \"{}\"", i, it.key, it.value);
+    for (auto const& key : keys) {
+        auto value = m_storage_bottle->get(key);
+        dbgln("[{}] \"{}\": \"{}\"", i, key, value.value());
         ++i;
     }
 }

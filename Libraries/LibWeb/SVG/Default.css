@@ -14,14 +14,8 @@ svg:not(:root), image, marker, pattern, symbol { overflow: hidden; }
     white-space-collapse: preserve-spaces;
 }
 
-/* FIXME: Allow setting the rest of these to `display: none`.
-          Currently that breaks <use> and <mask> and probably others. */
-desc, title, metadata,
-pattern, linearGradient, radialGradient,
-script, style {
-    display: none !important;
-}
-/*
+/* NOTE: These rules are in the SVG spec, but don't match how other engines behave.
+         So we simply comment them out for now.
 defs,
 clipPath, mask, marker,
 desc, title, metadata,
@@ -30,10 +24,16 @@ script, style,
 symbol {
     display: none !important;
 }
-*/
 :host(use) > symbol {
     display: inline !important;
 }
+*/
+
 :link, :visited {
     cursor: pointer;
+}
+
+foreignObject {
+    display: block;
+    overflow: hidden;
 }

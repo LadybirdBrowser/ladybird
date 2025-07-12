@@ -44,6 +44,8 @@ private:
     String m_system_id;
 };
 
+bool is_valid_doctype_name(String const&);
+
 template<>
 inline bool Node::fast_is<DocumentType>() const { return is_document_type(); }
 

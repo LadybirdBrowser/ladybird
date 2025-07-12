@@ -22,8 +22,8 @@ public:
     Layout::Node const& layout_node() const { return m_layout_node; }
     Paintable const& paintable() const { return *m_layout_node->first_paintable(); }
 
-    int start() const { return m_start; }
-    int length() const { return m_length; }
+    size_t start_byte_offset() const { return m_start_byte_offset; }
+    size_t length_in_bytes() const { return m_length_in_bytes; }
 
     CSSPixels baseline() const { return m_baseline; }
     CSSPixelPoint offset() const { return m_offset; }
@@ -39,14 +39,16 @@ public:
     Gfx::Orientation orientation() const;
 
     CSSPixelRect selection_rect() const;
-    CSSPixelRect range_rect(size_t start_offset, size_t end_offset) const;
+    CSSPixelRect range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
 
     CSSPixels width() const { return m_size.width(); }
     CSSPixels height() const { return m_size.height(); }
 
-    int text_index_at(CSSPixelPoint) const;
+    size_t index_in_node_for_byte_offset(size_t) const;
+    size_t index_in_node_for_point(CSSPixelPoint) const;
 
-    StringView string_view() const;
+    Utf8View utf8_view() const;
+    Utf16View utf16_view() const;
 
     CSSPixels text_decoration_thickness() const { return m_text_decoration_thickness; }
     void set_text_decoration_thickness(CSSPixels thickness) { m_text_decoration_thickness = thickness; }
@@ -56,12 +58,13 @@ private:
     CSSPixelPoint m_offset;
     CSSPixelSize m_size;
     CSSPixels m_baseline;
-    int m_start;
-    int m_length;
+    size_t m_start_byte_offset;
+    size_t m_length_in_bytes;
     RefPtr<Gfx::GlyphRun> m_glyph_run;
     CSS::WritingMode m_writing_mode;
     Vector<ShadowData> m_shadows;
     CSSPixels m_text_decoration_thickness { 0 };
+    mutable Optional<AK::Utf16ConversionResult> m_text_in_utf16;
 };
 
 }

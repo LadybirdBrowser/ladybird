@@ -49,12 +49,12 @@ Optional<CSS::Keyword> HTMLFontElement::parse_legacy_font_size(StringView string
         lexer.consume();
     }
 
-    // 6. Collect a sequence of code points that are ASCII digits from input given position, and let the resulting sequence be digits.
+    // 6. Collect a sequence of code points that are ASCII digits from input given position, and let digits be the resulting sequence.
     size_t start_index = lexer.tell();
     lexer.consume_while(is_ascii_digit);
     size_t end_index = lexer.tell();
     auto digits = lexer.input().substring_view(start_index, end_index - start_index);
-    auto value_or_empty = AK::StringUtils::convert_to_int<i32>(digits);
+    auto value_or_empty = digits.to_number<i32>();
 
     // 7. If digits is the empty string, there is no presentational hint. Return.
     if (!value_or_empty.has_value())
@@ -77,7 +77,7 @@ Optional<CSS::Keyword> HTMLFontElement::parse_legacy_font_size(StringView string
     if (value < 1)
         value = 1;
 
-    // 12. Set 'font-size' to the keyword corresponding to the value of value according to the following table:
+    // 12. Set the 'font-size' property to the keyword corresponding to the value of value according to the following table:
     switch (value) {
     case 1:
         return CSS::Keyword::XSmall;

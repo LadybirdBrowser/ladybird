@@ -15,7 +15,6 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
-#include <LibCore/DateTime.h>
 #include <LibCore/Forward.h>
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
@@ -30,6 +29,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
+#include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/LazyLoadingElement.h>
@@ -98,6 +98,7 @@ enum class InvalidateLayoutTreeReason {
     X(HTMLElementOffsetParent)             \
     X(HTMLElementOffsetTop)                \
     X(HTMLElementOffsetWidth)              \
+    X(HTMLElementScrollParent)             \
     X(HTMLEventLoopRenderingUpdate)        \
     X(HTMLImageElementHeight)              \
     X(HTMLImageElementWidth)               \
@@ -177,7 +178,7 @@ public:
 
     [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, URL::URL const& url = URL::about_blank());
     [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(JS::Realm&);
-    static WebIDL::ExceptionOr<GC::Ref<Document>> construct_impl(JS::Realm&);
+    static GC::Ref<Document> construct_impl(JS::Realm&);
     virtual ~Document() override;
 
     // AD-HOC: This number increments whenever a node is added or removed from the document, or an element attribute changes.
@@ -223,8 +224,8 @@ public:
     URL::URL base_url() const;
 
     void update_base_element(Badge<HTML::HTMLBaseElement>);
-    GC::Ptr<HTML::HTMLBaseElement const> first_base_element_with_href_in_tree_order() const;
-    GC::Ptr<HTML::HTMLBaseElement const> first_base_element_with_target_in_tree_order() const;
+    GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_href_in_tree_order() const;
+    GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_target_in_tree_order() const;
 
     String url_string() const { return m_url.to_string(); }
     String document_uri() const { return url_string(); }
@@ -235,7 +236,6 @@ public:
     HTML::OpenerPolicy const& opener_policy() const { return m_opener_policy; }
     void set_opener_policy(HTML::OpenerPolicy policy) { m_opener_policy = move(policy); }
 
-    Optional<URL::URL> parse_url(StringView) const;
     Optional<URL::URL> encoding_parse_url(StringView) const;
     Optional<String> encoding_parse_and_serialize_url(StringView) const;
 
@@ -433,6 +433,9 @@ public:
 
     void set_focused_element(GC::Ptr<Element>);
 
+    HTML::FocusTrigger last_focus_trigger() const { return m_last_focus_trigger; }
+    void set_last_focus_trigger(HTML::FocusTrigger trigger) { m_last_focus_trigger = trigger; }
+
     Element const* active_element() const { return m_active_element.ptr(); }
     void set_active_element(GC::Ptr<Element>);
 
@@ -563,12 +566,6 @@ public:
 
     static bool is_valid_name(String const&);
 
-    struct PrefixAndTagName {
-        FlyString prefix;
-        FlyString tag_name;
-    };
-    static WebIDL::ExceptionOr<PrefixAndTagName> validate_qualified_name(JS::Realm&, FlyString const& qualified_name);
-
     GC::Ref<NodeIterator> create_node_iterator(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
     GC::Ref<TreeWalker> create_tree_walker(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
@@ -610,7 +607,7 @@ public:
     void set_about_base_url(Optional<URL::URL> url) { m_about_base_url = url; }
 
     String domain() const;
-    void set_domain(String const&);
+    WebIDL::ExceptionOr<void> set_domain(String const&);
 
     auto& pending_scroll_event_targets() { return m_pending_scroll_event_targets; }
     auto& pending_scrollend_event_targets() { return m_pending_scrollend_event_targets; }
@@ -814,7 +811,7 @@ public:
     // Does document represent an embedded svg img
     [[nodiscard]] bool is_decoded_svg() const;
 
-    Vector<GC::Root<DOM::Range>> find_matching_text(String const&, CaseSensitivity);
+    Vector<GC::Root<Range>> find_matching_text(String const&, CaseSensitivity);
 
     void parse_html_from_a_string(StringView);
     static GC::Ref<Document> parse_html_unsafe(JS::VM&, StringView);
@@ -835,15 +832,7 @@ public:
     void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
     void set_needs_display(CSSPixelRect const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
 
-    struct PaintConfig {
-        bool paint_overlay { false };
-        bool should_show_line_box_borders { false };
-        bool has_focus { false };
-        Optional<Gfx::IntRect> canvas_fill_rect {};
-
-        bool operator==(PaintConfig const& other) const = default;
-    };
-    RefPtr<Painting::DisplayList> record_display_list(PaintConfig);
+    RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig);
 
     void invalidate_display_list();
 
@@ -1013,6 +1002,8 @@ private:
     bool m_editable { false };
 
     GC::Ptr<Element> m_focused_element;
+    HTML::FocusTrigger m_last_focus_trigger { HTML::FocusTrigger::Other };
+
     GC::Ptr<Element> m_active_element;
     GC::Ptr<Element> m_target_element;
 
@@ -1097,7 +1088,7 @@ private:
     String m_referrer;
 
     // https://dom.spec.whatwg.org/#concept-document-origin
-    URL::Origin m_origin;
+    URL::Origin m_origin { URL::Origin::create_opaque() };
 
     GC::Ptr<HTMLCollection> m_applets;
     GC::Ptr<HTMLCollection> m_anchors;
@@ -1136,8 +1127,8 @@ private:
     GC::Ptr<Selection::Selection> m_selection;
 
     // NOTE: This is a cache to make finding the first <base href> or <base target> element O(1).
-    GC::Ptr<HTML::HTMLBaseElement const> m_first_base_element_with_href_in_tree_order;
-    GC::Ptr<HTML::HTMLBaseElement const> m_first_base_element_with_target_in_tree_order;
+    GC::Ptr<HTML::HTMLBaseElement> m_first_base_element_with_href_in_tree_order;
+    GC::Ptr<HTML::HTMLBaseElement> m_first_base_element_with_target_in_tree_order;
 
     // https://html.spec.whatwg.org/multipage/images.html#list-of-available-images
     GC::Ptr<HTML::ListOfAvailableImages> m_list_of_available_images;
@@ -1201,7 +1192,7 @@ private:
 
     ShadowRoot::DocumentShadowRootList m_shadow_roots;
 
-    Optional<Core::DateTime> m_last_modified;
+    Optional<AK::UnixDateTime> m_last_modified;
 
     u64 m_dom_tree_version { 0 };
     u64 m_character_data_version { 0 };
@@ -1237,7 +1228,7 @@ private:
 
     bool m_enable_cookies_on_file_domains { false };
 
-    Optional<PaintConfig> m_cached_display_list_paint_config;
+    Optional<HTML::PaintConfig> m_cached_display_list_paint_config;
     RefPtr<Painting::DisplayList> m_cached_display_list;
 
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;

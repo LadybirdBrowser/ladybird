@@ -40,6 +40,9 @@ public:
 
     ScrollState const& scroll_state() const { return m_scroll_state; }
 
+    void set_paintable_boxes_with_auto_content_visibility(Vector<GC::Ref<PaintableBox>> paintable_boxes) { m_paintable_boxes_with_auto_content_visibility = move(paintable_boxes); }
+    ReadonlySpan<GC::Ref<PaintableBox>> paintable_boxes_with_auto_content_visibility() const { return m_paintable_boxes_with_auto_content_visibility; }
+
 private:
     void build_stacking_context_tree();
 
@@ -49,6 +52,8 @@ private:
 
     ScrollState m_scroll_state;
     bool m_needs_to_refresh_scroll_state { true };
+
+    Vector<GC::Ref<PaintableBox>> m_paintable_boxes_with_auto_content_visibility;
 };
 
 }

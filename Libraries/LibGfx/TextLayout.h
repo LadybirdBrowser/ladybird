@@ -61,8 +61,6 @@ public:
     [[nodiscard]] bool is_empty() const { return m_glyphs.is_empty(); }
     [[nodiscard]] float width() const { return m_width; }
 
-    void append(DrawGlyph glyph) { m_glyphs.append(glyph); }
-
 private:
     Vector<DrawGlyph> m_glyphs;
     NonnullRefPtr<Font const> m_font;
@@ -70,7 +68,7 @@ private:
     float m_width { 0 };
 };
 
-RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
 Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf8View string, FontCascadeList const&);
 float measure_text_width(Utf8View const& string, Gfx::Font const& font, ShapeFeatures const& features);
 

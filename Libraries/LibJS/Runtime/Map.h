@@ -15,7 +15,7 @@
 
 namespace JS {
 
-class Map : public Object {
+class JS_API Map : public Object {
     JS_OBJECT(Map, Object);
     GC_DECLARE_ALLOCATOR(Map);
 

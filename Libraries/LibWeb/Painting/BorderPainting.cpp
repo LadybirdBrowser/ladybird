@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -20,16 +20,20 @@ static Color light_color_for_inset_and_outset(Color const& color)
 {
     auto hsv = color.to_hsv();
     if (hsv.value >= dark_light_absolute_value_difference)
-        return Color::from_hsv(hsv);
-    return Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value + dark_light_absolute_value_difference });
+        return color;
+    auto result = Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value + dark_light_absolute_value_difference });
+    result.set_alpha(color.alpha());
+    return result;
 }
 
 static Color dark_color_for_inset_and_outset(Color const& color)
 {
     auto hsv = color.to_hsv();
     if (hsv.value < dark_light_absolute_value_difference)
-        return Color::from_hsv(hsv);
-    return Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value - dark_light_absolute_value_difference });
+        return color;
+    auto result = Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value - dark_light_absolute_value_difference });
+    result.set_alpha(color.alpha());
+    return result;
 }
 
 Gfx::Color border_color(BorderEdge edge, BordersDataDevicePixels const& borders_data)
@@ -50,13 +54,14 @@ Gfx::Color border_color(BorderEdge edge, BordersDataDevicePixels const& borders_
     }();
 
     if (border_data.line_style == CSS::LineStyle::Inset) {
-        auto top_left_color = dark_color_for_inset_and_outset(border_data.color);
-        auto bottom_right_color = light_color_for_inset_and_outset(border_data.color);
-        return (edge == BorderEdge::Left || edge == BorderEdge::Top) ? top_left_color : bottom_right_color;
-    } else if (border_data.line_style == CSS::LineStyle::Outset) {
-        auto top_left_color = light_color_for_inset_and_outset(border_data.color);
-        auto bottom_right_color = dark_color_for_inset_and_outset(border_data.color);
-        return (edge == BorderEdge::Left || edge == BorderEdge::Top) ? top_left_color : bottom_right_color;
+        if (edge == BorderEdge::Left || edge == BorderEdge::Top)
+            return dark_color_for_inset_and_outset(border_data.color);
+        return light_color_for_inset_and_outset(border_data.color);
+    }
+    if (border_data.line_style == CSS::LineStyle::Outset) {
+        if (edge == BorderEdge::Left || edge == BorderEdge::Top)
+            return light_color_for_inset_and_outset(border_data.color);
+        return dark_color_for_inset_and_outset(border_data.color);
     }
 
     return border_data.color;
@@ -579,9 +584,10 @@ Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, 
 {
     CSS::LineStyle line_style;
     if (outline_style == CSS::OutlineStyle::Auto) {
-        // `auto` lets us do whatever we want for the outline. 2px of the link colour seems reasonable.
-        line_style = CSS::LineStyle::Dotted;
-        outline_color = CSS::CSSKeywordValue::create(CSS::Keyword::Linktext)->to_color(*static_cast<Layout::NodeWithStyle const*>(&layout_node));
+        // `auto` lets us do whatever we want for the outline. 2px of the accent colour seems reasonable.
+        line_style = CSS::LineStyle::Solid;
+        // NOTE: CalculationResolutionContext is not required here as Accentcolor keyword value is guaranteed to not rely on it to resolve.
+        outline_color = CSS::CSSKeywordValue::create(CSS::Keyword::Accentcolor)->to_color(*static_cast<Layout::NodeWithStyle const*>(&layout_node), {});
         outline_width = 2;
     } else {
         line_style = CSS::keyword_to_line_style(CSS::to_keyword(outline_style)).value_or(CSS::LineStyle::None);

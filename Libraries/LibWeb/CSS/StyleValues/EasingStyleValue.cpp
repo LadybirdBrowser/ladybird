@@ -11,6 +11,7 @@
 #include "EasingStyleValue.h"
 #include <AK/BinarySearch.h>
 #include <AK/StringBuilder.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 
 namespace Web::CSS {
 
@@ -81,7 +82,7 @@ EasingStyleValue::Linear::Linear(Vector<EasingStyleValue::Linear::Stop> stops)
     // the input progress value of any preceding control point,
     // set its input progress value to the largest input progress value of any preceding control point.
     double largest_input = 0;
-    for (auto stop : stops) {
+    for (auto& stop : stops) {
         if (stop.input.has_value()) {
             if (stop.input.value() < largest_input) {
                 stop.input = largest_input;
@@ -97,7 +98,7 @@ EasingStyleValue::Linear::Linear(Vector<EasingStyleValue::Linear::Stop> stops)
     // between the preceding and following control points with input progress values.
     Optional<size_t> run_start_idx;
     for (size_t idx = 0; idx < stops.size(); idx++) {
-        auto stop = stops[idx];
+        auto& stop = stops[idx];
         if (stop.input.has_value() && run_start_idx.has_value()) {
             // Note: this stop is immediately after a run
             //       set inputs of [start, idx-1] stops to be evenly spaced between start-1 and idx
@@ -174,7 +175,7 @@ double EasingStyleValue::Linear::evaluate_at(double input_progress, bool before_
 }
 
 // https://drafts.csswg.org/css-easing/#linear-easing-function-serializing
-String EasingStyleValue::Linear::to_string() const
+String EasingStyleValue::Linear::to_string(SerializationMode) const
 {
     // The linear keyword is serialized as itself.
     if (*this == identity())
@@ -229,6 +230,11 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
     };
 
     // https://www.w3.org/TR/css-easing-1/#cubic-bezier-algo
+    auto resolved_x1 = clamp(x1.resolved({}).value_or(0.0), 0.0, 1.0);
+    auto resolved_y1 = y1.resolved({}).value_or(0.0);
+    auto resolved_x2 = clamp(x2.resolved({}).value_or(0.0), 0.0, 1.0);
+    auto resolved_y2 = y2.resolved({}).value_or(0.0);
+
     // For input progress values outside the range [0, 1], the curve is extended infinitely using tangent of the curve
     // at the closest endpoint as follows:
 
@@ -236,13 +242,13 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
     if (input_progress < 0.0) {
         // 1. If the x value of P1 is greater than zero, use a straight line that passes through P1 and P0 as the
         //    tangent.
-        if (x1 > 0.0)
-            return y1 / x1 * input_progress;
+        if (resolved_x1 > 0.0)
+            return resolved_y1 / resolved_x1 * input_progress;
 
         // 2. Otherwise, if the x value of P2 is greater than zero, use a straight line that passes through P2 and P0 as
         //    the tangent.
-        if (x2 > 0.0)
-            return y2 / x2 * input_progress;
+        if (resolved_x2 > 0.0)
+            return resolved_y2 / resolved_x2 * input_progress;
 
         // 3. Otherwise, let the output progress value be zero for all input progress values in the range [-∞, 0).
         return 0.0;
@@ -251,13 +257,13 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
     // - For input progress values greater than one,
     if (input_progress > 1.0) {
         // 1. If the x value of P2 is less than one, use a straight line that passes through P2 and P3 as the tangent.
-        if (x2 < 1.0)
-            return (1.0 - y2) / (1.0 - x2) * (input_progress - 1.0) + 1.0;
+        if (resolved_x2 < 1.0)
+            return (1.0 - resolved_y2) / (1.0 - resolved_x2) * (input_progress - 1.0) + 1.0;
 
         // 2. Otherwise, if the x value of P1 is less than one, use a straight line that passes through P1 and P3 as the
         //    tangent.
-        if (x1 < 1.0)
-            return (1.0 - y1) / (1.0 - x1) * (input_progress - 1.0) + 1.0;
+        if (resolved_x1 < 1.0)
+            return (1.0 - resolved_y1) / (1.0 - resolved_x1) * (input_progress - 1.0) + 1.0;
 
         // 3. Otherwise, let the output progress value be one for all input progress values in the range (1, ∞].
         return 1.0;
@@ -269,8 +275,8 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
     auto x = input_progress;
 
     auto solve = [&](auto t) {
-        auto x = cubic_bezier_at(x1, x2, t);
-        auto y = cubic_bezier_at(y1, y2, t);
+        auto x = cubic_bezier_at(resolved_x1, resolved_x2, t);
+        auto y = cubic_bezier_at(resolved_y1, resolved_y2, t);
         return CubicBezier::CachedSample { x, y, t };
     };
 
@@ -316,7 +322,7 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
 }
 
 // https://drafts.csswg.org/css-easing/#bezier-serialization
-String EasingStyleValue::CubicBezier::to_string() const
+String EasingStyleValue::CubicBezier::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     if (*this == CubicBezier::ease()) {
@@ -328,7 +334,18 @@ String EasingStyleValue::CubicBezier::to_string() const
     } else if (*this == CubicBezier::ease_in_out()) {
         builder.append("ease-in-out"sv);
     } else {
-        builder.appendff("cubic-bezier({}, {}, {}, {})", x1, y1, x2, y2);
+        auto x1_value = x1;
+        auto y1_value = y1;
+        auto x2_value = x2;
+        auto y2_value = y2;
+        if (mode == SerializationMode::ResolvedValue) {
+            x1_value = clamp(x1_value.resolved({}).value_or(0.0), 0.0, 1.0);
+            x2_value = clamp(x2_value.resolved({}).value_or(0.0), 0.0, 1.0);
+            y1_value = y1_value.resolved({}).value_or(0.0);
+            y2_value = y2_value.resolved({}).value_or(0.0);
+        }
+        builder.appendff("cubic-bezier({}, {}, {}, {})",
+            x1_value.to_string(), y1_value.to_string(), x2_value.to_string(), y2_value.to_string());
     }
     return MUST(builder.to_string());
 }
@@ -337,7 +354,10 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
 {
     // https://www.w3.org/TR/css-easing-1/#step-easing-algo
     // 1. Calculate the current step as floor(input progress value × steps).
-    auto current_step = floor(input_progress * number_of_intervals);
+    auto resolved_number_of_intervals = number_of_intervals.resolved({}).value_or(1);
+    resolved_number_of_intervals = max(resolved_number_of_intervals, position == Steps::Position::JumpNone ? 2 : 1);
+
+    auto current_step = floor(input_progress * resolved_number_of_intervals);
 
     // 2. If the step position property is one of:
     //    - jump-start,
@@ -350,7 +370,7 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
     //    - the before flag is set, and
     //    - input progress value × steps mod 1 equals zero (that is, if input progress value × steps is integral), then
     //    decrement current step by one.
-    auto step_progress = input_progress * number_of_intervals;
+    auto step_progress = input_progress * resolved_number_of_intervals;
     if (before_flag && trunc(step_progress) == step_progress)
         current_step -= 1;
 
@@ -363,7 +383,7 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
     //    jump-start or jump-end -> steps
     //    jump-none -> steps - 1
     //    jump-both -> steps + 1
-    auto jumps = number_of_intervals;
+    auto jumps = resolved_number_of_intervals;
     if (position == Steps::Position::JumpNone) {
         jumps--;
     } else if (position == Steps::Position::JumpBoth) {
@@ -379,7 +399,7 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
 }
 
 // https://drafts.csswg.org/css-easing/#steps-serialization
-String EasingStyleValue::Steps::to_string() const
+String EasingStyleValue::Steps::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     // Unlike the other easing function keywords, step-start and step-end do not serialize as themselves.
@@ -403,10 +423,15 @@ String EasingStyleValue::Steps::to_string() const
                 return {};
             }
         }();
+        auto intervals = number_of_intervals;
+        if (mode == SerializationMode::ResolvedValue) {
+            auto resolved_value = number_of_intervals.resolved({}).value_or(1);
+            intervals = max(resolved_value, this->position == Steps::Position::JumpNone ? 2 : 1);
+        }
         if (position.has_value()) {
-            builder.appendff("steps({}, {})", number_of_intervals, position.value());
+            builder.appendff("steps({}, {})", intervals.to_string(), position.value());
         } else {
-            builder.appendff("steps({})", number_of_intervals);
+            builder.appendff("steps({})", intervals.to_string());
         }
     }
     return MUST(builder.to_string());
@@ -420,11 +445,11 @@ double EasingStyleValue::Function::evaluate_at(double input_progress, bool befor
         });
 }
 
-String EasingStyleValue::Function::to_string() const
+String EasingStyleValue::Function::to_string(SerializationMode mode) const
 {
     return visit(
         [&](auto const& curve) {
-            return curve.to_string();
+            return curve.to_string(mode);
         });
 }
 

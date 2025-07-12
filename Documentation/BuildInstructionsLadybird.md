@@ -18,7 +18,7 @@ CMake 3.25 or newer must be available in $PATH.
 
 <!-- Note: If you change something here, please also change it in the `devcontainer/devcontainer.json` file. -->
 ```bash
-sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
+sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config python3-venv qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
 #### CMake 3.25 or newer:
@@ -88,15 +88,31 @@ sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl l
 ### Fedora or derivatives:
 
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl liberation-sans-fonts libglvnd-devel nasm ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl git liberation-sans-fonts libglvnd-devel nasm ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
 
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ git liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
-The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
+
+It is currently recommended to install the `libpulse-devel` package to avoid runtime dynamic linking issues
+
+```
+sudo zypper install libpulse-devel
+```
+
+The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install the package `python312` and create a virtual environment (venv) in this case.
+
+A virtual enviroment can be created in your home directory and once the `source` command is issued `python3 --version` will show that the current version is python 3.12 within the virtual environment shell session.
+```
+python3.12 -m venv ~/python312_venv
+source ~/python312_venv/bin/activate
+python3 --version
+```
+
+This virtual environment can be created once and reused in future shell sessions by sourcing the generated file `~/python312_venv/bin/activate` again.
 
 ### Void Linux:
 
@@ -164,9 +180,6 @@ choco install pkgconfiglite -y
 
 ### Android:
 
-> [!NOTE]
-> The Android port is currently [broken](https://github.com/LadybirdBrowser/ladybird/issues/2774) and won't build.
-
 On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](EditorConfiguration/AndroidStudioConfiguration.md).
 Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``UI/Android``
 
@@ -200,8 +213,8 @@ BUILD_PRESET=Debug ./Meta/ladybird.py run
 
 Note that debug symbols are available in both Release and Debug builds.
 
-If you want to run other applications, such as the headless-browser, the JS REPL, or the WebAssembly REPL, specify an
-executable with `./Meta/ladybird.py run <executable_name>`.
+If you want to run other applications, such as the the JS REPL or the WebAssembly REPL, specify an executable with
+`./Meta/ladybird.py run <executable_name>`.
 
 ### The User Interfaces
 

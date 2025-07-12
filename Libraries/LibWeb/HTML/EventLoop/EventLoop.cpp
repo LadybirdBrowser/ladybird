@@ -21,8 +21,10 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -408,11 +410,8 @@ void EventLoop::update_the_rendering()
             // 3. For each element element with 'auto' used value of 'content-visibility':
             auto* document_element = document->document_element();
             if (document_element) {
-                document_element->for_each_in_inclusive_subtree_of_type<Web::DOM::Element>([&](auto& element) {
-                    auto const& paintable_box = element.paintable_box();
-                    if (!paintable_box || paintable_box->computed_values().content_visibility() != CSS::ContentVisibility::Auto) {
-                        return TraversalDecision::Continue;
-                    }
+                for (auto& paintable_box : document->paintable()->paintable_boxes_with_auto_content_visibility()) {
+                    auto& element = as<DOM::Element>(*paintable_box->dom_node());
 
                     // 1. Let checkForInitialDetermination be true if element's proximity to the viewport is not determined and it is not relevant to the user. Otherwise, let checkForInitialDetermination be false.
                     bool check_for_initial_determination = element.proximity_to_the_viewport() == Web::DOM::ProximityToTheViewport::NotDetermined && !element.is_relevant_to_the_user();
@@ -424,9 +423,7 @@ void EventLoop::update_the_rendering()
                     if (check_for_initial_determination && element.is_relevant_to_the_user()) {
                         had_initial_visible_content_visibility_determination = true;
                     }
-
-                    return TraversalDecision::Continue;
-                });
+                }
             }
 
             // 4. If hadInitialVisibleContentVisibilityDetermination is true, then continue.
@@ -471,16 +468,14 @@ void EventLoop::update_the_rendering()
 
     // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
     for (auto& document : docs) {
-        document->page().client().process_screenshot_requests();
         auto navigable = document->navigable();
         if (!navigable->is_traversable())
             continue;
         auto traversable = navigable->traversable_navigable();
-        if (traversable && traversable->needs_repaint()) {
-            auto& page = traversable->page();
-            VERIFY(page.client().is_ready_to_paint());
-            page.client().paint_next_frame();
-        }
+        traversable->process_screenshot_requests();
+        if (!navigable->needs_repaint())
+            continue;
+        navigable->paint_next_frame();
     }
 
     // 23. For each doc of docs, process top layer removals given doc.
@@ -597,13 +592,15 @@ void EventLoop::perform_a_microtask_checkpoint()
     }
 
     // 4. For each environment settings object settingsObject whose responsible event loop is this event loop, notify about rejected promises given settingsObject's global object.
-    for (auto& environment_settings_object : m_related_environment_settings_objects) {
+    auto environments = GC::RootVector { heap(), m_related_environment_settings_objects };
+    for (auto& environment_settings_object : environments) {
         auto* global = dynamic_cast<HTML::UniversalGlobalScopeMixin*>(&environment_settings_object->global_object());
         VERIFY(global);
         global->notify_about_rejected_promises({});
     }
 
-    // FIXME: 5. Cleanup Indexed Database transactions.
+    // 5. Cleanup Indexed Database transactions.
+    IndexedDB::cleanup_indexed_database_transactions(*this);
 
     // 6. Perform ClearKeptObjects().
     vm().finish_execution_generation();

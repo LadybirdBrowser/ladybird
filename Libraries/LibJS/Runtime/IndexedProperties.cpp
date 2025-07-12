@@ -14,8 +14,7 @@ constexpr size_t const SPARSE_ARRAY_HOLE_THRESHOLD = 200;
 constexpr size_t const LENGTH_SETTER_GENERIC_STORAGE_THRESHOLD = 4 * MiB;
 
 SimpleIndexedPropertyStorage::SimpleIndexedPropertyStorage(Vector<Value>&& initial_values)
-    : IndexedPropertyStorage(IsSimpleStorage::Yes)
-    , m_array_size(initial_values.size())
+    : IndexedPropertyStorage(IsSimpleStorage::Yes, initial_values.size())
     , m_packed_elements(move(initial_values))
 {
 }
@@ -48,20 +47,32 @@ void SimpleIndexedPropertyStorage::put(u32 index, Value value, PropertyAttribute
     VERIFY(attributes == default_attributes);
 
     if (index >= m_array_size) {
+        m_number_of_empty_elements += index - m_array_size;
         m_array_size = index + 1;
         grow_storage_if_needed();
+    } else {
+        if (m_packed_elements[index].is_special_empty_value()) {
+            --m_number_of_empty_elements;
+        }
     }
     m_packed_elements[index] = value;
+    if (value.is_special_empty_value()) {
+        ++m_number_of_empty_elements;
+    }
 }
 
 void SimpleIndexedPropertyStorage::remove(u32 index)
 {
     VERIFY(index < m_array_size);
+    ++m_number_of_empty_elements;
     m_packed_elements[index] = js_special_empty_value();
 }
 
 ValueAndAttributes SimpleIndexedPropertyStorage::take_first()
 {
+    if (m_packed_elements.first().is_special_empty_value()) {
+        --m_number_of_empty_elements;
+    }
     m_array_size--;
     return { m_packed_elements.take_first(), default_attributes };
 }
@@ -70,21 +81,38 @@ ValueAndAttributes SimpleIndexedPropertyStorage::take_last()
 {
     m_array_size--;
     auto last_element = m_packed_elements[m_array_size];
+    if (last_element.is_special_empty_value()) {
+        --m_number_of_empty_elements;
+    }
     m_packed_elements[m_array_size] = js_special_empty_value();
     return { last_element, default_attributes };
 }
 
 bool SimpleIndexedPropertyStorage::set_array_like_size(size_t new_size)
 {
+    if (new_size == m_array_size)
+        return true;
+
+    auto old_size = m_array_size;
     m_array_size = new_size;
     m_packed_elements.resize_with_default_value_and_keep_capacity(new_size, js_special_empty_value());
+
+    if (old_size <= m_array_size) {
+        m_number_of_empty_elements += m_array_size - old_size;
+    } else {
+        m_number_of_empty_elements = 0;
+        for (auto& value : m_packed_elements) {
+            if (value.is_special_empty_value())
+                ++m_number_of_empty_elements;
+        }
+    }
+
     return true;
 }
 
 GenericIndexedPropertyStorage::GenericIndexedPropertyStorage(SimpleIndexedPropertyStorage&& storage)
-    : IndexedPropertyStorage(IsSimpleStorage::No)
+    : IndexedPropertyStorage(IsSimpleStorage::No, storage.array_like_size())
 {
-    m_array_size = storage.array_like_size();
     for (size_t i = 0; i < storage.m_packed_elements.size(); ++i) {
         auto value = storage.m_packed_elements[i];
         if (!value.is_special_empty_value())

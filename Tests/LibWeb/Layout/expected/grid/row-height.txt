@@ -41,3 +41,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.grid-item) [400.140625,58 391.859375x18]
           TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x84] [children: 0] (z-index: auto)

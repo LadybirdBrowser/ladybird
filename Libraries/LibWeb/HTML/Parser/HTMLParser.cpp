@@ -206,11 +206,6 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
 {
     m_stop_parsing = false;
 
-#if defined(LIBWEB_USE_SWIFT)
-    dbgln("Poking Swift Tokenizer");
-    m_speculative_parser->poke();
-#endif
-
     for (;;) {
         auto optional_token = m_tokenizer.next_token(stop_at_insertion_point);
         if (!optional_token.has_value())
@@ -322,6 +317,15 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
     if (parser) {
         while (!parser->m_stack_of_open_elements.is_empty())
             (void)parser->m_stack_of_open_elements.pop();
+    }
+
+    // AD-HOC: Skip remaining steps when there's no browsing context.
+    // This happens when parsing HTML via DOMParser or similar mechanisms.
+    // Note: This diverges from the spec, which expects more steps to follow.
+    if (!document->browsing_context()) {
+        // Parsed via DOMParser, no need to wait for load events.
+        document->update_readiness(HTML::DocumentReadyState::Complete);
+        return;
     }
 
     // 5. While the list of scripts that will execute when the document has finished parsing is not empty:
@@ -665,24 +669,24 @@ void HTMLParser::handle_before_html(HTMLToken& token)
     }
 
     // -> Anything else
-AnythingElse:
+    {
+    AnythingElse:
+        // Create an html element whose node document is the Document object. Append it to the Document object. Put this element in the stack of open elements.
 
-    // Create an html element whose node document is the Document object. Append it to the Document object. Put this element in the stack of open elements.
+        // AD-HOC: First check if we've already inserted a <html> element into the document.
+        //         This can happen by mixing document.write() and DOM manipulation.
+        if (auto* html_element = document().document_element(); html_element && html_element->is_html_html_element()) {
+            m_stack_of_open_elements.push(*html_element);
+        } else {
+            auto element = create_element(document(), HTML::TagNames::html, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
+            MUST(document().append_child(element));
+            m_stack_of_open_elements.push(element);
+        }
 
-    // AD-HOC: First check if we've already inserted a <html> element into the document.
-    //         This can happen by mixing document.write() and DOM manipulation.
-    if (auto* html_element = document().document_element(); html_element && html_element->is_html_html_element()) {
-        m_stack_of_open_elements.push(*html_element);
-    } else {
-        auto element = create_element(document(), HTML::TagNames::html, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
-        MUST(document().append_child(element));
-        m_stack_of_open_elements.push(element);
+        // Switch the insertion mode to "before head", then reprocess the token.
+        m_insertion_mode = InsertionMode::BeforeHead;
+        process_using_the_rules_for(InsertionMode::BeforeHead, token);
     }
-
-    // Switch the insertion mode to "before head", then reprocess the token.
-    m_insertion_mode = InsertionMode::BeforeHead;
-    process_using_the_rules_for(InsertionMode::BeforeHead, token);
-    return;
 }
 
 GC::Ptr<DOM::Element> HTMLParser::current_node()
@@ -807,6 +811,11 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     // 9. Let element be the result of creating an element given document, localName, given namespace, null, is, and willExecuteScript.
     auto element = create_element(*document, local_name, namespace_, {}, is_value, will_execute_script).release_value_but_fixme_should_propagate_errors();
 
+    // AD-HOC: See AD-HOC comment on Element.m_had_duplicate_attribute_during_tokenization about why this is done.
+    if (token.had_duplicate_attribute()) {
+        element->set_had_duplicate_attribute_during_tokenization({});
+    }
+
     // AD-HOC: Let <link> elements know which document they were originally parsed for.
     //         This is used for the render-blocking logic.
     if (local_name == HTML::TagNames::link && namespace_ == Namespace::HTML) {
@@ -822,6 +831,17 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         element->append_attribute(dom_attribute);
         return IterationDecision::Continue;
     });
+
+    // AD-HOC: The muted attribute on media elements is only set if the muted content attribute is present when the element is first created.
+    if (element->is_html_media_element() && namespace_ == Namespace::HTML) {
+        // https://html.spec.whatwg.org/multipage/media.html#user-interface:attr-media-muted
+        // When a media element is created, if the element has a muted content attribute specified, then the muted IDL
+        // attribute should be set to true; otherwise, the user agents may set the value to the user's preferred value.
+        if (element->has_attribute(HTML::AttributeNames::muted)) {
+            auto& media_element = as<HTMLMediaElement>(*element);
+            media_element.set_muted(true);
+        }
+    }
 
     // 11. If willExecuteScript is true:
     if (will_execute_script) {
@@ -893,46 +913,73 @@ GC::Ref<DOM::Element> HTMLParser::insert_html_element(HTMLToken const& token)
 // https://html.spec.whatwg.org/multipage/parsing.html#the-before-head-insertion-mode
 void HTMLParser::handle_before_head(HTMLToken& token)
 {
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+    //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
     if (token.is_character() && token.is_parser_whitespace()) {
+        // Ignore the token.
         return;
     }
 
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment.
         insert_comment(token);
         return;
     }
 
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> A start tag whose tag name is "html"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> A start tag whose tag name is "head"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::head) {
+        // Insert an HTML element for the token.
         auto element = insert_html_element(token);
+
+        // Set the head element pointer to the newly created head element.
         m_head_element = as<HTMLHeadElement>(*element);
+
+        // Switch the insertion mode to "in head".
         m_insertion_mode = InsertionMode::InHead;
         return;
     }
 
+    // -> An end tag whose tag name is one of: "head", "body", "html", "br"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::head, HTML::TagNames::body, HTML::TagNames::html, HTML::TagNames::br)) {
+        // Act as described in the "anything else" entry below.
         goto AnythingElse;
     }
 
+    // -> Any other end tag
     if (token.is_end_tag()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
-AnythingElse:
-    m_head_element = as<HTMLHeadElement>(*insert_html_element(HTMLToken::make_start_tag(HTML::TagNames::head)));
-    m_insertion_mode = InsertionMode::InHead;
-    process_using_the_rules_for(InsertionMode::InHead, token);
-    return;
+    // -> Anything else
+    {
+    AnythingElse:
+        // 1. Insert an HTML element for a "head" start tag token with no attributes.
+        // 2. Set the head element pointer to the newly created head element.
+        m_head_element = as<HTMLHeadElement>(*insert_html_element(HTMLToken::make_start_tag(HTML::TagNames::head)));
+
+        // 3. Switch the insertion mode to "in head".
+        m_insertion_mode = InsertionMode::InHead;
+
+        // 4. Reprocess the current token.
+        process_using_the_rules_for(InsertionMode::InHead, token);
+    }
 }
 
 void HTMLParser::insert_comment(HTMLToken& token)
@@ -944,41 +991,64 @@ void HTMLParser::insert_comment(HTMLToken& token)
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead
 void HTMLParser::handle_in_head(HTMLToken& token)
 {
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+    //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
     if (token.is_parser_whitespace()) {
+        // Insert the character.
         insert_character(token.code_point());
         return;
     }
 
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment.
         insert_comment(token);
         return;
     }
 
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> A start tag whose tag name is "html"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> A start tag whose tag name is one of: "base", "basefont", "bgsound", "link"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link)) {
+        // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
         (void)insert_html_element(token);
         (void)m_stack_of_open_elements.pop();
+
+        // Acknowledge the token's self-closing flag, if it is set.
         token.acknowledge_self_closing_flag_if_set();
         return;
     }
 
+    // -> A start tag whose tag name is "meta"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::meta) {
+        // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
         (void)insert_html_element(token);
         (void)m_stack_of_open_elements.pop();
+
+        // Acknowledge the token's self-closing flag, if it is set.
         token.acknowledge_self_closing_flag_if_set();
+
+        // FIXME: If the active speculative HTML parser is null, then:
+        //        ...
         return;
     }
 
+    // -> A start tag whose tag name is "title"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::title) {
+        // Follow the generic RCDATA element parsing algorithm.
+        // FIXME: Pull this out into a separate method.
         (void)insert_html_element(token);
         m_tokenizer.switch_to({}, HTMLTokenizer::State::RCDATA);
         m_original_insertion_mode = m_insertion_mode;
@@ -986,74 +1056,113 @@ void HTMLParser::handle_in_head(HTMLToken& token)
         return;
     }
 
+    // -> A start tag whose tag name is "noscript", if the scripting flag is enabled
+    // -> A start tag whose tag name is one of: "noframes", "style"
     if (token.is_start_tag() && ((token.tag_name() == HTML::TagNames::noscript && m_scripting_enabled) || token.tag_name() == HTML::TagNames::noframes || token.tag_name() == HTML::TagNames::style)) {
+        // Follow the generic raw text element parsing algorithm.
         parse_generic_raw_text_element(token);
         return;
     }
 
+    // -> A start tag whose tag name is "noscript", if the scripting flag is disabled
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::noscript && !m_scripting_enabled) {
+        // Insert an HTML element for the token.
         (void)insert_html_element(token);
+
+        // Switch the insertion mode to "in head noscript".
         m_insertion_mode = InsertionMode::InHeadNoscript;
         return;
     }
 
+    // -> A start tag whose tag name is "script"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::script) {
+        // Run these steps:
+
+        // 1. Let the adjusted insertion location be the appropriate place for inserting a node.
         auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
+
+        // 2. Create an element for the token in the HTML namespace, with the intended parent being the element in
+        //    which the adjusted insertion location finds itself.
         auto element = create_element_for(token, Namespace::HTML, *adjusted_insertion_location.parent);
         auto& script_element = as<HTMLScriptElement>(*element);
+
+        // 3. Set the element's parser document to the Document, and set the element's force async to false.
         script_element.set_parser_document(Badge<HTMLParser> {}, document());
         script_element.set_force_async(Badge<HTMLParser> {}, false);
         script_element.set_source_line_number({}, token.start_position().line + 1); // FIXME: This +1 is incorrect for script tags whose script does not start on a new line
 
+        // 4. If the parser was created as part of the HTML fragment parsing algorithm, then set the script element's
+        //    already started to true. (fragment case)
         if (m_parsing_fragment) {
             script_element.set_already_started(Badge<HTMLParser> {}, true);
         }
 
+        // 5. If the parser was invoked via the document.write() or document.writeln() methods, then optionally set the
+        //    script element's already started to true. (For example, the user agent might use this clause to prevent
+        //    execution of cross-origin scripts inserted via document.write() under slow network conditions, or when
+        //    the page has already taken a long time to load.)
         if (m_invoked_via_document_write) {
             TODO();
         }
 
+        // 6. Insert the newly created element at the adjusted insertion location.
         adjusted_insertion_location.parent->insert_before(*element, adjusted_insertion_location.insert_before_sibling, false);
+
+        // 7. Push the element onto the stack of open elements so that it is the new current node.
         m_stack_of_open_elements.push(element);
+
+        // 8. Switch the tokenizer to the script data state.
         m_tokenizer.switch_to({}, HTMLTokenizer::State::ScriptData);
+
+        // 9. Set the original insertion mode to the current insertion mode.
         m_original_insertion_mode = m_insertion_mode;
+
+        // 10. Switch the insertion mode to "text".
         m_insertion_mode = InsertionMode::Text;
         return;
     }
+
+    // -> An end tag whose tag name is "head"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::head) {
+        // Pop the current node (which will be the head element) off the stack of open elements.
         (void)m_stack_of_open_elements.pop();
+
+        // Switch the insertion mode to "after head".
         m_insertion_mode = InsertionMode::AfterHead;
         return;
     }
 
+    // -> An end tag whose tag name is one of: "body", "html", "br"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::html, HTML::TagNames::br)) {
+        // Act as described in the "anything else" entry below.
         goto AnythingElse;
     }
 
     // -> A start tag whose tag name is "template"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::template_) {
-        // Let template start tag be the start tag.
+        // Run these steps:
+        // 1. Let template start tag be the start tag.
         auto const& template_start_tag = token;
 
-        // Insert a marker at the end of the list of active formatting elements.
+        // 2. Insert a marker at the end of the list of active formatting elements.
         m_list_of_active_formatting_elements.add_marker();
 
-        // Set the frameset-ok flag to "not ok".
+        // 3. Set the frameset-ok flag to "not ok".
         m_frameset_ok = false;
 
-        // Switch the insertion mode to "in template".
+        // 4. Switch the insertion mode to "in template".
         m_insertion_mode = InsertionMode::InTemplate;
 
-        // Push "in template" onto the stack of template insertion modes so that it is the new current template insertion mode.
+        // 5. Push "in template" onto the stack of template insertion modes so that it is the new current template insertion mode.
         m_stack_of_template_insertion_modes.append(InsertionMode::InTemplate);
 
-        // Let the adjusted insertion location be the appropriate place for inserting a node.
+        // 6. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
         auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
 
-        // Let intended parent be the element in which the adjusted insertion location finds itself.
+        // 7. Let intendedParent be the element in which the adjustedInsertionLocation finds itself.
         auto& intended_parent = adjusted_insertion_location.parent;
 
-        // Let document be intended parent's node document.
+        // 8. Let document be intendedParent's node document.
         auto& document = intended_parent->document();
 
         Optional<Bindings::ShadowRootMode> shadowrootmode = {};
@@ -1068,10 +1177,10 @@ void HTMLParser::handle_in_head(HTMLToken& token)
             }
         }
 
-        // If any of the following are false:
-        // - template start tag's shadowrootmode is not in the none state;
-        // - Document's allow declarative shadow roots is true; or
-        // - the adjusted current node is not the topmost element in the stack of open elements,
+        // 9. If any of the following are false:
+        //    - templateStartTag's shadowrootmode is not in the none state;
+        //    - document's allow declarative shadow roots is true; or
+        //    - the adjusted current node is not the topmost element in the stack of open elements,
         if (!shadowrootmode.has_value()
             || !document.allow_declarative_shadow_roots()
             || adjusted_current_node() == &m_stack_of_open_elements.first()) {
@@ -1079,27 +1188,27 @@ void HTMLParser::handle_in_head(HTMLToken& token)
             (void)insert_html_element(token);
         }
 
-        // Otherwise:
+        // 10. Otherwise:
         else {
-            // 1. Let declarative shadow host element be adjusted current node.
+            // 1. Let declarativeShadowHostElement be adjusted current node.
             auto& declarative_shadow_host_element = *adjusted_current_node();
 
-            // 2. Let template be the result of insert a foreign element for template start tag, with HTML namespace and true.
+            // 2. Let template be the result of insert a foreign element for templateStartTag, with HTML namespace and true.
             auto template_ = insert_foreign_element(template_start_tag, Namespace::HTML, OnlyAddToElementStack::Yes);
 
-            // 3. Let mode be template start tag's shadowrootmode attribute's value.
+            // 3. Let mode be templateStartTag's shadowrootmode attribute's value.
             auto mode = shadowrootmode.value();
 
-            // 4. Let clonable be true if template start tag has a shadowrootclonable attribute; otherwise false.
+            // 4. Let clonable be true if templateStartTag has a shadowrootclonable attribute; otherwise false.
             auto clonable = template_start_tag.attribute(HTML::AttributeNames::shadowrootclonable).has_value();
 
-            // 5. Let serializable be true if template start tag has a shadowrootserializable attribute; otherwise false.
+            // 5. Let serializable be true if templateStartTag has a shadowrootserializable attribute; otherwise false.
             auto serializable = template_start_tag.attribute(HTML::AttributeNames::shadowrootserializable).has_value();
 
-            // 6. Let delegatesFocus be true if template start tag has a shadowrootdelegatesfocus attribute; otherwise false.
+            // 6. Let delegatesFocus be true if templateStartTag has a shadowrootdelegatesfocus attribute; otherwise false.
             auto delegates_focus = template_start_tag.attribute(HTML::AttributeNames::shadowrootdelegatesfocus).has_value();
 
-            // 7. If declarative shadow host element is a shadow host, then insert an element at the adjusted insertion location with template.
+            // 7. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion location with template.
             if (declarative_shadow_host_element.is_shadow_host()) {
                 // FIXME: We do manual "insert before" instead of "insert an element at the adjusted insertion location" here
                 //        Otherwise, two template elements in a row will cause the second to try to insert into itself.
@@ -1109,7 +1218,9 @@ void HTMLParser::handle_in_head(HTMLToken& token)
 
             // 8. Otherwise:
             else {
-                // 1. Attach a shadow root with declarative shadow host element, mode, clonable, serializable, delegatesFocus, and "named".
+                // FIXME: The spec substeps here now deal with custom element registries. Update to match that.
+
+                // 1. Attach a shadow root with declarativeShadowHostElement, mode, clonable, serializable, delegatesFocus, and "named".
                 //    If an exception is thrown, then catch it, report the exception, insert an element at the adjusted insertion location with template, and return.
                 auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named);
                 if (result.is_error()) {
@@ -1121,7 +1232,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
                     return;
                 }
 
-                // 2. Let shadow be declarative shadow host element's shadow root.
+                // 2. Let shadow be declarativeShadowHostElement's shadow root.
                 auto& shadow = *declarative_shadow_host_element.shadow_root();
 
                 // 3. Set shadow's declarative to true.
@@ -1169,15 +1280,26 @@ void HTMLParser::handle_in_head(HTMLToken& token)
         return;
     }
 
+    // ->A start tag whose tag name is "head"
+    // -> Any other end tag
     if ((token.is_start_tag() && token.tag_name() == HTML::TagNames::head) || token.is_end_tag()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
-AnythingElse:
-    (void)m_stack_of_open_elements.pop();
-    m_insertion_mode = InsertionMode::AfterHead;
-    process_using_the_rules_for(m_insertion_mode, token);
+    // -> Anything else
+    {
+    AnythingElse:
+        // Pop the current node (which will be the head element) off the stack of open elements.
+        (void)m_stack_of_open_elements.pop();
+
+        // Switch the insertion mode to "after head".
+        m_insertion_mode = InsertionMode::AfterHead;
+
+        // Reprocess the token.
+        process_using_the_rules_for(m_insertion_mode, token);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inheadnoscript
@@ -1235,18 +1357,20 @@ void HTMLParser::handle_in_head_noscript(HTMLToken& token)
     }
 
     // -> Anything else
-AnythingElse:
-    // Parse error.
-    log_parse_error();
+    {
+    AnythingElse:
+        // Parse error.
+        log_parse_error();
 
-    // Pop the current node (which will be a noscript element) from the stack of open elements; the new current node will be a head element.
-    (void)m_stack_of_open_elements.pop();
+        // Pop the current node (which will be a noscript element) from the stack of open elements; the new current node will be a head element.
+        (void)m_stack_of_open_elements.pop();
 
-    // Switch the insertion mode to "in head".
-    m_insertion_mode = InsertionMode::InHead;
+        // Switch the insertion mode to "in head".
+        m_insertion_mode = InsertionMode::InHead;
 
-    // Reprocess the token.
-    process_using_the_rules_for(m_insertion_mode, token);
+        // Reprocess the token.
+        process_using_the_rules_for(m_insertion_mode, token);
+    }
 }
 
 void HTMLParser::parse_generic_raw_text_element(HTMLToken& token)
@@ -1312,67 +1436,111 @@ void HTMLParser::insert_character(u32 data)
 // https://html.spec.whatwg.org/multipage/parsing.html#the-after-head-insertion-mode
 void HTMLParser::handle_after_head(HTMLToken& token)
 {
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+    //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
     if (token.is_character() && token.is_parser_whitespace()) {
+        // Insert the character.
         insert_character(token.code_point());
         return;
     }
 
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment.
         insert_comment(token);
         return;
     }
 
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> A start tag whose tag name is "html"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> A start tag whose tag name is "body"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::body) {
+        // Insert an HTML element for the token.
         (void)insert_html_element(token);
+
+        // Set the frameset-ok flag to "not ok".
         m_frameset_ok = false;
+
+        // Switch the insertion mode to "in body".
         m_insertion_mode = InsertionMode::InBody;
         return;
     }
 
+    // -> A start tag whose tag name is "frameset"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::frameset) {
+        // Insert an HTML element for the token.
         (void)insert_html_element(token);
+
+        // Switch the insertion mode to "in frameset".
         m_insertion_mode = InsertionMode::InFrameset;
         return;
     }
 
+    // -> A start tag whose tag name is one of: "base", "basefont", "bgsound", "link", "meta", "noframes", "script",
+    //    "style", "template", "title"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link, HTML::TagNames::meta, HTML::TagNames::noframes, HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::template_, HTML::TagNames::title)) {
+        // Parse error.
         log_parse_error();
+
+        // Push the node pointed to by the head element pointer onto the stack of open elements.
         m_stack_of_open_elements.push(*m_head_element);
+
+        // Process the token using the rules for the "in head" insertion mode.
         process_using_the_rules_for(InsertionMode::InHead, token);
+
+        // Remove the node pointed to by the head element pointer from the stack of open elements.
+        // (It might not be the current node at this point.)
         m_stack_of_open_elements.elements().remove_first_matching([&](auto& entry) {
             return entry.ptr() == m_head_element.ptr();
         });
         return;
     }
 
+    // -> An end tag whose tag name is "template"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_) {
+        // Process the token using the rules for the "in head" insertion mode.
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
     }
 
+    // -> An end tag whose tag name is one of: "body", "html", "br"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::html, HTML::TagNames::br)) {
+        // Act as described in the "anything else" entry below.
         goto AnythingElse;
     }
 
+    // -> A start tag whose tag name is "head"
+    // -> Any other end tag
     if ((token.is_start_tag() && token.tag_name() == HTML::TagNames::head) || token.is_end_tag()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
-AnythingElse:
-    (void)insert_html_element(HTMLToken::make_start_tag(HTML::TagNames::body));
-    m_insertion_mode = InsertionMode::InBody;
-    process_using_the_rules_for(m_insertion_mode, token);
+    // -> Anything else
+    {
+    AnythingElse:
+        // Insert an HTML element for a "body" start tag token with no attributes.
+        (void)insert_html_element(HTMLToken::make_start_tag(HTML::TagNames::body));
+
+        // Switch the insertion mode to "in body".
+        m_insertion_mode = InsertionMode::InBody;
+
+        // Reprocess the current token.
+        process_using_the_rules_for(m_insertion_mode, token);
+    }
 }
 
 void HTMLParser::generate_implied_end_tags(FlyString const& exception)
@@ -1399,41 +1567,59 @@ void HTMLParser::close_a_p_element()
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterbody
 void HTMLParser::handle_after_body(HTMLToken& token)
 {
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+    //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
     if (token.is_character() && token.is_parser_whitespace()) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment as the last child of the first element in the stack of open elements (the html element).
         auto& insertion_location = m_stack_of_open_elements.first();
         MUST(insertion_location.append_child(realm().create<DOM::Comment>(document(), token.comment())));
         return;
     }
 
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> A start tag whose tag name is "html"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> An end tag whose tag name is "html"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::html) {
+        // If the parser was created as part of the HTML fragment parsing algorithm, this is a parse error; ignore the
+        // token. (fragment case)
         if (m_parsing_fragment) {
             log_parse_error();
             return;
         }
+
+        // Otherwise, switch the insertion mode to "after after body".
         m_insertion_mode = InsertionMode::AfterAfterBody;
         return;
     }
 
+    // -> An end-of-file token
     if (token.is_end_of_file()) {
+        // Stop parsing.
         stop_parsing();
         return;
     }
 
+    // -> Anything else
+    //    Parse error. Switch the insertion mode to "in body" and reprocess the token.
     log_parse_error();
     m_insertion_mode = InsertionMode::InBody;
     process_using_the_rules_for(InsertionMode::InBody, token);
@@ -1442,22 +1628,33 @@ void HTMLParser::handle_after_body(HTMLToken& token)
 // https://html.spec.whatwg.org/multipage/parsing.html#the-after-after-body-insertion-mode
 void HTMLParser::handle_after_after_body(HTMLToken& token)
 {
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment as the last child of the Document object.
         auto comment = realm().create<DOM::Comment>(document(), token.comment());
         MUST(document().append_child(*comment));
         return;
     }
 
+    // -> A DOCTYPE token
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+    //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+    // -> A start tag whose tag name is "html"
     if (token.is_doctype() || token.is_parser_whitespace() || (token.is_start_tag() && token.tag_name() == HTML::TagNames::html)) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> An end-of-file token
     if (token.is_end_of_file()) {
+        // Stop parsing.
         stop_parsing();
         return;
     }
 
+    // -> Anything else
+    //    Parse error. Switch the insertion mode to "in body" and reprocess the token.
     log_parse_error();
     m_insertion_mode = InsertionMode::InBody;
     process_using_the_rules_for(m_insertion_mode, token);
@@ -1896,7 +2093,8 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // Parse error.
         log_parse_error();
 
-        // If the stack of open elements has only one node on it, if the second element on the stack of open elements is not a body element,
+        // If the stack of open elements has only one node on it,
+        // or if the second element on the stack of open elements is not a body element,
         // or if there is a template element on the stack of open elements, then ignore the token.
         // (fragment case or there is a template element on the stack)
         if (m_stack_of_open_elements.elements().size() == 1
@@ -1918,7 +2116,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         return;
     }
 
-    // A start tag whose tag name is "frameset"
+    // -> A start tag whose tag name is "frameset"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::frameset) {
         // Parse error.
         log_parse_error();
@@ -2085,11 +2283,12 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         }
 
         // Otherwise:
-        // If the stack of open elements has a p element in button scope, then close a p element.
+        // 1. If the stack of open elements has a p element in button scope, then close a p element.
         if (m_stack_of_open_elements.has_in_button_scope(HTML::TagNames::p))
             close_a_p_element();
 
-        // Insert an HTML element for the token, and, if there is no template element on the stack of open elements, set the form element pointer to point to the element created.
+        // 2. Insert an HTML element for the token, and, if there is no template element on the stack of open elements,
+        //    set the form element pointer to point to the element created.
         auto element = insert_html_element(token);
         if (!m_stack_of_open_elements.contains_template_element())
             m_form_element = as<HTMLFormElement>(*element);
@@ -2616,7 +2815,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // 3. Switch the tokenizer to the RCDATA state.
         m_tokenizer.switch_to({}, HTMLTokenizer::State::RCDATA);
 
-        // 4. Let the original insertion mode be the current insertion mode.
+        // 4. Set the original insertion mode to the current insertion mode.
         m_original_insertion_mode = m_insertion_mode;
 
         // 5. Set the frameset-ok flag to "not ok".
@@ -3003,15 +3202,26 @@ void HTMLParser::decrement_script_nesting_level()
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incdata
 void HTMLParser::handle_text(HTMLToken& token)
 {
+    // -> A character token
     if (token.is_character()) {
+        // Insert the token's character.
         insert_character(token.code_point());
         return;
     }
+
+    // -> An end-of-file token
     if (token.is_end_of_file()) {
+        // Parse error.
         log_parse_error();
+
+        // If the current node is a script element, then set its already started to true.
         if (current_node()->local_name() == HTML::TagNames::script)
             as<HTMLScriptElement>(*current_node()).set_already_started(Badge<HTMLParser> {}, true);
+
+        // Pop the current node off the stack of open elements.
         (void)m_stack_of_open_elements.pop();
+
+        // Switch the insertion mode to the original insertion mode and reprocess the token.
         m_insertion_mode = m_original_insertion_mode;
         process_using_the_rules_for(m_insertion_mode, token);
         return;
@@ -3133,8 +3343,12 @@ void HTMLParser::handle_text(HTMLToken& token)
         return;
     }
 
+    // -> Any other end tag
     if (token.is_end_tag()) {
+        // Pop the current node off the stack of open elements.
         (void)m_stack_of_open_elements.pop();
+
+        // Switch the insertion mode to the original insertion mode.
         m_insertion_mode = m_original_insertion_mode;
         return;
     }
@@ -3171,7 +3385,7 @@ void HTMLParser::clear_the_stack_back_to_a_table_body_context()
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intr
 void HTMLParser::handle_in_row(HTMLToken& token)
 {
-    // A start tag whose tag name is one of: "th", "td"
+    // -> A start tag whose tag name is one of: "th", "td"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::th, HTML::TagNames::td)) {
         // Clear the stack back to a table row context.
         clear_the_stack_back_to_a_table_row_context();
@@ -3185,7 +3399,7 @@ void HTMLParser::handle_in_row(HTMLToken& token)
         return;
     }
 
-    // An end tag whose tag name is "tr"
+    // -> An end tag whose tag name is "tr"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::tr) {
         // If the stack of open elements does not have a tr element in table scope, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::tr)) {
@@ -3194,19 +3408,18 @@ void HTMLParser::handle_in_row(HTMLToken& token)
         }
 
         // Otherwise:
-        // Clear the stack back to a table row context.
+        // 1. Clear the stack back to a table row context.
         clear_the_stack_back_to_a_table_row_context();
 
-        // Pop the current node (which will be a tr element) from the stack of open elements.
+        // 2. Pop the current node (which will be a tr element) from the stack of open elements.
+        //    Switch the insertion mode to "in table body".
         (void)m_stack_of_open_elements.pop();
-
-        // Switch the insertion mode to "in table body".
         m_insertion_mode = InsertionMode::InTableBody;
         return;
     }
 
-    // A start tag whose tag name is one of: "caption", "col", "colgroup", "tbody", "tfoot", "thead", "tr"
-    // An end tag whose tag name is "table"
+    // -> A start tag whose tag name is one of: "caption", "col", "colgroup", "tbody", "tfoot", "thead", "tr"
+    // -> An end tag whose tag name is "table"
     if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr))
         || (token.is_end_tag() && token.tag_name() == HTML::TagNames::table)) {
 
@@ -3217,21 +3430,20 @@ void HTMLParser::handle_in_row(HTMLToken& token)
         }
 
         // Otherwise:
-        // Clear the stack back to a table row context.
+        // 1. Clear the stack back to a table row context.
         clear_the_stack_back_to_a_table_row_context();
 
-        // Pop the current node (which will be a tr element) from the stack of open elements.
+        // 2. Pop the current node (which will be a tr element) from the stack of open elements.
+        //    Switch the insertion mode to "in table body".
         (void)m_stack_of_open_elements.pop();
-
-        // Switch the insertion mode to "in table body".
         m_insertion_mode = InsertionMode::InTableBody;
 
-        // Reprocess the token.
+        // 3. Reprocess the token.
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
-    // An end tag whose tag name is one of: "tbody", "tfoot", "thead"
+    // -> An end tag whose tag name is one of: "tbody", "tfoot", "thead"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead)) {
         // If the stack of open elements does not have an element in table scope that is an HTML element with the same tag name as the token, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name())) {
@@ -3245,29 +3457,28 @@ void HTMLParser::handle_in_row(HTMLToken& token)
         }
 
         // Otherwise:
-        // Clear the stack back to a table row context.
+        // 1. Clear the stack back to a table row context.
         clear_the_stack_back_to_a_table_row_context();
 
-        // Pop the current node (which will be a tr element) from the stack of open elements.
+        // 2. Pop the current node (which will be a tr element) from the stack of open elements.
+        //    Switch the insertion mode to "in table body".
         (void)m_stack_of_open_elements.pop();
-
-        // Switch the insertion mode to "in table body".
         m_insertion_mode = InsertionMode::InTableBody;
 
-        // Reprocess the token.
+        // 3. Reprocess the token.
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
-    // An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html", "td", "th"
+    // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html", "td", "th"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html, HTML::TagNames::td, HTML::TagNames::th)) {
         // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
-    // Anything else:
-    // Process the token using the rules for the "in table" insertion mode.
+    // -> Anything else:
+    //    Process the token using the rules for the "in table" insertion mode.
     process_using_the_rules_for(InsertionMode::InTable, token);
 }
 
@@ -3287,51 +3498,76 @@ void HTMLParser::close_the_cell()
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intd
 void HTMLParser::handle_in_cell(HTMLToken& token)
 {
+    // -> An end tag whose tag name is one of: "td", "th"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th)) {
+        // If the stack of open elements does not have an element in table scope that is an HTML element with the same
+        // tag name as that of the token, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name())) {
             log_parse_error();
             return;
         }
+
+        // Otherwise:
+        // 1. Generate implied end tags.
         generate_implied_end_tags();
 
+        // 2. Now, if the current node is not an HTML element with the same tag name as the token, then this is a parse error.
         if (current_node()->local_name() != token.tag_name()) {
             log_parse_error();
         }
 
+        // 3. Pop elements from the stack of open elements until an HTML element with the same tag name as the token
+        //    has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(token.tag_name());
 
+        // 4. Clear the list of active formatting elements up to the last marker.
         m_list_of_active_formatting_elements.clear_up_to_the_last_marker();
 
+        // 5. Switch the insertion mode to "in row".
         m_insertion_mode = InsertionMode::InRow;
         return;
     }
+
+    // -> A start tag whose tag name is one of: "caption", "col", "colgroup", "tbody", "td", "tfoot", "th", "thead", "tr"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr)) {
+        // Assert: The stack of open elements has a td or th element in table scope.
+        // FIXME: We're only asserting that we're parsing a fragment in that case, is this still necessary?
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::td) && !m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::th)) {
             VERIFY(m_parsing_fragment);
             log_parse_error();
             return;
         }
+
+        // Close the cell (see below) and reprocess the token.
         close_the_cell();
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html)) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> An end tag whose tag name is one of: "table", "tbody", "tfoot", "thead", "tr"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr)) {
+        // If the stack of open elements does not have an element in table scope that is an HTML element with the same
+        // tag name as that of the token, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name())) {
             log_parse_error();
             return;
         }
+
+        // Otherwise, close the cell (see below) and reprocess the token.
         close_the_cell();
-        // Reprocess the token.
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> Anything else
+    //    Process the token using the rules for the "in body" insertion mode.
     process_using_the_rules_for(InsertionMode::InBody, token);
 }
 
@@ -3339,76 +3575,101 @@ void HTMLParser::handle_in_cell(HTMLToken& token)
 void HTMLParser::handle_in_table_text(HTMLToken& token)
 {
     if (token.is_character()) {
-        // A character token that is U+0000 NULL
+        // -> A character token that is U+0000 NULL
         if (token.code_point() == 0) {
             // Parse error. Ignore the token.
             log_parse_error();
             return;
         }
-        // Any other character token
-        // Append the character token to the pending table character tokens list.
+        // -> Any other character token
+        //    Append the character token to the pending table character tokens list.
         m_pending_table_character_tokens.append(move(token));
         return;
     }
 
-    // Anything else
+    // -> Anything else
+    {
+        // If any of the tokens in the pending table character tokens list
+        // are character tokens that are not ASCII whitespace, then this is a parse error:
+        // reprocess the character tokens in the pending table character tokens list using
+        // the rules given in the "anything else" entry in the "in table" insertion mode.
+        if (any_of(m_pending_table_character_tokens, [](auto const& token) { return !token.is_parser_whitespace(); })) {
+            log_parse_error();
+            for (auto& pending_token : m_pending_table_character_tokens) {
+                m_foster_parenting = true;
+                process_using_the_rules_for(InsertionMode::InBody, pending_token);
+                m_foster_parenting = false;
+            }
+        } else {
+            // Otherwise, insert the characters given by the pending table character tokens list.
+            for (auto& pending_token : m_pending_table_character_tokens) {
+                insert_character(pending_token.code_point());
+            }
+        }
 
-    // If any of the tokens in the pending table character tokens list
-    // are character tokens that are not ASCII whitespace, then this is a parse error:
-    // reprocess the character tokens in the pending table character tokens list using
-    // the rules given in the "anything else" entry in the "in table" insertion mode.
-    if (any_of(m_pending_table_character_tokens, [](auto const& token) { return !token.is_parser_whitespace(); })) {
-        log_parse_error();
-        for (auto& pending_token : m_pending_table_character_tokens) {
-            m_foster_parenting = true;
-            process_using_the_rules_for(InsertionMode::InBody, pending_token);
-            m_foster_parenting = false;
-        }
-    } else {
-        // Otherwise, insert the characters given by the pending table character tokens list.
-        for (auto& pending_token : m_pending_table_character_tokens) {
-            insert_character(pending_token.code_point());
-        }
+        // Switch the insertion mode to the original insertion mode and reprocess the token.
+        m_insertion_mode = m_original_insertion_mode;
+        process_using_the_rules_for(m_insertion_mode, token);
     }
-
-    // Switch the insertion mode to the original insertion mode and reprocess the token.
-    m_insertion_mode = m_original_insertion_mode;
-    process_using_the_rules_for(m_insertion_mode, token);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intbody
 void HTMLParser::handle_in_table_body(HTMLToken& token)
 {
+    // -> A start tag whose tag name is "tr"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::tr) {
+        // Clear the stack back to a table body context. (See below.)
         clear_the_stack_back_to_a_table_body_context();
+
+        // Insert an HTML element for the token, then switch the insertion mode to "in row".
         (void)insert_html_element(token);
         m_insertion_mode = InsertionMode::InRow;
         return;
     }
 
+    // -> A start tag whose tag name is one of: "th", "td"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::th, HTML::TagNames::td)) {
+        // Parse error.
         log_parse_error();
+
+        // Clear the stack back to a table body context. (See below.)
         clear_the_stack_back_to_a_table_body_context();
+
+        // Insert an HTML element for a "tr" start tag token with no attributes, then switch the insertion mode to "in row".
         (void)insert_html_element(HTMLToken::make_start_tag(HTML::TagNames::tr));
         m_insertion_mode = InsertionMode::InRow;
+
+        // Reprocess the current token.
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> An end tag whose tag name is one of: "tbody", "tfoot", "thead"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead)) {
+        // If the stack of open elements does not have an element in table scope that is an HTML element with the same
+        // tag name as the token, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name())) {
             log_parse_error();
             return;
         }
+
+        // Otherwise:
+        // 1. Clear the stack back to a table body context. (See below.)
         clear_the_stack_back_to_a_table_body_context();
+
+        // 2. Pop the current node from the stack of open elements. Switch the insertion mode to "in table".
         (void)m_stack_of_open_elements.pop();
         m_insertion_mode = InsertionMode::InTable;
         return;
     }
 
+    // -> A start tag whose tag name is one of: "caption", "col", "colgroup", "tbody", "tfoot", "thead"
+    // -> An end tag whose tag name is "table"
     if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead))
         || (token.is_end_tag() && token.tag_name() == HTML::TagNames::table)) {
 
+        // If the stack of open elements does not have a tbody, thead, or tfoot element in table scope, this is a parse
+        // error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::tbody)
             && !m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::thead)
             && !m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::tfoot)) {
@@ -3416,30 +3677,40 @@ void HTMLParser::handle_in_table_body(HTMLToken& token)
             return;
         }
 
+        // Otherwise:
+        // 1. Clear the stack back to a table body context. (See below.)
         clear_the_stack_back_to_a_table_body_context();
+
+        // 2. Pop the current node from the stack of open elements. Switch the insertion mode to "in table".
         (void)m_stack_of_open_elements.pop();
         m_insertion_mode = InsertionMode::InTable;
+
+        // 3. Reprocess the token.
         process_using_the_rules_for(InsertionMode::InTable, token);
         return;
     }
 
+    // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html", "td", "th", "tr"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html, HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::tr)) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> Anything else
+    //    Process the token using the rules for the "in table" insertion mode.
     process_using_the_rules_for(InsertionMode::InTable, token);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intable
 void HTMLParser::handle_in_table(HTMLToken& token)
 {
-    // A character token, if the current node is table, tbody, template, tfoot, thead, or tr element
+    // -> A character token, if the current node is table, tbody, template, tfoot, thead, or tr element
     if (token.is_character() && current_node()->local_name().is_one_of(HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr)) {
         // Let the pending table character tokens be an empty list of tokens.
         m_pending_table_character_tokens.clear();
 
-        // Let the original insertion mode be the current insertion mode.
+        // Set the original insertion mode to the current insertion mode.
         m_original_insertion_mode = m_insertion_mode;
 
         // Switch the insertion mode to "in table text" and reprocess the token.
@@ -3448,20 +3719,20 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         return;
     }
 
-    // A comment token
+    // -> A comment token
     if (token.is_comment()) {
         // Insert a comment.
         insert_comment(token);
         return;
     }
-    // A DOCTYPE token
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
-    // A start tag whose tag name is "caption"
+    // -> A start tag whose tag name is "caption"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::caption) {
         // Clear the stack back to a table context.
         clear_the_stack_back_to_a_table_context();
@@ -3475,7 +3746,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         return;
     }
 
-    // A start tag whose tag name is "colgroup"
+    // -> A start tag whose tag name is "colgroup"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::colgroup) {
         // Clear the stack back to a table context.
         clear_the_stack_back_to_a_table_context();
@@ -3486,7 +3757,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         return;
     }
 
-    // A start tag whose tag name is "col"
+    // -> A start tag whose tag name is "col"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::col) {
         // Clear the stack back to a table context.
         clear_the_stack_back_to_a_table_context();
@@ -3500,7 +3771,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         return;
     }
 
-    // A start tag whose tag name is one of: "tbody", "tfoot", "thead"
+    // -> A start tag whose tag name is one of: "tbody", "tfoot", "thead"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead)) {
         // Clear the stack back to a table context.
         clear_the_stack_back_to_a_table_context();
@@ -3511,7 +3782,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         return;
     }
 
-    // A start tag whose tag name is one of: "td", "th", "tr"
+    // -> A start tag whose tag name is one of: "td", "th", "tr"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::tr)) {
         // Clear the stack back to a table context.
         clear_the_stack_back_to_a_table_context();
@@ -3525,7 +3796,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         return;
     }
 
-    // A start tag whose tag name is "table"
+    // -> A start tag whose tag name is "table"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::table) {
         // Parse error.
         log_parse_error();
@@ -3535,18 +3806,18 @@ void HTMLParser::handle_in_table(HTMLToken& token)
             return;
 
         // Otherwise:
-        // Pop elements from this stack until a table element has been popped from the stack.
+        // 1. Pop elements from this stack until a table element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::table);
 
-        // Reset the insertion mode appropriately.
+        // 2. Reset the insertion mode appropriately.
         reset_the_insertion_mode_appropriately();
 
-        // Reprocess the token.
+        // 3. Reprocess the token.
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
-    // An end tag whose tag name is "table"
+    // -> An end tag whose tag name is "table"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::table) {
         // If the stack of open elements does not have a table element in table scope, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::table)) {
@@ -3555,23 +3826,23 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         }
 
         // Otherwise:
-        // Pop elements from this stack until a table element has been popped from the stack.
+        // 1. Pop elements from this stack until a table element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::table);
 
-        // Reset the insertion mode appropriately.
+        // 2. Reset the insertion mode appropriately.
         reset_the_insertion_mode_appropriately();
         return;
     }
 
-    // An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html", "tbody", "td", "tfoot", "th", "thead", "tr"
+    // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html", "tbody", "td", "tfoot", "th", "thead", "tr"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr)) {
         // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
-    // A start tag whose tag name is one of: "style", "script", "template"
-    // An end tag whose tag name is "template"
+    // -> A start tag whose tag name is one of: "style", "script", "template"
+    // -> An end tag whose tag name is "template"
     if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::style, HTML::TagNames::script, HTML::TagNames::template_))
         || (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_)) {
         // Process the token using the rules for the "in head" insertion mode.
@@ -3579,7 +3850,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         return;
     }
 
-    // A start tag whose tag name is "input"
+    // -> A start tag whose tag name is "input"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::input) {
         // If the token does not have an attribute with the name "type",
         // or if it does, but that attribute's value is not an ASCII case-insensitive match for the string "hidden",
@@ -3590,21 +3861,21 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         }
 
         // Otherwise:
-        // Parse error.
+        // 1. Parse error.
         log_parse_error();
 
-        // Insert an HTML element for the token.
+        // 2. Insert an HTML element for the token.
         (void)insert_html_element(token);
 
-        // Pop that input element off the stack of open elements.
+        // 3. Pop that input element off the stack of open elements.
         (void)m_stack_of_open_elements.pop();
 
-        // Acknowledge the token's self-closing flag, if it is set.
+        // 4. Acknowledge the token's self-closing flag, if it is set.
         token.acknowledge_self_closing_flag_if_set();
         return;
     }
 
-    // A start tag whose tag name is "form"
+    // -> A start tag whose tag name is "form"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::form) {
         // Parse error.
         log_parse_error();
@@ -3616,56 +3887,79 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         }
 
         // Otherwise:
-        // Insert an HTML element for the token, and set the form element pointer to point to the element created.
+        // 1. Insert an HTML element for the token, and set the form element pointer to point to the element created.
         m_form_element = as<HTMLFormElement>(*insert_html_element(token));
 
-        // Pop that form element off the stack of open elements.
+        // 2. Pop that form element off the stack of open elements.
         (void)m_stack_of_open_elements.pop();
         return;
     }
 
-    // An end-of-file token
+    // -> An end-of-file token
     if (token.is_end_of_file()) {
         // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
-AnythingElse:
-    // Anything else
+    // -> Anything else
+    {
+    AnythingElse:
+        // Parse error.
+        log_parse_error();
 
-    // Parse error.
-    log_parse_error();
-
-    // Enable foster parenting, process the token using the rules for the "in body" insertion mode, and then disable foster parenting.
-    m_foster_parenting = true;
-    process_using_the_rules_for(InsertionMode::InBody, token);
-    m_foster_parenting = false;
+        // Enable foster parenting, process the token using the rules for the "in body" insertion mode, and then disable foster parenting.
+        m_foster_parenting = true;
+        process_using_the_rules_for(InsertionMode::InBody, token);
+        m_foster_parenting = false;
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inselectintable
 void HTMLParser::handle_in_select_in_table(HTMLToken& token)
 {
+    // -> A start tag whose tag name is one of: "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr, HTML::TagNames::td, HTML::TagNames::th)) {
+        // Parse error.
         log_parse_error();
+
+        // Pop elements from the stack of open elements until a select element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
+
+        // Reset the insertion mode appropriately.
         reset_the_insertion_mode_appropriately();
+
+        // Reprocess the token.
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> An end tag whose tag name is one of: "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr, HTML::TagNames::td, HTML::TagNames::th)) {
+
+        // Parse error.
         log_parse_error();
 
+        // If the stack of open elements does not have an element in table scope that is an HTML element with the same
+        // tag name as that of the token, then ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name()))
             return;
 
+        // Otherwise:
+
+        // 1. Pop elements from the stack of open elements until a select element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
+
+        // 2. Reset the insertion mode appropriately.
         reset_the_insertion_mode_appropriately();
+
+        // 3. Reprocess the token.
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> Anything else
+    //    Process the token using the rules for the "in select" insertion mode.
     process_using_the_rules_for(InsertionMode::InSelect, token);
 }
 
@@ -3673,44 +3967,61 @@ void HTMLParser::handle_in_select_in_table(HTMLToken& token)
 void HTMLParser::handle_in_select(HTMLToken& token)
 {
     if (token.is_character()) {
+        // -> A character token that is U+0000 NULL
         if (token.code_point() == 0) {
+            // Parse error. Ignore the token.
             log_parse_error();
             return;
         }
+        // -> Any other character token
+        //    Insert the token's character.
         insert_character(token.code_point());
         return;
     }
 
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment.
         insert_comment(token);
         return;
     }
 
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> A start tag whose tag name is "html"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> A start tag whose tag name is "option"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::option) {
-        if (current_node()->local_name() == HTML::TagNames::option) {
+        // If the current node is an option element, pop that node from the stack of open elements.
+        if (current_node()->local_name() == HTML::TagNames::option)
             (void)m_stack_of_open_elements.pop();
-        }
+
+        // Insert an HTML element for the token.
         (void)insert_html_element(token);
         return;
     }
 
+    // -> A start tag whose tag name is "optgroup"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::optgroup) {
-        if (current_node()->local_name() == HTML::TagNames::option) {
+        // If the current node is an option element, pop that node from the stack of open elements.
+        if (current_node()->local_name() == HTML::TagNames::option)
             (void)m_stack_of_open_elements.pop();
-        }
-        if (current_node()->local_name() == HTML::TagNames::optgroup) {
+
+        // If the current node is an optgroup element, pop that node from the stack of open elements.
+        if (current_node()->local_name() == HTML::TagNames::optgroup)
             (void)m_stack_of_open_elements.pop();
-        }
+
+        // Insert an HTML element for the token.
         (void)insert_html_element(token);
         return;
     }
@@ -3718,25 +4029,31 @@ void HTMLParser::handle_in_select(HTMLToken& token)
     // -> A start tag whose tag name is "hr"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::hr) {
         // If the current node is an option element, pop that node from the stack of open elements.
-        if (current_node()->local_name() == HTML::TagNames::option) {
+        if (current_node()->local_name() == HTML::TagNames::option)
             (void)m_stack_of_open_elements.pop();
-        }
+
         // If the current node is an optgroup element, pop that node from the stack of open elements.
-        if (current_node()->local_name() == HTML::TagNames::optgroup) {
+        if (current_node()->local_name() == HTML::TagNames::optgroup)
             (void)m_stack_of_open_elements.pop();
-        }
+
         // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
         (void)insert_html_element(token);
         (void)m_stack_of_open_elements.pop();
+
         // Acknowledge the token's self-closing flag, if it is set.
         token.acknowledge_self_closing_flag_if_set();
         return;
     }
 
+    // -> An end tag whose tag name is "optgroup"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::optgroup) {
+        // First, if the current node is an option element, and the node immediately before it in the stack of open
+        // elements is an optgroup element, then pop the current node from the stack of open elements.
         if (current_node()->local_name() == HTML::TagNames::option && node_before_current_node()->local_name() == HTML::TagNames::optgroup)
             (void)m_stack_of_open_elements.pop();
 
+        // If the current node is an optgroup element, then pop that node from the stack of open elements.
+        // Otherwise, this is a parse error; ignore the token.
         if (current_node()->local_name() == HTML::TagNames::optgroup) {
             (void)m_stack_of_open_elements.pop();
         } else {
@@ -3746,7 +4063,10 @@ void HTMLParser::handle_in_select(HTMLToken& token)
         return;
     }
 
+    // -> An end tag whose tag name is "option"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::option) {
+        // If the current node is an option element, then pop that node from the stack of open elements.
+        // Otherwise, this is a parse error; ignore the token.
         if (current_node()->local_name() == HTML::TagNames::option) {
             (void)m_stack_of_open_elements.pop();
         } else {
@@ -3756,177 +4076,264 @@ void HTMLParser::handle_in_select(HTMLToken& token)
         return;
     }
 
+    // -> An end tag whose tag name is "select"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::select) {
+        // If the stack of open elements does not have a select element in select scope, this is a parse error; ignore
+        // the token. (fragment case)
         if (!m_stack_of_open_elements.has_in_select_scope(HTML::TagNames::select)) {
             VERIFY(m_parsing_fragment);
             log_parse_error();
             return;
         }
+
+        // Otherwise:
+        // 1. Pop elements from the stack of open elements until a select element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
+
+        // 2. Reset the insertion mode appropriately.
         reset_the_insertion_mode_appropriately();
         return;
     }
 
+    // -> A start tag whose tag name is "select"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::select) {
+        // Parse error.
         log_parse_error();
 
+        // If the stack of open elements does not have a select element in select scope, ignore the token. (fragment case)
         if (!m_stack_of_open_elements.has_in_select_scope(HTML::TagNames::select)) {
             VERIFY(m_parsing_fragment);
             return;
         }
 
+        // Otherwise:
+        // 1. Pop elements from the stack of open elements until a select element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
+
+        // 2. Reset the insertion mode appropriately.
         reset_the_insertion_mode_appropriately();
         return;
     }
 
+    // -> A start tag whose tag name is one of: "input", "keygen", "textarea"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::input, HTML::TagNames::keygen, HTML::TagNames::textarea)) {
+        // Parse error.
         log_parse_error();
 
+        // If the stack of open elements does not have a select element in select scope, ignore the token. (fragment case)
         if (!m_stack_of_open_elements.has_in_select_scope(HTML::TagNames::select)) {
             VERIFY(m_parsing_fragment);
             return;
         }
 
+        // Otherwise:
+        // 1. Pop elements from the stack of open elements until a select element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
+
+        // 2. Reset the insertion mode appropriately.
         reset_the_insertion_mode_appropriately();
+
+        // 3. Reprocess the token.
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
-    if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::script, HTML::TagNames::template_)) {
+    // -> A start tag whose tag name is one of: "script", "template"
+    // -> An end tag whose tag name is "template"
+    if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::script, HTML::TagNames::template_))
+        || (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_)) {
+        // Process the token using the rules for the "in head" insertion mode.
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
     }
 
-    if (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_) {
-        process_using_the_rules_for(InsertionMode::InHead, token);
-        return;
-    }
-
+    // -> An end-of-file token
     if (token.is_end_of_file()) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> Anything else
+    //    Parse error. Ignore the token.
     log_parse_error();
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incaption
 void HTMLParser::handle_in_caption(HTMLToken& token)
 {
+    // -> An end tag whose tag name is "caption"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::caption) {
+        // If the stack of open elements does not have a caption element in table scope, this is a parse error; ignore
+        // the token. (fragment case)
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::caption)) {
             VERIFY(m_parsing_fragment);
             log_parse_error();
             return;
         }
 
+        // Otherwise:
+        // 1. Generate implied end tags.
         generate_implied_end_tags();
 
+        // 2. Now, if the current node is not a caption element, then this is a parse error.
         if (current_node()->local_name() != HTML::TagNames::caption)
             log_parse_error();
 
+        // 3. Pop elements from this stack until a caption element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::caption);
+
+        // 4. Clear the list of active formatting elements up to the last marker.
         m_list_of_active_formatting_elements.clear_up_to_the_last_marker();
 
+        // 5. Switch the insertion mode to "in table".
         m_insertion_mode = InsertionMode::InTable;
         return;
     }
 
+    // -> A start tag whose tag name is one of: "caption", "col", "colgroup", "tbody", "td", "tfoot", "th", "thead", "tr"
+    // -> An end tag whose tag name is "table"
     if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr))
         || (token.is_end_tag() && token.tag_name() == HTML::TagNames::table)) {
+
+        // If the stack of open elements does not have a caption element in table scope, this is a parse error; ignore
+        // the token. (fragment case)
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::caption)) {
             VERIFY(m_parsing_fragment);
             log_parse_error();
             return;
         }
 
+        // Otherwise:
+        // 1. Generate implied end tags.
         generate_implied_end_tags();
 
+        // 2. Now, if the current node is not a caption element, then this is a parse error.
         if (current_node()->local_name() != HTML::TagNames::caption)
             log_parse_error();
 
+        // 3. Pop elements from this stack until a caption element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::caption);
+
+        // 4. Clear the list of active formatting elements up to the last marker.
         m_list_of_active_formatting_elements.clear_up_to_the_last_marker();
 
+        // 5. Switch the insertion mode to "in table".
         m_insertion_mode = InsertionMode::InTable;
+
+        // 6. Reprocess the token.
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> An end tag whose tag name is one of: "body", "col", "colgroup", "html", "tbody", "td", "tfoot", "th", "thead", "tr"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr)) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> Anything else
+    //    Process the token using the rules for the "in body" insertion mode.
     process_using_the_rules_for(InsertionMode::InBody, token);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incolgroup
 void HTMLParser::handle_in_column_group(HTMLToken& token)
 {
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+    //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
     if (token.is_character() && token.is_parser_whitespace()) {
+        // Insert the character.
         insert_character(token.code_point());
         return;
     }
 
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment.
         insert_comment(token);
         return;
     }
 
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> A start tag whose tag name is "html"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> A start tag whose tag name is "col"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::col) {
+        // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
         (void)insert_html_element(token);
         (void)m_stack_of_open_elements.pop();
+
+        // Acknowledge the token's self-closing flag, if it is set.
         token.acknowledge_self_closing_flag_if_set();
         return;
     }
 
+    // -> An end tag whose tag name is "colgroup"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::colgroup) {
+        // If the current node is not a colgroup element, then this is a parse error; ignore the token.
         if (current_node()->local_name() != HTML::TagNames::colgroup) {
             log_parse_error();
             return;
         }
 
+        // Otherwise, pop the current node from the stack of open elements. Switch the insertion mode to "in table".
         (void)m_stack_of_open_elements.pop();
         m_insertion_mode = InsertionMode::InTable;
         return;
     }
 
+    // -> An end tag whose tag name is "col"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::col) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> A start tag whose tag name is "template"
+    // -> An end tag whose tag name is "template"
     if ((token.is_start_tag() || token.is_end_tag()) && token.tag_name() == HTML::TagNames::template_) {
+        // Process the token using the rules for the "in head" insertion mode.
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
     }
 
+    // -> An end-of-file token
     if (token.is_end_of_file()) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
-    if (current_node()->local_name() != HTML::TagNames::colgroup) {
-        log_parse_error();
-        return;
-    }
+    // -> Anything else
+    {
+        // If the current node is not a colgroup element, then this is a parse error; ignore the token.
+        if (current_node()->local_name() != HTML::TagNames::colgroup) {
+            log_parse_error();
+            return;
+        }
 
-    (void)m_stack_of_open_elements.pop();
-    m_insertion_mode = InsertionMode::InTable;
-    process_using_the_rules_for(m_insertion_mode, token);
+        // Otherwise, pop the current node from the stack of open elements.
+        (void)m_stack_of_open_elements.pop();
+
+        // Switch the insertion mode to "in table".
+        m_insertion_mode = InsertionMode::InTable;
+
+        // Reprocess the token.
+        process_using_the_rules_for(m_insertion_mode, token);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intemplate
@@ -4158,68 +4565,97 @@ void HTMLParser::handle_in_frameset(HTMLToken& token)
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterframeset
 void HTMLParser::handle_after_frameset(HTMLToken& token)
 {
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+    //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
     if (token.is_character() && token.is_parser_whitespace()) {
+        // Insert the character.
         insert_character(token.code_point());
         return;
     }
 
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment.
         insert_comment(token);
         return;
     }
 
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> A start tag whose tag name is "html"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> An end tag whose tag name is "html"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::html) {
+        // Switch the insertion mode to "after after frameset".
         m_insertion_mode = InsertionMode::AfterAfterFrameset;
         return;
     }
 
+    // -> A start tag whose tag name is "noframes"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::noframes) {
+        // Process the token using the rules for the "in head" insertion mode.
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
     }
 
+    // An end-of-file token
     if (token.is_end_of_file()) {
+        // Stop parsing.
         stop_parsing();
         return;
     }
 
+    // -> Anything else
+    //    Parse error. Ignore the token.
     log_parse_error();
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#the-after-after-frameset-insertion-mode
 void HTMLParser::handle_after_after_frameset(HTMLToken& token)
 {
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment as the last child of the Document object.
         auto comment = document().realm().create<DOM::Comment>(document(), token.comment());
         MUST(document().append_child(comment));
         return;
     }
 
+    // -> A DOCTYPE token
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+    // -> A start tag whose tag name is "html"
     if (token.is_doctype() || token.is_parser_whitespace() || (token.is_start_tag() && token.tag_name() == HTML::TagNames::html)) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> An end-of-file token
     if (token.is_end_of_file()) {
+        // Stop parsing.
         stop_parsing();
         return;
     }
 
+    // -> A start tag whose tag name is "noframes"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::noframes) {
+        // Process the token using the rules for the "in head" insertion mode.
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
     }
 
+    // -> Anything else
+    //    Parse error. Ignore the token.
     log_parse_error();
 }
 
@@ -4282,7 +4718,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         return;
     }
 
-    // Any other start tag
+    // -> Any other start tag
     if (token.is_start_tag()) {
         // If the adjusted current node is an element in the MathML namespace, adjust MathML attributes for the token. (This fixes the case of MathML attributes that are not all lowercase.)
         if (adjusted_current_node()->namespace_uri() == Namespace::MathML) {
@@ -4300,7 +4736,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         // Adjust foreign attributes for the token. (This fixes the use of namespaced attributes, in particular XLink in SVG.)
         adjust_foreign_attributes(token);
 
-        // Insert a foreign element for the token, with adjusted current node's namespace and false.
+        // Insert a foreign element for the token, with the adjusted current node's namespace and false.
         (void)insert_foreign_element(token, adjusted_current_node()->namespace_uri(), OnlyAddToElementStack::No);
 
         // If the token has its self-closing flag set, then run the appropriate steps from the following list:

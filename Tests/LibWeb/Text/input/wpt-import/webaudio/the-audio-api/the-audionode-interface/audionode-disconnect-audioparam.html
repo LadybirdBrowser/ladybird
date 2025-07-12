@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      audionode-disconnect-audioparam.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let renderQuantum = 128;
+
+      let sampleRate = 44100;
+      let renderDuration = 0.5;
+      let disconnectTime = 0.5 * renderDuration;
+
+      let audit = Audit.createTaskRunner();
+
+      // Calculate the index for disconnection.
+      function getDisconnectIndex(disconnectTime) {
+        let disconnectIndex = disconnectTime * sampleRate;
+        disconnectIndex = renderQuantum *
+            Math.floor((disconnectIndex + renderQuantum - 1) / renderQuantum);
+        return disconnectIndex;
+      }
+
+      // Get the index of value change.
+      function getValueChangeIndex(array, targetValue) {
+        return array.findIndex(function(element, index) {
+          if (element === targetValue)
+            return true;
+        });
+      }
+
+      // Task 1: test disconnect(AudioParam) method.
+      audit.define('disconnect(AudioParam)', (task, should) => {
+        // Creates a buffer source with value [1] and then connect it to two
+        // gain nodes in series. The output of the buffer source is lowered by
+        // half
+        // (* 0.5) and then connected to two |.gain| AudioParams in each gain
+        // node.
+        //
+        //  (1) bufferSource => gain1 => gain2
+        //  (2) bufferSource => half => gain1.gain
+        //  (3) half => gain2.gain
+        //
+        // This graph should produce the output of 2.25 (= 1 * 1.5 * 1.5). After
+        // disconnecting (3), it should produce 1.5.
+        let context =
+            new OfflineAudioContext(1, renderDuration * sampleRate, sampleRate);
+        let source = context.createBufferSource();
+        let buffer1ch = createConstantBuffer(context, 1, 1);
+        let half = context.createGain();
+        let gain1 = context.createGain();
+        let gain2 = context.createGain();
+
+        source.buffer = buffer1ch;
+        source.loop = true;
+        half.gain.value = 0.5;
+
+        source.connect(gain1);
+        gain1.connect(gain2);
+        gain2.connect(context.destination);
+        source.connect(half);
+
+        // Connecting |half| to both |gain1.gain| and |gain2.gain| amplifies the
+        // signal by 2.25 (= 1.5 * 1.5) because each gain node amplifies the
+        // signal by 1.5 (= 1.0 + 0.5).
+        half.connect(gain1.gain);
+        half.connect(gain2.gain);
+
+        source.start();
+
+        // Schedule the disconnection at the half of render duration.
+        context.suspend(disconnectTime).then(function() {
+          half.disconnect(gain2.gain);
+          context.resume();
+        });
+
+        context.startRendering()
+            .then(function(buffer) {
+              let channelData = buffer.getChannelData(0);
+              let disconnectIndex = getDisconnectIndex(disconnectTime);
+              let valueChangeIndex = getValueChangeIndex(channelData, 1.5);
+
+              // Expected values are: 1 * 1.5 * 1.5 -> 1 * 1.5 = [2.25, 1.5]
+              should(channelData, 'Channel #0').containValues([2.25, 1.5]);
+              should(valueChangeIndex, 'The index of value change')
+                  .beEqualTo(disconnectIndex);
+            })
+            .then(() => task.done());
+      });
+
+      // Task 2: test disconnect(AudioParam, output) method.
+      audit.define('disconnect(AudioParam, output)', (task, should) => {
+        // Create a 2-channel buffer source with [1, 2] in each channel and
+        // make a serial connection through gain1 and gain 2. The make the
+        // buffer source half with a gain node and connect it to a 2-output
+        // splitter. Connect each output to 2 gain AudioParams respectively.
+        //
+        //    (1) bufferSource => gain1 => gain2
+        //    (2) bufferSource => half => splitter(2)
+        //    (3) splitter#0 => gain1.gain
+        //    (4) splitter#1 => gain2.gain
+        //
+        // This graph should produce 3 (= 1 * 1.5 * 2) and 6 (= 2 * 1.5 * 2) for
+        // each channel. After disconnecting (4), it should output 1.5 and 3.
+        let context =
+            new OfflineAudioContext(2, renderDuration * sampleRate, sampleRate);
+        let source = context.createBufferSource();
+        let buffer2ch = createConstantBuffer(context, 1, [1, 2]);
+        let splitter = context.createChannelSplitter(2);
+        let half = context.createGain();
+        let gain1 = context.createGain();
+        let gain2 = context.createGain();
+
+        source.buffer = buffer2ch;
+        source.loop = true;
+        half.gain.value = 0.5;
+
+        source.connect(gain1);
+        gain1.connect(gain2);
+        gain2.connect(context.destination);
+
+        // |source| originally is [1, 2] but it becomes [0.5, 1] after 0.5 gain.
+        // Each splitter's output will be applied to |gain1.gain| and
+        // |gain2.gain| respectively in an additive fashion.
+        source.connect(half);
+        half.connect(splitter);
+
+        // This amplifies the signal by 1.5. (= 1.0 + 0.5)
+        splitter.connect(gain1.gain, 0);
+
+        // This amplifies the signal by 2. (= 1.0 + 1.0)
+        splitter.connect(gain2.gain, 1);
+
+        source.start();
+
+        // Schedule the disconnection at the half of render duration.
+        context.suspend(disconnectTime).then(function() {
+          splitter.disconnect(gain2.gain, 1);
+          context.resume();
+        });
+
+        context.startRendering()
+            .then(function(buffer) {
+              let channelData0 = buffer.getChannelData(0);
+              let channelData1 = buffer.getChannelData(1);
+
+              let disconnectIndex = getDisconnectIndex(disconnectTime);
+              let valueChangeIndexCh0 = getValueChangeIndex(channelData0, 1.5);
+              let valueChangeIndexCh1 = getValueChangeIndex(channelData1, 3);
+
+              // Expected values are: 1 * 1.5 * 2 -> 1 * 1.5 = [3, 1.5]
+              should(channelData0, 'Channel #0').containValues([3, 1.5]);
+              should(
+                  valueChangeIndexCh0,
+                  'The index of value change in channel #0')
+                  .beEqualTo(disconnectIndex);
+
+              // Expected values are: 2 * 1.5 * 2 -> 2 * 1.5 = [6, 3]
+              should(channelData1, 'Channel #1').containValues([6, 3]);
+              should(
+                  valueChangeIndexCh1,
+                  'The index of value change in channel #1')
+                  .beEqualTo(disconnectIndex);
+            })
+            .then(() => task.done());
+      });
+
+      // Task 3: exception checks.
+      audit.define('exceptions', (task, should) => {
+        let context = new AudioContext();
+        let gain1 = context.createGain();
+        let splitter = context.createChannelSplitter(2);
+        let gain2 = context.createGain();
+        let gain3 = context.createGain();
+
+        // Connect a splitter to gain nodes and merger so we can test the
+        // possible ways of disconnecting the nodes to verify that appropriate
+        // exceptions are thrown.
+        gain1.connect(splitter);
+        splitter.connect(gain2.gain, 0);
+        splitter.connect(gain3.gain, 1);
+        gain2.connect(gain3);
+        gain3.connect(context.destination);
+
+        // gain1 is not connected to gain3.gain. Exception should be thrown.
+        should(
+            function() {
+              gain1.disconnect(gain3.gain);
+            },
+            'gain1.disconnect(gain3.gain)')
+            .throw(DOMException, 'InvalidAccessError');
+
+        // When the output index is good but the destination is invalid.
+        should(
+            function() {
+              splitter.disconnect(gain1.gain, 1);
+            },
+            'splitter.disconnect(gain1.gain, 1)')
+            .throw(DOMException, 'InvalidAccessError');
+
+        // When both arguments are wrong, throw IndexSizeError first.
+        should(
+            function() {
+              splitter.disconnect(gain1.gain, 2);
+            },
+            'splitter.disconnect(gain1.gain, 2)')
+            .throw(DOMException, 'IndexSizeError');
+
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

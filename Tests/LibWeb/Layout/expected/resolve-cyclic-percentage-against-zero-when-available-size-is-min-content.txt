@@ -24,16 +24,19 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1254]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x1254]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x1236]
-      PaintableWithLines (BlockContainer<DIV>.w.min) [10,10 4x20] overflow: [11,11 3x18]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x1236] overflow: [10,10 780x1235]
+      PaintableWithLines (BlockContainer<DIV>.w.min) [10,10 4x20] overflow: [11,11 4x18]
         ImagePaintable (ImageBox<IMG>) [11,20 4x4]
       PaintableWithLines (BlockContainer(anonymous)) [10,30 780x0]
-      PaintableWithLines (BlockContainer<DIV>.w.max) [10,30 404x406] overflow: [11,31 403x404]
+      PaintableWithLines (BlockContainer<DIV>.w.max) [10,30 404x406] overflow: [11,31 404x404]
         ImagePaintable (ImageBox<IMG>) [11,31 404x404]
       PaintableWithLines (BlockContainer(anonymous)) [10,436 780x0]
-      PaintableWithLines (BlockContainer<DIV>.h.min) [10,436 780x404] overflow: [11,437 778x403]
+      PaintableWithLines (BlockContainer<DIV>.h.min) [10,436 780x404] overflow: [11,437 778x404]
         ImagePaintable (ImageBox<IMG>) [11,437 404x404]
       PaintableWithLines (BlockContainer(anonymous)) [10,840 780x0]
-      PaintableWithLines (BlockContainer<DIV>.h.max) [10,840 780x404] overflow: [11,841 778x403]
+      PaintableWithLines (BlockContainer<DIV>.h.max) [10,840 780x404] overflow: [11,841 778x404]
         ImagePaintable (ImageBox<IMG>) [11,841 404x404]
       PaintableWithLines (BlockContainer(anonymous)) [10,1244 780x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x1252] [children: 0] (z-index: auto)

@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/AttributeNames.h>
+#include <LibWeb/HTML/CustomElements/CustomStateSet.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLDetailsElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
@@ -549,8 +550,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::Focus:
         return element.is_focused();
     case CSS::PseudoClass::FocusVisible:
-        // FIXME: We should only apply this when a visible focus is useful. Decide when that is!
-        return element.is_focused();
+        return element.is_focused() && element.should_indicate_focus();
     case CSS::PseudoClass::FocusWithin: {
         auto* focused_element = element.document().focused_element();
         return focused_element && element.is_inclusive_ancestor_of(*focused_element);
@@ -852,7 +852,8 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     }
     case CSS::PseudoClass::PopoverOpen: {
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
-        // The :popover-open pseudo-class is defined to match any HTML element whose popover attribute is not in the no popover state and whose popover visibility state is showing.
+        // The :popover-open pseudo-class is defined to match any HTML element whose popover attribute is not in the
+        // No Popover state and whose popover visibility state is showing.
         if (is<HTML::HTMLElement>(element) && element.has_attribute(HTML::AttributeNames::popover)) {
             auto& html_element = static_cast<HTML::HTMLElement const&>(element);
             return html_element.popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing;
@@ -1058,6 +1059,15 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
                 return true;
         }
 
+        return false;
+    }
+    case CSS::PseudoClass::State: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-custom
+        // The :state(identifier) pseudo-class must match all custom elements whose states set's set entries contains identifier.
+        if (!element.is_custom())
+            return false;
+        if (auto* custom_state_set = element.custom_state_set())
+            return custom_state_set->has_state(pseudo_class.ident->string_value);
         return false;
     }
     }

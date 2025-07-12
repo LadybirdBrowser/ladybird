@@ -199,6 +199,19 @@ TEST_CASE(character_reference_in_attribute)
     END_ENUMERATION();
 }
 
+TEST_CASE(named_character_reference)
+{
+    auto tokens = run_tokenizer("&notinvc;&notit;&cz"sv);
+    BEGIN_ENUMERATION(tokens);
+    EXPECT_CHARACTER_TOKEN(0x22F6); // &notinvc;
+    EXPECT_CHARACTER_TOKEN(0xAC);   // &not (backtracked from &notit)
+    EXPECT_CHARACTER_TOKENS(it);
+    EXPECT_CHARACTER_TOKEN(';');
+    EXPECT_CHARACTER_TOKENS(&cz); // invalid
+    EXPECT_END_OF_FILE_TOKEN();
+    END_ENUMERATION();
+}
+
 TEST_CASE(numeric_character_reference)
 {
     auto tokens = run_tokenizer("&#1111"sv);

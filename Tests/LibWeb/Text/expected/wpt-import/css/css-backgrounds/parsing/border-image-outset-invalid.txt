@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['border-image-outset'] = "auto" should not set the property value
+Pass	e.style['border-image-outset'] = "-1" should not set the property value
+Pass	e.style['border-image-outset'] = "-2px" should not set the property value
+Pass	e.style['border-image-outset'] = "1%" should not set the property value
+Pass	e.style['border-image-outset'] = "1 2 3 4 5" should not set the property value

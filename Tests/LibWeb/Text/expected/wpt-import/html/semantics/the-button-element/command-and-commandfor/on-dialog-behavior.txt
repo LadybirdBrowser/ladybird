@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 50 tests
+Found 104 tests
 
-48 Pass
+102 Pass
 2 Fail
 Pass	invoking (with command property as show-modal) closed dialog opens as modal
 Pass	invoking (with command property as show-modal) closed dialog with preventDefault is noop
@@ -18,39 +18,93 @@ Pass	invoking (with command attribute as sHoW-mOdAl) closed dialog with preventD
 Pass	invoking (with command attribute as sHoW-mOdAl) while changing command still opens as modal
 Pass	invoking to close (with command property as close) open dialog closes
 Pass	invoking to close (with command property as close) open dialog closes and sets returnValue
+Pass	invoking to close (with command property as close) open dialog closes and overrides returnValue
+Pass	invoking to close (with command property as close) open dialog closes and overrides returnValue when empty string
+Pass	invoking to close (with command property as close) open dialog closes and doesn't override returnValue when missing value attribute
 Pass	invoking to close (with command property as close) open dialog with preventDefault is no-op
 Pass	invoking to close (with command property as close) open modal dialog with preventDefault is no-op
 Pass	invoking to close (with command property as close) open dialog while changing command still closes
 Pass	invoking to close (with command property as close) open modal dialog while changing command still closes
 Pass	invoking to close (with command attribute as close) open dialog closes
 Pass	invoking to close (with command attribute as close) open dialog closes and sets returnValue
+Pass	invoking to close (with command attribute as close) open dialog closes and overrides returnValue
+Pass	invoking to close (with command attribute as close) open dialog closes and overrides returnValue when empty string
+Pass	invoking to close (with command attribute as close) open dialog closes and doesn't override returnValue when missing value attribute
 Pass	invoking to close (with command attribute as close) open dialog with preventDefault is no-op
 Pass	invoking to close (with command attribute as close) open modal dialog with preventDefault is no-op
 Pass	invoking to close (with command attribute as close) open dialog while changing command still closes
 Pass	invoking to close (with command attribute as close) open modal dialog while changing command still closes
 Pass	invoking to close (with command property as cLoSe) open dialog closes
 Pass	invoking to close (with command property as cLoSe) open dialog closes and sets returnValue
+Pass	invoking to close (with command property as cLoSe) open dialog closes and overrides returnValue
+Pass	invoking to close (with command property as cLoSe) open dialog closes and overrides returnValue when empty string
+Pass	invoking to close (with command property as cLoSe) open dialog closes and doesn't override returnValue when missing value attribute
 Pass	invoking to close (with command property as cLoSe) open dialog with preventDefault is no-op
 Pass	invoking to close (with command property as cLoSe) open modal dialog with preventDefault is no-op
 Pass	invoking to close (with command property as cLoSe) open dialog while changing command still closes
 Pass	invoking to close (with command property as cLoSe) open modal dialog while changing command still closes
 Pass	invoking to close (with command attribute as cLoSe) open dialog closes
 Pass	invoking to close (with command attribute as cLoSe) open dialog closes and sets returnValue
+Pass	invoking to close (with command attribute as cLoSe) open dialog closes and overrides returnValue
+Pass	invoking to close (with command attribute as cLoSe) open dialog closes and overrides returnValue when empty string
+Pass	invoking to close (with command attribute as cLoSe) open dialog closes and doesn't override returnValue when missing value attribute
 Pass	invoking to close (with command attribute as cLoSe) open dialog with preventDefault is no-op
 Pass	invoking to close (with command attribute as cLoSe) open modal dialog with preventDefault is no-op
 Pass	invoking to close (with command attribute as cLoSe) open dialog while changing command still closes
 Pass	invoking to close (with command attribute as cLoSe) open modal dialog while changing command still closes
+Pass	invoking to request-close (with command property as request-close) open dialog closes
+Pass	invoking to request-close with value (with command property as request-close) open dialog closes and sets returnValue
+Pass	invoking to request-close with value (with command property as request-close) open dialog closes and overrides returnValue
+Pass	invoking to request-close with value (with command property as request-close) open dialog closes and overrides returnValue when empty string
+Pass	invoking to request-close with value (with command property as request-close) open dialog closes and doesn't override returnValue when missing value attribute
+Pass	invoking to request-close (with command property as request-close) open dialog with preventDefault is no-op
+Pass	invoking to request-close (with command property as request-close) open modal dialog with preventDefault is no-op
+Pass	invoking to request-close (with command property as request-close) open dialog while changing command still closes
+Pass	invoking to request-close (with command property as request-close) open modal dialog while changing command still closes
+Pass	invoking to request-close (with command attribute as request-close) open dialog closes
+Pass	invoking to request-close with value (with command attribute as request-close) open dialog closes and sets returnValue
+Pass	invoking to request-close with value (with command attribute as request-close) open dialog closes and overrides returnValue
+Pass	invoking to request-close with value (with command attribute as request-close) open dialog closes and overrides returnValue when empty string
+Pass	invoking to request-close with value (with command attribute as request-close) open dialog closes and doesn't override returnValue when missing value attribute
+Pass	invoking to request-close (with command attribute as request-close) open dialog with preventDefault is no-op
+Pass	invoking to request-close (with command attribute as request-close) open modal dialog with preventDefault is no-op
+Pass	invoking to request-close (with command attribute as request-close) open dialog while changing command still closes
+Pass	invoking to request-close (with command attribute as request-close) open modal dialog while changing command still closes
+Pass	invoking to request-close (with command property as reQuEst-Close) open dialog closes
+Pass	invoking to request-close with value (with command property as reQuEst-Close) open dialog closes and sets returnValue
+Pass	invoking to request-close with value (with command property as reQuEst-Close) open dialog closes and overrides returnValue
+Pass	invoking to request-close with value (with command property as reQuEst-Close) open dialog closes and overrides returnValue when empty string
+Pass	invoking to request-close with value (with command property as reQuEst-Close) open dialog closes and doesn't override returnValue when missing value attribute
+Pass	invoking to request-close (with command property as reQuEst-Close) open dialog with preventDefault is no-op
+Pass	invoking to request-close (with command property as reQuEst-Close) open modal dialog with preventDefault is no-op
+Pass	invoking to request-close (with command property as reQuEst-Close) open dialog while changing command still closes
+Pass	invoking to request-close (with command property as reQuEst-Close) open modal dialog while changing command still closes
+Pass	invoking to request-close (with command attribute as reQuEst-Close) open dialog closes
+Pass	invoking to request-close with value (with command attribute as reQuEst-Close) open dialog closes and sets returnValue
+Pass	invoking to request-close with value (with command attribute as reQuEst-Close) open dialog closes and overrides returnValue
+Pass	invoking to request-close with value (with command attribute as reQuEst-Close) open dialog closes and overrides returnValue when empty string
+Pass	invoking to request-close with value (with command attribute as reQuEst-Close) open dialog closes and doesn't override returnValue when missing value attribute
+Pass	invoking to request-close (with command attribute as reQuEst-Close) open dialog with preventDefault is no-op
+Pass	invoking to request-close (with command attribute as reQuEst-Close) open modal dialog with preventDefault is no-op
+Pass	invoking to request-close (with command attribute as reQuEst-Close) open dialog while changing command still closes
+Pass	invoking to request-close (with command attribute as reQuEst-Close) open modal dialog while changing command still closes
 Pass	invoking (as show-modal) open dialog is noop
 Pass	invoking (as show-modal) open modal, while changing command still a no-op
 Pass	invoking (as show-modal) closed popover dialog opens as modal
 Pass	invoking (as close) already closed dialog is noop
+Pass	invoking (as request-close) already closed dialog is noop
 Pass	invoking (as show-modal) dialog as open popover=manual is noop
 Pass	invoking (as show-modal) dialog as open popover=auto is noop
 Pass	invoking (as close) dialog as open popover=manual is noop
 Pass	invoking (as close) dialog as open popover=auto is noop
+Pass	invoking (as request-close) dialog as open popover=manual is noop
+Pass	invoking (as request-close) dialog as open popover=auto is noop
 Pass	invoking (as show-modal) dialog that is removed is noop
 Fail	invoking (as show-modal) dialog from a detached invoker
 Pass	invoking (as show-modal) detached dialog from a detached invoker
 Fail	invoking (as close) dialog that is removed is noop
 Pass	invoking (as close) dialog from a detached invoker
 Pass	invoking (as close) detached dialog from a detached invoker
+Pass	invoking (as request-close) dialog that is removed is noop
+Pass	invoking (as request-close) dialog from a detached invoker
+Pass	invoking (as request-close) detached dialog from a detached invoker

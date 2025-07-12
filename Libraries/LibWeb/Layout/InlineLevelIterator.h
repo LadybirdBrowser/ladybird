@@ -8,7 +8,6 @@
 
 #include <AK/Noncopyable.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/LayoutState.h>
 #include <LibWeb/Layout/TextNode.h>
 

@@ -43,7 +43,14 @@ void HTMLBaseElement::inserted()
 void HTMLBaseElement::removed_from(Node* old_parent, Node& old_root)
 {
     HTMLElement::removed_from(old_parent, old_root);
+    auto old_first_base_element_with_href_in_tree_order = document().first_base_element_with_href_in_tree_order();
     document().update_base_element({});
+
+    // The frozen base URL must be immediately set for an element whenever any of the following situations occur:
+    // - The base element becomes the first base element in tree order with an href content attribute in its Document.
+    auto first_base_element_with_href_in_document = document().first_base_element_with_href_in_tree_order();
+    if (first_base_element_with_href_in_document && first_base_element_with_href_in_document != old_first_base_element_with_href_in_tree_order)
+        first_base_element_with_href_in_document->set_the_frozen_base_url();
 }
 
 void HTMLBaseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -72,13 +79,17 @@ void HTMLBaseElement::set_the_frozen_base_url()
     auto href = get_attribute_value(AttributeNames::href);
     auto url_record = document.fallback_base_url().complete_url(href);
 
-    // 3. Set element's frozen base URL to document's fallback base URL, if urlRecord is failure or running Is base allowed for Document? on the resulting URL record and document returns "Blocked", and to urlRecord otherwise.
-    // FIXME: Apply "Is base allowed for Document?" CSP
-    if (!url_record.has_value()) {
+    // 3. If any of the following are true:
+    // - urlRecord is failure;
+    // - urlRecord's scheme is "data" or "javascript"; or
+    // FIXME: - running Is base allowed for Document? on urlRecord and document returns "Blocked",
+    // then set element's frozen base URL to document's fallback base URL and return.
+    if (!url_record.has_value() || url_record->scheme() == "data" || url_record->scheme() == "javascript") {
         m_frozen_base_url = document.fallback_base_url();
         return;
     }
 
+    // 4. Set element's frozen base URL to urlRecord.
     m_frozen_base_url = url_record.release_value();
 }
 

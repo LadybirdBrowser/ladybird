@@ -307,6 +307,24 @@ public:
         return { data(), size() };
     }
 
+    Optional<size_t> index_of(ReadonlySpan<T> other, size_t start_offset = 0) const
+    {
+        Checked maximum_offset { start_offset };
+        maximum_offset += other.size();
+        if (maximum_offset.has_overflow() || maximum_offset.value() > size())
+            return {};
+
+        if (other.is_empty())
+            return start_offset;
+
+        for (size_t index = start_offset; index <= size() - other.size(); ++index) {
+            if (TypedTransfer<T>::compare(data() + index, other.data(), other.size()))
+                return index;
+        }
+
+        return {};
+    }
+
     template<typename TUnaryPredicate>
     Optional<T&> last_matching(TUnaryPredicate const& predicate)
     {

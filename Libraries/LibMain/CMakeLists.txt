@@ -2,4 +2,4 @@ set(SOURCES
     Main.cpp
 )
 
-serenity_lib(LibMain main TYPE STATIC)
+ladybird_lib(LibMain main TYPE STATIC)

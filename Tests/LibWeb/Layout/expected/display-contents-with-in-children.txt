@@ -7,5 +7,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x18]
-    PaintableWithLines (InlineNode<SPAN>)
+    PaintableWithLines (InlineNode<SPAN>) [0,0 51.75x18]
       TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x18] [children: 0] (z-index: auto)

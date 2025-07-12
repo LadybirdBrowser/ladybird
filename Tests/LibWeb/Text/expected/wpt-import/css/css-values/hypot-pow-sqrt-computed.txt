@@ -1,0 +1,53 @@
+Harness status: OK
+
+Found 47 tests
+
+44 Pass
+3 Fail
+Pass	pow(1,1) should be used-value-equivalent to 1
+Pass	sqrt(1) should be used-value-equivalent to 1
+Pass	hypot(1) should be used-value-equivalent to 1
+Pass	sqrt(pow(1,1)) should be used-value-equivalent to 1
+Pass	hypot(pow(1, sqrt(1))) should be used-value-equivalent to 1
+Pass	calc(hypot(pow((1 + sqrt(1)) / 2, sqrt(1)))) should be used-value-equivalent to 1
+Pass	calc(100px * pow(2, pow(2, 2))) should be used-value-equivalent to 1600px
+Pass	calc(1px * pow(2, 3)) should be used-value-equivalent to 8px
+Pass	calc(100px * sqrt(100)) should be used-value-equivalent to 1000px
+Pass	calc(1px * pow(2, sqrt(100)) should be used-value-equivalent to 1024px
+Pass	hypot(3px, 4px) should be used-value-equivalent to 5px
+Pass	hypot(3e+9px, 4e+9px) should be used-value-equivalent to 5e+9px
+Pass	calc(100px * hypot(3, 4)) should be used-value-equivalent to 500px
+Pass	hypot(-5px) should be used-value-equivalent to 5px
+Pass	calc(1px * hypot(-5)) should be used-value-equivalent to 5px
+Pass	calc(1px * hypot(10000)) should be used-value-equivalent to 10000px
+Pass	calc(2px * sqrt(100000000)) should be used-value-equivalent to 20000px
+Pass	calc(3px * pow(20, 4)) should be used-value-equivalent to 480000px
+Pass	calc(-2 * hypot(3px, 4px)) should be used-value-equivalent to -10px
+Pass	hypot(0% + 3px, 0% + 4px) should be used-value-equivalent to 5px
+Pass	hypot(0% + 772.333px) should be used-value-equivalent to calc(0% + 772.333px)
+Pass	hypot(0% + 772.35px) should be used-value-equivalent to calc(0% + 772.35px)
+Pass	hypot(0% + 600px, 0% + 800px) should be used-value-equivalent to 1000px
+Fail	sqrt(sibling-index()) should be used-value-equivalent to 2
+Fail	calc(1px * sqrt(sibling-index())) should be used-value-equivalent to 2px
+Fail	sqrt(pow(sibling-index(), 2)) should be used-value-equivalent to 4
+Pass	hypot(1px) should be used-value-equivalent to 1px
+Pass	hypot(1cm) should be used-value-equivalent to 1cm
+Pass	hypot(1mm) should be used-value-equivalent to 1mm
+Pass	hypot(1Q) should be used-value-equivalent to 1Q
+Pass	hypot(1in) should be used-value-equivalent to 1in
+Pass	hypot(1pc) should be used-value-equivalent to 1pc
+Pass	hypot(1pt) should be used-value-equivalent to 1pt
+Pass	hypot(1em) should be used-value-equivalent to 1em
+Pass	hypot(1ex) should be used-value-equivalent to 1ex
+Pass	hypot(1ch) should be used-value-equivalent to 1ch
+Pass	hypot(1rem) should be used-value-equivalent to 1rem
+Pass	hypot(1vh) should be used-value-equivalent to 1vh
+Pass	hypot(1vw) should be used-value-equivalent to 1vw
+Pass	hypot(1vmin) should be used-value-equivalent to 1vmin
+Pass	hypot(1vmax) should be used-value-equivalent to 1vmax
+Pass	hypot(1s) should be used-value-equivalent to 1s
+Pass	hypot(1ms) should be used-value-equivalent to 1ms
+Pass	hypot(1deg) should be used-value-equivalent to 1deg
+Pass	hypot(1grad) should be used-value-equivalent to 1grad
+Pass	hypot(1rad) should be used-value-equivalent to 1rad
+Pass	hypot(1turn) should be used-value-equivalent to 1turn

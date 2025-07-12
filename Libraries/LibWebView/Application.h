@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Badge.h>
 #include <AK/ByteString.h>
 #include <AK/LexicalPath.h>
 #include <AK/Optional.h>
@@ -23,6 +22,7 @@
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/Settings.h>
+#include <LibWebView/StorageJar.h>
 
 namespace WebView {
 
@@ -34,7 +34,7 @@ class Application : public DevTools::DevToolsDelegate {
 public:
     virtual ~Application();
 
-    int execute();
+    ErrorOr<int> execute();
 
     static Application& the() { return *s_the; }
 
@@ -47,13 +47,11 @@ public:
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
     static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
+    static StorageJar& storage_jar() { return *the().m_storage_jar; }
 
-    static ProcessManager& process_manager() { return the().m_process_manager; }
-
-    Core::EventLoop& event_loop() { return m_event_loop; }
+    static ProcessManager& process_manager() { return *the().m_process_manager; }
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
-    ErrorOr<void> launch_services();
 
     void add_child_process(Process&&);
 
@@ -73,27 +71,22 @@ public:
     void refresh_tab_list();
 
 protected:
-    template<DerivedFrom<Application> ApplicationType>
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments)
-    {
-        auto app = adopt_own(*new ApplicationType { {}, arguments });
-        app->initialize(arguments);
+    explicit Application(Optional<ByteString> ladybird_binary_path = {});
 
-        return app;
-    }
-
-    Application();
+    ErrorOr<void> initialize(Main::Arguments const&);
 
     virtual void process_did_exit(Process&&);
 
     virtual void create_platform_arguments(Core::ArgsParser&) { }
     virtual void create_platform_options(BrowserOptions&, WebContentOptions&) { }
+    virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop();
 
     virtual Optional<ByteString> ask_user_for_download_folder() const { return {}; }
 
-private:
-    void initialize(Main::Arguments const& arguments);
+    Main::Arguments& arguments() { return m_arguments; }
 
+private:
+    ErrorOr<void> launch_services();
     void launch_spare_web_content_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
@@ -135,6 +128,7 @@ private:
     Settings m_settings;
     OwnPtr<ApplicationSettingsObserver> m_settings_observer;
 
+    Main::Arguments m_arguments;
     BrowserOptions m_browser_options;
     WebContentOptions m_web_content_options;
 
@@ -146,23 +140,36 @@ private:
 
     RefPtr<Database> m_database;
     OwnPtr<CookieJar> m_cookie_jar;
+    OwnPtr<StorageJar> m_storage_jar;
 
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
-    Core::EventLoop m_event_loop;
-    ProcessManager m_process_manager;
+    OwnPtr<Core::EventLoop> m_event_loop;
+    OwnPtr<ProcessManager> m_process_manager;
     bool m_in_shutdown { false };
+
+#if defined(AK_OS_MACOS)
+    OwnPtr<MachPortServer> m_mach_port_server;
+#endif
 
     OwnPtr<DevTools::DevToolsServer> m_devtools;
 } SWIFT_IMMORTAL_REFERENCE;
 
 }
 
-#define WEB_VIEW_APPLICATION(ApplicationType)                                \
-public:                                                                      \
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments) \
-    {                                                                        \
-        return WebView::Application::create<ApplicationType>(arguments);     \
-    }                                                                        \
-                                                                             \
-    ApplicationType(Badge<WebView::Application>, Main::Arguments&);
+#define WEB_VIEW_APPLICATION(ApplicationType)                                                                                                \
+public:                                                                                                                                      \
+    template<typename... ApplicationArguments>                                                                                               \
+    static ErrorOr<NonnullOwnPtr<ApplicationType>> create(Main::Arguments const& arguments, ApplicationArguments&&... application_arguments) \
+    {                                                                                                                                        \
+        auto app = adopt_own(*new ApplicationType { forward<ApplicationArguments>(application_arguments)... });                              \
+        TRY(app->initialize(arguments));                                                                                                     \
+        return app;                                                                                                                          \
+    }                                                                                                                                        \
+                                                                                                                                             \
+    static ApplicationType& the()                                                                                                            \
+    {                                                                                                                                        \
+        return static_cast<ApplicationType&>(WebView::Application::the());                                                                   \
+    }                                                                                                                                        \
+                                                                                                                                             \
+private:

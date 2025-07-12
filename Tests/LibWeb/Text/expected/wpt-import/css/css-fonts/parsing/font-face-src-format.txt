@@ -2,21 +2,20 @@ Harness status: OK
 
 Found 35 tests
 
-33 Pass
-2 Fail
+35 Pass
 Pass	Check that src: url("foo.ttf") is valid
 Pass	Check that src: url("foo.ttf"), url("bar.ttf") is valid
 Pass	Check that src: url("foo.ttf") format() is invalid
 Pass	Check that src: url("foo.ttf") dummy() is invalid
 Pass	Check that src: url("foo.ttf") format("woff") dummy() is invalid
 Pass	Check that src: url("foo.ttf") dummy() format("woff") is invalid
-Fail	Check that src: url("foo.ttf") format("collection") is valid
+Pass	Check that src: url("foo.ttf") format("collection") is valid
 Pass	Check that src: url("foo.ttf") format("opentype") is valid
 Pass	Check that src: url("foo.ttf") format("truetype") is valid
 Pass	Check that src: url("foo.ttf") format("woff") is valid
 Pass	Check that src: url("foo.ttf") format("woff2") is valid
 Pass	Check that src: url("foo.ttf") format("opentype", "truetype") is invalid
-Fail	Check that src: url("foo.ttf") format(collection) is valid
+Pass	Check that src: url("foo.ttf") format(collection) is valid
 Pass	Check that src: url("foo.ttf") format(opentype) is valid
 Pass	Check that src: url("foo.ttf") format(truetype) is valid
 Pass	Check that src: url("foo.ttf") format(woff) is valid

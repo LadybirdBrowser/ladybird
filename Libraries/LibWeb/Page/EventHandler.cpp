@@ -70,7 +70,9 @@ static DOM::Node* input_control_associated_with_ancestor_label_element(Painting:
 static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC::Ptr<DOM::Node>& node, Layout::Node*& layout_node)
 {
     layout_node = &paintable.layout_node();
-    if (layout_node->is_generated_for_backdrop_pseudo_element()) {
+    if (layout_node->is_generated_for_backdrop_pseudo_element()
+        || layout_node->is_generated_for_after_pseudo_element()
+        || layout_node->is_generated_for_before_pseudo_element()) {
         node = layout_node->pseudo_element_generator();
         layout_node = node->layout_node();
     }
@@ -96,62 +98,62 @@ static Gfx::Cursor resolve_cursor(Layout::NodeWithStyle const& layout_node, Vect
 {
     for (auto const& cursor : cursor_data) {
         auto result = cursor.visit(
-            [auto_cursor](CSS::Cursor css_cursor) -> Optional<Gfx::Cursor> {
+            [auto_cursor](CSS::CursorPredefined css_cursor) -> Optional<Gfx::Cursor> {
                 switch (css_cursor) {
-                case CSS::Cursor::Crosshair:
-                case CSS::Cursor::Cell:
+                case CSS::CursorPredefined::Crosshair:
+                case CSS::CursorPredefined::Cell:
                     return Gfx::StandardCursor::Crosshair;
-                case CSS::Cursor::Grab:
-                case CSS::Cursor::Grabbing:
+                case CSS::CursorPredefined::Grab:
+                case CSS::CursorPredefined::Grabbing:
                     return Gfx::StandardCursor::Drag;
-                case CSS::Cursor::Pointer:
+                case CSS::CursorPredefined::Pointer:
                     return Gfx::StandardCursor::Hand;
-                case CSS::Cursor::Help:
+                case CSS::CursorPredefined::Help:
                     return Gfx::StandardCursor::Help;
-                case CSS::Cursor::None:
+                case CSS::CursorPredefined::None:
                     return Gfx::StandardCursor::Hidden;
-                case CSS::Cursor::NotAllowed:
+                case CSS::CursorPredefined::NotAllowed:
                     return Gfx::StandardCursor::Disallowed;
-                case CSS::Cursor::Text:
-                case CSS::Cursor::VerticalText:
+                case CSS::CursorPredefined::Text:
+                case CSS::CursorPredefined::VerticalText:
                     return Gfx::StandardCursor::IBeam;
-                case CSS::Cursor::Move:
-                case CSS::Cursor::AllScroll:
+                case CSS::CursorPredefined::Move:
+                case CSS::CursorPredefined::AllScroll:
                     return Gfx::StandardCursor::Move;
-                case CSS::Cursor::Progress:
-                case CSS::Cursor::Wait:
+                case CSS::CursorPredefined::Progress:
+                case CSS::CursorPredefined::Wait:
                     return Gfx::StandardCursor::Wait;
-                case CSS::Cursor::ColResize:
+                case CSS::CursorPredefined::ColResize:
                     return Gfx::StandardCursor::ResizeColumn;
-                case CSS::Cursor::EResize:
-                case CSS::Cursor::WResize:
-                case CSS::Cursor::EwResize:
+                case CSS::CursorPredefined::EResize:
+                case CSS::CursorPredefined::WResize:
+                case CSS::CursorPredefined::EwResize:
                     return Gfx::StandardCursor::ResizeHorizontal;
-                case CSS::Cursor::RowResize:
+                case CSS::CursorPredefined::RowResize:
                     return Gfx::StandardCursor::ResizeRow;
-                case CSS::Cursor::NResize:
-                case CSS::Cursor::SResize:
-                case CSS::Cursor::NsResize:
+                case CSS::CursorPredefined::NResize:
+                case CSS::CursorPredefined::SResize:
+                case CSS::CursorPredefined::NsResize:
                     return Gfx::StandardCursor::ResizeVertical;
-                case CSS::Cursor::NeResize:
-                case CSS::Cursor::SwResize:
-                case CSS::Cursor::NeswResize:
+                case CSS::CursorPredefined::NeResize:
+                case CSS::CursorPredefined::SwResize:
+                case CSS::CursorPredefined::NeswResize:
                     return Gfx::StandardCursor::ResizeDiagonalBLTR;
-                case CSS::Cursor::NwResize:
-                case CSS::Cursor::SeResize:
-                case CSS::Cursor::NwseResize:
+                case CSS::CursorPredefined::NwResize:
+                case CSS::CursorPredefined::SeResize:
+                case CSS::CursorPredefined::NwseResize:
                     return Gfx::StandardCursor::ResizeDiagonalTLBR;
-                case CSS::Cursor::ZoomIn:
-                case CSS::Cursor::ZoomOut:
+                case CSS::CursorPredefined::ZoomIn:
+                case CSS::CursorPredefined::ZoomOut:
                     return Gfx::StandardCursor::Zoom;
-                case CSS::Cursor::Auto:
+                case CSS::CursorPredefined::Auto:
                     return auto_cursor;
-                case CSS::Cursor::ContextMenu:
-                case CSS::Cursor::Alias:
-                case CSS::Cursor::Copy:
-                case CSS::Cursor::NoDrop:
+                case CSS::CursorPredefined::ContextMenu:
+                case CSS::CursorPredefined::Alias:
+                case CSS::CursorPredefined::Copy:
+                case CSS::CursorPredefined::NoDrop:
                     // FIXME: No corresponding GFX Standard Cursor, fallthrough to None
-                case CSS::Cursor::Default:
+                case CSS::CursorPredefined::Default:
                 default:
                     return Gfx::StandardCursor::None;
                 }
@@ -210,7 +212,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
 }
 
 // https://drafts.csswg.org/css-ui/#propdef-user-select
-static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ptr<DOM::Node> focus_node, unsigned focus_offset, Selection::Selection* selection, CSS::UserSelect user_select)
+static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_offset, GC::Ptr<DOM::Node> focus_node, size_t focus_offset, Selection::Selection* selection, CSS::UserSelect user_select)
 {
     // https://drafts.csswg.org/css-ui/#valdef-user-select-contain
     // NOTE: This is clamping the focus node to any node with user-select: contain that stands between it and the anchor node.
@@ -677,7 +679,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
                 // When a user activates a click focusable focusable area, the user agent must run the focusing steps on the focusable area with focus trigger set to "click".
                 // Spec Note: Note that focusing is not an activation behavior, i.e. calling the click() method on an element or dispatching a synthetic click event on it won't cause the element to get focused.
                 if (focus_candidate)
-                    HTML::run_focusing_steps(focus_candidate, nullptr, "click"sv);
+                    HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
                 else if (auto* focused_element = document->focused_element())
                     HTML::run_unfocusing_steps(focused_element);
 
@@ -987,24 +989,24 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-bool EventHandler::focus_next_element()
+EventResult EventHandler::focus_next_element()
 {
     if (!m_navigable->active_document())
-        return false;
+        return EventResult::Dropped;
     if (!m_navigable->active_document()->is_fully_active())
-        return false;
+        return EventResult::Dropped;
 
-    auto set_focus_to_first_focusable_element = [&]() {
+    auto set_focus_to_first_focusable_element = [&] {
         auto* element = m_navigable->active_document()->first_child_of_type<DOM::Element>();
 
         for (; element; element = element->next_element_in_pre_order()) {
             if (element->is_focusable()) {
-                m_navigable->active_document()->set_focused_element(element);
-                return true;
+                HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
+                return EventResult::Handled;
             }
         }
 
-        return false;
+        return EventResult::Dropped;
     };
 
     auto* element = m_navigable->active_document()->focused_element();
@@ -1017,29 +1019,29 @@ bool EventHandler::focus_next_element()
     if (!element)
         return set_focus_to_first_focusable_element();
 
-    m_navigable->active_document()->set_focused_element(element);
-    return true;
+    HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
+    return EventResult::Handled;
 }
 
-bool EventHandler::focus_previous_element()
+EventResult EventHandler::focus_previous_element()
 {
     if (!m_navigable->active_document())
-        return false;
+        return EventResult::Dropped;
     if (!m_navigable->active_document()->is_fully_active())
-        return false;
+        return EventResult::Dropped;
 
-    auto set_focus_to_last_focusable_element = [&]() {
+    auto set_focus_to_last_focusable_element = [&] {
         // FIXME: This often returns the HTML element itself, which has no previous sibling.
         auto* element = m_navigable->active_document()->last_child_of_type<DOM::Element>();
 
         for (; element; element = element->previous_element_in_pre_order()) {
             if (element->is_focusable()) {
-                m_navigable->active_document()->set_focused_element(element);
-                return true;
+                HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
+                return EventResult::Handled;
             }
         }
 
-        return false;
+        return EventResult::Dropped;
     };
 
     auto* element = m_navigable->active_document()->focused_element();
@@ -1052,8 +1054,8 @@ bool EventHandler::focus_previous_element()
     if (!element)
         return set_focus_to_last_focusable_element();
 
-    m_navigable->active_document()->set_focused_element(element);
-    return true;
+    HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
+    return EventResult::Handled;
 }
 
 constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
@@ -1175,9 +1177,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     if (!(modifiers & UIEvents::KeyModifier::Mod_Ctrl)) {
         if (key == UIEvents::KeyCode::Key_Tab) {
-            if (modifiers & UIEvents::KeyModifier::Mod_Shift)
-                return focus_previous_element() ? EventResult::Handled : EventResult::Dropped;
-            return focus_next_element() ? EventResult::Handled : EventResult::Dropped;
+            return modifiers & UIEvents::KeyModifier::Mod_Shift ? focus_previous_element() : focus_next_element();
         }
     }
 

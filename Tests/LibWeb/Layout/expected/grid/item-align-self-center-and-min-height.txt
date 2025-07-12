@@ -13,3 +13,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableBox (Box<DIV>.grid-container) [10,10 780x304]
         PaintableWithLines (BlockContainer<DIV>#min-height-item.grid-item) [11,11 778x302]
           TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x322] [children: 0] (z-index: auto)

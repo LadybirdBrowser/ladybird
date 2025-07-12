@@ -137,14 +137,16 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<String> const
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createdocumenttype
-WebIDL::ExceptionOr<GC::Ref<DocumentType>> DOMImplementation::create_document_type(String const& qualified_name, String const& public_id, String const& system_id)
+WebIDL::ExceptionOr<GC::Ref<DocumentType>> DOMImplementation::create_document_type(String const& name, String const& public_id, String const& system_id)
 {
-    // 1. Validate qualifiedName.
-    TRY(Document::validate_qualified_name(realm(), qualified_name));
 
-    // 2. Return a new doctype, with qualifiedName as its name, publicId as its public ID, and systemId as its system ID, and with its node document set to the associated document of this.
+    // 1. If name is not a valid doctype name, then throw an "InvalidCharacterError" DOMException.
+    if (!is_valid_doctype_name(name))
+        return WebIDL::InvalidCharacterError::create(realm(), "Invalid doctype name"_string);
+
+    // 2. Return a new doctype, with name as its name, publicId as its public ID, and systemId as its system ID, and with its node document set to the associated document of this.
     auto document_type = DocumentType::create(document());
-    document_type->set_name(qualified_name);
+    document_type->set_name(name);
     document_type->set_public_id(public_id);
     document_type->set_system_id(system_id);
     return document_type;

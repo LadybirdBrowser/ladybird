@@ -15,6 +15,13 @@
 
 namespace WebView {
 
+enum class HeadlessMode {
+    Screenshot,
+    LayoutTree,
+    Text,
+    Test,
+};
+
 enum class NewWindow {
     No,
     Yes,
@@ -49,10 +56,12 @@ struct SystemDNS { };
 struct DNSOverTLS {
     ByteString server_address;
     u16 port;
+    bool validate_dnssec_locally;
 };
 struct DNSOverUDP {
     ByteString server_address;
     u16 port;
+    bool validate_dnssec_locally;
 };
 
 using DNSSettings = Variant<SystemDNS, DNSOverTLS, DNSOverUDP>;
@@ -62,6 +71,9 @@ constexpr inline u16 default_devtools_port = 6000;
 struct BrowserOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
+    Optional<HeadlessMode> headless_mode;
+    int window_width { 800 };
+    int window_height { 600 };
     Vector<ByteString> certificates {};
     NewWindow new_window { NewWindow::No };
     ForceNewProcess force_new_process { ForceNewProcess::No };
@@ -72,7 +84,7 @@ struct BrowserOptions {
     Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_content_ipc_path {};
     Optional<DNSSettings> dns_settings {};
-    u16 devtools_port { default_devtools_port };
+    Optional<u16> devtools_port;
 };
 
 enum class IsLayoutTestMode {
@@ -120,11 +132,6 @@ enum class CollectGarbageOnEveryAllocation {
     Yes,
 };
 
-enum class IsHeadless {
-    No,
-    Yes,
-};
-
 enum class PaintViewportScrollbars {
     Yes,
     No,
@@ -146,7 +153,6 @@ struct WebContentOptions {
     EnableAutoplay enable_autoplay { EnableAutoplay::No };
     CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
     Optional<u16> echo_server_port {};
-    IsHeadless is_headless { IsHeadless::No };
     PaintViewportScrollbars paint_viewport_scrollbars { PaintViewportScrollbars::Yes };
 };
 

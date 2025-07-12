@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['border-image-slice'] = "fill" should not set the property value
+Pass	e.style['border-image-slice'] = "1 -2% fill" should not set the property value
+Pass	e.style['border-image-slice'] = "-1 2% fill" should not set the property value
+Pass	e.style['border-image-slice'] = "1 2 3 4 5" should not set the property value
+Pass	e.style['border-image-slice'] = "1% fill 2%" should not set the property value
+Pass	e.style['border-image-slice'] = "-10" should not set the property value

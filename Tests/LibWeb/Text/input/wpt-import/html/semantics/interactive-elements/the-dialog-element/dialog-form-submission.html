@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<meta charset=urf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Test dialog form submission</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-actions.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+
+<body>
+<dialog id="favDialog">
+  <form id="dialogForm" method="dialog">
+    <button id="confirmBtn" value="default">Confirm</button>
+    <input id="confirmImgBtn" src="./resources/submit.jpg" width="41"
+    height="41" type="image" alt="Hello">
+  </form>
+  <form method="post">
+    <input id="confirmImgBtn2" src="./resources/submit.jpg" width="41"
+    formmethod="dialog" height="41" type="image" alt="Hello">
+  </form>
+</dialog>
+<script>
+promise_test(async (t) => {
+  const dialog = document.querySelector('dialog');
+  const button = document.querySelector('button');
+  t.add_cleanup(() => {
+    dialog.close();
+    dialog.returnValue = "";
+    button.removeAttribute("value");
+  });
+  dialog.showModal();
+
+  button.click();
+
+  assert_false(dialog.open, "dialog should be closed now");
+  assert_equals(dialog.returnValue, "default", "Return the default value");
+}, 'click the form submission button should close the dialog');
+
+promise_test(async (t) => {
+  const dialog = document.querySelector('dialog');
+  const button = document.querySelector('button');
+  t.add_cleanup(() => {
+    dialog.close();
+    dialog.returnValue = "";
+    button.removeAttribute("value");
+  });
+  dialog.returnValue = "initial";
+  dialog.showModal();
+
+  button.value = "sushi";
+  button.click();
+
+  assert_false(dialog.open, "dialog should be closed now");
+  assert_equals(dialog.returnValue, "sushi", "Return the updated value");
+}, 'form submission should return correct value');
+
+promise_test(async (t) => {
+  const dialog = document.querySelector('dialog');
+  const button = document.querySelector('button');
+  t.add_cleanup(() => {
+    dialog.close();
+    dialog.returnValue = "";
+    button.removeAttribute("value");
+  });
+  dialog.returnValue = "initial";
+  dialog.showModal();
+
+  button.removeAttribute("value");
+  button.click();
+  assert_false(dialog.open, "dialog should be closed now");
+  assert_equals(dialog.returnValue, "initial", "returnValue should not be updated");
+}, "returnValue doesn't update when there's no value attribute.");
+
+promise_test(async (t) => {
+  const dialog = document.querySelector('dialog');
+  const button = document.querySelector('button');
+  t.add_cleanup(() => {
+    dialog.close();
+    dialog.returnValue = "";
+    button.removeAttribute("value");
+  });
+  dialog.returnValue = "initial";
+  dialog.showModal();
+
+  button.setAttribute("value", "");
+  button.click();
+  assert_false(dialog.open, "dialog should be closed now");
+  assert_equals(dialog.returnValue, "", "returnValue should be updated");
+}, "returnValue does update when there's an empty value attribute.");
+
+promise_test(async (t) => {
+  const dialog = document.querySelector('dialog');
+  const button = document.querySelector('input');
+  t.add_cleanup(() => {
+    dialog.close();
+    dialog.returnValue = "";
+    button.removeAttribute("value");
+  });
+  dialog.showModal();
+
+  let expectedReturnValue = "";
+  button.addEventListener('click', function(event) {
+    expectedReturnValue = event.offsetX + "," + event.offsetY;
+  });
+  await test_driver.click(button);
+
+  assert_false(dialog.open, "dialog should be closed now");
+  assert_not_equals(dialog.returnValue, "", "returnValue shouldn't be empty string");
+  assert_equals(dialog.returnValue, expectedReturnValue, "returnValue should be the offsets of the click");
+}, "input image button should return the coordinates");
+
+promise_test(async (t) => {
+  const dialog = document.querySelector('dialog');
+  t.add_cleanup(() => {
+    dialog.close();
+    dialog.returnValue = "";
+    button.removeAttribute("value");
+  });
+  dialog.showModal();
+  const button = document.getElementById('confirmImgBtn2');
+  await test_driver.click(button);
+  assert_false(dialog.open, "dialog should be closed now");
+}, "formmethod attribute should use dialog form submission");
+
+promise_test(async (t) => {
+  const dialog = document.querySelector('dialog');
+  t.add_cleanup(() => {
+    dialog.close();
+    dialog.returnValue = "";
+    button.removeAttribute("value");
+  });
+  dialog.returnValue = "";
+  dialog.showModal();
+
+  const button = document.querySelector('button');
+  button.value = "sushi";
+
+  const dialogForm = document.getElementById('dialogForm');
+  dialogForm.onsubmit = function() {
+    dialog.close();
+  }
+
+  button.click();
+  assert_false(dialog.open, "dialog should be closed now");
+  // If the submission request got processed, the returnValue should change
+  // to "sushi" because that's the value of the submitter
+  assert_equals(dialog.returnValue, "", "dialog's returnValue remains the same");
+}, "closing the dialog while submitting should stop the submission");
+
+promise_test(async (t) => {
+  const dialog = document.querySelector('dialog');
+  t.add_cleanup(() => {
+    dialog.close();
+    dialog.returnValue = "";
+    button.removeAttribute("value");
+  });
+  dialog.returnValue = undefined;
+  dialog.showModal();
+
+  let submitEvent = false;
+  const dialogForm = document.getElementById('dialogForm');
+  dialogForm.onsubmit = function() {
+    submitEvent = true;
+    assert_false(dialog.open, "dialog should be closed");
+    assert_equals(dialog.returnValue, "", "dialog's returnValue remains the same");
+  };
+
+  const button = document.querySelector('button');
+  button.value = "sushi";
+  button.onclick = function() {
+    dialogForm.submit();
+    assert_false(dialog.open, "dialog should be closed now");
+    // The returnValue should be "" because there is no submitter
+    assert_equals(dialog.returnValue, "", "returnValue shouldn be empty string");
+  };
+
+  button.click();
+  assert_true(submitEvent, "Should have submit event");
+  assert_false(dialog.open, "dialog should be closed");
+  assert_equals(dialog.returnValue, "", "dialog's returnValue remains the same");
+}, "calling form.submit() in click handler of submit button should start the submission synchronously");
+
+</script>
+</body>

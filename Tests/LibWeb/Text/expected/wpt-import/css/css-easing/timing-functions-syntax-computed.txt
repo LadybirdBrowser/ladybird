@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 21 tests
+
+19 Pass
+2 Fail
+Pass	Property animation-timing-function value 'linear'
+Pass	Property animation-timing-function value 'ease'
+Pass	Property animation-timing-function value 'ease-in'
+Pass	Property animation-timing-function value 'ease-out'
+Pass	Property animation-timing-function value 'ease-in-out'
+Pass	Property animation-timing-function value 'cubic-bezier(0.1, 0.2, 0.8, 0.9)'
+Pass	Property animation-timing-function value 'cubic-bezier(0, -2, 1, 3)'
+Pass	Property animation-timing-function value 'cubic-bezier(0, 0.7, 1, 1.3)'
+Pass	Property animation-timing-function value 'cubic-bezier(calc(-2), calc(0.7 / 2), calc(1.5), calc(0))'
+Pass	Property animation-timing-function value 'steps(4, start)'
+Pass	Property animation-timing-function value 'steps(2, end)'
+Pass	Property animation-timing-function value 'steps( 2, end )'
+Pass	Property animation-timing-function value 'steps(2, jump-start)'
+Pass	Property animation-timing-function value 'steps(2, jump-end)'
+Pass	Property animation-timing-function value 'steps(2, jump-both)'
+Pass	Property animation-timing-function value 'steps(2, jump-none)'
+Pass	Property animation-timing-function value 'steps(calc(-10), start)'
+Pass	Property animation-timing-function value 'steps(calc(5 / 2), start)'
+Pass	Property animation-timing-function value 'steps(calc(1), jump-none)'
+Fail	Property animation-timing-function value 'linear, ease, linear'
+Fail	Property animation-timing-function value 'steps(calc(2 + sign(100em - 1px)), end)'

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: getComputedStyle().borderBlockWidth</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-block-width">
+<meta name="assert" content="border-block-width is absolute length; zero if the border block style is none or hidden.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="box"></div>
+<div id="target"></div>
+<style>
+  #box {
+    border-style: dotted; /* Avoid border-*-width computed style 0 */
+    border-top-width: thin;
+    border-right-width: medium;
+    border-bottom-width: thick;
+  }
+  #target {
+    font-size: 40px;
+    border-block-style: dotted; /* Avoid border-block-*-width computed style 0 */
+  }
+</style>
+<script>
+'use strict';
+const box = document.getElementById('box');
+const thinWidth = getComputedStyle(box).borderTopWidth;
+const mediumWidth = getComputedStyle(box).borderRightWidth;
+const thickWidth = getComputedStyle(box).borderBottomWidth;
+
+test_computed_value("border-block-start-width", "calc(10px + 0.5em)", "30px");
+test_computed_value("border-block-start-width", "calc(10px - 0.5em)", "0px");
+test_computed_value("border-block-start-width", "thin", thinWidth);
+test_computed_value("border-block-start-width", "medium", mediumWidth);
+
+test_computed_value("border-block-end-width", "calc(10px + 0.5em)", "30px");
+test_computed_value("border-block-end-width", "calc(10px - 0.5em)", "0px");
+test_computed_value("border-block-end-width", "thick", thickWidth);
+
+test_computed_value("border-block-width", "10px");
+test_computed_value("border-block-width", "10px 20px");
+test_computed_value("border-block-width", "10px 10px", "10px");
+test(() => {
+  box.style.borderBlockStartWidth = '10px';
+  box.style.borderBlockEndWidth = '10px';
+
+  box.style.borderBlockStartStyle = 'groove';
+  box.style.borderBlockEndStyle = 'solid';
+  assert_equals(getComputedStyle(box).borderBlockStartWidth, '10px');
+  assert_equals(getComputedStyle(box).borderBlockEndWidth, '10px');
+  assert_equals(getComputedStyle(box).borderBlockWidth, '10px');
+
+  box.style.borderBlockStartStyle = 'hidden';
+  box.style.borderBlockEndStyle = 'dashed';
+  assert_equals(getComputedStyle(box).borderBlockStartWidth, '0px');
+  assert_equals(getComputedStyle(box).borderBlockEndWidth, '10px');
+  assert_equals(getComputedStyle(box).borderBlockWidth, '0px 10px');
+
+  box.style.borderBlockStartStyle = 'inset';
+  box.style.borderBlockEndStyle = 'none';
+  assert_equals(getComputedStyle(box).borderBlockStartWidth, '10px');
+  assert_equals(getComputedStyle(box).borderBlockEndWidth, '0px');
+  assert_equals(getComputedStyle(box).borderBlockWidth, '10px 0px');
+
+  box.style.borderBlockStartStyle = 'none';
+  box.style.borderBlockEndStyle = 'hidden';
+  assert_equals(getComputedStyle(box).borderBlockStartWidth, '0px');
+  assert_equals(getComputedStyle(box).borderBlockEndWidth, '0px');
+  assert_equals(getComputedStyle(box).borderBlockWidth, '0px');
+}, 'width is zero if the border block style is none or hidden');
+</script>
+</body>
+</html>

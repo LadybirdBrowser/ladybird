@@ -15,6 +15,9 @@ static Error handle_zlib_error(int ret)
     switch (ret) {
     case Z_ERRNO:
         return Error::from_errno(errno);
+    case Z_NEED_DICT:
+        // Z_NEED_DICT if the input data needed a dictionary
+        return Error::from_string_literal("zlib data needs dictionary");
     case Z_DATA_ERROR:
         // Z_DATA_ERROR if the input data was corrupted
         return Error::from_string_literal("zlib data error");
@@ -76,8 +79,14 @@ ErrorOr<Bytes> GenericZlibDecompressor::read_some(Bytes bytes)
     }
 
     auto ret = inflate(m_zstream, Z_NO_FLUSH);
+
     if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR)
         return handle_zlib_error(ret);
+
+    // We got Z_BUF_ERROR (no progress was possible), no more input, stream is EOF and no output was produced.
+    // There is no way to get out of this loop, error out.
+    if (ret == Z_BUF_ERROR && m_zstream->avail_in == 0 && m_stream->is_eof() && bytes.size() == m_zstream->avail_out)
+        return Error::from_string_literal("No decompression progress on EOF stream");
 
     if (ret == Z_STREAM_END) {
         inflateReset(m_zstream);

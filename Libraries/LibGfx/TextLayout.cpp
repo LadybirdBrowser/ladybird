@@ -2,13 +2,13 @@
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, sin-ack <sin-ack@protonmail.com>
  * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "TextLayout.h"
-#include <AK/TypeCasts.h>
 #include <LibGfx/Point.h>
+#include <LibGfx/TextLayout.h>
 #include <harfbuzz/hb.h>
 
 namespace Gfx {
@@ -52,15 +52,12 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf8View s
     return runs;
 }
 
-RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType text_type, ShapeFeatures const& features)
+static hb_buffer_t* setup_text_shaping(Utf8View string, Font const& font, ShapeFeatures const& features)
 {
     static hb_buffer_t* buffer = hb_buffer_create();
+    hb_buffer_reset(buffer);
     hb_buffer_add_utf8(buffer, reinterpret_cast<char const*>(string.bytes()), string.byte_length(), 0, -1);
     hb_buffer_guess_segment_properties(buffer);
-
-    u32 glyph_count;
-    auto* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-    Vector<hb_glyph_info_t> const input_glyph_info({ glyph_info, glyph_count });
 
     auto* hb_font = font.harfbuzz_font();
     hb_feature_t const* hb_features_data = nullptr;
@@ -68,7 +65,7 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf
     if (!features.is_empty()) {
         hb_features.ensure_capacity(features.size());
         for (auto const& feature : features) {
-            hb_features.append({
+            hb_features.unchecked_append({
                 .tag = HB_TAG(feature.tag[0], feature.tag[1], feature.tag[2], feature.tag[3]),
                 .value = feature.value,
                 .start = 0,
@@ -80,17 +77,25 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf
 
     hb_shape(hb_font, buffer, hb_features_data, features.size());
 
-    glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-    auto* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+    return buffer;
+}
 
-    Vector<Gfx::DrawGlyph> glyph_run;
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Font const& font, GlyphRun::TextType text_type, ShapeFeatures const& features)
+{
+    auto* buffer = setup_text_shaping(string, font, features);
+
+    u32 glyph_count;
+    auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+    auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+
+    Vector<DrawGlyph> glyph_run;
+    glyph_run.ensure_capacity(glyph_count);
     FloatPoint point = baseline_start;
     for (size_t i = 0; i < glyph_count; ++i) {
-
         auto position = point
             - FloatPoint { 0, font.pixel_metrics().ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
-        glyph_run.append({ position, glyph_info[i].codepoint });
+        glyph_run.unchecked_append({ position, glyph_info[i].codepoint });
         point += FloatPoint { positions[i].x_advance, positions[i].y_advance } / text_shaping_resolution;
 
         // don't apply spacing to last glyph
@@ -99,15 +104,21 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf
             point.translate_by(letter_spacing, 0);
     }
 
-    auto run = adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
-    hb_buffer_reset(buffer);
-    return run;
+    return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
 }
 
-float measure_text_width(Utf8View const& string, Gfx::Font const& font, ShapeFeatures const& features)
+float measure_text_width(Utf8View const& string, Font const& font, ShapeFeatures const& features)
 {
-    auto glyph_run = shape_text({}, 0, string, font, GlyphRun::TextType::Common, features);
-    return glyph_run->width();
+    auto* buffer = setup_text_shaping(string, font, features);
+
+    u32 glyph_count;
+    auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+
+    hb_position_t point_x = 0;
+    for (size_t i = 0; i < glyph_count; ++i)
+        point_x += positions[i].x_advance;
+
+    return point_x / text_shaping_resolution;
 }
 
 }

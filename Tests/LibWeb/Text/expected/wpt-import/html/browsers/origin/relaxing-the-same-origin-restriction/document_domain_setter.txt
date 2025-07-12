@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	failed setting of document.domain
+Fail	same-origin-domain iframe
+Pass	failed setting of document.domain for documents without browsing context

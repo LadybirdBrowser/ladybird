@@ -43,18 +43,20 @@ GC::Ref<DOM::Document> DOMParser::parse_from_string(StringView string, Bindings:
 
     // 2. Let document be a new Document, whose content type is type and url is this's relevant global object's associated Document's URL.
     GC::Ptr<DOM::Document> document;
+    auto& associated_document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
 
     // 3. Switch on type:
     if (type == Bindings::DOMParserSupportedType::Text_Html) {
         // -> "text/html"
-        document = HTML::HTMLDocument::create(realm(), as<HTML::Window>(relevant_global_object(*this)).associated_document().url());
+        document = HTML::HTMLDocument::create(realm(), associated_document.url());
         document->set_content_type(Bindings::idl_enum_to_string(type));
+        document->set_document_type(DOM::Document::Type::HTML);
 
         // 1. Parse HTML from a string given document and compliantString. FIXME: Use compliantString.
         document->parse_html_from_a_string(string);
     } else {
         // -> Otherwise
-        document = DOM::XMLDocument::create(realm(), as<HTML::Window>(relevant_global_object(*this)).associated_document().url());
+        document = DOM::XMLDocument::create(realm(), associated_document.url());
         document->set_content_type(Bindings::idl_enum_to_string(type));
         document->set_document_type(DOM::Document::Type::XML);
 
@@ -75,6 +77,11 @@ GC::Ref<DOM::Document> DOMParser::parse_from_string(StringView string, Bindings:
             MUST(document->append_child(*root));
         }
     }
+
+    // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers
+    //         and avoids a crash, since we expect the origin to always be set.
+    // Spec issue: https://github.com/whatwg/html/issues/11429
+    document->set_origin(associated_document.origin());
 
     // 3. Return document.
     return *document;

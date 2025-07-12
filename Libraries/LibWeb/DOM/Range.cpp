@@ -3,6 +3,7 @@
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024-2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -99,6 +100,9 @@ void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Select
 
 void Range::update_associated_selection()
 {
+    if (!m_associated_selection)
+        return;
+
     auto& document = m_start_container->document();
     if (auto* viewport = document.paintable()) {
         viewport->recompute_selection_states(*this);
@@ -444,26 +448,6 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
 GC::Ref<Range> Range::clone_range() const
 {
     return shape().realm().create<Range>(const_cast<Node&>(*m_start_container), m_start_offset, const_cast<Node&>(*m_end_container), m_end_offset);
-}
-
-GC::Ref<Range> Range::inverted() const
-{
-    return shape().realm().create<Range>(const_cast<Node&>(*m_end_container), m_end_offset, const_cast<Node&>(*m_start_container), m_start_offset);
-}
-
-GC::Ref<Range> Range::normalized() const
-{
-    if (m_start_container.ptr() == m_end_container.ptr()) {
-        if (m_start_offset <= m_end_offset)
-            return clone_range();
-
-        return inverted();
-    }
-
-    if (m_start_container->is_before(m_end_container))
-        return clone_range();
-
-    return inverted();
 }
 
 // https://dom.spec.whatwg.org/#dom-range-commonancestorcontainer
@@ -1163,7 +1147,6 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
         return Geometry::DOMRectList::create(realm(), {});
 
     start_container()->document().update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
-    update_associated_selection();
     Vector<GC::Root<Geometry::DOMRect>> rects;
     // FIXME: take Range collapsed into consideration
     // 2. Iterate the node included in Range
@@ -1179,6 +1162,15 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
         end_node = *end_node->child_at_index(m_end_offset - 1);
     }
     for (GC::Ptr<Node> node = start_node; node && node != end_node->next_in_pre_order(); node = node->next_in_pre_order()) {
+        auto selection_state = Painting::Paintable::SelectionState::Full;
+        if (node == start_node && node == end_node) {
+            selection_state = Painting::Paintable::SelectionState::StartAndEnd;
+        } else if (node == start_node) {
+            selection_state = Painting::Paintable::SelectionState::Start;
+        } else if (node == end_node) {
+            selection_state = Painting::Paintable::SelectionState::End;
+        }
+
         auto node_type = static_cast<NodeType>(node->node_type());
         if (node_type == NodeType::ELEMENT_NODE) {
             // 1. For each element selected by the range, whose parent is not selected by the range, include the border
@@ -1201,7 +1193,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
                     auto const& paintable_lines = static_cast<Painting::PaintableWithLines const&>(*containing_block);
                     auto fragments = paintable_lines.fragments();
                     for (auto frag = fragments.begin(); frag != fragments.end(); frag++) {
-                        auto rect = frag->range_rect(start_offset(), end_offset());
+                        auto rect = frag->range_rect(selection_state, start_offset(), end_offset());
                         if (rect.is_empty())
                             continue;
                         rects.append(Geometry::DOMRect::create(realm(),

@@ -34,6 +34,8 @@ var testContainerHeight = testContainer.getBoundingClientRect().height;
 
 SVGSizing.doCombinationTest(
     [["placeholder", [ null ]],
+     ["containerWidthStyle", [null, "400px"]],
+     ["containerHeightStyle", [null, "400px"]],
      ["svgViewBoxAttr", [ null, "0 0 100 200" ]],
      ["svgWidthStyle", [ null, "100px", "50%" ]],
      ["svgHeightStyle", [ null, "100px", "50%" ]],

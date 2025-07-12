@@ -2,12 +2,12 @@
 
 # Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
 # Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+# Copyright (c) 2025, Nicolas Danelon <nicolasdanelon@gmail.com>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
 import os
-import platform
 import re
 import shutil
 import sys
@@ -18,6 +18,7 @@ from typing import Optional
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Meta.find_compiler import pick_host_compiler
+from Meta.find_compiler import pick_swift_compilers
 from Meta.host_platform import HostArchitecture
 from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
@@ -37,7 +38,7 @@ def main():
         "--preset",
         required=False,
         default=os.environ.get(
-            "BUILD_PRESET", "windows_dev_ninja" if platform.host_system == HostSystem.Windows else "default"
+            "BUILD_PRESET", "Windows_Experimental" if platform.host_system == HostSystem.Windows else "Release"
         ),
     )
 
@@ -83,8 +84,12 @@ def main():
         "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
     )
 
-    subparsers.add_parser(
+    install_parser = subparsers.add_parser(
         "install", help="Installs the target binary", parents=[preset_parser, compiler_parser, target_parser]
+    )
+
+    install_parser.add_argument(
+        "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
     )
 
     subparsers.add_parser("vcpkg", help="Ensure that dependencies are available", parents=[preset_parser])
@@ -179,7 +184,10 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         return build_preset_dir
 
     validate_cmake_version()
-    (cc, cxx) = pick_host_compiler(platform, cc, cxx)
+    if "Swift" in preset:
+        (cc, cxx, swiftc) = pick_swift_compilers(platform, ladybird_source_dir)
+    else:
+        (cc, cxx) = pick_host_compiler(platform, cc, cxx)
 
     config_args = [
         "cmake",
@@ -192,6 +200,9 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         f"-DCMAKE_C_COMPILER={cc}",
         f"-DCMAKE_CXX_COMPILER={cxx}",
     ]
+
+    if "Swift" in preset:
+        config_args.append(f"-DCMAKE_Swift_COMPILER={swiftc}")
 
     if platform.host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
         config_args.extend(configure_skia_jemalloc())
@@ -243,12 +254,14 @@ def configure_build_env(preset: str) -> tuple[Path, Path]:
     build_root_dir = ladybird_source_dir / "Build"
 
     known_presets = {
-        "default": build_root_dir / "release",
         "Debug": build_root_dir / "debug",
         "Distribution": build_root_dir / "distribution",
+        "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
-        "windows_ci_ninja": build_root_dir / "release",
-        "windows_dev_ninja": build_root_dir / "debug",
+        "Swift_Release": build_root_dir / "swift",
+        "Windows_CI": build_root_dir / "release",
+        "Windows_Experimental": build_root_dir / "debug",
+        "Windows_Sanitizer_CI": build_root_dir / "sanitizers",
     }
 
     build_preset_dir = known_presets.get(preset, None)
@@ -299,7 +312,7 @@ def ensure_ladybird_source_dir() -> Path:
     return ladybird_source_dir
 
 
-def build_main(build_dir: Path, jobs: str | None, target: Optional[str] = None, args: list[str] = []):
+def build_main(build_dir: Path, jobs: Optional[str], target: Optional[str] = None, args: Optional[list[str]] = None):
     build_args = ["ninja", "-C", str(build_dir)]
 
     if not jobs:
@@ -337,7 +350,6 @@ def run_main(host_system: HostSystem, build_dir: Path, target: str, args: list[s
     run_args = []
 
     if host_system == HostSystem.macOS and target in (
-        "headless-browser",
         "ImageDecoder",
         "Ladybird",
         "RequestServer",

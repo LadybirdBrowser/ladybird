@@ -279,13 +279,29 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
         layout_nested_viewport(child);
     } else if (is<SVG::SVGForeignObjectElement>(child.dom_node()) && is<BlockContainer>(child)) {
         Layout::BlockFormattingContext bfc(m_state, m_layout_mode, static_cast<BlockContainer const&>(child), this);
-        bfc.run(*m_available_space);
         auto& child_state = m_state.get_mutable(child);
-        child_state.set_content_offset(child_state.offset.translated(m_svg_offset));
-        child.for_each_child_of_type<SVGMaskBox>([&](SVGMaskBox const& child) {
-            layout_svg_element(child);
-            return IterationDecision::Continue;
-        });
+        CSSPixelRect rect {
+            {
+                child.computed_values().x().to_px(child, m_available_space->width.to_px_or_zero()),
+                child.computed_values().y().to_px(child, m_available_space->height.to_px_or_zero()),
+            },
+            {
+                child.computed_values().width().to_px(child, m_available_space->width.to_px_or_zero()),
+                child.computed_values().height().to_px(child, m_available_space->height.to_px_or_zero()),
+            }
+        };
+        auto transformed_rect = m_current_viewbox_transform.map(rect.to_type<float>()).to_type<CSSPixels>();
+        child_state.set_content_offset(transformed_rect.location());
+        child_state.set_content_width(transformed_rect.width());
+        child_state.set_content_height(transformed_rect.height());
+
+        bfc.run(AvailableSpace(AvailableSize::make_definite(child_state.content_width()), AvailableSize::make_definite(child_state.content_height())));
+
+        if (auto* mask_box = child.first_child_of_type<SVGMaskBox>())
+            layout_mask_or_clip(*mask_box);
+
+        if (auto* clip_box = child.first_child_of_type<SVGClipBox>())
+            layout_mask_or_clip(*clip_box);
     } else if (is<SVGGraphicsBox>(child)) {
         layout_graphics_element(static_cast<SVGGraphicsBox const&>(child));
     }

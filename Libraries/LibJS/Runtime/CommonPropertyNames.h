@@ -583,6 +583,7 @@ namespace JS {
     P(value)                                 \
     P(valueOf)                               \
     P(values)                                \
+    P(variants)                              \
     P(wait)                                  \
     P(waitAsync)                             \
     P(warn)                                  \

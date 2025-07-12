@@ -54,7 +54,9 @@ GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Hea
     //           [REFERRERPOLICY]
     //        Doing this currently makes Fetch fail the policy != ReferrerPolicy::EmptyString verification.
 
-    // 6. Return result.
+    // FIXME: 6. Parse Integrity-Policy headers with response and result.
+
+    // 7. Return result.
     return result;
 }
 

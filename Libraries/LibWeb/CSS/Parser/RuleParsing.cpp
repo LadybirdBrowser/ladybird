@@ -190,14 +190,13 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     //
     // <import-conditions> = [ supports( [ <supports-condition> | <declaration> ] ) ]?
     //                      <media-query-list>?
-
-    if (rule.prelude.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Empty prelude.");
+    if (rule.is_block_rule) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Block is not allowed.");
         return {};
     }
 
-    if (!rule.child_rules_and_lists_of_declarations.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Block is not allowed.");
+    if (rule.prelude.is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Empty prelude.");
         return {};
     }
 
@@ -288,7 +287,7 @@ Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens
 GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested)
 {
     // https://drafts.csswg.org/css-cascade-5/#at-layer
-    if (!rule.child_rules_and_lists_of_declarations.is_empty()) {
+    if (rule.is_block_rule) {
         // CSSLayerBlockRule
         // @layer <layer-name>? {
         //   <rule-list>
@@ -365,13 +364,15 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
     // <keyframes-name> = <custom-ident> | <string>
     // <keyframe-block> = <keyframe-selector># { <declaration-list> }
     // <keyframe-selector> = from | to | <percentage [0,100]>
+    if (!rule.is_block_rule) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @keyframes rule: Expected a block.");
+        return nullptr;
+    }
 
     if (rule.prelude.is_empty()) {
         dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @keyframes rule: Empty prelude.");
         return {};
     }
-
-    // FIXME: Is there some way of detecting if there is a block or not?
 
     auto prelude_stream = TokenStream { rule.prelude };
     prelude_stream.discard_whitespace();
@@ -389,7 +390,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         return {};
     }
 
-    if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().equals_ignoring_ascii_case("none"sv))) {
+    if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().is_one_of_ignoring_ascii_case("none"sv, "default"sv))) {
         dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.ident());
         return {};
     }
@@ -464,14 +465,13 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
     // https://drafts.csswg.org/css-namespaces/#syntax
     // @namespace <namespace-prefix>? [ <string> | <url> ] ;
     // <namespace-prefix> = <ident>
-
-    if (rule.prelude.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Empty prelude.");
+    if (rule.is_block_rule) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Block is not allowed.");
         return {};
     }
 
-    if (!rule.child_rules_and_lists_of_declarations.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Block is not allowed.");
+    if (rule.prelude.is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Empty prelude.");
         return {};
     }
 
@@ -515,6 +515,10 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
     // @supports <supports-condition> {
     //   <rule-list>
     // }
+    if (!rule.is_block_rule) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @supports rule: Expected a block.");
+        return {};
+    }
 
     if (rule.prelude.is_empty()) {
         dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @supports rule: Empty prelude.");
@@ -553,6 +557,10 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     // @property <custom-property-name> {
     // <declaration-list>
     // }
+    if (!rule.is_block_rule) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @property rule: Expected a block.");
+        return {};
+    }
 
     if (rule.prelude.is_empty()) {
         dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @property rule: Empty prelude.");
@@ -629,6 +637,11 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-fonts/#font-face-rule
+    if (!rule.is_block_rule) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @font-face rule: Expected a block.");
+        return nullptr;
+    }
+
     DescriptorList descriptors { AtRuleID::FontFace };
     rule.for_each_as_declaration_list([&](auto& declaration) {
         if (auto descriptor = convert_to_descriptor(AtRuleID::FontFace, declaration); descriptor.has_value()) {
@@ -643,6 +656,11 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 {
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // @page = @page <page-selector-list>? { <declaration-rule-list> }
+    if (!page_rule.is_block_rule) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @property rule: Expected a block.");
+        return nullptr;
+    }
+
     TokenStream tokens { page_rule.prelude };
     auto page_selectors = parse_a_page_selector_list(tokens);
     if (page_selectors.is_error())
@@ -672,6 +690,11 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 
 GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
 {
+    if (!rule.is_block_rule) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse margin rule @{}: Expected a block.", rule.name);
+        return nullptr;
+    }
+
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // There are lots of these, but they're all in the format:
     // @foo = @foo { <declaration-list> };

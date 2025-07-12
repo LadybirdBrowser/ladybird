@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,12 +16,17 @@ namespace URL {
 
 class Origin {
 public:
-    // FIXME: This should be generating a unique origin identifer that can be used for equality checks.
-    //        Probably we should remove the default constructor, and instead expose this as a factory method.
-    Origin() = default;
+    using Nonce = Array<u8, 16>;
+
+    explicit Origin(Nonce nonce)
+        : m_state(move(nonce))
+    {
+    }
+
+    static Origin create_opaque();
 
     Origin(Optional<String> const& scheme, Host const& host, Optional<u16> port)
-        : m_state(State {
+        : m_state(Tuple {
               .scheme = scheme,
               .host = host,
               .port = move(port),
@@ -29,19 +35,20 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/origin.html#concept-origin-opaque
-    bool is_opaque() const { return !m_state.has_value(); }
+    bool is_opaque() const { return m_state.has<Nonce>(); }
 
-    Optional<String> const& scheme() const { return m_state->scheme; }
-    Host const& host() const { return m_state->host; }
-    Optional<u16> port() const { return m_state->port; }
+    Optional<String> const& scheme() const { return m_state.get<Tuple>().scheme; }
+    Host const& host() const { return m_state.get<Tuple>().host; }
+    Optional<u16> port() const { return m_state.get<Tuple>().port; }
+
+    Nonce const& nonce() const { return m_state.get<Nonce>(); }
 
     // https://html.spec.whatwg.org/multipage/origin.html#same-origin
     bool is_same_origin(Origin const& other) const
     {
         // 1. If A and B are the same opaque origin, then return true.
-        // FIXME: What about opaque origins that are not equal to one another?
         if (is_opaque() && other.is_opaque())
-            return true;
+            return nonce() == other.nonce();
 
         // 2. If A and B are both tuple origins and their schemes, hosts, and port are identical, then return true.
         if (!is_opaque() && !other.is_opaque()
@@ -59,9 +66,8 @@ public:
     bool is_same_origin_domain(Origin const& other) const
     {
         // 1. If A and B are the same opaque origin, then return true.
-        // FIXME: What about opaque origins that are not equal to one another?
         if (is_opaque() && other.is_opaque())
-            return true;
+            return nonce() == other.nonce();
 
         // 2. If A and B are both tuple origins, run these substeps:
         if (!is_opaque() && !other.is_opaque()) {
@@ -96,18 +102,19 @@ public:
         // FIXME: 2. If origin's domain is non-null, then return origin's domain.
 
         // 3. Return origin's host.
-        return m_state->host;
+        return m_state.get<Tuple>().host;
     }
 
     bool operator==(Origin const& other) const { return is_same_origin(other); }
 
 private:
-    struct State {
+    struct Tuple {
         Optional<String> scheme;
         Host host;
         Optional<u16> port;
     };
-    Optional<State> m_state;
+
+    Variant<Tuple, Nonce> m_state;
 };
 
 }

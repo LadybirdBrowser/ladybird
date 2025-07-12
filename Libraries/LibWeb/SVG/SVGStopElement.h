@@ -21,14 +21,12 @@ class SVGStopElement final : public SVGElement {
 public:
     virtual ~SVGStopElement() override = default;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
-
-    GC::Ref<SVGAnimatedNumber> offset() const;
+    GC::Ref<SVGAnimatedNumber> offset();
 
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
-    NumberPercentage stop_offset() const { return m_offset.value_or(NumberPercentage::create_number(0)); }
+    float stop_offset() { return offset()->base_val(); }
     Gfx::Color stop_color() const;
     float stop_opacity() const;
 
@@ -36,8 +34,9 @@ private:
     SVGStopElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Visitor&) override;
 
-    Optional<NumberPercentage> m_offset;
+    GC::Ptr<SVGAnimatedNumber> m_stop_offset;
 };
 
 }

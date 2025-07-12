@@ -2,27 +2,26 @@ Harness status: OK
 
 Found 34 tests
 
-21 Pass
-13 Fail
+34 Pass
 Pass	e.style['grid'] = "none none" should not set the property value
 Pass	e.style['grid'] = "none []" should not set the property value
-Fail	e.style['grid'] = "10px" should not set the property value
-Fail	e.style['grid'] = "20%" should not set the property value
-Fail	e.style['grid'] = "5fr" should not set the property value
+Pass	e.style['grid'] = "10px" should not set the property value
+Pass	e.style['grid'] = "20%" should not set the property value
+Pass	e.style['grid'] = "5fr" should not set the property value
 Pass	e.style['grid'] = "[a]" should not set the property value
-Fail	e.style['grid'] = "[a] 10px" should not set the property value
-Fail	e.style['grid'] = "[a] 10px []" should not set the property value
+Pass	e.style['grid'] = "[a] 10px" should not set the property value
+Pass	e.style['grid'] = "[a] 10px []" should not set the property value
 Pass	e.style['grid'] = "[]" should not set the property value
-Fail	e.style['grid'] = "10px \"a\"" should not set the property value
-Fail	e.style['grid'] = "[] 10px \"a\"" should not set the property value
-Fail	e.style['grid'] = "10px [] \"a\"" should not set the property value
+Pass	e.style['grid'] = "10px \"a\"" should not set the property value
+Pass	e.style['grid'] = "[] 10px \"a\"" should not set the property value
+Pass	e.style['grid'] = "10px [] \"a\"" should not set the property value
 Pass	e.style['grid'] = "[] [] \"a\"" should not set the property value
 Pass	e.style['grid'] = "\"a\" none" should not set the property value
-Fail	e.style['grid'] = "\"a\" 10px 10px" should not set the property value
-Fail	e.style['grid'] = "\"a\" [a] 10px" should not set the property value
-Fail	e.style['grid'] = "\"a\" [a] 10px [a]" should not set the property value
-Fail	e.style['grid'] = "\"a\" [a] [a] 10px" should not set the property value
-Fail	e.style['grid'] = "\"a\" 10px [a] [a]" should not set the property value
+Pass	e.style['grid'] = "\"a\" 10px 10px" should not set the property value
+Pass	e.style['grid'] = "\"a\" [a] 10px" should not set the property value
+Pass	e.style['grid'] = "\"a\" [a] 10px [a]" should not set the property value
+Pass	e.style['grid'] = "\"a\" [a] [a] 10px" should not set the property value
+Pass	e.style['grid'] = "\"a\" 10px [a] [a]" should not set the property value
 Pass	e.style['grid'] = "\"a\" [a] [a]" should not set the property value
 Pass	e.style['grid'] = "[a] \"a\" [a] [a]" should not set the property value
 Pass	e.style['grid'] = "\"a\" \"a\" [a] [a]" should not set the property value

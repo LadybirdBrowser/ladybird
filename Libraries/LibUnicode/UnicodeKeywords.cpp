@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -59,16 +59,7 @@ Vector<String> available_calendars(StringView locale)
     if (icu_failure(status))
         return {};
 
-    auto calendars = icu_string_enumeration_to_list(move(keywords));
-
-    for (auto& calendar : calendars) {
-        if (calendar == "gregorian"sv)
-            calendar = "gregory"_string;
-        else if (calendar == "ethiopic-amete-alem"sv)
-            calendar = "ethioaa"_string;
-    }
-
-    return calendars;
+    return icu_string_enumeration_to_list(move(keywords), "ca");
 }
 
 Vector<String> const& available_currencies()
@@ -119,15 +110,48 @@ Vector<String> const& available_collation_numeric_orderings()
 
 Vector<String> const& available_collations()
 {
-    // FIXME: Implement this when we fully support Intl.Collator.
-    static Vector<String> collations { "default"_string };
+    static auto collations = []() -> Vector<String> {
+        UErrorCode status = U_ZERO_ERROR;
+
+        auto keywords = adopt_own_if_nonnull(icu::Collator::getKeywordValues("collation", status));
+        if (icu_failure(status))
+            return {};
+
+        auto collations = icu_string_enumeration_to_list(move(keywords), "co", [](char const* value, size_t value_length) {
+            // https://tc39.es/ecma402/#sec-properties-of-intl-collator-instances
+            // the values "standard" and "search" are not allowed
+            return !StringView { value, value_length }.is_one_of("standard"sv, "search"sv);
+        });
+
+        quick_sort(collations);
+        return collations;
+    }();
+
     return collations;
 }
 
-Vector<String> available_collations(StringView)
+Vector<String> available_collations(StringView locale)
 {
-    // FIXME: Implement this when we fully support Intl.Collator.
-    return available_collations();
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto locale_data = LocaleData::for_locale(locale);
+    if (!locale_data.has_value())
+        return {};
+
+    auto keywords = adopt_own_if_nonnull(icu::Collator::getKeywordValuesForLocale("collation", locale_data->locale(), true, status));
+    if (icu_failure(status))
+        return {};
+
+    auto collations = icu_string_enumeration_to_list(move(keywords), "co", [](char const* value, size_t value_length) {
+        // https://tc39.es/ecma402/#sec-properties-of-intl-collator-instances
+        // the values "standard" and "search" are not allowed
+        return !StringView { value, value_length }.is_one_of("standard"sv, "search"sv);
+    });
+
+    if (!collations.contains_slow("default"sv))
+        collations.prepend("default"_string);
+
+    return collations;
 }
 
 Vector<String> const& available_hour_cycles()
@@ -162,7 +186,7 @@ Vector<String> const& available_number_systems()
         if (icu_failure(status))
             return {};
 
-        auto number_systems = icu_string_enumeration_to_list(move(keywords), [&](char const* keyword) {
+        auto number_systems = icu_string_enumeration_to_list(move(keywords), "nu", [&](char const* keyword, size_t) {
             auto system = adopt_own_if_nonnull(icu::NumberingSystem::createInstanceByName(keyword, status));
             if (icu_failure(status))
                 return false;

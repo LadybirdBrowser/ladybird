@@ -13,6 +13,7 @@
 #include <AK/Function.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/UnicodeUtils.h>
 
 namespace AK {
 
@@ -77,12 +78,6 @@ public:
     }
 
     explicit Utf8View(ByteString&&) = delete;
-
-    enum class AllowSurrogates {
-        Yes,
-        No,
-    };
-
     ~Utf8View() = default;
 
     StringView as_string() const { return m_string; }
@@ -95,6 +90,8 @@ public:
 
     unsigned char const* bytes() const { return begin_ptr(); }
     size_t byte_length() const { return m_string.length(); }
+
+    size_t code_point_offset_of(size_t code_unit_offset) const;
 
     [[nodiscard]] size_t byte_offset_of(Utf8CodePointIterator const& it) const
     {
@@ -133,13 +130,13 @@ public:
         return m_length;
     }
 
-    bool validate(AllowSurrogates allow_surrogates = AllowSurrogates::Yes) const
+    bool validate(AllowLonelySurrogates allow_lonely_surrogates = AllowLonelySurrogates::Yes) const
     {
         size_t valid_bytes = 0;
-        return validate(valid_bytes, allow_surrogates);
+        return validate(valid_bytes, allow_lonely_surrogates);
     }
 
-    bool validate(size_t& valid_bytes, AllowSurrogates allow_surrogates = AllowSurrogates::Yes) const;
+    bool validate(size_t& valid_bytes, AllowLonelySurrogates allow_lonely_surrogates = AllowLonelySurrogates::Yes) const;
 
     template<typename Callback>
     auto for_each_split_view(Function<bool(u32)> splitter, SplitBehavior split_behavior, Callback callback) const

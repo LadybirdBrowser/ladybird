@@ -1,7 +1,8 @@
 Blob              [Success]: [object ImageBitmap]
-ImageData         [ Error ]: Error: Not Implemented: createImageBitmap() for non-blob types
+ImageData         [Success]: [object ImageBitmap]
 HTMLImageElement  [ Error ]: InvalidStateError: image argument is not usable
 SVGImageElement   [ Error ]: InvalidStateError: image argument is not usable
-HTMLCanvasElement [ Error ]: Error: Not Implemented: createImageBitmap() for non-blob types
+HTMLCanvasElement [ Error ]: Error: Not Implemented: createImageBitmap() for HTMLCanvasElement
 ImageBitmap       [ Error ]: TypeError: No union types matched
+OffscreenCanvas   [ Error ]: Error: Not Implemented: createImageBitmap() for OffscreenCanvas
 HTMLVideoElement  [ Error ]: InvalidStateError: image argument is not usable

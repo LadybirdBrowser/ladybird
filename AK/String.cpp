@@ -24,16 +24,22 @@ namespace AK {
 
 String String::from_utf8_with_replacement_character(StringView view, WithBOMHandling with_bom_handling)
 {
-    if (auto bytes = view.bytes(); with_bom_handling == WithBOMHandling::Yes && bytes.size() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+    if (auto bytes = view.bytes(); with_bom_handling == WithBOMHandling::Yes && bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
         view = view.substring_view(3);
 
-    if (Utf8View(view).validate())
+    Utf8View utf8_view { view };
+
+    if (utf8_view.validate(AllowLonelySurrogates::No))
         return String::from_utf8_without_validation(view.bytes());
 
-    StringBuilder builder;
+    StringBuilder builder(view.length());
 
-    for (auto c : Utf8View { view })
-        builder.append_code_point(c);
+    for (auto code_point : utf8_view) {
+        if (is_unicode_surrogate(code_point))
+            builder.append_code_point(UnicodeUtils::REPLACEMENT_CODE_POINT);
+        else
+            builder.append_code_point(code_point);
+    }
 
     return builder.to_string_without_validation();
 }
@@ -61,49 +67,62 @@ ErrorOr<String> String::from_utf8(StringView view)
     return result;
 }
 
-ErrorOr<String> String::from_utf16_le(ReadonlyBytes bytes)
-{
-    if (!validate_utf16_le(bytes))
-        return Error::from_string_literal("String::from_utf16_le: Input was not valid UTF-16LE");
-    if (bytes.is_empty())
-        return String {};
-    char16_t const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
-    size_t utf16_length = bytes.size() / 2;
-    size_t max_utf8_length = simdutf::utf8_length_from_utf16(utf16_data, utf16_length);
-    Vector<u8> buffer;
-    buffer.resize(max_utf8_length);
-    auto utf8_length = simdutf::convert_utf16le_to_utf8(utf16_data, utf16_length, reinterpret_cast<char*>(buffer.data()));
-    return String::from_utf8_without_validation(ReadonlyBytes { buffer.data(), utf8_length });
-}
-
-ErrorOr<String> String::from_utf16_be(ReadonlyBytes bytes)
-{
-    if (!validate_utf16_be(bytes))
-        return Error::from_string_literal("String::from_utf16_be: Input was not valid UTF-16BE");
-    if (bytes.is_empty())
-        return String {};
-    char16_t const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
-    size_t utf16_length = bytes.size() / 2;
-    size_t max_utf8_length = simdutf::utf8_length_from_utf16(utf16_data, utf16_length);
-    Vector<u8> buffer;
-    buffer.resize(max_utf8_length);
-    auto utf8_length = simdutf::convert_utf16be_to_utf8(utf16_data, utf16_length, reinterpret_cast<char*>(buffer.data()));
-    return String::from_utf8_without_validation(ReadonlyBytes { buffer.data(), utf8_length });
-}
-
 ErrorOr<String> String::from_utf16(Utf16View const& utf16)
 {
-    if (!utf16.validate())
-        return Error::from_string_literal("String::from_utf16: Input was not valid UTF-16");
-    if (utf16.is_empty())
+    return utf16.to_utf8();
+}
+
+ErrorOr<String> String::from_utf16_le_with_replacement_character(ReadonlyBytes bytes)
+{
+    if (bytes.is_empty())
         return String {};
 
+    auto const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
+    auto utf16_length = bytes.size() / 2;
+
+    Utf16Data well_formed_utf16;
+
+    if (!validate_utf16_le(bytes)) {
+        well_formed_utf16.resize(bytes.size());
+
+        simdutf::to_well_formed_utf16le(utf16_data, utf16_length, well_formed_utf16.data());
+        utf16_data = well_formed_utf16.data();
+    }
+
+    auto utf8_length = simdutf::utf8_length_from_utf16le(utf16_data, utf16_length);
+
     String result;
-
-    auto utf8_length = simdutf::utf8_length_from_utf16(utf16.char_data(), utf16.length_in_code_units());
-
     TRY(result.replace_with_new_string(utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
-        [[maybe_unused]] auto result = simdutf::convert_utf16_to_utf8(utf16.char_data(), utf16.length_in_code_units(), reinterpret_cast<char*>(buffer.data()));
+        [[maybe_unused]] auto result = simdutf::convert_utf16le_to_utf8(utf16_data, utf16_length, reinterpret_cast<char*>(buffer.data()));
+        ASSERT(result == buffer.size());
+        return {};
+    }));
+
+    return result;
+}
+
+ErrorOr<String> String::from_utf16_be_with_replacement_character(ReadonlyBytes bytes)
+{
+    if (bytes.is_empty())
+        return String {};
+
+    auto const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
+    auto utf16_length = bytes.size() / 2;
+
+    Utf16Data well_formed_utf16;
+
+    if (!validate_utf16_le(bytes)) {
+        well_formed_utf16.resize(bytes.size());
+
+        simdutf::to_well_formed_utf16be(utf16_data, utf16_length, well_formed_utf16.data());
+        utf16_data = well_formed_utf16.data();
+    }
+
+    auto utf8_length = simdutf::utf8_length_from_utf16be(utf16_data, utf16_length);
+
+    String result;
+    TRY(result.replace_with_new_string(utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
+        [[maybe_unused]] auto result = simdutf::convert_utf16be_to_utf8(utf16_data, utf16_length, reinterpret_cast<char*>(buffer.data()));
         ASSERT(result == buffer.size());
         return {};
     }));

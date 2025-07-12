@@ -20,7 +20,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x200]
       SVGSVGPaintable (SVGSVGBox<svg>#a) [8,8 200x200]
-        SVGSVGPaintable (SVGSVGBox<svg>#b) [8,8 200x200]
-          SVGSVGPaintable (SVGSVGBox<svg>#c) [8,8 266.671875x266.671875]
+        SVGSVGPaintable (SVGSVGBox<svg>#b) [8,8 200x200] overflow: [8,8 266.671875x266.671875]
+          SVGSVGPaintable (SVGSVGBox<svg>#c) [8,8 266.671875x266.671875] overflow: [8,8 293.34375x293.34375]
             SVGPathPaintable (SVGGeometryBox<rect>) [34.671875,34.671875 266.671875x266.671875]
             SVGPathPaintable (SVGGeometryBox<rect>) [34.671875,34.671875 133.328125x133.328125]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x216] [children: 0] (z-index: auto)

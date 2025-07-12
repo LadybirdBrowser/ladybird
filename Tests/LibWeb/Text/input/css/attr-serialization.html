@@ -13,12 +13,12 @@
         serialize('attr(foo, "fallback")');
         // FIXME: This should produce `attr(foo, "fallback")` but doesn't yet.
         serialize('attr(   foo   ,    "fallback"   )');
-        serialize('attr(foo string)');
-        // FIXME: This should produce `attr(foo string)` but doesn't yet.
-        serialize('attr(  foo   string  )');
-        serialize('attr(foo string, "fallback")');
-        // FIXME: This should produce `attr(foo string, "fallback")` but doesn't yet.
-        serialize('attr(  foo   string  ,   "fallback"  )');
+        serialize('attr(foo raw-string)');
+        // FIXME: This should produce `attr(foo raw-string)` but doesn't yet.
+        serialize('attr(  foo   raw-string  )');
+        serialize('attr(foo raw-string, "fallback")');
+        // FIXME: This should produce `attr(foo raw-string, "fallback")` but doesn't yet.
+        serialize('attr(  foo  raw-string  ,   "fallback"  )');
         serialize('  attr(foo)     attr(bar) attr(baz)  ');
     });
 </script>

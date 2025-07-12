@@ -76,9 +76,10 @@ void paint_text_shadow(PaintContext& context, PaintableFragment const& fragment,
     auto fragment_width = context.enclosing_device_pixels(fragment.width()).value();
     auto fragment_height = context.enclosing_device_pixels(fragment.height()).value();
     auto fragment_baseline = context.rounded_device_pixels(fragment.baseline()).value();
+    auto fragment_absolute_rect = fragment.absolute_rect();
 
     // Note: Box-shadow layers are ordered front-to-back, so we paint them in reverse
-    for (auto& layer : shadow_layers.in_reverse()) {
+    for (auto const& layer : shadow_layers.in_reverse()) {
         int blur_radius = context.rounded_device_pixels(layer.blur_radius).value();
 
         // Space around the painted text to allow it to blur.
@@ -94,11 +95,13 @@ void paint_text_shadow(PaintContext& context, PaintableFragment const& fragment,
             text_rect.height() + margin + margin
         };
 
+        // FIXME: this is close but not quite perfect. non integer scale values can be offset by tiny amounts.
+        auto css_margin = layer.blur_radius * 2;
         auto scale = context.device_pixels_per_css_pixel();
         auto draw_location = Gfx::FloatPoint {
-            fragment.absolute_rect().x() + layer.offset_x - margin,
-            fragment.absolute_rect().y() + layer.offset_y - margin,
-        } * scale;
+            fragment_absolute_rect.x() + layer.offset_x - css_margin,
+            fragment_absolute_rect.y() + layer.offset_y - css_margin,
+        } * (float)scale;
 
         context.display_list_recorder().paint_text_shadow(blur_radius, bounding_rect, text_rect.translated(0, fragment_baseline), *glyph_run, scale, layer.color, draw_location);
     }

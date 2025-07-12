@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: attr</title>
+<meta name="assert" content="test attr values">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#attr-notations">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+    @property --length {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 10px;
+    }
+    @property --string {
+        syntax: "<string>";
+        inherits: false;
+        initial-value: "none";
+    }
+    @property --string-list {
+        syntax: "<string>+";
+        inherits: false;
+        initial-value: "none";
+    }
+</style>
+
+<div id="attr" data-bar="3"></div>
+<div id="expected"></div>
+
+<script>
+    const dimensionTypeToUnits = {
+        "length": ["em", "ex", "cap", "ch", "ic", "rem", "lh", "rlh", "vw", "vh", "vi", "vb", "vmin", "vmax"],
+        "angle": ["deg", "grad", "rad", "turn"],
+        "time": ["ms", "ms"],
+        "frequency": ["Hz", "kHz"]
+    };
+
+    const dimensionTypeToProperty = {
+        "length": ["width"],
+        "angle": ["font-style"],
+        "time": ["transition-duration"]
+    }
+
+    function test_dimension_types_and_units() {
+        for(const [type, units] of Object.entries(dimensionTypeToUnits)) {
+            const property = dimensionTypeToProperty[type];
+            const val = "3";
+            units.forEach(unit => {
+                const expectedValue = val + unit;
+
+                const dimensionTypeAttrString = 'attr(data-foo type(<' + type + '>))';
+                test_valid_attr(property, dimensionTypeAttrString, expectedValue, expectedValue);
+
+                const dimensionUnitAttrString = 'attr(data-foo ' + unit + ')';
+                test_valid_attr(property, dimensionUnitAttrString, val, expectedValue);
+            });
+        }
+    }
+
+    function test_valid_attr(property, attrString, attrValue, expectedValue) {
+        var elem = document.getElementById("attr");
+        elem.setAttribute("data-foo", attrValue);
+        elem.style.setProperty(property, attrString);
+
+        var expectedElem =  document.getElementById("expected");
+        expectedElem.style.setProperty(property, expectedValue);
+
+        test(() => {
+            assert_equals(window.getComputedStyle(elem).getPropertyValue(property),
+                          window.getComputedStyle(expectedElem).getPropertyValue(property),
+                          "Value \'" + attrString + "\', where \'data-foo=" + attrValue +
+                          "\' should be valid for the property \'" + property + "\'.");
+        });
+
+        elem.style.setProperty(property, null);
+        expectedElem.style.setProperty(property, null);
+    }
+
+    function test_invalid_attr(property, attrString, attrValue) {
+        var elem = document.getElementById("attr");
+        var expectedValue = window.getComputedStyle(elem).getPropertyValue(property);
+
+        elem.setAttribute("data-foo", attrValue);
+        elem.style.setProperty(property, attrString);
+
+        test(() => {
+            assert_equals(window.getComputedStyle(elem).getPropertyValue(property), expectedValue,
+                          "Setting property \'" + property + "\' to the value \'" + attrString +
+                          "\', where \'data-foo=" + attrValue + "\' should not change it's value.");
+        });
+        elem.style.setProperty(property, null);
+    }
+
+    test_valid_attr('content', 'attr(data-foo)', 'abc', '"abc"');
+    test_invalid_attr('content', 'attr(data-foo string)', 'abc');
+    test_valid_attr('content', 'attr(data-foo raw-string)', 'abc', '"abc"');
+    test_valid_attr('content', 'attr(data-foo,)', 'abc', '"abc"');
+
+    test_valid_attr('content', 'attr(data-foo type(<string>))', '"abc"', '"abc"');
+    test_valid_attr('content', 'attr(data-foo type(<string>),)', '"abc"', '"abc"');
+    test_valid_attr('content', 'attr(data-foo type(<string>))', '"attr(data-foo)"', '"attr(data-foo)"');
+    test_valid_attr('content', 'attr(data-foo)', '', '""');
+    test_valid_attr('font-family', 'attr(non-existent)', '', '""');
+    test_valid_attr('font-family', 'attr(non-existent string)', '', '');
+    test_invalid_attr('font-family', 'attr(non-existent type(<string>))', '');
+
+    test_valid_attr('animation-name', 'attr(data-foo type(<custom-ident>))', 'anim', 'anim');
+    test_valid_attr('animation-name', 'attr(data-foo type(<custom-ident>), anim-fallback)', '"anim"', 'anim-fallback');
+    test_valid_attr('animation-name', 'attr(data-foo type(<custom-ident>), anim-fallback)', 'initial', 'anim-fallback');
+
+    test_valid_attr('background-color', 'attr(data-foo type(<color>))', 'red', 'red');
+    test_valid_attr('background-color', 'attr(data-foo type(<color>))', '#ff0099aa', '#ff0099aa');
+    test_valid_attr('background-color', 'attr(data-foo type(<color>), red)', '10', 'red');
+    test_valid_attr('background-color', 'attr(data-foo type(<color>), green)', '1000px', 'green');
+    test_valid_attr('background-color', 'attr(data-foo type(<color>), green)', 'rgb(255, 0, 0)', 'rgb(255, 0, 0)');
+    test_valid_attr('background-color', 'attr(data-foo type(<color>))', 'color-mix(in lch, red, pink)', 'color-mix(in lch, red, pink)');
+    test_valid_attr('background-color', 'attr(data-foo type(<color>))', 'light-dark(#333b3c, #efefec)', 'light-dark(#333b3c, #efefec)');
+
+    test_valid_attr('font-weight', 'attr(data-foo type(<number>))', '10', '10');
+    test_valid_attr('font-weight', 'attr(data-foo type(<number>), 30)', '10px', '30');
+    test_valid_attr('font-weight', 'attr(data-foo type(<number> | lighter | bold), bold)', 'lighter', 'lighter');
+    test_valid_attr('font-weight', 'attr(data-foo type(<number> |  lighter | bold), lighter)', '10px', 'lighter');
+    test_valid_attr('font-weight', 'attr(data-foo type(<number>))', 'calc(3 + 3)', '6');
+    test_valid_attr('font-weight', 'attr(data-foo type(<number>), calc(10 + 20))', '10px', '30');
+
+    test_valid_attr('font-size', 'attr(data-foo type(<percentage>))', '10%', '10%');
+    test_valid_attr('font-size', 'attr(data-foo type(<percentage>), 10px)', 'abc', '10px');
+    test_valid_attr('font-size', 'attr(data-foo type(<percentage> | <length>), 10)', '10px', '10px');
+    test_valid_attr('--x', 'attr(data-foo type(<percentage>), abc)', '10', 'abc');
+    test_valid_attr('--x', 'attr(data-foo type(<url>))', 'url("https://does-not-exist.test/404.png")', 'url("https://does-not-exist.test/404.png")');
+
+    test_valid_attr('width', 'attr(data-foo type(<length>))', '10px', '10px');
+    test_valid_attr('width', 'attr(data-foo type(<length>), red)', '10px', '10px');
+    test_valid_attr('width', 'attr(data-foo type(<length>), 42px)', 'calc(1px + 3px)', '4px');
+
+    test_valid_attr('font-style', 'attr(data-foo type(<angle>))', '10deg', '10deg');
+    test_valid_attr('font-style', 'attr(data-foo type(<angle>), 10deg)', '30', '10deg');
+    test_valid_attr('font-style', 'attr(data-foo type(<angle>), italic)', '30', 'italic');
+    test_valid_attr('font-style', 'attr(data-foo type(<angle>), 3deg)', 'italic', '3deg');
+    test_valid_attr('font-style', 'attr(data-foo type(<angle> | italic), 3deg)', 'italic', 'italic');
+
+    test_valid_attr('transition-duration', 'attr(data-foo type(<time>))', '10ms', '10ms');
+    test_valid_attr('transition-duration', 'attr(data-foo type(<time>), 30s)', '10m', '30s');
+    test_valid_attr('transition-duration', 'attr(data-foo type(<time>), calc(10s + 20s))', '10m', '30s');
+
+    test_valid_attr('height', 'attr(data-foo px)', '10', '10px');
+    test_valid_attr('width', 'calc(attr(data-foo px) + 1px)', '10', '11px');
+    test_valid_attr('font-size', 'attr(data-foo %)', '10', '10%');
+    test_valid_attr('--x', 'attr(data-foo px) 11px', '10', '10px 11px');
+
+    test_valid_attr('--x', 'attr(data-foo type(<number>)) 11', '10', '10 11');
+    test_valid_attr('--string', 'attr(data-foo type(<string>))', '"hello"', '"hello"');
+    test_valid_attr('--string-list', 'attr(data-foo type(<string>+))', '"hello" "hi"', '"hello" "hi"');
+
+    test_valid_attr('width', 'attr(data-foo type(<length>))', 'var(--length, 3px)', '10px');
+    test_valid_attr('--y', 'attr(data-foo type(*))', 'var(--x, 3)', '3');
+    test_valid_attr('--y', 'attr(data-foo type(*))', 'attr(data-bar, 11)', '"3"');
+    test_valid_attr('--y', 'attr(data-foo type(*))', 'attr(data-bar type(<number>), 11)', '3');
+    test_valid_attr('width', 'attr(data-foo type(*))', 'attr(data-bar type(<number>), 11)', '3');
+    test_valid_attr('--y', 'attr(data-foo type(*))', 'attr(data-bar type(<number>), 11) var(--length, 3px)', '3 10px');
+
+    test_dimension_types_and_units();
+
+    test_invalid_attr('animation-name', 'attr(data-foo type(string))', 'abc');
+    test_invalid_attr('animation-name', 'attr(data-foo type(< string>))', 'abc');
+    test_invalid_attr('animation-name', 'attr(data-foo type(<string >))', 'abc');
+
+    test_invalid_attr('animation-name', 'attr(data-foo type(<custom-ident>))', 'initial');
+    test_invalid_attr('animation-name', 'attr(data-foo type(<custom-ident>))', '"anim"');
+    test_invalid_attr('animation-name', 'attr(data-foo type(<custom-ident>))', '"none"');
+    test_invalid_attr('animation-name', 'attr(data-foo type(<custom-ident>) <ident>)', '"none"');
+
+    test_invalid_attr('background-color', 'attr(data-foo type(<color>))', 'rgb(0)');
+    test_invalid_attr('background-color', 'attr(data-foo <red>)', 'abc');
+    test_invalid_attr('background-color', 'attr(data-foo type(<color>) | <red>)', 'abc');
+    test_invalid_attr('background-color', 'attr(data-foo type(<color>) |)', 'abc');
+    test_invalid_attr('background-color', 'attr(data-foo, type(<red>))', 'abc');
+    test_invalid_attr('background-color', 'attr(data-foo, <red>)', 'abc');
+
+    test_invalid_attr('font-size', 'attr(data-foo type(<number> +))', '10');
+    test_invalid_attr('font-size', 'attr(data-foo type(<number>) !)', '10');
+    test_invalid_attr('font-weight', 'attr(data-foo type(<number>)),', '10');
+    test_invalid_attr('width', 'attr(data-foo type(<number>), 30px)', '10');
+
+    test_invalid_attr('font-size', 'attr(data-foo type(<percentage>))', 'abc');
+    test_invalid_attr('font-size', 'attr(data-foo type(<percentage>))', '10% a');
+    test_invalid_attr('font-size', 'attr(data-foo type(<percentage>), 10rad)', 'abc');
+    test_invalid_attr('font-size', 'attr(data-foo type(<number>) | <length>, 30px)', '10');
+
+    test_invalid_attr('width', 'attr(data-foo type(<length>))', '10');
+    test_invalid_attr('width', 'attr(data-foo type(<length>)+)', '10');
+    test_invalid_attr('width', 'attr(data-foo type(<length>) | <percentage>)', '10');
+    test_invalid_attr('width', 'attr(data-foo type(<length>), 30)', 'calc(10 + 20)');
+    test_invalid_attr('width', 'attr(data-foo type(<length>), calc(10 + 20))', 'abc');
+
+    test_invalid_attr('font-style', 'attr(data-foo type(<angle>))', '10%');
+    test_invalid_attr('font-style', 'attr(data-foo type(<angle>))', 'calc(10px + 20px)');
+    test_invalid_attr('font-style', 'attr(data-foo type(<angle>), calc(10 + 20))', 'calc(10px + 20px)');
+
+    test_invalid_attr('transition-duration', 'attr(data-foo type(<time>))', '10');
+    test_invalid_attr('transition-duration', 'attr(data-foo type(<time>, <length>))', '10');
+    test_invalid_attr('transition-duration', 'attr(data-foo type(<time>))', '10 ms');
+    test_invalid_attr('transition-duration', 'attr(data-foo type(<time>))', 'calc(1ms + 2ms)s');
+
+    test_invalid_attr('width', 'attr(data-foo px)', '10px');
+    test_invalid_attr('width', 'attr(data-foo <px>)', '10');
+    test_invalid_attr('width', 'attr(data-foo xx)', '10');
+    test_invalid_attr('transition-duration', 'attr(data-foo ms)', '10px');
+    test_invalid_attr('transition-duration', 'attr(data-foo ms)', '10px foo');
+
+    test_invalid_attr('width', 'attr(())', '10px');
+</script>

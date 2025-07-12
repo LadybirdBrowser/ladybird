@@ -90,6 +90,7 @@ public:
         Angle,
         BackgroundRepeat,
         BackgroundSize,
+        BorderImageSlice,
         BasicShape,
         BorderRadius,
         Calculated,
@@ -168,6 +169,10 @@ public:
     bool is_basic_shape() const { return type() == Type::BasicShape; }
     BasicShapeStyleValue const& as_basic_shape() const;
     BasicShapeStyleValue& as_basic_shape() { return const_cast<BasicShapeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_basic_shape()); }
+
+    bool is_border_image_slice() const { return type() == Type::BorderImageSlice; }
+    BorderImageSliceStyleValue const& as_border_image_slice() const;
+    BorderImageSliceStyleValue& as_border_image_slice() { return const_cast<BorderImageSliceStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_border_image_slice()); }
 
     bool is_border_radius() const { return type() == Type::BorderRadius; }
     BorderRadiusStyleValue const& as_border_radius() const;
@@ -388,7 +393,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
 
-    virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const { return {}; }
+    virtual Color to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const&) const { return {}; }
     Keyword to_keyword() const;
 
     virtual String to_string(SerializationMode) const = 0;

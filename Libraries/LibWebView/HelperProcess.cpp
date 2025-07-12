@@ -85,6 +85,7 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
     Optional<IPC::File> request_server_socket,
     ClientArguments&&... client_arguments)
 {
+    auto const& browser_options = WebView::Application::browser_options();
     auto const& web_content_options = WebView::Application::web_content_options();
 
     Vector<ByteString> arguments {
@@ -93,6 +94,9 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         "--executable-path"sv,
         web_content_options.executable_path.to_byte_string(),
     };
+
+    if (browser_options.headless_mode.has_value())
+        arguments.append("--headless"sv);
 
     if (web_content_options.config_path.has_value()) {
         arguments.append("--config-path"sv);
@@ -116,8 +120,6 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--force-fontconfig"sv);
     if (web_content_options.collect_garbage_on_every_allocation == WebView::CollectGarbageOnEveryAllocation::Yes)
         arguments.append("--collect-garbage-on-every-allocation"sv);
-    if (web_content_options.is_headless == WebView::IsHeadless::Yes)
-        arguments.append("--headless"sv);
     if (web_content_options.paint_viewport_scrollbars == PaintViewportScrollbars::No)
         arguments.append("--disable-scrollbar-painting"sv);
 
@@ -201,11 +203,6 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
 {
     Vector<ByteString> arguments;
 
-    if (!s_ladybird_resource_root.is_empty()) {
-        arguments.append("--serenity-resource-root"sv);
-        arguments.append(s_ladybird_resource_root);
-    }
-
     for (auto const& certificate : WebView::Application::browser_options().certificates)
         arguments.append(ByteString::formatted("--certificate={}", certificate));
 
@@ -218,12 +215,12 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     WebView::Application::settings().dns_settings().visit(
         [](WebView::SystemDNS) {},
         [&](WebView::DNSOverTLS const& dns_over_tls) {
-            dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);
-            client->async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true);
+            dbgln("Setting DNS server to {}:{} with TLS ({} local dnssec)", dns_over_tls.server_address, dns_over_tls.port, dns_over_tls.validate_dnssec_locally ? "with" : "without");
+            client->async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true, dns_over_tls.validate_dnssec_locally);
         },
         [&](WebView::DNSOverUDP const& dns_over_udp) {
-            dbgln("Setting DNS server to {}:{}", dns_over_udp.server_address, dns_over_udp.port);
-            client->async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false);
+            dbgln("Setting DNS server to {}:{} ({} local dnssec)", dns_over_udp.server_address, dns_over_udp.port, dns_over_udp.validate_dnssec_locally ? "with" : "without");
+            client->async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
         });
 
     return client;

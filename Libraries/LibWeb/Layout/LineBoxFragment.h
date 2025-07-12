@@ -10,7 +10,6 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Layout {
@@ -19,11 +18,11 @@ class LineBoxFragment {
     friend class LineBox;
 
 public:
-    LineBoxFragment(Node const& layout_node, int start, int length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction, CSS::WritingMode, RefPtr<Gfx::GlyphRun>);
+    LineBoxFragment(Node const& layout_node, size_t start, size_t length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction, CSS::WritingMode, RefPtr<Gfx::GlyphRun>);
 
     Node const& layout_node() const { return m_layout_node; }
-    int start() const { return m_start; }
-    int length() const { return m_length; }
+    size_t start() const { return m_start; }
+    size_t length() const { return m_length; }
 
     CSSPixelPoint offset() const;
     CSSPixels inline_offset() const { return m_inline_offset; }
@@ -61,8 +60,8 @@ private:
     void append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
 
     GC::Ref<Node const> m_layout_node;
-    int m_start { 0 };
-    int m_length { 0 };
+    size_t m_start { 0 };
+    size_t m_length { 0 };
     CSSPixels m_inline_offset;
     CSSPixels m_block_offset;
     CSSPixels m_inline_length;

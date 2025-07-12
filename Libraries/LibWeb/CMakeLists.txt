@@ -2,8 +2,13 @@ include(libweb_generators)
 include(vulkan)
 include(skia)
 
-if (APPLE)
-    find_package(unofficial-angle REQUIRED CONFIG)
+find_package(unofficial-angle CONFIG)
+if(unofficial-angle_FOUND)
+    set(ANGLE_TARGETS unofficial::angle::libEGL unofficial::angle::libGLESv2)
+else()
+    find_package(PkgConfig)
+    pkg_check_modules(angle REQUIRED IMPORTED_TARGET angle)
+    set(ANGLE_TARGETS PkgConfig::angle)
 endif()
 
 set(SOURCES
@@ -38,11 +43,23 @@ set(SOURCES
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
+    ContentSecurityPolicy/Directives/ConnectSourceDirective.cpp
     ContentSecurityPolicy/Directives/Directive.cpp
     ContentSecurityPolicy/Directives/DirectiveFactory.cpp
     ContentSecurityPolicy/Directives/DirectiveOperations.cpp
+    ContentSecurityPolicy/Directives/FontSourceDirective.cpp
+    ContentSecurityPolicy/Directives/FrameSourceDirective.cpp
+    ContentSecurityPolicy/Directives/ImageSourceDirective.cpp
+    ContentSecurityPolicy/Directives/KeywordSources.cpp
+    ContentSecurityPolicy/Directives/ManifestSourceDirective.cpp
+    ContentSecurityPolicy/Directives/MediaSourceDirective.cpp
     ContentSecurityPolicy/Directives/Names.cpp
+    ContentSecurityPolicy/Directives/ObjectSourceDirective.cpp
+    ContentSecurityPolicy/Directives/ScriptSourceAttributeDirective.cpp
+    ContentSecurityPolicy/Directives/ScriptSourceDirective.cpp
+    ContentSecurityPolicy/Directives/ScriptSourceElementDirective.cpp
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
+    ContentSecurityPolicy/Directives/SourceExpression.cpp
     ContentSecurityPolicy/Policy.cpp
     ContentSecurityPolicy/PolicyList.cpp
     ContentSecurityPolicy/SecurityPolicyViolationEvent.cpp
@@ -118,6 +135,7 @@ set(SOURCES
     CSS/Number.cpp
     CSS/PageSelector.cpp
     CSS/ParsedFontFace.cpp
+    CSS/Parser/ArbitrarySubstitutionFunctions.cpp
     CSS/Parser/ComponentValue.cpp
     CSS/Parser/DescriptorParsing.cpp
     CSS/Parser/GradientParsing.cpp
@@ -155,6 +173,7 @@ set(SOURCES
     CSS/StyleValues/BackgroundRepeatStyleValue.cpp
     CSS/StyleValues/BackgroundSizeStyleValue.cpp
     CSS/StyleValues/BasicShapeStyleValue.cpp
+    CSS/StyleValues/BorderImageSliceStyleValue.cpp
     CSS/StyleValues/BorderRadiusStyleValue.cpp
     CSS/StyleValues/CalculatedStyleValue.cpp
     CSS/StyleValues/ColorFunctionStyleValue.cpp
@@ -211,6 +230,7 @@ set(SOURCES
     CSS/VisualViewport.cpp
     DOM/AbortController.cpp
     DOM/AbortSignal.cpp
+    DOM/AbstractElement.cpp
     DOM/AbstractRange.cpp
     DOM/AccessibilityTreeNode.cpp
     DOM/AdoptedStyleSheets.cpp
@@ -250,6 +270,7 @@ set(SOURCES
     DOM/ParentNode.cpp
     DOM/Position.cpp
     DOM/ProcessingInstruction.cpp
+    DOM/PseudoElement.cpp
     DOM/QualifiedName.cpp
     DOM/Range.cpp
     DOM/ShadowRoot.cpp
@@ -314,6 +335,10 @@ set(SOURCES
     FileAPI/FileList.cpp
     FileAPI/FileReader.cpp
     FileAPI/FileReaderSync.cpp
+    Geolocation/Geolocation.cpp
+    Geolocation/GeolocationCoordinates.cpp
+    Geolocation/GeolocationPosition.cpp
+    Geolocation/GeolocationPositionError.cpp
     Geometry/DOMMatrix.cpp
     Geometry/DOMMatrixReadOnly.cpp
     Geometry/DOMPoint.cpp
@@ -338,7 +363,9 @@ set(SOURCES
     HTML/BrowsingContextGroup.cpp
     HTML/Canvas/CanvasDrawImage.cpp
     HTML/Canvas/CanvasPath.cpp
+    HTML/Canvas/CanvasSettings.cpp
     HTML/Canvas/CanvasState.cpp
+    HTML/Canvas/SerializeBitmap.cpp
     HTML/CanvasGradient.cpp
     HTML/CanvasPattern.cpp
     HTML/CanvasRenderingContext2D.cpp
@@ -353,6 +380,7 @@ set(SOURCES
     HTML/CustomElements/CustomElementName.cpp
     HTML/CustomElements/CustomElementReactionNames.cpp
     HTML/CustomElements/CustomElementRegistry.cpp
+    HTML/CustomElements/CustomStateSet.cpp
     HTML/DataTransfer.cpp
     HTML/DataTransferItem.cpp
     HTML/DataTransferItemList.cpp
@@ -485,6 +513,8 @@ set(SOURCES
     HTML/NavigatorBeacon.cpp
     HTML/NavigatorID.cpp
     HTML/Numbers.cpp
+    HTML/OffscreenCanvas.cpp
+    HTML/OffscreenCanvasRenderingContext2D.cpp
     HTML/PageTransitionEvent.cpp
     HTML/Parser/Entities.cpp
     HTML/Parser/HTMLEncodingDetection.cpp
@@ -543,6 +573,7 @@ set(SOURCES
     HTML/TextTrackCue.cpp
     HTML/TextTrackCueList.cpp
     HTML/TextTrackList.cpp
+    HTML/TextTrackObserver.cpp
     HTML/Timer.cpp
     HTML/TimeRanges.cpp
     HTML/ToggleEvent.cpp
@@ -671,7 +702,7 @@ set(SOURCES
     Page/Page.cpp
     Painting/AudioPaintable.cpp
     Painting/BackgroundPainting.cpp
-    Painting/BackingStore.cpp
+    Painting/BackingStoreManager.cpp
     Painting/BorderPainting.cpp
     Painting/BorderRadiiData.cpp
     Painting/BorderRadiusCornerClipper.cpp
@@ -680,7 +711,6 @@ set(SOURCES
     Painting/CanvasPaintable.cpp
     Painting/CheckBoxPaintable.cpp
     Painting/ClipFrame.cpp
-    Painting/ClippableAndScrollable.cpp
     Painting/Command.cpp
     Painting/DisplayList.cpp
     Painting/DisplayListPlayerSkia.cpp
@@ -738,6 +768,7 @@ set(SOURCES
     ResourceTiming/PerformanceResourceTiming.cpp
     SecureContexts/AbstractOperations.cpp
     Selection/Selection.cpp
+    ServiceWorker/CacheStorage.cpp
     ServiceWorker/EventNames.cpp
     ServiceWorker/Job.cpp
     ServiceWorker/Registration.cpp
@@ -795,6 +826,9 @@ set(SOURCES
     SVG/SVGDescElement.cpp
     SVG/SVGElement.cpp
     SVG/SVGEllipseElement.cpp
+    SVG/SVGFEBlendElement.cpp
+    SVG/SVGFEFloodElement.cpp
+    SVG/SVGFEGaussianBlurElement.cpp
     SVG/SVGFilterElement.cpp
     SVG/SVGForeignObjectElement.cpp
     SVG/SVGGElement.cpp
@@ -898,6 +932,7 @@ set(SOURCES
     WebGL/Extensions/WebGLVertexArrayObjectOES.cpp
     WebGL/OpenGLContext.cpp
     WebGL/WebGL2RenderingContext.cpp
+    WebGL/WebGL2RenderingContextImpl.cpp
     WebGL/WebGLActiveInfo.cpp
     WebGL/WebGLBuffer.cpp
     WebGL/WebGLContextAttributes.cpp
@@ -908,6 +943,7 @@ set(SOURCES
     WebGL/WebGLQuery.cpp
     WebGL/WebGLRenderbuffer.cpp
     WebGL/WebGLRenderingContext.cpp
+    WebGL/WebGLRenderingContextImpl.cpp
     WebGL/WebGLSampler.cpp
     WebGL/WebGLShader.cpp
     WebGL/WebGLShaderPrecisionFormat.cpp
@@ -943,7 +979,7 @@ set(SOURCES
 compile_ipc(Worker/WebWorkerClient.ipc Worker/WebWorkerClientEndpoint.h)
 compile_ipc(Worker/WebWorkerServer.ipc Worker/WebWorkerServerEndpoint.h)
 
-invoke_generator(
+invoke_cpp_generator(
     "AriaRoles.cpp"
     Lagom::GenerateAriaRoles
     "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
@@ -955,30 +991,6 @@ invoke_generator(
 generate_css_implementation()
 
 generate_html_implementation()
-
-invoke_generator(
-    "WebGLRenderingContextImpl.cpp"
-    Lagom::GenerateWebGLRenderingContext
-    "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContextBase.idl"
-    "WebGL/WebGLRenderingContextImpl.h"
-    "WebGL/WebGLRenderingContextImpl.cpp"
-    arguments -b "${CMAKE_CURRENT_SOURCE_DIR}" -b "${CMAKE_CURRENT_BINARY_DIR}" -i "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContext.idl"
-    # NOTE: GeneratedCSSStyleProperties.idl is listed because it's transitively included by WebGLRenderingContextBase.idl
-    #       and we need to make sure it's generated before we generate the WebGLRenderingContext implementation.
-    dependencies WebGL/WebGLRenderingContextBase.idl WebGL/WebGLRenderingContextOverloads.idl CSS/GeneratedCSSStyleProperties.idl
-)
-
-invoke_generator(
-    "WebGL2RenderingContextImpl.cpp"
-    Lagom::GenerateWebGLRenderingContext
-    "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGL2RenderingContextBase.idl"
-    "WebGL/WebGL2RenderingContextImpl.h"
-    "WebGL/WebGL2RenderingContextImpl.cpp"
-    arguments -b "${CMAKE_CURRENT_SOURCE_DIR}" -b "${CMAKE_CURRENT_BINARY_DIR}" -i "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGL2RenderingContext.idl"
-    # NOTE: GeneratedCSSStyleProperties.idl is listed because it's transitively included by WebGLRenderingContextBase.idl
-    #       and we need to make sure it's generated before we generate the WebGLRenderingContext implementation.
-    dependencies WebGL/WebGL2RenderingContextBase.idl WebGL/WebGL2RenderingContextOverloads.idl WebGL/WebGLRenderingContextBase.idl WebGL/WebGLRenderingContextOverloads.idl CSS/GeneratedCSSStyleProperties.idl
-)
 
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
@@ -997,20 +1009,14 @@ set(GENERATED_SOURCES
     CSS/TransformFunctions.cpp
     MathML/MathMLStyleSheetSource.cpp
     SVG/SVGStyleSheetSource.cpp
-    WebGL/WebGL2RenderingContextImpl.cpp
-    WebGL/WebGLRenderingContextImpl.cpp
     Worker/WebWorkerClientEndpoint.h
     Worker/WebWorkerServerEndpoint.h
     HTML/Parser/NamedCharacterReferences.cpp
 )
 
-serenity_lib(LibWeb web)
+ladybird_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia)
-
-if (APPLE)
-    target_link_libraries(LibWeb PRIVATE unofficial::angle::libEGL unofficial::angle::libGLESv2)
-endif()
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS})
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing border-image with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-image">
+<meta name="assert" content="border-image supports the full grammar ' <‘border-image-source’> || <‘border-image-slice’> [ / <‘border-image-width’> | / <‘border-image-width’>? / <‘border-image-outset’> ]? || <‘border-image-repeat’>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// WebKit fails all these tests by returning an empty string as the value of border-image.
+
+// "none" in Edge, "none 100% / 1 / 0 stretch" in Firefox and Blink.
+test_valid_value("border-image", "none", ["none", "none 100% / 1 / 0 stretch"]);
+test_valid_value("border-image", "stretch", ["stretch", "none", "none 100% / 1 / 0 stretch"]);
+test_valid_value("border-image", "none 100% / 1 / 0 stretch", ["none", "none 100% / 1 / 0 stretch"]);
+
+test_valid_value("border-image", 'url("http://www.example.com/") 1 2 3 4 fill', ['url("http://www.example.com/") 1 2 3 4 fill', 'url("http://www.example.com/") 1 2 3 4 fill / 1 / 0 stretch']);
+test_valid_value("border-image", 'url("http://www.example.com/") 1 2 3 4 fill / 1 / 0 stretch', ['url("http://www.example.com/") 1 2 3 4 fill', 'url("http://www.example.com/") 1 2 3 4 fill / 1 / 0 stretch']);
+
+test_valid_value("border-image", 'url("http://www.example.com/")', ['url("http://www.example.com/")', 'url("http://www.example.com/") 100% / 1 / 0 stretch']);
+
+test_valid_value("border-image", "repeat round", ["repeat round", "none repeat round", "none 100% / 1 / 0 repeat round"]);
+test_valid_value("border-image", "none repeat round", ["repeat round", "none repeat round", "none 100% / 1 / 0 repeat round"]);
+
+test_valid_value("border-image", "space", ["space", "none space space", "none 100% / 1 / 0 space"]);
+test_valid_value("border-image", "none space space", ["space", "none space space", "none space", "none 100% / 1 / 0 space"]);
+test_valid_value("border-image", "none 100% / 1 / 0 space", ["space", "none space space", "none 100% / 1 / 0 space"]);
+
+test_valid_value("border-image", "1", ["1", "none 1 1 1 1", "none 1 / 1 / 0 stretch"]);
+test_valid_value("border-image", "none 1 1 1 1", ["1", "none 1 1 1 1", "none 1", "none 1 / 1 / 0 stretch"]);
+test_valid_value("border-image", "none 1 / 1 / 0 stretch", ["1", "none 1 1 1 1", "none 1 / 1 / 0 stretch"]);
+
+test_valid_value("border-image", 'url("http://www.example.com/") 1 2% 3 4%', ['url("http://www.example.com/") 1 2% 3 4%', 'url("http://www.example.com/") 1 2% 3 4% / 1 / 0 stretch']);
+test_valid_value("border-image", 'url("http://www.example.com/") 1 2% 3 4% fill', ['url("http://www.example.com/") 1 2% 3 4% fill', 'url("http://www.example.com/") 1 2% 3 4% fill / 1 / 0 stretch']);
+test_valid_value("border-image", 'url("http://www.example.com/") fill 1 2% 3 4%', ['url("http://www.example.com/") 1 2% 3 4% fill', 'url("http://www.example.com/") 1 2% 3 4% fill / 1 / 0 stretch']);
+
+test_valid_value("border-image", "1 / 1px", ["1 / 1px", "none 1 / 1px / 0 stretch"]);
+test_valid_value("border-image", "1 2% 3 4% / 2%", ["1 2% 3 4% / 2%", "none 1 2% 3 4% / 2% 2% 2% 2%", "none 1 2% 3 4% / 2% / 0 stretch"]);
+test_valid_value("border-image", "1 2% 3 4% fill / 3", ["1 2% 3 4% fill / 3", "none 1 2% 3 4% fill / 3 3 3 3", "none 1 2% 3 4% fill / 3 / 0 stretch"]);
+test_valid_value("border-image", "fill 1 2% 3 4% / auto", ["1 2% 3 4% fill / auto", "none 1 2% 3 4% fill / auto / 0 stretch"]);
+test_valid_value("border-image", "1 / 1px 2% 3 auto", ["1 / 1px 2% 3 auto", "none 1 / 1px 2% 3 auto / 0 stretch"]);
+
+test_valid_value("border-image", "1 / / 1px", ["1 / / 1px", "none 1 / 1 / 1px stretch"]);
+test_valid_value("border-image", "1 2% 3 4% / / 2", ["1 2% 3 4% / / 2", "none 1 2% 3 4% / 1 / 2 stretch"]);
+test_valid_value("border-image", 'url("http://www.example.com/") 1 2% 3 4% fill / / 1px 2 3px 4', ['url("http://www.example.com/") 1 2% 3 4% fill / / 1px 2 3px 4', 'url("http://www.example.com/") 1 2% 3 4% fill / 1 / 1px 2 3px 4 stretch']);
+
+test_valid_value("border-image", "1 / 1px / 1px", ["1 / 1px / 1px", "none 1 / 1px / 1px stretch"]);
+test_valid_value("border-image", "1 2% 3 4% / 2% / 2", ["1 2% 3 4% / 2% / 2", "none 1 2% 3 4% / 2% / 2 stretch"]);
+test_valid_value("border-image", "1 2% 3 4% fill / 3 / 1px 2 3px 4", ["1 2% 3 4% fill / 3 / 1px 2 3px 4", "none 1 2% 3 4% fill / 3 / 1px 2 3px 4 stretch"]);
+test_valid_value("border-image", "1 / auto / 1px", ["1 / auto / 1px", "none 1 / auto / 1px stretch"]);
+test_valid_value("border-image", "1 2% 3 4% / 1px 2% 3 auto / 2", ["1 2% 3 4% / 1px 2% 3 auto / 2", "none 1 2% 3 4% / 1px 2% 3 auto / 2 2 2 2", "none 1 2% 3 4% / 1px 2% 3 auto / 2 stretch"]);
+</script>
+</body>
+</html>

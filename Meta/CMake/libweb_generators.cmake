@@ -2,7 +2,7 @@ function (generate_css_implementation)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
 
 
-    invoke_generator(
+    invoke_cpp_generator(
         "DescriptorID.cpp"
         Lagom::GenerateCSSDescriptors
         "${LIBWEB_INPUT_FOLDER}/CSS/Descriptors.json"
@@ -11,7 +11,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Descriptors.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "Enums.cpp"
         Lagom::GenerateCSSEnums
         "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json"
@@ -20,7 +20,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "MathFunctions.cpp"
         Lagom::GenerateCSSMathFunctions
         "${LIBWEB_INPUT_FOLDER}/CSS/MathFunctions.json"
@@ -29,7 +29,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/MathFunctions.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "MediaFeatureID.cpp"
         Lagom::GenerateCSSMediaFeatureID
         "${LIBWEB_INPUT_FOLDER}/CSS/MediaFeatures.json"
@@ -38,16 +38,17 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/MediaFeatures.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "PropertyID.cpp"
         Lagom::GenerateCSSPropertyID
         "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
         "CSS/PropertyID.h"
         "CSS/PropertyID.cpp"
-        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json" -g "${LIBWEB_INPUT_FOLDER}/CSS/LogicalPropertyGroups.json"
+        dependencies "${LIBWEB_INPUT_FOLDER}/CSS/LogicalPropertyGroups.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "PseudoClass.cpp"
         Lagom::GenerateCSSPseudoClass
         "${LIBWEB_INPUT_FOLDER}/CSS/PseudoClasses.json"
@@ -56,7 +57,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/PseudoClasses.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "PseudoElement.cpp"
         Lagom::GenerateCSSPseudoElement
         "${LIBWEB_INPUT_FOLDER}/CSS/PseudoElements.json"
@@ -65,7 +66,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/PseudoElements.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "TransformFunctions.cpp"
         Lagom::GenerateCSSTransformFunctions
         "${LIBWEB_INPUT_FOLDER}/CSS/TransformFunctions.json"
@@ -74,7 +75,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/TransformFunctions.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "Keyword.cpp"
         Lagom::GenerateCSSKeyword
         "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
@@ -154,7 +155,7 @@ endfunction()
 function (generate_html_implementation)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
 
-    invoke_generator(
+    invoke_cpp_generator(
         "NamedCharacterReferences.cpp"
         Lagom::GenerateNamedCharacterReferences
         "${LIBWEB_INPUT_FOLDER}/HTML/Parser/Entities.json"
@@ -243,7 +244,7 @@ function (generate_js_bindings target)
         )
 
         add_custom_target(generate_${basename} DEPENDS ${BINDINGS_SOURCES})
-        add_dependencies(all_generated generate_${basename})
+        add_dependencies(ladybird_codegen_accumulator generate_${basename})
         add_dependencies(${target} generate_${basename})
         add_dependencies(generate_${basename} ${generated_idl_targets})
 
@@ -295,7 +296,7 @@ function (generate_js_bindings target)
         )
         target_sources(${target} PRIVATE ${exposed_interface_sources})
         add_custom_target(generate_exposed_interfaces DEPENDS ${exposed_interface_sources})
-        add_dependencies(all_generated generate_exposed_interfaces)
+        add_dependencies(ladybird_codegen_accumulator generate_exposed_interfaces)
         add_dependencies(${target} generate_exposed_interfaces)
         add_dependencies(generate_exposed_interfaces ${generated_idl_targets})
 

@@ -11,6 +11,7 @@
 #include <AK/HashMap.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Variant.h>
+#include <LibCore/Forward.h>
 #include <LibCore/SharedCircularQueue.h>
 #include <LibIPC/Concepts.h>
 #include <LibIPC/File.h>
@@ -115,6 +116,15 @@ ErrorOr<void> encode(Encoder&, File const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, Empty const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Core::AnonymousBuffer const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Core::DateTime const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Core::ProxyData const&);
 
 template<Concepts::Span T>
 ErrorOr<void> encode(Encoder& encoder, T const& span)

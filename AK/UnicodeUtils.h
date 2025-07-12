@@ -78,11 +78,92 @@ template<FallibleFunction<char> Callback>
     return -1;
 }
 
+constexpr inline u16 HIGH_SURROGATE_MIN = 0xd800;
+constexpr inline u16 HIGH_SURROGATE_MAX = 0xdbff;
+constexpr inline u16 LOW_SURROGATE_MIN = 0xdc00;
+constexpr inline u16 LOW_SURROGATE_MAX = 0xdfff;
+constexpr inline u32 REPLACEMENT_CODE_POINT = 0xfffd;
+constexpr inline u32 FIRST_SUPPLEMENTARY_PLANE_CODE_POINT = 0x10000;
+
+enum class AllowLonelySurrogates {
+    No,
+    Yes,
+};
+
+[[nodiscard]] constexpr size_t code_unit_length_for_code_point(u32 code_point)
+{
+    return code_point < FIRST_SUPPLEMENTARY_PLANE_CODE_POINT ? 1uz : 2uz;
+}
+
+[[nodiscard]] constexpr bool is_utf16_high_surrogate(u16 code_unit)
+{
+    return (code_unit >= HIGH_SURROGATE_MIN) && (code_unit <= HIGH_SURROGATE_MAX);
+}
+
+[[nodiscard]] constexpr bool is_utf16_low_surrogate(u16 code_unit)
+{
+    return (code_unit >= LOW_SURROGATE_MIN) && (code_unit <= LOW_SURROGATE_MAX);
+}
+
+[[nodiscard]] constexpr u32 decode_utf16_surrogate_pair(u16 high_surrogate, u16 low_surrogate)
+{
+    VERIFY(is_utf16_high_surrogate(high_surrogate));
+    VERIFY(is_utf16_low_surrogate(low_surrogate));
+
+    return ((high_surrogate - HIGH_SURROGATE_MIN) << 10) + (low_surrogate - LOW_SURROGATE_MIN) + FIRST_SUPPLEMENTARY_PLANE_CODE_POINT;
+}
+
+template<typename Callback>
+[[nodiscard]] constexpr size_t code_point_to_utf16(u32 code_point, Callback callback)
+{
+    if (code_point < FIRST_SUPPLEMENTARY_PLANE_CODE_POINT) {
+        callback(static_cast<char16_t>(code_point));
+        return 1uz;
+    }
+
+    if (code_point <= 0x10ffff) {
+        code_point -= FIRST_SUPPLEMENTARY_PLANE_CODE_POINT;
+
+        auto code_unit = static_cast<u16>(HIGH_SURROGATE_MIN | (code_point >> 10));
+        callback(static_cast<char16_t>(code_unit));
+
+        code_unit = static_cast<u16>(LOW_SURROGATE_MIN | (code_point & 0x3ff));
+        callback(static_cast<char16_t>(code_unit));
+
+        return 2uz;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+template<FallibleFunction<char16_t> Callback>
+ALWAYS_INLINE ErrorOr<size_t> try_code_point_to_utf16(u32 code_point, Callback callback)
+{
+    if (code_point < FIRST_SUPPLEMENTARY_PLANE_CODE_POINT) {
+        TRY(callback(static_cast<char16_t>(code_point)));
+        return 1uz;
+    }
+
+    if (code_point <= 0x10ffff) {
+        code_point -= FIRST_SUPPLEMENTARY_PLANE_CODE_POINT;
+
+        auto code_unit = static_cast<u16>(HIGH_SURROGATE_MIN | (code_point >> 10));
+        TRY(callback(static_cast<char16_t>(code_unit)));
+
+        code_unit = static_cast<u16>(LOW_SURROGATE_MIN | (code_point & 0x3ff));
+        TRY(callback(static_cast<char16_t>(code_unit)));
+
+        return 2uz;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 /**
  * Compute the maximum number of UTF-8 bytes needed to store a given UTF-16 string, accounting for unmatched UTF-16 surrogates.
  * This function will overcount by at most 33%; 2 bytes for every valid UTF-16 codepoint between U+100000 and U+10FFFF.
  */
-[[nodiscard]] static inline size_t maximum_utf8_length_from_utf16(ReadonlySpan<u16> code_units)
+[[nodiscard]] static inline size_t maximum_utf8_length_from_utf16(ReadonlySpan<char16_t> code_units)
 {
     // # UTF-8 code point -> no. UTF-8 bytes needed
     // U+0000   - U+007F   => 1 UTF-8 bytes
@@ -125,3 +206,7 @@ template<FallibleFunction<char> Callback>
 }
 
 }
+
+#if USING_AK_GLOBALLY
+using AK::UnicodeUtils::AllowLonelySurrogates;
+#endif

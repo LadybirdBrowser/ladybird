@@ -40,7 +40,7 @@ private:
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
     virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString) override;
-    virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls) override;
+    virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;
     virtual void set_use_system_dns() override;
     virtual void start_request(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(i32) override;
@@ -70,6 +70,7 @@ private:
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
     NonnullRefPtr<Resolver> m_resolver;
+    ByteString m_alt_svc_cache_path;
 };
 
 // FIXME: Find a good home for this

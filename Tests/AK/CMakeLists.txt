@@ -17,17 +17,16 @@ set(AK_TEST_SOURCES
     TestChecked.cpp
     TestCircularBuffer.cpp
     TestCircularQueue.cpp
+    TestDemangle.cpp
     TestDisjointChunks.cpp
     TestDistinctNumeric.cpp
     TestDoublyLinkedList.cpp
-    TestDuration.cpp
     TestEndian.cpp
     TestEnumBits.cpp
     TestEnumerate.cpp
     TestFind.cpp
     TestFixedArray.cpp
     TestFixedPoint.cpp
-    TestFloatingPointParsing.cpp
     TestFlyString.cpp
     TestFormat.cpp
     TestGenericLexer.cpp
@@ -67,16 +66,18 @@ set(AK_TEST_SOURCES
     TestStack.cpp
     TestStdLibExtras.cpp
     TestString.cpp
+    TestStringConversions.cpp
     TestStringFloatingPointConversions.cpp
     TestStringUtils.cpp
     TestStringView.cpp
+    TestTime.cpp
     TestTrie.cpp
     TestTuple.cpp
     TestTypeTraits.cpp
     TestTypedTransfer.cpp
     TestUFixedBigInt.cpp
-    TestUtf16.cpp
-    TestUtf8.cpp
+    TestUtf16View.cpp
+    TestUtf8View.cpp
     TestVariant.cpp
     TestVector.cpp
     TestWeakPtr.cpp
@@ -86,10 +87,12 @@ set(AK_TEST_SOURCES
 #  it's own platform-specific tests to avoid if-def soup in the Unix-based tests.
 if(NOT WIN32)
     list(APPEND AK_TEST_SOURCES TestLexicalPath.cpp)
+else()
+    list(APPEND AK_TEST_SOURCES TestDelayLoadWindows.cpp)
 endif()
 
 foreach(source IN LISTS AK_TEST_SOURCES)
-    serenity_test("${source}" AK)
+    ladybird_test("${source}" AK)
 endforeach()
 
 if (WIN32)
@@ -98,11 +101,11 @@ if (WIN32)
 endif()
 
 if (CXX_COMPILER_SUPPORTS_BLOCKS)
-    serenity_test(TestFunction.mm AK NAME TestFunction)
+    ladybird_test(TestFunction.mm AK NAME TestFunction)
     target_link_libraries(TestFunction PRIVATE ${BLOCKS_REQUIRED_LIBRARIES})
 endif()
 if (CXX_COMPILER_SUPPORTS_OBJC_ARC)
-    serenity_test(TestFunction.mm AK NAME TestFunctionArc)
+    ladybird_test(TestFunction.mm AK NAME TestFunctionArc)
     target_compile_options(TestFunctionArc PRIVATE -fobjc-arc)
     target_link_libraries(TestFunction PRIVATE ${BLOCKS_REQUIRED_LIBRARIES})
 endif()

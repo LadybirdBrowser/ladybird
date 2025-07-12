@@ -15,7 +15,7 @@
 ErrorOr<void> generate_header_file(Core::File& file);
 ErrorOr<void> generate_implementation_file(JsonObject& named_character_reference_data, Core::File& file);
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
     StringView generated_implementation_path;
@@ -414,7 +414,7 @@ static NamedCharacterReferenceCodepoints g_named_character_reference_codepoints_
 
     generator.append(R"~~~(};
 
-struct DafsaNode {
+struct __attribute__((packed)) DafsaNode {
     // The actual alphabet of characters used in the list of named character references only
     // includes 61 unique characters ('1'...'8', ';', 'a'...'z', 'A'...'Z'), but we have
     // bits to spare and encoding this as a `u8` allows us to avoid the need for converting
@@ -441,7 +441,11 @@ struct DafsaNode {
     // There are 3872 nodes in our DAFSA, so all indexes could fit in a u12.
     u16 child_index : 14;
 };
-static_assert(sizeof(DafsaNode) == 4);
+#if !defined(AK_OS_WINDOWS)
+    static_assert(sizeof(DafsaNode) == 4);
+#else
+    static_assert(sizeof(DafsaNode) == 5);
+#endif
 
 static DafsaNode g_named_character_reference_dafsa[] = {
     { 0, 0, false, true, 1 },

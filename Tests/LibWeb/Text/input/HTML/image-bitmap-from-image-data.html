@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+    let canvas = document.createElement("canvas");
+
+    canvas.width = 20;
+    canvas.height = 20;
+
+    let ctx = canvas.getContext("2d");
+    ctx.fillStyle = "rgb(42, 110, 96)";
+    ctx.fillRect(0, 0, 10, 10);
+    let imageData = ctx.getImageData(0, 0, 20, 20);
+
+    asyncTest(async done => {
+        try {
+            const bitmap = await createImageBitmap(imageData);
+            println(`[Success]: ${bitmap}`);
+        } catch (err) {
+            println(`[ Error ]: ${err}`);
+        }
+        done();
+    });
+</script>
+</body>

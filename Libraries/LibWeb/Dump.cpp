@@ -95,7 +95,20 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     for (int i = 0; i < indent; ++i)
         builder.append("  "sv);
     if (is<DOM::Element>(node)) {
-        builder.appendff("<{}", as<DOM::Element>(node).local_name());
+        auto short_namespace = [&] -> FlyString {
+            auto const& namespace_uri = as<DOM::Element>(node).namespace_uri();
+            if (!namespace_uri.has_value())
+                return "n/a"_fly_string;
+            if (namespace_uri == "http://www.w3.org/1999/xhtml"sv)
+                return "html"_fly_string;
+            if (namespace_uri == "http://www.w3.org/2000/svg"sv)
+                return "svg"_fly_string;
+            if (namespace_uri == "http://www.w3.org/1998/Math/MathML"sv)
+                return "mathml"_fly_string;
+            return *namespace_uri;
+        }();
+
+        builder.appendff("<{}:{}", short_namespace, as<DOM::Element>(node).local_name());
         as<DOM::Element>(node).for_each_attribute([&](auto& name, auto& value) {
             builder.appendff(" {}={}", name, value);
         });
@@ -386,15 +399,15 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             color_off,
             fragment.layout_node().class_name());
         builder.appendff("start: {}, length: {}, rect: {} baseline: {}\n",
-            fragment.start(),
-            fragment.length(),
+            fragment.start_byte_offset(),
+            fragment.length_in_bytes(),
             fragment.absolute_rect(),
             fragment.baseline());
         if (is<Layout::TextNode>(fragment.layout_node())) {
             for (size_t i = 0; i < indent; ++i)
                 builder.append("  "sv);
             auto const& layout_text = static_cast<Layout::TextNode const&>(fragment.layout_node());
-            auto fragment_text = MUST(layout_text.text_for_rendering().substring_from_byte_offset(fragment.start(), fragment.length()));
+            auto fragment_text = MUST(layout_text.text_for_rendering().substring_from_byte_offset(fragment.start_byte_offset(), fragment.length_in_bytes()));
             builder.appendff("      \"{}\"\n", fragment_text);
         }
     };
@@ -919,17 +932,14 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
 
     builder.appendff("{}{} ({})", paintable.class_name(), color_off, paintable.layout_node().debug_description());
 
-    if (paintable.layout_node().is_box()) {
-        auto const& paintable_box = static_cast<Painting::PaintableBox const&>(paintable);
-        builder.appendff(" {}", paintable_box.absolute_border_box_rect());
+    if (auto const* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
+        builder.appendff(" {}", paintable_box->absolute_border_box_rect());
 
-        if (paintable_box.has_scrollable_overflow()) {
-            builder.appendff(" overflow: {}", paintable_box.scrollable_overflow_rect());
-        }
+        if (paintable_box->has_scrollable_overflow())
+            builder.appendff(" overflow: {}", paintable_box->scrollable_overflow_rect());
 
-        if (!paintable_box.scroll_offset().is_zero()) {
-            builder.appendff(" scroll-offset: {}", paintable_box.scroll_offset());
-        }
+        if (!paintable_box->scroll_offset().is_zero())
+            builder.appendff(" scroll-offset: {}", paintable_box->scroll_offset());
     }
     builder.append("\n"sv);
     for (auto const* child = paintable.first_child(); child; child = child->next_sibling()) {

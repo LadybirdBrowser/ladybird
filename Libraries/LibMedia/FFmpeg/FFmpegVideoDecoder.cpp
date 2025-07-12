@@ -25,6 +25,9 @@ static AVPixelFormat negotiate_output_format(AVCodecContext*, AVPixelFormat cons
         case AV_PIX_FMT_YUV444P:
         case AV_PIX_FMT_YUV444P10:
         case AV_PIX_FMT_YUV444P12:
+        case AV_PIX_FMT_YUVJ420P:
+        case AV_PIX_FMT_YUVJ422P:
+        case AV_PIX_FMT_YUVJ444P:
             return *formats;
         default:
             break;
@@ -137,6 +140,15 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
         auto transfer_characteristics = static_cast<TransferCharacteristics>(m_frame->color_trc);
         auto matrix_coefficients = static_cast<MatrixCoefficients>(m_frame->colorspace);
         auto color_range = [&] {
+            switch (m_frame->format) {
+            case AV_PIX_FMT_YUVJ420P:
+            case AV_PIX_FMT_YUVJ422P:
+            case AV_PIX_FMT_YUVJ444P:
+                return VideoFullRangeFlag::Full;
+            default:
+                break;
+            }
+
             switch (m_frame->color_range) {
             case AVColorRange::AVCOL_RANGE_MPEG:
                 return VideoFullRangeFlag::Studio;
@@ -153,6 +165,9 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
             case AV_PIX_FMT_YUV420P:
             case AV_PIX_FMT_YUV422P:
             case AV_PIX_FMT_YUV444P:
+            case AV_PIX_FMT_YUVJ420P:
+            case AV_PIX_FMT_YUVJ422P:
+            case AV_PIX_FMT_YUVJ444P:
                 return 8;
             case AV_PIX_FMT_YUV420P10:
             case AV_PIX_FMT_YUV422P10:
@@ -172,14 +187,17 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
             case AV_PIX_FMT_YUV420P:
             case AV_PIX_FMT_YUV420P10:
             case AV_PIX_FMT_YUV420P12:
+            case AV_PIX_FMT_YUVJ420P:
                 return { true, true };
             case AV_PIX_FMT_YUV422P:
             case AV_PIX_FMT_YUV422P10:
             case AV_PIX_FMT_YUV422P12:
+            case AV_PIX_FMT_YUVJ422P:
                 return { true, false };
             case AV_PIX_FMT_YUV444P:
             case AV_PIX_FMT_YUV444P10:
             case AV_PIX_FMT_YUV444P12:
+            case AV_PIX_FMT_YUVJ444P:
                 return { false, false };
 
             default:
@@ -224,7 +242,7 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
     case AVERROR(EINVAL):
         return DecoderError::with_description(DecoderErrorCategory::Invalid, "FFmpeg codec has not been opened"sv);
     default:
-        return DecoderError::format(DecoderErrorCategory::Unknown, "FFmpeg codec encountered an unexpected error retreiving frames with code {:x}", result);
+        return DecoderError::format(DecoderErrorCategory::Unknown, "FFmpeg codec encountered an unexpected error retrieving frames with code {:x}", result);
     }
 }
 

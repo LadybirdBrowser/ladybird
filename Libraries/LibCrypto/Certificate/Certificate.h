@@ -31,8 +31,8 @@ ErrorOr<Vector<int>> parse_ec_parameters(ASN1::Decoder& decoder, Vector<StringVi
 // https://datatracker.ietf.org/doc/html/rfc5280#section-4.1
 class SubjectPublicKey {
 public:
-    PK::RSAPublicKey<> rsa;
-    PK::ECPublicKey<> ec;
+    PK::RSAPublicKey rsa;
+    PK::ECPublicKey ec;
 
     AlgorithmIdentifier algorithm;
     ByteBuffer raw_key;
@@ -42,8 +42,8 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(ASN1::Decoder& decoder, 
 // https://www.rfc-editor.org/rfc/rfc5208#section-5
 class PrivateKey {
 public:
-    PK::RSAPrivateKey<> rsa;
-    PK::ECPrivateKey<> ec;
+    PK::RSAPrivateKey rsa;
+    PK::ECPrivateKey ec;
 
     AlgorithmIdentifier algorithm;
     ByteBuffer raw_key;

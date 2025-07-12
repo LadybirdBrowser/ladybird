@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
- * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibURL/Host.h>
+#include <LibURL/PublicSuffixData.h>
 #include <LibURL/URL.h>
 
 namespace URL {
@@ -191,13 +192,19 @@ Optional<String> Host::public_suffix() const
     auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
 
     // 3. Let publicSuffix be the public suffix determined by running the Public Suffix List algorithm with host as domain. [PSL]
-    // NOTE: The spec algorithm for the public suffix returns "*" by default, but get_public_suffix() returns an empty Optional.
-    //       Remove the `value_or()` if and when we update it.
-    auto public_suffix = get_public_suffix(host_string.bytes_as_string_view()).value_or("*"_string);
+    // FIXME: Unify this logic with registrable domain.
+    auto public_suffix = PublicSuffixData::the()->get_public_suffix(host_string);
+    if (!public_suffix.has_value()) {
+        auto last_dot = host_string.bytes_as_string_view().find_last('.');
+        if (last_dot.has_value())
+            public_suffix = MUST(host_string.substring_from_byte_offset(last_dot.value() + 1));
+        else
+            public_suffix = host_string;
+    }
 
     // 4. Assert: publicSuffix is an ASCII string that does not end with ".".
-    VERIFY(public_suffix.is_ascii());
-    VERIFY(!public_suffix.ends_with('.'));
+    VERIFY(public_suffix->is_ascii());
+    VERIFY(!public_suffix->ends_with('.'));
 
     // 5. Return publicSuffix and trailingDot concatenated.
     return MUST(String::formatted("{}{}", public_suffix, trailing_dot));
@@ -218,8 +225,7 @@ Optional<String> Host::registrable_domain() const
     auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
 
     // 3. Let registrableDomain be the registrable domain determined by running the Public Suffix List algorithm with host as domain. [PSL]
-    // NOTE: The spec algorithm for the public suffix returns "*" by default, but get_public_suffix() returns an empty Optional.
-    //       Remove the `value_or()` if and when we update it.
+    // FIXME: This is not correct, we should be doing the same as public_suffix() above.
     auto registrable_domain = get_registrable_domain(host_string).value_or("*"_string);
 
     // 4. Assert: registrableDomain is an ASCII string that does not end with ".".

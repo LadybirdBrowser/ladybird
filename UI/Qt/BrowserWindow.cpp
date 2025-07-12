@@ -26,7 +26,6 @@
 
 #include <QAction>
 #include <QActionGroup>
-#include <QApplication>
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QInputDialog>
@@ -76,6 +75,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     , m_new_tab_button_toolbar(new QToolBar("New Tab", m_tabs_container))
     , m_is_popup_window(is_popup_window)
 {
+    auto const& browser_options = WebView::Application::browser_options();
+
     setWindowIcon(app_icon());
 
     // Listen for DPI changes
@@ -550,7 +551,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_enable_scripting_action = new QAction("Enable Scripting", this);
     m_enable_scripting_action->setCheckable(true);
-    m_enable_scripting_action->setChecked(WebView::Application::browser_options().disable_scripting == WebView::DisableScripting::No);
+    m_enable_scripting_action->setChecked(browser_options.disable_scripting == WebView::DisableScripting::No);
     debug_menu->addAction(m_enable_scripting_action);
     QObject::connect(m_enable_scripting_action, &QAction::triggered, this, [this] {
         bool state = m_enable_scripting_action->isChecked();
@@ -572,7 +573,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_block_pop_ups_action = new QAction("Block Pop-ups", this);
     m_block_pop_ups_action->setCheckable(true);
-    m_block_pop_ups_action->setChecked(WebView::Application::browser_options().allow_popups == WebView::AllowPopups::No);
+    m_block_pop_ups_action->setChecked(browser_options.allow_popups == WebView::AllowPopups::No);
     debug_menu->addAction(m_block_pop_ups_action);
     QObject::connect(m_block_pop_ups_action, &QAction::triggered, this, [this] {
         bool state = m_block_pop_ups_action->isChecked();
@@ -615,7 +616,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         tab.focus_location_editor();
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [] {
-        (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window({});
+        (void)Application::the().new_window({});
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
     QObject::connect(m_tabs_container, &QTabWidget::currentChanged, [this](int index) {
@@ -684,6 +685,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     setCentralWidget(m_tabs_container);
     setContextMenuPolicy(Qt::PreventContextMenu);
+
+    if (browser_options.devtools_port.has_value())
+        devtools_enabled();
 }
 
 void BrowserWindow::devtools_disabled()
@@ -797,7 +801,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
         if (hints.popup) {
-            auto& window = static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, IsPopupWindow::Yes, tab, AK::move(page_index));
+            auto& window = Application::the().new_window({}, IsPopupWindow::Yes, tab, AK::move(page_index));
             window.set_window_rect(hints.screen_x, hints.screen_y, hints.width, hints.height);
             return window.current_tab()->view().handle();
         }
@@ -1168,7 +1172,7 @@ bool BrowserWindow::event(QEvent* event)
 #endif
 
     if (event->type() == QEvent::WindowActivate)
-        static_cast<Ladybird::Application*>(QApplication::instance())->set_active_window(*this);
+        Application::the().set_active_window(*this);
 
     return QMainWindow::event(event);
 }

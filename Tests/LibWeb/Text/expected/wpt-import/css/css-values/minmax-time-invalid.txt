@@ -1,0 +1,57 @@
+Harness status: OK
+
+Found 52 tests
+
+52 Pass
+Pass	e.style['transition-delay'] = "min()" should not set the property value
+Pass	e.style['transition-delay'] = "min( )" should not set the property value
+Pass	e.style['transition-delay'] = "min(,)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1mt)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s, )" should not set the property value
+Pass	e.style['transition-delay'] = "min(, 1s)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s + )" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s - )" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s * )" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s / )" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s 2s)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s, , 2s)" should not set the property value
+Pass	e.style['transition-delay'] = "max()" should not set the property value
+Pass	e.style['transition-delay'] = "max( )" should not set the property value
+Pass	e.style['transition-delay'] = "max(,)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1dag)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s, )" should not set the property value
+Pass	e.style['transition-delay'] = "max(, 1s)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s + )" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s - )" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s * )" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s / )" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s 2s)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s, , 2s)" should not set the property value
+Pass	e.style['transition-delay'] = "min(0)" should not set the property value
+Pass	e.style['transition-delay'] = "min(0%)" should not set the property value
+Pass	e.style['transition-delay'] = "min(0px)" should not set the property value
+Pass	e.style['transition-delay'] = "min(0deg)" should not set the property value
+Pass	e.style['transition-delay'] = "min(0Hz)" should not set the property value
+Pass	e.style['transition-delay'] = "min(0dpi)" should not set the property value
+Pass	e.style['transition-delay'] = "min(0fr)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s, 0)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s, 0%)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s, 0px)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s, 0deg)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s, 0Hz)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s, 0dpi)" should not set the property value
+Pass	e.style['transition-delay'] = "min(1s, 0fr)" should not set the property value
+Pass	e.style['transition-delay'] = "max(0)" should not set the property value
+Pass	e.style['transition-delay'] = "max(0%)" should not set the property value
+Pass	e.style['transition-delay'] = "max(0px)" should not set the property value
+Pass	e.style['transition-delay'] = "max(0deg)" should not set the property value
+Pass	e.style['transition-delay'] = "max(0Hz)" should not set the property value
+Pass	e.style['transition-delay'] = "max(0dpi)" should not set the property value
+Pass	e.style['transition-delay'] = "max(0fr)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s, 0)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s, 0%)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s, 0px)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s, 0deg)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s, 0Hz)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s, 0dpi)" should not set the property value
+Pass	e.style['transition-delay'] = "max(1s, 0fr)" should not set the property value

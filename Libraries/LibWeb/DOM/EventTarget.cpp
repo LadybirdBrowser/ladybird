@@ -19,6 +19,7 @@
 #include <LibWeb/Bindings/EventTargetPrototype.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/DOMEventListener.h>
 #include <LibWeb/DOM/Document.h>
@@ -776,7 +777,12 @@ void EventTarget::element_event_handler_attribute_changed(FlyString const& local
     }
 
     // 5. Otherwise:
-    //  FIXME: 1. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon element, "script attribute", and value, then return. [CSP]
+    //  1. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon element, "script attribute", and value, then return. [CSP]
+    auto& this_as_element = as<DOM::Element>(*this);
+    if (ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), this_as_element, ContentSecurityPolicy::Directives::Directive::InlineType::ScriptAttribute, value.value()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        dbgln("EventTarget: Refusing to add inline event handler as it violates the Content Security Policy.");
+        return;
+    }
 
     //  2. Let handlerMap be eventTarget's event handler map.
     auto& handler_map = event_target->ensure_data().event_handler_map;

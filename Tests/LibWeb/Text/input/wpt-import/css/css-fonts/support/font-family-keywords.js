@@ -7,9 +7,11 @@ var kGenericFontFamilyKeywords = [
     "fantasy",
     "monospace",
     "system-ui",
-    "emoji",
     "math",
-    "fangsong",
+    "generic(fangsong)",
+    "generic(kai)",
+    "generic(khmer-mul)",
+    "generic(nastaliq)",
     "ui-serif",
     "ui-sans-serif",
     "ui-monospace",
@@ -17,11 +19,13 @@ var kGenericFontFamilyKeywords = [
 ];
 
 // <family-name> values that had/have web-exposed behavior in some browsers, but
-// are not defined in the specification.
+// are not defined in the specification. They must be treated as <custom-ident>s.
 var kNonGenericFontFamilyKeywords = [
     "NonGenericFontFamilyName",
     "-webkit-body",
     "-webkit-standard",
     "-webkit-pictograph",
+    "emoji",
+    "fangsong",
     "BlinkMacSystemFont",
 ];

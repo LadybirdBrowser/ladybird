@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<meta charset="utf8">
+<title>Test that custom property cycles behave correctly</title>
+<link rel="help" href="https://drafts.csswg.org/css-variables/#cycles">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<main id=main></main>
+<script>
+
+  // Test that, for the given list of |declarations|, the computed values
+  // of properties listed in |expected_invalid| are invalid (i.e. empty string),
+  // and the computed values listed in |expected_valid| are *not* invalid
+  // (i.e. not the empty string).
+  function test_cycles(declarations, expected_invalid, expected_valid, description) {
+    test(() => {
+      let element = document.createElement('div');
+
+      try {
+        declarations.push('--sanity:valid');
+        element.style = declarations.join(';');
+        main.append(element);
+        let cs = getComputedStyle(element);
+
+        for (let e of expected_invalid)
+          assert_equals(cs.getPropertyValue(e), '', `${e}`);
+        for (let e of expected_valid)
+          assert_not_equals(cs.getPropertyValue(e), '', `${e}`);
+
+        assert_equals(cs.getPropertyValue('--sanity'), 'valid', '--sanity');
+
+      } finally {
+        element.remove();
+      }
+    }, description);
+  }
+
+  // (Diagrams produced with graph-easy).
+
+  //  ┌───┐
+  //  │   │ ───┐
+  //  │ a │    │
+  //  │   │ ◀──┘
+  //  └───┘
+  test_cycles(
+    ['--a:var(--a)'],
+    ['--a'],
+    [],
+    'Self-cycle');
+
+
+  // ┌───┐
+  // │ a │ ◀┐
+  // └───┘  │
+  //   │    │
+  //   │    │
+  //   ▼    │
+  // ┌───┐  │
+  // │ b │ ─┘
+  // └───┘
+  test_cycles(
+    [
+      '--a:var(--b)',
+      '--b:var(--a)',
+    ],
+    ['--a', '--b'],
+    [],
+    'Simple a/b cycle');
+
+
+  //  ┌───┐
+  //  │ a │ ◀┐
+  //  └───┘  │
+  //    │    │
+  //    │    │
+  //    ▼    │
+  //  ┌───┐  │
+  //  │ b │  │
+  //  └───┘  │
+  //    │    │
+  //    │    │
+  //    ▼    │
+  //  ┌───┐  │
+  //  │ c │ ─┘
+  //  └───┘
+  test_cycles(
+    [
+      '--a:var(--b, cycle)',
+      '--b:var(--c, cycle)',
+      '--c:var(--a, cycle)',
+    ],
+    ['--a', '--b', '--c'],
+    [],
+    'Three-var cycle');
+
+
+  //  ┌───┐
+  //  │ x │
+  //  └───┘
+  //    │
+  //    │
+  //    ▼
+  //  ┌───┐
+  //  │ y │
+  //  └───┘
+  //    │
+  //    │
+  //    ▼
+  //  ┌───┐
+  //  │ a │ ◀┐
+  //  └───┘  │
+  //    │    │
+  //    │    │
+  //    ▼    │
+  //  ┌───┐  │
+  //  │ b │  │
+  //  └───┘  │
+  //    │    │
+  //    │    │
+  //    ▼    │
+  //  ┌───┐  │
+  //  │ c │ ─┘
+  //  └───┘
+  test_cycles(
+    [
+      '--x:var(--y, valid)',
+      '--y:var(--a, valid)',
+      '--a:var(--b, cycle)',
+      '--b:var(--c, cycle)',
+      '--c:var(--a, cycle)',
+    ],
+    ['--a', '--b', '--c'],
+    ['--x', '--y'],
+    'Cycle that starts in the middle of a chain');
+
+
+  //  ┌───┐
+  //  │ x │
+  //  └───┘
+  //    │
+  //    │
+  //    ▼
+  //  ┌───┐
+  //  │ a │ ◀┐
+  //  └───┘  │
+  //    │    │
+  //    │    │
+  //    ▼    │
+  //  ┌───┐  │
+  //  │ b │  │
+  //  └───┘  │
+  //    │    │
+  //    │    │
+  //    ▼    │
+  //  ┌───┐  │
+  //  │ c │ ─┘
+  //  └───┘
+  //    │
+  //    │
+  //    ▼
+  //  ┌───┐
+  //  │ y │
+  //  └───┘
+  test_cycles(
+    [
+      '--x:var(--a, valid)',
+      '--a:var(--b, cycle)',
+      '--b:var(--c, cycle)',
+      '--c:var(--a, cycle) var(--y)',
+      '--y:valid'
+    ],
+    ['--a', '--b', '--c'],
+    ['--x', '--y'],
+    'Cycle with extra edge');
+
+
+  //            ┌───┐
+  //            │ x │
+  //            └───┘
+  //              │
+  //              │
+  //              ▼
+  //            ┌───┐
+  //            │ a │ ◀┐
+  //            └───┘  │
+  //              │    │
+  //              │    │
+  //              ▼    │
+  //  ┌───┐     ┌───┐  │
+  //  │ y │ ◀── │ b │  │
+  //  └───┘     └───┘  │
+  //              │    │
+  //              │    │
+  //              ▼    │
+  //            ┌───┐  │
+  //            │ c │ ─┘
+  //            └───┘
+  test_cycles(
+    [
+      '--x:var(--a, valid)',
+      '--a:var(--b, cycle)',
+      '--b:var(--c, cycle) var(--y)',
+      '--c:var(--a, cycle)',
+      '--y:valid'
+    ],
+    ['--a', '--b', '--c'],
+    ['--x', '--y'],
+    'Cycle with extra edge (2)');
+
+
+  //  ┌───┐
+  //  │ x │
+  //  └───┘
+  //    │
+  //    │
+  //    ▼
+  //  ┌───┐
+  //  │ a │ ◀┐
+  //  └───┘  │
+  //    │    │
+  //    │    │
+  //    ▼    │
+  //  ┌───┐  │
+  //  │ b │  │
+  //  └───┘  │
+  //    │    │
+  //    │    │
+  //    ▼    │
+  //  ┌───┐  │
+  //  │ c │ ─┘
+  //  └───┘
+  //    │
+  //    │
+  //    ▼
+  //  ┌───┐
+  //  │ y │
+  //  └───┘
+  //    │
+  //    │
+  //    ▼
+  //  ┌───┐
+  //  │ z │
+  //  └───┘
+  test_cycles(
+    [
+      '--x:var(--a, valid)',
+      '--a:var(--b, cycle)',
+      '--b:var(--c, cycle)',
+      '--c:var(--a, cycle) var(--y)',
+      '--y:var(--z)',
+      '--z:valid'
+    ],
+    ['--a', '--b', '--c'],
+    ['--x', '--y', '--z'],
+    'Cycle with extra edge (3)');
+
+  //     ┌───┐
+  //     │ x │
+  //     └───┘
+  //       │
+  //       │
+  //       ▼
+  //     ┌───┐
+  //     │ a │ ◀┐
+  //     └───┘  │
+  //       │    │
+  //       │    │
+  //       ▼    │
+  //     ┌───┐  │
+  //  ┌▶ │ b │ ─┘
+  //  │  └───┘
+  //  │    │
+  //  │    │
+  //  │    ▼
+  //  │  ┌───┐
+  //  │  │ c │
+  //  │  └───┘
+  //  │    │
+  //  │    │
+  //  │    ▼
+  //  │  ┌───┐
+  //  └─ │ d │
+  //     └───┘
+  test_cycles(
+    [
+      '--x:var(--a, valid)',
+      '--a:var(--b, cycle)',
+      '--b:var(--c, cycle) var(--a, cycle)',
+      '--c:var(--d, cycle)',
+      '--d:var(--b, cycle)',
+    ],
+    ['--a', '--b', '--c', '--d'],
+    ['--x'],
+    'Cycle with secondary cycle');
+
+
+  //       ┌───┐
+  //       │ x │
+  //       └───┘
+  //         │
+  //         │
+  //         ▼
+  //       ┌───┐
+  //       │ a │ ◀┐
+  //       └───┘  │
+  //         │    │
+  //         │    │
+  //         ▼    │
+  //       ┌───┐  │
+  //    ┌▶ │ b │  │
+  //    │  └───┘  │
+  //    │    │    │
+  //    │    │    │
+  //    │    ▼    │
+  //    │  ┌───┐  │
+  //    │  │ c │ ─┘
+  //    │  └───┘
+  //    │    │
+  //    │    │
+  //    │    ▼
+  //    │  ┌───┐
+  //    └─ │ d │
+  //       └───┘
+  //         │
+  //         │
+  //         ▼
+  //       ┌───┐
+  //       │ y │
+  //       └───┘
+  test_cycles(
+    [
+      '--x:var(--a, valid)',
+      '--a:var(--b, cycle)',
+      '--b:var(--c, cycle)',
+      '--c:var(--d, cycle) var(--a, cycle)',
+      '--d:var(--b, cycle) var(--y)',
+      '--y:valid'
+    ],
+    ['--a', '--b', '--c', '--d'],
+    ['--x', '--y'],
+    'Cycle with overlapping secondary cycle');
+
+
+  //    ┌──────────────┐
+  //    │              │
+  //    │       ┌───┐  │
+  //    │       │ x │  │
+  //    │       └───┘  │
+  //    │         │    │
+  //    │         │    │
+  //    │         ▼    ▼
+  //  ┌───┐     ┌────────┐     ┌───┐
+  //  │ b │ ◀── │   a    │ ──▶ │ y │
+  //  └───┘     └────────┘     └───┘
+  //              │    ▲
+  //              │    │
+  //              ▼    │
+  //            ┌───┐  │
+  //            │ c │  │
+  //            └───┘  │
+  //              │    │
+  //              │    │
+  //              ▼    │
+  //            ┌───┐  │
+  //            │ d │ ─┘
+  //            └───┘
+  test_cycles(
+    [
+      '--x:var(--a, valid)',
+      '--a:var(--b, cycle) var(--y, valid) var(--c, cycle)',
+      '--b:var(--a, cycle) ',
+      '--c:var(--d, cycle)',
+      '--d:var(--a, cycle)',
+      '--y:valid',
+    ],
+    ['--a', '--b', '--c', '--d'],
+    ['--x', '--y'],
+    'Cycle with deeper secondary cycle');
+
+
+  // If we cared about cycles in unused fallbacks,
+  // then --a/--b/--c would be in a cycle in this case:
+  //
+  //            ┌───┐
+  //            │ x │
+  //            └───┘
+  //              │
+  //              │
+  //              ▼
+  //            ┌───┐
+  //    ┌─────▶ │ a │ ─┐
+  //    │       └───┘  │
+  //    │         │    │
+  //    │         │    │
+  //    │         ▼    │
+  //    │       ┌───┐  │
+  //    │    ┌─ │ b │  │
+  //    │    │  └───┘  │
+  //    │    │    │    │
+  //    │    │    │    │
+  //    │    │    ▼    │
+  //    │    │  ┌───┐  │
+  //    └────┼─ │ c │  │
+  //         │  └───┘  │
+  //         │    │    │
+  //         │    │    │
+  //         │    ▼    │
+  //         │  ┌───┐  │
+  //         └▶ │ y │ ◀┘
+  //            └───┘
+  //
+  // However, as of https://github.com/w3c/csswg-drafts/issues/11500,
+  // we no longer care about such cycles.
+  test_cycles(
+    [
+      '--x:var(--a, valid)',
+      '--a:var(--y, var(--b, cycle))',
+      '--b:var(--y, var(--c, cycle))',
+      '--c:var(--y, var(--a, cycle))',
+      '--y:valid'
+    ],
+    [], // Nothing is invalid.
+    ['--a', '--b', '--c', '--x', '--y'],
+    'Cycle in unused fallback');
+
+</script>

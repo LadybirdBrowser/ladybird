@@ -6,8 +6,8 @@
  */
 
 #include <AK/Debug.h>
-#include <AK/FloatingPointStringConversions.h>
 #include <AK/SourceLocation.h>
+#include <AK/StringConversions.h>
 #include <AK/Vector.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/CSS/CharacterTypes.h>
@@ -231,8 +231,7 @@ Vector<Token> Tokenizer::tokenize()
     for (;;) {
         auto token_start = m_position;
         auto token = consume_a_token();
-        token.m_start_position = token_start;
-        token.m_end_position = m_position;
+        token.set_position_range({}, token_start, m_position);
         tokens.append(token);
 
         if (token.is(Token::Type::EndOfFile)) {
@@ -320,32 +319,9 @@ U32Triplet Tokenizer::start_of_input_stream_triplet()
     return triplet;
 }
 
-Token Tokenizer::create_new_token(Token::Type type)
-{
-    Token token = {};
-    token.m_type = type;
-    return token;
-}
-
 Token Tokenizer::create_eof_token()
 {
-    return create_new_token(Token::Type::EndOfFile);
-}
-
-Token Tokenizer::create_value_token(Token::Type type, FlyString&& value, String&& representation)
-{
-    auto token = create_new_token(type);
-    token.m_value = move(value);
-    token.m_original_source_text = move(representation);
-    return token;
-}
-
-Token Tokenizer::create_value_token(Token::Type type, u32 value, String&& representation)
-{
-    auto token = create_new_token(type);
-    token.m_value = String::from_code_point(value);
-    token.m_original_source_text = move(representation);
-    return token;
+    return Token::create(Token::Type::EndOfFile);
 }
 
 // https://www.w3.org/TR/css-syntax-3/#consume-escaped-code-point
@@ -377,7 +353,7 @@ u32 Tokenizer::consume_escaped_code_point()
         }
 
         // Interpret the hex digits as a hexadecimal number.
-        auto unhexed = AK::StringUtils::convert_to_uint_from_hex<u32>(builder.string_view()).value_or(0);
+        auto unhexed = AK::parse_hexadecimal_number<u32>(builder.string_view()).value_or(0);
         // If this number is zero, or is for a surrogate, or is greater than the maximum allowed
         // code point, return U+FFFD REPLACEMENT CHARACTER (�).
         if (unhexed == 0 || is_unicode_surrogate(unhexed) || is_greater_than_maximum_allowed_code_point(unhexed)) {
@@ -430,7 +406,7 @@ Token Tokenizer::consume_an_ident_like_token()
         // <function-token> with its value set to string and return it.
         auto next_two = peek_twin();
         if (is_quotation_mark(next_two.first) || is_apostrophe(next_two.first) || (is_whitespace(next_two.first) && (is_quotation_mark(next_two.second) || is_apostrophe(next_two.second)))) {
-            return create_value_token(Token::Type::Function, move(string), input_since(start_byte_offset));
+            return Token::create_function(move(string), input_since(start_byte_offset));
         }
 
         // Otherwise, consume a url token, and return it.
@@ -442,11 +418,11 @@ Token Tokenizer::consume_an_ident_like_token()
         (void)next_code_point();
 
         // Create a <function-token> with its value set to string and return it.
-        return create_value_token(Token::Type::Function, move(string), input_since(start_byte_offset));
+        return Token::create_function(move(string), input_since(start_byte_offset));
     }
 
     // Otherwise, create an <ident-token> with its value set to string and return it.
-    return create_value_token(Token::Type::Ident, move(string), input_since(start_byte_offset));
+    return Token::create_ident(move(string), input_since(start_byte_offset));
 }
 
 // https://www.w3.org/TR/css-syntax-3/#consume-number
@@ -613,17 +589,10 @@ Token Tokenizer::consume_a_url_token()
 
     // 1. Initially create a <url-token> with its value set to the empty string.
     auto start_byte_offset = current_byte_offset();
-    auto token = create_new_token(Token::Type::Url);
     StringBuilder builder;
 
     // 2. Consume as much whitespace as possible.
     consume_as_much_whitespace_as_possible();
-
-    auto make_token = [&]() -> Token {
-        token.m_value = builder.to_fly_string_without_validation();
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
-    };
 
     // 3. Repeatedly consume the next input code point from the stream:
     for (;;) {
@@ -632,14 +601,14 @@ Token Tokenizer::consume_a_url_token()
         // U+0029 RIGHT PARENTHESIS ())
         if (is_right_paren(input)) {
             // Return the <url-token>.
-            return make_token();
+            return Token::create_url(builder.to_fly_string_without_validation(), input_since(start_byte_offset));
         }
 
         // EOF
         if (is_eof(input)) {
             // This is a parse error. Return the <url-token>.
             log_parse_error();
-            return make_token();
+            return Token::create_url(builder.to_fly_string_without_validation(), input_since(start_byte_offset));
         }
 
         // whitespace
@@ -653,20 +622,18 @@ Token Tokenizer::consume_a_url_token()
 
             if (is_right_paren(input)) {
                 (void)next_code_point();
-                return make_token();
+                return Token::create_url(builder.to_fly_string_without_validation(), input_since(start_byte_offset));
             }
 
             if (is_eof(input)) {
                 (void)next_code_point();
                 log_parse_error();
-                return make_token();
+                return Token::create_url(builder.to_fly_string_without_validation(), input_since(start_byte_offset));
             }
 
             // otherwise, consume the remnants of a bad url, create a <bad-url-token>, and return it.
             consume_the_remnants_of_a_bad_url();
-            auto bad_url_token = create_new_token(Token::Type::BadUrl);
-            bad_url_token.m_original_source_text = input_since(start_byte_offset);
-            return bad_url_token;
+            return Token::create(Token::Type::BadUrl, input_since(start_byte_offset));
         }
 
         // U+0022 QUOTATION MARK (")
@@ -677,9 +644,7 @@ Token Tokenizer::consume_a_url_token()
             // This is a parse error. Consume the remnants of a bad url, create a <bad-url-token>, and return it.
             log_parse_error();
             consume_the_remnants_of_a_bad_url();
-            auto bad_url_token = create_new_token(Token::Type::BadUrl);
-            bad_url_token.m_original_source_text = input_since(start_byte_offset);
-            return bad_url_token;
+            return Token::create(Token::Type::BadUrl, input_since(start_byte_offset));
         }
 
         // U+005C REVERSE SOLIDUS (\)
@@ -694,9 +659,7 @@ Token Tokenizer::consume_a_url_token()
                 log_parse_error();
                 // Consume the remnants of a bad url, create a <bad-url-token>, and return it.
                 consume_the_remnants_of_a_bad_url();
-                auto bad_url_token = create_new_token(Token::Type::BadUrl);
-                bad_url_token.m_original_source_text = input_since(start_byte_offset);
-                return bad_url_token;
+                return Token::create(Token::Type::BadUrl, input_since(start_byte_offset));
             }
         }
 
@@ -766,18 +729,14 @@ Token Tokenizer::consume_a_numeric_token()
     if (would_start_an_ident_sequence(peek_triplet())) {
         // 1. Create a <dimension-token> with the same value and type flag as number,
         //    and a unit set initially to the empty string.
-        auto token = create_new_token(Token::Type::Dimension);
-        token.m_number_value = number;
 
         // 2. Consume an ident sequence. Set the <dimension-token>’s unit to the returned value.
         auto unit = consume_an_ident_sequence();
         VERIFY(!unit.is_empty());
         // NOTE: We intentionally store this in the `value`, to save space.
-        token.m_value = move(unit);
 
         // 3. Return the <dimension-token>.
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create_dimension(number, move(unit), input_since(start_byte_offset));
     }
 
     // Otherwise, if the next input code point is U+0025 PERCENTAGE SIGN (%), consume it.
@@ -785,17 +744,11 @@ Token Tokenizer::consume_a_numeric_token()
         (void)next_code_point();
 
         // Create a <percentage-token> with the same value as number, and return it.
-        auto token = create_new_token(Token::Type::Percentage);
-        token.m_number_value = number;
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create_percentage(number, input_since(start_byte_offset));
     }
 
     // Otherwise, create a <number-token> with the same value and type flag as number, and return it.
-    auto token = create_new_token(Token::Type::Number);
-    token.m_number_value = number;
-    token.m_original_source_text = input_since(start_byte_offset);
-    return token;
+    return Token::create_number(number, input_since(start_byte_offset));
 }
 
 // https://www.w3.org/TR/css-syntax-3/#starts-with-a-number
@@ -920,14 +873,7 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
 
     // Initially create a <string-token> with its value set to the empty string.
     auto original_source_text_start_byte_offset_including_quotation_mark = current_byte_offset() - 1;
-    auto token = create_new_token(Token::Type::String);
     StringBuilder builder;
-
-    auto make_token = [&]() -> Token {
-        token.m_value = builder.to_fly_string_without_validation();
-        token.m_original_source_text = input_since(original_source_text_start_byte_offset_including_quotation_mark);
-        return token;
-    };
 
     // Repeatedly consume the next input code point from the stream:
     for (;;) {
@@ -935,13 +881,13 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
 
         // ending code point
         if (input == ending_code_point)
-            return make_token();
+            return Token::create_string(builder.to_fly_string_without_validation(), input_since(original_source_text_start_byte_offset_including_quotation_mark));
 
         // EOF
         if (is_eof(input)) {
             // This is a parse error. Return the <string-token>.
             log_parse_error();
-            return make_token();
+            return Token::create_string(builder.to_fly_string_without_validation(), input_since(original_source_text_start_byte_offset_including_quotation_mark));
         }
 
         // newline
@@ -949,9 +895,7 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
             // This is a parse error. Reconsume the current input code point, create a
             // <bad-string-token>, and return it.
             reconsume_current_input_code_point();
-            auto bad_string_token = create_new_token(Token::Type::BadString);
-            bad_string_token.m_original_source_text = input_since(original_source_text_start_byte_offset_including_quotation_mark);
-            return bad_string_token;
+            return Token::create(Token::Type::BadString, input_since(original_source_text_start_byte_offset_including_quotation_mark));
         }
 
         // U+005C REVERSE SOLIDUS (\)
@@ -1031,11 +975,8 @@ Token Tokenizer::consume_a_token()
 
     // AD-HOC: Preserve comments as whitespace tokens, for serializing custom properties.
     auto after_comments_byte_offset = current_byte_offset();
-    if (after_comments_byte_offset != start_byte_offset) {
-        auto token = create_new_token(Token::Type::Whitespace);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
-    }
+    if (after_comments_byte_offset != start_byte_offset)
+        return Token::create_whitespace(input_since(start_byte_offset));
 
     // Consume the next input code point.
     auto input = next_code_point();
@@ -1045,9 +986,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is whitespace");
         // Consume as much whitespace as possible. Return a <whitespace-token>.
         consume_as_much_whitespace_as_possible();
-        auto token = create_new_token(Token::Type::Whitespace);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create_whitespace(input_since(start_byte_offset));
     }
 
     // U+0022 QUOTATION MARK (")
@@ -1068,24 +1007,22 @@ Token Tokenizer::consume_a_token()
 
         if (is_ident_code_point(next_input) || is_valid_escape_sequence(maybe_escape)) {
             // 1. Create a <hash-token>.
-            auto token = create_new_token(Token::Type::Hash);
 
             // 2. If the next 3 input code points would start an ident sequence, set the <hash-token>’s
             //    type flag to "id".
+            auto hash_type = Token::HashType::Unrestricted;
             if (would_start_an_ident_sequence(peek_triplet()))
-                token.m_hash_type = Token::HashType::Id;
+                hash_type = Token::HashType::Id;
 
             // 3. Consume an ident sequence, and set the <hash-token>’s value to the returned string.
-            auto name = consume_an_ident_sequence();
-            token.m_value = move(name);
+            auto value = consume_an_ident_sequence();
 
             // 4. Return the <hash-token>.
-            token.m_original_source_text = input_since(start_byte_offset);
-            return token;
+            return Token::create_hash(move(value), hash_type, input_since(start_byte_offset));
         }
 
         // Otherwise, return a <delim-token> with its value set to the current input code point.
-        return create_value_token(Token::Type::Delim, input, input_since(start_byte_offset));
+        return Token::create_delim(input, input_since(start_byte_offset));
     }
 
     // U+0027 APOSTROPHE (')
@@ -1099,18 +1036,14 @@ Token Tokenizer::consume_a_token()
     if (is_left_paren(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is left paren");
         // Return a <(-token>.
-        Token token = create_new_token(Token::Type::OpenParen);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create(Token::Type::OpenParen, input_since(start_byte_offset));
     }
 
     // U+0029 RIGHT PARENTHESIS ())
     if (is_right_paren(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is right paren");
         // Return a <)-token>.
-        Token token = create_new_token(Token::Type::CloseParen);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create(Token::Type::CloseParen, input_since(start_byte_offset));
     }
 
     // U+002B PLUS SIGN (+)
@@ -1124,16 +1057,14 @@ Token Tokenizer::consume_a_token()
         }
 
         // Otherwise, return a <delim-token> with its value set to the current input code point.
-        return create_value_token(Token::Type::Delim, input, input_since(start_byte_offset));
+        return Token::create_delim(input, input_since(start_byte_offset));
     }
 
     // U+002C COMMA (,)
     if (is_comma(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is comma");
         // Return a <comma-token>.
-        Token token = create_new_token(Token::Type::Comma);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create(Token::Type::Comma, input_since(start_byte_offset));
     }
 
     // U+002D HYPHEN-MINUS (-)
@@ -1153,9 +1084,7 @@ Token Tokenizer::consume_a_token()
             (void)next_code_point();
             (void)next_code_point();
 
-            Token token = create_new_token(Token::Type::CDC);
-            token.m_original_source_text = input_since(start_byte_offset);
-            return token;
+            return Token::create(Token::Type::CDC, input_since(start_byte_offset));
         }
 
         // Otherwise, if the input stream starts with an identifier, reconsume the current
@@ -1166,7 +1095,7 @@ Token Tokenizer::consume_a_token()
         }
 
         // Otherwise, return a <delim-token> with its value set to the current input code point.
-        return create_value_token(Token::Type::Delim, input, input_since(start_byte_offset));
+        return Token::create_delim(input, input_since(start_byte_offset));
     }
 
     // U+002E FULL STOP (.)
@@ -1180,25 +1109,21 @@ Token Tokenizer::consume_a_token()
         }
 
         // Otherwise, return a <delim-token> with its value set to the current input code point.
-        return create_value_token(Token::Type::Delim, input, input_since(start_byte_offset));
+        return Token::create_delim(input, input_since(start_byte_offset));
     }
 
     // U+003A COLON (:)
     if (is_colon(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is colon");
         // Return a <colon-token>.
-        Token token = create_new_token(Token::Type::Colon);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create(Token::Type::Colon, input_since(start_byte_offset));
     }
 
     // U+003B SEMICOLON (;)
     if (is_semicolon(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is semicolon");
         // Return a <semicolon-token>.
-        Token token = create_new_token(Token::Type::Semicolon);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create(Token::Type::Semicolon, input_since(start_byte_offset));
     }
 
     // U+003C LESS-THAN SIGN (<)
@@ -1212,13 +1137,11 @@ Token Tokenizer::consume_a_token()
             (void)next_code_point();
             (void)next_code_point();
 
-            Token token = create_new_token(Token::Type::CDO);
-            token.m_original_source_text = input_since(start_byte_offset);
-            return token;
+            return Token::create(Token::Type::CDO, input_since(start_byte_offset));
         }
 
         // Otherwise, return a <delim-token> with its value set to the current input code point.
-        return create_value_token(Token::Type::Delim, input, input_since(start_byte_offset));
+        return Token::create_delim(input, input_since(start_byte_offset));
     }
 
     // U+0040 COMMERCIAL AT (@)
@@ -1226,22 +1149,18 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is at");
         // If the next 3 input code points would start an ident sequence, consume an ident sequence, create
         // an <at-keyword-token> with its value set to the returned value, and return it.
-        if (would_start_an_ident_sequence(peek_triplet())) {
-            auto name = consume_an_ident_sequence().to_ascii_lowercase();
-            return create_value_token(Token::Type::AtKeyword, move(name), input_since(start_byte_offset));
-        }
+        if (would_start_an_ident_sequence(peek_triplet()))
+            return Token::create_at_keyword(consume_an_ident_sequence(), input_since(start_byte_offset));
 
         // Otherwise, return a <delim-token> with its value set to the current input code point.
-        return create_value_token(Token::Type::Delim, input, input_since(start_byte_offset));
+        return Token::create_delim(input, input_since(start_byte_offset));
     }
 
     // U+005B LEFT SQUARE BRACKET ([)
     if (is_open_square_bracket(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is open square");
         // Return a <[-token>.
-        Token token = create_new_token(Token::Type::OpenSquare);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create(Token::Type::OpenSquare, input_since(start_byte_offset));
     }
 
     // U+005C REVERSE SOLIDUS (\)
@@ -1257,34 +1176,28 @@ Token Tokenizer::consume_a_token()
         // Otherwise, this is a parse error. Return a <delim-token> with its value set to the
         // current input code point.
         log_parse_error();
-        return create_value_token(Token::Type::Delim, input, input_since(start_byte_offset));
+        return Token::create_delim(input, input_since(start_byte_offset));
     }
 
     // U+005D RIGHT SQUARE BRACKET (])
     if (is_closed_square_bracket(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is closed square");
         // Return a <]-token>.
-        Token token = create_new_token(Token::Type::CloseSquare);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create(Token::Type::CloseSquare, input_since(start_byte_offset));
     }
 
     // U+007B LEFT CURLY BRACKET ({)
     if (is_open_curly_bracket(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is open curly");
         // Return a <{-token>.
-        Token token = create_new_token(Token::Type::OpenCurly);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create(Token::Type::OpenCurly, input_since(start_byte_offset));
     }
 
     // U+007D RIGHT CURLY BRACKET (})
     if (is_closed_curly_bracket(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is closed curly");
         // Return a <}-token>.
-        Token token = create_new_token(Token::Type::CloseCurly);
-        token.m_original_source_text = input_since(start_byte_offset);
-        return token;
+        return Token::create(Token::Type::CloseCurly, input_since(start_byte_offset));
     }
 
     // digit
@@ -1312,7 +1225,7 @@ Token Tokenizer::consume_a_token()
     // anything else
     dbgln_if(CSS_TOKENIZER_DEBUG, "is delimiter");
     // Return a <delim-token> with its value set to the current input code point.
-    return create_value_token(Token::Type::Delim, input, input_since(start_byte_offset));
+    return Token::create_delim(input, input_since(start_byte_offset));
 }
 
 size_t Tokenizer::current_byte_offset() const

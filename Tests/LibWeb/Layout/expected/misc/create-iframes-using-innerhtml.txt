@@ -68,7 +68,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
       PaintableWithLines (BlockContainer<DIV>#container) [8,8 784x0]
-        PaintableWithLines (BlockContainer<DIV>) [8,8 1x1] overflow: [8,8 20x290]
+        PaintableWithLines (BlockContainer<DIV>) [8,8 1x1] overflow: [8,8 25x295]
           NavigableContainerViewportPaintable (NavigableContainerViewport<IFRAME>) [13,13 20x20]
           NavigableContainerViewportPaintable (NavigableContainerViewport<IFRAME>) [13,43 20x20]
           NavigableContainerViewportPaintable (NavigableContainerViewport<IFRAME>) [13,73 20x20]
@@ -79,3 +79,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           NavigableContainerViewportPaintable (NavigableContainerViewport<IFRAME>) [13,223 20x20]
           NavigableContainerViewportPaintable (NavigableContainerViewport<IFRAME>) [13,253 20x20]
           NavigableContainerViewportPaintable (NavigableContainerViewport<IFRAME>) [13,283 20x20]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x16] [children: 0] (z-index: auto)

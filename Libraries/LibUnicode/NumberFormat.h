@@ -156,7 +156,6 @@ public:
     using Value = Variant<double, String>;
 
     virtual String format(Value const&) const = 0;
-    virtual String format_to_decimal(Value const&) const = 0;
     virtual Vector<Partition> format_to_parts(Value const&) const = 0;
 
     virtual String format_range(Value const&, Value const&) const = 0;

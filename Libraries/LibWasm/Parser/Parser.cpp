@@ -93,7 +93,7 @@ static ParseResult<ByteString> parse_name(Stream& stream)
     ScopeLogger<WASM_BINPARSER_DEBUG> logger;
     auto data = TRY(parse_vector<u8>(stream));
     auto string = ByteString::copy(data);
-    if (!Utf8View(string).validate(Utf8View::AllowSurrogates::No))
+    if (!Utf8View(string).validate(AllowLonelySurrogates::No))
         return ParseError::InvalidUtf8;
     return string;
 }
@@ -1149,7 +1149,7 @@ ParseResult<CodeSection::Code> CodeSection::Code::parse(Stream& stream)
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Code"sv);
     auto size = TRY_READ(stream, LEB128<u32>, ParseError::InvalidSize);
 
-    // Emprically, if there are `size` bytes to be read, then there's around
+    // Empirically, if there are `size` bytes to be read, then there's around
     // `size / 2` instructions, so we pass that as our size hint.
     auto func = TRY(Func::parse(stream, size / 2));
 

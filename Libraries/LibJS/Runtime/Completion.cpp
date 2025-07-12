@@ -6,6 +6,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -17,7 +18,7 @@
 
 namespace JS {
 
-bool g_log_all_js_exceptions = false;
+JS_API bool g_log_all_js_exceptions = false;
 
 Completion::Completion(ThrowCompletionOr<Value> const& throw_completion_or_value)
 {
@@ -98,7 +99,7 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
     promise->perform_then(on_fulfilled, on_rejected, {});
 
     // FIXME: Since we don't support context suspension, we attempt to "wait" for the promise to resolve
-    //        by syncronously running all queued promise jobs.
+    //        by synchronously running all queued promise jobs.
     if (auto* agent = vm.agent()) {
         // Embedder case (i.e. LibWeb). Runs all promise jobs by performing a microtask checkpoint.
         agent->spin_event_loop_until(GC::create_function(vm.heap(), [success] {

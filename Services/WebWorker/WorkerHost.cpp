@@ -95,7 +95,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHolder mess
     auto destination = is_shared ? Web::Fetch::Infrastructure::Request::Destination::SharedWorker
                                  : Web::Fetch::Infrastructure::Request::Destination::Worker;
 
-    // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel and processCustomFetchResponse:
+    // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel, and processCustomFetchResponse:
     auto perform_fetch_function = [inside_settings, worker_global_scope, is_shared](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
         auto& realm = inside_settings->realm();
         auto& vm = realm.vm();
@@ -208,10 +208,10 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHolder mess
 
         // 12. If is shared is false, enable the port message queue of the worker's implicit port.
         if (!is_shared) {
-            inside_port->start();
+            inside_port->enable();
         }
 
-        // 13. If is shared is true, then queue a global task on DOM manipulation task source given worker
+        // 13. If is shared is true, then queue a global task on the DOM manipulation task source given worker
         //     global scope to fire an event named connect at worker global scope, using MessageEvent,
         //     with the data attribute initialized to the empty string, the ports attribute initialized
         //     to a new frozen array containing inside port, and the source attribute initialized to inside port.

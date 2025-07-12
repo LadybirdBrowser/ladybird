@@ -53,6 +53,11 @@ void CSSRule::set_css_text(StringView)
 void CSSRule::set_parent_rule(CSSRule* parent_rule)
 {
     m_parent_rule = parent_rule;
+
+    if (parent_rule == nullptr)
+        set_parent_style_sheet(nullptr);
+    else
+        set_parent_style_sheet(parent_rule->parent_style_sheet());
     clear_caches();
 }
 

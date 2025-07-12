@@ -4,5 +4,5 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    serenity_test("${source}" Test)
+    ladybird_test("${source}" Test)
 endforeach()

@@ -11,7 +11,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/DateTime.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/RegExpObject.h>
@@ -543,8 +542,6 @@ void HTMLInputElement::did_edit_text_node()
 
 void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state)
 {
-    set_is_open(false);
-
     if (type_state() == TypeAttributeState::Color && picked_color.has_value()) {
         // then when the user changes the element's value
         m_value = value_sanitization_algorithm(picked_color.value().to_string_without_alpha());
@@ -555,12 +552,13 @@ void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerU
         // the user agent must queue an element task on the user interaction task source
         user_interaction_did_change_input_value();
 
-        // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
-        // [...] any time the user commits the change, the user agent must queue an element task on the user interaction task source
         if (state == ColorPickerUpdateState::Closed) {
+            set_is_open(false);
+
+            // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
+            // [...] any time the user commits the change, the user agent must queue an element task on the user interaction task source given the input element to
             queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
-                // given the input element
-                // to set its user validity to true
+                // set its user validity to true
                 m_user_validity = true;
                 // and fire an event named change at the input element, with the bubbles attribute initialized to true.
                 auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
@@ -659,6 +657,18 @@ String HTMLInputElement::value() const
     }
 
     VERIFY_NOT_REACHED();
+}
+
+Optional<String> HTMLInputElement::optional_value() const
+{
+    switch (m_type) {
+    // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit):concept-fe-optional-value
+    case TypeAttributeState::SubmitButton:
+        // The element's optional value is the value of the element's value attribute, if there is one; otherwise null.
+        return get_attribute(AttributeNames::value);
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 WebIDL::ExceptionOr<void> HTMLInputElement::set_value(String const& value)
@@ -1328,7 +1338,7 @@ void HTMLInputElement::user_interaction_did_change_input_value()
     });
     // and any time the user commits the change, the user agent must queue an element task on the user interaction task source given the input
     // element to set its user validity to true and fire an event named change at the input element, with the bubbles attribute initialized to true.
-    // FIXME: Does this need to happen here?
+    // NOTE: This is done manually as needed
 }
 
 void HTMLInputElement::update_slider_shadow_tree_elements()
@@ -1971,13 +1981,13 @@ void HTMLInputElement::legacy_cancelled_activation_behavior()
         set_indeterminate(m_before_legacy_pre_activation_behavior_indeterminate);
     }
 
-    // 2. If this element 's type attribute is in the Radio Button state, then
+    // 2. If this element's type attribute is in the Radio Button state, then
     // if the element to which a reference was obtained in the
     // legacy-pre-activation behavior, if any, is still in what is now this
-    // element' s radio button group, if it still has one, and if so, setting
+    // element' s radio button group, if it still has one, and if so, set
     // that element 's checkedness to true; or else, if there was no such
     // element, or that element is no longer in this element' s radio button
-    // group, or if this element no longer has a radio button group, setting
+    // group, or if this element no longer has a radio button group, set
     // this element's checkedness to false.
     if (type_state() == TypeAttributeState::RadioButton) {
         bool did_reselect_previous_element = false;
@@ -2326,8 +2336,8 @@ static String convert_number_to_date_string(double input)
     // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid
     // date string that represents the date that, in UTC, is current input milliseconds after midnight UTC
     // on the morning of 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0Z").
-    auto date = Core::DateTime::from_timestamp(input / 1000.);
-    return MUST(date.to_string("%Y-%m-%d"sv, Core::DateTime::LocalTime::No));
+    auto date = AK::UnixDateTime::from_seconds_since_epoch(input / 1000.);
+    return MUST(date.to_string("%Y-%m-%d"sv, AK::UnixDateTime::LocalTime::No));
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-number-string

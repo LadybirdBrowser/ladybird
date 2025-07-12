@@ -154,7 +154,6 @@ executable("ladybird_executable") {
   } else {
     data_deps += [
       ":ladybird_copy_about_pages",
-      ":ladybird_copy_cacert",
       ":ladybird_copy_config_resources",
       ":ladybird_copy_fonts",
       ":ladybird_copy_icons_128x128",
@@ -280,12 +279,8 @@ web_templates = [
   "//Base/res/ladybird/templates/version.html",
 ]
 
-cacert = [ "$root_build_dir/cacert.pem" ]
-
-config_resources = [
-  "//Base/res/ladybird/default-config/BrowserContentFilters.txt",
-  "//Base/res/ladybird/default-config/bookmarks.json",
-]
+config_resources =
+    [ "//Base/res/ladybird/default-config/BrowserContentFilters.txt" ]
 
 if (current_os != "mac") {
   copy("ladybird_copy_fonts") {
@@ -341,12 +336,6 @@ if (current_os != "mac") {
         [ "$root_out_dir/share/Lagom/ladybird/templates/{{source_file_part}}" ]
   }
 
-  copy("ladybird_copy_cacert") {
-    public_deps = [ "//Userland/Libraries/LibTLS:ca_certificates_download" ]
-    sources = cacert
-    outputs = [ "$root_out_dir/share/Lagom/ladybird/{{source_file_part}}" ]
-  }
-
   copy("ladybird_copy_config_resources") {
     sources = config_resources
     outputs = [
@@ -398,7 +387,6 @@ if (current_os != "mac") {
       "//Userland/Libraries/LibJS",
       "//Userland/Libraries/LibLine",
       "//Userland/Libraries/LibMedia",
-      "//Userland/Libraries/LibRIFF",
       "//Userland/Libraries/LibRegex",
       "//Userland/Libraries/LibRequests",
       "//Userland/Libraries/LibSyntax",
@@ -430,7 +418,6 @@ if (current_os != "mac") {
       "$root_out_dir/lib/liblagom-media.dylib",
       "$root_out_dir/lib/liblagom-regex.dylib",
       "$root_out_dir/lib/liblagom-requests.dylib",
-      "$root_out_dir/lib/liblagom-riff.dylib",
       "$root_out_dir/lib/liblagom-syntax.dylib",
       "$root_out_dir/lib/liblagom-textcodec.dylib",
       "$root_out_dir/lib/liblagom-threading.dylib",
@@ -497,12 +484,6 @@ if (current_os != "mac") {
         [ "{{bundle_resources_dir}}/ladybird/templates/{{source_file_part}}" ]
   }
 
-  bundle_data("ladybird_cacert") {
-    public_deps = [ "//Userland/Libraries/LibTLS:ca_certificates_download" ]
-    sources = cacert
-    outputs = [ "{{bundle_resources_dir}}/ladybird/{{source_file_part}}" ]
-  }
-
   bundle_data("ladybird_config_resources") {
     sources = config_resources
     outputs = [
@@ -555,7 +536,6 @@ if (current_os != "mac") {
       ":ladybird_bundle_executables",
       ":ladybird_bundle_info_plist",
       ":ladybird_bundle_libs",
-      ":ladybird_cacert",
       ":ladybird_config_resources",
       ":ladybird_fonts",
       ":ladybird_icon",

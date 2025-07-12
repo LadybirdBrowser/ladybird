@@ -73,18 +73,21 @@ ensure_run_dir() {
 
 LADYBIRD_BINARY=${LADYBIRD_BINARY:-"$(default_binary_path)/Ladybird"}
 WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/WebDriver"}
-HEADLESS_BROWSER_BINARY=${HEADLESS_BROWSER_BINARY:-"$(default_binary_path)/headless-browser"}
+TEST_WEB_BINARY=${TEST_WEB_BINARY:-"${BUILD_DIR}/bin/test-web"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
     "tools/certs/cacert.pem"
-    "${BUILD_DIR}/Lagom/cacert.pem"
 )
-WPT_ARGS=( "--webdriver-binary=${WEBDRIVER_BINARY}"
+WPT_ARGS=(
+    "--binary=${LADYBIRD_BINARY}"
+    "--webdriver-binary=${WEBDRIVER_BINARY}"
     "--install-webdriver"
     "--webdriver-arg=--force-cpu-painting"
     "--no-pause-after-test"
+    "--install-fonts"
     "${EXTRA_WPT_ARGS[@]}"
 )
+IMPORT_ARGS=()
 WPT_LOG_ARGS=()
 
 ARG0=$0
@@ -147,6 +150,8 @@ print_help() {
           Run the Web Platform Tests in the 'css/CSS2' directory, comparing the results to the expectations in expectations.log; output the results to results.log.
       $NAME import html/dom/aria-attribute-reflection.html
           Import the test from https://wpt.live/html/dom/aria-attribute-reflection.html into the Ladybird test suite.
+      $NAME import --force html/dom/aria-attribute-reflection.html
+          Import the test from https://wpt.live/html/dom/aria-attribute-reflection.html into the Ladybird test suite, redownloading any files that already exist.
       $NAME list-tests css/CSS2 dom
           Show a list of all tests in the 'css/CSS2' and 'dom' directories.
 EOF
@@ -207,10 +212,7 @@ while [[ "$ARG" =~ ^(--show-window|--debug-process|--parallel-instances|(--log(-
 done
 
 if [ $headless -eq 1 ]; then
-    WPT_ARGS+=( "--binary=${HEADLESS_BROWSER_BINARY}" )
     WPT_ARGS+=( "--webdriver-arg=--headless" )
-else
-    WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
 fi
 
 exit_if_running_as_root "Do not run WPT.sh as root"
@@ -302,8 +304,11 @@ cleanup_run_dirs() {
         rm -fr "${BUILD_DIR}/wpt"
     }
 cleanup_merge_dirs_and_infra() {
-    cleanup_run_dirs
-    cleanup_run_infra
+    # Cleanup is only needed on Linux
+    if [[ $OSTYPE == 'linux'* ]]; then
+        cleanup_run_dirs
+        cleanup_run_infra
+    fi
 }
 trap cleanup_merge_dirs_and_infra EXIT INT TERM
 
@@ -573,6 +578,22 @@ list_tests_wpt()
 
 import_wpt()
 {
+    pushd "${WPT_SOURCE_DIR}" > /dev/null
+       if ! git fetch origin > /dev/null; then
+            echo "Failed to fetch the WPT repository, please check your network connection."
+            exit 1
+        fi
+        local local_hash
+        local_hash=$(git rev-parse HEAD)
+        local remote_hash
+        remote_hash=$(git rev-parse origin/master)
+
+        if [ "$local_hash" != "$remote_hash" ]; then
+            echo "WPT repository is not up to date, please run '$0 update' first."
+            exit 1
+        fi
+    popd > /dev/null
+
     for i in "${!INPUT_PATHS[@]}"; do
         item="${INPUT_PATHS[i]}"
         item="${item#http://wpt.live/}"
@@ -597,14 +618,14 @@ import_wpt()
     done < <(printf "%s\n" "${RAW_TESTS[@]}" | sort -u)
 
     pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
-        ./Meta/ladybird.py build headless-browser
+        ./Meta/ladybird.py build test-web
         set +e
         for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"
-            if ! ./Meta/import-wpt-test.py https://wpt.live/"${path}"; then
+            if ! ./Meta/import-wpt-test.py "${IMPORT_ARGS[@]}" https://wpt.live/"${path}"; then
                 continue
             fi
-            "${HEADLESS_BROWSER_BINARY}" --run-tests ./Tests/LibWeb --rebaseline -f "$path"
+            "${TEST_WEB_BINARY}" --rebaseline -f "$path"
         done
         set -e
     popd > /dev/null
@@ -638,6 +659,10 @@ if [[ "$CMD" =~ ^(update|clean|run|serve|compare|import|list-tests)$ ]]; then
             serve_wpt
             ;;
         import)
+            if [ "$1" = "--force" ]; then
+                shift
+                IMPORT_ARGS+=( "--force" )
+            fi
             if [ $# -eq 0 ]; then
                 usage
             fi

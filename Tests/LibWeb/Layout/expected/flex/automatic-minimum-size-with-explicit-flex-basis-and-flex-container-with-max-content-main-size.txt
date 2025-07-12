@@ -11,3 +11,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableBox (Box<BODY>.flex) [9,9 40.84375x52]
       PaintableWithLines (BlockContainer<DIV>.item) [10,10 38.84375x50]
         TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x68] [children: 0] (z-index: auto)

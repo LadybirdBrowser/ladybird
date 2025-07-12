@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 288 tests
 
-192 Pass
-96 Fail
+198 Pass
+90 Fail
 Fail	CSS Transitions: property <background-image> from neutral to [url(../resources/green-100.png)] at (-0.3) should be [url(../resources/blue-100.png)]
 Fail	CSS Transitions: property <background-image> from neutral to [url(../resources/green-100.png)] at (0) should be [url(../resources/blue-100.png)]
 Fail	CSS Transitions: property <background-image> from neutral to [url(../resources/green-100.png)] at (0.3) should be [url(../resources/blue-100.png)]
@@ -16,15 +16,15 @@ Fail	CSS Transitions with transition: all: property <background-image> from neut
 Pass	CSS Transitions with transition: all: property <background-image> from neutral to [url(../resources/green-100.png)] at (0.6) should be [url(../resources/green-100.png)]
 Pass	CSS Transitions with transition: all: property <background-image> from neutral to [url(../resources/green-100.png)] at (1) should be [url(../resources/green-100.png)]
 Pass	CSS Transitions with transition: all: property <background-image> from neutral to [url(../resources/green-100.png)] at (1.5) should be [url(../resources/green-100.png)]
-Fail	CSS Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (-0.3) should be [url(../resources/blue-100.png)]
-Fail	CSS Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0) should be [url(../resources/blue-100.png)]
-Fail	CSS Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0.3) should be [url(../resources/blue-100.png)]
+Pass	CSS Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (-0.3) should be [url(../resources/blue-100.png)]
+Pass	CSS Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0) should be [url(../resources/blue-100.png)]
+Pass	CSS Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0.3) should be [url(../resources/blue-100.png)]
 Pass	CSS Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0.6) should be [url(../resources/green-100.png)]
 Pass	CSS Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (1) should be [url(../resources/green-100.png)]
 Pass	CSS Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (1.5) should be [url(../resources/green-100.png)]
-Fail	Web Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (-0.3) should be [url(../resources/blue-100.png)]
-Fail	Web Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0) should be [url(../resources/blue-100.png)]
-Fail	Web Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0.3) should be [url(../resources/blue-100.png)]
+Pass	Web Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (-0.3) should be [url(../resources/blue-100.png)]
+Pass	Web Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0) should be [url(../resources/blue-100.png)]
+Pass	Web Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0.3) should be [url(../resources/blue-100.png)]
 Pass	Web Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (0.6) should be [url(../resources/green-100.png)]
 Pass	Web Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (1) should be [url(../resources/green-100.png)]
 Pass	Web Animations: property <background-image> from neutral to [url(../resources/green-100.png)] at (1.5) should be [url(../resources/green-100.png)]

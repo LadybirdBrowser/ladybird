@@ -6,7 +6,6 @@
  */
 
 #include <AK/Debug.h>
-#include <LibCore/DateTime.h>
 #include <LibCore/Directory.h>
 #include <LibCore/MimeData.h>
 #include <LibCore/Resource.h>
@@ -146,8 +145,8 @@ static HTTP::HeaderMap response_headers_for_file(StringView path, Optional<time_
     response_headers.set("Content-Type"sv, mime_type);
 
     if (modified_time.has_value()) {
-        auto const datetime = Core::DateTime::from_timestamp(modified_time.value());
-        response_headers.set("Last-Modified"sv, datetime.to_byte_string("%a, %d %b %Y %H:%M:%S GMT"sv, Core::DateTime::LocalTime::No));
+        auto const datetime = AK::UnixDateTime::from_seconds_since_epoch(modified_time.value());
+        response_headers.set("Last-Modified"sv, datetime.to_byte_string("%a, %d %b %Y %H:%M:%S GMT"sv, AK::UnixDateTime::LocalTime::No));
     }
 
     return response_headers;

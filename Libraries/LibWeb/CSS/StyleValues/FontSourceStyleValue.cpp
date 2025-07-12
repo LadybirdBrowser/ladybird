@@ -9,10 +9,11 @@
 
 namespace Web::CSS {
 
-FontSourceStyleValue::FontSourceStyleValue(Source source, Optional<FlyString> format)
+FontSourceStyleValue::FontSourceStyleValue(Source source, Optional<FlyString> format, Vector<FontTech> tech)
     : StyleValueWithDefaultOperators(Type::FontSource)
     , m_source(move(source))
     , m_format(move(format))
+    , m_tech(move(tech))
 {
 }
 
@@ -36,13 +37,20 @@ String FontSourceStyleValue::to_string(SerializationMode) const
         },
         [this](URL const& url) {
             // <url> [ format(<font-format>)]? [ tech( <font-tech>#)]?
-            // FIXME: tech()
             StringBuilder builder;
             builder.append(url.to_string());
 
             if (m_format.has_value()) {
                 builder.append(" format("sv);
                 serialize_an_identifier(builder, *m_format);
+                builder.append(")"sv);
+            }
+
+            if (!m_tech.is_empty()) {
+                builder.append(" tech("sv);
+                serialize_a_comma_separated_list(builder, m_tech, [](auto& builder, FontTech const tech) {
+                    return builder.append(CSS::to_string(tech));
+                });
                 builder.append(")"sv);
             }
 

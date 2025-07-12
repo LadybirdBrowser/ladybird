@@ -1,0 +1,61 @@
+<!doctype html>
+<title>DOMStringList</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+
+// Returns a promise that resolves to a DOMStringList with
+// the requested entries. Relies on Indexed DB.
+function createDOMStringList(entries) {
+  return new Promise((resolve, reject) => {
+    const dbname = String(self.location + Math.random());
+    const request = indexedDB.open(dbname);
+    request.onerror = () => reject(request.error);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      entries.forEach(entry => db.createObjectStore(entry));
+      const dsl = db.objectStoreNames;
+      resolve(dsl);
+      request.transaction.abort();
+    }
+  });
+}
+
+function dsl_test(entries, func, description) {
+  promise_test(t => createDOMStringList(entries).then(dsl => func(t, dsl)),
+               description);
+}
+
+dsl_test(['a', 'b', 'c'], (t, dsl) => {
+  assert_equals(dsl.length, 3, 'length attribute');
+}, 'DOMStringList: length attribute');
+
+dsl_test(['a', 'b', 'c'], (t, dsl) => {
+  assert_equals(dsl.item(0), 'a', 'item method');
+  assert_equals(dsl.item(1), 'b', 'item method');
+  assert_equals(dsl.item(2), 'c', 'item method');
+  assert_equals(dsl.item(3), null, 'item method out of range');
+  assert_equals(dsl.item(-1), null, 'item method out of range');
+  assert_throws_js(TypeError, () => dsl.item(),
+                   'item method should throw if called without enough args');
+}, 'DOMStringList: item() method');
+
+dsl_test(['a', 'b', 'c'], (t, dsl) => {
+  assert_equals(dsl[0], 'a', 'indexed getter');
+  assert_equals(dsl[1], 'b', 'indexed getter');
+  assert_equals(dsl[2], 'c', 'indexed getter');
+  assert_equals(dsl[3], undefined, 'indexed getter out of range');
+  assert_equals(dsl[-1], undefined, 'indexed getter out of range');
+}, 'DOMStringList: indexed getter');
+
+dsl_test(['a', 'b', 'c'], (t, dsl) => {
+  assert_true(dsl.contains('a'), 'contains method matched');
+  assert_true(dsl.contains('b'), 'contains method matched');
+  assert_true(dsl.contains('c'), 'contains method matched');
+  assert_false(dsl.contains(''), 'contains method unmatched');
+  assert_false(dsl.contains('d'), 'contains method unmatched');
+  assert_throws_js(TypeError, () => dsl.contains(),
+    'contains method should throw if called without enough args');
+}, 'DOMStringList: contains() method');
+
+</script>

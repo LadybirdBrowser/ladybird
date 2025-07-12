@@ -41,8 +41,7 @@ JS_DEFINE_NATIVE_FUNCTION(ShadowRealmPrototype::evaluate)
     auto object = TRY(typed_this_object(vm));
 
     // 3. If Type(sourceText) is not String, throw a TypeError exception.
-    if (!source_text.is_string())
-        return vm.throw_completion<TypeError>(ErrorType::NotAString, source_text);
+    // FIXME: This step is intentionally skipped, see perform_shadow_realm_eval.
 
     // 4. Let callerRealm be the current Realm Record.
     auto* caller_realm = vm.current_realm();
@@ -51,7 +50,7 @@ JS_DEFINE_NATIVE_FUNCTION(ShadowRealmPrototype::evaluate)
     auto& eval_realm = object->shadow_realm();
 
     // 6. Return ? PerformShadowRealmEval(sourceText, callerRealm, evalRealm).
-    return perform_shadow_realm_eval(vm, source_text.as_string().utf8_string_view(), *caller_realm, eval_realm);
+    return perform_shadow_realm_eval(vm, source_text, *caller_realm, eval_realm);
 }
 
 // 3.4.2 ShadowRealm.prototype.importValue ( specifier, exportName ), https://tc39.es/proposal-shadowrealm/#sec-shadowrealm.prototype.importvalue

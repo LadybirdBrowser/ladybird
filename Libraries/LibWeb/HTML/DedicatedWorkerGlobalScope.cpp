@@ -66,17 +66,31 @@ WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value mes
     return m_internal_port->post_message(message, transfer);
 }
 
-#undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)                                        \
-    void DedicatedWorkerGlobalScope::set_##attribute_name(WebIDL::CallbackType* value) \
-    {                                                                                  \
-        set_event_handler_attribute(event_name, move(value));                          \
-    }                                                                                  \
-    WebIDL::CallbackType* DedicatedWorkerGlobalScope::attribute_name()                 \
-    {                                                                                  \
-        return event_handler_attribute(event_name);                                    \
-    }
-ENUMERATE_DEDICATED_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(__ENUMERATE)
-#undef __ENUMERATE
+WebIDL::CallbackType* DedicatedWorkerGlobalScope::onmessage()
+{
+    return event_handler_attribute(EventNames::message);
+}
+
+void DedicatedWorkerGlobalScope::set_onmessage(WebIDL::CallbackType* callback)
+{
+    set_event_handler_attribute(EventNames::message, callback);
+
+    // NOTE: This onmessage attribute setter implicitly sets worker's underlying MessagePort's onmessage attribute, so this
+    //       spec behavior also applies here:
+    // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports:handler-messageeventtarget-onmessage
+    // The first time a MessagePort object's onmessage IDL attribute is set, the port's port message queue must be enabled,
+    // as if the start() method had been called.
+    m_internal_port->start();
+}
+
+void DedicatedWorkerGlobalScope::set_onmessageerror(WebIDL::CallbackType* callback)
+{
+    set_event_handler_attribute(EventNames::messageerror, callback);
+}
+
+WebIDL::CallbackType* DedicatedWorkerGlobalScope::onmessageerror()
+{
+    return event_handler_attribute(EventNames::messageerror);
+}
 
 }

@@ -211,7 +211,6 @@ TEST_CASE(test_gif_without_global_color_table)
     auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(gif_data));
     EXPECT_EQ(plugin_decoder->frame_count(), 1u);
     auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
-    EXPECT(frame.image);
     EXPECT_EQ(frame.image->size(), Gfx::IntSize(1, 1));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
 }
@@ -1130,7 +1129,15 @@ TEST_CASE(test_avif_simple_lossless)
 TEST_CASE(test_avif_simple_lossy_bitdepth10)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-bitdepth10.avif"sv)));
-    EXPECT(!Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
+
+    // While AVIF YUV contents are defined bit-exact, the YUV->RGB conversion isn't.
+    // So pixels changing by 1 or so below is fine if you change code.
+    EXPECT_EQ(frame.image->get_pixel(120, 232), Gfx::Color(0xf1, 0xef, 0xf0, 255));
+    EXPECT_EQ(frame.image->get_pixel(198, 202), Gfx::Color(0x79, 0xab, 0xd6, 255));
 }
 
 TEST_CASE(test_avif_icc_profile)

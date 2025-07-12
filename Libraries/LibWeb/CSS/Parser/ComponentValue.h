@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -24,6 +24,7 @@ public:
     ComponentValue(Token);
     explicit ComponentValue(Function&&);
     explicit ComponentValue(SimpleBlock&&);
+    explicit ComponentValue(GuaranteedInvalidValue&&);
     ~ComponentValue();
 
     bool is_block() const { return m_value.has<SimpleBlock>(); }
@@ -40,12 +41,15 @@ public:
     Token const& token() const { return m_value.get<Token>(); }
     operator Token() const { return m_value.get<Token>(); }
 
+    bool is_guaranteed_invalid() const { return m_value.has<GuaranteedInvalidValue>(); }
+    bool contains_guaranteed_invalid_value() const;
+
     String to_string() const;
     String to_debug_string() const;
     String original_source_text() const;
 
 private:
-    Variant<Token, Function, SimpleBlock> m_value;
+    Variant<Token, Function, SimpleBlock, GuaranteedInvalidValue> m_value;
 };
 
 }

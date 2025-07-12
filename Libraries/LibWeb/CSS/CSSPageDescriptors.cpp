@@ -5,7 +5,9 @@
  */
 
 #include <LibWeb/Bindings/CSSPageDescriptorsPrototype.h>
+#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSPageDescriptors.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 

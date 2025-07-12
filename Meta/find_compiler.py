@@ -18,7 +18,6 @@ from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
 from Meta.utils import run_command
 
-
 CLANG_MINIMUM_VERSION = 17
 GCC_MINIMUM_VERSION = 13
 XCODE_MINIMUM_VERSION = ("14.3", 14030022)
@@ -167,6 +166,32 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
         )
 
     sys.exit(1)
+
+
+def pick_swift_compilers(platform: Platform, project_root: Path) -> tuple[Path, Path, Path]:
+    if platform.host_system == HostSystem.Windows:
+        print("Swift builds are not supported on Windows", file=sys.stderr)
+        sys.exit(1)
+
+    if not shutil.which("swiftly"):
+        print("swiftly is required to manage Swift toolchains", file=sys.stderr)
+        sys.exit(1)
+
+    swiftly_toolchain_path = run_command(["swiftly", "use", "--print-location"], return_output=True, cwd=project_root)
+    if not swiftly_toolchain_path:
+        run_command(["swiftly", "install"], exit_on_failure=True, cwd=project_root)
+        swiftly_toolchain_path = run_command(
+            ["swiftly", "use", "--print-location"], return_output=True, exit_on_failure=True, cwd=project_root
+        )
+
+    swiftly_toolchain_path = Path(swiftly_toolchain_path.strip())
+    swiftly_bin_dir = swiftly_toolchain_path.joinpath("usr", "bin")
+
+    if not swiftly_toolchain_path.exists() or not swiftly_bin_dir.exists():
+        print(f"swiftly toolchain path {swiftly_toolchain_path} does not exist", file=sys.stderr)
+        sys.exit(1)
+
+    return swiftly_bin_dir / "clang", swiftly_bin_dir / "clang++", swiftly_bin_dir / "swiftc"
 
 
 def main():

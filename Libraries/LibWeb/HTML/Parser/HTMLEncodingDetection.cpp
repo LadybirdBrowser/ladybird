@@ -97,7 +97,8 @@ Optional<StringView> extract_character_encoding_from_meta_element(ByteString con
 // https://html.spec.whatwg.org/multipage/parsing.html#concept-get-attributes-when-sniffing
 GC::Ptr<DOM::Attr> prescan_get_attribute(DOM::Document& document, ByteBuffer const& input, size_t& position)
 {
-    // 1. If the byte at position is one of 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), 0x20 (SP), or 0x2F (/) then advance position to the next byte and redo this step.
+    // 1. If the byte at position is one of 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), 0x20 (SP), or 0x2F (/),
+    //    then advance position to the next byte and redo this step.
     if (!prescan_skip_whitespace_and_slashes(input, position))
         return {};
 
@@ -145,7 +146,7 @@ GC::Ptr<DOM::Attr> prescan_get_attribute(DOM::Document& document, ByteBuffer con
     }
 
 spaces:
-    // 6. Spaces: If the byte at position is one of 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), or 0x20 (SP)
+    // 6. Spaces: If the byte at position is one of 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), or 0x20 (SP),
     //    then advance position to the next byte, then, repeat this step.
     if (!prescan_skip_whitespace_and_slashes(input, position))
         return {};
@@ -159,7 +160,7 @@ spaces:
     ++position;
 
 value:
-    // 9. Value: If the byte at position is one of 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), or 0x20 (SP)
+    // 9. Value: If the byte at position is one of 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), or 0x20 (SP),
     //    then advance position to the next byte, then, repeat this step.
     if (!prescan_skip_whitespace_and_slashes(input, position))
         return {};

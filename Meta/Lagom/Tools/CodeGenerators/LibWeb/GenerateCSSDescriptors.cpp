@@ -20,7 +20,7 @@ static bool is_legacy_alias(JsonObject const& descriptor)
     return descriptor.has_string("legacy-alias-for"sv);
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
     StringView generated_implementation_path;

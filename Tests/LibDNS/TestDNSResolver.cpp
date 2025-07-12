@@ -6,7 +6,6 @@
 
 #include <LibCore/Socket.h>
 #include <LibDNS/Resolver.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibTLS/TLSv12.h>
 #include <LibTest/TestCase.h>
 
@@ -72,19 +71,6 @@ TEST_CASE(test_tcp)
     EXPECT_EQ(0, loop.exec());
 }
 
-static StringView ca_certs_file = "./cacert.pem"sv;
-static Optional<ByteString> locate_ca_certs_file()
-{
-    if (FileSystem::exists(ca_certs_file)) {
-        return ca_certs_file;
-    }
-    auto on_target_path = ByteString("/etc/cacert.pem");
-    if (FileSystem::exists(on_target_path)) {
-        return on_target_path;
-    }
-    return {};
-}
-
 TEST_CASE(test_tls)
 {
     Core::EventLoop loop;
@@ -93,9 +79,7 @@ TEST_CASE(test_tls)
         [&] -> ErrorOr<DNS::Resolver::SocketResult> {
             Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"sv).value(), static_cast<u16>(853) };
 
-            TLS::Options options;
-            options.set_root_certificates_path(locate_ca_certs_file());
-            options.set_blocking(false);
+            TLS::Options options = {};
 
             return DNS::Resolver::SocketResult {
                 MaybeOwned<Core::Socket>(TRY(TLS::TLSv12::connect(addr, "1.1.1.1", move(options)))),

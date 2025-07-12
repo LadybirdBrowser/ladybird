@@ -22,7 +22,7 @@ bool ListOfAvailableImages::Key::operator==(Key const& other) const
 u32 ListOfAvailableImages::Key::hash() const
 {
     if (!cached_hash.has_value()) {
-        u32 url_hash = Traits<URL::URL>::hash(url);
+        u32 url_hash = url.hash();
         u32 mode_hash = static_cast<u32>(mode);
         u32 origin_hash = 0;
         if (origin.has_value())

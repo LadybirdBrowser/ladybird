@@ -27,12 +27,12 @@ bool CSSLCHLike::equals(CSSStyleValue const& other) const
     return m_properties == other_oklch_like.m_properties;
 }
 
-Color CSSLCH::to_color(Optional<Layout::NodeWithStyle const&>) const
+Color CSSLCH::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 100).value_or(0), 0, 100);
-    auto const c_val = resolve_with_reference_value(m_properties.c, 150).value_or(0);
-    auto const h_val = AK::to_radians(resolve_hue(m_properties.h).value_or(0));
-    auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+    auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 100, resolution_context).value_or(0), 0, 100);
+    auto const c_val = resolve_with_reference_value(m_properties.c, 150, resolution_context).value_or(0);
+    auto const h_val = AK::to_radians(resolve_hue(m_properties.h, resolution_context).value_or(0));
+    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
 
     return Color::from_lab(l_val, c_val * cos(h_val), c_val * sin(h_val), alpha_val);
 }
@@ -57,12 +57,12 @@ String CSSLCH::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-Color CSSOKLCH::to_color(Optional<Layout::NodeWithStyle const&>) const
+Color CSSOKLCH::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 1.0).value_or(0), 0, 1);
-    auto const c_val = max(resolve_with_reference_value(m_properties.c, 0.4).value_or(0), 0);
-    auto const h_val = AK::to_radians(resolve_hue(m_properties.h).value_or(0));
-    auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+    auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 1.0, resolution_context).value_or(0), 0, 1);
+    auto const c_val = max(resolve_with_reference_value(m_properties.c, 0.4, resolution_context).value_or(0), 0);
+    auto const h_val = AK::to_radians(resolve_hue(m_properties.h, resolution_context).value_or(0));
+    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
 
     return Color::from_oklab(l_val, c_val * cos(h_val), c_val * sin(h_val), alpha_val);
 }

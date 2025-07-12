@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Platform.h>
 #include <AK/Traits.h>
 
 namespace WebView {
@@ -21,14 +22,20 @@ class ViewImplementation;
 class WebContentClient;
 class WebUI;
 
+#if defined(AK_OS_MACOS)
+class MachPortServer;
+#endif
+
 struct Attribute;
 struct AutocompleteEngine;
+struct BrowserOptions;
 struct ConsoleOutput;
 struct CookieStorageKey;
 struct DOMNodeProperties;
 struct Mutation;
 struct ProcessHandle;
 struct SearchEngine;
+struct WebContentOptions;
 
 }
 

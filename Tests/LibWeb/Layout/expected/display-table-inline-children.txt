@@ -28,6 +28,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 1208x616]
         PaintableBox (Box<DIV>.aligncenter.block-image) [8,8 1200x600]
           PaintableBox (Box(anonymous)) [8,8 1200x600]
             PaintableWithLines (BlockContainer(anonymous)) [8,8 1200x600]
-              PaintableWithLines (InlineNode<A>)
+              PaintableWithLines (InlineNode<A>) [8,8 1200x600]
                 ImagePaintable (ImageBox<IMG>) [8,8 1200x600]
       PaintableWithLines (BlockContainer(anonymous)) [8,608 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x616] [children: 0] (z-index: auto)

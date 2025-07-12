@@ -49,9 +49,12 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<DIV>.outer) [8,8 452x122] overflow: [9,9 450x152]
         PaintableWithLines (BlockContainer<DIV>.inner) [34,34 402x102]
           TextPaintable (TextNode<#text>)
-          PaintableWithLines (InlineNode<SPAN>)
+          PaintableWithLines (InlineNode<SPAN>) [35,35 0x18]
       PaintableWithLines (BlockContainer(anonymous)) [8,130 784x0]
       PaintableWithLines (BlockContainer<DIV>.outer) [8,130 452x122] overflow: [9,131 450x260]
         PaintableWithLines (BlockContainer<DIV>.inner) [34,156 402x102] overflow: [35,157 400x234]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,252 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x260] [children: 0] (z-index: auto)

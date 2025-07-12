@@ -1,26 +1,37 @@
 {
-  "builtin-baseline": "89dc8be6dbcf18482a5a1bf86a2f4615c939b0fb",
+  "builtin-baseline": "a7ef72790b3f4a6c1f940503e418f71380ac94a7",
   "dependencies": [
     {
       "name": "angle",
-      "platform": "osx"
+      "platform": "osx",
+      "features": [
+          "metal"
+      ]
+    },
+    {
+      "name": "angle",
+      "platform": "linux | windows | android"
     },
     {
       "name": "curl",
+      "default-features": false,
       "features": [
         "brotli",
+        "non-http",
         "http2",
+        "http3",
         "openssl",
-        "websockets"
+        "websockets",
+        "zstd"
       ]
     },
     {
       "name": "dirent",
       "platform": "windows"
     },
+    "fast-float",
     {
       "name": "ffmpeg",
-      "platform": "!android",
       "features": [
         "avcodec",
         "avformat",
@@ -63,7 +74,10 @@
         "apng"
       ]
     },
-    "libproxy",
+    {
+      "name": "libproxy",
+      "platform": "!android"
+    },
     {
       "name": "libavif",
       "features": [
@@ -112,38 +126,39 @@
     },
     {
       "name": "skia",
-      "platform": "android"
+      "platform": "android",
+      "features": [
+        "vulkan"
+      ]
     },
     "sqlite3",
-    {
-      "name": "vulkan",
-      "platform": "!android"
-    },
+    "vulkan",
     {
       "name": "tiff",
       "features": [
         "zstd"
       ]
     },
-    {
-      "name": "vulkan-headers",
-      "platform": "!android"
-    },
+    "vulkan-headers",
     "woff2",
     "zlib"
   ],
   "overrides": [
     {
       "name": "angle",
-      "version": "chromium_5414#9"
+      "version": "chromium_7258#0"
     },
     {
       "name": "curl",
-      "version": "8.14.0#0"
+      "version": "8.14.1#0"
     },
     {
       "name": "dirent",
       "version": "1.24#0"
+    },
+    {
+      "name": "fast-float",
+      "version": "8.0.2#0"
     },
     {
       "name": "ffmpeg",
@@ -152,6 +167,10 @@
     {
       "name": "fontconfig",
       "version": "2.15.0#4"
+    },
+    {
+      "name": "harfbuzz",
+      "version": "10.2.0#0"
     },
     {
       "name": "icu",
@@ -163,7 +182,7 @@
     },
     {
       "name": "libjxl",
-      "version": "0.11.1#1"
+      "version": "0.11.1#3"
     },
     {
       "name": "libpng",

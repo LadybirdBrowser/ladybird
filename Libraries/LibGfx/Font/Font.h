@@ -59,7 +59,7 @@ public:
     float point_size() const;
     float pixel_size() const;
     int pixel_size_rounded_up() const;
-    Gfx::FontPixelMetrics pixel_metrics() const;
+    FontPixelMetrics const& pixel_metrics() const { return m_pixel_metrics; }
     u8 slope() const { return m_typeface->slope(); }
     u16 weight() const { return m_typeface->weight(); }
     bool contains_glyph(u32 code_point) const { return m_typeface->glyph_id_for_code_point(code_point) > 0; }

@@ -9,6 +9,7 @@
 
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
+#include <LibWeb/DOM/Node.h>
 
 namespace Web::CSS {
 
@@ -22,8 +23,8 @@ class CSSStyleProperties
 public:
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create(JS::Realm&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
 
-    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_resolved_style(DOM::ElementReference);
-    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::ElementReference, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
+    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_resolved_style(JS::Realm&, Optional<DOM::AbstractElement>);
+    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::AbstractElement, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
 
     virtual ~CSSStyleProperties() override = default;
     virtual void initialize(JS::Realm&) override;
@@ -62,7 +63,8 @@ public:
     virtual CSSStyleProperties& generated_style_properties_to_css_style_properties() override { return *this; }
 
 private:
-    CSSStyleProperties(JS::Realm&, Computed, Readonly, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::ElementReference>);
+    CSSStyleProperties(JS::Realm&, Computed, Readonly, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement>);
+    static Vector<StyleProperty> convert_declarations_to_specified_order(Vector<StyleProperty>&);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

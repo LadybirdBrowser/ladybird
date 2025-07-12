@@ -38,13 +38,16 @@ public:
     [[nodiscard]] GC::Ptr<GC::Function<void(bool)>> document_page_showing_observer() const { return m_document_page_showing_observer; }
     void set_document_page_showing_observer(Function<void(bool)>);
 
+    GC::Ref<Document> document() { return m_document; }
+    void set_document(GC::Ref<Document>);
+
 private:
-    explicit DocumentObserver(JS::Realm&, DOM::Document&);
+    explicit DocumentObserver(JS::Realm&, Document&);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
-    GC::Ref<DOM::Document> m_document;
+    GC::Ref<Document> m_document;
     GC::Ptr<GC::Function<void()>> m_document_became_active;
     GC::Ptr<GC::Function<void()>> m_document_became_inactive;
     GC::Ptr<GC::Function<void()>> m_document_completely_loaded;

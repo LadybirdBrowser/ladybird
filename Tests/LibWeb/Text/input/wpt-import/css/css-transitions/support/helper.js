@@ -323,4 +323,17 @@ root.supportsStartingStyle = () => {
   return sheet.cssRules.length == 1;
 };
 
+/**
+ * Waits for a 'transitionend' event to fire on the given element.
+ *
+ * @param element  The DOM element to listen for the transitionend event on.
+ * @returns {Promise<void>} A promise that resolves when the transitionend event is fired.
+ */
+root.waitForTransitionEnd = function(element) {
+  return new Promise(resolve => {
+    element.addEventListener('transitionend', resolve, { once: true });
+  });
+};
+
+
 })(window);

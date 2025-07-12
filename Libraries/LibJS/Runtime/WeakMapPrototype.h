@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class WeakMapPrototype final : public PrototypeObject<WeakMapPrototype, WeakMap> {
+class JS_API WeakMapPrototype final : public PrototypeObject<WeakMapPrototype, WeakMap> {
     JS_PROTOTYPE_OBJECT(WeakMapPrototype, WeakMap, WeakMap);
     GC_DECLARE_ALLOCATOR(WeakMapPrototype);
 

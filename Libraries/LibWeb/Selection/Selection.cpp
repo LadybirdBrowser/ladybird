@@ -399,6 +399,70 @@ WebIDL::ExceptionOr<void> Selection::select_all_children(GC::Ref<DOM::Node> node
     return {};
 }
 
+// https://w3c.github.io/selection-api/#dom-selection-modify
+WebIDL::ExceptionOr<void> Selection::modify(Optional<String> alter, Optional<String> direction, Optional<String> granularity)
+{
+    auto anchor_node = this->anchor_node();
+    if (!anchor_node || !is<DOM::Text>(*anchor_node))
+        return {};
+
+    auto& text_node = static_cast<DOM::Text&>(*anchor_node);
+
+    // 1. If alter is not ASCII case-insensitive match with "extend" or "move", abort these steps.
+    if (!alter.has_value() || !alter.value().bytes_as_string_view().is_one_of_ignoring_ascii_case("extend"sv, "move"sv))
+        return {};
+
+    // 2. If direction is not ASCII case-insensitive match with "forward", "backward", "left", or "right", abort these steps.
+    if (!direction.has_value() || !direction.value().bytes_as_string_view().is_one_of_ignoring_ascii_case("forward"sv, "backward"sv, "left"sv, "right"sv))
+        return {};
+
+    // 3. If granularity is not ASCII case-insensitive match with "character", "word", "sentence", "line", "paragraph",
+    //    "lineboundary", "sentenceboundary", "paragraphboundary", "documentboundary", abort these steps.
+    if (!granularity.has_value() || !granularity.value().bytes_as_string_view().is_one_of_ignoring_ascii_case("character"sv, "word"sv, "sentence"sv, "line"sv, "paragraph"sv, "lineboundary"sv, "sentenceboundary"sv, "paragraphboundary"sv, "documentboundary"sv))
+        return {};
+
+    // 4. If this selection is empty, abort these steps.
+    if (is_empty())
+        return {};
+
+    // 5. Let effectiveDirection be backwards.
+    auto effective_direction = Direction::Backwards;
+
+    // 6. If direction is ASCII case-insensitive match with "forward", set effectiveDirection to forwards.
+    if (direction.value().equals_ignoring_ascii_case("forward"sv))
+        effective_direction = Direction::Forwards;
+
+    // 7. If direction is ASCII case-insensitive match with "right" and inline base direction of this selection's focus is ltr, set effectiveDirection to forwards.
+    if (direction.value().equals_ignoring_ascii_case("right"sv) && text_node.directionality() == DOM::Element::Directionality::Ltr)
+        effective_direction = Direction::Forwards;
+
+    // 8. If direction is ASCII case-insensitive match with "left" and inline base direction of this selection's focus is rtl, set effectiveDirection to forwards.
+    if (direction.value().equals_ignoring_ascii_case("left"sv) && text_node.directionality() == DOM::Element::Directionality::Rtl)
+        effective_direction = Direction::Forwards;
+
+    // 9. Set this selection's direction to effectiveDirection.
+    // NOTE: This is handled by calls to move_offset_to_* later on
+
+    // 10. If alter is ASCII case-insensitive match with "extend", set this selection's focus to the location as if the user had requested to extend selection by granularity.
+    // 11. Otherwise, set this selection's focus and anchor to the location as if the user had requested to move selection by granularity.
+    auto collapse_selection = alter.value().equals_ignoring_ascii_case("move"sv);
+
+    // TODO: Implement the other granularity options.
+    if (effective_direction == Direction::Forwards) {
+        if (granularity.value().equals_ignoring_ascii_case("character"sv))
+            move_offset_to_next_character(collapse_selection);
+        if (granularity.value().equals_ignoring_ascii_case("word"sv))
+            move_offset_to_next_word(collapse_selection);
+    } else {
+        if (granularity.value().equals_ignoring_ascii_case("character"sv))
+            move_offset_to_previous_character(collapse_selection);
+        if (granularity.value().equals_ignoring_ascii_case("word"sv))
+            move_offset_to_previous_word(collapse_selection);
+    }
+
+    return {};
+}
+
 // https://w3c.github.io/selection-api/#dom-selection-deletefromdocument
 WebIDL::ExceptionOr<void> Selection::delete_from_document()
 {
@@ -485,14 +549,10 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
 
 GC::Ptr<DOM::Position> Selection::cursor_position() const
 {
-    if (!m_range)
+    if (!m_range || !is_collapsed())
         return nullptr;
 
-    if (is_collapsed()) {
-        return DOM::Position::create(m_document->realm(), *m_range->start_container(), m_range->start_offset());
-    }
-
-    return nullptr;
+    return DOM::Position::create(m_document->realm(), *m_range->start_container(), m_range->start_offset());
 }
 
 void Selection::move_offset_to_next_character(bool collapse_selection)
@@ -569,7 +629,7 @@ void Selection::move_offset_to_previous_word(bool collapse_selection)
     while (true) {
         auto focus_offset = this->focus_offset();
         if (auto offset = text_node.word_segmenter().previous_boundary(focus_offset); offset.has_value()) {
-            auto word = text_node.data().code_points().substring_view(focus_offset, focus_offset - *offset);
+            auto word = text_node.data().code_points().unicode_substring_view(*offset, focus_offset - *offset);
             if (collapse_selection) {
                 MUST(collapse(anchor_node, *offset));
                 m_document->reset_cursor_blink_cycle();

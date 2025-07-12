@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/Filter.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
@@ -30,6 +31,8 @@ public:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
+    Optional<Gfx::Filter> gfx_filter();
+
     GC::Ref<SVGAnimatedEnumeration> filter_units() const;
     GC::Ref<SVGAnimatedEnumeration> primitive_units() const;
     GC::Ref<SVGAnimatedLength> x() const;
@@ -41,6 +44,7 @@ private:
     SVGFilterElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
     Optional<SVGUnits> m_filter_units {};
     Optional<SVGUnits> m_primitive_units {};

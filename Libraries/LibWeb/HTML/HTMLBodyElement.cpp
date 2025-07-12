@@ -61,17 +61,17 @@ bool HTMLBodyElement::is_presentational_hint(FlyString const& name) const
 void HTMLBodyElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {
-        if (name.equals_ignoring_ascii_case("bgcolor"sv)) {
+        if (name == HTML::AttributeNames::bgcolor) {
             // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
-        } else if (name.equals_ignoring_ascii_case("text"sv)) {
+        } else if (name == HTML::AttributeNames::text) {
             // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-2
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, CSS::CSSColorValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
-        } else if (name.equals_ignoring_ascii_case("background"sv)) {
+        } else if (name == HTML::AttributeNames::background) {
             VERIFY(m_background_style_value);
             cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, *m_background_style_value);
         }
@@ -114,22 +114,22 @@ void HTMLBodyElement::attribute_changed(FlyString const& name, Optional<String> 
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    if (name.equals_ignoring_ascii_case("link"sv)) {
+    if (name == HTML::AttributeNames::link) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-3
         auto color = parse_legacy_color_value(value.value_or(String {}));
         if (color.has_value())
             document().set_normal_link_color(color.value());
-    } else if (name.equals_ignoring_ascii_case("alink"sv)) {
+    } else if (name == HTML::AttributeNames::alink) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-5
         auto color = parse_legacy_color_value(value.value_or(String {}));
         if (color.has_value())
             document().set_active_link_color(color.value());
-    } else if (name.equals_ignoring_ascii_case("vlink"sv)) {
+    } else if (name == HTML::AttributeNames::vlink) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-4
         auto color = parse_legacy_color_value(value.value_or(String {}));
         if (color.has_value())
             document().set_visited_link_color(color.value());
-    } else if (name.equals_ignoring_ascii_case("background"sv)) {
+    } else if (name == HTML::AttributeNames::background) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:attr-background
         if (auto maybe_background_url = document().encoding_parse_url(value.value_or(String {})); maybe_background_url.has_value()) {
             m_background_style_value = CSS::ImageStyleValue::create(maybe_background_url.value());

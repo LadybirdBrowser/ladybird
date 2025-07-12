@@ -16,7 +16,6 @@ source_set("Painting") {
     "CanvasPaintable.cpp",
     "CheckBoxPaintable.cpp",
     "ClipFrame.cpp",
-    "ClippableAndScrollable.cpp",
     "Command.cpp",
     "DisplayList.cpp",
     "DisplayListPlayerSkia.cpp",

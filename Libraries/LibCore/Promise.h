@@ -24,6 +24,52 @@ public:
     Function<ErrorOr<void>(Result&)> on_resolution;
     Function<void(ErrorType&)> on_rejection;
 
+    template<typename U>
+    static NonnullRefPtr<Promise> after(Vector<NonnullRefPtr<Promise<U>>> promises)
+    {
+        auto promise = Promise::construct();
+        struct Resolved : RefCounted<Resolved> {
+            explicit Resolved(size_t n)
+                : needed(n)
+            {
+            }
+
+            size_t count { 0 };
+            size_t needed { 0 };
+            Optional<Error> error;
+        };
+
+        auto resolved = make_ref_counted<Resolved>(promises.size());
+        auto weak_promise = promise->template make_weak_ptr<Promise>();
+        for (auto p : promises) {
+            p->when_resolved([weak_promise, resolved](auto&&) -> ErrorOr<void> {
+                if (!weak_promise || weak_promise->is_rejected())
+                    return {};
+
+                if (++resolved->count == resolved->needed) {
+                    if (resolved->error.has_value())
+                        weak_promise->reject(resolved->error.release_value());
+                    else
+                        weak_promise->resolve({});
+                }
+                return {};
+            });
+
+            p->when_rejected([weak_promise, resolved](auto&& error) {
+                resolved->error = move(error);
+                if (!weak_promise)
+                    return;
+
+                if (++resolved->count == resolved->needed)
+                    weak_promise->reject(resolved->error.release_value());
+            });
+
+            promise->add_child(*p);
+        }
+
+        return promise;
+    }
+
     void resolve(Result&& result)
     {
         m_result_or_rejection = move(result);

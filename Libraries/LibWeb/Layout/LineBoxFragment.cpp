@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,7 +12,7 @@
 
 namespace Web::Layout {
 
-LineBoxFragment::LineBoxFragment(Node const& layout_node, int start, int length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction direction, CSS::WritingMode writing_mode, RefPtr<Gfx::GlyphRun> glyph_run)
+LineBoxFragment::LineBoxFragment(Node const& layout_node, size_t start, size_t length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction direction, CSS::WritingMode writing_mode, RefPtr<Gfx::GlyphRun> glyph_run)
     : m_layout_node(layout_node)
     , m_start(start)
     , m_length(length)
@@ -101,18 +102,22 @@ void LineBoxFragment::append_glyph_run(RefPtr<Gfx::GlyphRun> const& glyph_run, C
 void LineBoxFragment::append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const& glyph_run, CSSPixels run_width)
 {
     auto run_direction = resolve_glyph_run_direction(glyph_run->text_type());
+    auto inline_offset = m_inline_length.to_float();
 
     if (m_current_insert_direction != run_direction) {
         if (run_direction == CSS::Direction::Rtl)
-            m_insert_position = m_inline_length.to_float();
+            m_insert_position = inline_offset;
         m_current_insert_direction = run_direction;
     }
+
+    auto& glyphs = m_glyph_run->glyphs();
+    glyphs.ensure_capacity(glyphs.size() + glyph_run->glyphs().size());
 
     switch (run_direction) {
     case CSS::Direction::Ltr:
         for (auto& glyph : glyph_run->glyphs()) {
-            glyph.position.translate_by(m_inline_length.to_float(), 0);
-            m_glyph_run->append(glyph);
+            glyph.position.translate_by(inline_offset, 0);
+            glyphs.unchecked_append(glyph);
         }
         break;
     case CSS::Direction::Rtl:
@@ -122,7 +127,7 @@ void LineBoxFragment::append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const& glyph_ru
         }
         for (auto& glyph : glyph_run->glyphs()) {
             glyph.position.translate_by(m_insert_position, 0);
-            m_glyph_run->append(glyph);
+            glyphs.unchecked_append(glyph);
         }
         break;
     }
@@ -133,6 +138,7 @@ void LineBoxFragment::append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const& glyph_ru
 void LineBoxFragment::append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const& glyph_run, CSSPixels run_width)
 {
     auto run_direction = resolve_glyph_run_direction(glyph_run->text_type());
+    auto run_offset = run_width.to_float();
 
     if (m_current_insert_direction != run_direction) {
         if (run_direction == CSS::Direction::Ltr)
@@ -140,25 +146,28 @@ void LineBoxFragment::append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const& glyph_ru
         m_current_insert_direction = run_direction;
     }
 
+    auto& glyphs = m_glyph_run->glyphs();
+    glyphs.ensure_capacity(glyphs.size() + glyph_run->glyphs().size());
+
     switch (run_direction) {
     case CSS::Direction::Ltr:
         for (auto& glyph : m_glyph_run->glyphs()) {
             if (glyph.position.x() >= m_insert_position)
-                glyph.position.translate_by(run_width.to_float(), 0);
+                glyph.position.translate_by(run_offset, 0);
         }
         for (auto& glyph : glyph_run->glyphs()) {
             glyph.position.translate_by(m_insert_position, 0);
-            m_glyph_run->append(glyph);
+            glyphs.unchecked_append(glyph);
         }
         break;
     case CSS::Direction::Rtl:
         if (glyph_run->text_type() != Gfx::GlyphRun::TextType::EndPadding) {
             for (auto& glyph : m_glyph_run->glyphs()) {
-                glyph.position.translate_by(run_width.to_float(), 0);
+                glyph.position.translate_by(run_offset, 0);
             }
         }
         for (auto& glyph : glyph_run->glyphs()) {
-            m_glyph_run->append(glyph);
+            glyphs.unchecked_append(glyph);
         }
         break;
     }

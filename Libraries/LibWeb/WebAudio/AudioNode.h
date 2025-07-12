@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025, Ben Eidson <b.e.eidson@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -28,6 +29,21 @@ struct AudioNodeDefaultOptions {
     Bindings::ChannelInterpretation channel_interpretation;
 };
 
+struct AudioNodeConnection {
+    GC::Ref<AudioNode> destination_node;
+    WebIDL::UnsignedLong output;
+    WebIDL::UnsignedLong input;
+
+    bool operator==(AudioNodeConnection const& other) const = default;
+};
+
+struct AudioParamConnection {
+    GC::Ref<AudioParam> destination_param;
+    WebIDL::UnsignedLong output;
+
+    bool operator==(AudioParamConnection const& other) const = default;
+};
+
 // https://webaudio.github.io/web-audio-api/#AudioNode
 class AudioNode : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(AudioNode, DOM::EventTarget);
@@ -41,10 +57,10 @@ public:
 
     void disconnect();
     WebIDL::ExceptionOr<void> disconnect(WebIDL::UnsignedLong output);
-    void disconnect(GC::Ref<AudioNode> destination_node);
+    WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioNode> destination_node);
     WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output);
     WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input);
-    void disconnect(GC::Ref<AudioParam> destination_param);
+    WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioParam> destination_param);
     WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output);
 
     // https://webaudio.github.io/web-audio-api/#dom-audionode-context
@@ -81,6 +97,12 @@ private:
     WebIDL::UnsignedLong m_channel_count { 2 };
     Bindings::ChannelCountMode m_channel_count_mode { Bindings::ChannelCountMode::Max };
     Bindings::ChannelInterpretation m_channel_interpretation { Bindings::ChannelInterpretation::Speakers };
+    // Connections from other AudioNode outputs into this node's inputs.
+    Vector<AudioNodeConnection> m_input_connections;
+    // Connections from this node's outputs into other AudioNode inputs.
+    Vector<AudioNodeConnection> m_output_connections;
+    // Connections from this node's outputs into AudioParams.
+    Vector<AudioParamConnection> m_param_connections;
 };
 
 }

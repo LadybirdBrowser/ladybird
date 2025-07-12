@@ -76,7 +76,7 @@ public:
     void react_to_changes_in_the_environment();
 
     // https://html.spec.whatwg.org/multipage/images.html#update-the-image-data
-    ErrorOr<void> update_the_image_data(bool restart_the_animations = false, bool maybe_omit_events = false);
+    void update_the_image_data(bool restart_the_animations = false, bool maybe_omit_events = false);
 
     // https://html.spec.whatwg.org/multipage/images.html#use-srcset-or-picture
     [[nodiscard]] bool uses_srcset_or_picture() const;
@@ -114,6 +114,8 @@ public:
 private:
     HTMLImageElement(DOM::Document&, DOM::QualifiedName);
 
+    void update_the_image_data_impl(bool restart_the_animations = false, bool maybe_omit_events = false);
+
     virtual bool is_html_image_element() const override { return true; }
 
     virtual void initialize(JS::Realm&) override;
@@ -134,7 +136,7 @@ private:
 
     void handle_successful_fetch(URL::URL const&, StringView mime_type, ImageRequest&, ByteBuffer, bool maybe_omit_events, URL::URL const& previous_url);
     void handle_failed_fetch();
-    void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, URL::URL const& url_string, String const& previous_url);
+    void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, String const& url_string, String const& previous_url);
 
     void animate();
 
@@ -143,6 +145,8 @@ private:
     size_t m_loops_completed { 0 };
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
+
+    GC::Ptr<DOM::DocumentObserver> m_document_observer;
 
     CORSSettingAttribute m_cors_setting { CORSSettingAttribute::NoCORS };
 

@@ -94,6 +94,8 @@
 <img alt data-testname="el-img-alt-no-value" class="ex-generic" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">
 <img alt="" data-testname="el-img-empty-alt" class="ex-generic" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">
 
+<!-- img with empty alt but other naming mechanism -> ./roles-contextual.html -->
+
 <input type="button" value="x" data-testname="el-input-button" data-expectedrole="button" class="ex">
 <input type="checkbox" data-testname="el-input-checkbox" data-expectedrole="checkbox" class="ex">
 <!-- todo: input type="color" -->
@@ -113,6 +115,8 @@
 <input type="range" data-testname="el-input-range" data-expectedrole="slider" class="ex">
 <input type="reset" value="x" data-testname="el-input-reset" data-expectedrole="button" class="ex">
 <input type="search" data-testname="el-input-search" data-expectedrole="searchbox" class="ex">
+<!-- An ARIA role should override type="search". -->
+<input type="search" role="combobox" data-testname="el-input-search-with-role" data-expectedrole="combobox" class="ex">
 <input type="submit" value="x" data-testname="el-input-submit" data-expectedrole="button" class="ex">
 <input type="tel" data-testname="el-input-tel" data-expectedrole="textbox" class="ex">
 <input type="text" data-testname="el-input-text" data-expectedrole="textbox" class="ex">

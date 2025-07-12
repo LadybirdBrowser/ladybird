@@ -5,9 +5,9 @@
  */
 
 #include <AK/Time.h>
+#include <LibCore/System.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
-#include <unistd.h>
 
 using namespace AK::TimeLiterals;
 
@@ -19,7 +19,7 @@ static void sleep_until_thread_exits(Threading::Thread const& thread)
         if (thread.has_exited())
             return;
 
-        usleep(delay.to_microseconds());
+        (void)Core::System::sleep_ms(delay.to_milliseconds());
     }
 
     FAIL("Timed out waiting for thread to exit");
@@ -30,7 +30,7 @@ TEST_CASE(threads_can_detach)
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<int> should_be_42 = 0;
 
     auto thread = Threading::Thread::construct([&should_be_42]() {
-        usleep(10 * 1000);
+        (void)Core::System::sleep_ms(10);
         should_be_42 = 42;
         return 0;
     });
@@ -46,7 +46,7 @@ TEST_CASE(detached_threads_do_not_need_to_be_joined)
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> should_exit { false };
     auto thread = Threading::Thread::construct([&]() {
         while (!should_exit.load())
-            usleep(10 * 1000);
+            (void)Core::System::sleep_ms(10);
         return 0;
     });
     thread->start();

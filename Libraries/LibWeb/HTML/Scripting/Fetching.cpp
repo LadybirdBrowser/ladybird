@@ -817,7 +817,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
         return;
     }
 
-    // 3. Let state be Record { [[ParseError]]: null, [[Destination]]: destination, [[PerformFetch]]: null, [[FetchClient]]: fetchClient }.
+    // 3. Let state be Record { [[ErrorToRethrow]]: null, [[Destination]]: destination, [[PerformFetch]]: null, [[FetchClient]]: fetchClient }.
     auto state = realm.heap().allocate<FetchContext>(JS::js_null(), destination, nullptr, fetch_client);
 
     // 4. If performFetch was given, set state.[[PerformFetch]] to performFetch.
@@ -854,10 +854,10 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
 
         // 7. Upon rejection of loadingPromise, run the following steps:
         GC::create_function(realm.heap(), [state, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-            // 1. If state.[[ParseError]] is not null, set moduleScript's error to rethrow to state.[[ParseError]] and run
+            // 1. If state.[[ErrorToRethrow]] is not null, set moduleScript's error to rethrow to state.[[ErrorToRethrow]] and run
             //    onComplete given moduleScript.
-            if (!state->parse_error.is_null()) {
-                module_script.set_error_to_rethrow(state->parse_error);
+            if (!state->error_to_rethrow.is_null()) {
+                module_script.set_error_to_rethrow(state->error_to_rethrow);
 
                 on_complete->function()(module_script);
             }

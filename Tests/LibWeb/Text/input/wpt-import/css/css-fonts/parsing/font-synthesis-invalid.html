@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <title>CSS Fonts Module: parsing font-synthesis with invalid values</title>
 <link rel="help" href="https://drafts.csswg.org/css-fonts/#font-synthesis">
-<meta name="assert" content="font-synthesis supports only the grammar 'none | [ weight || style || small-caps || position ]'.">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/9390#issuecomment-2625297188">
+<meta name="assert" content="font-synthesis supports only the grammar 'none | [ weight || [style | oblique-only] || small-caps || position ]'.">
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
 <script src="../../../css/support/parsing-testcommon.js"></script>
@@ -14,8 +15,12 @@
 test_invalid_value('font-synthesis', 'auto');
 test_invalid_value('font-synthesis', 'none weight');
 test_invalid_value('font-synthesis', 'none style');
+test_invalid_value('font-synthesis', 'none oblique-only');
 test_invalid_value('font-synthesis', 'none position');
 test_invalid_value('font-synthesis', 'style none');
+test_invalid_value('font-synthesis', 'style oblique-only');
+test_invalid_value('font-synthesis', 'oblique-only style');
+test_invalid_value('font-synthesis', 'oblique-only none');
 test_invalid_value('font-synthesis', 'none small-caps');
 test_invalid_value('font-synthesis', 'small-caps none');
 test_invalid_value('font-synthesis', 'position none');

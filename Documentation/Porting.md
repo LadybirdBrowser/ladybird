@@ -13,11 +13,10 @@ There are two types of ports that can be made to Ladybird:
 
 ### UI Ports
 
-There are currently three supported UI ports:
+There are currently two supported UI ports:
 
 - Qt6: The generic UI port.
 - AppKit/Cocoa: The macOS native port, which uses the AppKit framework.
-- Headless: A headless port that does not have a UI, used for testing.
 
 ### Platform Ports
 
@@ -34,7 +33,6 @@ Contributions to restore or improve compatibility are welcome!
 There is currently one in progress platform port:
 
 - Android: The Android platform port, using the Android SDK/NDK directly.
-  The removal of `LibArchive` and the `DeprecatedPainter` from the repository has left gaps, as the port previously depended on these components.
 
 ## Porting Steps
 

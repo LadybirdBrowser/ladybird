@@ -1,7 +1,6 @@
 include(audio)
 
 set(SOURCES
-    BackingStoreManager.cpp
     ConnectionFromClient.cpp
     ConsoleGlobalEnvironmentExtensions.cpp
     DevToolsConsoleClient.cpp
@@ -33,22 +32,19 @@ target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD
 target_link_libraries(webcontentservice PUBLIC LibCore LibCrypto LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient LibGC)
 target_link_libraries(webcontentservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
-if (ENABLE_QT)
+if (ENABLE_QT AND NOT DEFINED LADYBIRD_AUDIO_BACKEND)
+    find_package(Qt6 REQUIRED COMPONENTS Multimedia)
+
     qt_add_executable(WebContent main.cpp)
     target_link_libraries(WebContent PRIVATE Qt::Core)
     target_compile_definitions(WebContent PRIVATE HAVE_QT=1)
 
-    if (NOT DEFINED LADYBIRD_AUDIO_BACKEND)
-        find_package(Qt6 REQUIRED COMPONENTS Multimedia)
-
-        target_sources(WebContent PRIVATE
-            ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioCodecPluginQt.cpp
-            ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioThread.cpp
-        )
-
-        target_link_libraries(WebContent PRIVATE Qt::Multimedia)
-        target_compile_definitions(WebContent PRIVATE HAVE_QT_MULTIMEDIA=1)
-    endif()
+    target_sources(WebContent PRIVATE
+        ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioCodecPluginQt.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioThread.cpp
+    )
+    target_link_libraries(WebContent PRIVATE LibWebViewPlatform Qt::Multimedia)
+    target_compile_definitions(WebContent PRIVATE HAVE_QT_MULTIMEDIA=1)
 else()
     add_executable(WebContent main.cpp)
 endif()

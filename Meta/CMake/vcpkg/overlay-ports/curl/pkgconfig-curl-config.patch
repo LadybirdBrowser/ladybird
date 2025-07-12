@@ -1,0 +1,106 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index be7b193..a3f5918 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2280,7 +2280,30 @@ if(NOT CURL_DISABLE_INSTALL)
+     set(_implicit_libs "${CMAKE_C_IMPLICIT_LINK_LIBRARIES}")
+   endif()
+ 
+-  foreach(_lib IN LISTS _implicit_libs _custom_libs CURL_LIBS)
++  find_package(PkgConfig)
++  pkg_check_modules(CURL_PC_REQUIRED REQUIRED ${LIBCURL_PC_REQUIRES_PRIVATE})
++  # Libs which are resolved by pkg-config via Requires (LIBCURL_PC_REQUIRES_PRIVATE)
++  # don't need to be written to `libcurl.pc` (LIBCURL_PC_LIBS_PRIVATE),
++  # but still need to be written `to curl-config` (CURL_CONFIG_LIBS_PRIVATE)
++  set(CURL_CONFIG_LIBS_PRIVATE "")
++
++  # Imported multi-config targets in CURL_LIBS can't be exported easily to
++  # `libcurl.pc` and `curl-config`. Export link libraries as used by pkg-config.
++  set(curl_libs "${CURL_LIBS}")
++  if(ZLIB::ZLIB IN_LIST CURL_LIBS)
++    pkg_check_modules(CURL_PC_ZLIB REQUIRED zlib)
++    string(REPLACE "ZLIB::ZLIB" "${CURL_PC_ZLIB_LINK_LIBRARIES}" curl_libs "${curl_libs}")
++  endif()
++  if(OpenSSL::SSL IN_LIST CURL_LIBS)
++    pkg_check_modules(CURL_PC_LIBSSL REQUIRED libssl)
++    string(REPLACE "OpenSSL::SSL" "${CURL_PC_LIBSSL_LINK_LIBRARIES}" curl_libs "${curl_libs}")
++  endif()
++  if(OpenSSL::Crypto IN_LIST CURL_LIBS)
++    pkg_check_modules(CURL_PC_LIBCRYPTO REQUIRED libcrypto)
++    string(REPLACE "OpenSSL::Crypto" "${CURL_PC_LIBCRYPTO_LINK_LIBRARIES}" curl_libs "${curl_libs}")
++  endif()
++
++  foreach(_lib IN LISTS _custom_libs curl_libs)
+     if(TARGET "${_lib}")
+       set(_libname "${_lib}")
+       get_target_property(_imported "${_libname}" IMPORTED)
+@@ -2295,6 +2318,10 @@ if(NOT CURL_DISABLE_INSTALL)
+         continue()
+       endif()
+     endif()
++    set(out_list LIBCURL_PC_LIBS_PRIVATE)
++    if(_lib IN_LIST CURL_PC_REQUIRED_LINK_LIBRARIES)
++      set(out_list CURL_CONFIG_LIBS_PRIVATE)
++    endif()
+     if(_lib MATCHES "^-")  # '-framework <name>'
+       list(APPEND _ldflags "${_lib}")
+     elseif(_lib MATCHES "/")
+@@ -2311,12 +2338,18 @@ if(NOT CURL_DISABLE_INSTALL)
+           list(APPEND _ldflags "-L${_libdir}")
+         endif()
+         string(REGEX REPLACE "^lib" "" _libname "${_libname}")
+-        list(APPEND LIBCURL_PC_LIBS_PRIVATE "-l${_libname}")
++        list(APPEND ${out_list} "-l${_libname}")
++        if(TARGET "${LIB_STATIC}" AND _libdir IN_LIST CMAKE_C_IMPLICIT_LINK_DIRECTORIES)
++          # Avoid absolute path to system lib in exported CMake config
++          get_target_property(static_link_libs "${LIB_STATIC}" INTERFACE_LINK_LIBRARIES)
++          string(REPLACE "${_lib}" "${_libname}" static_link_libs "${static_link_libs}")
++          set_target_properties("${LIB_STATIC}" PROPERTIES INTERFACE_LINK_LIBRARIES "${static_link_libs}")
++        endif()
+       else()
+-        list(APPEND LIBCURL_PC_LIBS_PRIVATE "${_lib}")
++        list(APPEND ${out_list} "${_lib}")
+       endif()
+     else()
+-      list(APPEND LIBCURL_PC_LIBS_PRIVATE "-l${_lib}")
++      list(APPEND ${out_list} "-l${_lib}")
+     endif()
+   endforeach()
+ 
+@@ -2342,11 +2375,11 @@ if(NOT CURL_DISABLE_INSTALL)
+     set(LIBCURL_PC_REQUIRES "")
+     set(LIBCURL_PC_LIBS     "")
+     set(LIBCURL_PC_CFLAGS   "")
++    set(CURL_CONFIG_LIBS_PRIVATE "")
+   else()
++    string(REPLACE ";" " " CURL_CONFIG_LIBS_PRIVATE "${CURL_CONFIG_LIBS_PRIVATE}")
+     set(ENABLE_SHARED       "no")
+-    set(LIBCURL_PC_REQUIRES "${LIBCURL_PC_REQUIRES_PRIVATE}")
+-    set(LIBCURL_PC_LIBS     "${LIBCURL_PC_LIBS_PRIVATE}")
+-    set(LIBCURL_PC_CFLAGS   "${LIBCURL_PC_CFLAGS_PRIVATE}")
++    # (processing by vcpkg_fixup_pkgconfig)
+   endif()
+   if(BUILD_STATIC_LIBS)
+     set(ENABLE_STATIC       "yes")
+diff --git a/curl-config.in b/curl-config.in
+index 5518416..c0c29da 100644
+--- a/curl-config.in
++++ b/curl-config.in
+@@ -155,7 +155,7 @@ while test "$#" -gt 0; do
+       curllibdir=''
+     fi
+     if test 'X@ENABLE_SHARED@' = 'Xno'; then
+-      echo "${curllibdir}-lcurl @LIBCURL_PC_LIBS_PRIVATE@"
++      echo "@libdir@/libcurl.@libext@ @LIBCURL_PC_LDFLAGS_PRIVATE@ @CURL_CONFIG_LIBS_PRIVATE@ @LIBCURL_PC_LIBS_PRIVATE@"
+     else
+       echo "${curllibdir}-lcurl"
+     fi
+@@ -167,7 +167,7 @@ while test "$#" -gt 0; do
+ 
+   --static-libs)
+     if test 'X@ENABLE_STATIC@' != 'Xno'; then
+-      echo "@libdir@/libcurl.@libext@ @LIBCURL_PC_LDFLAGS_PRIVATE@ @LIBCURL_PC_LIBS_PRIVATE@"
++      echo "@libdir@/libcurl.@libext@ @LIBCURL_PC_LDFLAGS_PRIVATE@ @CURL_CONFIG_LIBS_PRIVATE@ @LIBCURL_PC_LIBS_PRIVATE@"
+     else
+       echo 'curl was built with static libraries disabled' >&2
+       exit 1

@@ -30,10 +30,32 @@ Utf8CodePointIterator Utf8View::iterator_at_byte_offset_without_validation(size_
     return Utf8CodePointIterator { reinterpret_cast<u8 const*>(m_string.characters_without_null_termination()) + byte_offset, m_string.length() - byte_offset };
 }
 
+size_t Utf8View::code_point_offset_of(size_t byte_offset) const
+{
+    VERIFY(byte_offset < byte_length());
+
+    // Fast path: each code point is represented by a single byte.
+    if (length() == byte_length())
+        return byte_offset;
+
+    size_t code_point_offset = 0;
+    for (auto it = begin(); !it.done(); ++it) {
+        if (it.m_ptr > begin_ptr() + byte_offset)
+            break;
+        ++code_point_offset;
+    }
+    return code_point_offset - 1;
+}
+
 size_t Utf8View::byte_offset_of(size_t code_point_offset) const
 {
-    size_t byte_offset = 0;
+    VERIFY(code_point_offset < length());
 
+    // Fast path: each code point is represented by a single byte.
+    if (length() == byte_length())
+        return code_point_offset;
+
+    size_t byte_offset = 0;
     for (auto it = begin(); !it.done(); ++it) {
         if (code_point_offset == 0)
             return byte_offset;
@@ -41,7 +63,6 @@ size_t Utf8View::byte_offset_of(size_t code_point_offset) const
         byte_offset += it.underlying_code_point_length_in_bytes();
         --code_point_offset;
     }
-
     return byte_offset;
 }
 
@@ -164,16 +185,16 @@ Utf8View Utf8View::trim(Utf8View const& characters, TrimMode mode) const
     return substring_view(substring_start, substring_length);
 }
 
-bool Utf8View::validate(size_t& valid_bytes, AllowSurrogates allow_surrogates) const
+bool Utf8View::validate(size_t& valid_bytes, AllowLonelySurrogates allow_lonely_surrogates) const
 {
     auto result = simdutf::validate_utf8_with_errors(m_string.characters_without_null_termination(), m_string.length());
     valid_bytes = result.count;
 
-    if (result.error == simdutf::SURROGATE && allow_surrogates == AllowSurrogates::Yes) {
+    if (result.error == simdutf::SURROGATE && allow_lonely_surrogates == AllowLonelySurrogates::Yes) {
         valid_bytes += 3; // All surrogates have a UTF-8 byte length of 3.
 
         size_t substring_valid_bytes = 0;
-        auto is_valid = substring_view(valid_bytes).validate(substring_valid_bytes, allow_surrogates);
+        auto is_valid = substring_view(valid_bytes).validate(substring_valid_bytes, allow_lonely_surrogates);
 
         valid_bytes += substring_valid_bytes;
         return is_valid;

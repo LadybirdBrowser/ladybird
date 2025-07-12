@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	Property font-kerning value 'auto'
-Fail	Property font-kerning value 'normal'
-Fail	Property font-kerning value 'none'
+3 Pass
+Pass	Property font-kerning value 'auto'
+Pass	Property font-kerning value 'normal'
+Pass	Property font-kerning value 'none'

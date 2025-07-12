@@ -10,5 +10,5 @@ set(GENERATED_SOURCES
     ../../Services/RequestServer/RequestServerEndpoint.h
 )
 
-serenity_lib(LibRequests requests)
+ladybird_lib(LibRequests requests)
 target_link_libraries(LibRequests PRIVATE LibCore LibIPC)

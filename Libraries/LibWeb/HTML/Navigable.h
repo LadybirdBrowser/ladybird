@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,12 +17,14 @@
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
+#include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/XHR/FormDataEntry.h>
 
@@ -36,6 +38,14 @@ enum class InitialInsertion : u8 {
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#target-snapshot-params
 struct TargetSnapshotParams {
     SandboxingFlagSet sandboxing_flags {};
+};
+
+struct PaintConfig {
+    bool paint_overlay { false };
+    bool should_show_line_box_borders { false };
+    Optional<Gfx::IntRect> canvas_fill_rect {};
+
+    bool operator==(PaintConfig const& other) const = default;
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#navigable
@@ -167,11 +177,10 @@ public:
     CSSPixelPoint to_top_level_position(CSSPixelPoint);
     CSSPixelRect to_top_level_rect(CSSPixelRect const&);
 
-    CSSPixelSize size() const { return m_size; }
-
     CSSPixelPoint viewport_scroll_offset() const { return m_viewport_scroll_offset; }
-    CSSPixelRect viewport_rect() const { return { m_viewport_scroll_offset, m_size }; }
-    virtual void set_viewport_size(CSSPixelSize);
+    CSSPixelRect viewport_rect() const { return { m_viewport_scroll_offset, m_viewport_size }; }
+    CSSPixelSize viewport_size() const { return m_viewport_size; }
+    void set_viewport_size(CSSPixelSize);
     void perform_scroll_of_viewport(CSSPixelPoint position);
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
@@ -196,11 +205,26 @@ public:
 
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
 
+    bool is_ready_to_paint() const;
+    void ready_to_paint();
+    void paint_next_frame();
+    void start_display_list_rendering(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
+
+    bool needs_repaint() const { return m_needs_repaint; }
+    void set_needs_repaint() { m_needs_repaint = true; }
+
+    RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const;
+
+    void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
+    bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
+
+    void set_should_show_line_box_borders(bool value) { m_should_show_line_box_borders = value; }
+
     template<typename T>
     bool fast_is() const = delete;
 
 protected:
-    explicit Navigable(GC::Ref<Page>);
+    explicit Navigable(GC::Ref<Page>, bool is_svg_page);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
@@ -246,7 +270,7 @@ private:
 
     bool m_has_been_destroyed { false };
 
-    CSSPixelSize m_size;
+    CSSPixelSize m_viewport_size;
     CSSPixelPoint m_viewport_scroll_offset;
 
     Web::EventHandler m_event_handler;
@@ -254,6 +278,15 @@ private:
     bool m_has_session_history_entry_and_ready_for_navigation { false };
 
     Vector<NavigateParams> m_pending_navigations;
+
+    bool m_is_svg_page { false };
+    bool m_needs_repaint { true };
+    bool m_pending_set_browser_zoom_request { false };
+    bool m_should_show_line_box_borders { false };
+    i32 m_number_of_queued_rasterization_tasks { 0 };
+    GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
+    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
+    RenderingThread m_rendering_thread;
 };
 
 HashTable<GC::RawRef<Navigable>>& all_navigables();

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 720 tests
 
-542 Pass
-178 Fail
+544 Pass
+176 Fail
 Fail	CSS Transitions: property <clip-path> from neutral to [inset(20px)] at (-0.3) should be [inset(7px)]
 Fail	CSS Transitions: property <clip-path> from neutral to [inset(20px)] at (0) should be [inset(10px)]
 Fail	CSS Transitions: property <clip-path> from neutral to [inset(20px)] at (0.3) should be [inset(13px)]
@@ -17,13 +17,13 @@ Fail	CSS Transitions with transition: all: property <clip-path> from neutral to 
 Pass	CSS Transitions with transition: all: property <clip-path> from neutral to [inset(20px)] at (1) should be [inset(20px)]
 Fail	CSS Transitions with transition: all: property <clip-path> from neutral to [inset(20px)] at (1.5) should be [inset(25px)]
 Fail	CSS Animations: property <clip-path> from neutral to [inset(20px)] at (-0.3) should be [inset(7px)]
-Fail	CSS Animations: property <clip-path> from neutral to [inset(20px)] at (0) should be [inset(10px)]
+Pass	CSS Animations: property <clip-path> from neutral to [inset(20px)] at (0) should be [inset(10px)]
 Fail	CSS Animations: property <clip-path> from neutral to [inset(20px)] at (0.3) should be [inset(13px)]
 Fail	CSS Animations: property <clip-path> from neutral to [inset(20px)] at (0.6) should be [inset(16px)]
 Pass	CSS Animations: property <clip-path> from neutral to [inset(20px)] at (1) should be [inset(20px)]
 Fail	CSS Animations: property <clip-path> from neutral to [inset(20px)] at (1.5) should be [inset(25px)]
 Fail	Web Animations: property <clip-path> from neutral to [inset(20px)] at (-0.3) should be [inset(7px)]
-Fail	Web Animations: property <clip-path> from neutral to [inset(20px)] at (0) should be [inset(10px)]
+Pass	Web Animations: property <clip-path> from neutral to [inset(20px)] at (0) should be [inset(10px)]
 Fail	Web Animations: property <clip-path> from neutral to [inset(20px)] at (0.3) should be [inset(13px)]
 Fail	Web Animations: property <clip-path> from neutral to [inset(20px)] at (0.6) should be [inset(16px)]
 Pass	Web Animations: property <clip-path> from neutral to [inset(20px)] at (1) should be [inset(20px)]

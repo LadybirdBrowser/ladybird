@@ -32,9 +32,6 @@
 #include <LibJS/SourceTextModule.h>
 #include <LibTest/Results.h>
 #include <LibTest/TestRunner.h>
-#include <fcntl.h>
-#include <sys/time.h>
-#include <unistd.h>
 
 #define STRCAT(x, y) __STRCAT(x, y)
 #define STRSTRCAT(x, y) __STRSTRCAT(x, y)

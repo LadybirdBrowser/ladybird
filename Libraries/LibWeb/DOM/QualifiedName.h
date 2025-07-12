@@ -21,6 +21,8 @@ public:
     Optional<FlyString> const& prefix() const { return m_impl->prefix; }
     Optional<FlyString> const& namespace_() const { return m_impl->namespace_; }
 
+    FlyString const& lowercased_local_name() const { return m_impl->lowercased_local_name; }
+
     FlyString const& as_string() const { return m_impl->as_string; }
 
     struct Impl : public RefCounted<Impl> {
@@ -29,6 +31,7 @@ public:
 
         void make_internal_string();
         FlyString local_name;
+        FlyString lowercased_local_name;
         Optional<FlyString> prefix;
         Optional<FlyString> namespace_;
         FlyString as_string;

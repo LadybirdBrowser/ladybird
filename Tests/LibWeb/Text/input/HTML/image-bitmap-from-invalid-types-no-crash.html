@@ -17,6 +17,8 @@
     let svgImg = document.createElement("img");
     svgImg = document.createElementNS("http://www.w3.org/2000/svg", "image");
 
+    let offscreenCanvas = new OffscreenCanvas(42, 42);
+
     let video = document.createElement("video");
     let file = new Blob([
         new Uint8Array([
@@ -32,6 +34,7 @@
         [svgImg, "SVGImageElement"],
         [canvas, "HTMLCanvasElement"],
         [imageBitmap, "ImageBitmap"],
+        [offscreenCanvas, "OffscreenCanvas"],
         [video, "HTMLVideoElement"],
     ];
 

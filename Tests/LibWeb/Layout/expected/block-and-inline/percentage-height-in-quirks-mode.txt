@@ -7,3 +7,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x616]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x616]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x600]
       PaintableWithLines (BlockContainer<DIV>) [8,8 784x600]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x616] [children: 0] (z-index: auto)

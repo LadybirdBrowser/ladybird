@@ -126,6 +126,17 @@ ErrorOr<ByteString> getcwd()
     return string_cwd;
 }
 
+ErrorOr<void> chdir(StringView path)
+{
+    if (path.is_null())
+        return Error::from_errno(EFAULT);
+
+    ByteString path_string = path;
+    if (::_chdir(path_string.characters()) < 0)
+        return Error::from_syscall("chdir"sv, errno);
+    return {};
+}
+
 ErrorOr<struct stat> stat(StringView path)
 {
     if (path.is_null())
@@ -279,6 +290,37 @@ ErrorOr<void> set_close_on_exec(int handle, bool enabled)
 ErrorOr<bool> isatty(int handle)
 {
     return GetFileType(to_handle(handle)) == FILE_TYPE_CHAR;
+}
+
+ErrorOr<int> socket(int domain, int type, int protocol)
+{
+    auto socket = ::socket(domain, type, protocol);
+    if (socket == INVALID_SOCKET)
+        return Error::from_windows_error();
+    return socket;
+}
+
+ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servname, struct addrinfo const& hints)
+{
+    struct addrinfo* results = nullptr;
+
+    int rc = ::getaddrinfo(nodename, servname, &hints, &results);
+    if (rc != 0)
+        return Error::from_windows_error(rc);
+
+    Vector<struct addrinfo> addresses;
+
+    for (auto* result = results; result != nullptr; result = result->ai_next)
+        TRY(addresses.try_append(*result));
+
+    return AddressInfoVector { move(addresses), results };
+}
+
+ErrorOr<void> connect(int socket, struct sockaddr const* address, socklen_t address_length)
+{
+    if (::connect(socket, address, address_length) == SOCKET_ERROR)
+        return Error::from_windows_error();
+    return {};
 }
 
 }

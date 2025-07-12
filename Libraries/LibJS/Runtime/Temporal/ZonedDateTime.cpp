@@ -262,22 +262,35 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         // l. Set matchBehaviour to MATCH-MINUTES.
         match_behavior = MatchBehavior::MatchMinutes;
 
-        // m. Let resolvedOptions be ? GetOptionsObject(options).
+        // m. If offsetString is not EMPTY, then
+        if (offset_string.has_value()) {
+            // i. Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
+            auto offset_parse_result = parse_utc_offset(*offset_string, SubMinutePrecision::Yes);
+
+            // ii. Assert: offsetParseResult is a Parse Node.
+            VERIFY(offset_parse_result.has_value());
+
+            // iii. If offsetParseResult contains more than one MinuteSecond Parse Node, set matchBehaviour to MATCH-EXACTLY.
+            if (offset_parse_result->seconds.has_value())
+                match_behavior = MatchBehavior::MatchExactly;
+        }
+
+        // n. Let resolvedOptions be ? GetOptionsObject(options).
         auto resolved_options = TRY(get_options_object(vm, options));
 
-        // n. Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
+        // o. Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
         disambiguation = TRY(get_temporal_disambiguation_option(vm, resolved_options));
 
-        // o. Let offsetOption be ? GetTemporalOffsetOption(resolvedOptions, REJECT).
+        // p. Let offsetOption be ? GetTemporalOffsetOption(resolvedOptions, REJECT).
         offset_option = TRY(get_temporal_offset_option(vm, resolved_options, OffsetOption::Reject));
 
-        // p. Perform ? GetTemporalOverflowOption(resolvedOptions).
+        // q. Perform ? GetTemporalOverflowOption(resolvedOptions).
         TRY(get_temporal_overflow_option(vm, resolved_options));
 
-        // q. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
+        // r. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
         iso_date = create_iso_date_record(*result.year, result.month, result.day);
 
-        // r. Let time be result.[[Time]].
+        // s. Let time be result.[[Time]].
         time = result.time;
     }
 

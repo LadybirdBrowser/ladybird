@@ -11,21 +11,31 @@ env:
 
 jobs:
   build-and-package:
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
     if: github.repository == 'LadybirdBrowser/ladybird'
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+
     strategy:
       fail-fast: false
       matrix:
         os_name: ['Linux']
         arch: ['x86_64']
+        toolchain: ['Clang']
         package_type: ['Linux-x86_64']
-        runner: ['blacksmith-8vcpu-ubuntu-2404']
+        runner_labels: ['["blacksmith-8vcpu-ubuntu-2404"]']
 
         include:
           - os_name: 'macOS'
             arch: 'arm64'
+            toolchain: 'Clang'
             package_type: 'macOS-arm64'
-            runner: 'macos-15'
+            runner_labels: '["macos-15", "self-hosted"]'
+
+          - os_name: 'Linux'
+            arch: 'arm64'
+            toolchain: 'Clang'
+            package_type: 'Linux-aarch64'
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
@@ -41,7 +51,7 @@ jobs:
         uses: ./.github/actions/cache-restore
         id: 'cache-restore'
         with:
-          runner_label: ${{ matrix.runner }}
+          runner_labels: ${{ matrix.runner_labels }}
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
           cache_key_extra: 'LibJS Artifacts'
@@ -51,7 +61,7 @@ jobs:
 
       - name: Create build directory Ubuntu
         run: |
-          cmake --preset Distribution_CI \
+          cmake --preset Distribution \
             -DCMAKE_C_COMPILER=clang-20 \
             -DCMAKE_CXX_COMPILER=clang++-20 \
             -DENABLE_GUI_TARGETS=OFF
@@ -63,7 +73,7 @@ jobs:
       #        See: https://github.com/microsoft/vcpkg/discussions/19454
       - name: Create build directory macOS
         run: |
-          cmake --preset Distribution_CI \
+          cmake --preset Distribution \
             -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
             -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os_name == 'macOS' }}
@@ -77,12 +87,23 @@ jobs:
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
-          runner_label: ${{ matrix.runner }}
+          runner_labels: ${{ matrix.runner_labels }}
           arch: 'Lagom'
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
+
+      - name: Sanity-check the js repl
+        shell: bash
+        run: |
+          set -e
+          tar -xvzf Build/distribution/ladybird-js-${{ matrix.package_type }}.tar.gz
+          ./bin/js -c "console.log('Hello, World\!');" > out.txt
+          if ! grep -q "\"Hello, World\!\"" out.txt; then
+              echo "Sanity check failed: \"Hello, World\!\" not found in output."
+              exit 1
+          fi
 
       - name: Upload js package
         uses: actions/upload-artifact@v4

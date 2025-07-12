@@ -8,6 +8,7 @@
 #include <AK/ByteBuffer.h>
 #include <LibCore/Promise.h>
 #include <LibGC/Heap.h>
+#include <LibGfx/Font/FontSupport.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
@@ -516,53 +517,63 @@ GC::Ref<WebIDL::Promise> FontFace::load()
 bool font_format_is_supported(FlyString const& name)
 {
     // https://drafts.csswg.org/css-fonts-4/#font-format-definitions
-    // FIXME: Determine this automatically somehow?
     if (name.equals_ignoring_ascii_case("collection"sv))
-        return false;
+        return Gfx::font_format_is_supported(Gfx::FontFormat::TrueTypeCollection);
     if (name.equals_ignoring_ascii_case("embedded-opentype"sv))
-        return false;
+        return Gfx::font_format_is_supported(Gfx::FontFormat::EmbeddedOpenType);
     if (name.equals_ignoring_ascii_case("opentype"sv))
-        return true;
+        return Gfx::font_format_is_supported(Gfx::FontFormat::OpenType);
     if (name.equals_ignoring_ascii_case("svg"sv))
-        return false;
+        return Gfx::font_format_is_supported(Gfx::FontFormat::SVG);
     if (name.equals_ignoring_ascii_case("truetype"sv))
-        return true;
+        return Gfx::font_format_is_supported(Gfx::FontFormat::TrueType);
     if (name.equals_ignoring_ascii_case("woff"sv))
-        return true;
+        return Gfx::font_format_is_supported(Gfx::FontFormat::WOFF);
     if (name.equals_ignoring_ascii_case("woff2"sv))
-        return true;
+        return Gfx::font_format_is_supported(Gfx::FontFormat::WOFF2);
+    return false;
+}
+
+bool font_tech_is_supported(FontTech font_tech)
+{
+    // https://drafts.csswg.org/css-fonts-4/#font-tech-definitions
+    switch (font_tech) {
+    case FontTech::FeaturesOpentype:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::FeaturesOpentype);
+    case FontTech::FeaturesAat:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::FeaturesAat);
+    case FontTech::FeaturesGraphite:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::FeaturesGraphite);
+    case FontTech::Variations:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::Variations);
+    case FontTech::ColorColrv0:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::ColorColrv0);
+    case FontTech::ColorColrv1:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::ColorColrv1);
+    case FontTech::ColorSvg:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::ColorSvg);
+    case FontTech::ColorSbix:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::ColorSbix);
+    case FontTech::ColorCbdt:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::ColorCbdt);
+    case FontTech::Palettes:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::Palettes);
+    case FontTech::Incremental:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::Incremental);
+    // https://drafts.csswg.org/css-fonts-5/#font-tech-definitions
+    case FontTech::Avar2:
+        return Gfx::font_tech_is_supported(Gfx::FontTech::Avar2);
+    }
     return false;
 }
 
 bool font_tech_is_supported(FlyString const& name)
 {
-    // https://drafts.csswg.org/css-fonts-4/#font-tech-definitions
-    // FIXME: Determine this automatically somehow?
-    if (name.equals_ignoring_ascii_case("features-opentype"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("features-aat"sv))
-        return false;
-    if (name.equals_ignoring_ascii_case("features-graphite"sv))
-        return false;
-    if (name.equals_ignoring_ascii_case("variations"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("color-colrv0"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("color-colrv1"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("color-svg"sv))
-        return false;
-    if (name.equals_ignoring_ascii_case("color-sbix"sv))
-        return false;
-    if (name.equals_ignoring_ascii_case("color-cbdt"sv))
-        return false;
-    if (name.equals_ignoring_ascii_case("palettes"sv))
-        return false;
-    if (name.equals_ignoring_ascii_case("incremental"sv))
-        return false;
-    // https://drafts.csswg.org/css-fonts-5/#font-tech-definitions
-    if (name.equals_ignoring_ascii_case("avar2"sv))
-        return false;
+    if (auto keyword = keyword_from_string(name); keyword.has_value()) {
+        if (auto font_tech = keyword_to_font_tech(*keyword); font_tech.has_value()) {
+            return font_tech_is_supported(*font_tech);
+        }
+    }
     return false;
 }
 

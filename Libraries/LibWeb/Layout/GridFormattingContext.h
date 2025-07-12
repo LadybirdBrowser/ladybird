@@ -217,8 +217,9 @@ private:
         CSSPixels item_incurred_increase { 0 };
 
         bool is_gap { false };
+        bool is_auto_fit { false };
 
-        static GridTrack create_from_definition(CSS::ExplicitGridTrack const& definition);
+        static GridTrack create_from_definition(CSS::ExplicitGridTrack const& definition, bool is_auto_fit);
         static GridTrack create_auto();
         static GridTrack create_gap(CSSPixels size);
     };
@@ -232,11 +233,8 @@ private:
         bool invalid { false }; /* FIXME: Ignore ignore invalid areas during layout */
     };
 
-    struct GridLine {
-        Vector<String> names;
-    };
-    Vector<GridLine> m_row_lines;
-    Vector<GridLine> m_column_lines;
+    Vector<Vector<CSS::GridLineName>> m_row_lines;
+    Vector<Vector<CSS::GridLineName>> m_column_lines;
 
     void init_grid_lines(GridDimension);
 
@@ -329,7 +327,7 @@ private:
     AvailableSize get_free_space(AvailableSpace const&, GridDimension) const;
 
     Optional<int> get_nth_line_index_by_line_name(GridDimension dimension, String const&, int line_number);
-    CSSPixels resolve_definite_track_size(CSS::GridSize const&, AvailableSpace const&);
+    CSSPixels resolve_definite_track_size(CSS::GridSize const&, AvailableSpace const&) const;
     int count_of_repeated_auto_fill_or_fit_tracks(GridDimension, CSS::ExplicitGridTrack const& repeated_track);
 
     void build_grid_areas();

@@ -81,6 +81,25 @@ test(function() {
 }, 'Check if inconsistent xmlns="..." is dropped.');
 
 test(function() {
+  const root1 = parse('<package></package>');
+  root1.setAttribute('xmlns', 'http://www.idpf.org/2007/opf');
+  const manifest1 = root1.appendChild(root1.ownerDocument.createElement('manifest'));
+  manifest1.setAttribute('xmlns', 'http://www.idpf.org/2007/opf');
+  assert_equals(serialize(root1), '<package><manifest/></package>');
+
+  const root2 = parse('<package xmlns="http://www.idpf.org/2007/opf"></package>');
+  const manifest2 = root2.appendChild(root2.ownerDocument.createElement('manifest'));
+  manifest2.setAttribute('xmlns', 'http://www.idpf.org/2007/opf');
+  assert_equals(serialize(root2),
+                '<package xmlns="http://www.idpf.org/2007/opf"><manifest xmlns=""/></package>');
+
+  const root3 = parse('<package xmlns="http://www.idpf.org/2007/opf"></package>');
+  const manifest3 = root3.appendChild(root3.ownerDocument.createElement('manifest'));
+  assert_equals(serialize(root3),
+                '<package xmlns="http://www.idpf.org/2007/opf"><manifest xmlns=""/></package>');
+}, 'Drop inconsistent xmlns="..." by matching on local name');
+
+test(function() {
   let root = parse('<r xmlns:xx="uri"></r>');
   root.setAttributeNS('uri', 'name', 'v');
   assert_equals(serialize(root), '<r xmlns:xx="uri" xx:name="v"/>');
@@ -230,8 +249,17 @@ test(function () {
   root.append(document.createElement("style"));
   root.append(document.createElement("style"));
   assert_equals(serialize(root), '<img xmlns=\"http://www.w3.org/1999/xhtml\"><style></style><style></style></img>');
-}, 'Check children were included for void elements')
+}, 'Check children were included for void elements');
 
+test(function () {
+  const root = parse('<root xmlns="" xmlns:foo="urn:bar"/>');
+  root.setAttributeNS(XMLNS_URI, 'xmlns:foo', '');
+  assert_equals(serialize(root), '<root xmlns="" xmlns:foo=""/>');
+}, 'Check if a prefix bound to an empty namespace URI ("no namespace") serialize');
+
+test(function() {
+  assert_equals(serialize(document.createAttribute("foobar")), "")
+}, 'Attribute nodes are serialized as the empty string')
 </script>
  </body>
 </html>

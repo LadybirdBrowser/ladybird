@@ -1,0 +1,3 @@
+Message received from worker: "{\"w\":10,\"h\":10}"
+Message received from worker: "normal normal 20px SerenitySans"
+Message received from worker: "normal normal 20px SerenitySans"

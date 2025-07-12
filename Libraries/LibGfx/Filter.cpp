@@ -50,17 +50,20 @@ Filter Filter::compose(Filter const& outer, Filter const& inner)
     return Filter(Impl::create(filter));
 }
 
-Filter Filter::blend(Filter const& background, Filter const& foreground, Gfx::CompositingAndBlendingOperator mode)
+Filter Filter::blend(Optional<Filter const&> background, Optional<Filter const&> foreground, Gfx::CompositingAndBlendingOperator mode)
 {
-    auto filter = SkImageFilters::Blend(to_skia_blender(mode), background.m_impl->filter, foreground.m_impl->filter);
+    sk_sp<SkImageFilter> background_skia = background.has_value() ? background->m_impl->filter : nullptr;
+    sk_sp<SkImageFilter> foreground_skia = foreground.has_value() ? foreground->m_impl->filter : nullptr;
+
+    auto filter = SkImageFilters::Blend(to_skia_blender(mode), background_skia, foreground_skia);
     return Filter(Impl::create(filter));
 }
 
-Filter Filter::blur(float radius, Optional<Filter const&> input)
+Filter Filter::blur(float radius_x, float radius_y, Optional<Filter const&> input)
 {
     sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
 
-    auto filter = SkImageFilters::Blur(radius, radius, input_skia);
+    auto filter = SkImageFilters::Blur(radius_x, radius_y, input_skia);
     return Filter(Impl::create(filter));
 }
 

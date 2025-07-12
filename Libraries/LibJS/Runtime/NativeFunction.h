@@ -17,7 +17,7 @@
 
 namespace JS {
 
-class NativeFunction : public FunctionObject {
+class JS_API NativeFunction : public FunctionObject {
     JS_OBJECT(NativeFunction, FunctionObject);
     GC_DECLARE_ALLOCATOR(NativeFunction);
 

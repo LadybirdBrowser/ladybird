@@ -1547,7 +1547,7 @@ ErrorOr<ImageFrameDescriptor> BMPImageDecoderPlugin::frame(size_t index, Optiona
         TRY(decode_bmp_pixel_data(*m_context));
 
     VERIFY(m_context->bitmap);
-    return ImageFrameDescriptor { m_context->bitmap, 0 };
+    return ImageFrameDescriptor { *m_context->bitmap, 0 };
 }
 
 ErrorOr<Optional<ReadonlyBytes>> BMPImageDecoderPlugin::icc_data()

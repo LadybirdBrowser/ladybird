@@ -36,3 +36,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1780]
       PaintableWithLines (BlockContainer<P>.block-size-test) [8,1310 200x400]
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,1780 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1780] [children: 0] (z-index: auto)

@@ -25,7 +25,7 @@ struct Attribute {
 };
 
 // 6.1.7.1 Property Attributes, https://tc39.es/ecma262/#sec-property-attributes
-class PropertyAttributes {
+class JS_API PropertyAttributes {
 public:
     PropertyAttributes(u8 bits = 0)
         : m_bits(bits)

@@ -6,9 +6,7 @@
 
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/LocalServer.h>
 #include <LibCore/Process.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
@@ -18,17 +16,11 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
-#include <LibWeb/WebSockets/WebSocket.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/Utilities.h>
 #include <WebWorker/ConnectionFromClient.h>
-
-#if defined(HAVE_QT)
-#    include <LibWebView/EventLoop/EventLoopImplementationQt.h>
-#    include <QCoreApplication>
-#endif
 
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
@@ -45,7 +37,7 @@ static ErrorOr<Web::Bindings::AgentType> agent_type_from_string(StringView type)
     return Error::from_string_literal("Invalid worker type, must be one of: 'dedicated', 'shared', or 'service'");
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
@@ -71,10 +63,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     auto worker_type = TRY(agent_type_from_string(worker_type_string));
 
-#if defined(HAVE_QT)
-    QCoreApplication app(arguments.argc, arguments.argv);
-    Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
-#endif
     Core::EventLoop event_loop;
 
     WebView::platform_init();

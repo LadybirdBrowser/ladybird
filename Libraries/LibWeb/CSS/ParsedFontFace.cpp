@@ -37,11 +37,10 @@ Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(CSSStyle
     auto add_source = [&sources](FontSourceStyleValue const& font_source) {
         font_source.source().visit(
             [&](FontSourceStyleValue::Local const& local) {
-                sources.empend(extract_font_name(local.name), OptionalNone {});
+                sources.empend(extract_font_name(local.name), OptionalNone {}, Vector<FontTech> {});
             },
             [&](URL const& url) {
-                // FIXME: tech()
-                sources.empend(url, font_source.format());
+                sources.empend(url, font_source.format(), font_source.tech());
             });
     };
 

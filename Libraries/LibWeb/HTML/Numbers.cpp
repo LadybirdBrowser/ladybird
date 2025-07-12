@@ -5,6 +5,7 @@
  */
 
 #include <AK/GenericLexer.h>
+#include <AK/StringConversions.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <math.h>
@@ -173,7 +174,7 @@ Optional<double> parse_floating_point_number(StringView string)
         lexer.consume_while(is_ascii_digit);
         size_t end_index = lexer.tell();
         auto digits = lexer.input().substring_view(start_index, end_index - start_index);
-        auto optional_value = AK::StringUtils::convert_to_floating_point<double>(digits, TrimWhitespace::No);
+        auto optional_value = digits.to_number<double>(TrimWhitespace::No);
         value *= optional_value.value();
     }
 
@@ -274,7 +275,7 @@ fraction_exit:
             lexer.consume_while(is_ascii_digit);
             size_t end_index = lexer.tell();
             auto digits = lexer.input().substring_view(start_index, end_index - start_index);
-            auto optional_value = AK::StringUtils::convert_to_int<i32>(digits);
+            auto optional_value = digits.to_number<i32>();
             exponent *= optional_value.value();
         }
 

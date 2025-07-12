@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,32 +8,49 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::SVG {
 
-// https://www.w3.org/TR/SVG11/types.html#InterfaceSVGAnimatedNumber
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedNumber
 class SVGAnimatedNumber final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SVGAnimatedNumber, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(SVGAnimatedNumber);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGAnimatedNumber> create(JS::Realm&, float base_val, float anim_val);
+    enum class SupportsSecondValue : u8 {
+        Yes,
+        No,
+    };
+    enum class ValueRepresented : u8 {
+        First,
+        Second,
+    };
+
+    [[nodiscard]] static GC::Ref<SVGAnimatedNumber> create(JS::Realm&, GC::Ref<SVGElement>,
+        FlyString reflected_attribute, float initial_value, SupportsSecondValue = SupportsSecondValue::No,
+        ValueRepresented = ValueRepresented::First);
     virtual ~SVGAnimatedNumber() override;
 
-    float base_val() const { return m_base_val; }
-    float anim_val() const { return m_anim_val; }
+    float base_val() const;
+    void set_base_val(float);
 
-    void set_base_val(float base_val) { m_base_val = base_val; }
-    void set_anim_val(float anim_val) { m_anim_val = anim_val; }
+    float anim_val() const;
 
 private:
-    SVGAnimatedNumber(JS::Realm&, float base_val, float anim_val);
+    SVGAnimatedNumber(JS::Realm&, GC::Ref<SVGElement>, FlyString, float, SupportsSecondValue, ValueRepresented);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Visitor&) override;
 
-    float m_base_val;
-    float m_anim_val;
+    float parse_value_or_initial(StringView) const;
+    float get_base_or_anim_value() const;
+
+    GC::Ref<SVGElement> m_element;
+    FlyString m_reflected_attribute;
+    float m_initial_value;
+    SupportsSecondValue m_supports_second_value;
+    ValueRepresented m_value_represented;
 };
 
 }

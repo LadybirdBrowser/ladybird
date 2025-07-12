@@ -278,8 +278,13 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     if (request == "dump-stacking-context-tree") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             if (auto* viewport = doc->layout_node()) {
-                if (auto* stacking_context = viewport->paintable_box()->stacking_context())
-                    stacking_context->dump();
+                auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*viewport->paintable_box());
+                viewport_paintable.build_stacking_context_tree_if_needed();
+                if (auto* stacking_context = viewport_paintable.stacking_context()) {
+                    StringBuilder builder;
+                    stacking_context->dump(builder);
+                    dbgln("{}", builder.string_view());
+                }
             }
         }
         return;
@@ -303,21 +308,35 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 
     if (request == "dump-all-resolved-styles") {
+        auto dump_style = [](String const& title, Web::CSS::ComputedProperties const& style, HashMap<FlyString, Web::CSS::StyleProperty> const& custom_properties) {
+            dbgln("+ {}", title);
+            for (size_t i = 0; i < Web::CSS::ComputedProperties::number_of_properties; ++i) {
+                auto property = style.maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
+                dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::SerializationMode::Normal) : ""_string);
+            }
+            for (auto const& [name, property] : custom_properties) {
+                dbgln("|  {} = {}", name, property.value->to_string(Web::CSS::SerializationMode::Normal));
+            }
+            dbgln("---");
+        };
+
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
-            Queue<Web::DOM::Node*> elements_to_visit;
-            elements_to_visit.enqueue(doc->document_element());
-            while (!elements_to_visit.is_empty()) {
-                auto element = elements_to_visit.dequeue();
-                for (auto& child : element->children_as_vector())
-                    elements_to_visit.enqueue(child.ptr());
-                if (element->is_element()) {
-                    auto styles = doc->style_computer().compute_style(*static_cast<Web::DOM::Element*>(element));
-                    dbgln("+ Element {}", element->debug_description());
-                    for (size_t i = 0; i < Web::CSS::ComputedProperties::number_of_properties; ++i) {
-                        auto property = styles->maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
-                        dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::SerializationMode::Normal) : ""_string);
+            Queue<Web::DOM::Node*> nodes_to_visit;
+            nodes_to_visit.enqueue(doc->document_element());
+            while (!nodes_to_visit.is_empty()) {
+                auto node = nodes_to_visit.dequeue();
+                for (auto& child : node->children_as_vector())
+                    nodes_to_visit.enqueue(child.ptr());
+                if (auto* element = as_if<Web::DOM::Element>(node)) {
+                    auto styles = doc->style_computer().compute_style(*element);
+                    dump_style(MUST(String::formatted("Element {}", node->debug_description())), styles, element->custom_properties({}));
+
+                    for (auto pseudo_element_index = 0; pseudo_element_index < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount); ++pseudo_element_index) {
+                        auto pseudo_element_type = static_cast<Web::CSS::PseudoElement>(pseudo_element_index);
+                        if (auto pseudo_element = element->get_pseudo_element(pseudo_element_type); pseudo_element.has_value() && pseudo_element->computed_properties()) {
+                            dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *pseudo_element->computed_properties(), pseudo_element->custom_properties());
+                        }
                     }
-                    dbgln("---");
                 }
             }
         }
@@ -334,8 +353,9 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
 
     if (request == "set-line-box-borders") {
         bool state = argument == "on";
-        page->set_should_show_line_box_borders(state);
-        page->page().top_level_traversable()->set_needs_repaint();
+        auto traversable = page->page().top_level_traversable();
+        traversable->set_should_show_line_box_borders(state);
+        traversable->set_needs_repaint();
         return;
     }
 
@@ -961,6 +981,33 @@ static void append_paint_tree(Web::Page& page, StringBuilder& builder)
     Web::dump_tree(builder, *layout_root->first_paintable());
 }
 
+static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder)
+{
+    auto* document = page.top_level_browsing_context().active_document();
+    if (!document) {
+        builder.append("(no DOM tree)"sv);
+        return;
+    }
+
+    document->update_layout(Web::DOM::UpdateLayoutReason::Debugging);
+
+    auto* layout_root = document->layout_node();
+    if (!layout_root) {
+        builder.append("(no layout tree)"sv);
+        return;
+    }
+    if (!layout_root->first_paintable()) {
+        builder.append("(no paint tree)"sv);
+        return;
+    }
+
+    auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*layout_root->paintable_box());
+    viewport_paintable.build_stacking_context_tree_if_needed();
+    if (auto* stacking_context = viewport_paintable.stacking_context()) {
+        stacking_context->dump(builder);
+    }
+}
+
 static void append_gc_graph(StringBuilder& builder)
 {
     auto gc_graph = Web::Bindings::main_thread_vm().heap().dump_graph();
@@ -991,6 +1038,12 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
         if (!builder.is_empty())
             builder.append("\n"sv);
         append_paint_tree(page->page(), builder);
+    }
+
+    if (has_flag(type, WebView::PageInfoType::StackingContextTree)) {
+        if (!builder.is_empty())
+            builder.append("\n"sv);
+        append_stacking_context_tree(page->page(), builder);
     }
 
     if (has_flag(type, WebView::PageInfoType::GCGraph)) {
@@ -1150,28 +1203,6 @@ void ConnectionFromClient::did_update_window_rect(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().did_update_window_rect();
-}
-
-Messages::WebContentServer::GetLocalStorageEntriesResponse ConnectionFromClient::get_local_storage_entries(u64 page_id)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return OrderedHashMap<String, String> {};
-
-    auto* document = page->page().top_level_browsing_context().active_document();
-    auto local_storage = document->window()->local_storage().release_value_but_fixme_should_propagate_errors();
-    return local_storage->map();
-}
-
-Messages::WebContentServer::GetSessionStorageEntriesResponse ConnectionFromClient::get_session_storage_entries(u64 page_id)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return OrderedHashMap<String, String> {};
-
-    auto* document = page->page().top_level_browsing_context().active_document();
-    auto session_storage = document->window()->session_storage().release_value_but_fixme_should_propagate_errors();
-    return session_storage->map();
 }
 
 void ConnectionFromClient::handle_file_return(u64, i32 error, Optional<IPC::File> file, i32 request_id)

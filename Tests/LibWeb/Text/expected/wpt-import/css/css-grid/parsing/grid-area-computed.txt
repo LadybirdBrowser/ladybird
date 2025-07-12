@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 30 tests
+Found 33 tests
 
-18 Pass
-12 Fail
+24 Pass
+9 Fail
 Pass	Property grid-area value 'auto / auto / auto / auto'
 Pass	Property grid-row value 'auto / auto'
 Pass	Property grid-column-end value 'auto'
@@ -19,18 +19,21 @@ Pass	Property grid-row-start value '9 -Z_'
 Pass	Property grid-column-start value '-44 Z'
 Pass	Property grid-row-end value '1 -πA'
 Pass	Property grid-column-end value '5 π_'
-Fail	Property grid-area value 'span 2 i / auto / auto / auto'
+Fail	Property grid-row-start value 'calc(1.1) -a-'
+Fail	Property grid-row-start value 'calc(10) -a-'
+Fail	Property grid-row-start value 'calc(10 + (sign(2cqw - 10px) * 5)) -a-'
+Pass	Property grid-area value 'span 2 i / auto / auto / auto'
 Pass	Property grid-row value 'span 2 / auto'
-Fail	Property grid-column-start value 'span 1 i'
+Pass	Property grid-column-start value 'span 1 i'
 Pass	Property grid-row-start value 'span 1'
-Fail	Property grid-row-end value 'span 2 i'
+Pass	Property grid-row-end value 'span 2 i'
 Pass	Property grid-column-end value 'span 2'
-Fail	Property grid-row-start value 'span i'
-Fail	Property grid-row value 'span i / auto'
+Pass	Property grid-row-start value 'span i'
+Pass	Property grid-row value 'span i / auto'
 Fail	Property grid-area value 'auto / i / auto / i'
 Fail	Property grid-area value 'auto / i / 2 j'
 Fail	Property grid-area value 'auto / i / 2 j / span 3 k'
 Pass	Property grid-row value 'auto / i'
-Fail	Property grid-column value '2 j / span 3 k'
+Pass	Property grid-column value '2 j / span 3 k'
 Fail	Property grid-column-end value '\31st'
 Fail	Property grid-column-end value '\31 st'

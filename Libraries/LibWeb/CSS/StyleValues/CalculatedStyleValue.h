@@ -25,7 +25,7 @@ namespace Web::CSS {
 
 class CalculationNode;
 
-// https://drafts.csswg.org/css-values-4/#ref-for-calc-calculation%E2%91%A2%E2%91%A7
+// https://drafts.csswg.org/css-values-4/#calc-context
 // Contains the context available at parse-time.
 struct CalculationContext {
     Optional<ValueType> percentages_resolve_as {};

@@ -15,7 +15,7 @@
 
 namespace JS::Intl {
 
-class DisplayNames final : public IntlObject {
+class JS_API DisplayNames final : public IntlObject {
     JS_OBJECT(DisplayNames, IntlObject);
     GC_DECLARE_ALLOCATOR(DisplayNames);
 
@@ -71,7 +71,7 @@ private:
     Optional<Unicode::LanguageDisplay> m_language_display; // [[LanguageDisplay]]
 };
 
-ThrowCompletionOr<Value> canonical_code_for_display_names(VM&, DisplayNames::Type, StringView code);
-bool is_valid_date_time_field_code(StringView field);
+JS_API ThrowCompletionOr<Value> canonical_code_for_display_names(VM&, DisplayNames::Type, StringView code);
+JS_API bool is_valid_date_time_field_code(StringView field);
 
 }

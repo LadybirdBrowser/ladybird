@@ -43,7 +43,7 @@ Optional<String> DOMStringList::item(u32 index) const
 {
     // The item(index) method steps are to return the indexth item in this's associated list, or null if index plus one
     // is greater than this's associated list's size.
-    if (index + 1 > m_list.size())
+    if (index >= m_list.size())
         return {};
 
     return m_list.at(index);
@@ -58,7 +58,7 @@ bool DOMStringList::contains(StringView string)
 
 Optional<JS::Value> DOMStringList::item_value(size_t index) const
 {
-    if (index + 1 > m_list.size())
+    if (index >= m_list.size())
         return {};
 
     return JS::PrimitiveString::create(vm(), m_list.at(index));

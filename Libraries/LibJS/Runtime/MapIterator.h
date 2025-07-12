@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class MapIterator final : public Object
+class JS_API MapIterator final : public Object
     , public BuiltinIterator {
     JS_OBJECT(MapIterator, Object);
     GC_DECLARE_ALLOCATOR(MapIterator);

@@ -20,10 +20,13 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x100] overflow: [8,8 784x136]
       PaintableWithLines (BlockContainer<DIV>.outer) [8,8 100x100] overflow: [8,8 100x136]
         PaintableWithLines (BlockContainer(anonymous)) [8,8 100x18]
-          PaintableWithLines (InlineNode<DIV>.inline)
+          PaintableWithLines (InlineNode<DIV>.inline) [8,8 9.34375x18]
             TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [8,26 100x100]
           PaintableWithLines (BlockContainer<DIV>.inner) [8,26 100x100]
         PaintableWithLines (BlockContainer(anonymous)) [8,126 100x18]
-          PaintableWithLines (InlineNode<DIV>.inline)
+          PaintableWithLines (InlineNode<DIV>.inline) [8,126 9.46875x18]
             TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x116] [children: 0] (z-index: auto)

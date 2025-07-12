@@ -6,6 +6,7 @@
 
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/CanvasPaintable.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::Painting {
 

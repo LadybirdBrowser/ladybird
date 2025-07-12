@@ -388,6 +388,19 @@ JsonValue WalkerActor::serialize_root() const
     return serialize_node(m_dom_tree);
 }
 
+static constexpr Web::DOM::NodeType parse_node_type(StringView type)
+{
+    if (type == "document"sv)
+        return Web::DOM::NodeType::DOCUMENT_NODE;
+    if (type == "element"sv)
+        return Web::DOM::NodeType::ELEMENT_NODE;
+    if (type == "text"sv)
+        return Web::DOM::NodeType::TEXT_NODE;
+    if (type == "comment"sv)
+        return Web::DOM::NodeType::COMMENT_NODE;
+    return Web::DOM::NodeType::INVALID;
+}
+
 JsonValue WalkerActor::serialize_node(JsonObject const& node) const
 {
     auto tab = m_tab.strong_ref();
@@ -401,30 +414,46 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     auto name = node.get_string("name"sv).release_value();
     auto type = node.get_string("type"sv).release_value();
 
-    auto dom_type = Web::DOM::NodeType::INVALID;
+    auto dom_type = parse_node_type(type);
     JsonValue node_value;
 
     auto is_top_level_document = &node == &m_dom_tree;
     auto is_displayed = !is_top_level_document && node.get_bool("visible"sv).value_or(false);
     auto is_scrollable = node.get_bool("scrollable"sv).value_or(false);
+
     auto is_shadow_root = false;
+    auto is_after_pseudo_element = false;
+    auto is_before_pseudo_element = false;
+    auto is_marker_pseudo_element = false;
 
-    if (type == "document"sv) {
-        dom_type = Web::DOM::NodeType::DOCUMENT_NODE;
-    } else if (type == "element"sv) {
-        dom_type = Web::DOM::NodeType::ELEMENT_NODE;
-    } else if (type == "text"sv) {
-        dom_type = Web::DOM::NodeType::TEXT_NODE;
-
+    if (dom_type == Web::DOM::NodeType::TEXT_NODE) {
         if (auto text = node.get_string("text"sv); text.has_value())
             node_value = text.release_value();
-    } else if (type == "comment"sv) {
-        dom_type = Web::DOM::NodeType::COMMENT_NODE;
-
+    } else if (dom_type == Web::DOM::NodeType::COMMENT_NODE) {
         if (auto data = node.get_string("data"sv); data.has_value())
             node_value = data.release_value();
-    } else if (type == "shadow-root"sv) {
+    }
+
+    if (type == "shadow-root"sv) {
         is_shadow_root = true;
+    } else if (type == "pseudo-element"sv) {
+        auto pseudo_element = node.get_integer<UnderlyingType<Web::CSS::PseudoElement>>("pseudo-element"sv).map([](auto value) {
+            VERIFY(value < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount));
+            return static_cast<Web::CSS::PseudoElement>(value);
+        });
+
+        is_after_pseudo_element = pseudo_element == Web::CSS::PseudoElement::After;
+        is_before_pseudo_element = pseudo_element == Web::CSS::PseudoElement::Before;
+        is_marker_pseudo_element = pseudo_element == Web::CSS::PseudoElement::Marker;
+
+        auto parent_id = node.get_integer<Web::UniqueNodeID::Type>("parent-id"sv).value();
+
+        if (auto parent_actor = m_dom_node_id_to_actor_map.get(parent_id); parent_actor.has_value()) {
+            if (auto parent_node = WalkerActor::dom_node_for(this, *parent_actor); parent_node.has_value()) {
+                dom_type = parse_node_type(parent_node->node.get_string("type"sv).value());
+                is_displayed = !is_top_level_document && parent_node->node.get_bool("visible"sv).value_or(false);
+            }
+        }
     }
 
     size_t child_count = 0;
@@ -454,13 +483,13 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     serialized.set("displayName"sv, name.to_ascii_lowercase());
     serialized.set("displayType"sv, "block"sv);
     serialized.set("hasEventListeners"sv, false);
-    serialized.set("isAfterPseudoElement"sv, false);
+    serialized.set("isAfterPseudoElement"sv, is_after_pseudo_element);
     serialized.set("isAnonymous"sv, false);
-    serialized.set("isBeforePseudoElement"sv, false);
+    serialized.set("isBeforePseudoElement"sv, is_before_pseudo_element);
     serialized.set("isDirectShadowHostChild"sv, JsonValue {});
     serialized.set("isDisplayed"sv, is_displayed);
     serialized.set("isInHTMLDocument"sv, true);
-    serialized.set("isMarkerPseudoElement"sv, false);
+    serialized.set("isMarkerPseudoElement"sv, is_marker_pseudo_element);
     serialized.set("isNativeAnonymous"sv, false);
     serialized.set("isScrollable"sv, is_scrollable);
     serialized.set("isShadowHost"sv, false);
@@ -733,7 +762,7 @@ NodeActor const& WalkerActor::actor_for_node(JsonObject const& node)
             return *node_actor;
     }
 
-    auto& node_actor = devtools().register_actor<NodeActor>(move(identifier), *this);
+    auto& node_actor = devtools().register_actor<NodeActor>(identifier, *this);
     m_node_actors.set(identifier, node_actor);
 
     return node_actor;

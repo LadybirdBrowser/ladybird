@@ -17,10 +17,16 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/Database.h>
+#include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
+
+#if defined(AK_OS_MACOS)
+#    include <LibWebView/MachPortServer.h>
+#endif
 
 namespace WebView {
 
@@ -34,43 +40,23 @@ struct ApplicationSettingsObserver : public SettingsObserver {
                 Application::request_server_client().async_set_use_system_dns();
             },
             [](DNSOverTLS const& dns_over_tls) {
-                dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);
-                Application::request_server_client().async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true);
+                dbgln("Setting DNS server to {}:{} with TLS ({} local dnssec)", dns_over_tls.server_address, dns_over_tls.port, dns_over_tls.validate_dnssec_locally ? "with" : "without");
+                Application::request_server_client().async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true, dns_over_tls.validate_dnssec_locally);
             },
             [](DNSOverUDP const& dns_over_udp) {
-                dbgln("Setting DNS server to {}:{}", dns_over_udp.server_address, dns_over_udp.port);
-                Application::request_server_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false);
+                dbgln("Setting DNS server to {}:{} ({} local dnssec)", dns_over_udp.server_address, dns_over_udp.port, dns_over_udp.validate_dnssec_locally ? "with" : "without");
+                Application::request_server_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
             });
     }
 };
 
-Application::Application()
+Application::Application(Optional<ByteString> ladybird_binary_path)
     : m_settings(Settings::create({}))
 {
     VERIFY(!s_the);
     s_the = this;
 
-    m_settings_observer = make<ApplicationSettingsObserver>();
-
-    // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
-    if (!Core::Environment::has("TZ"sv)) {
-        if (auto time_zone_watcher = Core::TimeZoneWatcher::create(); time_zone_watcher.is_error()) {
-            warnln("Unable to monitor system time zone: {}", time_zone_watcher.error());
-        } else {
-            m_time_zone_watcher = time_zone_watcher.release_value();
-
-            m_time_zone_watcher->on_time_zone_changed = []() {
-                WebContentClient::for_each_client([&](WebView::WebContentClient& client) {
-                    client.async_system_time_zone_changed();
-                    return IterationDecision::Continue;
-                });
-            };
-        }
-    }
-
-    m_process_manager.on_process_exited = [this](Process&& process) {
-        process_did_exit(move(process));
-    };
+    platform_init(move(ladybird_binary_path));
 }
 
 Application::~Application()
@@ -81,22 +67,41 @@ Application::~Application()
     s_the = nullptr;
 }
 
-void Application::initialize(Main::Arguments const& arguments)
+ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 {
-#ifndef AK_OS_WINDOWS
+    TRY(handle_attached_debugger());
+    m_arguments = arguments;
+
+#if !defined(AK_OS_WINDOWS)
     // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
     if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
         warnln("Unable to increase open file limit: {}", result.error());
 #endif
 
+#if defined(AK_OS_MACOS)
+    m_mach_port_server = make<MachPortServer>();
+    set_mach_server_name(m_mach_port_server->server_port_name());
+
+    m_mach_port_server->on_receive_child_mach_port = [this](auto pid, auto port) {
+        set_process_mach_port(pid, move(port));
+    };
+    m_mach_port_server->on_receive_backing_stores = [](MachPortServer::BackingStoresMessage message) {
+        if (auto view = WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id); view.has_value())
+            view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
+    };
+#endif
+
     Vector<ByteString> raw_urls;
     Vector<ByteString> certificates;
+    Optional<HeadlessMode> headless_mode;
+    Optional<int> window_width;
+    Optional<int> window_height;
     bool new_window = false;
     bool force_new_process = false;
     bool allow_popups = false;
     bool disable_scripting = false;
     bool disable_sql_database = false;
-    u16 devtools_port = WebView::default_devtools_port;
+    Optional<u16> devtools_port;
     Optional<StringView> debug_process;
     Optional<StringView> profile_process;
     Optional<StringView> webdriver_content_ipc_path;
@@ -104,6 +109,8 @@ void Application::initialize(Main::Arguments const& arguments)
     Optional<StringView> dns_server_address;
     Optional<u16> dns_server_port;
     bool use_dns_over_tls = false;
+    bool layout_test_mode = false;
+    bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
     bool disable_site_isolation = false;
     bool enable_idl_tracing = false;
@@ -118,6 +125,29 @@ void Application::initialize(Main::Arguments const& arguments)
     Core::ArgsParser args_parser;
     args_parser.set_general_help("The Ladybird web browser :^)");
     args_parser.add_positional_argument(raw_urls, "URLs to open", "url", Core::ArgsParser::Required::No);
+
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
+        .help_string = "Run Ladybird without a browser window. Mode may be 'screenshot' (default), 'layout-tree', or 'text'.",
+        .long_name = "headless",
+        .value_name = "mode",
+        .accept_value = [&](StringView value) {
+            if (headless_mode.has_value())
+                return false;
+
+            if (value.is_empty() || value.equals_ignoring_ascii_case("screenshot"sv))
+                headless_mode = HeadlessMode::Screenshot;
+            else if (value.equals_ignoring_ascii_case("layout-tree"sv))
+                headless_mode = HeadlessMode::LayoutTree;
+            else if (value.equals_ignoring_ascii_case("text"sv))
+                headless_mode = HeadlessMode::Text;
+
+            return headless_mode.has_value();
+        },
+    });
+
+    args_parser.add_option(window_width, "Set viewport width in pixels (default: 800) (currently only supported for headless mode)", "window-width", 0, "pixels");
+    args_parser.add_option(window_height, "Set viewport height in pixels (default: 600) (currently only supported for headless mode)", "window-height", 0, "pixels");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
     args_parser.add_option(force_new_process, "Force creation of a new browser process", "force-new-process");
@@ -127,7 +157,7 @@ void Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
     args_parser.add_option(webdriver_content_ipc_path, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
-    args_parser.add_option(devtools_port, "Set the Firefox DevTools server port ", "devtools-port", 0, "port");
+    args_parser.add_option(layout_test_mode, "Enable layout test mode", "layout-test-mode");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
@@ -141,6 +171,23 @@ void Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(dns_server_address, "Set the DNS server address", "dns-server", 0, "host|address");
     args_parser.add_option(dns_server_port, "Set the DNS server port", "dns-port", 0, "port (default: 53 or 853 if --dot)");
     args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
+    args_parser.add_option(validate_dnssec_locally, "Validate DNSSEC locally", "dnssec");
+
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
+        .help_string = "Enable the Firefox DevTools server, with an optional port",
+        .long_name = "devtools",
+        .value_name = "port",
+        .accept_value = [&](StringView value) {
+            if (value.is_empty())
+                devtools_port = WebView::default_devtools_port;
+            else
+                devtools_port = value.to_number<u16>();
+
+            return devtools_port.has_value();
+        },
+    });
+
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Name of the User-Agent preset to use in place of the default User-Agent",
@@ -153,7 +200,7 @@ void Application::initialize(Main::Arguments const& arguments)
     });
 
     create_platform_arguments(args_parser);
-    args_parser.parse(arguments);
+    args_parser.parse(m_arguments);
 
     // Our persisted SQL storage assumes it runs in a singleton process. If we have multiple UI processes accessing
     // the same underlying database, one of them is likely to fail.
@@ -178,6 +225,7 @@ void Application::initialize(Main::Arguments const& arguments)
     m_browser_options = {
         .urls = sanitize_urls(raw_urls, m_settings.new_tab_page_url()),
         .raw_urls = move(raw_urls),
+        .headless_mode = headless_mode,
         .certificates = move(certificates),
         .new_window = new_window ? NewWindow::Yes : NewWindow::No,
         .force_new_process = force_new_process ? ForceNewProcess::Yes : ForceNewProcess::No,
@@ -188,19 +236,25 @@ void Application::initialize(Main::Arguments const& arguments)
         .profile_helper_process = move(profile_process_type),
         .dns_settings = (dns_server_address.has_value()
                 ? Optional<DNSSettings> { use_dns_over_tls
-                          ? DNSSettings(DNSOverTLS(dns_server_address.release_value(), *dns_server_port))
-                          : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port)) }
+                          ? DNSSettings(DNSOverTLS(dns_server_address.release_value(), *dns_server_port, validate_dnssec_locally))
+                          : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port, validate_dnssec_locally)) }
                 : OptionalNone()),
         .devtools_port = devtools_port,
     };
+
+    if (window_width.has_value())
+        m_browser_options.window_width = *window_width;
+    if (window_height.has_value())
+        m_browser_options.window_height = *window_height;
 
     if (webdriver_content_ipc_path.has_value())
         m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
 
     m_web_content_options = {
-        .command_line = MUST(String::join(' ', arguments.strings)),
+        .command_line = MUST(String::join(' ', m_arguments.strings)),
         .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
         .user_agent_preset = move(user_agent_preset),
+        .is_layout_test_mode = layout_test_mode ? IsLayoutTestMode::Yes : IsLayoutTestMode::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
         .disable_site_isolation = disable_site_isolation ? DisableSiteIsolation::Yes : DisableSiteIsolation::No,
         .enable_idl_tracing = enable_idl_tracing ? EnableIDLTracing::Yes : EnableIDLTracing::No,
@@ -215,12 +269,10 @@ void Application::initialize(Main::Arguments const& arguments)
 
     create_platform_options(m_browser_options, m_web_content_options);
 
-    if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
-        m_database = Database::create().release_value_but_fixme_should_propagate_errors();
-        m_cookie_jar = CookieJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
-    } else {
-        m_cookie_jar = CookieJar::create();
-    }
+    m_event_loop = create_platform_event_loop();
+    TRY(launch_services());
+
+    return {};
 }
 
 static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
@@ -278,8 +330,44 @@ void Application::launch_spare_web_content_process()
 
 ErrorOr<void> Application::launch_services()
 {
+    m_settings_observer = make<ApplicationSettingsObserver>();
+
+    m_process_manager = make<ProcessManager>();
+    m_process_manager->on_process_exited = [this](Process&& process) {
+        process_did_exit(move(process));
+    };
+
+    if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
+        m_database = Database::create().release_value_but_fixme_should_propagate_errors();
+        m_cookie_jar = CookieJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
+        m_storage_jar = StorageJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
+    } else {
+        m_cookie_jar = CookieJar::create();
+        m_storage_jar = StorageJar::create();
+    }
+
+    // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
+    if (!Core::Environment::has("TZ"sv)) {
+        if (auto time_zone_watcher = Core::TimeZoneWatcher::create(); time_zone_watcher.is_error()) {
+            warnln("Unable to monitor system time zone: {}", time_zone_watcher.error());
+        } else {
+            m_time_zone_watcher = time_zone_watcher.release_value();
+
+            m_time_zone_watcher->on_time_zone_changed = []() {
+                WebContentClient::for_each_client([&](WebView::WebContentClient& client) {
+                    client.async_system_time_zone_changed();
+                    return IterationDecision::Continue;
+                });
+            };
+        }
+    }
+
     TRY(launch_request_server());
     TRY(launch_image_decoder_server());
+
+    if (m_browser_options.devtools_port.has_value())
+        TRY(launch_devtools_server());
+
     return {};
 }
 
@@ -325,32 +413,109 @@ ErrorOr<void> Application::launch_image_decoder_server()
 ErrorOr<void> Application::launch_devtools_server()
 {
     VERIFY(!m_devtools);
-    m_devtools = TRY(DevTools::DevToolsServer::create(*this, m_browser_options.devtools_port));
+
+    if (!m_browser_options.devtools_port.has_value())
+        m_browser_options.devtools_port = WebView::default_devtools_port;
+
+    m_devtools = TRY(DevTools::DevToolsServer::create(*this, *m_browser_options.devtools_port));
     return {};
 }
 
-int Application::execute()
+static NonnullRefPtr<Core::Timer> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url, int screenshot_timeout)
 {
-    int ret = m_event_loop.exec();
+    outln("Taking screenshot after {} seconds", screenshot_timeout);
+
+    auto timer = Core::Timer::create_single_shot(
+        screenshot_timeout * 1000,
+        [&]() {
+            view.take_screenshot(ViewImplementation::ScreenshotType::Full)
+                ->when_resolved([&event_loop](auto const& path) {
+                    outln("Saved screenshot to: {}", path);
+                    event_loop.quit(0);
+                })
+                .when_rejected([&event_loop](auto const& error) {
+                    warnln("Unable to take screenshot: {}", error);
+                    event_loop.quit(0);
+                });
+        });
+
+    view.load(url);
+    timer->start();
+
+    return timer;
+}
+
+static void load_page_for_info_and_exit(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url, WebView::PageInfoType type)
+{
+    view.on_load_finish = [&view, &event_loop, url, type](auto const& loaded_url) {
+        if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
+            return;
+
+        view.request_internal_page_info(type)->when_resolved([&event_loop](auto const& text) {
+            outln("{}", text);
+            event_loop.quit(0);
+        });
+    };
+
+    view.load(url);
+}
+
+ErrorOr<int> Application::execute()
+{
+    OwnPtr<HeadlessWebView> view;
+    RefPtr<Core::Timer> screenshot_timer;
+
+    if (m_browser_options.headless_mode.has_value()) {
+        auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
+        auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
+
+        view = HeadlessWebView::create(move(theme), { m_browser_options.window_width, m_browser_options.window_height });
+
+        if (!m_browser_options.webdriver_content_ipc_path.has_value()) {
+            if (m_browser_options.urls.size() != 1)
+                return Error::from_string_literal("Headless mode currently only supports exactly one URL");
+
+            switch (*m_browser_options.headless_mode) {
+            case HeadlessMode::Screenshot:
+                screenshot_timer = load_page_for_screenshot_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), 1);
+                break;
+            case HeadlessMode::LayoutTree:
+                load_page_for_info_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree);
+                break;
+            case HeadlessMode::Text:
+                load_page_for_info_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), WebView::PageInfoType::Text);
+                break;
+            case HeadlessMode::Test:
+                VERIFY_NOT_REACHED();
+            }
+        }
+    }
+
+    int ret = m_event_loop->exec();
     m_in_shutdown = true;
     return ret;
 }
 
+NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
+{
+    return make<Core::EventLoop>();
+}
+
 void Application::add_child_process(WebView::Process&& process)
 {
-    m_process_manager.add_process(move(process));
+    m_process_manager->add_process(move(process));
 }
 
 #if defined(AK_OS_MACH)
 void Application::set_process_mach_port(pid_t pid, Core::MachPort&& port)
 {
-    m_process_manager.set_process_mach_port(pid, move(port));
+    m_process_manager->set_process_mach_port(pid, move(port));
 }
 #endif
 
 Optional<Process&> Application::find_process(pid_t pid)
 {
-    return m_process_manager.find_process(pid);
+    return m_process_manager->find_process(pid);
 }
 
 void Application::process_did_exit(Process&& process)

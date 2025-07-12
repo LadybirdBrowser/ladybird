@@ -322,7 +322,7 @@ static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_
     //    if the computed value of the 'display' property is not 'none':
     //    FIXME: - select elements have an associated non-replaced inline CSS box whose child boxes include only those of optgroup and option element child nodes;
     //    FIXME: - optgroup elements have an associated non-replaced block-level CSS box whose child boxes include only those of option element child nodes; and
-    //    FIXME: - option element have an associated non-replaced block-level CSS box whose child boxes are as normal for non-replaced block-level CSS boxes.
+    //    FIXME: - option elements have an associated non-replaced block-level CSS box whose child boxes are as normal for non-replaced block-level CSS boxes.
     auto* layout_node = node.layout_node();
     if (!layout_node)
         return items;
@@ -422,28 +422,28 @@ String HTMLElement::get_the_text_steps()
     // 6. Replace each remaining run of consecutive required line break count items
     //    with a string consisting of as many U+000A LF code points as the maximum of the values
     //    in the required line break count items.
+    StringBuilder builder;
     for (size_t i = 0; i < results.size(); ++i) {
-        if (!results[i].has<RequiredLineBreakCount>())
-            continue;
+        results[i].visit(
+            [&](String const& string) {
+                builder.append(string);
+            },
+            [&](RequiredLineBreakCount const& line_break_count) {
+                int max_line_breaks = line_break_count.count;
+                size_t j = i + 1;
+                while (j < results.size() && results[j].has<RequiredLineBreakCount>()) {
+                    max_line_breaks = max(max_line_breaks, results[j].get<RequiredLineBreakCount>().count);
+                    ++j;
+                }
 
-        int max_line_breaks = results[i].get<RequiredLineBreakCount>().count;
-        size_t j = i + 1;
-        while (j < results.size() && results[j].has<RequiredLineBreakCount>()) {
-            max_line_breaks = max(max_line_breaks, results[j].get<RequiredLineBreakCount>().count);
-            ++j;
-        }
+                // Skip over the run of required line break counts.
+                i = j - 1;
 
-        results.remove(i, j - i);
-        results.insert(i, MUST(String::repeated('\n', max_line_breaks)));
+                builder.append_repeated('\n', max_line_breaks);
+            });
     }
 
     // 7. Return the concatenation of the string items in results.
-    StringBuilder builder;
-    for (auto& item : results) {
-        item.visit(
-            [&](String const& string) { builder.append(string); },
-            [&](RequiredLineBreakCount const&) {});
-    }
     return builder.to_string_without_validation();
 }
 
@@ -461,13 +461,60 @@ String HTMLElement::outer_text()
     return get_the_text_steps();
 }
 
+// https://drafts.csswg.org/cssom-view/#dom-htmlelement-scrollparent
+GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
+{
+    // NOTE: We have to ensure that the layout is up-to-date before querying the layout tree.
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLElementScrollParent);
+
+    // 1. If any of the following holds true, return null and terminate this algorithm:
+    //    - The element does not have an associated box.
+    //    - The element is the root element.
+    //    - The element is the body element.
+    //    - FIXME: The element’s computed value of the position property is fixed and no ancestor establishes a fixed position containing block.
+    if (!layout_node())
+        return nullptr;
+    if (is_document_element())
+        return nullptr;
+    if (is_html_body_element())
+        return nullptr;
+
+    // 2. Let ancestor be the containing block of the element in the flat tree and repeat these substeps:
+    auto ancestor = layout_node()->containing_block();
+    while (ancestor) {
+        // 1. If ancestor is the initial containing block, return the scrollingElement for the element’s document if it
+        //    is not closed-shadow-hidden from the element, otherwise return null.
+        if (ancestor->is_viewport()) {
+            auto const scrolling_element = document().scrolling_element();
+            if (scrolling_element && !scrolling_element->is_closed_shadow_hidden_from(*this))
+                return const_cast<Element*>(scrolling_element.ptr());
+            return nullptr;
+        }
+
+        // 2. If ancestor is not closed-shadow-hidden from the element, and is a scroll container, terminate this
+        //    algorithm and return ancestor.
+        if ((ancestor->dom_node() && !ancestor->dom_node()->is_closed_shadow_hidden_from(*this))
+            && ancestor->is_scroll_container()) {
+            return const_cast<Element*>(static_cast<DOM::Element const*>(ancestor->dom_node()));
+        }
+
+        // FIXME: 3. If the computed value of the position property of ancestor is fixed, and no ancestor establishes a fixed
+        //    position containing block, terminate this algorithm and return null.
+
+        // 4. Let ancestor be the containing block of ancestor in the flat tree.
+        ancestor = ancestor->containing_block();
+    }
+
+    return nullptr;
+}
+
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsetparent
 GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
 {
     const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLElementOffsetParent);
 
     // 1. If any of the following holds true return null and terminate this algorithm:
-    //    - The element does not have an associated CSS layout box.
+    //    - The element does not have an associated box.
     //    - The element is the root element.
     //    - The element is the HTML body element.
     //    - The element’s computed value of the position property is fixed.
@@ -475,31 +522,47 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
         return nullptr;
     if (is_document_element())
         return nullptr;
-    if (is<HTML::HTMLBodyElement>(*this))
+    if (is_html_body_element())
         return nullptr;
     if (layout_node()->is_fixed_position())
         return nullptr;
 
-    // 2. Return the nearest ancestor element of the element for which at least one of the following is true
-    //    and terminate this algorithm if such an ancestor is found:
-    //    - The computed value of the position property is not static.
-    //    - It is the HTML body element.
-    //    - The computed value of the position property of the element is static
-    //      and the ancestor is one of the following HTML elements: td, th, or table.
+    // 2. Let ancestor be the parent of the element in the flat tree and repeat these substeps:
+    auto ancestor = shadow_including_first_ancestor_of_type<DOM::Element>();
+    while (true) {
+        bool ancestor_is_closed_shadow_hidden = ancestor->is_closed_shadow_hidden_from(*this);
+        // 1. If ancestor is closed-shadow-hidden from the element and its computed value of the position property is
+        //   fixed, terminate this algorithm and return null.
+        if (ancestor_is_closed_shadow_hidden && ancestor->computed_properties()->position() == CSS::Positioning::Fixed)
+            return nullptr;
 
-    for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
-        if (!ancestor->layout_node())
-            continue;
-        if (ancestor->layout_node()->is_positioned())
-            return const_cast<Element*>(ancestor.ptr());
-        if (is<HTML::HTMLBodyElement>(*ancestor))
-            return const_cast<Element*>(ancestor.ptr());
-        if (!ancestor->layout_node()->is_positioned() && ancestor->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::table))
-            return const_cast<Element*>(ancestor.ptr());
+        // 2. If ancestor is not closed-shadow-hidden from the element and satisfies at least one of the following,
+        //    terminate this algorithm and return ancestor.
+        if (!ancestor_is_closed_shadow_hidden) {
+            // - ancestor is a containing block of absolutely-positioned descendants (regardless of whether there are
+            //    any absolutely-positioned descendants).
+            if (ancestor->layout_node()->is_positioned())
+                return const_cast<Element*>(ancestor);
+
+            // - FIXME: The element has a different effective zoom than ancestor.
+
+            // - It is the body element.
+            if (ancestor->is_html_body_element())
+                return const_cast<Element*>(ancestor);
+
+            // - The computed value of the position property of the element is static and the ancestor is one of the following HTML elements: td, th, or table.
+            if (computed_properties()->position() == CSS::Positioning::Static && ancestor->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::table))
+                return const_cast<Element*>(ancestor);
+        }
+
+        // 3. If there is no more parent of ancestor in the flat tree, terminate this algorithm and return null.
+        auto parent_of_ancestor = ancestor->shadow_including_first_ancestor_of_type<DOM::Element>();
+        if (!parent_of_ancestor)
+            return nullptr;
+
+        // 4. Let ancestor be the parent of ancestor in the flat tree.
+        ancestor = parent_of_ancestor;
     }
-
-    // 3. Return null.
-    return nullptr;
 }
 
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsettop
@@ -693,10 +756,10 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
 
         // 3. If element's popover visibility state is in the showing state
         //    and oldValue and value are in different states,
-        //    then run the hide popover algorithm given element, true, true, false, and true.
+        //    then run the hide popover algorithm given element, true, true, false, true, and null.
         if (m_popover_visibility_state == PopoverVisibilityState::Showing
             && popover_value_to_state(old_value) != popover_value_to_state(value))
-            MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::Yes));
+            MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
     }();
 }
 
@@ -1129,7 +1192,7 @@ void HTMLElement::adjust_computed_style(CSS::ComputedProperties& style)
 // https://whatpr.org/html/9457/popover.html#check-popover-validity
 WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document> expected_document, IgnoreDomState ignore_dom_state)
 {
-    // 1. If ignoreDomState is false and element's popover attribute is in the no popover state, then:
+    // 1. If ignoreDomState is false and element's popover attribute is in the No Popover state, then:
     if (ignore_dom_state == IgnoreDomState::No && !popover().has_value()) {
         // 1.1. If throwExceptions is true, then throw a "NotSupportedError" DOMException.
         if (throw_exceptions == ThrowExceptions::Yes)
@@ -1211,12 +1274,12 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             m_popover_showing_or_hiding = false;
     };
 
-    // 9. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute initialized to true, the oldState attribute initialized to "closed", and the newState attribute initialized to "open" at element is false, then run cleanupShowingFlag and return.
+    // 9. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute initialized to true, the oldState attribute initialized to "closed", the newState attribute initialized to "open" at element, and the source attribute initialized to invoker at element is false, then run cleanupShowingFlag and return.
     ToggleEventInit event_init {};
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
     event_init.cancelable = true;
-    if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)))) {
+    if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init), invoker))) {
         cleanup_showing_flag();
         return {};
     }
@@ -1306,7 +1369,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
 
         // 2. If originalType is not equal to the value of element's popover attribute, then:
         if (original_type != popover()) {
-            // 1. If throwExceptions is true, then throw a "InvalidStateError" DOMException.
+            // 1. If throwExceptions is true, then throw an "InvalidStateError" DOMException.
             if (throw_exceptions == ThrowExceptions::Yes)
                 return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_string);
 
@@ -1354,10 +1417,10 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         m_popover_close_watcher = CloseWatcher::establish(*document.window());
         // - cancelAction being to return true.
         // We simply don't add an event listener for the cancel action.
-        // - closeAction being to hide a popover given element, true, true, and false.
+        // - closeAction being to hide a popover given element, true, true, false, and null.
         auto close_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
-                MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No));
+                MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No, nullptr));
 
                 return JS::js_undefined();
             },
@@ -1377,9 +1440,9 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     m_popover_invoker = invoker;
     // FIXME: 24. Set element's implicit anchor element to invoker.
     // FIXME: 25. Run the popover focusing steps given element.
-    // FIXME: 26. If shouldRestoreFocus is true and element's popover attribute is not in the no popover state, then set element's previously focused element to originallyFocusedElement.
-    // 27. Queue a popover toggle event task given element, "closed", and "open".
-    queue_a_popover_toggle_event_task("closed"_string, "open"_string);
+    // FIXME: 26. If shouldRestoreFocus is true and element's popover attribute is not in the No Popover state, then set element's previously focused element to originallyFocusedElement.
+    // 27. Queue a popover toggle event task given element, "closed", "open", and invoker.
+    queue_a_popover_toggle_event_task("closed"_string, "open"_string, invoker);
     // 28. Run cleanupShowingFlag.
     cleanup_showing_flag();
 
@@ -1390,13 +1453,13 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
 // https://whatpr.org/html/9457/popover.html#dom-hidepopover
 WebIDL::ExceptionOr<void> HTMLElement::hide_popover_for_bindings()
 {
-    // The hidePopover() method steps are to run the hide popover algorithm given this, true, true, true, and false.
-    return hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes, IgnoreDomState::No);
+    // The hidePopover() method steps are to run the hide popover algorithm given this, true, true, true, false, and null.
+    return hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes, IgnoreDomState::No, nullptr);
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#hide-popover-algorithm
 // https://whatpr.org/html/9457/popover.html#hide-popover-algorithm
-WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state)
+WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state, GC::Ptr<HTMLElement> source)
 {
     // 1. If the result of running check popover validity given element, true, throwExceptions, null and ignoreDomState is false, then return.
     if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr, ignore_dom_state)))
@@ -1446,11 +1509,11 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
 
     // 9. If fireEvents is true:
     if (fire_events == FireEvents::Yes) {
-        // 9.1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open" and the newState attribute initialized to "closed" at element.
+        // 9.1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open", the newState attribute initialized to "closed", and the source attribute set to source at element.
         ToggleEventInit event_init {};
         event_init.old_state = "open"_string;
         event_init.new_state = "closed"_string;
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
+        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init), source));
 
         // 9.2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not element, then run hide all popovers until given element, focusPreviousElement, and false.
         if (auto_popover_list_contains_element && (showing_popovers.is_empty() || showing_popovers.last() != this))
@@ -1502,9 +1565,9 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     // 13. Set element's popover visibility state to hidden.
     m_popover_visibility_state = PopoverVisibilityState::Hidden;
 
-    // 14. If fireEvents is true, then queue a popover toggle event task given element, "open", and "closed".
+    // 14. If fireEvents is true, then queue a popover toggle event task given element, "open", "closed", and source.
     if (fire_events == FireEvents::Yes)
-        queue_a_popover_toggle_event_task("open"_string, "closed"_string);
+        queue_a_popover_toggle_event_task("open"_string, "closed"_string, source);
 
     // FIXME: 15. Let previouslyFocusedElement be element's previously focused element.
 
@@ -1538,9 +1601,9 @@ WebIDL::ExceptionOr<bool> HTMLElement::toggle_popover(TogglePopoverOptionsOrForc
             invoker = options.source;
         });
 
-    // 5. If this's popover visibility state is showing, and force is null or false, then run the hide popover algorithm given this, true, true, true, and false.
+    // 5. If this's popover visibility state is showing, and force is null or false, then run the hide popover algorithm given this, true, true, true, false, and null.
     if (popover_visibility_state() == PopoverVisibilityState::Showing && (!force.has_value() || !force.value()))
-        TRY(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes, IgnoreDomState::No));
+        TRY(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes, IgnoreDomState::No, nullptr));
     // 6. Otherwise, if force is not present or true, then run show popover given this true, and invoker.
     else if (!force.has_value() || force.value())
         TRY(show_popover(ThrowExceptions::Yes, invoker));
@@ -1644,8 +1707,8 @@ void HTMLElement::hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& p
             // 1. Assert: popoverList is not empty.
             VERIFY(!popover_list.is_empty());
 
-            // 2. Run the hide popover algorithm given the last item in popoverList, focusPreviousElement, fireEvents, and false.
-            MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No));
+            // 2. Run the hide popover algorithm given the last item in popoverList, focusPreviousElement, fireEvents, false, and null.
+            MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No, nullptr));
         }
 
         // 5. Assert: repeatingHide is false or popoverList's last item is endpoint.
@@ -1670,8 +1733,8 @@ void HTMLElement::close_entire_popover_list(Vector<GC::Ref<HTMLElement>> const& 
     // FIXME: If an event handler opens a new popover then this could be an infinite loop.
     // 1. While popoverList is not empty:
     while (!popover_list.is_empty()) {
-        // 1. Run the hide popover algorithm given popoverList's last item, focusPreviousElement, fireEvents, and false.
-        MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No));
+        // 1. Run the hide popover algorithm given popoverList's last item, focusPreviousElement, fireEvents, false, and null.
+        MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No, nullptr));
     }
 }
 
@@ -1686,7 +1749,7 @@ GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> ne
         // 1. Assert: newPopoverOrTopLayerElement is an HTML element.
         VERIFY(new_popover);
 
-        // 2. Assert: newPopoverOrTopLayerElement's popover attribute is not in the no popover state or the manual state.
+        // 2. Assert: newPopoverOrTopLayerElement's popover attribute is not in the No Popover state or the manual state.
         VERIFY(!new_popover->popover().has_value() || new_popover->popover().value() != "manual"sv);
 
         // 3. Assert: newPopoverOrTopLayerElement's popover visibility state is not in the popover showing state.
@@ -1747,9 +1810,7 @@ GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> ne
             // 3. Assert: candidateAncestor's popover attribute is not in the manual or none state.
             VERIFY(!candidate_ancestor->popover().has_value() || candidate_ancestor->popover().value() != "manual"sv);
 
-            // AD-HOC: This also checks if isPopover is false.
-            // Spec issue: https://github.com/whatwg/html/issues/11008.
-            // 4. Set okNesting to true if newPopoverOrTopLayerElement's popover attribute is in the hint state or candidateAncestor's popover attribute is in the auto state.
+            // 4. Set okNesting to true if isPopover is false, newPopoverOrTopLayerElement's popover attribute is in the hint state, or candidateAncestor's popover attribute is in the auto state.
             if (is_popover == IsPopover::No || new_popover->popover() == "hint"sv || candidate_ancestor->popover() == "auto"sv)
                 ok_nesting = true;
 
@@ -1786,9 +1847,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_open_popover()
 
     // 2. While currentNode is not null:
     while (current_node) {
-        // AD-HOC: This also allows hint popovers.
-        // Spec issue: https://github.com/whatwg/html/issues/11008.
-        // 1. If currentNode's popover attribute is in the auto state and currentNode's popover visibility state is showing, then return currentNode.
+        // 1. If currentNode's popover attribute is in the Auto state or the Hint state, and currentNode's popover visibility state is showing, then return currentNode.
         if (current_node->popover().has_value() && current_node->popover().value().is_one_of("auto", "hint") && current_node->popover_visibility_state() == PopoverVisibilityState::Showing)
             return current_node;
 
@@ -1813,9 +1872,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_target_popover_for_invoker()
         // 1. Let targetPopover be currentNode's popover target element.
         auto target_popover = PopoverInvokerElement::get_the_popover_target_element(*current_node);
 
-        // AD-HOC: This also allows hint popovers.
-        // See nearest_inclusive_open_popover above.
-        // 2. If targetPopover is not null and targetPopover's popover attribute is in the auto state and targetPopover's popover visibility state is showing, then return targetPopover.
+        // 2. If targetPopover is not null and targetPopover's popover attribute is in the Auto state or the Hint state, and targetPopover's popover visibility state is showing, then return targetPopover.
         if (target_popover) {
             if (target_popover->popover().has_value() && target_popover->popover().value().is_one_of("auto", "hint") && target_popover->popover_visibility_state() == PopoverVisibilityState::Showing)
                 return target_popover;
@@ -1829,7 +1886,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_target_popover_for_invoker()
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#queue-a-popover-toggle-event-task
-void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new_state)
+void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new_state, GC::Ptr<HTMLElement> source)
 {
     // 1. If element's popover toggle task tracker is not null, then:
     if (m_popover_toggle_task_tracker.has_value()) {
@@ -1846,14 +1903,14 @@ void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new
     }
 
     // 2. Queue an element task given the DOM manipulation task source and element to run the following steps:
-    auto task_id = queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state)]() mutable {
+    auto task_id = queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state), source]() mutable {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
-        //    oldState and the newState attribute initialized to newState.
+        //    oldState, the newState attribute initialized to newState, and the source attribute initialized to source.
         ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
 
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init)));
+        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init), source));
 
         // 2. Set element's popover toggle task tracker to null.
         m_popover_toggle_task_tracker = {};
@@ -2001,10 +2058,10 @@ void HTMLElement::removed_from(Node* old_parent, Node& old_root)
 {
     Element::removed_from(old_parent, old_root);
 
-    // https://whatpr.org/html/9457/infrastructure.html#dom-trees:concept-node-remove-ext
-    // If removedNode's popover attribute is not in the no popover state, then run the hide popover algorithm given removedNode, false, false, false, and true.
+    // https://html.spec.whatwg.org/multipage/infrastructure.html#dom-trees:concept-node-remove-ext
+    // If removedNode's popover attribute is not in the No Popover state, then run the hide popover algorithm given removedNode, false, false, false, true, and null.
     if (popover().has_value())
-        MUST(hide_popover(FocusPreviousElement::No, FireEvents::No, ThrowExceptions::No, IgnoreDomState::Yes));
+        MUST(hide_popover(FocusPreviousElement::No, FireEvents::No, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
 
     if (old_parent) {
         auto* parent_html_element = as_if<HTMLElement>(old_parent);

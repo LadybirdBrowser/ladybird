@@ -180,3 +180,18 @@ TEST_CASE(compare_different_constness)
 
     EXPECT_EQ(array, vector.span());
 }
+
+TEST_CASE(index_of)
+{
+    constexpr Array haystack { 1, 2, 3, 4, 5 };
+    constexpr Array needle_1 { 2, 3, 4 };
+    constexpr Array needle_2 { 2, 4 };
+    constexpr Array<int, 0> needle_3 {};
+
+    EXPECT_EQ(1u, haystack.span().index_of(needle_1.span()).value());
+    EXPECT(!haystack.span().index_of(needle_1.span(), 2).has_value());
+    EXPECT(!haystack.span().index_of(needle_2.span()).has_value());
+    EXPECT_EQ(0u, haystack.span().index_of(needle_3.span()));
+    EXPECT_EQ(1u, haystack.span().index_of(needle_3.span(), 1));
+    EXPECT(!haystack.span().index_of(needle_3.span(), 16).has_value());
+}

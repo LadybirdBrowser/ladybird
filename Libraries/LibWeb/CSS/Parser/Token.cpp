@@ -1,14 +1,140 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS::Parser {
+
+Token Token::create(Type type, String original_source_text)
+{
+    VERIFY(first_is_one_of(type,
+        Type::Invalid,
+        Type::EndOfFile,
+        Type::BadString,
+        Type::BadUrl,
+        Type::CDO,
+        Type::CDC,
+        Type::Colon,
+        Type::Semicolon,
+        Type::Comma,
+        Type::OpenSquare,
+        Type::CloseSquare,
+        Type::OpenParen,
+        Type::CloseParen,
+        Type::OpenCurly,
+        Type::CloseCurly));
+
+    Token token;
+    token.m_type = type;
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_ident(FlyString ident, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::Ident;
+    token.m_value = move(ident);
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_function(FlyString name, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::Function;
+    token.m_value = move(name);
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_at_keyword(FlyString name, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::AtKeyword;
+    token.m_value = move(name);
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_hash(FlyString value, HashType hash_type, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::Hash;
+    token.m_value = move(value);
+    token.m_hash_type = hash_type;
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_string(FlyString value, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::String;
+    token.m_value = move(value);
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_url(FlyString url, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::Url;
+    token.m_value = move(url);
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_delim(u32 delim, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::Delim;
+    token.m_value = String::from_code_point(delim);
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_number(Number value, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::Number;
+    token.m_number_value = value;
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_percentage(Number value, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::Percentage;
+    token.m_number_value = value;
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_dimension(Number value, FlyString unit, String original_source_text)
+{
+    Token token;
+    token.m_type = Type::Dimension;
+    token.m_number_value = value;
+    token.m_value = move(unit);
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
+
+Token Token::create_whitespace(String original_source_text)
+{
+    Token token;
+    token.m_type = Type::Whitespace;
+    token.m_original_source_text = move(original_source_text);
+    return token;
+}
 
 String Token::to_string() const
 {
@@ -211,6 +337,12 @@ StringView Token::bracket_mirror_string() const
     }
 
     return ""sv;
+}
+
+void Token::set_position_range(Badge<Tokenizer>, Position start, Position end)
+{
+    m_start_position = start;
+    m_end_position = end;
 }
 
 }

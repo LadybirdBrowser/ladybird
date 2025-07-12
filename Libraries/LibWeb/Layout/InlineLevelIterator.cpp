@@ -211,10 +211,20 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
 
     // 6.4 https://drafts.csswg.org/css-fonts/#font-variant-ligatures-prop
     auto ligature_or_null = computed_values.font_variant_ligatures();
+
+    auto disable_all_ligatures = [&]() {
+        features.set("liga"sv, 0);
+        features.set("clig"sv, 0);
+        features.set("dlig"sv, 0);
+        features.set("hlig"sv, 0);
+        features.set("calt"sv, 0);
+    };
+
     if (ligature_or_null.has_value()) {
         auto ligature = ligature_or_null.release_value();
         if (ligature.none) {
-            /* nothing */
+            // Specifies that all types of ligatures and contextual forms covered by this property are explicitly disabled.
+            disable_all_ligatures();
         } else {
             switch (ligature.common) {
             case Gfx::FontVariantLigatures::Common::Common:
@@ -270,6 +280,9 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
                 break;
             }
         }
+    } else if (computed_values.text_rendering() == CSS::TextRendering::Optimizespeed) {
+        // AD-HOC: Disable ligatures if font-variant-ligatures is set to normal and text rendering is set to optimize speed.
+        disable_all_ligatures();
     } else {
         // A value of normal specifies that common default features are enabled, as described in detail in the next section.
         features.set("liga"sv, 1);
@@ -417,6 +430,22 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
         }
     }
 
+    // FIXME: vkrn should be enabled for vertical text.
+    switch (computed_values.font_kerning()) {
+    case CSS::FontKerning::Auto:
+        // AD-HOC: Disable kerning if font-kerning is set to normal and text rendering is set to optimize speed.
+        features.set("kern"sv, computed_values.text_rendering() != CSS::TextRendering::Optimizespeed ? 1 : 0);
+        break;
+    case CSS::FontKerning::Normal:
+        features.set("kern"sv, 1);
+        break;
+    case CSS::FontKerning::None:
+        features.set("kern"sv, 0);
+        break;
+    default:
+        break;
+    }
+
     return features;
 }
 
@@ -452,7 +481,7 @@ Gfx::ShapeFeatures InlineLevelIterator::create_and_merge_font_features() const
     shape_features.ensure_capacity(merged_features.size());
 
     for (auto& it : merged_features) {
-        shape_features.append({ { it.key[0], it.key[1], it.key[2], it.key[3] }, static_cast<u32>(it.value) });
+        shape_features.unchecked_append({ { it.key[0], it.key[1], it.key[2], it.key[3] }, static_cast<u32>(it.value) });
     }
 
     return shape_features;
@@ -620,7 +649,6 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
     auto& box_state = m_layout_state.get(box);
     m_inline_formatting_context.dimension_box_on_line(box, m_layout_mode);
 
-    skip_to_next();
     auto item = Item {
         .type = Item::Type::Element,
         .node = &box,
@@ -635,6 +663,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         .margin_end = box_state.margin_right,
     };
     add_extra_box_model_metrics_to_item(item, true, true);
+    skip_to_next();
     return item;
 }
 

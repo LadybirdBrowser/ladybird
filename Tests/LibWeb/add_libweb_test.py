@@ -4,6 +4,7 @@ This script will create a new test file and expectations in the Tests/LibWeb dir
 """
 
 import argparse
+
 from pathlib import Path
 
 TEST_DIR = Path(__file__).resolve().parent
@@ -57,9 +58,9 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
             input_boilerplate = Rf"""<!DOCTYPE html>
 <script src="{path_to_include_js}"></script>
 <script>
-    {f"asyncTest(async (done)" if is_async else "test(()"} => {{
+    {"asyncTest(async (done)" if is_async else "test(()"} => {{
         println("Expected println() output");
-    {f"    done();" if is_async else ""}
+    {"    done();" if is_async else ""}
     }});
 </script>
 """
@@ -86,8 +87,7 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
         elif test_type == "Layout":
             input_boilerplate = generic_boilerplate
             expected_boilerplate = f"""run
- ./Meta/ladybird.py run headless-browser --run-tests
- "${{LADYBIRD_SOURCE_DIR}}/Tests/LibWeb" --rebaseline -f {input_file}
+ ./Meta/ladybird.py run test-web --rebaseline -f {input_file}
 to produce the expected output for this test
 """
             print("Delete <!DOCTYPE html> and replace it with <!--Quirks mode--> if test should run in quirks mode")

@@ -37,7 +37,9 @@
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/UIEvents/KeyCode.h>
+#include <LibWebView/StorageOperationError.h>
 
 namespace Web {
 
@@ -299,17 +301,6 @@ private:
     bool m_listen_for_dom_mutations { false };
 };
 
-struct PaintOptions {
-    enum class PaintOverlay {
-        No,
-        Yes,
-    };
-
-    PaintOverlay paint_overlay { PaintOverlay::Yes };
-    bool should_show_line_box_borders { false };
-    bool has_focus { false };
-};
-
 enum class DisplayListPlayerType {
     SkiaGPUIfAvailable,
     SkiaCPU,
@@ -319,6 +310,7 @@ class PageClient : public JS::Cell {
     GC_CELL(PageClient, JS::Cell);
 
 public:
+    virtual u64 id() const = 0;
     virtual Page& page() = 0;
     virtual Page const& page() const = 0;
     virtual bool is_connection_open() const = 0;
@@ -330,9 +322,6 @@ public:
     virtual CSS::PreferredColorScheme preferred_color_scheme() const = 0;
     virtual CSS::PreferredContrast preferred_contrast() const = 0;
     virtual CSS::PreferredMotion preferred_motion() const = 0;
-    virtual void paint_next_frame() = 0;
-    virtual void process_screenshot_requests() = 0;
-    virtual void start_display_list_rendering(DevicePixelRect const&, Painting::BackingStore&, PaintOptions, Function<void()>&& callback) = 0;
     virtual Queue<QueuedInputEvent>& input_event_queue() = 0;
     virtual void report_finished_handling_input_event(u64 page_id, EventResult event_was_handled) = 0;
     virtual void page_did_change_title(ByteString const&) { }
@@ -375,6 +364,11 @@ public:
     virtual void page_did_set_cookie(URL::URL const&, Cookie::ParsedCookie const&, Cookie::Source) { }
     virtual void page_did_update_cookie(Web::Cookie::Cookie const&) { }
     virtual void page_did_expire_cookies_with_time_offset(AK::Duration) { }
+    virtual Optional<String> page_did_request_storage_item([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key, [[maybe_unused]] String const& bottle_key) { return {}; }
+    virtual WebView::StorageOperationError page_did_set_storage_item([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key, [[maybe_unused]] String const& bottle_key, [[maybe_unused]] String const& value) { return WebView::StorageOperationError::None; }
+    virtual void page_did_remove_storage_item([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key, [[maybe_unused]] String const& bottle_key) { }
+    virtual Vector<String> page_did_request_storage_keys([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key) { return {}; }
+    virtual void page_did_clear_storage([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key) { }
     virtual void page_did_update_resource_count(i32) { }
     struct NewWebViewResult {
         GC::Ptr<Page> page;
@@ -409,9 +403,10 @@ public:
 
     virtual void page_did_mutate_dom([[maybe_unused]] FlyString const& type, [[maybe_unused]] DOM::Node const& target, [[maybe_unused]] DOM::NodeList& added_nodes, [[maybe_unused]] DOM::NodeList& removed_nodes, [[maybe_unused]] GC::Ptr<DOM::Node> previous_sibling, [[maybe_unused]] GC::Ptr<DOM::Node> next_sibling, [[maybe_unused]] Optional<String> const& attribute_name) { }
 
-    virtual void received_message_from_web_ui([[maybe_unused]] String const& name, [[maybe_unused]] JS::Value data) { }
+    virtual void page_did_paint([[maybe_unused]] Gfx::IntRect const& content_rect, [[maybe_unused]] i32 bitmap_id) { }
+    virtual void page_did_take_screenshot(Gfx::ShareableBitmap const&) { }
 
-    virtual bool is_ready_to_paint() const = 0;
+    virtual void received_message_from_web_ui([[maybe_unused]] String const& name, [[maybe_unused]] JS::Value data) { }
 
     virtual DisplayListPlayerType display_list_player_type() const = 0;
 

@@ -9,13 +9,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Parser.h"
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/HashTable.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TemporaryChange.h>
+#include <AK/UnicodeUtils.h>
+#include <LibJS/Parser.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibRegex/Regex.h>
 
@@ -223,7 +224,7 @@ public:
     ScopePusher const* last_function_scope() const
     {
         for (auto scope_ptr = this; scope_ptr; scope_ptr = scope_ptr->m_parent_scope) {
-            if (scope_ptr->m_function_parameters)
+            if (scope_ptr->m_type == ScopeType::Function || scope_ptr->m_type == ScopeType::ClassStaticInit)
                 return scope_ptr;
         }
         return nullptr;
@@ -328,7 +329,7 @@ public:
             }
 
             if (m_type == ScopeType::Function && m_bound_names.contains(identifier_group_name)) {
-                // NOTE: Currently parser can't determine that named function expression assigment creates scope with binding for funciton name so function names are not considered as candidates to be optmized in global variables access
+                // NOTE: Currently parser can't determine that named function expression assignment creates scope with binding for function name so function names are not considered as candidates to be optimized in global variables access
                 identifier_group.might_be_variable_in_lexical_scope_in_named_function_assignment = true;
             }
 
@@ -1560,8 +1561,6 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
 
                 {
                     ScopePusher static_init_scope = ScopePusher::static_init_block_scope(*this, *static_init_block);
-                    static_init_scope.set_function_parameters(FunctionParameters::empty());
-
                     parse_statement_list(static_init_block);
                 }
 
@@ -4603,7 +4602,7 @@ FlyString Parser::consume_string_value()
     Utf8View view { value.bytes_as_string_view().substring_view(value.bytes().size() - 3) };
     VERIFY(view.length() <= 3);
     auto codepoint = *view.begin();
-    if (Utf16View::is_high_surrogate(codepoint)) {
+    if (AK::UnicodeUtils::is_utf16_high_surrogate(codepoint)) {
         syntax_error("StringValue ending with unpaired high surrogate"_string);
         VERIFY(view.length() == 1);
     }
@@ -5206,8 +5205,8 @@ Parser::ForbiddenTokens Parser::ForbiddenTokens::forbid(std::initializer_list<To
     return result;
 }
 
-template NonnullRefPtr<FunctionExpression> Parser::parse_function_node(u16, Optional<Position> const&);
-template NonnullRefPtr<FunctionDeclaration> Parser::parse_function_node(u16, Optional<Position> const&);
+template JS_API NonnullRefPtr<FunctionExpression> Parser::parse_function_node(u16, Optional<Position> const&);
+template JS_API NonnullRefPtr<FunctionDeclaration> Parser::parse_function_node(u16, Optional<Position> const&);
 
 NonnullRefPtr<Identifier const> Parser::create_identifier_and_register_in_current_scope(SourceRange range, FlyString string, Optional<DeclarationKind> declaration_kind)
 {

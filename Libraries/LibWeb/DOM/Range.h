@@ -57,8 +57,6 @@ public:
 
     WebIDL::ExceptionOr<WebIDL::Short> compare_boundary_points(WebIDL::UnsignedShort how, Range const& source_range) const;
 
-    GC::Ref<Range> inverted() const;
-    GC::Ref<Range> normalized() const;
     GC::Ref<Range> clone_range() const;
 
     GC::Ref<Node> common_ancestor_container() const;

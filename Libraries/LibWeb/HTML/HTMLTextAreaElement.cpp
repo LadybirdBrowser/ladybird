@@ -110,10 +110,10 @@ i32 HTMLTextAreaElement::default_tab_index_value() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-form-reset-control
 void HTMLTextAreaElement::reset_algorithm()
 {
-    // The reset algorithm for textarea elements is to set the user validity to false, dirty value flag back to false,
+    // The reset algorithm for textarea elements is to set the user validity to false, the dirty value flag back to false,
     m_user_validity = false;
     m_dirty_value = false;
-    // and set the raw value of element to its child text content.
+    // and the raw value to its child text content.
     set_raw_value(child_text_content());
 
     if (m_text_node) {

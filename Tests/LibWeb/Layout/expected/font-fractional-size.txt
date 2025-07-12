@@ -24,11 +24,14 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x41]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x25]
-      PaintableWithLines (InlineNode<SPAN>.a)
+      PaintableWithLines (InlineNode<SPAN>.a) [8,8 12.4375x24]
         TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
-      PaintableWithLines (InlineNode<SPAN>.b)
+      PaintableWithLines (InlineNode<SPAN>.b) [28.4375,8 12.734375x24]
         TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
-      PaintableWithLines (InlineNode<SPAN>.c)
+      PaintableWithLines (InlineNode<SPAN>.c) [49.171875,8 13.03125x25]
         TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x41] [children: 0] (z-index: auto)

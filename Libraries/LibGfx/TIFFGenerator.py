@@ -6,10 +6,13 @@
 
 import argparse
 import re
-from enum import Enum
+
 from collections import namedtuple
+from enum import Enum
 from pathlib import Path
-from typing import Any, List, Type
+from typing import Any
+from typing import List
+from typing import Type
 
 
 class EnumWithExportName(Enum):
@@ -336,7 +339,7 @@ def generate_getter(tag: Tag) -> str:
         unpacked_if_needed = Rf"""
         {container_initialization}
         for (u32 i = 0; i < possible_value->size(); ++i)
-            tmp[i] = {extracted_value_template.format('i')};
+            tmp[i] = {extracted_value_template.format("i")};
 
         return tmp;"""
 

@@ -75,7 +75,7 @@ public:
 
     virtual void set_segmented_text(Utf16View const& text) override
     {
-        m_segmented_text = icu::UnicodeString { text.data(), static_cast<i32>(text.length_in_code_units()) };
+        m_segmented_text = icu::UnicodeString { text.span().data(), static_cast<i32>(text.length_in_code_units()) };
         m_segmenter->setText(m_segmented_text.get<icu::UnicodeString>());
     }
 

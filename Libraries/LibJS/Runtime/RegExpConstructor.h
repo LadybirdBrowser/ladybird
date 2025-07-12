@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class RegExpConstructor final : public NativeFunction {
+class JS_API RegExpConstructor final : public NativeFunction {
     JS_OBJECT(RegExpConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(RegExpConstructor);
 

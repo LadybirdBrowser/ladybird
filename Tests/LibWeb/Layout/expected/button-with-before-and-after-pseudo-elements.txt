@@ -24,8 +24,11 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<BUTTON>) [8,8 92x22]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 82x18]
           PaintableWithLines (BlockContainer(anonymous)) [13,10 82x18]
-            PaintableWithLines (InlineNode(anonymous))
+            PaintableWithLines (InlineNode(anonymous)) [13,10 27.15625x18]
               TextPaintable (TextNode<#text>)
             TextPaintable (TextNode<#text>)
-            PaintableWithLines (InlineNode(anonymous))
+            PaintableWithLines (InlineNode(anonymous)) [67.796875,10 27.203125x18]
               TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x38] [children: 0] (z-index: auto)

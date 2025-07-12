@@ -7,8 +7,8 @@
 
 #pragma once
 
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/TextTrack.h>
 
 namespace Web::HTML {
 
@@ -21,7 +21,7 @@ public:
 
     WebIDL::UnsignedShort ready_state();
 
-    GC::Root<TextTrack> track() { return m_track; }
+    GC::Ref<TextTrack> track() { return *m_track; }
 
 private:
     HTMLTrackElement(DOM::Document&, DOM::QualifiedName);
@@ -33,13 +33,17 @@ private:
     void set_track_url(String);
 
     void start_the_track_processing_model();
-    void start_the_track_processing_model_parallel_steps(JS::Realm& realm);
+    void start_the_track_processing_model_parallel_steps();
+
+    void track_became_ready();
+    void track_failed_to_load();
 
     // ^DOM::Element
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual void inserted() override;
 
     GC::Ptr<TextTrack> m_track;
+    GC::Ptr<TextTrackObserver> m_track_observer;
 
     // https://html.spec.whatwg.org/multipage/media.html#track-url
     String m_track_url {};
@@ -48,6 +52,7 @@ private:
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
     bool m_loading { false };
+    bool m_awaiting_track_url_change { false };
 };
 
 }

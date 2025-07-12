@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/StorageAPI/StorageShelf.h>
@@ -16,14 +17,21 @@ namespace Web::StorageAPI {
 
 // https://storage.spec.whatwg.org/#storage-shed
 // A storage shed is a map of storage keys to storage shelves. It is initially empty.
-class StorageShed {
+class StorageShed : public GC::Cell {
+    GC_CELL(StorageShed, GC::Cell);
+    GC_DECLARE_ALLOCATOR(StorageShed);
+
 public:
-    Optional<StorageShelf&> obtain_a_storage_shelf(HTML::EnvironmentSettingsObject const&, StorageType);
+    static GC::Ref<StorageShed> create(GC::Heap& heap) { return heap.allocate<StorageShed>(); }
+
+    GC::Ptr<StorageShelf> obtain_a_storage_shelf(HTML::EnvironmentSettingsObject&, StorageType);
+
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
-    OrderedHashMap<StorageKey, StorageShelf> m_data;
-};
+    StorageShed() = default;
 
-StorageShed& user_agent_storage_shed();
+    OrderedHashMap<StorageKey, GC::Ref<StorageShelf>> m_data;
+};
 
 }

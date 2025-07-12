@@ -13,7 +13,9 @@
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
@@ -40,6 +42,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
+#include <LibWeb/ServiceWorker/CacheStorage.h>
 #include <LibWeb/UserTiming/PerformanceMark.h>
 #include <LibWeb/UserTiming/PerformanceMeasure.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -77,6 +80,7 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
         entry.value.visit_edges(visitor);
     visitor.visit(m_registered_event_sources);
     visitor.visit(m_crypto);
+    visitor.visit(m_cache_storage);
     visitor.visit(m_resource_timing_secondary_buffer);
 }
 
@@ -118,7 +122,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(Ima
     return create_image_bitmap_impl(image, sx, sy, sw, sh, options);
 }
 
-GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
+GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, [[maybe_unused]] Optional<WebIDL::Long> sx, [[maybe_unused]] Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
 {
     auto& realm = this_impl().realm();
 
@@ -155,7 +159,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
         return error_promise.release_value();
     }
 
-    // 4. Let p be a new promise.
+    // 4. Let promise be a new promise.
     auto p = WebIDL::create_promise(realm);
 
     // 5. Let imageBitmap be a new ImageBitmap object.
@@ -163,11 +167,13 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
 
     // 6. Switch on image:
     image.visit(
+        // -> Blob
         [&](GC::Root<FileAPI::Blob>& blob) {
             // Run these step in parallel:
             Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [=]() {
                 // 1. Let imageData be the result of reading image's data. If an error occurs during reading of the
-                // object, then reject p with an "InvalidStateError" DOMException and abort these steps.
+                //    object, then queue a global task, using the bitmap task source, to reject promise with an
+                //    "InvalidStateError" DOMException and abort these steps.
                 // FIXME: I guess this is always fine for us as the data is already read.
                 auto const image_data = blob->raw_bytes();
 
@@ -177,12 +183,14 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
 
                 auto on_failed_decode = [p = GC::Root(*p)](Error&) {
                     // 3. If imageData is not in a supported image file format (e.g., it's not an image at all), or if
-                    // imageData is corrupted in some fatal way such that the image dimensions cannot be obtained
-                    // (e.g., a vector graphic with no natural size), then reject p with an "InvalidStateError" DOMException
-                    // and abort these steps.
+                    //    imageData is corrupted in some fatal way such that the image dimensions cannot be obtained
+                    //    (e.g., a vector graphic with no natural size), then queue a global task, using the bitmap
+                    //    task source, to reject promise with an "InvalidStateError" DOMException and abort these steps.
                     auto& realm = relevant_realm(p->promise());
-                    TemporaryExecutionContext context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "image does not contain a supported image format"_string));
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(realm.heap(), [&realm, p] {
+                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image does not contain a supported image format"_string));
+                    }));
                 };
 
                 auto on_successful_decode = [image_bitmap = GC::Root(*image_bitmap), p = GC::Root(*p)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
@@ -190,29 +198,91 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // If this is an animated image, imageBitmap's bitmap data must only be taken from the default image
                     // of the animation (the one that the format defines is to be used when animation is not supported
                     // or is disabled), or, if there is no such image, the first frame of the animation.
+                    // FIXME: Actually crop the image to the source rectangle with formatting: https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
                     image_bitmap->set_bitmap(result.frames.take_first().bitmap);
 
                     auto& realm = relevant_realm(p->promise());
 
-                    // 5. Resolve p with imageBitmap.
-                    TemporaryExecutionContext context { relevant_realm(*image_bitmap), TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::resolve_promise(realm, *p, image_bitmap);
+                    // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
+                    queue_global_task(Task::Source::BitmapTask, *image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
+                        auto& realm = relevant_realm(*image_bitmap);
+                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                        WebIDL::resolve_promise(realm, *p, image_bitmap);
+                    }));
                     return {};
                 };
 
                 (void)Web::Platform::ImageCodecPlugin::the().decode_image(image_data, move(on_successful_decode), move(on_failed_decode));
             }));
         },
-        [&](auto&) {
-            dbgln("(STUBBED) createImageBitmap() for non-blob types");
-            (void)sx;
-            (void)sy;
-            auto error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for non-blob types"sv);
-            TemporaryExecutionContext context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
-            WebIDL::reject_promise(realm, *p, error);
+        // -> ImageData
+        [&](GC::Root<ImageData> const& image_data) -> void {
+            // 1. Let buffer be image's data attribute value's [[ViewedArrayBuffer]] internal slot.
+            auto const buffer = image_data->data()->viewed_array_buffer();
+
+            // 2. If IsDetachedBuffer(buffer) is true, then return a promise rejected with an "InvalidStateError" DOMException.
+            if (buffer->is_detached()) {
+                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_string));
+                return;
+            }
+
+            // 3. Set imageBitmap's bitmap data to image's image data, cropped to the source rectangle with formatting.
+            // FIXME: Actually crop the image to the source rectangle with formatting: https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
+            image_bitmap->set_bitmap(image_data->bitmap());
+
+            // 4. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
+            queue_global_task(Task::Source::BitmapTask, image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
+                auto& realm = relevant_realm(image_bitmap);
+                TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::resolve_promise(realm, *p, image_bitmap);
+            }));
+        },
+        [&](CanvasImageSource const& image_source) {
+            image_source.visit(
+                // -> img
+                [&](GC::Root<HTMLImageElement> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for HTMLImageElement");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLImageElement"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                },
+                // -> SVG image
+                [&](GC::Root<SVG::SVGImageElement> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for SVGImageElement");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for SVGImageElement"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                },
+                // -> canvas
+                [&](GC::Root<HTMLCanvasElement> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for HTMLCanvasElement");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLCanvasElement"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                },
+                // -> ImageBitmap
+                [&](GC::Root<ImageBitmap> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for ImageBitmap");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for ImageBitmap"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                },
+                [&](GC::Root<OffscreenCanvas> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for OffscreenCanvas");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for OffscreenCanvas"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                },
+                // -> video
+                [&](GC::Root<HTMLVideoElement> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for HTMLVideoElement");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLVideoElement"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                });
         });
 
-    // 7. Return p.
+    // 7. Return promise.
     return p;
 }
 
@@ -266,14 +336,16 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // 2. If previousId was given, let id be previousId; otherwise, let id be an implementation-defined integer that is greater than zero and does not already exist in global's map of setTimeout and setInterval IDs.
     auto id = previous_id.has_value() ? previous_id.value() : m_timer_id_allocator.allocate();
 
-    // FIXME: 3. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm, then let nesting level be the task's timer nesting level. Otherwise, let nesting level be zero.
+    // FIXME: 3. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm, then let nesting level be the task's timer nesting level. Otherwise, let nesting level be 0.
 
     // 4. If timeout is less than 0, then set timeout to 0.
     if (timeout < 0)
         timeout = 0;
 
     // FIXME: 5. If nesting level is greater than 5, and timeout is less than 4, then set timeout to 4.
-    // FIXME: 6. Let realm be global's relevant realm.
+
+    // 6. Let realm be global's relevant realm.
+    auto& realm = relevant_realm(this_impl());
 
     // 7. Let initiating script be the active script.
     auto const* initiating_script = Web::Bindings::active_script();
@@ -283,7 +355,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // FIXME 8. Let uniqueHandle be null.
 
     // 9. Let task be a task that runs the following substeps:
-    auto task = GC::create_function(vm.heap(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id]() {
+    auto task = GC::create_function(vm.heap(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id, &vm, &realm]() {
         // FIXME: 1. Assert: uniqueHandle is a unique internal value, not null.
 
         // 2. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
@@ -293,10 +365,11 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         // FIXME: 3. If global's map of setTimeout and setInterval IDs[id] does not equal uniqueHandle, then abort these steps.
         // FIXME: 4. Record timing info for timer handler given handler, global's relevant settings object, and repeat.
 
-        handler.visit(
+        bool continue_ = handler.visit(
             // 5. If handler is a Function, then invoke handler given arguments and "report", and with callback this value set to thisArg.
             [&](GC::Root<WebIDL::CallbackType> const& callback) {
                 (void)WebIDL::invoke_callback(*callback, &this_impl(), WebIDL::ExceptionBehavior::Report, arguments);
+                return true;
             },
             // 6. Otherwise:
             [&](String const& source) {
@@ -314,8 +387,14 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                     // FIXME: 4. Set handler to the result of invoking the Get Trusted Type compliant string algorithm with TrustedScript, global, handler, sink, and "script".
                 }
 
-                // FIXME: 2. Assert: handler is a string.
-                // FIXME: 3. Perform EnsureCSPDoesNotBlockStringCompilation(realm, « », handler, handler, timer, « », handler). If this throws an exception, catch it, report it for global, and abort these steps.
+                // 2. Assert: handler is a string.
+                // 3. Perform EnsureCSPDoesNotBlockStringCompilation(realm, « », handler, handler, timer, « », handler).
+                //    If this throws an exception, catch it, report it for global, and abort these steps.
+                auto handler_primitive_string = JS::PrimitiveString::create(vm, source);
+                if (auto result = ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, {}, source, source, JS::CompilationType::Timer, {}, handler_primitive_string); result.is_throw_completion()) {
+                    report_exception(result, realm);
+                    return false;
+                }
 
                 // 4. Let settings object be global's relevant settings object.
                 auto& settings_object = relevant_settings_object(this_impl());
@@ -346,7 +425,11 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 
                 // 9. Run the classic script script.
                 (void)script->run();
+                return true;
             });
+
+        if (!continue_)
+            return;
 
         // 7. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
         if (!m_timers.contains(id))
@@ -1018,6 +1101,17 @@ GC::Ref<Crypto::Crypto> WindowOrWorkerGlobalScopeMixin::crypto()
     if (!m_crypto)
         m_crypto = realm.create<Crypto::Crypto>(realm);
     return GC::Ref { *m_crypto };
+}
+
+// https://w3c.github.io/ServiceWorker/#cache-storage-interface
+GC::Ref<ServiceWorker::CacheStorage> WindowOrWorkerGlobalScopeMixin::caches()
+{
+    auto& platform_object = this_impl();
+    auto& realm = platform_object.realm();
+
+    if (!m_cache_storage)
+        m_cache_storage = realm.create<ServiceWorker::CacheStorage>(realm);
+    return GC::Ref { *m_cache_storage };
 }
 
 }

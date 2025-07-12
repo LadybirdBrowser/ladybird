@@ -12,6 +12,7 @@ if (ANDROID)
         ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
         ${SOURCES}
     )
+    target_link_libraries(imagedecoderservice PRIVATE LibWebView)
 else()
     add_library(imagedecoderservice STATIC ${SOURCES})
 endif()

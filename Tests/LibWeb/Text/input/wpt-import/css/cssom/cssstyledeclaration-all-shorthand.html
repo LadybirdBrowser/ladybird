@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>CSSOM Test: Passing "all" shorthand to property methods</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade/#all-shorthand">
+<link rel="help" href="https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  const style = document.createElement("div").style;
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "width: 50px";
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert";
+    assert_equals(style.getPropertyValue("all"), "revert");
+  }, "getPropertyValue('all') returns css-wide keyword if possible");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert; width: 50px";
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string when single property overriden");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.setProperty("all", "revert");
+    assert_equals(style.getPropertyValue("width"), "revert");
+    assert_equals(style.getPropertyValue("color"), "revert");
+  }, "setProperty('all') sets all property values");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "width: 50px; color: green; direction: rtl";
+    assert_equals(style.getPropertyValue("width"), "50px");
+    assert_equals(style.getPropertyValue("color"), "green");
+    assert_equals(style.getPropertyValue("direction"), "rtl");
+    style.removeProperty("all");
+    assert_equals(style.getPropertyValue("width"), "");
+    assert_equals(style.getPropertyValue("color"), "");
+    assert_equals(style.getPropertyValue("direction"), "rtl");
+  }, "removeProperty('all') removes all declarations affected by 'all'");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert";
+    style.removeProperty("all");
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "removeProperty('all') removes an 'all' declaration");
+
+</script>

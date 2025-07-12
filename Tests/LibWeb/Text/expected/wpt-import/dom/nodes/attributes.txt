@@ -1,10 +1,9 @@
 Harness status: OK
 
-Found 70 tests
+Found 67 tests
 
-70 Pass
+67 Pass
 Pass	When qualifiedName does not match the Name production, an INVALID_CHARACTER_ERR exception is to be thrown. (toggleAttribute)
-Pass	When qualifiedName does not match the Name production, an INVALID_CHARACTER_ERR exception is to be thrown, even if the attribute is already present. (toggleAttribute)
 Pass	toggleAttribute should lowercase its name argument (upper case attribute)
 Pass	toggleAttribute should lowercase its name argument (mixed case attribute)
 Pass	toggleAttribute should not throw even when qualifiedName starts with 'xmlns'
@@ -14,7 +13,6 @@ Pass	toggleAttribute should set the first attribute with the given name
 Pass	toggleAttribute should set the attribute with the given qualified name
 Pass	Toggling element with inline style should make inline style disappear
 Pass	When qualifiedName does not match the Name production, an INVALID_CHARACTER_ERR exception is to be thrown. (setAttribute)
-Pass	When qualifiedName does not match the Name production, an INVALID_CHARACTER_ERR exception is to be thrown, even if the attribute is already present. (setAttribute)
 Pass	setAttribute should lowercase its name argument (upper case attribute)
 Pass	setAttribute should lowercase its name argument (mixed case attribute)
 Pass	setAttribute should not throw even when qualifiedName starts with 'xmlns'
@@ -23,7 +21,6 @@ Pass	setAttribute should not change the order of previously set attributes.
 Pass	setAttribute should set the first attribute with the given name
 Pass	setAttribute should set the attribute with the given qualified name
 Pass	When qualifiedName does not match the Name production, an INVALID_CHARACTER_ERR exception is to be thrown. (setAttributeNS)
-Pass	When qualifiedName does not match the Name production, an INVALID_CHARACTER_ERR exception is to be thrown, even if the attribute is already present. (setAttributeNS)
 Pass	When qualifiedName does not match the QName production, an INVALID_CHARACTER_ERR exception is to be thrown.
 Pass	null and the empty string should result in a null namespace.
 Pass	A namespace is required to use a prefix.

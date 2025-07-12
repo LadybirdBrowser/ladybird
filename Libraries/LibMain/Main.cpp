@@ -36,7 +36,7 @@ int main(int argc, char** argv)
     for (int i = 0; i < argc; ++i)
         arguments.unchecked_append({ argv[i], strlen(argv[i]) });
 
-    auto result = serenity_main({
+    auto result = ladybird_main({
         .argc = argc,
         .argv = argv,
         .strings = arguments.span(),

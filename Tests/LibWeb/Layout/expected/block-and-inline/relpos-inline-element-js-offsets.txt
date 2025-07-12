@@ -1,5 +1,5 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x169 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x148 children: not-inline
       BlockContainer <(anonymous)> at (8,8) content-size 784x18 children: inline
         InlineNode <span>
@@ -34,17 +34,20 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x169]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x148]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x18]
-        PaintableWithLines (InlineNode<SPAN>)
+        PaintableWithLines (InlineNode<SPAN>) [8,8 136.609375x18]
           TextPaintable (TextNode<#text>)
-          PaintableWithLines (InlineNode<B>)
+          PaintableWithLines (InlineNode<B>) [44.40625,33 100.203125x18]
             TextPaintable (TextNode<#text>)
-            PaintableWithLines (InlineNode<I>)
+            PaintableWithLines (InlineNode<I>) [89.25,58 55.359375x18]
               TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>) [8,26 784x130]
         PaintableWithLines (BlockContainer(anonymous)) [8,26 784x72]
         PaintableWithLines (BlockContainer<PRE>#out) [8,111 784x45]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,169 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x169] [children: 0] (z-index: auto)

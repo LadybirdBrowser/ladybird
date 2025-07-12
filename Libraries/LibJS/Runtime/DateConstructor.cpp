@@ -9,7 +9,6 @@
  */
 
 #include <AK/Time.h>
-#include <LibCore/DateTime.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/DateConstructor.h>

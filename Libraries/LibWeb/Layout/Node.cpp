@@ -32,6 +32,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 
 namespace Web::Layout {
@@ -76,6 +77,9 @@ bool Node::is_out_of_flow(FormattingContext const& formatting_context) const
 
 bool Node::can_contain_boxes_with_position_absolute() const
 {
+    if (!is<Box>(*this))
+        return false;
+
     if (computed_values().position() != CSS::Positioning::Static)
         return true;
 
@@ -170,7 +174,7 @@ bool Node::establishes_stacking_context() const
     if (!has_style())
         return false;
 
-    if (is_svg_box() || is_svg_svg_box())
+    if (is_svg_box())
         return false;
 
     // We make a stacking context for the viewport. Painting and hit testing starts from here.
@@ -231,6 +235,9 @@ bool Node::establishes_stacking_context() const
     // - clip-path
     // - mask / mask-image / mask-border
     if (computed_values().mask().has_value() || computed_values().clip_path().has_value() || computed_values().mask_image())
+        return true;
+
+    if (is_svg_foreign_object_box())
         return true;
 
     // https://drafts.fxtf.org/compositing/#propdef-isolation
@@ -375,16 +382,18 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     }
     computed_values.set_color_scheme(computed_style.color_scheme(preferred_color_scheme, document().supported_color_schemes()));
 
-    // NOTE: color must be set second to ensure currentColor can be resolved in other properties (e.g. background-color).
-    computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, *this, CSS::InitialValues::color()));
-
     // NOTE: We have to be careful that font-related properties get set in the right order.
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
     //       That's why it has to be set before everything else.
     computed_values.set_font_list(computed_style.computed_font_list());
-    computed_values.set_font_size(computed_style.property(CSS::PropertyID::FontSize).as_length().length().to_px(*this));
-    computed_values.set_font_weight(round_to<int>(computed_style.property(CSS::PropertyID::FontWeight).as_number().number()));
+    computed_values.set_font_size(computed_style.font_size());
+    computed_values.set_font_weight(computed_style.property(CSS::PropertyID::FontWeight).to_font_weight());
+    computed_values.set_font_kerning(computed_style.font_kerning());
     computed_values.set_line_height(computed_style.line_height());
+
+    // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
+    // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
+    computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, *this, CSS::InitialValues::color()));
 
     computed_values.set_vertical_align(computed_style.vertical_align());
 
@@ -583,7 +592,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         for (auto const& filter : computed_filter.filters()) {
             filter.visit(
                 [&](CSS::FilterOperation::Blur const& blur) {
-                    auto new_filter = Gfx::Filter::blur(blur.resolved_radius(*this));
+                    auto resolved_radius = blur.resolved_radius(*this);
+                    auto new_filter = Gfx::Filter::blur(resolved_radius, resolved_radius);
 
                     resolved_filter = resolved_filter.has_value()
                         ? Gfx::Filter::compose(new_filter, *resolved_filter)
@@ -619,6 +629,39 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                     resolved_filter = resolved_filter.has_value()
                         ? Gfx::Filter::compose(new_filter, *resolved_filter)
                         : new_filter;
+                },
+                [&](CSS::URL const& css_url) {
+                    // FIXME: This is not the right place to resolve SVG filters. Some filter primitives
+                    //        wont work if the filter is referenced before its defined because some parameters
+                    //        are passed by CSS property. Ideally they should be resolved in another pass or
+                    //        lazily.
+
+                    auto& url_string = css_url.url();
+
+                    if (url_string.is_empty() || !url_string.starts_with('#'))
+                        return;
+
+                    auto fragment_or_error = url_string.substring_from_byte_offset(1);
+
+                    if (fragment_or_error.is_error())
+                        return;
+
+                    // FIXME: Support urls that are not only composed of a fragment.
+                    auto maybe_filter = document().get_element_by_id(fragment_or_error.value());
+
+                    if (!maybe_filter)
+                        return;
+
+                    if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
+                        auto new_filter = filter_element->gfx_filter();
+
+                        if (!new_filter.has_value())
+                            return;
+
+                        resolved_filter = resolved_filter.has_value()
+                            ? Gfx::Filter::compose(*new_filter, *resolved_filter)
+                            : new_filter;
+                    }
                 });
         }
         return resolved_filter;
@@ -647,6 +690,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_text_align(computed_style.text_align());
     computed_values.set_text_justify(computed_style.text_justify());
     computed_values.set_text_overflow(computed_style.text_overflow());
+    computed_values.set_text_rendering(computed_style.text_rendering());
 
     if (auto text_indent = computed_style.length_percentage(CSS::PropertyID::TextIndent); text_indent.has_value())
         computed_values.set_text_indent(text_indent.release_value());
@@ -791,7 +835,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     do_border_style(computed_values.border_bottom(), CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
 
     if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); outline_color.has_color())
-        computed_values.set_outline_color(outline_color.to_color(*this));
+        computed_values.set_outline_color(outline_color.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }));
     if (auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset); outline_offset.is_length())
         computed_values.set_outline_offset(outline_offset.as_length().length());
     computed_values.set_outline_style(computed_style.outline_style());
@@ -831,16 +875,16 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     auto const& fill = computed_style.property(CSS::PropertyID::Fill);
     if (fill.has_color())
-        computed_values.set_fill(fill.to_color(*this));
+        computed_values.set_fill(fill.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }));
     else if (fill.is_url())
         computed_values.set_fill(fill.as_url().url());
     auto const& stroke = computed_style.property(CSS::PropertyID::Stroke);
     if (stroke.has_color())
-        computed_values.set_stroke(stroke.to_color(*this));
+        computed_values.set_stroke(stroke.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }));
     else if (stroke.is_url())
         computed_values.set_stroke(stroke.as_url().url());
     if (auto const& stop_color = computed_style.property(CSS::PropertyID::StopColor); stop_color.has_color())
-        computed_values.set_stop_color(stop_color.to_color(*this));
+        computed_values.set_stop_color(stop_color.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }));
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
@@ -920,6 +964,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_row_gap(computed_style.gap_value(CSS::PropertyID::RowGap));
 
     computed_values.set_border_collapse(computed_style.border_collapse());
+
+    computed_values.set_empty_cells(computed_style.empty_cells());
 
     computed_values.set_table_layout(computed_style.table_layout());
 
@@ -1398,8 +1444,8 @@ bool NodeWithStyleAndBoxModelMetrics::should_create_inline_continuation() const
     if (is<SVG::SVGForeignObjectElement>(parent()->dom_node()))
         return false;
 
-    // SVGBoxes are appended directly to their layout parent without changing the parent's (non-)inline behavior.
-    if (is_svg_box())
+    // SVG related boxes should never be split.
+    if (is_svg_box() || is_svg_svg_box() || is_svg_foreign_object_box())
         return false;
 
     return true;

@@ -40,7 +40,7 @@ void HTMLHeadingElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropert
 {
     HTMLElement::apply_presentational_hints(cascaded_properties);
     for_each_attribute([&](auto& name, auto& value) {
-        if (name.equals_ignoring_ascii_case("align"sv)) {
+        if (name == HTML::AttributeNames::align) {
             if (value == "left"sv)
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Left));
             else if (value == "right"sv)

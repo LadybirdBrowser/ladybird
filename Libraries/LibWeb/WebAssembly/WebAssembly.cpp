@@ -22,6 +22,7 @@
 #include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ResponsePrototype.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -149,6 +150,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM& vm, GC::
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate
+// https://webassembly.github.io/content-security-policy/js-api/#dom-webassembly-instantiate
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, GC::Root<WebIDL::BufferSource>& bytes, Optional<GC::Root<JS::Object>>& import_object_handle)
 {
     auto& realm = *vm.current_realm();
@@ -160,10 +162,13 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, GC::Root<W
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
     }
 
-    // 2. Asynchronously compile a WebAssembly module from stableBytes and let promiseOfModule be the result.
+    // 2. Perform HostEnsureCanCompileWasmBytes()
+    TRY(Detail::host_ensure_can_compile_wasm_bytes(vm));
+
+    // 3. Asynchronously compile a WebAssembly module from stableBytes and let promiseOfModule be the result.
     auto promise_of_module = asynchronously_compile_webassembly_module(vm, stable_bytes.release_value());
 
-    // 3. Instantiate promiseOfModule with imports importObject and return the result.
+    // 4. Instantiate promiseOfModule with imports importObject and return the result.
     GC::Ptr<JS::Object> const import_object = import_object_handle.has_value() ? import_object_handle.value().ptr() : nullptr;
     return instantiate_promise_of_module(vm, promise_of_module, import_object);
 }
@@ -410,8 +415,11 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
 }
 
 // // https://webassembly.github.io/spec/js-api/#compile-a-webassembly-module
+// https://webassembly.github.io/content-security-policy/js-api/#compile-a-webassembly-module
 JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::VM& vm, ByteBuffer data)
 {
+    TRY(host_ensure_can_compile_wasm_bytes(vm));
+
     FixedMemoryStream stream { data.bytes() };
     auto module_result = Wasm::Module::parse(stream);
     if (module_result.is_error()) {
@@ -624,6 +632,18 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
         VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
+}
+
+// https://webassembly.github.io/content-security-policy/js-api/#abstract-opdef-hostensurecancompilewasmbytes
+JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::VM& vm)
+{
+    // 1. Let realm be the current Realm.
+    auto& realm = *vm.current_realm();
+
+    // 2. Perform EnsureCSPDoesNotBlockWasmByteCompilation(realm)
+    // This algorithm does not return a value, but raises a CompileError exception if the operation cannot complete
+    // successfully.
+    return ContentSecurityPolicy::ensure_csp_does_not_block_wasm_byte_compilation(realm);
 }
 
 }

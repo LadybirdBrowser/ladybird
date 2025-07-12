@@ -12,5 +12,5 @@ set(GENERATED_SOURCES
     ../../Services/ImageDecoder/ImageDecoderServerEndpoint.h
 )
 
-serenity_lib(LibImageDecoderClient imagedecoderclient)
+ladybird_lib(LibImageDecoderClient imagedecoderclient)
 target_link_libraries(LibImageDecoderClient PRIVATE LibCore LibIPC LibGfx)

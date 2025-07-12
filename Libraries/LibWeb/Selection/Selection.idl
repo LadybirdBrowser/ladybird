@@ -25,6 +25,7 @@ interface Selection {
     undefined extend(Node node, optional unsigned long offset = 0);
     undefined setBaseAndExtent(Node anchorNode, unsigned long anchorOffset, Node focusNode, unsigned long focusOffset);
     undefined selectAllChildren(Node node);
+    undefined modify(optional DOMString alter, optional DOMString direction, optional DOMString granularity);
     [CEReactions] undefined deleteFromDocument();
     boolean containsNode(Node node, optional boolean allowPartialContainment = false);
     stringifier;

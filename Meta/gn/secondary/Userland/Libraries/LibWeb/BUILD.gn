@@ -341,6 +341,7 @@ shared_library("LibWeb") {
            "EventTiming",
            "Fetch",
            "FileAPI",
+           "Geolocation",
            "Geometry",
            "HTML",
            "HighResolutionTime",

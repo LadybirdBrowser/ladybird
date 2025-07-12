@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://bugs.chromium.org/p/chromium/issues/detail?id=1411135">
+
+<div id=parentelement><div id=childelement>hello world</div></div>
+
+<script>
+  let removed = false;
+  childelement.addEventListener('DOMNodeRemoved', () => {
+    if (!removed) {
+      removed = true;
+      childelement.remove();
+    }
+  });
+  parentelement.innerText = 'hello world';
+</script>

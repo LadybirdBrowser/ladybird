@@ -208,12 +208,14 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
 
     auto zero_value = CSS::Length::make_px(0);
 
-    auto margin_left = CSS::Length::make_auto();
-    auto margin_right = CSS::Length::make_auto();
+    auto margin_left = computed_values.margin().left().resolved(box, width_of_containing_block);
+    auto margin_right = computed_values.margin().right().resolved(box, width_of_containing_block);
     auto const padding_left = computed_values.padding().left().resolved(box, width_of_containing_block).to_px(box);
     auto const padding_right = computed_values.padding().right().resolved(box, width_of_containing_block).to_px(box);
 
     auto& box_state = m_state.get_mutable(box);
+    box_state.margin_left = margin_left.to_px(box);
+    box_state.margin_right = margin_right.to_px(box);
     box_state.border_left = computed_values.border_left().width;
     box_state.border_right = computed_values.border_right().width;
     box_state.padding_left = padding_left;
@@ -937,9 +939,10 @@ BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floa
             float_side.clear();
     };
 
-    if (computed_values.clear() == CSS::Clear::Left || computed_values.clear() == CSS::Clear::Both)
+    // FIXME: Honor writing-mode, direction and text-orientation.
+    if (first_is_one_of(computed_values.clear(), CSS::Clear::Left, CSS::Clear::Both, CSS::Clear::InlineStart))
         clear_floating_boxes(m_left_floats);
-    if (computed_values.clear() == CSS::Clear::Right || computed_values.clear() == CSS::Clear::Both)
+    if (first_is_one_of(computed_values.clear(), CSS::Clear::Right, CSS::Clear::Both, CSS::Clear::InlineEnd))
         clear_floating_boxes(m_right_floats);
 
     return result;
@@ -1162,9 +1165,10 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     };
 
     // Next, float to the left and/or right
-    if (box.computed_values().float_() == CSS::Float::Left) {
+    // FIXME: Honor writing-mode, direction and text-orientation.
+    if (box.computed_values().float_() == CSS::Float::Left || box.computed_values().float_() == CSS::Float::InlineStart) {
         float_box(FloatSide::Left, m_left_floats);
-    } else if (box.computed_values().float_() == CSS::Float::Right) {
+    } else if (box.computed_values().float_() == CSS::Float::Right || box.computed_values().float_() == CSS::Float::InlineEnd) {
         float_box(FloatSide::Right, m_right_floats);
     }
 

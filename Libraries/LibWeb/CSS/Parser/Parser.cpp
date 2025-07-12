@@ -66,6 +66,7 @@ Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
     , m_rule_context(move(context.rule_context))
+    , m_declared_namespaces(move(context.declared_namespaces))
 {
 }
 
@@ -103,20 +104,62 @@ Vector<Rule> Parser::parse_a_stylesheets_contents(TokenStream<T>& input)
     return consume_a_stylesheets_contents(input);
 }
 
-GC::RootVector<GC::Ref<CSSRule>> Parser::parse_as_stylesheet_contents()
+GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_rules)
 {
-    auto raw_rules = parse_a_stylesheets_contents(m_token_stream);
+    bool import_rules_valid = true;
+    bool namespace_rules_valid = true;
+
+    // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     GC::RootVector<GC::Ref<CSSRule>> rules(realm().heap());
     for (auto const& raw_rule : raw_rules) {
         auto rule = convert_to_rule(raw_rule, Nested::No);
+        // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error.
+        // Discard that rule.
         if (!rule) {
             log_parse_error();
             continue;
         }
+
+        // "Any @import rules must precede all other valid at-rules and style rules in a style sheet
+        // (ignoring @charset and @layer statement rules) and must not have any other valid at-rules
+        // or style rules between it and previous @import rules, or else the @import rule is invalid."
+        // https://drafts.csswg.org/css-cascade-5/#at-import
+        //
+        // "Any @namespace rules must follow all @charset and @import rules and precede all other
+        // non-ignored at-rules and style rules in a style sheet.
+        // ...
+        // A syntactically invalid @namespace rule (whether malformed or misplaced) must be ignored."
+        // https://drafts.csswg.org/css-namespaces/#syntax
+        switch (rule->type()) {
+        case CSSRule::Type::LayerStatement:
+            break;
+        case CSSRule::Type::Import:
+            if (!import_rules_valid)
+                continue;
+            break;
+        case CSSRule::Type::Namespace:
+            import_rules_valid = false;
+
+            if (!namespace_rules_valid)
+                continue;
+
+            m_declared_namespaces.set(as<CSSNamespaceRule>(*rule).prefix());
+            break;
+        default:
+            import_rules_valid = false;
+            namespace_rules_valid = false;
+            break;
+        }
+
         rules.append(*rule);
     }
 
     return rules;
+}
+
+GC::RootVector<GC::Ref<CSSRule>> Parser::parse_as_stylesheet_contents()
+{
+    return convert_rules(parse_a_stylesheets_contents(m_token_stream));
 }
 
 // https://drafts.csswg.org/css-syntax/#parse-a-css-stylesheet
@@ -125,20 +168,7 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
     // To parse a CSS stylesheet, first parse a stylesheet.
     auto const& style_sheet = parse_a_stylesheet(m_token_stream, location);
 
-    // Interpret all of the resulting top-level qualified rules as style rules, defined below.
-    GC::RootVector<GC::Ref<CSSRule>> rules(realm().heap());
-    for (auto const& raw_rule : style_sheet.rules) {
-        auto rule = convert_to_rule(raw_rule, Nested::No);
-        // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error.
-        // Discard that rule.
-        if (!rule) {
-            log_parse_error();
-            continue;
-        }
-        rules.append(*rule);
-    }
-
-    auto rule_list = CSSRuleList::create(realm(), rules);
+    auto rule_list = CSSRuleList::create(realm(), convert_rules(style_sheet.rules));
     auto media_list = MediaList::create(realm(), move(media_query_list));
     return CSSStyleSheet::create(realm(), rule_list, media_list, move(location));
 }
@@ -291,7 +321,7 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     if (first_token.is_block() && first_token.block().is_paren()) {
         TokenStream block_tokens { first_token.block().value };
         // FIXME: Parsing and then converting back to a string is weird.
-        if (auto declaration = consume_a_declaration(block_tokens); declaration.has_value()) {
+        if (auto declaration = consume_a_declaration(block_tokens); declaration.has_value() && !block_tokens.has_next_token()) {
             transaction.commit();
             auto supports_declaration = Supports::Declaration::create(
                 declaration->to_string(),
@@ -441,6 +471,7 @@ Optional<AtRule> Parser::consume_an_at_rule(TokenStream<T>& input, Nested nested
         .name = ((Token)input.consume_a_token()).at_keyword(),
         .prelude = {},
         .child_rules_and_lists_of_declarations = {},
+        .is_block_rule = false,
     };
 
     // Process input:
@@ -479,6 +510,7 @@ Optional<AtRule> Parser::consume_an_at_rule(TokenStream<T>& input, Nested nested
             // Consume a block from input, and assign the result to rule’s child rules.
             m_rule_context.append(rule_context_type_for_at_rule(rule.name));
             rule.child_rules_and_lists_of_declarations = consume_a_block(input);
+            rule.is_block_rule = true;
             m_rule_context.take_last();
 
             // If rule is valid in the current context, return it. Otherwise, return nothing.
@@ -1093,6 +1125,8 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
 
     // 8. If decl’s name is a custom property name string, then set decl’s original text to the segment
     //    of the original source text string corresponding to the tokens of decl’s value.
+    if (is_invalid_custom_property_name_string(declaration.name))
+        return {};
     if (is_a_custom_property_name_string(declaration.name)) {
         // TODO: If we could reach inside the source string that the TokenStream uses, we could grab this as
         //       a single substring instead of having to reconstruct it.

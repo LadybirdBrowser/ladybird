@@ -63,7 +63,7 @@ void CanvasPath::quadratic_curve_to(float cpx, float cpy, float x, float y)
     if (!isfinite(cpx) || !isfinite(cpy) || !isfinite(x) || !isfinite(y))
         return;
 
-    // 2. Ensure there is a subpath for (cpx, cpy)
+    // 2. Ensure there is a subpath for (cpx, cpy).
     ensure_subpath(cpx, cpy);
 
     // 3. Connect the last point in the subpath to the given point (x, y) using a quadratic Bézier curve with control point (cpx, cpy).
@@ -78,7 +78,7 @@ void CanvasPath::bezier_curve_to(double cp1x, double cp1y, double cp2x, double c
     if (!isfinite(cp1x) || !isfinite(cp1y) || !isfinite(cp2x) || !isfinite(cp2y) || !isfinite(x) || !isfinite(y))
         return;
 
-    // 2. Ensure there is a subpath for (cp1x, cp1y)
+    // 2. Ensure there is a subpath for (cp1x, cp1y).
     ensure_subpath(cp1x, cp1y);
 
     // 3. Connect the last point in the subpath to the given point (x, y) using a cubic Bézier curve with control points (cp1x, cp1y) and (cp2x, cp2y).

@@ -1,0 +1,73 @@
+Harness status: OK
+
+Found 68 tests
+
+68 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Navigator: original interface defined
+Pass	Partial interface Navigator: member names are unique
+Pass	Partial interface Navigator[2]: member names are unique
+Pass	Partial interface mixin NavigatorID: member names are unique
+Pass	Navigator includes NavigatorID: member names are unique
+Pass	Navigator includes NavigatorLanguage: member names are unique
+Pass	Navigator includes NavigatorOnLine: member names are unique
+Pass	Navigator includes NavigatorContentUtils: member names are unique
+Pass	Navigator includes NavigatorCookies: member names are unique
+Pass	Navigator includes NavigatorPlugins: member names are unique
+Pass	Navigator includes NavigatorConcurrentHardware: member names are unique
+Pass	Geolocation interface: existence and properties of interface object
+Pass	Geolocation interface object length
+Pass	Geolocation interface object name
+Pass	Geolocation interface: existence and properties of interface prototype object
+Pass	Geolocation interface: existence and properties of interface prototype object's "constructor" property
+Pass	Geolocation interface: existence and properties of interface prototype object's @@unscopables property
+Pass	Geolocation interface: operation getCurrentPosition(PositionCallback, optional PositionErrorCallback?, optional PositionOptions)
+Pass	Geolocation interface: operation watchPosition(PositionCallback, optional PositionErrorCallback?, optional PositionOptions)
+Pass	Geolocation interface: operation clearWatch(long)
+Pass	Geolocation must be primary interface of navigator.geolocation
+Pass	Stringification of navigator.geolocation
+Pass	Geolocation interface: navigator.geolocation must inherit property "getCurrentPosition(PositionCallback, optional PositionErrorCallback?, optional PositionOptions)" with the proper type
+Pass	Geolocation interface: calling getCurrentPosition(PositionCallback, optional PositionErrorCallback?, optional PositionOptions) on navigator.geolocation with too few arguments must throw TypeError
+Pass	Geolocation interface: navigator.geolocation must inherit property "watchPosition(PositionCallback, optional PositionErrorCallback?, optional PositionOptions)" with the proper type
+Pass	Geolocation interface: calling watchPosition(PositionCallback, optional PositionErrorCallback?, optional PositionOptions) on navigator.geolocation with too few arguments must throw TypeError
+Pass	Geolocation interface: navigator.geolocation must inherit property "clearWatch(long)" with the proper type
+Pass	Geolocation interface: calling clearWatch(long) on navigator.geolocation with too few arguments must throw TypeError
+Pass	GeolocationPosition interface: existence and properties of interface object
+Pass	GeolocationPosition interface object length
+Pass	GeolocationPosition interface object name
+Pass	GeolocationPosition interface: existence and properties of interface prototype object
+Pass	GeolocationPosition interface: existence and properties of interface prototype object's "constructor" property
+Pass	GeolocationPosition interface: existence and properties of interface prototype object's @@unscopables property
+Pass	GeolocationPosition interface: attribute coords
+Pass	GeolocationPosition interface: attribute timestamp
+Pass	GeolocationPosition interface: operation toJSON()
+Pass	GeolocationCoordinates interface: existence and properties of interface object
+Pass	GeolocationCoordinates interface object length
+Pass	GeolocationCoordinates interface object name
+Pass	GeolocationCoordinates interface: existence and properties of interface prototype object
+Pass	GeolocationCoordinates interface: existence and properties of interface prototype object's "constructor" property
+Pass	GeolocationCoordinates interface: existence and properties of interface prototype object's @@unscopables property
+Pass	GeolocationCoordinates interface: attribute accuracy
+Pass	GeolocationCoordinates interface: attribute latitude
+Pass	GeolocationCoordinates interface: attribute longitude
+Pass	GeolocationCoordinates interface: attribute altitude
+Pass	GeolocationCoordinates interface: attribute altitudeAccuracy
+Pass	GeolocationCoordinates interface: attribute heading
+Pass	GeolocationCoordinates interface: attribute speed
+Pass	GeolocationCoordinates interface: operation toJSON()
+Pass	GeolocationPositionError interface: existence and properties of interface object
+Pass	GeolocationPositionError interface object length
+Pass	GeolocationPositionError interface object name
+Pass	GeolocationPositionError interface: existence and properties of interface prototype object
+Pass	GeolocationPositionError interface: existence and properties of interface prototype object's "constructor" property
+Pass	GeolocationPositionError interface: existence and properties of interface prototype object's @@unscopables property
+Pass	GeolocationPositionError interface: constant PERMISSION_DENIED on interface object
+Pass	GeolocationPositionError interface: constant PERMISSION_DENIED on interface prototype object
+Pass	GeolocationPositionError interface: constant POSITION_UNAVAILABLE on interface object
+Pass	GeolocationPositionError interface: constant POSITION_UNAVAILABLE on interface prototype object
+Pass	GeolocationPositionError interface: constant TIMEOUT on interface object
+Pass	GeolocationPositionError interface: constant TIMEOUT on interface prototype object
+Pass	GeolocationPositionError interface: attribute code
+Pass	GeolocationPositionError interface: attribute message
+Pass	Navigator interface: attribute geolocation

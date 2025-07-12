@@ -50,10 +50,11 @@ public:
     void reset_needs_layout_update() { m_needs_layout_update = false; }
 
     bool is_generated() const { return m_generated_for.has_value(); }
-    bool is_generated_for_before_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::Before; }
-    bool is_generated_for_after_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::After; }
-    bool is_generated_for_backdrop_pseudo_element() const { return m_generated_for == CSS::GeneratedPseudoElement::Backdrop; }
-    void set_generated_for(CSS::GeneratedPseudoElement type, DOM::Element& element)
+    Optional<CSS::PseudoElement> generated_for_pseudo_element() const { return m_generated_for; }
+    bool is_generated_for_before_pseudo_element() const { return m_generated_for == CSS::PseudoElement::Before; }
+    bool is_generated_for_after_pseudo_element() const { return m_generated_for == CSS::PseudoElement::After; }
+    bool is_generated_for_backdrop_pseudo_element() const { return m_generated_for == CSS::PseudoElement::Backdrop; }
+    void set_generated_for(CSS::PseudoElement type, DOM::Element& element)
     {
         m_generated_for = type;
         m_pseudo_element_generator = &element;
@@ -106,6 +107,7 @@ public:
     virtual bool is_svg_mask_box() const { return false; }
     virtual bool is_svg_svg_box() const { return false; }
     virtual bool is_svg_graphics_box() const { return false; }
+    virtual bool is_svg_foreign_object_box() const { return false; }
     virtual bool is_label() const { return false; }
     virtual bool is_replaced_box() const { return false; }
     virtual bool is_list_item_box() const { return false; }
@@ -178,15 +180,11 @@ public:
 
     [[nodiscard]] bool has_css_transform() const
     {
-        if (!computed_values().transformations().is_empty())
-            return true;
-        if (computed_values().rotate().has_value())
-            return true;
-        if (computed_values().translate().has_value())
-            return true;
-        if (computed_values().scale().has_value())
-            return true;
-        return false;
+        auto const& computed_values = this->computed_values();
+        return !computed_values.transformations().is_empty()
+            || computed_values.rotate().has_value()
+            || computed_values.translate().has_value()
+            || computed_values.scale().has_value();
     }
 
     // https://drafts.csswg.org/css-ui/#propdef-user-select
@@ -228,7 +226,7 @@ private:
 
     bool m_needs_layout_update { false };
 
-    Optional<CSS::GeneratedPseudoElement> m_generated_for {};
+    Optional<CSS::PseudoElement> m_generated_for {};
 
     u32 m_initial_quote_nesting_level { 0 };
 };

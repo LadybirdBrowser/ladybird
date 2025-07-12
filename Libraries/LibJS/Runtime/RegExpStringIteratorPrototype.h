@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class RegExpStringIteratorPrototype final : public PrototypeObject<RegExpStringIteratorPrototype, RegExpStringIterator> {
+class JS_API RegExpStringIteratorPrototype final : public PrototypeObject<RegExpStringIteratorPrototype, RegExpStringIterator> {
     JS_PROTOTYPE_OBJECT(RegExpStringIteratorPrototype, RegExpStringIterator, RegExpStringIterator);
     GC_DECLARE_ALLOCATOR(RegExpStringIteratorPrototype);
 

@@ -28,8 +28,8 @@ There are some optional features that can be enabled during compilation that are
 - `LAGOM_TOOLS_ONLY`: Skips building libraries, utiltis and tests for [Lagom](../Meta/Lagom/ReadMe.md). Mostly only useful for cross-compilation.
 - `INCLUDE_WASM_SPEC_TESTS`: downloads and includes the WebAssembly spec testsuite tests. In order to use this option, you will need to install `prettier` and `wabt`. wabt version 1.0.35 or higher is required to pre-process the WebAssembly spec testsuite.
 - `INCLUDE_FLAC_SPEC_TESTS`: downloads and includes the xiph.org FLAC test suite.
-- `SERENITY_CACHE_DIR`: sets the location of a shared cache of downloaded files. Should not need to be set manually unless managing a distribution package.
-- `ENABLE_NETWORK_DOWNLOADS`: allows downloading files from the internet during the build. Default on, turning off enables offline builds. For offline builds, the structure of the SERENITY_CACHE_DIR must be set up the way that the build expects.
+- `LADYBIRD_CACHE_DIR`: sets the location of a shared cache of downloaded files. Should not need to be set manually unless managing a distribution package.
+- `ENABLE_NETWORK_DOWNLOADS`: allows downloading files from the internet during the build. Default on, turning off enables offline builds. For offline builds, the structure of the LADYBIRD_CACHE_DIR must be set up the way that the build expects.
 - `ENABLE_CLANG_PLUGINS`: enables clang plugins which analyze the code for programming mistakes. See [Clang Plugins](#clang-plugins) below.
 
 Many parts of the codebase have debug functionality, mostly consisting of additional messages printed to the debug console. This is done via the `<component_name>_DEBUG` macros, which can be enabled individually at build time. They are listed in [this file](../Meta/CMake/all_the_debug_macros.cmake).
@@ -187,21 +187,30 @@ so be sure to clear them out if you change the default home/bin directories.
 
 ### Build with Swift
 
-The simplest way to enable swift is to pass extra arguments to a build preset. Note however that if your IDE has loaded
-the build presets from disk, you may need to create a customized build preset in your IDE settings to avoid the IDE
-overriding your settings with its own, causing unnecessary rebuilds.
+The simplest way to enable swift is to use the `Swift_Release` preset and `ladybird.py`.
 
-```
-# Refer to .github/actions/setup/action.yml for the snapshot version tested in CI
-swiftly install --use main-snapshot
-
-cmake --preset default \
-   -DENABLE_SWIFT=ON \
-   -DCMAKE_C_COMPILER=$(swiftly use --print-location)/usr/bin/clang \
-   -DCMAKE_CXX_COMPILER=$(swiftly use --print-location)/usr/bin/clang++
+```bash
+./Meta/ladybird.py build --preset Swift_Release
 ```
 
-Note that trying to use just `clang` or `$SWIFTLY_BIN_DIR/clang` will both fail, due to https://github.com/swiftlang/swiftly/issues/272.
+Note that because building with Swift support requires use of `clang` and `clang++` from a Swift toolchain, a standard
+install of clang or gcc will not work. Additional IDE settings are be required to ensure that the IDE uses the correct
+compiler paths. Trying to use just `clang` or `$SWIFTLY_BIN_DIR/clang` will both fail, due to https://github.com/swiftlang/swiftly/issues/272.
+
+The full paths that must be configured for the C and C++ compilers in your IDE are
+`$(swiftly use --print-location)/usr/bin/clang` and `$(swiftly use --print-location)/usr/bin/clang++`. These paths
+will change depending on the version of the swift toolchain specified in `.swift-version`.
 
 As another note, the main-snapshot toolchains from swift.org are `+assertion` builds. This means that both clang and
 swiftc are built with extra assertions that will cause compile-times to be longer than a standard release build.
+
+To configure the build preset manually, you must first install the specified Swift toolchain, and then set the C and C++
+compiler paths manually.
+
+```bash
+swiftly install
+
+cmake --preset Swift_Release \
+   -DCMAKE_C_COMPILER=$(swiftly use --print-location)/usr/bin/clang \
+   -DCMAKE_CXX_COMPILER=$(swiftly use --print-location)/usr/bin/clang++
+```

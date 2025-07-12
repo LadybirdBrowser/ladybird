@@ -13,7 +13,10 @@
 #ifdef AK_OS_MACOS
 #    include <EGL/egl.h>
 #    include <EGL/eglext.h>
+#    define EGL_EGLEXT_PROTOTYPES 1
+extern "C" {
 #    include <EGL/eglext_angle.h>
+}
 #    define GL_GLEXT_PROTOTYPES 1
 #    include <GLES2/gl2.h>
 #    include <GLES2/gl2ext.h>
@@ -36,9 +39,10 @@ struct OpenGLContext::Impl {
 #endif
 };
 
-OpenGLContext::OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, Impl impl)
+OpenGLContext::OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, Impl impl, WebGLVersion webgl_version)
     : m_skia_backend_context(move(skia_backend_context))
     , m_impl(make<Impl>(impl))
+    , m_webgl_version(webgl_version)
 {
 }
 
@@ -79,10 +83,16 @@ static EGLConfig get_egl_config(EGLDisplay display)
 }
 #endif
 
-OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context)
+OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version)
 {
 #ifdef AK_OS_MACOS
-    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    EGLAttrib display_attributes[] = {
+        EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+        EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
+        EGL_NONE,
+    };
+
+    EGLDisplay display = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY), display_attributes);
     if (display == EGL_NO_DISPLAY) {
         dbgln("Failed to get EGL display");
         return {};
@@ -98,9 +108,13 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
 
     EGLint context_attributes[] = {
         EGL_CONTEXT_CLIENT_VERSION,
-        2,
+        webgl_version == WebGLVersion::WebGL1 ? 2 : 3,
         EGL_CONTEXT_WEBGL_COMPATIBILITY_ANGLE,
         EGL_TRUE,
+        EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE,
+        EGL_TRUE,
+        EGL_CONTEXT_OPENGL_BACKWARDS_COMPATIBLE_ANGLE,
+        EGL_FALSE,
         EGL_NONE,
         EGL_NONE,
     };
@@ -110,9 +124,10 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         return {};
     }
 
-    return make<OpenGLContext>(skia_backend_context, Impl { .display = display, .config = config, .context = context });
+    return make<OpenGLContext>(skia_backend_context, Impl { .display = display, .config = config, .context = context }, webgl_version);
 #else
     (void)skia_backend_context;
+    (void)webgl_version;
     return nullptr;
 #endif
 }
@@ -161,7 +176,6 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     VERIFY(!m_size.is_empty());
 
     auto iosurface = Core::IOSurfaceHandle::create(m_size.width(), m_size.height());
-    m_painting_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface, m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 
     auto width = m_size.width();
     auto height = m_size.height();
@@ -194,22 +208,19 @@ void OpenGLContext::allocate_painting_surface_if_needed()
 
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
 
-    // This extension is not enabled by default in WebGL compatibility mode, so we need to request it.
-    glRequestExtensionANGLE("GL_ANGLE_texture_rectangle");
-
-    EGLint texture_target_angle = 0;
-    eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target_angle);
-    VERIFY(texture_target_angle == EGL_TEXTURE_RECTANGLE_ANGLE);
+    EGLint texture_target_name = 0;
+    eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target_name);
+    VERIFY(texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE || texture_target_name == EGL_TEXTURE_2D);
 
     GLuint texture = 0;
     glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_RECTANGLE_ANGLE, texture);
+    glBindTexture(texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, texture);
     auto result = eglBindTexImage(display, m_impl->surface, EGL_BACK_BUFFER);
     VERIFY(result == EGL_TRUE);
 
     glGenFramebuffers(1, &m_impl->framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, m_impl->framebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE_ANGLE, texture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, texture, 0);
 
     // NOTE: ANGLE doesn't allocate depth buffer for us, so we need to do it manually
     // FIXME: Depth buffer only needs to be allocated if it's configured in WebGL context attributes
@@ -217,6 +228,8 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     glBindRenderbuffer(GL_RENDERBUFFER, m_impl->depth_buffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_impl->depth_buffer);
+
+    m_painting_surface = Gfx::PaintingSurface::create_from_iosurface(move(iosurface), m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 #endif
 }
 
@@ -234,6 +247,28 @@ void OpenGLContext::make_current()
     allocate_painting_surface_if_needed();
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
 #endif
+}
+
+void OpenGLContext::present(bool preserve_drawing_buffer)
+{
+    make_current();
+
+    // "Before the drawing buffer is presented for compositing the implementation shall ensure that all rendering operations have been flushed to the drawing buffer."
+    // With Metal, glFlush flushes the command buffer, but without waiting for it to be scheduled or completed.
+    // eglWaitUntilWorkScheduledANGLE flushes the command buffer, and waits until it has been scheduled, hence the name.
+    // eglWaitUntilWorkScheduledANGLE only has an effect on CGL and Metal backends, so we only use it on macOS.
+#ifdef AK_OS_MACOS
+    eglWaitUntilWorkScheduledANGLE(m_impl->display);
+#else
+    // FIXME: When enabling WebGL for Linux, we need to use glFlush() here.
+#endif
+
+    // "By default, after compositing the contents of the drawing buffer shall be cleared to their default values, as shown in the table above.
+    // This default behavior can be changed by setting the preserveDrawingBuffer attribute of the WebGLContextAttributes object.
+    // If this flag is true, the contents of the drawing buffer shall be preserved until the author either clears or overwrites them."
+    if (!preserve_drawing_buffer) {
+        clear_buffer_to_default_values();
+    }
 }
 
 RefPtr<Gfx::PaintingSurface> OpenGLContext::surface()
@@ -262,56 +297,56 @@ u32 OpenGLContext::default_framebuffer() const
 struct Extension {
     String webgl_extension_name;
     Vector<StringView> required_angle_extensions;
-    Optional<u32> only_for_webgl_version { OptionalNone {} };
+    Optional<OpenGLContext::WebGLVersion> only_for_webgl_version { OptionalNone {} };
 };
 
 Vector<Extension> s_available_webgl_extensions {
     // Khronos ratified WebGL Extensions
-    { "ANGLE_instanced_arrays"_string, { "GL_ANGLE_instanced_arrays"sv }, 1 },
-    { "EXT_blend_minmax"_string, { "GL_EXT_blend_minmax"sv }, 1 },
-    { "EXT_frag_depth"_string, { "GL_EXT_frag_depth"sv }, 1 },
-    { "EXT_shader_texture_lod"_string, { "GL_EXT_shader_texture_lod"sv }, 1 },
+    { "ANGLE_instanced_arrays"_string, { "GL_ANGLE_instanced_arrays"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "EXT_blend_minmax"_string, { "GL_EXT_blend_minmax"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "EXT_frag_depth"_string, { "GL_EXT_frag_depth"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "EXT_shader_texture_lod"_string, { "GL_EXT_shader_texture_lod"sv }, OpenGLContext::WebGLVersion::WebGL1 },
     { "EXT_texture_filter_anisotropic"_string, { "GL_EXT_texture_filter_anisotropic"sv } },
-    { "OES_element_index_uint"_string, { "GL_OES_element_index_uint"sv }, 1 },
-    { "OES_standard_derivatives"_string, { "GL_OES_standard_derivatives"sv }, 1 },
-    { "OES_texture_float"_string, { "GL_OES_texture_float"sv }, 1 },
+    { "OES_element_index_uint"_string, { "GL_OES_element_index_uint"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "OES_standard_derivatives"_string, { "GL_OES_standard_derivatives"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "OES_texture_float"_string, { "GL_OES_texture_float"sv }, OpenGLContext::WebGLVersion::WebGL1 },
     { "OES_texture_float_linear"_string, { "GL_OES_texture_float_linear"sv } },
-    { "OES_texture_half_float"_string, { "GL_OES_texture_half_float"sv }, 1 },
-    { "OES_texture_half_float_linear"_string, { "GL_OES_texture_half_float_linear"sv }, 1 },
-    { "OES_vertex_array_object"_string, { "GL_OES_vertex_array_object"sv }, 1 },
+    { "OES_texture_half_float"_string, { "GL_OES_texture_half_float"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "OES_texture_half_float_linear"_string, { "GL_OES_texture_half_float_linear"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "OES_vertex_array_object"_string, { "GL_OES_vertex_array_object"sv }, OpenGLContext::WebGLVersion::WebGL1 },
     { "WEBGL_compressed_texture_s3tc"_string, { "GL_EXT_texture_compression_dxt1"sv, "GL_ANGLE_texture_compression_dxt3"sv, "GL_ANGLE_texture_compression_dxt5"sv } },
     { "WEBGL_debug_renderer_info"_string, {} },
     { "WEBGL_debug_shaders"_string, {} },
-    { "WEBGL_depth_texture"_string, { "GL_ANGLE_depth_texture"sv }, 1 },
-    { "WEBGL_draw_buffers"_string, { "GL_EXT_draw_buffers"sv }, 1 },
+    { "WEBGL_depth_texture"_string, { "GL_ANGLE_depth_texture"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "WEBGL_draw_buffers"_string, { "GL_EXT_draw_buffers"sv }, OpenGLContext::WebGLVersion::WebGL1 },
     { "WEBGL_lose_context"_string, {} },
 
     // Community approved WebGL Extensions
     { "EXT_clip_control"_string, { "GL_EXT_clip_control"sv } },
-    { "EXT_color_buffer_float"_string, { "GL_EXT_color_buffer_float"sv }, 2 },
+    { "EXT_color_buffer_float"_string, { "GL_EXT_color_buffer_float"sv }, OpenGLContext::WebGLVersion::WebGL2 },
     { "EXT_color_buffer_half_float"_string, { "GL_EXT_color_buffer_half_float"sv } },
-    { "EXT_conservative_depth"_string, { "GL_EXT_conservative_depth"sv }, 2 },
+    { "EXT_conservative_depth"_string, { "GL_EXT_conservative_depth"sv }, OpenGLContext::WebGLVersion::WebGL2 },
     { "EXT_depth_clamp"_string, { "GL_EXT_depth_clamp"sv } },
-    { "EXT_disjoint_timer_query"_string, { "GL_EXT_disjoint_timer_query"sv }, 1 },
-    { "EXT_disjoint_timer_query_webgl2"_string, { "GL_EXT_disjoint_timer_query"sv }, 2 },
+    { "EXT_disjoint_timer_query"_string, { "GL_EXT_disjoint_timer_query"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "EXT_disjoint_timer_query_webgl2"_string, { "GL_EXT_disjoint_timer_query"sv }, OpenGLContext::WebGLVersion::WebGL2 },
     { "EXT_float_blend"_string, { "GL_EXT_float_blend"sv } },
     { "EXT_polygon_offset_clamp"_string, { "GL_EXT_polygon_offset_clamp"sv } },
-    { "EXT_render_snorm"_string, { "GL_EXT_render_snorm"sv }, 2 },
-    { "EXT_sRGB"_string, { "GL_EXT_sRGB"sv }, 1 },
+    { "EXT_render_snorm"_string, { "GL_EXT_render_snorm"sv }, OpenGLContext::WebGLVersion::WebGL2 },
+    { "EXT_sRGB"_string, { "GL_EXT_sRGB"sv }, OpenGLContext::WebGLVersion::WebGL1 },
     { "EXT_texture_compression_bptc"_string, { "GL_EXT_texture_compression_bptc"sv } },
     { "EXT_texture_compression_rgtc"_string, { "GL_EXT_texture_compression_rgtc"sv } },
     { "EXT_texture_mirror_clamp_to_edge"_string, { "GL_EXT_texture_mirror_clamp_to_edge"sv } },
-    { "EXT_texture_norm16"_string, { "GL_EXT_texture_norm16"sv }, 2 },
+    { "EXT_texture_norm16"_string, { "GL_EXT_texture_norm16"sv }, OpenGLContext::WebGLVersion::WebGL2 },
     { "KHR_parallel_shader_compile"_string, { "GL_KHR_parallel_shader_compile"sv } },
-    { "NV_shader_noperspective_interpolation"_string, { "GL_NV_shader_noperspective_interpolation"sv }, 2 },
+    { "NV_shader_noperspective_interpolation"_string, { "GL_NV_shader_noperspective_interpolation"sv }, OpenGLContext::WebGLVersion::WebGL2 },
     { "OES_draw_buffers_indexed"_string, { "GL_OES_draw_buffers_indexed"sv } },
-    { "OES_fbo_render_mipmap"_string, { "GL_OES_fbo_render_mipmap"sv }, 1 },
-    { "OES_sample_variables"_string, { "GL_OES_sample_variables"sv }, 2 },
-    { "OES_shader_multisample_interpolation"_string, { "GL_OES_shader_multisample_interpolation"sv }, 2 },
-    { "OVR_multiview2"_string, { "GL_OVR_multiview2"sv }, 2 },
+    { "OES_fbo_render_mipmap"_string, { "GL_OES_fbo_render_mipmap"sv }, OpenGLContext::WebGLVersion::WebGL1 },
+    { "OES_sample_variables"_string, { "GL_OES_sample_variables"sv }, OpenGLContext::WebGLVersion::WebGL2 },
+    { "OES_shader_multisample_interpolation"_string, { "GL_OES_shader_multisample_interpolation"sv }, OpenGLContext::WebGLVersion::WebGL2 },
+    { "OVR_multiview2"_string, { "GL_OVR_multiview2"sv }, OpenGLContext::WebGLVersion::WebGL2 },
     { "WEBGL_blend_func_extended"_string, { "GL_EXT_blend_func_extended"sv } },
-    { "WEBGL_clip_cull_distance"_string, { "GL_EXT_clip_cull_distance"sv }, 2 },
-    { "WEBGL_color_buffer_float"_string, { "EXT_color_buffer_half_float"sv, "OES_texture_float"sv }, 1 },
+    { "WEBGL_clip_cull_distance"_string, { "GL_EXT_clip_cull_distance"sv }, OpenGLContext::WebGLVersion::WebGL2 },
+    { "WEBGL_color_buffer_float"_string, { "EXT_color_buffer_half_float"sv, "OES_texture_float"sv }, OpenGLContext::WebGLVersion::WebGL1 },
     { "WEBGL_compressed_texture_astc"_string, { "KHR_texture_compression_astc_hdr"sv, "KHR_texture_compression_astc_ldr"sv } },
     { "WEBGL_compressed_texture_etc"_string, { "GL_ANGLE_compressed_texture_etc"sv } },
     { "WEBGL_compressed_texture_etc1"_string, { "GL_OES_compressed_ETC1_RGB8_texture"sv } },
@@ -319,9 +354,9 @@ Vector<Extension> s_available_webgl_extensions {
     { "WEBGL_compressed_texture_s3tc_srgb"_string, { "GL_EXT_texture_compression_s3tc_srgb"sv } },
     { "WEBGL_multi_draw"_string, { "GL_ANGLE_multi_draw"sv } },
     { "WEBGL_polygon_mode"_string, { "GL_ANGLE_polygon_mode"sv } },
-    { "WEBGL_provoking_vertex"_string, { "GL_ANGLE_provoking_vertex"sv }, 2 },
-    { "WEBGL_render_shared_exponent"_string, { "GL_QCOM_render_shared_exponent"sv }, 2 },
-    { "WEBGL_stencil_texturing"_string, { "GL_ANGLE_stencil_texturing"sv }, 2 },
+    { "WEBGL_provoking_vertex"_string, { "GL_ANGLE_provoking_vertex"sv }, OpenGLContext::WebGLVersion::WebGL2 },
+    { "WEBGL_render_shared_exponent"_string, { "GL_QCOM_render_shared_exponent"sv }, OpenGLContext::WebGLVersion::WebGL2 },
+    { "WEBGL_stencil_texturing"_string, { "GL_ANGLE_stencil_texturing"sv }, OpenGLContext::WebGLVersion::WebGL2 },
 };
 
 Vector<String> OpenGLContext::get_supported_extensions()
@@ -338,17 +373,19 @@ Vector<String> OpenGLContext::get_supported_extensions()
 
     Vector<String> extensions;
     for (auto const& available_extension : s_available_webgl_extensions) {
-        // FIXME: Check WebGL version.
-        bool supported = true;
+        bool supported = !available_extension.only_for_webgl_version.has_value()
+            || m_webgl_version == available_extension.only_for_webgl_version;
 
-        for (auto const& required_extension : available_extension.required_angle_extensions) {
-            auto maybe_required_extension = requestable_extensions.find_if([&](StringView requestable_extension) {
-                return required_extension == requestable_extension;
-            });
+        if (supported) {
+            for (auto const& required_extension : available_extension.required_angle_extensions) {
+                auto maybe_required_extension = requestable_extensions.find_if([&](StringView requestable_extension) {
+                    return required_extension == requestable_extension;
+                });
 
-            if (maybe_required_extension == requestable_extensions.end()) {
-                supported = false;
-                break;
+                if (maybe_required_extension == requestable_extensions.end()) {
+                    supported = false;
+                    break;
+                }
             }
         }
 
@@ -362,6 +399,7 @@ Vector<String> OpenGLContext::get_supported_extensions()
     m_requestable_extensions = extensions;
     return extensions;
 #else
+    (void)m_webgl_version;
     return {};
 #endif
 }

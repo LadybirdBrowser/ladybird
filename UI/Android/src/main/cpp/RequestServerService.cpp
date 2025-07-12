@@ -15,20 +15,24 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
 #include <LibTLS/TLSv12.h>
+#include <LibWebView/Utilities.h>
 #include <RequestServer/ConnectionFromClient.h>
-#include <RequestServer/HttpProtocol.h>
-#include <RequestServer/HttpsProtocol.h>
-#include <UI/Utilities.h>
+
+namespace RequestServer {
+
+extern ByteString g_default_certificate_path;
+
+}
 
 ErrorOr<int> service_main(int ipc_socket)
 {
+
+    RequestServer::g_default_certificate_path = ByteString::formatted("{}/cacert.pem", WebView::s_ladybird_resource_root);
+
     Core::EventLoop event_loop;
 
-    RequestServer::HttpProtocol::install();
-    RequestServer::HttpsProtocol::install();
-
     auto socket = TRY(Core::LocalSocket::adopt_fd(ipc_socket));
-    auto client = TRY(RequestServer::ConnectionFromClient::try_create(move(socket)));
+    auto client = TRY(RequestServer::ConnectionFromClient::try_create(make<IPC::Transport>(move(socket))));
 
     return event_loop.exec();
 }

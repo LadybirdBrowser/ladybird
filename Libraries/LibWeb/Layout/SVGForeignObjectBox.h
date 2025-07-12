@@ -25,6 +25,12 @@ public:
     SVG::SVGForeignObjectElement const& dom_node() const { return static_cast<SVG::SVGForeignObjectElement const&>(*BlockContainer::dom_node()); }
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+
+private:
+    virtual bool is_svg_foreign_object_box() const override { return true; }
 };
+
+template<>
+inline bool Node::fast_is<SVGForeignObjectBox>() const { return is_svg_foreign_object_box(); }
 
 }

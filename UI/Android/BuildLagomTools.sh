@@ -34,7 +34,8 @@ cmake -S "${LADYBIRD_SOURCE_DIR}/Meta/Lagom" -B "$BUILD_DIR/lagom-tools" \
     -DCMAKE_INSTALL_PREFIX="$BUILD_DIR/lagom-tools-install"  \
     -DCMAKE_C_COMPILER="$CC" \
     -DCMAKE_CXX_COMPILER="$CXX" \
-    -DSERENITY_CACHE_DIR="$CACHE_DIR" \
+    -DLADYBIRD_CACHE_DIR="$CACHE_DIR" \
+    -DBUILD_SHARED_LIBS=OFF \
     -DLAGOM_TOOLS_ONLY=ON \
     -DINSTALL_LAGOM_TOOLS=ON \
     -DCMAKE_TOOLCHAIN_FILE="$LADYBIRD_SOURCE_DIR/Build/vcpkg/scripts/buildsystems/vcpkg.cmake" \

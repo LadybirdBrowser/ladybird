@@ -5,6 +5,7 @@
 #import <HTML/ImageBitmap.idl>
 #import <HTML/MessagePort.idl>
 #import <IndexedDB/IDBFactory.idl>
+#import <ServiceWorker/CacheStorage.idl>
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
 typedef (DOMString or Function) TimerHandler;
@@ -39,4 +40,7 @@ interface mixin WindowOrWorkerGlobalScope {
 
     // https://w3c.github.io/webcrypto/#crypto-interface
     [SameObject] readonly attribute Crypto crypto;
+
+    // https://w3c.github.io/ServiceWorker/#cache-storage-interface
+    [SecureContext, SameObject] readonly attribute CacheStorage caches;
 };

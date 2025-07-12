@@ -1,8 +1,6 @@
 include(audio)
 
-if (NOT ANDROID)
-    include(ffmpeg)
-endif()
+include(ffmpeg)
 
 set(SOURCES
     Audio/Loader.cpp
@@ -16,23 +14,22 @@ set(SOURCES
     VideoFrame.cpp
 )
 
-serenity_lib(LibMedia media)
-target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibRIFF LibIPC LibGfx LibThreading LibUnicode)
+ladybird_lib(LibMedia media)
+target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
+
+target_sources(LibMedia PRIVATE
+        Audio/FFmpegLoader.cpp
+        FFmpeg/FFmpegDemuxer.cpp
+        FFmpeg/FFmpegIOContext.cpp
+        FFmpeg/FFmpegVideoDecoder.cpp
+)
 
 if (NOT ANDROID)
-    target_sources(LibMedia PRIVATE
-            Audio/FFmpegLoader.cpp
-            FFmpeg/FFmpegDemuxer.cpp
-            FFmpeg/FFmpegIOContext.cpp
-            FFmpeg/FFmpegVideoDecoder.cpp
-    )
     target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT PkgConfig::AVUTIL)
 else()
-    # FIXME: Need to figure out how to build or replace ffmpeg libs on Android and Windows
-    target_sources(LibMedia PRIVATE
-            FFmpeg/FFmpegDemuxerStub.cpp
-            FFmpeg/FFmpegVideoDecoderStub.cpp
-    )
+    target_include_directories(LibMedia PRIVATE ${FFMPEG_INCLUDE_DIRS})
+    target_link_directories(LibMedia PRIVATE ${FFMPEG_LIBRARY_DIRS})
+    target_link_libraries(LibMedia PRIVATE ${FFMPEG_LIBRARIES})
 endif()
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")

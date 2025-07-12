@@ -14,7 +14,7 @@
 #include <LibThreading/Thread.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::HTML {
 
@@ -27,20 +27,16 @@ public:
     ~RenderingThread();
 
     void start(DisplayListPlayerType);
-    void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player) { m_skia_player = move(player); }
-    void set_skia_backend_context(RefPtr<Gfx::SkiaBackendContext> context) { m_skia_backend_context = move(context); }
-    void enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&, NonnullRefPtr<Painting::BackingStore>, Function<void()>&& callback);
-    void clear_bitmap_to_surface_cache();
+    void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player);
+    void enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
 private:
     void rendering_thread_loop();
-    NonnullRefPtr<Gfx::PaintingSurface> painting_surface_for_backing_store(Painting::BackingStore& backing_store);
 
     Core::EventLoop& m_main_thread_event_loop;
     DisplayListPlayerType m_display_list_player_type;
 
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
-    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
 
     RefPtr<Threading::Thread> m_thread;
     Atomic<bool> m_exit { false };
@@ -49,7 +45,7 @@ private:
     struct Task {
         NonnullRefPtr<Painting::DisplayList> display_list;
         Painting::ScrollStateSnapshot scroll_state_snapshot;
-        NonnullRefPtr<Painting::BackingStore> backing_store;
+        NonnullRefPtr<Gfx::PaintingSurface> painting_surface;
         Function<void()> callback;
     };
     // NOTE: Queue will only contain multiple items in case tasks were scheduled by screenshot requests.
@@ -57,9 +53,6 @@ private:
     Queue<Task> m_rendering_tasks;
     Threading::Mutex m_rendering_task_mutex;
     Threading::ConditionVariable m_rendering_task_ready_wake_condition { m_rendering_task_mutex };
-
-    HashMap<Gfx::Bitmap*, NonnullRefPtr<Gfx::PaintingSurface>> m_bitmap_to_surface;
-    bool m_needs_to_clear_bitmap_to_surface_cache { false };
 };
 
 }

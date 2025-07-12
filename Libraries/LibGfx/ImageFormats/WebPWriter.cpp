@@ -66,7 +66,6 @@ static ErrorOr<void> write_VP8L_header(Stream& stream, unsigned width, unsigned 
     return {};
 }
 
-// FIXME: Consider using LibRIFF for RIFF writing details. (It currently has no writing support.)
 static ErrorOr<void> align_to_two(Stream& stream, size_t number_of_bytes_written)
 {
     // https://developers.google.com/speed/webp/docs/riff_container
@@ -172,7 +171,6 @@ static ErrorOr<void> write_VP8X_chunk(Stream& stream, VP8XHeader const& header)
     return {};
 }
 
-// FIXME: Consider using LibRIFF for RIFF writing details. (It currently has no writing support.)
 static ErrorOr<void> align_to_two(AllocatingMemoryStream& stream)
 {
     return align_to_two(stream, stream.used_buffer_size());

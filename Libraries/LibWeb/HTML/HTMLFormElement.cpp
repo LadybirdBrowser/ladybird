@@ -139,11 +139,20 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
             }
         }
 
-        // FIXME: 4. If the submitter element's no-validate state is false, then interactively validate the constraints
-        //           of form and examine the result. If the result is negative (i.e., the constraint validation concluded
-        //           that there were invalid fields and probably informed the user of this), then:
-        //           1. Set form's firing submission events to false.
-        //           2. Return.
+        // 4. If the submitter element's no-validate state is false, then interactively validate the constraints
+        //    of form and examine the result. If the result is negative (i.e., the constraint validation concluded
+        //    that there were invalid fields and probably informed the user of this), then:
+        auto* form_associated_element = as_if<FormAssociatedElement>(*submitter);
+        if (form_associated_element && !form_associated_element->novalidate_state()) {
+            auto validation_result = interactively_validate_constraints();
+            if (!validation_result) {
+                // 1. Set form's firing submission events to false.
+                m_firing_submission_events = false;
+
+                // 2. Return.
+                return {};
+            }
+        }
 
         // 5. Let submitterButton be null if submitter is form. Otherwise, let submitterButton be submitter.
         GC::Ptr<HTMLElement> submitter_button;
@@ -216,12 +225,13 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
             }
         }
 
-        // 5. Otherwise, if submitter has a value, then set result to that value.
-        if (!result.has_value())
-            result = submitter->get_attribute_value(AttributeNames::value);
+        // 5. Otherwise, if submitter is a submit button, then set result to submitter's optional value.
+        else if (auto* form_associated_element = as_if<FormAssociatedElement>(*submitter); form_associated_element && form_associated_element->is_submit_button()) {
+            result = form_associated_element->optional_value();
+        }
 
-        // 6. Close the dialog subject with result.
-        subject->close(move(result));
+        // 6. Close the dialog subject with result and null.
+        subject->close_the_dialog(move(result), nullptr);
 
         // 7. Return.
         return {};
@@ -616,7 +626,7 @@ bool HTMLFormElement::interactively_validate_constraints()
     //       For elements that are form-associated custom elements, user agents should use their validation anchor instead, for the purposes of these actions.
     //     - User agents may report more than one constraint violation.
     //     - User agents may coalesce related constraint violation reports if appropriate (e.g. if multiple radio buttons in a group are marked as required, only one error need be reported).
-    //     - If one of the controls is not being rendered (e.g. it has the hidden attribute set) then user agents may report a script error.
+    //     - If one of the controls is not being rendered (e.g. it has the hidden attribute set), then user agents may report a script error.
     // FIXME: Does this align with other browsers?
     auto first_invalid_control = unhandled_invalid_controls.first_matching([](auto control) {
         return control->check_visibility({});

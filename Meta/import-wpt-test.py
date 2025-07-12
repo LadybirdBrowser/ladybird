@@ -1,17 +1,35 @@
 #!/usr/bin/env python3
 
+import argparse
+import os
+import re
+
 from collections import namedtuple
 from dataclasses import dataclass
 from enum import Enum
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from posixpath import normpath
+from urllib.parse import urljoin
+from urllib.parse import urlparse
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 from urllib.request import urlopen
-import re
-import os
-import sys
 
 wpt_base_url = "https://wpt.live/"
+download_exclude_list = {
+    # This relies on a dynamic path that cannot be rewitten by the importer.
+    "/resources/idlharness.js",
+    # This file has been modified to improve the performance of our test runner.
+    "/resources/testharness.js",
+    # We have modified this file to output text files compatible with our test runner.
+    "/resources/testharnessreport.js",
+    # We have modified this file to use our internals object instead of relying on WebDriver.
+    "/resources/testdriver-vendor.js",
+    # Modified to use a relative path, which the importer can't rewrite.
+    "/fonts/ahem.css",
+}
+visited_paths = set()
 
 
 class TestType(Enum):
@@ -62,6 +80,8 @@ class LinkedResourceFinder(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         self._tag_stack_.append(tag)
+        if ":" in tag:
+            tag = tag.split(":", 1)[-1]
         if tag in ["script", "img", "iframe"]:
             attr_dict = dict(attrs)
             if "src" in attr_dict:
@@ -99,6 +119,8 @@ class TestTypeIdentifier(HTMLParser):
         self.ref_test_link_found = False
 
     def handle_starttag(self, tag, attrs):
+        if ":" in tag:
+            tag = tag.split(":", 1)[-1]
         if tag == "link":
             attr_dict = dict(attrs)
             if "rel" in attr_dict and (attr_dict["rel"] == "match" or attr_dict["rel"] == "mismatch"):
@@ -163,7 +185,7 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
             page_source = f.read()
 
         # Iterate all scripts and overwrite the src attribute
-        for i, resource in enumerate(map(lambda r: r.resource, resources)):
+        for resource in map(lambda r: r.resource, resources):
             if resource.startswith("/"):
                 new_src_value = parent_folder_path + resource[1::]
                 page_source = page_source.replace(resource, new_src_value)
@@ -177,16 +199,39 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
             f.write(str(page_source))
 
 
-def download_files(filepaths):
+def normalize_url(url):
+    parts = urlsplit(url)
+    normalized_path = normpath(parts.path)
+    normalized_url = urlunsplit((parts.scheme, parts.netloc, normalized_path, parts.query, parts.fragment))
+    return normalized_url
+
+
+def remove_repeated_url_slashes(url):
+    parsed = urlparse(url)
+    return "/" + "/".join(segment for segment in parsed.path.split("/") if segment)
+
+
+def download_files(filepaths, skip_existing):
     downloaded_files = []
 
     for file in filepaths:
+        normalized_path = remove_repeated_url_slashes(file.source)
+        if normalized_path in visited_paths:
+            continue
+        if normalized_path in download_exclude_list:
+            print(f"Skipping {file.source} as it is in the exclude list")
+            visited_paths.add(normalized_path)
+            continue
+
         source = urljoin(file.source, "/".join(file.source.split("/")[3:]))
         destination = Path(os.path.normpath(file.destination))
 
-        if destination.exists():
+        if skip_existing and destination.exists():
             print(f"Skipping {destination} as it already exists")
+            visited_paths.add(normalized_path)
             continue
+
+        visited_paths.add(normalized_path)
 
         print(f"Downloading {source} to {destination}")
 
@@ -205,7 +250,7 @@ def download_files(filepaths):
     return downloaded_files
 
 
-def create_expectation_files(files):
+def create_expectation_files(files, skip_existing):
     # Ref tests don't have an expectation text file
     if test_type in [TestType.REF, TestType.CRASH]:
         return
@@ -215,7 +260,7 @@ def create_expectation_files(files):
         new_path = new_path.rsplit(".", 1)[0] + ".txt"
 
         expected_file = Path(new_path)
-        if expected_file.exists():
+        if skip_existing and expected_file.exists():
             print(f"Skipping {expected_file} as it already exists")
             continue
 
@@ -224,11 +269,13 @@ def create_expectation_files(files):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: import-wpt-test.py <url>")
-        return
+    parser = argparse.ArgumentParser(description="Import a WPT test into LibWeb")
+    parser.add_argument("--force", action="store_true", help="Force download of files even if they already exist")
+    parser.add_argument("url", type=str, help="The URL of the WPT test to import")
+    args = parser.parse_args()
 
-    url_to_import = sys.argv[1]
+    skip_existing = not args.force
+    url_to_import = args.url
     resource_path = "/".join(Path(url_to_import).parts[2::])
 
     with urlopen(url_to_import) as response:
@@ -256,19 +303,21 @@ def main():
             reference_path = raw_reference_path
             main_paths.append(
                 PathMapping(
-                    wpt_base_url + raw_reference_path, Path(test_type.expected_path + raw_reference_path).absolute()
+                    normalize_url(wpt_base_url + raw_reference_path),
+                    Path(test_type.expected_path + raw_reference_path).absolute(),
                 )
             )
         else:
             reference_path = Path(resource_path).parent.joinpath(raw_reference_path).__str__()
             main_paths.append(
                 PathMapping(
-                    wpt_base_url + "/" + reference_path, Path(test_type.expected_path + "/" + reference_path).absolute()
+                    normalize_url(wpt_base_url + "/" + reference_path),
+                    Path(test_type.expected_path + "/" + reference_path).absolute(),
                 )
             )
 
-    files_to_modify = download_files(main_paths)
-    create_expectation_files(main_paths)
+    files_to_modify = download_files(main_paths, skip_existing)
+    create_expectation_files(main_paths, skip_existing)
 
     input_parser = LinkedResourceFinder()
     input_parser.feed(page)
@@ -285,7 +334,7 @@ def main():
 
     modify_sources(files_to_modify, additional_resources)
     script_paths = map_to_path(additional_resources, True, resource_path)
-    download_files(script_paths)
+    download_files(script_paths, skip_existing)
 
 
 if __name__ == "__main__":

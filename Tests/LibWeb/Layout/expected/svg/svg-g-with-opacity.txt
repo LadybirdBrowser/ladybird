@@ -20,3 +20,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x800]
         SVGGraphicsPaintable (SVGGraphicsBox<g>) [121.671875,121.671875 556.65625x556.65625]
           SVGPathPaintable (SVGGeometryBox<circle>) [121.671875,121.671875 399.84375x399.84375]
           SVGPathPaintable (SVGGeometryBox<circle>) [278.484375,278.484375 399.84375x399.84375]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x800] [children: 0] (z-index: auto)

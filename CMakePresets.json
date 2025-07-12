@@ -8,12 +8,13 @@
   "configurePresets": [
     {
       "hidden": true,
-      "name": "default_base",
+      "name": "base",
       "displayName": "Default Config",
+      "generator": "Ninja",
       "binaryDir": "${fileDir}/Build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "SERENITY_CACHE_DIR": "${fileDir}/Build/caches",
+        "LADYBIRD_CACHE_DIR": "${fileDir}/Build/caches",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALL_OPTIONS": "--no-print-usage",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/release-triplets"
@@ -21,7 +22,8 @@
       "environment": {
         "LADYBIRD_SOURCE_DIR": "${fileDir}",
         "VCPKG_ROOT": "${fileDir}/Build/vcpkg",
-        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Build/caches/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}"
+        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Build/caches/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}",
+        "X_VCPKG_ASSET_SOURCES": "clear;x-azurl,https://vcpkg-cache.app.ladybird.org/ladybird/source-assets/,$penv{VCPKG_CACHE_SAS},read$penv{VCPKG_CACHE_MODE}"
       },
       "vendor": {
         "jetbrains.com/clion": {
@@ -31,15 +33,26 @@
     },
     {
       "hidden": true,
-      "name": "windows",
-      "description": "Visual Studio IDE config (experimental)",
+      "name": "unix_base",
+      "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "windows_base",
+      "inherits": "base",
+      "description": "Visual Studio via Clang/LLVM Toolchain",
       "architecture": {
         "value": "x64",
         "strategy": "external"
       },
       "cacheVariables": {
-        "ENABLE_QT": "OFF",
-        "ENABLE_GUI_TARGETS": "OFF"
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -53,73 +66,39 @@
       }
     },
     {
-      "hidden": true,
-      "name": "windows_ci",
-      "binaryDir": "${fileDir}/Build/release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "ENABLE_WINDOWS_CI": "ON"
-      }
+      "name": "Release",
+      "inherits": "unix_base",
+      "displayName": "Release Config",
+      "description": "Release Unix build"
     },
     {
-      "hidden": true,
-      "name": "windows_dev",
+      "name": "Debug",
+      "inherits": "unix_base",
+      "displayName": "Debug Config",
+      "description": "Debug Unix build",
       "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
+      }
+    },
+    {
+      "name": "Windows_Experimental",
+      "inherits": "windows_base",
+      "displayName": "Windows Experimental Config",
+      "description": "Experimental Windows build. Not all targets in this preset are supported",
+      "binaryDir": "${fileDir}/Build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets",
         "ENABLE_WINDOWS_CI": "OFF"
       }
     },
     {
-      "name": "default",
-      "description": "Default build using Ninja generator",
-      "generator": "Ninja",
-      "inherits": "default_base",
-      "condition": {
-        "type": "notEquals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-
-    {
-      "hidden": true,
-      "name": "windows_ninja",
-      "inherits": [
-        "default_base",
-        "windows"
-      ],
-      "generator": "Ninja",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-cl",
-        "CMAKE_CXX_COMPILER": "clang-cl"
-      }
-    },
-    {
-      "hidden": false,
-      "name": "windows_ci_ninja",
-      "displayName": "Windows Continuous Integration (ClangCL and Ninja)",
-      "description": "Windows continuous integration build using Ninja (experimental)",
-      "inherits": [
-        "windows_ninja",
-        "windows_ci"
-      ]
-    },
-    {
-      "hidden": false,
-      "name": "windows_dev_ninja",
-      "displayName": "Windows Development (ClangCL and Ninja)",
-      "description": "Windows development build using Ninja (experimental)",
-      "inherits": [
-        "windows_ninja",
-        "windows_dev"
-      ]
-    },
-    {
       "name": "Distribution",
-      "inherits": "default",
+      "inherits": "unix_base",
       "displayName": "Distribution Config",
-      "description": "Distribution build with static libraries using Ninja generator",
+      "description": "Distribution build with static libraries",
       "binaryDir": "${fileDir}/Build/distribution",
       "cacheVariables": {
         "BUILD_SHARED_LIBS": "OFF",
@@ -128,21 +107,13 @@
       }
     },
     {
-      "name": "Debug",
-      "inherits": "default",
-      "displayName": "Debug Config",
-      "description": "Debug build using Ninja generator",
-      "binaryDir": "${fileDir}/Build/debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
-      }
-    },
-    {
       "name": "Sanitizer",
-      "inherits": "default",
+      "inherits": [
+        "unix_base",
+        "Release"
+      ],
       "displayName": "Sanitizer Config",
-      "description": "Sanitizer build using Ninja generator",
+      "description": "Sanitizer Unix build",
       "binaryDir": "${fileDir}/Build/sanitizers",
       "cacheVariables": {
         "ENABLE_UNDEFINED_SANITIZER": "ON",
@@ -151,40 +122,54 @@
       }
     },
     {
-      "hidden": true,
-      "name": "vcpkg_ci",
-      "description": "FIXME: Use the GitHub Actions vcpkg cache"
+      "name": "Windows_Sanitizer_Experimental",
+      "inherits": [
+        "Windows_Experimental"
+      ],
+      "displayName": "Windows Sanitizer Experimental Config",
+      "description": "Experimental sanitizer Windows build. Not all targets in this preset are supported",
+      "binaryDir": "${fileDir}/Build/sanitizers",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "OFF",
+        "ENABLE_UNDEFINED_SANITIZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
+      }
     },
     {
-      "name": "CI",
-      "inherits": [
-        "vcpkg_ci",
-        "default"
+      "name": "Windows_CI",
+      "inherits":  [
+        "windows_base"
       ],
-      "displayName": "Non-Sanitizer CI Config"
+      "displayName": "Windows CI Config",
+      "description": "CI Windows build",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "ON",
+        "ENABLE_QT": "OFF"
+      }
     },
     {
-      "name": "Distribution_CI",
+      "name": "Windows_Sanitizer_CI",
       "inherits": [
-        "vcpkg_ci",
-        "Distribution"
+        "Windows_CI"
       ],
-      "displayName": "Distribution CI Config",
-      "description": "Distribution build with GitHub Actions cache"
-    },
-    {
-      "name": "Sanitizer_CI",
-      "inherits": [
-        "vcpkg_ci",
-        "Sanitizer"
-      ],
-      "displayName": "Sanitizer CI Config"
+      "displayName": "Windows Sanitizer CI Config",
+      "description": "Sanitizer CI Windows build",
+      "binaryDir": "${fileDir}/Build/sanitizers",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "ON",
+        "ENABLE_UNDEFINED_SANITIZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
+      }
     },
     {
       "name": "Fuzzers",
-      "inherits": "default",
+      "inherits": "unix_base",
       "displayName": "Fuzzers Config",
-      "description": "Fuzzers build",
+      "description": "Fuzzers Unix build",
       "binaryDir": "${fileDir}/Build/fuzzers",
       "cacheVariables": {
         "BUILD_SHARED_LIBS": "OFF",
@@ -195,19 +180,36 @@
       }
     },
     {
-      "name": "Fuzzers_CI",
-      "inherits": [
-        "vcpkg_ci",
-        "Fuzzers"
-      ],
-      "displayName": "Fuzzers CI Config",
-      "description": "Fuzzers build with GitHub Actions cache"
+      "name": "Swift_Release",
+      "inherits": "unix_base",
+      "displayName": "Swift Release Config",
+      "description": "Swift-enabled Unix release build",
+      "binaryDir": "${fileDir}/Build/swift",
+      "cacheVariables": {
+        "ENABLE_SWIFT": "ON",
+        "CMAKE_C_COMPILER": "MustBeSetManually",
+        "CMAKE_CXX_COMPILER": "MustBeSetManually++"
+      },
+      "vendor": {
+        "jetbrains.com/clion": {
+          "toolchain": "Swift"
+        }
+      }
     }
   ],
   "buildPresets": [
     {
       "hidden": true,
-      "name": "unix",
+      "name": "base",
+      "targets": [
+        "all"
+      ]
+    },
+    {
+      "hidden": true,
+      "name": "unix_base",
+      "inherits": "base",
+      "configurePreset": "unix_base",
       "condition": {
         "type": "notEquals",
         "lhs": "${hostSystemName}",
@@ -216,7 +218,9 @@
     },
     {
       "hidden": true,
-      "name": "windows",
+      "name": "windows_base",
+      "inherits": "base",
+      "configurePreset": "windows_base",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -224,70 +228,73 @@
       }
     },
     {
-      "name": "default",
-      "inherits": "unix",
-      "configurePreset": "default",
-      "displayName": "Build",
-      "description": "Build the project",
-      "targets": [
-        "all"
-      ]
-    },
-    {
-      "name": "windows_dev_ninja",
-      "inherits": "windows",
-      "configurePreset": "windows_dev_ninja",
-      "displayName": "Build",
-      "description": "Build the project",
-      "targets": [
-        "all"
-      ]
-    },
-    {
-      "name": "windows_ci_ninja",
-      "inherits": "windows",
-      "configurePreset": "windows_ci_ninja",
-      "displayName": "Build",
-      "description": "Build the project",
-      "targets": [
-        "all"
-      ]
-    },
-    {
-      "name": "Distribution",
-      "inherits": "unix",
-      "configurePreset": "Distribution",
-      "displayName": "Build",
-      "description": "Build the project for distribution",
-      "targets": [
-        "all"
-      ]
+      "name": "Release",
+      "inherits": "unix_base",
+      "configurePreset": "Release",
+      "displayName": "Release Build",
+      "description": "Build the project in release on Unix"
     },
     {
       "name": "Debug",
-      "inherits": "unix",
+      "inherits": "unix_base",
       "configurePreset": "Debug",
-      "displayName": "Build",
-      "description": "Build the project in debug",
-      "targets": [
-        "all"
-      ]
+      "displayName": "Debug Build",
+      "description": "Build the project in debug on Unix"
+    },
+    {
+      "name": "Windows_Experimental",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Experimental",
+      "displayName": "Windows Experimental Build",
+      "description": "Build the project in debug on Windows. Not all targets in this preset are supported"
+    },
+    {
+      "name": "Distribution",
+      "inherits": "unix_base",
+      "configurePreset": "Distribution",
+      "displayName": "Distribution Build",
+      "description": "Build the project for distribution on Unix"
     },
     {
       "name": "Sanitizer",
-      "inherits": "unix",
+      "inherits": "unix_base",
       "configurePreset": "Sanitizer",
-      "displayName": "Build with Sanitizers",
-      "description": "Build the project with Sanitizers",
-      "targets": [
-        "all"
-      ]
+      "displayName": "Sanitizer Build",
+      "description": "Build the project with Sanitizers on Unix"
+    },
+    {
+      "name": "Windows_Sanitizer_Experimental",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Sanitizer_Experimental",
+      "displayName": "Windows Sanitizer Experimental Build",
+      "description": "Build the project with Sanitizers on Windows. Not all targets in this preset are supported"
+    },
+    {
+      "name": "Windows_CI",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_CI",
+      "displayName": "Windows CI Build",
+      "description": "Build the project for Windows CI"
+    },
+    {
+      "name": "Windows_Sanitizer_CI",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Sanitizer_CI",
+      "displayName": "Windows Sanitizer CI Build",
+      "description": "Build the project with sanitizers for Windows CI"
+    },
+    {
+      "name": "Swift_Release",
+      "inherits": "unix_base",
+      "configurePreset": "Swift_Release",
+      "displayName": "Swift Release Build",
+      "description": "Build the project for Swift release on Unix"
     }
   ],
   "testPresets": [
     {
       "hidden": true,
-      "name": "default_base",
+      "name": "base",
       "output": {
         "outputOnFailure": true
       },
@@ -301,8 +308,9 @@
     },
     {
       "hidden": true,
-      "name": "default_windows",
-      "inherits": "default_base",
+      "name": "windows_base",
+      "configurePreset": "windows_base",
+      "inherits": "base",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -310,9 +318,10 @@
       }
     },
     {
-      "name": "default",
-      "configurePreset": "default",
-      "inherits": "default_base",
+      "hidden": true,
+      "name": "unix_base",
+      "configurePreset": "unix_base",
+      "inherits": "base",
       "condition": {
         "type": "notEquals",
         "lhs": "${hostSystemName}",
@@ -320,33 +329,66 @@
       }
     },
     {
-      "name": "Sanitizer",
-      "inherits": "default",
-      "configurePreset": "Sanitizer",
+      "hidden": true,
+      "name": "sanitizer_base",
       "environment": {
         "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1:$penv{ASAN_OPTIONS}",
         "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
       }
     },
     {
+      "name": "Release",
+      "inherits": "unix_base",
+      "configurePreset": "Release"
+    },
+    {
       "name": "Debug",
-      "inherits": "default",
+      "inherits": "unix_base",
       "configurePreset": "Debug"
     },
     {
+      "name": "Windows_Experimental",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Experimental"
+    },
+    {
       "name": "Distribution",
-      "inherits": "default",
+      "inherits": "unix_base",
       "configurePreset": "Distribution"
     },
     {
-      "name": "windows_dev_ninja",
-      "inherits": "default_windows",
-      "configurePreset": "windows_dev_ninja"
+      "name": "Sanitizer",
+      "inherits": [
+        "unix_base",
+        "sanitizer_base"
+      ],
+      "configurePreset": "Sanitizer"
     },
     {
-      "name": "windows_ci_ninja",
-      "inherits": "default_windows",
-      "configurePreset": "windows_ci_ninja"
+      "name": "Windows_Sanitizer_Experimental",
+      "inherits":  [
+        "windows_base",
+        "sanitizer_base"
+      ],
+      "configurePreset": "Windows_Sanitizer_Experimental"
+    },
+    {
+      "name": "Windows_CI",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_CI"
+    },
+    {
+      "name": "Windows_Sanitizer_CI",
+      "inherits":  [
+        "windows_base",
+        "sanitizer_base"
+      ],
+      "configurePreset": "Windows_Sanitizer_CI"
+    },
+    {
+      "name": "Swift_Release",
+      "inherits": "unix_base",
+      "configurePreset": "Swift_Release"
     }
   ]
 }

@@ -258,6 +258,11 @@ Optional<Selector::SimpleSelector::QualifiedName> Parser::parse_selector_qualifi
             ? Selector::SimpleSelector::QualifiedName::NamespaceType::Any
             : Selector::SimpleSelector::QualifiedName::NamespaceType::Named;
 
+        // https://www.w3.org/TR/selectors-4/#invalid
+        // a simple selector containing an undeclared namespace prefix is invalid
+        if (namespace_type == Selector::SimpleSelector::QualifiedName::NamespaceType::Named && !m_declared_namespaces.contains(namespace_))
+            return {};
+
         transaction.commit();
         return Selector::SimpleSelector::QualifiedName {
             .namespace_type = namespace_type,

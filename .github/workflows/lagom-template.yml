@@ -9,7 +9,7 @@ on:
       os_name:
         required: true
         type: string
-      runner:
+      runner_labels:
         required: true
         type: string
       arch:
@@ -38,7 +38,7 @@ env:
 
 jobs:
   CI:
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ fromJSON(inputs.runner_labels) }}
 
     steps:
       # Pull requests can trail behind `master` and can cause breakage if merging before running the CI checks on an updated branch.
@@ -62,9 +62,10 @@ jobs:
       # === PREPARE FOR BUILDING ===
 
       - name: Assign Build Parameters
+        if: ${{ inputs.os_name != 'Windows' }}
         id: 'build-parameters'
         run: |
-          CMAKE_OPTIONS="-DENABLE_QT=ON"
+          CMAKE_OPTIONS=""
           if ${{ inputs.toolchain == 'Swift' }} ; then
             echo "host_cc=$(swiftly use --print-location)/usr/bin/clang" >> "$GITHUB_OUTPUT"
             echo "host_cxx=$(swiftly use --print-location)/usr/bin/clang++" >> "$GITHUB_OUTPUT"
@@ -103,16 +104,17 @@ jobs:
         uses: ./.github/actions/cache-restore
         id: 'cache-restore'
         with:
-          runner_label: ${{ inputs.runner }}
+          runner_labels: ${{ inputs.runner_labels }}
           os: ${{ inputs.os_name }}
           arch: ${{ inputs.arch }}
           toolchain: ${{ inputs.toolchain }}
-          cache_key_extra: ${{ steps.build-parameters.outputs.ccache_key }}
-          ccache_path: ${{ env.CCACHE_DIR }}
+          cache_key_extra: ${{ inputs.os_name == 'Windows' && inputs.build_preset || steps.build-parameters.outputs.ccache_key }}
+          ccache_path: ${{ inputs.os_name != 'Windows' && env.CCACHE_DIR }}
           download_cache_path: ${{ github.workspace }}/Build/caches
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Set dynamic environment variables
+        if: ${{ inputs.os_name != 'Windows' }}
         run: |
           # Note: Required for vcpkg to use this compiler for its own builds.
           echo "CC=${{ steps.build-parameters.outputs.host_cc }}" >> "$GITHUB_ENV"
@@ -124,8 +126,11 @@ jobs:
         run: sqlite3 $HOME/Library/Application\ Support/com.apple.TCC/TCC.db "INSERT OR IGNORE INTO access VALUES ('kTCCServiceMicrophone','/usr/local/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159,NULL,NULL,'UNUSED',1687786159);"
 
       - name: Create Build Environment
-        if: ${{ inputs.build_preset != 'Fuzzers_CI' }}
+        if: ${{ inputs.os_name != 'Windows' && inputs.build_preset != 'Fuzzers' }}
         working-directory: ${{ github.workspace }}
+        env:
+          VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
+          VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build \
             ${{ steps.build-parameters.outputs.cmake_options }} \
@@ -133,13 +138,20 @@ jobs:
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
-      - name: Create Build Environment
-        if: ${{ inputs.build_preset == 'Fuzzers_CI' }}
+      - name: Create Build Environment (Windows)
+        if: ${{ inputs.os_name == 'Windows' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
+          VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
+        run: |
+          cmake --preset ${{ inputs.build_preset }} -B Build
+
+      - name: Create Build Environment (Fuzzers)
+        if: ${{ inputs.build_preset == 'Fuzzers' }}
         working-directory: ${{ github.workspace }}
         run: |
-          set -e
-
-          cmake --preset=Distribution_CI -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
+          cmake --preset=Distribution -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
             -DLAGOM_TOOLS_ONLY=ON \
             -DINSTALL_LAGOM_TOOLS=ON \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/Build/tools-install \
@@ -159,26 +171,22 @@ jobs:
       - name: Build
         working-directory: ${{ github.workspace }}/Build
         run: |
-          set -e
           cmake --build .
           cmake --install . --strip --prefix ${{ github.workspace }}/Install
 
-      - name: Enable the Ladybird AppKit chrome
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
+      - name: Build - macOS with Qt
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
-        run: cmake -B Build -DENABLE_QT=OFF
-
-      - name: Build the Ladybird AppKit chrome
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
-        working-directory: ${{ github.workspace }}/Build
-        run: cmake --build .
+        run: |
+          cmake --preset ${{ inputs.build_preset }} -B Build -DENABLE_QT=ON
+          cmake --build Build
 
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
-          runner_label: ${{ inputs.runner }}
+          runner_labels: ${{ inputs.runner_labels }}
           arch: ${{ inputs.arch }}
-          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_path: ${{ inputs.os_name != 'Windows' && env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
@@ -186,33 +194,33 @@ jobs:
       # === TEST ===
 
       - name: Test
-        if: ${{ inputs.build_preset == 'Sanitizer_CI' }}
+        if: ${{ contains(inputs.build_preset, 'Sanitizer') }}
         working-directory: ${{ github.workspace }}
-        run: ctest --preset Sanitizer --output-on-failure --test-dir Build --timeout 1800
+        run: ctest --preset ${{ inputs.build_preset }} --output-on-failure --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
           # NOTE: These are appended to the preset's options.
-          ASAN_OPTIONS: 'log_path=${{ github.workspace }}/asan.log'
-          UBSAN_OPTIONS: 'log_path=${{ github.workspace }}/ubsan.log'
+          ASAN_OPTIONS: 'log_path="${{ github.workspace }}/asan.log"'
+          UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
 
       - name: Test
-        if: ${{ inputs.build_preset != 'Fuzzers_CI' && inputs.build_preset != 'Sanitizer_CI' }}
+        if: ${{ inputs.build_preset != 'Fuzzers' && !contains(inputs.build_preset, 'Sanitizer') }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
 
       - name: Upload LibWeb Test Artifacts
-        if: ${{ always() && inputs.build_preset != 'Fuzzers_CI' }}
+        if: ${{ always() && inputs.build_preset != 'Fuzzers' }}
         uses: actions/upload-artifact@v4
         with:
-          name: libweb-test-artifacts-${{ inputs.os_name }}-${{inputs.build_preset}}-${{inputs.toolchain}}-${{inputs.clang-plugins}}
-          path: ${{ github.workspace }}/Build/UI/Headless/test-dumps
+          name: libweb-test-artifacts-${{ inputs.os_name }}-${{ inputs.build_preset }}-${{ inputs.toolchain }}-${{ inputs.clang-plugins }}
+          path: ${{ github.workspace }}/Build/Lagom/Tests/LibWeb/test-web/test-dumps/
           retention-days: 0
           if-no-files-found: ignore
 
       - name: Sanitizer Output
-        if: ${{ !cancelled() && inputs.build_preset == 'Sanitizer_CI' }}
+        if: ${{ !cancelled() && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
           log_output=$(find . -maxdepth 1 \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
@@ -224,7 +232,7 @@ jobs:
           fi
 
       - name: Lints
-        if: ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Sanitizer_CI' }}
+        if: ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
           set -e

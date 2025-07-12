@@ -1,0 +1,25 @@
+#import <SVG/SVGAnimatedEnumeration.idl>
+#import <SVG/SVGAnimatedNumber.idl>
+#import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGElement.idl>
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEGaussianBlurElement
+[Exposed=Window]
+interface SVGFEGaussianBlurElement : SVGElement {
+
+    // Edge Mode Values
+    const unsigned short SVG_EDGEMODE_UNKNOWN = 0;
+    const unsigned short SVG_EDGEMODE_DUPLICATE = 1;
+    const unsigned short SVG_EDGEMODE_WRAP = 2;
+    const unsigned short SVG_EDGEMODE_NONE = 3;
+
+    readonly attribute SVGAnimatedString in1;
+    readonly attribute SVGAnimatedNumber stdDeviationX;
+    readonly attribute SVGAnimatedNumber stdDeviationY;
+    readonly attribute SVGAnimatedEnumeration edgeMode;
+
+    [FIXME] void setStdDeviation(float stdDeviationX, float stdDeviationY);
+};
+
+SVGFEGaussianBlurElement includes SVGFilterPrimitiveStandardAttributes;

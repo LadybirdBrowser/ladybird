@@ -3557,7 +3557,12 @@ globalThis.idl_test = idl_test;
  * Note: ShadowRealm-specific implementation in testharness-shadowrealm-inner.js
  */
 function fetch_spec(spec) {
-    var url = '../interfaces/' + spec + '.idl';
+    const url_parts = window.location.href.split("/");
+
+    while (url_parts[url_parts.length - 1] != "wpt-import")
+        url_parts.pop();
+
+    var url = url_parts.join("/") + '/interfaces/' + spec + '.idl';
     return fetch(url).then(function (r) {
         if (!r.ok) {
             throw new IdlHarnessError("Error fetching " + url + ".");

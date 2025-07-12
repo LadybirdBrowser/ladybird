@@ -53,7 +53,7 @@ Pass	Explicit value undefined for type i64
 Pass	Explicit value true for type i64
 Pass	Explicit value false for type i64
 Pass	Explicit value "3" for type i64
-Pass	Explicit value bigint "123" for type i64
+Pass	Explicit value 123n for type i64
 Pass	Explicit value object with toString returning string for type i64
 Pass	Explicit value object with valueOf returning string for type i64
 Pass	Explicit value object with toString returning bigint for type i64

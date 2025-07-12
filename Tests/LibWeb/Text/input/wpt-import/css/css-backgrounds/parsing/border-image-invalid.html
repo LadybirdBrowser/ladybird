@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing border-image with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-image">
+<meta name="assert" content="border-image supports only the grammar ' <‘border-image-source’> || <‘border-image-slice’> [ / <‘border-image-width’> | / <‘border-image-width’>? / <‘border-image-outset’> ]? || <‘border-image-repeat’>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("border-image", "auto");
+test_invalid_value("border-image", 'none, url("http://www.example.com/")');
+
+test_invalid_value("border-image", "stretch repeat round");
+
+test_invalid_value("border-image", "fill");
+test_invalid_value("border-image", "1 2 3 4 5");
+test_invalid_value("border-image", "1% fill 2%");
+
+test_invalid_value("border-image", "1 / -2px");
+test_invalid_value("border-image", "-1 / 2px");
+
+test_invalid_value("border-image", "1 / 1 2 3 4 5");
+
+test_invalid_value("border-image", "1 2 3 4 5 / / 1px");
+test_invalid_value("border-image", "1 / / auto");
+test_invalid_value("border-image", "1 2% 3 4% / / 1%");
+test_invalid_value("border-image", "1 2% 3 4% fill / / 1 2 3 4 5");
+
+test_invalid_value("border-image", "1 / none / 1px");
+test_invalid_value("border-image", "1 2% 3 4% / 1 2 3 4 5 / 2");
+test_invalid_value("border-image", "1 2 3 4 5 / 1px / 1px");
+test_invalid_value("border-image", "1 / 1px / auto");
+</script>
+</body>
+</html>

@@ -12,7 +12,6 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
-#include <LibIPC/Forward.h>
 
 namespace Core {
 
@@ -73,15 +72,5 @@ private:
 
     RefPtr<AnonymousBufferImpl> m_impl;
 };
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder&, Core::AnonymousBuffer const&);
-
-template<>
-ErrorOr<Core::AnonymousBuffer> decode(Decoder&);
 
 }

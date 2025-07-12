@@ -26,7 +26,7 @@ public:
     virtual ~SharedWorkerGlobalScope() override;
 
     void set_constructor_origin(URL::Origin origin) { m_constructor_origin = move(origin); }
-    URL::Origin const& constructor_origin() const { return m_constructor_origin; }
+    URL::Origin const& constructor_origin() const { return m_constructor_origin.value(); }
 
     void set_constructor_url(URL::URL url) { m_constructor_url = move(url); }
     URL::URL const& constructor_url() const { return m_constructor_url; }
@@ -48,7 +48,7 @@ private:
     virtual void initialize_web_interfaces_impl() override;
     virtual void finalize() override;
 
-    URL::Origin m_constructor_origin;
+    Optional<URL::Origin> m_constructor_origin;
     URL::URL m_constructor_url;
     Fetch::Infrastructure::Request::CredentialsMode m_credentials;
 };

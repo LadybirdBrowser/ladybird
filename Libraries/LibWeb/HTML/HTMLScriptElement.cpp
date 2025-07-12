@@ -10,6 +10,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/HTMLScriptElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -274,8 +275,13 @@ void HTMLScriptElement::prepare_script()
         return;
     }
 
-    // FIXME: 19. If el does not have a src content attribute, and the Should element's inline behavior be blocked by Content Security Policy?
-    //            algorithm returns "Blocked" when given el, "script", and source text, then return. [CSP]
+    // 19. If el does not have a src content attribute, and the Should element's inline behavior be blocked by Content Security Policy?
+    //     algorithm returns "Blocked" when given el, "script", and source text, then return. [CSP]
+    if (!has_attribute(AttributeNames::src)
+        && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), *this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        dbgln("HTMLScriptElement: Refusing to run inline script because it violates the Content Security Policy.");
+        return;
+    }
 
     // 20. If el has an event attribute and a for attribute, and el's type is "classic", then:
     if (m_script_type == ScriptType::Classic && has_attribute(HTML::AttributeNames::event) && has_attribute(HTML::AttributeNames::for_)) {
@@ -325,7 +331,8 @@ void HTMLScriptElement::prepare_script()
     // 23. Let module script credentials mode be the CORS settings attribute credentials mode for el's crossorigin content attribute.
     auto module_script_credential_mode = cors_settings_attribute_credentials_mode(m_crossorigin);
 
-    // FIXME: 24. Let cryptographic nonce be el's [[CryptographicNonce]] internal slot's value.
+    // 24. Let cryptographic nonce be el's [[CryptographicNonce]] internal slot's value.
+    auto cryptographic_nonce = m_cryptographic_nonce;
 
     // 25. If el has an integrity attribute, then let integrity metadata be that attribute's value.
     //     Otherwise, let integrity metadata be the empty string.
@@ -350,7 +357,7 @@ void HTMLScriptElement::prepare_script()
     //     credentials mode is module script credentials mode, referrer policy is referrer policy,
     //     and fetch priority is fetch priority.
     ScriptFetchOptions options {
-        .cryptographic_nonce = {}, // FIXME
+        .cryptographic_nonce = move(cryptographic_nonce),
         .integrity_metadata = move(integrity_metadata),
         .parser_metadata = parser_metadata,
         .credentials_mode = module_script_credential_mode,
@@ -387,10 +394,10 @@ void HTMLScriptElement::prepare_script()
         // 4. Set el's from an external file to true.
         m_from_an_external_file = true;
 
-        // 5. Parse src relative to el's node document.
-        auto url = document().parse_url(src);
+        // 5. Let url be the result of encoding-parsing a URL given src, relative to el's node document.
+        auto url = document().encoding_parse_url(src);
 
-        // 6. If the previous step failed, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return. Otherwise, let url be the resulting URL record.
+        // 6. If url is failure, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (!url.has_value()) {
             dbgln("HTMLScriptElement: Refusing to run script because the src URL '{}' is invalid.", url);
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {

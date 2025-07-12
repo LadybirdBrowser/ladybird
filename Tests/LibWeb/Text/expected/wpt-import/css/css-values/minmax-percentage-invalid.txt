@@ -1,0 +1,53 @@
+Harness status: OK
+
+Found 48 tests
+
+48 Pass
+Pass	e.style['margin-left'] = "min()" should not set the property value
+Pass	e.style['margin-left'] = "min( )" should not set the property value
+Pass	e.style['margin-left'] = "min(,)" should not set the property value
+Pass	e.style['margin-left'] = "min(1#)" should not set the property value
+Pass	e.style['margin-left'] = "min(%1)" should not set the property value
+Pass	e.style['margin-left'] = "min(1%, )" should not set the property value
+Pass	e.style['margin-left'] = "min(, 1%)" should not set the property value
+Pass	e.style['margin-left'] = "min(1% + )" should not set the property value
+Pass	e.style['margin-left'] = "min(1% - )" should not set the property value
+Pass	e.style['margin-left'] = "min(1% * )" should not set the property value
+Pass	e.style['margin-left'] = "min(1% / )" should not set the property value
+Pass	e.style['margin-left'] = "min(1% 2%)" should not set the property value
+Pass	e.style['margin-left'] = "min(1%, , 2%)" should not set the property value
+Pass	e.style['margin-left'] = "max()" should not set the property value
+Pass	e.style['margin-left'] = "max( )" should not set the property value
+Pass	e.style['margin-left'] = "max(,)" should not set the property value
+Pass	e.style['margin-left'] = "max(1#)" should not set the property value
+Pass	e.style['margin-left'] = "max(%1)" should not set the property value
+Pass	e.style['margin-left'] = "max(1%, )" should not set the property value
+Pass	e.style['margin-left'] = "max(, 1%)" should not set the property value
+Pass	e.style['margin-left'] = "max(1% + )" should not set the property value
+Pass	e.style['margin-left'] = "max(1% - )" should not set the property value
+Pass	e.style['margin-left'] = "max(1% * )" should not set the property value
+Pass	e.style['margin-left'] = "max(1% / )" should not set the property value
+Pass	e.style['margin-left'] = "max(1% 2%)" should not set the property value
+Pass	e.style['margin-left'] = "max(1%, , 2%)" should not set the property value
+Pass	e.style['margin-left'] = "min(0s)" should not set the property value
+Pass	e.style['margin-left'] = "min(0deg)" should not set the property value
+Pass	e.style['margin-left'] = "min(0Hz)" should not set the property value
+Pass	e.style['margin-left'] = "min(0dpi)" should not set the property value
+Pass	e.style['margin-left'] = "min(0fr)" should not set the property value
+Pass	e.style['margin-left'] = "min(1%, 0)" should not set the property value
+Pass	e.style['margin-left'] = "min(1%, 0s)" should not set the property value
+Pass	e.style['margin-left'] = "min(1%, 0deg)" should not set the property value
+Pass	e.style['margin-left'] = "min(1%, 0Hz)" should not set the property value
+Pass	e.style['margin-left'] = "min(1%, 0dpi)" should not set the property value
+Pass	e.style['margin-left'] = "min(1%, 0fr)" should not set the property value
+Pass	e.style['margin-left'] = "max(0s)" should not set the property value
+Pass	e.style['margin-left'] = "max(0deg)" should not set the property value
+Pass	e.style['margin-left'] = "max(0Hz)" should not set the property value
+Pass	e.style['margin-left'] = "max(0dpi)" should not set the property value
+Pass	e.style['margin-left'] = "max(0fr)" should not set the property value
+Pass	e.style['margin-left'] = "max(1%, 0)" should not set the property value
+Pass	e.style['margin-left'] = "max(1%, 0s)" should not set the property value
+Pass	e.style['margin-left'] = "max(1%, 0deg)" should not set the property value
+Pass	e.style['margin-left'] = "max(1%, 0Hz)" should not set the property value
+Pass	e.style['margin-left'] = "max(1%, 0dpi)" should not set the property value
+Pass	e.style['margin-left'] = "max(1%, 0fr)" should not set the property value
