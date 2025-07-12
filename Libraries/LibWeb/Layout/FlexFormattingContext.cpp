@@ -1137,7 +1137,7 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     }
 
     if (item.box->has_preferred_aspect_ratio()) {
-        if (item.used_flex_basis_is_definite) {
+        if (item.used_flex_basis_is_definite || (item.box->has_natural_width() && item.box->has_natural_height())) {
             item.hypothetical_cross_size = calculate_cross_size_from_main_size_and_aspect_ratio(item.main_size.value(), item.box->preferred_aspect_ratio().value());
             return;
         }
