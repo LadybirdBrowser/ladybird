@@ -46,7 +46,7 @@ Please read the [Getting started contributing](Documentation/GettingStartedContr
 
 Before opening an issue, please see the [issue policy](CONTRIBUTING.md#issue-policy) and the [detailed issue-reporting guidelines](ISSUES.md).
 
-The full contribution guidelines can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+The full contribution guidelines can be read in the [`CONTRIBUTING.md`](CONTRIBUTING.md) file.
 
 ## License
 
