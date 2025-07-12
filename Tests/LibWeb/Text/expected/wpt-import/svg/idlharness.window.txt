@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-940 Pass
-841 Fail
+942 Pass
+839 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1560,7 +1560,7 @@ Pass	SVGAElement interface: attribute relList
 Pass	SVGAElement interface: attribute hreflang
 Pass	SVGAElement interface: attribute type
 Fail	SVGAElement interface: attribute text
-Fail	SVGAElement interface: attribute referrerPolicy
+Pass	SVGAElement interface: attribute referrerPolicy
 Fail	SVGAElement interface: attribute origin
 Fail	SVGAElement interface: attribute protocol
 Fail	SVGAElement interface: attribute username
@@ -1582,7 +1582,7 @@ Pass	SVGAElement interface: objects.a must inherit property "relList" with the p
 Pass	SVGAElement interface: objects.a must inherit property "hreflang" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "type" with the proper type
 Fail	SVGAElement interface: objects.a must inherit property "text" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "referrerPolicy" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "referrerPolicy" with the proper type
 Fail	SVGAElement interface: objects.a must inherit property "origin" with the proper type
 Fail	SVGAElement interface: objects.a must inherit property "protocol" with the proper type
 Fail	SVGAElement interface: objects.a must inherit property "username" with the proper type
