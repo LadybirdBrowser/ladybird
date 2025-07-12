@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestCSSIDSpeed.cpp
     TestCSSInheritedProperty.cpp
     TestCSSPixels.cpp
+    TestCSSSyntaxParser.cpp
     TestCSSTokenStream.cpp
     TestFetchInfrastructure.cpp
     TestFetchURL.cpp

@@ -121,11 +121,17 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
 
     auto& peek_token = tokens.next_token();
 
-    if (auto property = any_property_accepts_type(property_ids, ValueType::EasingFunction); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_easing_function = parse_easing_value(tokens))
-            return PropertyAndValue { *property, maybe_easing_function };
-    }
+    auto parse_for_type = [&](ValueType const type) -> Optional<PropertyAndValue> {
+        if (auto property = any_property_accepts_type(property_ids, type); property.has_value()) {
+            auto context_guard = push_temporary_value_parsing_context(*property);
+            if (auto maybe_easing_function = parse_value(type, tokens))
+                return PropertyAndValue { *property, maybe_easing_function };
+        }
+        return OptionalNone {};
+    };
+
+    if (auto parsed = parse_for_type(ValueType::EasingFunction); parsed.has_value())
+        return parsed.release_value();
 
     if (peek_token.is(Token::Type::Ident)) {
         // NOTE: We do not try to parse "CSS-wide keywords" here. https://www.w3.org/TR/css-values-4/#common-keywords
@@ -146,72 +152,28 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         }
     }
 
-    if (auto property = any_property_accepts_type(property_ids, ValueType::Color); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_color = parse_color_value(tokens))
-            return PropertyAndValue { *property, maybe_color };
-    }
-
-    if (auto property = any_property_accepts_type(property_ids, ValueType::Counter); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_counter = parse_counter_value(tokens))
-            return PropertyAndValue { *property, maybe_counter };
-    }
-
-    if (auto property = any_property_accepts_type(property_ids, ValueType::Image); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_image = parse_image_value(tokens))
-            return PropertyAndValue { *property, maybe_image };
-    }
-
-    if (auto property = any_property_accepts_type(property_ids, ValueType::Position); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_position = parse_position_value(tokens))
-            return PropertyAndValue { *property, maybe_position };
-    }
-
-    if (auto property = any_property_accepts_type(property_ids, ValueType::BackgroundPosition); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_position = parse_position_value(tokens, PositionParsingMode::BackgroundPosition))
-            return PropertyAndValue { *property, maybe_position };
-    }
-
-    if (auto property = any_property_accepts_type(property_ids, ValueType::BasicShape); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_basic_shape = parse_basic_shape_value(tokens))
-            return PropertyAndValue { *property, maybe_basic_shape };
-    }
-
-    if (auto property = any_property_accepts_type(property_ids, ValueType::Ratio); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_ratio = parse_ratio_value(tokens))
-            return PropertyAndValue { *property, maybe_ratio };
-    }
-
-    if (auto property = any_property_accepts_type(property_ids, ValueType::OpenTypeTag); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_rect = parse_opentype_tag_value(tokens))
-            return PropertyAndValue { *property, maybe_rect };
-    }
-
-    if (auto property = any_property_accepts_type(property_ids, ValueType::Rect); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto maybe_rect = parse_rect_value(tokens))
-            return PropertyAndValue { *property, maybe_rect };
-    }
-
-    if (peek_token.is(Token::Type::String)) {
-        if (auto property = any_property_accepts_type(property_ids, ValueType::String); property.has_value()) {
-            auto context_guard = push_temporary_value_parsing_context(*property);
-            return PropertyAndValue { *property, StringStyleValue::create(tokens.consume_a_token().token().string()) };
-        }
-    }
-
-    if (auto property = any_property_accepts_type(property_ids, ValueType::Url); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto url = parse_url_value(tokens))
-            return PropertyAndValue { *property, url };
-    }
+    if (auto parsed = parse_for_type(ValueType::Color); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::Counter); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::Image); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::Position); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::BackgroundPosition); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::BasicShape); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::Ratio); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::OpenTypeTag); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::Rect); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::String); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::Url); parsed.has_value())
+        return parsed.release_value();
 
     // <integer>/<number> come before <length>, so that 0 is not interpreted as a <length> in case both are allowed.
     if (auto property = any_property_accepts_type(property_ids, ValueType::Integer); property.has_value()) {
@@ -321,11 +283,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         }
     }
 
-    if (auto property = any_property_accepts_type(property_ids, ValueType::FitContent); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto value = parse_fit_content_value(tokens))
-            return PropertyAndValue { *property, value };
-    }
+    if (auto parsed = parse_for_type(ValueType::FitContent); parsed.has_value())
+        return parsed.release_value();
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
@@ -420,11 +379,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         }
     }
 
-    if (auto property = any_property_accepts_type(property_ids, ValueType::Paint); property.has_value()) {
-        auto context_guard = push_temporary_value_parsing_context(*property);
-        if (auto value = parse_paint_value(tokens))
-            return PropertyAndValue { *property, value.release_nonnull() };
-    }
+    if (auto parsed = parse_for_type(ValueType::Paint); parsed.has_value())
+        return parsed.release_value();
 
     return OptionalNone {};
 }

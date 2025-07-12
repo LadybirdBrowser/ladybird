@@ -20,6 +20,11 @@ public:
     }
     virtual ~PendingSubstitutionStyleValue() override = default;
     virtual String to_string(SerializationMode) const override { return {}; }
+    virtual Vector<Parser::ComponentValue> tokenize() const override
+    {
+        // Not sure what to do here, but this isn't valid so returning GIV seems the most correct.
+        return { Parser::ComponentValue { Parser::GuaranteedInvalidValue {} } };
+    }
 
     // We shouldn't need to compare these, but in case we do: The nature of them is that their value is unknown, so
     // consider them all to be unique.

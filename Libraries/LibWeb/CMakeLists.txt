@@ -146,6 +146,8 @@ set(SOURCES
     CSS/Parser/RuleContext.cpp
     CSS/Parser/RuleParsing.cpp
     CSS/Parser/SelectorParsing.cpp
+    CSS/Parser/Syntax.cpp
+    CSS/Parser/SyntaxParsing.cpp
     CSS/Parser/Token.cpp
     CSS/Parser/Tokenizer.cpp
     CSS/Parser/Types.cpp
@@ -227,6 +229,7 @@ set(SOURCES
     CSS/Transformation.cpp
     CSS/TransitionEvent.cpp
     CSS/URL.cpp
+    CSS/ValueType.cpp
     CSS/VisualViewport.cpp
     DOM/AbortController.cpp
     DOM/AbortSignal.cpp

@@ -144,6 +144,8 @@ public:
     };
     static Optional<Vector<ComponentValue>> parse_declaration_value(TokenStream<ComponentValue>&, StopAtComma = StopAtComma::No);
 
+    NonnullRefPtr<CSSStyleValue const> parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element = {});
+
 private:
     Parser(ParsingParams const&, Vector<Token>);
 
@@ -290,6 +292,8 @@ private:
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);
     Vector<Gfx::UnicodeRange> parse_unicode_ranges(TokenStream<ComponentValue>&);
     RefPtr<UnicodeRangeStyleValue const> parse_unicode_range_value(TokenStream<ComponentValue>&);
+
+    RefPtr<CSSStyleValue const> parse_value(ValueType, TokenStream<ComponentValue>&);
 
     Optional<GridSize> parse_grid_track_breadth(TokenStream<ComponentValue>&);
     Optional<GridSize> parse_grid_inflexible_breadth(TokenStream<ComponentValue>&);
@@ -514,6 +518,8 @@ private:
     OwnPtr<BooleanExpression> parse_supports_feature(TokenStream<ComponentValue>&);
 
     NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(DOM::AbstractElement&, GuardedSubstitutionContexts&, PropertyIDOrCustomPropertyName, UnresolvedStyleValue const&);
+
+    RefPtr<CSSStyleValue const> parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node, Optional<DOM::AbstractElement> const& element);
 
     static bool has_ignored_vendor_prefix(StringView);
 
