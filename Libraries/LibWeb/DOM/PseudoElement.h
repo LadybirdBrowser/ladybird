@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/PixelUnits.h>
 #include <LibWeb/TreeNode.h>
 
 namespace Web::DOM {

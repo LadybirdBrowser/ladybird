@@ -31,7 +31,7 @@ public:
             FlyString value {};
         };
 
-        using Value = Variant<Empty, PTNameSelector>;
+        using Value = Variant<Empty, PTNameSelector, NonnullRefPtr<Selector>>;
 
         explicit PseudoElementSelector(PseudoElement type, Value value = {})
             : m_type(type)
@@ -59,11 +59,14 @@ public:
         PseudoElement type() const { return m_type; }
 
         PTNameSelector const& pt_name_selector() const { return m_value.get<PTNameSelector>(); }
+        // FIXME: Ideally this would be a CompoundSelector, but SimpleSelector requires PseudoElementSelector,
+        //        and CompoundSelector requires SimpleSelector.
+        Selector const& compound_selector() const { return m_value.get<NonnullRefPtr<Selector>>(); }
 
     private:
         PseudoElement m_type;
         String m_name;
-        Variant<Empty, PTNameSelector> m_value;
+        Value m_value;
     };
 
     struct SimpleSelector {
