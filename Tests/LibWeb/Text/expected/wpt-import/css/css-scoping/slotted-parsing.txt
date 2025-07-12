@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+13 Pass
+19 Fail
+Pass	"::slotted" should be an invalid selector
+Pass	"::slotted()" should be an invalid selector
+Fail	"::slotted(*).class" should be an invalid selector
+Pass	"::slotted(*)#id {}" should be an invalid selector
+Fail	"::slotted(*)[attr]" should be an invalid selector
+Fail	"::slotted(*):host" should be an invalid selector
+Fail	"::slotted(*):host(div)" should be an invalid selector
+Fail	"::slotted(*):hover" should be an invalid selector
+Fail	"::slotted(*):read-only" should be an invalid selector
+Fail	"::slotted(*)::slotted(*)" should be an invalid selector
+Fail	"::slotted(*)::before::slotted(*)" should be an invalid selector
+Fail	"::slotted(*) span" should be an invalid selector
+Pass	"::slotted(*)" should be a valid selector
+Pass	"::slotted(div)" should be a valid selector
+Pass	"::slotted([attr]:hover)" should be a valid selector
+Pass	"::slotted(:not(.a))" should be a valid selector
+Fail	"::slotted(*):is()" should be a valid selector
+Fail	"::slotted(*):is(:hover)" should be a valid selector
+Fail	"::slotted(*):is(#id)" should be a valid selector
+Fail	"::slotted(*):where()" should be a valid selector
+Fail	"::slotted(*):where(:hover)" should be a valid selector
+Fail	"::slotted(*):where(#id)" should be a valid selector
+Fail	"::slotted(*):where(::before)" should be a valid selector
+Pass	"::slotted(*)::before" should be a valid selector
+Pass	"::slotted(*)::after" should be a valid selector
+Pass	"::slotted(*)::details-content" should be a valid selector
+Pass	"::slotted(*)::file-selector-button" should be a valid selector
+Pass	"::slotted(*)::placeholder" should be a valid selector
+Pass	"::slotted(*)::marker" should be a valid selector
+Fail	"::slotted(*)::first-line" should be an invalid selector
+Fail	"::slotted(*)::first-letter" should be an invalid selector
+Fail	"::slotted(*)::selection" should be an invalid selector

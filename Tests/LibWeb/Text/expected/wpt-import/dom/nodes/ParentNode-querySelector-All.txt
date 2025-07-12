@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 1975 tests
 
-1959 Pass
-16 Fail
+1975 Pass
 Pass	Selectors-API Test Suite: HTML
 Pass	Document supports querySelector
 Pass	Document supports querySelectorAll
@@ -819,10 +818,10 @@ Pass	Document.querySelector: Syntax, group of selectors separator, whitespace be
 ,#group strong
 Pass	Document.querySelectorAll: Syntax, group of selectors separator, no whitespace: #group em,#group strong
 Pass	Document.querySelector: Syntax, group of selectors separator, no whitespace: #group em,#group strong
-Fail	Document.querySelectorAll: Slotted selector: ::slotted(foo)
-Fail	Document.querySelector: Slotted selector: ::slotted(foo)
-Fail	Document.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
-Fail	Document.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
+Pass	Document.querySelectorAll: Slotted selector: ::slotted(foo)
+Pass	Document.querySelector: Slotted selector: ::slotted(foo)
+Pass	Document.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
+Pass	Document.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
 Pass	Detached Element.querySelectorAll: Type selector, matching html element: html
 Pass	Detached Element.querySelector: Type selector, matching html element: html
 Pass	Detached Element.querySelectorAll: Type selector, matching body element: body
@@ -1249,10 +1248,10 @@ Pass	Detached Element.querySelector: Syntax, group of selectors separator, white
 ,#group strong
 Pass	Detached Element.querySelectorAll: Syntax, group of selectors separator, no whitespace: #group em,#group strong
 Pass	Detached Element.querySelector: Syntax, group of selectors separator, no whitespace: #group em,#group strong
-Fail	Detached Element.querySelectorAll: Slotted selector: ::slotted(foo)
-Fail	Detached Element.querySelector: Slotted selector: ::slotted(foo)
-Fail	Detached Element.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
-Fail	Detached Element.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
+Pass	Detached Element.querySelectorAll: Slotted selector: ::slotted(foo)
+Pass	Detached Element.querySelector: Slotted selector: ::slotted(foo)
+Pass	Detached Element.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
+Pass	Detached Element.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
 Pass	Fragment.querySelectorAll: Type selector, matching html element: html
 Pass	Fragment.querySelector: Type selector, matching html element: html
 Pass	Fragment.querySelectorAll: Type selector, matching body element: body
@@ -1679,10 +1678,10 @@ Pass	Fragment.querySelector: Syntax, group of selectors separator, whitespace be
 ,#group strong
 Pass	Fragment.querySelectorAll: Syntax, group of selectors separator, no whitespace: #group em,#group strong
 Pass	Fragment.querySelector: Syntax, group of selectors separator, no whitespace: #group em,#group strong
-Fail	Fragment.querySelectorAll: Slotted selector: ::slotted(foo)
-Fail	Fragment.querySelector: Slotted selector: ::slotted(foo)
-Fail	Fragment.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
-Fail	Fragment.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
+Pass	Fragment.querySelectorAll: Slotted selector: ::slotted(foo)
+Pass	Fragment.querySelector: Slotted selector: ::slotted(foo)
+Pass	Fragment.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
+Pass	Fragment.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
 Pass	In-document Element.querySelectorAll: Type selector, matching html element: html
 Pass	In-document Element.querySelector: Type selector, matching html element: html
 Pass	In-document Element.querySelectorAll: Type selector, matching body element: body
@@ -2111,7 +2110,7 @@ Pass	In-document Element.querySelector: Syntax, group of selectors separator, wh
 ,#group strong
 Pass	In-document Element.querySelectorAll: Syntax, group of selectors separator, no whitespace: #group em,#group strong
 Pass	In-document Element.querySelector: Syntax, group of selectors separator, no whitespace: #group em,#group strong
-Fail	In-document Element.querySelectorAll: Slotted selector: ::slotted(foo)
-Fail	In-document Element.querySelector: Slotted selector: ::slotted(foo)
-Fail	In-document Element.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
-Fail	In-document Element.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
+Pass	In-document Element.querySelectorAll: Slotted selector: ::slotted(foo)
+Pass	In-document Element.querySelector: Slotted selector: ::slotted(foo)
+Pass	In-document Element.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
+Pass	In-document Element.querySelector: Slotted selector (no matching closing paren): ::slotted(foo

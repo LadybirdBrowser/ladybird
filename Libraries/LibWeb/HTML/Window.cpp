@@ -1286,7 +1286,8 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
         auto type = parse_pseudo_element_selector(CSS::Parser::ParsingParams(associated_document()), pseudo_element.value());
 
         // 2. If type is failure, or is a ::slotted() or ::part() pseudo-element, let obj be null.
-        if (!type.has_value()) {
+        // FIXME: Handle ::part() here too when we support it.
+        if (!type.has_value() || type.value().type() == CSS::PseudoElement::Slotted) {
             object = {};
         }
         // 3. Otherwise let obj be the given pseudo-element of elt.
