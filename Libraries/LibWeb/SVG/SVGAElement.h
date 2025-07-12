@@ -21,6 +21,8 @@ class SVGAElement final
 public:
     virtual ~SVGAElement() override;
 
+    GC::Ref<SVGAnimatedString> target();
+
     GC::Ref<DOM::DOMTokenList> rel_list();
 
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
@@ -38,6 +40,8 @@ private:
     virtual i32 default_tab_index_value() const override;
 
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
+
+    GC::Ptr<SVGAnimatedString> m_target;
 };
 
 }
