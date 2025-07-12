@@ -376,6 +376,7 @@ SVGTitleElement
 SVGTransform
 SVGTransformList
 SVGUseElement
+SVGViewElement
 Screen
 ScreenOrientation
 SecurityPolicyViolationEvent

@@ -872,6 +872,7 @@ set(SOURCES
     SVG/SVGTransformList.cpp
     SVG/SVGTSpanElement.cpp
     SVG/SVGUseElement.cpp
+    SVG/SVGViewElement.cpp
     SVG/TagNames.cpp
     SVG/ViewBox.cpp
     UIEvents/CompositionEvent.cpp
