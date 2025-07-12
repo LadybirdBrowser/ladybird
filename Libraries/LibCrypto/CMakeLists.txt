@@ -1,13 +1,14 @@
 add_cxx_compile_options(-Wvla)
 
 set(SOURCES
+    # reordered to avoid mp_int redefinition in unity build
+    BigInt/SignedBigInteger.cpp
     OpenSSL.cpp
     ASN1/ASN1.cpp
     ASN1/DER.cpp
     ASN1/PEM.cpp
     Authentication/HMAC.cpp
     BigFraction/BigFraction.cpp
-    BigInt/SignedBigInteger.cpp
     BigInt/UnsignedBigInteger.cpp
     Certificate/Certificate.cpp
     Cipher/AES.cpp
@@ -32,3 +33,7 @@ target_link_libraries(LibCrypto PRIVATE PkgConfig::libtommath)
 
 find_package(OpenSSL REQUIRED)
 target_link_libraries(LibCrypto PUBLIC OpenSSL::Crypto)
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(LibCrypto PROPERTIES UNITY_BUILD ON)
+endif()
