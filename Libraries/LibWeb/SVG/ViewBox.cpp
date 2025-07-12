@@ -41,9 +41,13 @@ Optional<ViewBox> try_parse_view_box(StringView string)
             view_box.min_y = maybe_number.value();
             break;
         case State::Width:
+            if (*maybe_number < 0)
+                return {};
             view_box.width = maybe_number.value();
             break;
         case State::Height:
+            if (*maybe_number < 0)
+                return {};
             view_box.height = maybe_number.value();
             break;
         default:
