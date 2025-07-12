@@ -5,16 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16View.h>
-#include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/Utf16String.h>
 #include <LibWeb/Bindings/SVGTextContentElementPrototype.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/SVGTextBox.h>
-#include <LibWeb/SVG/AttributeNames.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeParser.h>
-#include <LibWeb/SVG/SVGGeometryElement.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
 
 namespace Web::SVG {
@@ -54,8 +48,8 @@ ByteString SVGTextContentElement::text_contents() const
 // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextContentElement__getNumberOfChars
 WebIDL::ExceptionOr<WebIDL::Long> SVGTextContentElement::get_number_of_chars() const
 {
-    auto chars = TRY_OR_THROW_OOM(vm(), utf8_to_utf16(text_contents())).data;
-    return static_cast<WebIDL::Long>(chars.size());
+    auto length_in_code_units = AK::utf16_code_unit_length_from_utf8(text_contents());
+    return static_cast<WebIDL::Long>(length_in_code_units);
 }
 
 GC::Ref<Geometry::DOMPoint> SVGTextContentElement::get_start_position_of_char(WebIDL::UnsignedLong charnum)

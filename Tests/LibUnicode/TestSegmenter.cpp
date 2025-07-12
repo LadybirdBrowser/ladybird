@@ -9,6 +9,7 @@
 #include <AK/Array.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Segmenter.h>
@@ -155,21 +156,21 @@ TEST_CASE(out_of_bounds)
         EXPECT(!result.has_value());
     }
     {
-        auto text = MUST(AK::utf8_to_utf16("foo"sv));
+        auto text = u"foo"_utf16;
 
         auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
-        segmenter->set_segmented_text(Utf16View { text });
+        segmenter->set_segmented_text(text);
 
-        auto result = segmenter->previous_boundary(text.data.size() + 1);
+        auto result = segmenter->previous_boundary(text.length_in_code_units() + 1);
         EXPECT(result.has_value());
 
-        result = segmenter->next_boundary(text.data.size() + 1);
+        result = segmenter->next_boundary(text.length_in_code_units() + 1);
         EXPECT(!result.has_value());
 
-        result = segmenter->previous_boundary(text.data.size());
+        result = segmenter->previous_boundary(text.length_in_code_units());
         EXPECT(result.has_value());
 
-        result = segmenter->next_boundary(text.data.size());
+        result = segmenter->next_boundary(text.length_in_code_units());
         EXPECT(!result.has_value());
 
         result = segmenter->next_boundary(0);

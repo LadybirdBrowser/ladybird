@@ -1280,11 +1280,11 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
     VERIFY(position <= string_length);
 
     // 3. Let result be the empty String.
-    Utf16Data result;
+    StringBuilder result(StringBuilder::Mode::UTF16);
 
     // 4. Let templateRemainder be replacementTemplate.
     auto replace_template_string = TRY(replacement_template.to_utf16_string(vm));
-    auto template_remainder = replace_template_string.view();
+    Utf16View template_remainder { replace_template_string };
 
     // 5. Repeat, while templateRemainder is not the empty String,
     while (!template_remainder.is_empty()) {
@@ -1387,7 +1387,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
                 else {
                     // a. Let refReplacement be capture.
                     capture_string = TRY(capture.to_utf16_string(vm));
-                    ref_replacement = capture_string->view();
+                    ref_replacement = *capture_string;
                 }
             }
             // ix. Else,
@@ -1434,7 +1434,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
                 else {
                     // a. Let refReplacement be ? ToString(capture).
                     capture_string = TRY(capture.to_utf16_string(vm));
-                    ref_replacement = capture_string->view();
+                    ref_replacement = *capture_string;
                 }
             }
         }
@@ -1451,7 +1451,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
         auto ref_length = ref.length_in_code_units();
 
         // k. Set result to the string-concatenation of result and refReplacement.
-        result.append(ref_replacement.span().data(), ref_replacement.length_in_code_units());
+        result.append(ref_replacement);
 
         // j. Set templateRemainder to the substring of templateRemainder from refLength.
         // NOTE: We do this step last because refReplacement may point to templateRemainder.
@@ -1459,7 +1459,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
     }
 
     // 6. Return result.
-    return MUST(Utf16View { result }.to_utf8());
+    return MUST(result.utf16_string_view().to_utf8());
 }
 
 void DisposeCapability::visit_edges(GC::Cell::Visitor& visitor) const

@@ -9,6 +9,7 @@
 #include <AK/FlyString.h>
 #include <AK/StringBuilder.h>
 #include <AK/UnicodeUtils.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -23,18 +24,80 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(PrimitiveString);
 GC_DEFINE_ALLOCATOR(RopeString);
 
-RopeString::RopeString(GC::Ref<PrimitiveString> lhs, GC::Ref<PrimitiveString> rhs)
-    : PrimitiveString(RopeTag::Rope)
-    , m_lhs(lhs)
-    , m_rhs(rhs)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String string)
 {
+    if (string.is_empty())
+        return vm.empty_string();
+
+    if (string.length_in_code_units() == 1) {
+        if (auto code_unit = string.code_unit_at(0); is_ascii(code_unit))
+            return vm.single_ascii_character_string(static_cast<u8>(code_unit));
+    }
+
+    auto& string_cache = vm.utf16_string_cache();
+    if (auto it = string_cache.find(string); it != string_cache.end())
+        return *it->value;
+
+    auto new_string = vm.heap().allocate<PrimitiveString>(string);
+    string_cache.set(move(string), new_string);
+    return *new_string;
 }
 
-RopeString::~RopeString() = default;
-
-PrimitiveString::PrimitiveString(String string)
-    : m_utf8_string(move(string))
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16View const& string)
 {
+    return create(vm, Utf16String::from_utf16(string));
+}
+
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16FlyString const& string)
+{
+    return create(vm, string.to_utf16_string());
+}
+
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String string)
+{
+    if (string.is_empty())
+        return vm.empty_string();
+
+    if (auto bytes = string.bytes_as_string_view(); bytes.length() == 1) {
+        if (auto ch = static_cast<u8>(bytes[0]); is_ascii(ch))
+            return vm.single_ascii_character_string(ch);
+    }
+
+    auto& string_cache = vm.string_cache();
+    if (auto it = string_cache.find(string); it != string_cache.end())
+        return *it->value;
+
+    auto new_string = vm.heap().allocate<PrimitiveString>(string);
+    string_cache.set(move(string), new_string);
+    return *new_string;
+}
+
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, StringView string)
+{
+    return create(vm, String::from_utf8(string).release_value());
+}
+
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, FlyString const& string)
+{
+    return create(vm, string.to_string());
+}
+
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, PrimitiveString& rhs)
+{
+    // We're here to concatenate two strings into a new rope string. However, if any of them are empty, no rope is required.
+    bool lhs_empty = lhs.is_empty();
+    bool rhs_empty = rhs.is_empty();
+
+    if (lhs_empty && rhs_empty)
+        return vm.empty_string();
+
+    if (lhs_empty)
+        return rhs;
+
+    if (rhs_empty)
+        return lhs;
+
+    return vm.heap().allocate<RopeString>(lhs, rhs);
 }
 
 PrimitiveString::PrimitiveString(Utf16String string)
@@ -42,19 +105,17 @@ PrimitiveString::PrimitiveString(Utf16String string)
 {
 }
 
-PrimitiveString::~PrimitiveString()
+PrimitiveString::PrimitiveString(String string)
+    : m_utf8_string(move(string))
 {
-    if (has_utf8_string())
-        vm().string_cache().remove(*m_utf8_string);
-    if (has_utf16_string())
-        vm().utf16_string_cache().remove(*m_utf16_string);
 }
 
-void RopeString::visit_edges(Cell::Visitor& visitor)
+PrimitiveString::~PrimitiveString()
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_lhs);
-    visitor.visit(m_rhs);
+    if (has_utf16_string())
+        vm().utf16_string_cache().remove(*m_utf16_string);
+    if (has_utf8_string())
+        vm().string_cache().remove(*m_utf8_string);
 }
 
 bool PrimitiveString::is_empty() const
@@ -95,7 +156,7 @@ Utf16String PrimitiveString::utf16_string() const
 
     if (!has_utf16_string()) {
         VERIFY(has_utf8_string());
-        m_utf16_string = Utf16String::create(m_utf8_string->bytes_as_string_view());
+        m_utf16_string = Utf16String::from_utf8(*m_utf8_string);
     }
 
     return *m_utf16_string;
@@ -104,7 +165,7 @@ Utf16String PrimitiveString::utf16_string() const
 Utf16View PrimitiveString::utf16_string_view() const
 {
     (void)utf16_string();
-    return m_utf16_string->view();
+    return *m_utf16_string;
 }
 
 size_t PrimitiveString::length_in_utf16_code_units() const
@@ -119,7 +180,7 @@ bool PrimitiveString::operator==(PrimitiveString const& other) const
     if (m_utf8_string.has_value() && other.m_utf8_string.has_value())
         return m_utf8_string->bytes_as_string_view() == other.m_utf8_string->bytes_as_string_view();
     if (m_utf16_string.has_value() && other.m_utf16_string.has_value())
-        return m_utf16_string->string() == other.m_utf16_string->string();
+        return *m_utf16_string == *other.m_utf16_string;
     return utf8_string_view() == other.utf8_string_view();
 }
 
@@ -127,89 +188,22 @@ ThrowCompletionOr<Optional<Value>> PrimitiveString::get(VM& vm, PropertyKey cons
 {
     if (property_key.is_symbol())
         return Optional<Value> {};
+
     if (property_key.is_string()) {
         if (property_key.as_string() == vm.names.length.as_string()) {
             return Value(static_cast<double>(length_in_utf16_code_units()));
         }
     }
+
     auto index = canonical_numeric_index_string(property_key, CanonicalIndexMode::IgnoreNumericRoundtrip);
     if (!index.is_index())
         return Optional<Value> {};
-    auto str = utf16_string_view();
-    auto length = str.length_in_code_units();
-    if (length <= index.as_index())
+
+    auto string = utf16_string_view();
+    if (string.length_in_code_units() <= index.as_index())
         return Optional<Value> {};
-    return create(vm, Utf16String::create(str.substring_view(index.as_index(), 1)));
-}
 
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String string)
-{
-    if (string.is_empty())
-        return vm.empty_string();
-
-    if (string.length_in_code_units() == 1) {
-        u16 code_unit = string.code_unit_at(0);
-        if (is_ascii(code_unit))
-            return vm.single_ascii_character_string(static_cast<u8>(code_unit));
-    }
-
-    auto& string_cache = vm.utf16_string_cache();
-    if (auto it = string_cache.find(string); it != string_cache.end())
-        return *it->value;
-
-    auto new_string = vm.heap().allocate<PrimitiveString>(string);
-    string_cache.set(move(string), new_string);
-    return *new_string;
-}
-
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String string)
-{
-    if (string.is_empty())
-        return vm.empty_string();
-
-    if (auto bytes = string.bytes_as_string_view(); bytes.length() == 1) {
-        auto ch = static_cast<u8>(bytes[0]);
-        if (is_ascii(ch))
-            return vm.single_ascii_character_string(ch);
-    }
-
-    auto& string_cache = vm.string_cache();
-    if (auto it = string_cache.find(string); it != string_cache.end())
-        return *it->value;
-
-    auto new_string = vm.heap().allocate<PrimitiveString>(string);
-    string_cache.set(move(string), new_string);
-    return *new_string;
-}
-
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, FlyString const& string)
-{
-    return create(vm, string.to_string());
-}
-
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, StringView string)
-{
-    return create(vm, String::from_utf8(string).release_value());
-}
-
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, PrimitiveString& rhs)
-{
-    // We're here to concatenate two strings into a new rope string.
-    // However, if any of them are empty, no rope is required.
-
-    bool lhs_empty = lhs.is_empty();
-    bool rhs_empty = rhs.is_empty();
-
-    if (lhs_empty && rhs_empty)
-        return vm.empty_string();
-
-    if (lhs_empty)
-        return rhs;
-
-    if (rhs_empty)
-        return lhs;
-
-    return vm.heap().allocate<RopeString>(lhs, rhs);
+    return create(vm, string.substring_view(index.as_index(), 1));
 }
 
 void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) const
@@ -218,7 +212,7 @@ void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) cons
         return;
 
     auto const& rope_string = static_cast<RopeString const&>(*this);
-    return rope_string.resolve(preference);
+    rope_string.resolve(preference);
 }
 
 void RopeString::resolve(EncodingPreference preference) const
@@ -251,12 +245,16 @@ void RopeString::resolve(EncodingPreference preference) const
     if (preference == EncodingPreference::UTF16) {
         // The caller wants a UTF-16 string, so we can simply concatenate all the pieces
         // into a UTF-16 code unit buffer and create a Utf16String from it.
+        StringBuilder builder(StringBuilder::Mode::UTF16);
 
-        Utf16Data code_units;
-        for (auto const* current : pieces)
-            code_units.extend(current->utf16_string().string());
+        for (auto const* current : pieces) {
+            if (current->has_utf8_string())
+                builder.append(current->utf8_string_view());
+            else
+                builder.append(current->utf16_string_view());
+        }
 
-        m_utf16_string = Utf16String::create(move(code_units));
+        m_utf16_string = builder.to_utf16_string_without_validation();
         m_is_rope = false;
         m_lhs = nullptr;
         m_rhs = nullptr;
@@ -329,6 +327,22 @@ void RopeString::resolve(EncodingPreference preference) const
     m_is_rope = false;
     m_lhs = nullptr;
     m_rhs = nullptr;
+}
+
+RopeString::RopeString(GC::Ref<PrimitiveString> lhs, GC::Ref<PrimitiveString> rhs)
+    : PrimitiveString(RopeTag::Rope)
+    , m_lhs(lhs)
+    , m_rhs(rhs)
+{
+}
+
+RopeString::~RopeString() = default;
+
+void RopeString::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_lhs);
+    visitor.visit(m_rhs);
 }
 
 }

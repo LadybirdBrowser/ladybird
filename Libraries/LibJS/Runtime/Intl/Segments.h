@@ -24,7 +24,7 @@ public:
 
     Unicode::Segmenter& segments_segmenter() const { return *m_segments_segmenter; }
 
-    Utf16View segments_string() const { return m_segments_string.view(); }
+    Utf16String const& segments_string() const { return m_segments_string; }
 
 private:
     Segments(Realm&, Unicode::Segmenter const&, Utf16String);

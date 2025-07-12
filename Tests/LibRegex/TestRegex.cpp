@@ -823,7 +823,7 @@ TEST_CASE(ECMA262_unicode_match)
     for (auto& test : tests) {
         Regex<ECMA262> re(test.pattern, (ECMAScriptFlags)regex::AllFlags::Global | test.options);
 
-        auto subject = MUST(AK::utf8_to_utf16(test.subject));
+        auto subject = Utf16String::from_utf8(test.subject);
         Utf16View view { subject };
 
         if constexpr (REGEX_DEBUG) {
@@ -956,7 +956,7 @@ TEST_CASE(ECMA262_property_match)
     for (auto& test : tests) {
         Regex<ECMA262> re(test.pattern, (ECMAScriptFlags)regex::AllFlags::Global | regex::ECMAScriptFlags::BrowserExtended | test.options);
 
-        auto subject = MUST(AK::utf8_to_utf16(test.subject));
+        auto subject = Utf16String::from_utf8(test.subject);
         Utf16View view { subject };
 
         if constexpr (REGEX_DEBUG) {
