@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Scoping: ::slotted pseudo parsing</title>
+<link rel="author" title="Rune Lillesveen" href="mailto:rune@opera.com">
+<link rel="help" href="https://drafts.csswg.org/css-scoping/#slotted-pseudo">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<style id="styleElm">
+</style>
+<script>
+  test_invalid_selector("::slotted");
+  test_invalid_selector("::slotted()");
+  test_invalid_selector("::slotted(*).class");
+  test_invalid_selector("::slotted(*)#id {}");
+  test_invalid_selector("::slotted(*)[attr]");
+  test_invalid_selector("::slotted(*):host");
+  test_invalid_selector("::slotted(*):host(div)");
+  test_invalid_selector("::slotted(*):hover");
+  test_invalid_selector("::slotted(*):read-only");
+  test_invalid_selector("::slotted(*)::slotted(*)");
+  test_invalid_selector("::slotted(*)::before::slotted(*)");
+  test_invalid_selector("::slotted(*) span");
+
+  test_valid_selector("::slotted(*)");
+  test_valid_selector("::slotted(div)");
+  test_valid_selector("::slotted([attr]:hover)");
+  test_valid_selector("::slotted(:not(.a))");
+
+  test_valid_forgiving_selector("::slotted(*):is()");
+  test_valid_forgiving_selector("::slotted(*):is(:hover)");
+  test_valid_forgiving_selector("::slotted(*):is(#id)");
+
+  test_valid_forgiving_selector("::slotted(*):where()");
+  test_valid_forgiving_selector("::slotted(*):where(:hover)");
+  test_valid_forgiving_selector("::slotted(*):where(#id)");
+  test_valid_forgiving_selector("::slotted(*):where(::before)");
+
+  // Allow tree-abiding pseudo elements after ::slotted
+  test_valid_selector("::slotted(*)::before");
+  test_valid_selector("::slotted(*)::after");
+  test_valid_selector("::slotted(*)::details-content");
+  test_valid_selector("::slotted(*)::file-selector-button");
+  test_valid_selector("::slotted(*)::placeholder");
+  test_valid_selector("::slotted(*)::marker");
+
+  // Other pseudo elements not valid after ::slotted
+  test_invalid_selector("::slotted(*)::first-line");
+  test_invalid_selector("::slotted(*)::first-letter");
+  test_invalid_selector("::slotted(*)::selection");
+</script>

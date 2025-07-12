@@ -466,6 +466,20 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                         return ParseError::SyntaxError;
                     }
                     break;
+                case PseudoElementMetadata::ParameterType::CompoundSelector: {
+                    auto compound_selector_or_error = parse_compound_selector(function_tokens);
+                    if (compound_selector_or_error.is_error() || !compound_selector_or_error.value().has_value()) {
+                        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse ::{}() parameter as a compound selector", pseudo_name);
+                        return ParseError::SyntaxError;
+                    }
+
+                    auto compound_selector = compound_selector_or_error.release_value().release_value();
+                    compound_selector.combinator = Selector::Combinator::None;
+
+                    Vector compound_selectors { move(compound_selector) };
+                    value = Selector::create(move(compound_selectors));
+                    break;
+                }
                 case PseudoElementMetadata::ParameterType::PTNameSelector: {
                     // <pt-name-selector> = '*' | <custom-ident>
                     // https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector
