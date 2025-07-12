@@ -35,6 +35,9 @@ public:
     virtual bool is_svg_container() const override { return true; }
 
     virtual Optional<ViewBox> view_box() const override;
+
+    void set_active_view_element(GC::Ptr<SVGViewElement> view_element) { m_active_view_element = view_element; }
+
     virtual Optional<PreserveAspectRatio> preserve_aspect_ratio() const override { return m_preserve_aspect_ratio; }
 
     void set_fallback_view_box_for_svg_as_image(Optional<ViewBox>);
@@ -97,7 +100,10 @@ private:
 
     virtual bool is_svg_svg_element() const override { return true; }
 
+    GC::Ptr<SVGViewElement> active_view_element() const { return m_active_view_element; }
+
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void children_changed(ChildrenChangedMetadata const*) override;
 
     void update_fallback_view_box_for_svg_as_image();
 
@@ -107,6 +113,8 @@ private:
     Optional<ViewBox> m_fallback_view_box_for_svg_as_image;
 
     GC::Ptr<SVGAnimatedRect> m_view_box_for_bindings;
+
+    GC::Ptr<SVGViewElement> m_active_view_element;
 };
 
 }

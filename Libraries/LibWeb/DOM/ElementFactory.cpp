@@ -117,6 +117,7 @@
 #include <LibWeb/SVG/SVGTextPathElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
+#include <LibWeb/SVG/SVGViewElement.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
@@ -512,6 +513,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
         return realm.create<SVG::SVGUseElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::script)
         return realm.create<SVG::SVGScriptElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::view)
+        return realm.create<SVG::SVGViewElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::a)
         return realm.create<SVG::SVGAElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::image)
