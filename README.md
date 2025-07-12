@@ -5,7 +5,7 @@
 > [!IMPORTANT]
 > Ladybird is in a pre-alpha state, and only suitable for use by developers
 
-## Features
+## 🚩 Features
 
 We aim to build a complete and usable browser for the modern web.
 
@@ -28,17 +28,17 @@ At the moment, many core library support components are inherited from SerenityO
 - LibCore: Event loop, OS abstraction layer
 - LibIPC: Inter-process communication
 
-## How do I build and run this?
+## 🛠️ How do I build and run this?
 
 See the [build instructions](Documentation/BuildInstructionsLadybird.md) for information on how to get Ladybird running on your system.
 
 Ladybird runs on Linux, macOS, Windows (with WSL2), and many other \*Nixes.
 
-## How do I read the documentation?
+## 📖 How do I read the documentation?
 
 Code-related documentation can be found in the [Documentation](Documentation/) folder.
 
-## Get in touch and participate!
+## 🤝 Get in touch and participate!
 
 Join our [Discord server](https://discord.gg/nvfjVJ4Svh) to participate in development discussions.
 
@@ -48,6 +48,6 @@ Before opening an issue, please see the [issue policy](CONTRIBUTING.md#issue-pol
 
 The full contribution guidelines can be read in the [`CONTRIBUTING.md`](CONTRIBUTING.md) file.
 
-## License
+## ⚖️ License
 
 Ladybird is licensed under a 2-clause BSD license.
