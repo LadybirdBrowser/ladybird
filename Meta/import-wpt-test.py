@@ -16,7 +16,6 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 from urllib.request import urlopen
 
-wpt_base_url = "https://wpt.live/"
 download_exclude_list = {
     # This relies on a dynamic path that cannot be rewitten by the importer.
     "/resources/idlharness.js",
@@ -131,7 +130,9 @@ class TestTypeIdentifier(HTMLParser):
                 self.ref_test_link_found = True
 
 
-def map_to_path(sources: list[ResourceAndType], is_resource=True, resource_path=None) -> list[PathMapping]:
+def map_to_path(
+    sources: list[ResourceAndType], wpt_base_url: str, is_resource=True, resource_path=None
+) -> list[PathMapping]:
     filepaths: list[PathMapping] = []
 
     for source in sources:
@@ -211,11 +212,12 @@ def remove_repeated_url_slashes(url):
     return "/" + "/".join(segment for segment in parsed.path.split("/") if segment)
 
 
-def download_files(filepaths, skip_existing):
+def download_files(filepaths, wpt_base_url, skip_existing):
     downloaded_files = []
 
     for file in filepaths:
         normalized_path = remove_repeated_url_slashes(file.source)
+        print(f"Source {normalized_path}, Destination {file.destination}")
         if normalized_path in visited_paths:
             continue
         if normalized_path in download_exclude_list:
@@ -223,7 +225,7 @@ def download_files(filepaths, skip_existing):
             visited_paths.add(normalized_path)
             continue
 
-        source = urljoin(file.source, "/".join(file.source.split("/")[3:]))
+        source = urljoin(wpt_base_url, normalized_path)
         destination = Path(os.path.normpath(file.destination))
 
         if skip_existing and destination.exists():
@@ -271,11 +273,14 @@ def create_expectation_files(files, skip_existing):
 def main():
     parser = argparse.ArgumentParser(description="Import a WPT test into LibWeb")
     parser.add_argument("--force", action="store_true", help="Force download of files even if they already exist")
+    parser.add_argument("--wpt-base-url", type=urlparse, default="https://wpt.live/")
     parser.add_argument("url", type=str, help="The URL of the WPT test to import")
     args = parser.parse_args()
 
     skip_existing = not args.force
     url_to_import = args.url
+    wpt_base_url = args.wpt_base_url.geturl()
+    print(f"Importing WPT test from: {wpt_base_url}")
     resource_path = "/".join(Path(url_to_import).parts[2::])
 
     with urlopen(url_to_import) as response:
@@ -293,7 +298,7 @@ def main():
     print(f"Identified {url_to_import} as type {test_type}, ref {raw_reference_path}")
 
     main_file = [ResourceAndType(resource_path, ResourceType.INPUT)]
-    main_paths = map_to_path(main_file, False)
+    main_paths = map_to_path(main_file, wpt_base_url, False)
 
     if test_type == TestType.REF and raw_reference_path is None:
         raise RuntimeError("Failed to file reference path in ref test")
@@ -316,7 +321,7 @@ def main():
                 )
             )
 
-    files_to_modify = download_files(main_paths, skip_existing)
+    files_to_modify = download_files(main_paths, wpt_base_url, skip_existing)
     create_expectation_files(main_paths, skip_existing)
 
     input_parser = LinkedResourceFinder()
@@ -333,8 +338,8 @@ def main():
     )
 
     modify_sources(files_to_modify, additional_resources)
-    script_paths = map_to_path(additional_resources, True, resource_path)
-    download_files(script_paths, skip_existing)
+    script_paths = map_to_path(additional_resources, wpt_base_url, True, resource_path)
+    download_files(script_paths, wpt_base_url, skip_existing)
 
 
 if __name__ == "__main__":
