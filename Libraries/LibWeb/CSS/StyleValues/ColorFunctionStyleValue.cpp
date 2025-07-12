@@ -82,13 +82,22 @@ bool ColorFunctionStyleValue::equals(CSSStyleValue const& other) const
     return m_properties == other_lab_like.m_properties;
 }
 
-ColorFunctionStyleValue::Resolved ColorFunctionStyleValue::resolve_properties(CalculationResolutionContext const& resolution_context) const
+Optional<ColorFunctionStyleValue::Resolved> ColorFunctionStyleValue::resolve_properties(CalculationResolutionContext const& resolution_context) const
 {
-    float const c1 = resolve_with_reference_value(m_properties.channels[0], 1, resolution_context).value_or(0);
-    float const c2 = resolve_with_reference_value(m_properties.channels[1], 1, resolution_context).value_or(0);
-    float const c3 = resolve_with_reference_value(m_properties.channels[2], 1, resolution_context).value_or(0);
-    float const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
-    return { .channels = { c1, c2, c3 }, .alpha = alpha_val };
+    auto c1 = resolve_with_reference_value(m_properties.channels[0], 1, resolution_context);
+    auto c2 = resolve_with_reference_value(m_properties.channels[1], 1, resolution_context);
+    auto c3 = resolve_with_reference_value(m_properties.channels[2], 1, resolution_context);
+    auto alpha = resolve_alpha(m_properties.alpha, resolution_context);
+
+    if (!c1.has_value() || !c2.has_value() || !c3.has_value() || !alpha.has_value())
+        return {};
+
+    float const c1_value = c1.value();
+    float const c2_value = c2.value();
+    float const c3_value = c3.value();
+    float const alpha_value = alpha.value();
+
+    return ColorFunctionStyleValue::Resolved { .channels = { c1_value, c2_value, c3_value }, .alpha = alpha_value };
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-color-function-values
@@ -144,9 +153,14 @@ String ColorFunctionStyleValue::to_string(SerializationMode mode) const
         convert_percentage(m_properties.channels[2])->to_string(mode)));
 }
 
-Color ColorFunctionStyleValue::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> ColorFunctionStyleValue::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto [channels, alpha_val] = resolve_properties(resolution_context);
+    auto properties = resolve_properties(resolution_context);
+
+    if (!properties.has_value())
+        return {};
+
+    auto [channels, alpha_val] = properties.value();
     auto c1 = channels[0];
     auto c2 = channels[1];
     auto c3 = channels[2];
