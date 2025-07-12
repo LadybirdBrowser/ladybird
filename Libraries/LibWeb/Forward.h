@@ -192,6 +192,7 @@ class BasicShapeStyleValue;
 class BorderImageSliceStyleValue;
 class BorderRadiusStyleValue;
 class CalculatedStyleValue;
+class CascadedProperties;
 class Clip;
 class ColorMixStyleValue;
 class ColorSchemeStyleValue;
