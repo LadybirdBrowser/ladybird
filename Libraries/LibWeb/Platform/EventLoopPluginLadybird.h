@@ -10,10 +10,10 @@
 
 namespace Web::Platform {
 
-class EventLoopPluginSerenity final : public Web::Platform::EventLoopPlugin {
+class EventLoopPluginLadybird final : public Web::Platform::EventLoopPlugin {
 public:
-    EventLoopPluginSerenity();
-    virtual ~EventLoopPluginSerenity() override;
+    EventLoopPluginLadybird();
+    virtual ~EventLoopPluginLadybird() override;
 
     virtual void spin_until(GC::Root<GC::Function<bool()>> goal_condition) override;
     virtual void deferred_invoke(GC::Root<GC::Function<void()>>) override;

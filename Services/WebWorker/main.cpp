@@ -15,7 +15,7 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/Platform/EventLoopPluginSerenity.h>
+#include <LibWeb/Platform/EventLoopPluginLadybird.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
@@ -69,7 +69,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     TRY(initialize_image_decoder(image_decoder_socket));
 
-    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
+    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginLadybird);
 
     Web::Platform::FontPlugin::install(*new WebView::FontPlugin(false));
 
