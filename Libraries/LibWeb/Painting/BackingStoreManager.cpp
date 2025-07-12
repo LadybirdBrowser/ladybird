@@ -143,6 +143,9 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 
 void BackingStoreManager::resize_backing_stores_if_needed(WindowResizingInProgress window_resize_in_progress)
 {
+    if (!m_navigable->is_top_level_traversable() || m_navigable->is_svg_page())
+        return;
+
     auto viewport_size = m_navigable->page().css_to_device_rect(m_navigable->viewport_rect()).size();
     if (viewport_size.is_empty())
         return;
