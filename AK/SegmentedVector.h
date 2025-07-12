@@ -24,9 +24,12 @@ public:
     bool is_empty() const { return m_size == 0; }
 
     using Iterator = SimpleIterator<SegmentedVector, VisibleType>;
+    using ConstIterator = SimpleIterator<SegmentedVector const, VisibleType const>;
 
     Iterator begin() { return Iterator::begin(*this); }
+    ConstIterator begin() const { return ConstIterator::begin(*this); }
     Iterator end() { return Iterator::end(*this); }
+    ConstIterator end() const { return ConstIterator::end(*this); }
 
     ALWAYS_INLINE VisibleType const& at(size_t i) const
     {
