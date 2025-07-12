@@ -71,6 +71,7 @@ enum class InvalidateLayoutTreeReason {
     X(DocumentElementsFromPoint)           \
     X(DocumentFindMatchingText)            \
     X(DocumentSetDesignMode)               \
+    X(DumpDisplayList)                     \
     X(ElementCheckVisibility)              \
     X(ElementClientHeight)                 \
     X(ElementClientLeft)                   \
@@ -902,6 +903,8 @@ public:
 
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
+
+    String dump_display_list();
 
 protected:
     virtual void initialize(JS::Realm&) override;

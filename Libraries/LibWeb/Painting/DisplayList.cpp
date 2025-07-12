@@ -13,6 +13,16 @@ void DisplayList::append(Command&& command, Optional<i32> scroll_frame_id)
     m_commands.append({ scroll_frame_id, move(command) });
 }
 
+String DisplayList::dump() const
+{
+    StringBuilder builder;
+    for (auto const& command : m_commands) {
+        command.command.visit([&builder](auto const& cmd) { cmd.dump(builder); });
+        builder.appendff("\n");
+    }
+    return builder.to_string_without_validation();
+}
+
 static Optional<Gfx::IntRect> command_bounding_rectangle(Command const& command)
 {
     return command.visit(

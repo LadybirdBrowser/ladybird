@@ -257,4 +257,9 @@ bool Internals::headless()
     return page().client().is_headless();
 }
 
+String Internals::dump_display_list()
+{
+    return window().associated_document().dump_display_list();
+}
+
 }

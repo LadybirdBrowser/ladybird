@@ -640,6 +640,9 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Stacking Context Tree"
                                                 action:@selector(dumpStackingContextTree:)
                                          keyEquivalent:@""]];
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Display List"
+                                                action:@selector(dumpDisplayList:)
+                                         keyEquivalent:@""]];
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Style Sheets"
                                                 action:@selector(dumpStyleSheets:)
                                          keyEquivalent:@""]];

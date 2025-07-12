@@ -395,6 +395,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         debug_request("dump-paint-tree");
     });
 
+    auto* dump_display_list = new QAction("Dump Display List", this);
+    dump_display_list->setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"sv));
+    debug_menu->addAction(dump_display_list);
+    QObject::connect(dump_display_list, &QAction::triggered, this, [this] {
+        debug_request("dump-display-list");
+    });
+
     auto* dump_stacking_context_tree_action = new QAction("Dump S&tacking Context Tree", this);
     dump_stacking_context_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layers.png"sv));
     debug_menu->addAction(dump_stacking_context_tree_action);

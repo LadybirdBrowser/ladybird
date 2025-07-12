@@ -346,6 +346,11 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self debugRequest:"dump-dom-tree" argument:""];
 }
 
+- (void)dumpDisplayList:(id)sender
+{
+    [self debugRequest:"dump-display-list" argument:""];
+}
+
 - (void)dumpLayoutTree:(id)sender
 {
     [self debugRequest:"dump-layout-tree" argument:""];
