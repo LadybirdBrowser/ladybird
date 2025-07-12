@@ -144,14 +144,35 @@ public:
                 auto separator_value = AK::parse_hexadecimal_number<u32>(separator_part);
                 if (!separator_value.has_value() || separator_value.value() != 0xffff)
                     return false;
-                // TODO: this allows multiple compression tags "::" in the prefix, which is technically not legal
-                for (size_t i = 0; i < parts.size() - 2; i++) {
+                bool found_compressed = false;
+                for (size_t i = 0; i < parts.size() - 2;) {
                     auto part = parts[i].trim_whitespace();
-                    if (part.is_empty())
+                    if (part.is_empty()) {
+                        if (found_compressed)
+                            return false;
+                        bool is_leading = (i == 0);
+                        int empty_parts = 1;
+
+                        for (size_t j = i + 1; j < parts.size() - 2; j++) {
+                            if (!parts[j].trim_whitespace().is_empty())
+                                break;
+                            empty_parts++;
+                        }
+
+                        if (is_leading) {
+                            if (empty_parts != 2)
+                                return false;
+                        } else if (empty_parts != 1) {
+                            return false;
+                        }
+                        found_compressed = true;
+                        i += empty_parts;
                         continue;
+                    }
                     auto value = AK::parse_hexadecimal_number<u32>(part);
                     if (!value.has_value() || value.value() != 0)
                         return false;
+                    i++;
                 }
                 return true;
             };
