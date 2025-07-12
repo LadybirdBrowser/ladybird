@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-934 Pass
-847 Fail
+940 Pass
+841 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -346,10 +346,10 @@ Pass	SVGAnimatedString interface: existence and properties of interface prototyp
 Pass	SVGAnimatedString interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGAnimatedString interface: attribute baseVal
 Pass	SVGAnimatedString interface: attribute animVal
-Fail	SVGAnimatedString must be primary interface of objects.a.target
-Fail	Stringification of objects.a.target
-Fail	SVGAnimatedString interface: objects.a.target must inherit property "baseVal" with the proper type
-Fail	SVGAnimatedString interface: objects.a.target must inherit property "animVal" with the proper type
+Pass	SVGAnimatedString must be primary interface of objects.a.target
+Pass	Stringification of objects.a.target
+Pass	SVGAnimatedString interface: objects.a.target must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedString interface: objects.a.target must inherit property "animVal" with the proper type
 Pass	SVGAnimatedRect interface: existence and properties of interface object
 Pass	SVGAnimatedRect interface object length
 Pass	SVGAnimatedRect interface object name
@@ -1552,7 +1552,7 @@ Pass	SVGAElement interface object name
 Pass	SVGAElement interface: existence and properties of interface prototype object
 Pass	SVGAElement interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGAElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAElement interface: attribute target
+Pass	SVGAElement interface: attribute target
 Pass	SVGAElement interface: attribute download
 Pass	SVGAElement interface: attribute ping
 Pass	SVGAElement interface: attribute rel
@@ -1574,7 +1574,7 @@ Fail	SVGAElement interface: attribute hash
 Pass	SVGAElement interface: attribute href
 Pass	SVGAElement must be primary interface of objects.a
 Pass	Stringification of objects.a
-Fail	SVGAElement interface: objects.a must inherit property "target" with the proper type
+Pass	SVGAElement interface: objects.a must inherit property "target" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "download" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "ping" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "rel" with the proper type

@@ -6,7 +6,7 @@
 [Exposed=Window]
 interface SVGAElement : SVGGraphicsElement {
 
-    [FIXME, SameObject] readonly attribute SVGAnimatedString target;
+    [SameObject] readonly attribute SVGAnimatedString target;
     [Reflect] attribute DOMString download;
     [Reflect] attribute USVString ping;
     [Reflect] attribute DOMString rel;
