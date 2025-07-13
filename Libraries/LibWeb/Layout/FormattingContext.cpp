@@ -1609,6 +1609,8 @@ CSSPixels FormattingContext::calculate_inner_width(Layout::Box const& box, Avail
 CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpace const& available_space, CSS::Size const& height) const
 {
     if (height.is_auto() && box.has_preferred_aspect_ratio()) {
+        if (*box.preferred_aspect_ratio() == 0)
+            return CSSPixels(0);
         return m_state.get(box).content_width() / *box.preferred_aspect_ratio();
     }
 

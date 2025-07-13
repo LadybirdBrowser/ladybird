@@ -2,11 +2,18 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        const element = document.createElement("div");
-        element.style.width = "100px";
-        element.style.aspectRatio = ".0000000000001 / .00000000000001";
-        document.body.appendChild(element);
-        println(`element height: ${element.clientHeight}px`);
-        element.remove();
+        const smallAspectRatios = [
+            ".0000000000001 / .00000000000001",
+            "1/0.00000000000001",
+            "0.00000000000001/1",
+        ];
+        for (const ratio of smallAspectRatios) {
+            const element = document.createElement("div");
+            element.style.width = "100px";
+            element.style.aspectRatio = ratio;
+            document.body.appendChild(element);
+            println(`element height: ${element.clientHeight}px`);
+            element.remove();
+        }
     });
 </script>

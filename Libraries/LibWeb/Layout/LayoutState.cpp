@@ -604,7 +604,7 @@ void LayoutState::UsedValues::set_node(NodeWithStyle& node, UsedValues const* co
             if (m_has_definite_width && m_has_definite_height) {
                 // Both width and height are definite.
             } else if (m_has_definite_width) {
-                m_content_height = clamp_to_max_dimension_value(m_content_width / *aspect_ratio);
+                m_content_height = *aspect_ratio == 0 ? 0 : clamp_to_max_dimension_value(m_content_width / *aspect_ratio);
                 m_has_definite_height = true;
             } else if (m_has_definite_height) {
                 m_content_width = clamp_to_max_dimension_value(m_content_height * *aspect_ratio);
