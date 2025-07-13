@@ -44,6 +44,8 @@ public:
     static constexpr float MIN_SAMPLE_RATE { 8000 };
     static constexpr float MAX_SAMPLE_RATE { 192000 };
 
+    static WebIDL::UnsignedLong render_quantum_size() { return s_render_quantum_size; }
+
     GC::Ref<AudioDestinationNode> destination() const { return *m_destination; }
     float sample_rate() const { return m_sample_rate; }
     double current_time() const { return m_current_time; }
@@ -94,6 +96,9 @@ protected:
     Vector<GC::Ref<WebIDL::Promise>> m_pending_promises;
 
 private:
+    // https://webaudio.github.io/web-audio-api/#render-quantum-size
+    static constexpr WebIDL::UnsignedLong s_render_quantum_size { 128 };
+
     void queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>, GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
     float m_sample_rate { 0 };
