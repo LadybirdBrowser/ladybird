@@ -10,11 +10,11 @@
 
 namespace Web::Painting {
 
-CornerRadius BorderRadiusData::as_corner(PaintContext const& context) const
+CornerRadius BorderRadiusData::as_corner(DevicePixelConverter const& device_pixel_scale) const
 {
     return CornerRadius {
-        context.floored_device_pixels(horizontal_radius).value(),
-        context.floored_device_pixels(vertical_radius).value()
+        device_pixel_scale.floored_device_pixels(horizontal_radius).value(),
+        device_pixel_scale.floored_device_pixels(vertical_radius).value()
     };
 }
 

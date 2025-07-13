@@ -354,7 +354,7 @@ static void paint_separate_cell_borders(PaintableBox const& cell_box, HashMap<Ce
         .left = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.computed_values().border_left(),
     };
     auto cell_rect = cell_coordinates_to_device_rect.get({ cell_box.table_cell_coordinates()->row_index, cell_box.table_cell_coordinates()->column_index }).value();
-    paint_all_borders(context.display_list_recorder(), cell_rect, cell_box.normalized_border_radii_data().as_corners(context), borders_data.to_device_pixels(context));
+    paint_all_borders(context.display_list_recorder(), cell_rect, cell_box.normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
 }
 
 void paint_table_borders(PaintContext& context, PaintableBox const& table_paintable)
@@ -428,10 +428,10 @@ void paint_table_borders(PaintContext& context, PaintableBox const& table_painta
 
     for (auto const& cell_box : cell_boxes) {
         auto const& border_radii_data = cell_box.normalized_border_radii_data();
-        auto top_left = border_radii_data.top_left.as_corner(context);
-        auto top_right = border_radii_data.top_right.as_corner(context);
-        auto bottom_right = border_radii_data.bottom_right.as_corner(context);
-        auto bottom_left = border_radii_data.bottom_left.as_corner(context);
+        auto top_left = border_radii_data.top_left.as_corner(context.device_pixel_converter());
+        auto top_right = border_radii_data.top_right.as_corner(context.device_pixel_converter());
+        auto bottom_right = border_radii_data.bottom_right.as_corner(context.device_pixel_converter());
+        auto bottom_left = border_radii_data.bottom_left.as_corner(context.device_pixel_converter());
         if (!top_left && !top_right && !bottom_left && !bottom_right) {
             continue;
         } else {
@@ -441,7 +441,7 @@ void paint_table_borders(PaintContext& context, PaintableBox const& table_painta
                 .bottom = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.computed_values().border_bottom(),
                 .left = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.computed_values().border_left(),
             };
-            paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(cell_box.absolute_border_box_rect()), cell_box.normalized_border_radii_data().as_corners(context), borders_data.to_device_pixels(context));
+            paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(cell_box.absolute_border_box_rect()), cell_box.normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
         }
     }
 }

@@ -17,10 +17,10 @@ ScopedCornerRadiusClip::ScopedCornerRadiusClip(PaintContext& context, DevicePixe
     if (!do_apply)
         return;
     CornerRadii const corner_radii {
-        .top_left = border_radii.top_left.as_corner(context),
-        .top_right = border_radii.top_right.as_corner(context),
-        .bottom_right = border_radii.bottom_right.as_corner(context),
-        .bottom_left = border_radii.bottom_left.as_corner(context)
+        .top_left = border_radii.top_left.as_corner(context.device_pixel_converter()),
+        .top_right = border_radii.top_right.as_corner(context.device_pixel_converter()),
+        .bottom_right = border_radii.bottom_right.as_corner(context.device_pixel_converter()),
+        .bottom_left = border_radii.bottom_left.as_corner(context.device_pixel_converter())
     };
     m_has_radius = corner_radii.has_any_radius();
     if (!m_has_radius)

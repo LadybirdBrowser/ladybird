@@ -62,7 +62,7 @@ void FieldSetPaintable::paint(PaintContext& context, PaintPhase phase) const
         .left = box_model().border.left == 0 ? CSS::BorderData() : computed_values().border_left(),
     };
 
-    paint_all_borders(display_list_recorder, fieldset_border_rect, normalized_border_radii_data().as_corners(context), borders_data.to_device_pixels(context));
+    paint_all_borders(display_list_recorder, fieldset_border_rect, normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
 
     auto top_border_data = box_model().border.top == 0 ? CSS::BorderData() : computed_values().border_top();
     auto top_border = context.enclosing_device_pixels(top_border_data.width).value();
@@ -92,7 +92,7 @@ void FieldSetPaintable::paint(PaintContext& context, PaintPhase phase) const
 
     display_list_recorder.save();
     display_list_recorder.add_clip_rect(left_segment.to_type<int>());
-    paint_all_borders(display_list_recorder, fieldset_border_rect, normalized_border_radii_data().as_corners(context), top_border_only.to_device_pixels(context));
+    paint_all_borders(display_list_recorder, fieldset_border_rect, normalized_border_radii_data().as_corners(context.device_pixel_converter()), top_border_only.to_device_pixels(context));
     display_list_recorder.restore();
 
     display_list_recorder.save();
@@ -100,7 +100,7 @@ void FieldSetPaintable::paint(PaintContext& context, PaintPhase phase) const
     paint_all_borders(
         display_list_recorder,
         fieldset_border_rect,
-        normalized_border_radii_data().as_corners(context),
+        normalized_border_radii_data().as_corners(context.device_pixel_converter()),
         top_border_only.to_device_pixels(context));
     display_list_recorder.restore();
 }
