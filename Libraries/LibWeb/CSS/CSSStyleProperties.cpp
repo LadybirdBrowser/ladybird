@@ -1410,23 +1410,83 @@ bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRe
 {
     VERIFY(!is_computed());
 
-    // FIXME: Handle logical property groups.
+    // NOTE: The below algorithm is only suggested rather than required by the spec
+    // https://drafts.csswg.org/cssom/#example-a40690cb
+    // 1. If property is a case-sensitive match for a property name of a CSS declaration in declarations, follow these substeps:
+    auto maybe_target_index = m_properties.find_first_index_if([&](auto declaration) { return declaration.property_id == property_id; });
 
-    for (auto& property : m_properties) {
-        if (property.property_id == property_id) {
-            if (property.important == important && *property.value == *value)
+    if (maybe_target_index.has_value()) {
+        // 1. Let target declaration be such CSS declaration.
+        auto target_declaration = m_properties[maybe_target_index.value()];
+
+        // 2. Let needs append be false.
+        bool needs_append = false;
+
+        auto logical_property_group_for_set_property = logical_property_group_for_property(property_id);
+
+        // NOTE: If the property of the declaration being set has no logical property group then it's not possible for
+        //       one of the later declarations to share that logical property group so we can skip checking.
+        if (logical_property_group_for_set_property.has_value()) {
+            auto set_property_is_logical_alias = property_is_logical_alias(property_id);
+
+            // 3. For each declaration in declarations after target declaration:
+            for (size_t i = maybe_target_index.value() + 1; i < m_properties.size(); ++i) {
+                // 1. If declaration’s property name is not in the same logical property group as property, then continue.
+                if (logical_property_group_for_property(m_properties[i].property_id) != logical_property_group_for_set_property)
+                    continue;
+
+                // 2. If declaration’ property name has the same mapping logic as property, then continue.
+                if (property_is_logical_alias(m_properties[i].property_id) == set_property_is_logical_alias)
+                    continue;
+
+                // 3. Let needs append be true.
+                needs_append = true;
+
+                // 4. Break.
+                break;
+            }
+        }
+
+        // 4. If needs append is false, then:
+        if (!needs_append) {
+            // 1. Let needs update be false.
+            bool needs_update = false;
+
+            // 2. If target declaration’s value is not equal to component value list, then let needs update be true.
+            if (*target_declaration.value != *value)
+                needs_update = true;
+
+            // 3. If target declaration’s important flag is not equal to whether important flag is set, then let needs update be true.
+            if (target_declaration.important != important)
+                needs_update = true;
+
+            // 4. If needs update is false, then return false.
+            if (!needs_update)
                 return false;
-            property.value = move(value);
-            property.important = important;
+
+            // 5. Set target declaration’s value to component value list.
+            m_properties[maybe_target_index.value()].value = move(value);
+
+            // 6. If important flag is set, then set target declaration’s important flag, otherwise unset it.
+            m_properties[maybe_target_index.value()].important = important;
+
+            // 7. Return true.
             return true;
         }
+
+        // 5. Otherwise, remove target declaration from declarations.
+        m_properties.remove(maybe_target_index.value());
     }
 
+    // 2. Append a new CSS declaration with property name property, value component value list, and important flag set
+    //    if important flag is set to declarations.
     m_properties.append(StyleProperty {
         .important = important,
         .property_id = property_id,
         .value = move(value),
     });
+
+    // 3. Return true
     return true;
 }
 
