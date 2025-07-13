@@ -38,7 +38,7 @@ public:
     RefPtr<CSS::CSSStyleValue const> get_custom_property(FlyString const& name) const;
 
     bool has_non_empty_counters_set() const;
-    Optional<CSS::CountersSet const&> counters_set() const;
+    Optional<CSS::CountersSet&> counters_set() const;
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
