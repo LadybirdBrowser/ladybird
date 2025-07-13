@@ -171,11 +171,12 @@ void populate_all_property_longhands(JsonObject& properties)
     });
 }
 
-ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject&, Core::File& file)
+ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_property_groups, Core::File& file)
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
     generator.set("property_id_underlying_type", underlying_type_for_enum(properties.size()));
+    generator.set("logical_property_group_underlying_type", underlying_type_for_enum(logical_property_groups.size()));
     generator.append(R"~~~(
 #pragma once
 
@@ -353,6 +354,21 @@ struct LogicalAliasMappingContext {
 };
 bool property_is_logical_alias(PropertyID);
 PropertyID map_logical_alias_to_physical_property(PropertyID logical_property_id, LogicalAliasMappingContext const&);
+
+enum class LogicalPropertyGroup : @logical_property_group_underlying_type@ {
+)~~~");
+
+    logical_property_groups.for_each_member([&](auto& name, auto&) {
+        generator.set("logical_property_group_name:titlecase", title_casify(name));
+        generator.append(R"~~~(
+    @logical_property_group_name:titlecase@,
+)~~~");
+    });
+
+    generator.append(R"~~~(
+};
+
+Optional<LogicalPropertyGroup> logical_property_group_for_property(PropertyID);
 
 } // namespace Web::CSS
 
@@ -1606,6 +1622,47 @@ PropertyID map_logical_alias_to_physical_property(PropertyID property_id, Logica
 )~~~");
 
     generator.append(R"~~~(
+Optional<LogicalPropertyGroup> logical_property_group_for_property(PropertyID property_id)
+{
+    switch(property_id) {
+)~~~");
+
+    HashMap<String, Vector<String>> logical_property_group_members;
+
+    logical_property_groups.for_each_member([&](auto& logical_property_group_name, auto& mapping) {
+        auto& group_members = logical_property_group_members.ensure(logical_property_group_name);
+
+        mapping.as_object().for_each_member([&](auto&, auto& physical_property) {
+            group_members.append(physical_property.as_string());
+        });
+    });
+
+    properties.for_each_member([&](auto& property_name, auto& value) {
+        if (auto maybe_logical_property_group = value.as_object().get_object("logical-alias-for"sv); maybe_logical_property_group.has_value()) {
+            auto group = maybe_logical_property_group.value().get_string("group"sv).value();
+
+            logical_property_group_members.get(group).value().append(property_name);
+        }
+    });
+
+    for (auto const& logical_property_group : logical_property_group_members.keys()) {
+        generator.set("logical_property_group_name:titlecase", title_casify(logical_property_group));
+        for (auto const& property : logical_property_group_members.get(logical_property_group).value()) {
+            generator.set("property_name:titlecase", title_casify(property));
+            generator.append(R"~~~(
+    case PropertyID::@property_name:titlecase@:
+)~~~");
+        }
+        generator.append(R"~~~(
+        return LogicalPropertyGroup::@logical_property_group_name:titlecase@;
+)~~~");
+    }
+
+    generator.append(R"~~~(
+    default:
+        return {};
+    }
+}
 
 } // namespace Web::CSS
 )~~~");
