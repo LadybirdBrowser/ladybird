@@ -53,6 +53,7 @@ ErrorOr<Variant<ByteString, Vector<XML::MarkupDeclaration>>> resolve_xml_resourc
 
 XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupport scripting_support)
     : m_document(document)
+    , m_template_node_stack(document.realm().heap())
     , m_current_node(m_document)
     , m_scripting_support(scripting_support)
 {
@@ -148,6 +149,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
     }
     if (m_current_node->is_html_template_element()) {
         // When an XML parser would append a node to a template element, it must instead append it to the template element's template contents (a DocumentFragment node).
+        m_template_node_stack.append(*m_current_node);
         MUST(static_cast<HTML::HTMLTemplateElement&>(*m_current_node).content()->append_child(node));
     } else {
         MUST(m_current_node->append_child(node));
@@ -229,7 +231,12 @@ void XMLDocumentBuilder::element_end(const XML::Name& name)
         script_element.process_the_script_element();
     };
 
-    m_current_node = m_current_node->parent_node();
+    auto* parent = m_current_node->parent_node();
+    if (parent->is_document_fragment()) {
+        auto template_parent_node = m_template_node_stack.take_last();
+        parent = template_parent_node.ptr();
+    }
+    m_current_node = parent;
 }
 
 void XMLDocumentBuilder::text(StringView data)
@@ -267,6 +274,7 @@ void XMLDocumentBuilder::document_end()
     // NOTE: Noop.
 
     // Set the insertion point to undefined.
+    m_template_node_stack.clear();
     m_current_node = nullptr;
 
     // Update the current document readiness to "interactive".

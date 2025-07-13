@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	XMLHttpRequest: template element parsing
+Pass	XMLHttpRequest: template element parsing 1
+Pass	XMLHttpRequest: template element parsing 2
