@@ -41,6 +41,7 @@ private:
     Optional<FlyString> namespace_for_name(XML::Name const&);
 
     GC::Ref<DOM::Document> m_document;
+    GC::RootVector<GC::Ref<DOM::Node>> m_template_node_stack;
     GC::Ptr<DOM::Node> m_current_node;
     XMLScriptingSupport m_scripting_support { XMLScriptingSupport::Enabled };
     bool m_has_error { false };
