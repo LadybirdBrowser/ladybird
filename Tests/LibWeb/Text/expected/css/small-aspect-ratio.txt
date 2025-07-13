@@ -1,1 +1,3 @@
 element height: 10px
+element height: 0px
+element height: 0px
