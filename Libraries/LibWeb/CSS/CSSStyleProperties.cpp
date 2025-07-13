@@ -1225,10 +1225,39 @@ String CSSStyleProperties::serialized() const
                 if (!all_declarations_have_same_important_flag)
                     continue;
 
-                // FIXME: 6. If there is any declaration in declaration block in between the first and the last longhand
-                //           in current longhands which belongs to the same logical property group, but has a different
-                //           mapping logic as any of the longhands in current longhands, and is not in current
-                //           longhands, continue with the steps labeled shorthand loop.
+                // 6. If there is any declaration in declaration block in between the first and the last longhand
+                //    in current longhands which belongs to the same logical property group, but has a different
+                //    mapping logic as any of the longhands in current longhands, and is not in current
+                //    longhands, continue with the steps labeled shorthand loop.
+                auto first_current_longhand_index = m_properties.find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.property_id == current_longhands[0].property_id; });
+                auto last_current_longhand_index = m_properties.find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.property_id == current_longhands[current_longhands.size() - 1].property_id; });
+
+                VERIFY(first_current_longhand_index.has_value());
+                VERIFY(last_current_longhand_index.has_value());
+
+                bool should_continue = false;
+
+                for (auto current_declaration_index = first_current_longhand_index.value(); current_declaration_index <= last_current_longhand_index.value(); ++current_declaration_index) {
+                    // NB: Declaration is in current longhands
+                    if (any_of(current_longhands, [&](auto const& current_longhand) { return current_longhand.property_id == m_properties[current_declaration_index].property_id; }))
+                        continue;
+
+                    auto logical_property_group_for_current_declaration = logical_property_group_for_property(m_properties[current_declaration_index].property_id);
+
+                    if (!logical_property_group_for_current_declaration.has_value())
+                        continue;
+
+                    auto current_declaration_is_logical_alias = property_is_logical_alias(m_properties[current_declaration_index].property_id);
+
+                    // NB: Declaration has any counterpart in current longhands with same logical property group but different mapping logic
+                    if (any_of(current_longhands, [&](auto const& current_longhand) { return logical_property_group_for_property(current_longhand.property_id) == logical_property_group_for_current_declaration && property_is_logical_alias(current_longhand.property_id) != current_declaration_is_logical_alias; })) {
+                        should_continue = true;
+                        break;
+                    }
+                }
+
+                if (should_continue)
+                    continue;
 
                 // 7. Let value be the result of invoking serialize a CSS value with current longhands.
                 auto value = serialize_a_css_value(current_longhands);
