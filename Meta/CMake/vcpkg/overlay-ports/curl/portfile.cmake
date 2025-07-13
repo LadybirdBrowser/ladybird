@@ -9,6 +9,7 @@ vcpkg_from_github(
     PATCHES
         dependencies.patch
         pkgconfig-curl-config.patch
+        curl-issue-17917.patch # FIXME: This is an upstream patch that can be removed when it lands in a stable version. See: https://github.com/curl/curl/issues/17917
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
