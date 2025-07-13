@@ -516,13 +516,17 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
     if (invalidation_set.is_empty())
         return;
 
+    if (invalidation_set.needs_invalidate_self()) {
+        set_needs_style_update(true);
+    }
+
     if (invalidation_set.needs_invalidate_whole_subtree()) {
         invalidate_style(reason);
         return;
     }
 
-    if (invalidation_set.needs_invalidate_self()) {
-        set_needs_style_update(true);
+    if (!invalidation_set.has_properties() && !options.invalidate_elements_that_use_css_custom_properties) {
+        return;
     }
 
     auto invalidate_entire_subtree = [&](Node& subtree_root) {
