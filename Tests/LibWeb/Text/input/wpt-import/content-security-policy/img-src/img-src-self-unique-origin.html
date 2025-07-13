@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>img-src-self-unique-origin</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+</head>
+
+<body>
+    <p>
+        The origin of an URL is called "unique" when it is considered to be
+        different from every origin, including itself. The origin of a
+        data-url is unique. When the current origin is unique, the CSP source
+        'self' must not match any URL.
+    </p>
+    <script>
+        var iframe = document.createElement("iframe");
+        iframe.src = encodeURI(`data:text/html,
+          <script>
+              /* Add the CSP: frame-src: 'self'. */
+              var meta = document.createElement('meta');
+              meta.httpEquiv = 'Content-Security-Policy';
+              meta.content = "img-src 'self'";
+              document.getElementsByTagName('head')[0].appendChild(meta);
+
+              /* Notify the parent the image has been blocked. */
+              window.addEventListener('securitypolicyviolation', e => {
+                  if (e.originalPolicy == "img-src 'self'")
+                      window.parent.postMessage('Test PASS', '*');
+              });
+          </scr`+`ipt>
+
+          This image should be blocked by CSP:
+          <img src='data:image/gif;base64,R0lGODlhEAAQAMQAAORHHOVSKudfOulrSOp3WOyDZu6QdvCchPGolfO0o/XBs/fNwfjZ0frl3/zy7////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAkAABAALAAAAAAQABAAAAVVICSOZGlCQAosJ6mu7fiyZeKqNKToQGDsM8hBADgUXoGAiqhSvp5QAnQKGIgUhwFUYLCVDFCrKUE1lBavAViFIDlTImbKC5Gm2hB0SlBCBMQiB0UjIQA7'></img>
+        `);
+        if (window.async_test) {
+            async_test(t => {
+                window.addEventListener("message", e => {
+                    if (e.data == "Test PASS")
+                      t.done();
+                });
+            }, "Image's url must not match with 'self'. Image must be blocked.");
+        }
+        document.body.appendChild(iframe);
+    </script>
+</body>
+
+</html>

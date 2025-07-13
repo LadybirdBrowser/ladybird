@@ -541,7 +541,7 @@ MatchResult does_url_match_expression_in_origin_with_redirect_count(URL::URL con
             origin_port = origin.port();
         }
 
-        if (origin_host == url.host() && (origin.port() == url.port() || (origin_port == origin_default_port && url.port() == url_default_port))) {
+        if (origin_host == url.host() && (origin_port == url.port() || (origin_port == origin_default_port && url.port() == url_default_port))) {
             // 1. url’s scheme is "https" or "wss"
             if (url.scheme() == "https"sv || url.scheme() == "wss"sv)
                 return MatchResult::Matches;
