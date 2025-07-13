@@ -25,7 +25,7 @@ struct BorderRadiusData {
     CSSPixels horizontal_radius { 0 };
     CSSPixels vertical_radius { 0 };
 
-    CornerRadius as_corner(PaintContext const& context) const;
+    CornerRadius as_corner(DevicePixelConverter const& device_pixel_converter) const;
 
     inline operator bool() const
     {
@@ -91,15 +91,15 @@ struct BorderRadiiData {
         shrink(-top, -right, -bottom, -left);
     }
 
-    inline CornerRadii as_corners(PaintContext const& context) const
+    inline CornerRadii as_corners(DevicePixelConverter const& device_pixel_converter) const
     {
         if (!has_any_radius())
             return {};
         return CornerRadii {
-            top_left.as_corner(context),
-            top_right.as_corner(context),
-            bottom_right.as_corner(context),
-            bottom_left.as_corner(context)
+            top_left.as_corner(device_pixel_converter),
+            top_right.as_corner(device_pixel_converter),
+            bottom_right.as_corner(device_pixel_converter),
+            bottom_left.as_corner(device_pixel_converter)
         };
     }
 };

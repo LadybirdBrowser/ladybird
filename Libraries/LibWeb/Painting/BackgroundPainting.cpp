@@ -116,10 +116,10 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
         display_list_recorder.fill_rect_with_rounded_corners(
             context.rounded_device_rect(color_box.rect).to_type<int>(),
             resolved_background.color,
-            color_box.radii.top_left.as_corner(context),
-            color_box.radii.top_right.as_corner(context),
-            color_box.radii.bottom_right.as_corner(context),
-            color_box.radii.bottom_left.as_corner(context));
+            color_box.radii.top_left.as_corner(context.device_pixel_converter()),
+            color_box.radii.top_right.as_corner(context.device_pixel_converter()),
+            color_box.radii.bottom_right.as_corner(context.device_pixel_converter()),
+            color_box.radii.bottom_left.as_corner(context.device_pixel_converter()));
     }
 
     struct {

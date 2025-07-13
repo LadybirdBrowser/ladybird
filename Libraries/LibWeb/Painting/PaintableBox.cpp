@@ -479,7 +479,7 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
             border_radius_data.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
             borders_rect.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
 
-            paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(borders_rect), border_radius_data.as_corners(context), outline_data->to_device_pixels(context));
+            paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(borders_rect), border_radius_data.as_corners(context.device_pixel_converter()), outline_data->to_device_pixels(context));
         }
     }
 
@@ -571,7 +571,7 @@ void PaintableBox::paint_border(PaintContext& context) const
         .bottom = box_model().border.bottom == 0 ? CSS::BorderData() : computed_values().border_bottom(),
         .left = box_model().border.left == 0 ? CSS::BorderData() : computed_values().border_left(),
     };
-    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(absolute_border_box_rect()), normalized_border_radii_data().as_corners(context), borders_data.to_device_pixels(context));
+    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(absolute_border_box_rect()), normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
 }
 
 void PaintableBox::paint_backdrop_filter(PaintContext& context) const
@@ -661,7 +661,7 @@ void PaintableBox::apply_clip(PaintContext& context, RefPtr<ClipFrame const> con
             clip_scroll_frame_id = clip_rect.enclosing_scroll_frame->id();
         display_list_recorder.push_scroll_frame_id(clip_scroll_frame_id);
         auto rect = context.rounded_device_rect(clip_rect.rect).to_type<int>();
-        auto corner_radii = clip_rect.corner_radii.as_corners(context);
+        auto corner_radii = clip_rect.corner_radii.as_corners(context.device_pixel_converter());
         if (corner_radii.has_any_radius()) {
             display_list_recorder.add_rounded_rect_clip(corner_radii, rect, CornerClip::Outside);
         } else {
