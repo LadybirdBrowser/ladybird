@@ -51,6 +51,7 @@ public:
     void set_needs_invalidate_pseudo_class(PseudoClass pseudo_class) { m_properties.set({ Property::Type::PseudoClass, pseudo_class }); }
 
     bool is_empty() const;
+    bool has_properties() const { return !m_properties.is_empty(); }
     void for_each_property(Function<IterationDecision(Property const&)> const& callback) const;
 
 private:
