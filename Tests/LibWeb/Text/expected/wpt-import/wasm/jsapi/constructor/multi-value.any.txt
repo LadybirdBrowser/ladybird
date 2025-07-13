@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Fail	multiple return values from wasm to js
+Pass	multiple return values inside wasm
+Fail	multiple return values from js to wasm
