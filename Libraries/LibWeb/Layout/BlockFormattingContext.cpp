@@ -432,13 +432,14 @@ void BlockFormattingContext::compute_width_for_block_level_replaced_element_in_n
         margin_right = zero_value;
 
     auto& box_state = m_state.get_mutable(box);
-    box_state.set_content_width(compute_width_for_replaced_element(box, available_space));
+    auto width = compute_width_for_replaced_element(box, available_space);
     box_state.margin_left = margin_left.to_px(box);
     box_state.margin_right = margin_right.to_px(box);
     box_state.border_left = computed_values.border_left().width;
     box_state.border_right = computed_values.border_right().width;
     box_state.padding_left = padding_left;
     box_state.padding_right = padding_right;
+    box_state.set_content_width(calculate_inner_width(box, available_space.width, CSS::Size::make_px(width)));
 }
 
 void BlockFormattingContext::resolve_used_height_if_not_treated_as_auto(Box const& box, AvailableSpace const& available_space)
