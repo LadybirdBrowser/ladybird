@@ -26,6 +26,7 @@ interface BaseAudioContext : EventTarget {
     readonly attribute double currentTime;
     readonly attribute AudioListener listener;
     readonly attribute AudioContextState state;
+    readonly attribute unsigned long renderQuantumSize;
     // FIXME: [SameObject, SecureContext]
     [FIXME] readonly attribute AudioWorklet audioWorklet;
     attribute EventHandler onstatechange;
