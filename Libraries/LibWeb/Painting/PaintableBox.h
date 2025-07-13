@@ -305,9 +305,6 @@ private:
     bool scrollbar_contains_mouse_position(ScrollDirection, CSSPixelPoint);
     void scroll_to_mouse_position(CSSPixelPoint);
 
-    static void apply_clip(PaintContext&, RefPtr<ClipFrame const> const&);
-    static void restore_clip(PaintContext&, RefPtr<ClipFrame const> const&);
-
     OwnPtr<StackingContext> m_stacking_context;
 
     Optional<OverflowData> m_overflow_data;

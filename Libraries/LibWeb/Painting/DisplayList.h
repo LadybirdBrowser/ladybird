@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -15,6 +15,7 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/Painting/ClipFrame.h>
 #include <LibWeb/Painting/Command.h>
 #include <LibWeb/Painting/ScrollState.h>
 
@@ -74,6 +75,9 @@ private:
     virtual void apply_mask_bitmap(ApplyMaskBitmap const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 
+    void apply_clip_frame(ClipFrame const&, DevicePixelConverter const&);
+    void remove_clip_frame(ClipFrame const&);
+
     Vector<NonnullRefPtr<Gfx::PaintingSurface>, 1> m_surfaces;
 };
 
@@ -84,10 +88,11 @@ public:
         return adopt_ref(*new DisplayList());
     }
 
-    void append(Command&& command, Optional<i32> scroll_frame_id);
+    void append(Command&& command, Optional<i32> scroll_frame_id, RefPtr<ClipFrame const>);
 
     struct CommandListItem {
         Optional<i32> scroll_frame_id;
+        RefPtr<ClipFrame const> clip_frame;
         Command command;
     };
 

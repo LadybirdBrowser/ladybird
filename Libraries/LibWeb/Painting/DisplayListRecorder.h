@@ -21,6 +21,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/ClipFrame.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
 
@@ -111,6 +112,9 @@ public:
     void push_scroll_frame_id(Optional<i32> id);
     void pop_scroll_frame_id();
 
+    void push_clip_frame(RefPtr<ClipFrame const>);
+    void pop_clip_frame();
+
     void save();
     void save_layer();
     void restore();
@@ -161,6 +165,7 @@ public:
 
 private:
     Vector<Optional<i32>> m_scroll_frame_id_stack;
+    Vector<RefPtr<ClipFrame const>> m_clip_frame_stack;
     DisplayList& m_command_list;
 };
 

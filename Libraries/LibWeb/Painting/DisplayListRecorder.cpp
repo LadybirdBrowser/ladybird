@@ -18,12 +18,15 @@ DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
 
 DisplayListRecorder::~DisplayListRecorder() = default;
 
-#define APPEND(...)                                            \
-    do {                                                       \
-        Optional<i32> _scroll_frame_id;                        \
-        if (!m_scroll_frame_id_stack.is_empty())               \
-            _scroll_frame_id = m_scroll_frame_id_stack.last(); \
-        m_command_list.append(__VA_ARGS__, _scroll_frame_id);  \
+#define APPEND(...)                                                        \
+    do {                                                                   \
+        Optional<i32> _scroll_frame_id;                                    \
+        if (!m_scroll_frame_id_stack.is_empty())                           \
+            _scroll_frame_id = m_scroll_frame_id_stack.last();             \
+        RefPtr<ClipFrame const> _clip_frame;                               \
+        if (!m_clip_frame_stack.is_empty())                                \
+            _clip_frame = m_clip_frame_stack.last();                       \
+        m_command_list.append(__VA_ARGS__, _scroll_frame_id, _clip_frame); \
     } while (false)
 
 void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, ScrollStateSnapshot&& scroll_state_snapshot, Gfx::IntRect rect)
@@ -311,6 +314,16 @@ void DisplayListRecorder::pop_scroll_frame_id()
     (void)m_scroll_frame_id_stack.take_last();
 }
 
+void DisplayListRecorder::push_clip_frame(RefPtr<ClipFrame const> clip_frame)
+{
+    m_clip_frame_stack.append(clip_frame);
+}
+
+void DisplayListRecorder::pop_clip_frame()
+{
+    (void)m_clip_frame_stack.take_last();
+}
+
 void DisplayListRecorder::push_stacking_context(PushStackingContextParams params)
 {
     APPEND(PushStackingContext {
@@ -323,11 +336,13 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
             .matrix = params.transform.matrix,
         },
         .clip_path = params.clip_path });
+    m_clip_frame_stack.append({});
 }
 
 void DisplayListRecorder::pop_stacking_context()
 {
     APPEND(PopStackingContext {});
+    (void)m_clip_frame_stack.take_last();
 }
 
 void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, Gfx::Filter const& backdrop_filter)
