@@ -420,7 +420,7 @@ public:
     bool rendered_in_top_layer() const { return m_rendered_in_top_layer; }
 
     bool has_non_empty_counters_set() const { return m_counters_set; }
-    Optional<CSS::CountersSet const&> counters_set() const;
+    Optional<CSS::CountersSet&> counters_set() const;
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
