@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	trustedTypes.getAttributeType html script[href]
+Pass	trustedTypes.getAttributeType svg script[href]
+Pass	trustedTypes.getAttributeType svg script[href] xlink href
+Pass	trustedTypes.getAttributeType svg script[href] other href

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-getattributetype">
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute">
+<link rel="help" href="https://github.com/w3c/trusted-types/issues/520">
+<meta name="assert" content="getAttributeType() with empty attributeNs returns 'TrustedScript' for event handler content attributes.">
+<meta name="timeout" content="long">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/namespaces.js"></script>
+<script type="module">
+  import { getEventHandlerAttributeWithInterfaceNames } from './support/event-handler-attributes.mjs';
+  promise_setup(async function() {
+    for (const attr of await getEventHandlerAttributeWithInterfaceNames()) {
+      promise_test(async () => {
+        NSURI_ARRAY.forEach(attrNs => {
+          assert_equals(trustedTypes.getAttributeType(
+            "dummy", attr.name, NSURI_HTML, attrNs),
+            attrNs === NSURI_EMPTY ? "TrustedScript" : null,
+            `for attrNs='${attrNs}'`);
+        });
+      }, `getAttributeType("dummy", "${attr.name}", "dummyNs", attrNs)`);
+    }
+  });
+</script>
