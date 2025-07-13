@@ -19,7 +19,7 @@ void CountersSet::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/css-lists-3/#instantiate-counter
-Counter& CountersSet::instantiate_a_counter(FlyString name, DOM::AbstractElement const& element, bool reversed, Optional<CounterValue> value)
+Counter& CountersSet::instantiate_a_counter(FlyString const& name, DOM::AbstractElement const& element, bool reversed, Optional<CounterValue> value)
 {
     // 1. Let counters be element’s CSS counters set.
 
@@ -28,10 +28,10 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, DOM::AbstractElement
     //    remove innermost counter from counters.
     auto innermost_counter = last_counter_with_name(name);
     if (innermost_counter.has_value()) {
-        auto& innermost_element = innermost_counter->originating_element;
+        auto& originating_element = innermost_counter->originating_element;
 
-        if (innermost_element == element
-            || (innermost_element.parent_element() == element.parent_element() && innermost_element.is_before(element))) {
+        if (originating_element == element
+            || (originating_element.parent_element() == element.parent_element() && originating_element.is_before(element))) {
 
             m_counters.remove_first_matching([&innermost_counter](auto& it) {
                 return it.name == innermost_counter->name
@@ -53,7 +53,7 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, DOM::AbstractElement
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-set
-void CountersSet::set_a_counter(FlyString name, DOM::AbstractElement const& element, CounterValue value)
+void CountersSet::set_a_counter(FlyString const& name, DOM::AbstractElement const& element, CounterValue value)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         existing_counter->value = value;
@@ -68,7 +68,7 @@ void CountersSet::set_a_counter(FlyString name, DOM::AbstractElement const& elem
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-increment
-void CountersSet::increment_a_counter(FlyString name, DOM::AbstractElement const& element, CounterValue amount)
+void CountersSet::increment_a_counter(FlyString const& name, DOM::AbstractElement const& element, CounterValue amount)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         // FIXME: How should we handle existing counters with no value? Can that happen?
