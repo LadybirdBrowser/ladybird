@@ -68,9 +68,12 @@ ErrorOr<void> TCPServer::listen(IPv4Address const& address, u16 port, AllowAddre
     return {};
 }
 
-ErrorOr<void> TCPServer::set_blocking(bool blocking)
+ErrorOr<void> TCPServer::set_blocking(bool const blocking)
 {
-    TRY(Core::System::ioctl(m_fd, FIONBIO, blocking ? 0 : 1));
+    // NOTE: Blocking does not seem to be supported. Error code returned is WSAEINVAL
+    if (!blocking)
+        return Error::from_string_literal("Core::TCPServer: WinSock2 does not support blocking");
+    TRY(Core::System::ioctl(m_fd, FIONBIO, 1));
     return {};
 }
 
