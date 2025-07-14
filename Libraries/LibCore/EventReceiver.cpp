@@ -11,7 +11,6 @@
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventReceiver.h>
-#include <stdio.h>
 
 namespace Core {
 
@@ -156,9 +155,6 @@ void EventReceiver::dispatch_event(Core::Event& e, EventReceiver* stay_within)
     VERIFY(!stay_within || stay_within == this || stay_within->is_ancestor_of(*this));
     auto* target = this;
     do {
-        // If there's an event filter on this target, ask if it wants to swallow this event.
-        if (target->m_event_filter && !target->m_event_filter(e))
-            return;
         target->event(e);
         target = target->parent();
         if (target == stay_within) {
@@ -173,11 +169,6 @@ bool EventReceiver::is_visible_for_timer_purposes() const
     if (parent())
         return parent()->is_visible_for_timer_purposes();
     return true;
-}
-
-void EventReceiver::set_event_filter(Function<bool(Core::Event&)> filter)
-{
-    m_event_filter = move(filter);
 }
 
 }

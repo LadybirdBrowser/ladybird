@@ -10,7 +10,6 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
-#include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/OwnPtr.h>
 #include <AK/StringView.h>
@@ -125,8 +124,6 @@ public:
     void remove_child(EventReceiver&);
     void remove_all_children();
 
-    void set_event_filter(Function<bool(Core::Event&)>);
-
     void deferred_invoke(Function<void()>);
 
     void dispatch_event(Core::Event&, EventReceiver* stay_within = nullptr);
@@ -174,7 +171,6 @@ private:
     ByteString m_name;
     intptr_t m_timer_id { 0 };
     Vector<NonnullRefPtr<EventReceiver>> m_children;
-    Function<bool(Core::Event&)> m_event_filter;
 };
 
 }
