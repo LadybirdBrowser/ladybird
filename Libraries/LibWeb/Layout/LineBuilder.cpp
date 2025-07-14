@@ -222,6 +222,7 @@ void LineBuilder::update_last_line()
         switch (text_align) {
         case CSS::TextAlign::Center:
         case CSS::TextAlign::LibwebCenter:
+        case CSS::TextAlign::LibwebInheritOrCenter:
             inline_offset += excess_inline_space / 2;
             break;
         case CSS::TextAlign::Start:

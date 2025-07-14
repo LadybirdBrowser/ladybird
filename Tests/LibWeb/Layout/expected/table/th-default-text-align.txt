@@ -1,0 +1,213 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x338 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x322 children: not-inline
+      TableWrapper <(anonymous)> at (8,8) content-size 132.40625x46 [BFC] children: not-inline
+        Box <table> at (8,8) content-size 132.40625x46 table-box [TFC] children: not-inline
+          Box <tbody> at (10,10) content-size 128.40625x42 table-row-group children: not-inline
+            Box <tr> at (10,10) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,11) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,11) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 7, rect: [47.59375,11 53.21875x18] baseline: 13.796875
+                      "default"
+                  TextNode <#text>
+            Box <tr> at (10,32) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,33) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,33) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [11,33 126.40625x18] baseline: 13.796875
+                      "lorem ipsum sit"
+                  TextNode <#text>
+      BlockContainer <(anonymous)> at (8,54) content-size 784x0 children: inline
+        TextNode <#text>
+      TableWrapper <(anonymous)> at (8,54) content-size 132.40625x46 [BFC] children: not-inline
+        Box <table.a> at (8,54) content-size 132.40625x46 table-box [TFC] children: not-inline
+          Box <tbody> at (10,56) content-size 128.40625x42 table-row-group children: not-inline
+            Box <tr> at (10,56) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,57) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,57) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 7, rect: [11,57 49.9375x18] baseline: 13.796875
+                      "left tr"
+                  TextNode <#text>
+            Box <tr> at (10,78) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,79) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,79) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [11,79 126.40625x18] baseline: 13.796875
+                      "lorem ipsum sit"
+                  TextNode <#text>
+      BlockContainer <(anonymous)> at (8,100) content-size 784x0 children: inline
+        TextNode <#text>
+      TableWrapper <(anonymous)> at (8,100) content-size 132.40625x46 [BFC] children: not-inline
+        Box <table.b> at (8,100) content-size 132.40625x46 table-box [TFC] children: not-inline
+          Box <tbody> at (10,102) content-size 128.40625x42 table-row-group children: not-inline
+            Box <tr> at (10,102) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,103) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,103) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 9, rect: [36.546875,103 75.3125x18] baseline: 13.796875
+                      "center tr"
+                  TextNode <#text>
+            Box <tr> at (10,124) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,125) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,125) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [11,125 126.40625x18] baseline: 13.796875
+                      "lorem ipsum sit"
+                  TextNode <#text>
+      BlockContainer <(anonymous)> at (8,146) content-size 784x0 children: inline
+        TextNode <#text>
+      TableWrapper <(anonymous)> at (8,146) content-size 132.40625x46 [BFC] children: not-inline
+        Box <table.c> at (8,146) content-size 132.40625x46 table-box [TFC] children: not-inline
+          Box <tbody> at (10,148) content-size 128.40625x42 table-row-group children: not-inline
+            Box <tr> at (10,148) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,149) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,149) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 8, rect: [76.609375,149 60.796875x18] baseline: 13.796875
+                      "right tr"
+                  TextNode <#text>
+            Box <tr> at (10,170) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,171) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,171) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [11,171 126.40625x18] baseline: 13.796875
+                      "lorem ipsum sit"
+                  TextNode <#text>
+      BlockContainer <(anonymous)> at (8,192) content-size 784x0 children: inline
+        TextNode <#text>
+      TableWrapper <(anonymous)> at (8,192) content-size 132.40625x46 [BFC] children: not-inline
+        Box <table.d> at (8,192) content-size 132.40625x46 table-box [TFC] children: not-inline
+          Box <tbody> at (10,194) content-size 128.40625x42 table-row-group children: not-inline
+            Box <tr> at (10,194) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,195) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,195) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 8, rect: [11,195 54.8125x18] baseline: 13.796875
+                      "left tbl"
+                  TextNode <#text>
+            Box <tr> at (10,216) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,217) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,217) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [11,217 126.40625x18] baseline: 13.796875
+                      "lorem ipsum sit"
+                  TextNode <#text>
+      BlockContainer <(anonymous)> at (8,238) content-size 784x0 children: inline
+        TextNode <#text>
+      TableWrapper <(anonymous)> at (8,238) content-size 132.40625x46 [BFC] children: not-inline
+        Box <table> at (8,238) content-size 132.40625x46 table-box [TFC] children: not-inline
+          Box <tbody> at (10,240) content-size 128.40625x42 table-row-group children: not-inline
+            Box <tr> at (10,240) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,241) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,241) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 11, rect: [11,241 76.34375x18] baseline: 13.796875
+                      "left tr inl"
+                  TextNode <#text>
+            Box <tr> at (10,262) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,263) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,263) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [11,263 126.40625x18] baseline: 13.796875
+                      "lorem ipsum sit"
+                  TextNode <#text>
+      BlockContainer <(anonymous)> at (8,284) content-size 784x0 children: inline
+        TextNode <#text>
+      TableWrapper <(anonymous)> at (8,284) content-size 132.40625x46 [BFC] children: not-inline
+        Box <table> at (8,284) content-size 132.40625x46 table-box [TFC] children: not-inline
+          Box <tbody> at (10,286) content-size 128.40625x42 table-row-group children: not-inline
+            Box <tr> at (10,286) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,287) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,287) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 12, rect: [11,287 81.21875x18] baseline: 13.796875
+                      "left tbl inl"
+                  TextNode <#text>
+            Box <tr> at (10,308) content-size 128.40625x20 table-row children: not-inline
+              BlockContainer <th> at (11,309) content-size 126.40625x18 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (11,309) content-size 126.40625x18 children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [11,309 126.40625x18] baseline: 13.796875
+                      "lorem ipsum sit"
+                  TextNode <#text>
+      BlockContainer <(anonymous)> at (8,330) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x338]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x322]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 132.40625x46]
+        PaintableBox (Box<TABLE>) [8,8 132.40625x46]
+          PaintableBox (Box<TBODY>) [10,10 128.40625x42]
+            PaintableBox (Box<TR>) [10,10 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,10 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,11 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+            PaintableBox (Box<TR>) [10,32 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,32 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,33 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,54 784x0]
+      PaintableWithLines (TableWrapper(anonymous)) [8,54 132.40625x46]
+        PaintableBox (Box<TABLE>.a) [8,54 132.40625x46]
+          PaintableBox (Box<TBODY>) [10,56 128.40625x42]
+            PaintableBox (Box<TR>) [10,56 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,56 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,57 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+            PaintableBox (Box<TR>) [10,78 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,78 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,79 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,100 784x0]
+      PaintableWithLines (TableWrapper(anonymous)) [8,100 132.40625x46]
+        PaintableBox (Box<TABLE>.b) [8,100 132.40625x46]
+          PaintableBox (Box<TBODY>) [10,102 128.40625x42]
+            PaintableBox (Box<TR>) [10,102 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,102 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,103 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+            PaintableBox (Box<TR>) [10,124 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,124 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,125 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,146 784x0]
+      PaintableWithLines (TableWrapper(anonymous)) [8,146 132.40625x46]
+        PaintableBox (Box<TABLE>.c) [8,146 132.40625x46]
+          PaintableBox (Box<TBODY>) [10,148 128.40625x42]
+            PaintableBox (Box<TR>) [10,148 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,148 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,149 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+            PaintableBox (Box<TR>) [10,170 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,170 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,171 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,192 784x0]
+      PaintableWithLines (TableWrapper(anonymous)) [8,192 132.40625x46]
+        PaintableBox (Box<TABLE>.d) [8,192 132.40625x46]
+          PaintableBox (Box<TBODY>) [10,194 128.40625x42]
+            PaintableBox (Box<TR>) [10,194 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,194 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,195 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+            PaintableBox (Box<TR>) [10,216 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,216 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,217 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,238 784x0]
+      PaintableWithLines (TableWrapper(anonymous)) [8,238 132.40625x46]
+        PaintableBox (Box<TABLE>) [8,238 132.40625x46]
+          PaintableBox (Box<TBODY>) [10,240 128.40625x42]
+            PaintableBox (Box<TR>) [10,240 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,240 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,241 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+            PaintableBox (Box<TR>) [10,262 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,262 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,263 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,284 784x0]
+      PaintableWithLines (TableWrapper(anonymous)) [8,284 132.40625x46]
+        PaintableBox (Box<TABLE>) [8,284 132.40625x46]
+          PaintableBox (Box<TBODY>) [10,286 128.40625x42]
+            PaintableBox (Box<TR>) [10,286 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,286 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,287 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+            PaintableBox (Box<TR>) [10,308 128.40625x20]
+              PaintableWithLines (BlockContainer<TH>) [10,308 128.40625x20]
+                PaintableWithLines (BlockContainer(anonymous)) [11,309 126.40625x18]
+                  TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,330 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x338] [children: 0] (z-index: auto)

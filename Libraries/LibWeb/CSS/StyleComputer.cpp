@@ -1708,6 +1708,24 @@ void StyleComputer::compute_defaulted_values(ComputedProperties& style, DOM::Ele
         auto const& inherited_value = get_inherit_value(CSS::PropertyID::Color, element, pseudo_element);
         style.set_property(CSS::PropertyID::Color, inherited_value);
     }
+
+    // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless a style value usually would have been
+    //         inherited. This is used to support the ad-hoc default <th> text-align behavior.
+    if (element && element->local_name() == HTML::TagNames::th
+        && style.property(PropertyID::TextAlign).to_keyword() == Keyword::LibwebInheritOrCenter) {
+        auto const* parent_element = element;
+        while ((parent_element = element_to_inherit_style_from(parent_element, {}))) {
+            auto parent_computed = parent_element->computed_properties();
+            auto parent_cascaded = parent_element->cascaded_properties({});
+            if (!parent_computed || !parent_cascaded)
+                break;
+            if (parent_cascaded->property(PropertyID::TextAlign)) {
+                auto const& style_value = parent_computed->property(PropertyID::TextAlign);
+                style.set_property(PropertyID::TextAlign, style_value, ComputedProperties::Inherited::Yes);
+                break;
+            }
+        }
+    }
 }
 
 Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedProperties const& style) const
