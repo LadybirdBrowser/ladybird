@@ -116,9 +116,9 @@ ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
         return Error::from_windows_error(WSAENOTCONN);
     }
 
-    int value;
+    u_long value;
     TRY(System::ioctl(m_fd, FIONREAD, &value));
-    return static_cast<size_t>(value);
+    return value;
 }
 
 void PosixSocketHelper::setup_notifier()
@@ -308,6 +308,21 @@ ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(SocketAddress const& addres
 
     socket->setup_notifier();
     return socket;
+}
+
+ErrorOr<Bytes> UDPSocket::read_some(Bytes buffer)
+{
+    auto pending_bytes = TRY(this->pending_bytes());
+    if (pending_bytes > buffer.size()) {
+        // With UDP datagrams, reading a datagram into a buffer that's
+        // smaller than the datagram's size will cause the rest of the
+        // datagram to be discarded. That's not very nice, so let's bail
+        // early, telling the caller that he should allocate a bigger
+        // buffer.
+        return Error::from_errno(WSAEMSGSIZE);
+    }
+
+    return m_helper.read(buffer, default_flags());
 }
 
 ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(ByteString const& host, u16 port)
