@@ -40,7 +40,13 @@ public:
 
     struct Entry {
         NonnullRefPtr<Font const> font;
-        Optional<Vector<UnicodeRange>> unicode_ranges;
+        struct RangeData {
+            // The enclosing range is the union of all Unicode ranges. Used for fast skipping.
+            UnicodeRange enclosing_range;
+
+            Vector<UnicodeRange> unicode_ranges;
+        };
+        Optional<RangeData> range_data;
     };
 
     void set_last_resort_font(NonnullRefPtr<Font> font) { m_last_resort_font = move(font); }
