@@ -319,10 +319,10 @@ bool property_accepts_resolution(PropertyID, Resolution const&);
 bool property_accepts_time(PropertyID, Time const&);
 
 bool property_is_shorthand(PropertyID);
-Vector<PropertyID> longhands_for_shorthand(PropertyID);
-Vector<PropertyID> expanded_longhands_for_shorthand(PropertyID);
+Vector<PropertyID> const& longhands_for_shorthand(PropertyID);
+Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID);
 bool property_maps_to_shorthand(PropertyID);
-Vector<PropertyID> shorthands_for_longhand(PropertyID);
+Vector<PropertyID> const& shorthands_for_longhand(PropertyID);
 
 size_t property_maximum_value_count(PropertyID);
 
@@ -1126,7 +1126,7 @@ bool property_is_shorthand(PropertyID property_id)
 )~~~");
 
     generator.append(R"~~~(
-Vector<PropertyID> longhands_for_shorthand(PropertyID property_id)
+Vector<PropertyID> const& longhands_for_shorthand(PropertyID property_id)
 {
     switch (property_id) {
 )~~~");
@@ -1161,21 +1161,23 @@ Vector<PropertyID> longhands_for_shorthand(PropertyID property_id)
             }
             property_generator.set("longhands", builder.to_byte_string());
             property_generator.append(R"~~~(
-        case PropertyID::@name:titlecase@:
-                return { @longhands@ };
-)~~~");
+        case PropertyID::@name:titlecase@: {
+            static Vector<PropertyID> longhands = { @longhands@ };
+            return longhands;
+        })~~~");
         }
     });
 
     generator.append(R"~~~(
         default:
-                return { };
+            static Vector<PropertyID> empty_longhands;
+            return empty_longhands;
         }
 }
 )~~~");
 
     generator.append(R"~~~(
-Vector<PropertyID> expanded_longhands_for_shorthand(PropertyID property_id)
+Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID property_id)
 {
     switch (property_id) {
 )~~~");
@@ -1213,15 +1215,18 @@ Vector<PropertyID> expanded_longhands_for_shorthand(PropertyID property_id)
             }
             property_generator.set("longhands", builder.to_byte_string());
             property_generator.append(R"~~~(
-    case PropertyID::@name:titlecase@:
-        return { @longhands@ };
-)~~~");
+    case PropertyID::@name:titlecase@: {
+        static Vector<PropertyID> longhands = { @longhands@ };
+        return longhands;
+    })~~~");
         }
     });
 
     generator.append(R"~~~(
-    default:
-        return { };
+    default: {
+        static Vector<PropertyID> empty_longhands;
+        return empty_longhands;
+    }
     }
 }
 )~~~");
@@ -1266,7 +1271,7 @@ bool property_maps_to_shorthand(PropertyID property_id)
 )~~~");
 
     generator.append(R"~~~(
-Vector<PropertyID> shorthands_for_longhand(PropertyID property_id)
+Vector<PropertyID> const& shorthands_for_longhand(PropertyID property_id)
 {
     switch (property_id) {
 )~~~");
@@ -1317,14 +1322,17 @@ Vector<PropertyID> shorthands_for_longhand(PropertyID property_id)
         }
         property_generator.set("shorthands", builder.to_byte_string());
         property_generator.append(R"~~~(
-    case PropertyID::@name:titlecase@:
-        return { @shorthands@ };
-)~~~");
+    case PropertyID::@name:titlecase@: {
+        static Vector<PropertyID> shorthands = { @shorthands@ };
+        return shorthands;
+    })~~~");
     }
 
     generator.append(R"~~~(
-    default:
-        return { };
+    default: {
+        static Vector<PropertyID> empty_shorthands;
+        return empty_shorthands;
+    }
     }
 }
 )~~~");
