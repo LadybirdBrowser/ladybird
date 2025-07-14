@@ -83,7 +83,7 @@ void ReadableByteStreamController::initialize(JS::Realm& realm)
 WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(GC::Root<WebIDL::ArrayBufferView>& chunk)
 {
     // 1. If chunk.[[ByteLength]] is 0, throw a TypeError exception.
-    // 2. If chunk.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is 0, throw a TypeError exception.
+    // 2. If chunk.[[ViewedArrayBuffer]].[[ByteLength]] is 0, throw a TypeError exception.
     if (chunk->byte_length() == 0 || chunk->viewed_array_buffer()->byte_length() == 0)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot enqueue chunk with byte length of zero"sv };
 
