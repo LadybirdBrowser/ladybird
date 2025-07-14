@@ -58,11 +58,12 @@ set(SOURCES
 )
 
 if (WIN32)
-    # FIXME: Support UDPServer and TCPServer on Windows
+    # FIXME: Support UDPServer on Windows
     list(APPEND SOURCES
         SocketWindows.cpp
         AnonymousBufferWindows.cpp
-        EventLoopImplementationWindows.cpp)
+        EventLoopImplementationWindows.cpp
+        TCPServerWindows.cpp)
 else()
     list(APPEND SOURCES
         Command.cpp

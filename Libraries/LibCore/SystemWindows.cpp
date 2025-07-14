@@ -5,6 +5,7 @@
  * Copyright (c) 2022, Matthias Zimmerman <matthias291999@gmail.com>
  * Copyright (c) 2023, Cameron Youell <cameronyouell@gmail.com>
  * Copyright (c) 2024-2025, stasoid <stasoid@yahoo.com>
+ * Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -109,10 +110,15 @@ ErrorOr<struct stat> fstat(int handle)
     return st;
 }
 
-ErrorOr<void> ioctl(int, unsigned, ...)
+ErrorOr<void> ioctl(int fd, unsigned request, ...)
 {
-    dbgln("Core::System::ioctl() is not implemented");
-    VERIFY_NOT_REACHED();
+    va_list ap;
+    va_start(ap, request);
+    u_long arg = va_arg(ap, FlatPtr);
+    va_end(ap);
+    if (::ioctlsocket(fd, request, &arg) == SOCKET_ERROR)
+        return Error::from_windows_error();
+    return {};
 }
 
 ErrorOr<ByteString> getcwd()
@@ -240,6 +246,42 @@ bool is_socket(int handle)
 {
     // FILE_TYPE_PIPE is returned for sockets and pipes. We don't use Windows pipes.
     return GetFileType(to_handle(handle)) == FILE_TYPE_PIPE;
+}
+
+ErrorOr<void> bind(int sockfd, struct sockaddr const* name, socklen_t name_size)
+{
+    if (::bind(sockfd, name, name_size) == SOCKET_ERROR)
+        return Error::from_windows_error();
+    return {};
+}
+
+ErrorOr<void> listen(int sockfd, int backlog)
+{
+    if (::listen(sockfd, backlog) == SOCKET_ERROR)
+        return Error::from_windows_error();
+    return {};
+}
+
+ErrorOr<int> accept(int sockfd, struct sockaddr* addr, socklen_t* addr_size)
+{
+    auto fd = ::accept(sockfd, addr, addr_size);
+    if (fd == INVALID_SOCKET)
+        return Error::from_windows_error();
+    return fd;
+}
+
+ErrorOr<void> getsockname(int sockfd, struct sockaddr* name, socklen_t* name_size)
+{
+    if (::getsockname(sockfd, name, name_size) == SOCKET_ERROR)
+        return Error::from_windows_error();
+    return {};
+}
+
+ErrorOr<void> setsockopt(int sockfd, int level, int option, void const* value, socklen_t value_size)
+{
+    if (::setsockopt(sockfd, level, option, static_cast<char const*>(value), value_size) == SOCKET_ERROR)
+        return Error::from_windows_error();
+    return {};
 }
 
 ErrorOr<void> socketpair(int domain, int type, int protocol, int sv[2])
