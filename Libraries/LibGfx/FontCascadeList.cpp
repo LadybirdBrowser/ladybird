@@ -15,6 +15,10 @@ void FontCascadeList::add(NonnullRefPtr<Font const> font)
 
 void FontCascadeList::add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> unicode_ranges)
 {
+    if (unicode_ranges.is_empty()) {
+        m_fonts.append({ move(font), {} });
+        return;
+    }
     u32 lowest_code_point = 0xFFFFFFFF;
     u32 highest_code_point = 0;
 
