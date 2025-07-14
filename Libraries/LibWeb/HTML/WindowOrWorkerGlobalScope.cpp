@@ -254,11 +254,19 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     WebIDL::reject_promise(realm, *p, error);
                 },
                 // -> canvas
-                [&](GC::Root<HTMLCanvasElement> const&) {
-                    dbgln("(STUBBED) createImageBitmap() for HTMLCanvasElement");
-                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLCanvasElement"sv);
-                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::reject_promise(realm, *p, error);
+                [&](GC::Root<HTMLCanvasElement> const& canvas_element) {
+                    // 1. Set imageBitmap's bitmap data to a copy of image's bitmap data, cropped to the source rectangle with formatting.
+                    // FIXME: Actually crop the image to the source rectangle with formatting: https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
+                    image_bitmap->set_bitmap(canvas_element->get_bitmap_from_surface());
+
+                    // FIXME: 2. Set the origin-clean flag of the imageBitmap's bitmap to the same value as the origin-clean flag of image's bitmap.
+
+                    // 3. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
+                    queue_global_task(Task::Source::BitmapTask, image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
+                        auto& realm = relevant_realm(image_bitmap);
+                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                        WebIDL::resolve_promise(realm, *p, image_bitmap);
+                    }));
                 },
                 // -> ImageBitmap
                 [&](GC::Root<ImageBitmap> const&) {

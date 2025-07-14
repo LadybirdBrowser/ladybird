@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 150 tests
 
-141 Pass
-9 Fail
+147 Pass
+3 Fail
 Pass	primitive undefined
 Pass	primitive null
 Pass	primitive true
@@ -126,12 +126,12 @@ Pass	Object with non-enumerable property
 Pass	Object with non-writable property
 Pass	Object with non-configurable property
 Pass	Object with a getter that throws
-Fail	ImageBitmap 1x1 transparent black
-Fail	ImageBitmap 1x1 non-transparent non-black
-Fail	Array ImageBitmap object, ImageBitmap 1x1 transparent black
-Fail	Array ImageBitmap object, ImageBitmap 1x1 transparent non-black
-Fail	Object ImageBitmap object, ImageBitmap 1x1 transparent black
-Fail	Object ImageBitmap object, ImageBitmap 1x1 transparent non-black
+Pass	ImageBitmap 1x1 transparent black
+Pass	ImageBitmap 1x1 non-transparent non-black
+Pass	Array ImageBitmap object, ImageBitmap 1x1 transparent black
+Pass	Array ImageBitmap object, ImageBitmap 1x1 transparent non-black
+Pass	Object ImageBitmap object, ImageBitmap 1x1 transparent black
+Pass	Object ImageBitmap object, ImageBitmap 1x1 transparent non-black
 Pass	ObjectPrototype must lose its exotic-ness when cloned
 Pass	Serializing a non-serializable platform object fails
 Pass	An object whose interface is deleted from the global must still deserialize
