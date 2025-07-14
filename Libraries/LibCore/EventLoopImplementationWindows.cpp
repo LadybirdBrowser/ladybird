@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024-2025, stasoid <stasoid@yahoo.com>
+ * Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -166,7 +167,7 @@ static int notifier_type_to_network_event(NotificationType type)
 {
     switch (type) {
     case NotificationType::Read:
-        return FD_READ | FD_CLOSE;
+        return FD_READ | FD_CLOSE | FD_ACCEPT;
     case NotificationType::Write:
         return FD_WRITE;
     default:

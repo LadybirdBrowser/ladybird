@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, sin-ack <sin-ack@protonmail.com>
  * Copyright (c) 2025, stasoid <stasoid@yahoo.com>
+ * Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -275,6 +276,17 @@ ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(SocketAddress const& addres
 
     TRY(connect_inet(fd, address));
 
+    socket->setup_notifier();
+    return socket;
+}
+
+ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::adopt_fd(int fd)
+{
+    if (static_cast<SOCKET>(fd) == INVALID_SOCKET)
+        return Error::from_windows_error();
+
+    auto socket = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TCPSocket()));
+    socket->m_helper.set_fd(fd);
     socket->setup_notifier();
     return socket;
 }
