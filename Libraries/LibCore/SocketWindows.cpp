@@ -112,7 +112,13 @@ ErrorOr<void> PosixSocketHelper::set_receive_timeout(AK::Duration timeout)
 
 ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
 {
-    VERIFY(0 && "Core::PosixSocketHelper::pending_bytes is not implemented");
+    if (!is_open()) {
+        return Error::from_windows_error(WSAENOTCONN);
+    }
+
+    int value;
+    TRY(System::ioctl(m_fd, FIONREAD, &value));
+    return static_cast<size_t>(value);
 }
 
 void PosixSocketHelper::setup_notifier()
