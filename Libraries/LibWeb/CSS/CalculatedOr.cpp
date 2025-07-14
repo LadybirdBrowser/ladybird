@@ -70,7 +70,7 @@ NonnullRefPtr<StyleValue const> LengthOrCalculated::create_style_value() const
 
 Optional<LengthOrAuto> LengthOrAutoOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_length(context).map([](auto& length) { return LengthOrAuto { length }; });
+    return calculated->resolve_length(context).map([](auto&& length) { return LengthOrAuto { length }; });
 }
 
 NonnullRefPtr<StyleValue const> LengthOrAutoOrCalculated::create_style_value() const

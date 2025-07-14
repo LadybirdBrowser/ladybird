@@ -1271,7 +1271,7 @@ Optional<CalculatedStyleValue::CalculationResult> ClampCalculationNode::run_oper
     if (!max_result.has_value())
         return {};
 
-    auto consistent_type = min_result->type()->consistent_type(center_result->type().value()).map([&](auto& it) { return it.consistent_type(max_result->type().value()); });
+    auto consistent_type = min_result->type()->consistent_type(center_result->type().value()).map([&](auto&& it) { return it.consistent_type(max_result->type().value()); });
     if (!consistent_type.has_value())
         return {};
 
