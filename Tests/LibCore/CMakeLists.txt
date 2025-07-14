@@ -1,8 +1,7 @@
 set(TEST_SOURCES
     TestLibCoreArgsParser.cpp
-    TestLibCoreDateTime.cpp
     TestLibCoreDeferredInvoke.cpp
-    TestLibCoreFileWatcher.cpp
+    TestLibCoreMappedFile.cpp
     TestLibCoreMimeType.cpp
     TestLibCorePromise.cpp
     TestLibCoreSharedSingleProducerCircularQueue.cpp
@@ -11,7 +10,8 @@ set(TEST_SOURCES
 # FIXME: Change these tests to use a portable tempfile directory
 if (NOT WIN32)
     list(APPEND TEST_SOURCES
-        TestLibCoreMappedFile.cpp
+        TestLibCoreDateTime.cpp
+        TestLibCoreFileWatcher.cpp
         TestLibCoreStream.cpp
     )
 endif()
@@ -20,7 +20,9 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibCore)
 endforeach()
 
-target_link_libraries(TestLibCoreDateTime PRIVATE LibUnicode)
+if (TARGET TestLibCoreDateTime)
+    target_link_libraries(TestLibCoreDateTime PRIVATE LibUnicode)
+endif()
 target_link_libraries(TestLibCorePromise PRIVATE LibThreading)
 if (NOT WIN32)
     target_link_libraries(TestLibCoreStream PRIVATE LibThreading)
