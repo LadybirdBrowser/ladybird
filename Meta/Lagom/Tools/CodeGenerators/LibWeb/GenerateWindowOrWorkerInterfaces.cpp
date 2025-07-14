@@ -15,7 +15,16 @@
 #include <LibIDL/Types.h>
 #include <LibMain/Main.h>
 
-static ErrorOr<void> add_to_interface_sets(IDL::Interface&, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed, Vector<IDL::Interface&>& shadow_realm_exposed);
+struct InterfaceSets {
+    Vector<IDL::Interface&> intrinsics;
+    Vector<IDL::Interface&> window_exposed;
+    Vector<IDL::Interface&> dedicated_worker_exposed;
+    Vector<IDL::Interface&> shared_worker_exposed;
+    Vector<IDL::Interface&> shadow_realm_exposed;
+    // TODO: service_worker_exposed
+};
+
+static ErrorOr<void> add_to_interface_sets(IDL::Interface&, InterfaceSets& interface_sets);
 static ByteString s_error_string;
 
 struct LegacyConstructor {
@@ -37,7 +46,7 @@ static void consume_whitespace(GenericLexer& lexer)
     }
 }
 
-static Optional<LegacyConstructor> const& lookup_legacy_constructor(IDL::Interface& interface)
+static Optional<LegacyConstructor> const& lookup_legacy_constructor(IDL::Interface const& interface)
 {
     static HashMap<StringView, Optional<LegacyConstructor>> s_legacy_constructors;
     if (auto cache = s_legacy_constructors.get(interface.name); cache.has_value())
@@ -59,7 +68,7 @@ static Optional<LegacyConstructor> const& lookup_legacy_constructor(IDL::Interfa
     return s_legacy_constructors.get(interface.name).value();
 }
 
-static ErrorOr<void> generate_intrinsic_definitions(StringView output_path, Vector<IDL::Interface&>& exposed_interfaces)
+static ErrorOr<void> generate_intrinsic_definitions(StringView output_path, InterfaceSets const& interface_sets)
 {
     StringBuilder builder;
     SourceGenerator generator(builder);
@@ -69,7 +78,7 @@ static ErrorOr<void> generate_intrinsic_definitions(StringView output_path, Vect
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Intrinsics.h>)~~~");
 
-    for (auto& interface : exposed_interfaces) {
+    for (auto& interface : interface_sets.intrinsics) {
         auto gen = generator.fork();
         gen.set("namespace_class", interface.namespace_class);
         gen.set("prototype_class", interface.prototype_class);
@@ -109,7 +118,7 @@ void Intrinsics::create_web_namespace<@namespace_class@>(JS::Realm& realm)
 
     [[maybe_unused]] static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;)~~~");
 
-        for (auto& interface : exposed_interfaces) {
+        for (auto& interface : interface_sets.intrinsics) {
             if (interface.extended_attributes.get("LegacyNamespace"sv) != name)
                 continue;
 
@@ -168,7 +177,7 @@ void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>(JS::Rea
 )~~~");
     };
 
-    for (auto& interface : exposed_interfaces) {
+    for (auto& interface : interface_sets.intrinsics) {
         auto gen = generator.fork();
 
         String named_properties_class;
@@ -397,12 +406,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(paths.size() == file_contents.size());
 
     Vector<IDL::Parser> parsers;
-    Vector<IDL::Interface&> intrinsics;
-    Vector<IDL::Interface&> window_exposed;
-    Vector<IDL::Interface&> dedicated_worker_exposed;
-    Vector<IDL::Interface&> shared_worker_exposed;
-    Vector<IDL::Interface&> shadow_realm_exposed;
-    // TODO: service_worker_exposed
+    InterfaceSets interface_sets;
 
     for (size_t i = 0; i < paths.size(); ++i) {
         auto const& path = paths[i];
@@ -413,11 +417,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             return Error::from_string_view(s_error_string.view());
         }
 
-        TRY(add_to_interface_sets(interface, intrinsics, window_exposed, dedicated_worker_exposed, shared_worker_exposed, shadow_realm_exposed));
+        TRY(add_to_interface_sets(interface, interface_sets));
         parsers.append(move(parser));
     }
 
-    TRY(generate_intrinsic_definitions(output_path, intrinsics));
+    TRY(generate_intrinsic_definitions(output_path, interface_sets));
 
     TRY(generate_exposed_interface_header("Window"sv, output_path));
     TRY(generate_exposed_interface_header("DedicatedWorker"sv, output_path));
@@ -425,16 +429,16 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(generate_exposed_interface_header("ShadowRealm"sv, output_path));
     // TODO: ServiceWorkerExposed.h
 
-    TRY(generate_exposed_interface_implementation("Window"sv, output_path, window_exposed));
-    TRY(generate_exposed_interface_implementation("DedicatedWorker"sv, output_path, dedicated_worker_exposed));
-    TRY(generate_exposed_interface_implementation("SharedWorker"sv, output_path, shared_worker_exposed));
-    TRY(generate_exposed_interface_implementation("ShadowRealm"sv, output_path, shadow_realm_exposed));
+    TRY(generate_exposed_interface_implementation("Window"sv, output_path, interface_sets.window_exposed));
+    TRY(generate_exposed_interface_implementation("DedicatedWorker"sv, output_path, interface_sets.dedicated_worker_exposed));
+    TRY(generate_exposed_interface_implementation("SharedWorker"sv, output_path, interface_sets.shared_worker_exposed));
+    TRY(generate_exposed_interface_implementation("ShadowRealm"sv, output_path, interface_sets.shadow_realm_exposed));
     // TODO: ServiceWorkerExposed.cpp
 
     return 0;
 }
 
-ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed, Vector<IDL::Interface&>& shadow_realm_exposed)
+ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, InterfaceSets& interface_sets)
 {
     // TODO: Add service worker exposed and audio worklet exposed
 
@@ -445,19 +449,19 @@ ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Inter
     }
     auto whom = TRY(IDL::parse_exposure_set(interface.name, *maybe_exposed));
 
-    intrinsics.append(interface);
+    interface_sets.intrinsics.append(interface);
 
     if (whom & IDL::ExposedTo::Window)
-        window_exposed.append(interface);
+        interface_sets.window_exposed.append(interface);
 
     if (whom & IDL::ExposedTo::DedicatedWorker)
-        dedicated_worker_exposed.append(interface);
+        interface_sets.dedicated_worker_exposed.append(interface);
 
     if (whom & IDL::ExposedTo::SharedWorker)
-        shared_worker_exposed.append(interface);
+        interface_sets.shared_worker_exposed.append(interface);
 
     if (whom & IDL::ExposedTo::ShadowRealm)
-        shadow_realm_exposed.append(interface);
+        interface_sets.shadow_realm_exposed.append(interface);
 
     return {};
 }
