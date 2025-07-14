@@ -119,7 +119,7 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
         if (queried_value.is_ratio())
             return as_match_result(!queried_value.ratio().is_degenerate());
         if (queried_value.is_resolution())
-            return as_match_result(queried_value.resolution().resolved(calculation_context).map([](auto& it) { return it.to_dots_per_pixel(); }).value_or(0) != 0);
+            return as_match_result(queried_value.resolution().resolved(calculation_context).map([](auto&& it) { return it.to_dots_per_pixel(); }).value_or(0) != 0);
         if (queried_value.is_ident()) {
             if (media_feature_keyword_is_falsey(m_id, queried_value.ident()))
                 return MatchResult::False;
@@ -245,8 +245,8 @@ MatchResult MediaFeature::compare(HTML::Window const& window, MediaFeatureValue 
     }
 
     if (left.is_resolution()) {
-        auto left_dppx = left.resolution().resolved(calculation_context).map([](auto& it) { return it.to_dots_per_pixel(); }).value_or(0);
-        auto right_dppx = right.resolution().resolved(calculation_context).map([](auto& it) { return it.to_dots_per_pixel(); }).value_or(0);
+        auto left_dppx = left.resolution().resolved(calculation_context).map([](auto&& it) { return it.to_dots_per_pixel(); }).value_or(0);
+        auto right_dppx = right.resolution().resolved(calculation_context).map([](auto&& it) { return it.to_dots_per_pixel(); }).value_or(0);
 
         switch (comparison) {
         case Comparison::Equal:
