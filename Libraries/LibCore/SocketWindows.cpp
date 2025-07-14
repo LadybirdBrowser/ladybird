@@ -290,6 +290,26 @@ ErrorOr<void> Socket::connect_local(int fd, ByteString const& path)
     return System::connect(fd, bit_cast<struct sockaddr*>(&addr), sizeof(addr));
 }
 
+ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(SocketAddress const& address, Optional<AK::Duration> timeout)
+{
+    auto socket = adopt_own(*new UDPSocket);
+
+    auto socket_domain = SocketDomain::Inet6;
+    if (address.type() == SocketAddress::Type::IPv4)
+        socket_domain = SocketDomain::Inet;
+
+    auto fd = TRY(create_fd(socket_domain, SocketType::Datagram));
+    socket->m_helper.set_fd(fd);
+    if (timeout.has_value()) {
+        TRY(socket->m_helper.set_receive_timeout(timeout.value()));
+    }
+
+    TRY(connect_inet(fd, address));
+
+    socket->setup_notifier();
+    return socket;
+}
+
 ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(ByteString const& host, u16 port)
 {
     auto ip_addresses = TRY(resolve_host(host, SocketType::Stream));
