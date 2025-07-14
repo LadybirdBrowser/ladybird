@@ -104,6 +104,12 @@ ErrorOr<void> PosixSocketHelper::set_close_on_exec(bool enabled)
     return System::set_close_on_exec(m_fd, enabled);
 }
 
+ErrorOr<void> PosixSocketHelper::set_receive_timeout(AK::Duration timeout)
+{
+    auto timeout_spec = timeout.to_timespec();
+    return System::setsockopt(m_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout_spec, sizeof(timeout_spec));
+}
+
 ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
 {
     VERIFY(0 && "Core::PosixSocketHelper::pending_bytes is not implemented");
