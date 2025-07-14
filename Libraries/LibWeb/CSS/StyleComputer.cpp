@@ -3105,6 +3105,15 @@ void StyleComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     }
 }
 
+static NonnullRefPtr<CSSStyleValue const> custom_property_initial_value(FlyString const& name)
+{
+    // FIXME: Look-up initial value for registered properties. (@property)
+    (void)name;
+
+    // For non-registered properties, the initial value is the guaranteed-invalid value.
+    return GuaranteedInvalidStyleValue::create();
+}
+
 NonnullRefPtr<CSSStyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
 {
     // https://drafts.csswg.org/css-variables/#propdef-
@@ -3112,19 +3121,17 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::compute_value_of_custom_proper
     // FIXME: These should probably be part of ComputedProperties.
 
     auto value = abstract_element.get_custom_property(name);
-    if (!value)
-        return GuaranteedInvalidStyleValue::create();
-
-    // Initial value is the guaranteed-invalid value.
-    if (value->is_initial())
-        return GuaranteedInvalidStyleValue::create();
+    if (!value || value->is_initial())
+        return custom_property_initial_value(name);
 
     // Unset is the same as inherit for inherited properties, and by default all custom properties are inherited.
-    // FIXME: Update handling of css-wide keywords once we support @property properly.
+    // FIXME: Support non-inherited registered custom properties.
     if (value->is_inherit() || value->is_unset()) {
+        if (!abstract_element.parent_element())
+            return custom_property_initial_value(name);
         auto inherited_value = DOM::AbstractElement { const_cast<DOM::Element&>(*abstract_element.parent_element()) }.get_custom_property(name);
         if (!inherited_value)
-            return GuaranteedInvalidStyleValue::create();
+            return custom_property_initial_value(name);
         return inherited_value.release_nonnull();
     }
 
