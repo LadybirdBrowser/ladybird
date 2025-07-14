@@ -34,7 +34,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> CSSMathClamp::construct_impl(JS::Real
     // 2. Let type be the result of adding the types of lower, value, and upper. If type is failure, throw a TypeError.
     auto type = lower_rectified->type()
                     .added_to(value_rectified->type())
-                    .map([&](auto& type) { return type.added_to(upper_rectified->type()); });
+                    .map([&](auto&& type) { return type.added_to(upper_rectified->type()); });
     if (!type.has_value()) {
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathClamp with values of incompatible types"sv };
     }

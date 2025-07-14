@@ -1735,7 +1735,7 @@ Optional<Gfx::Filter> PaintableBox::resolve_filter(DisplayListRecordingContext& 
                     .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(layout_node_with_style_and_box_metrics()),
                 };
                 auto to_px = [&](CSS::LengthOrCalculated const& length) {
-                    return static_cast<float>(length.resolved(context).map([&](auto& it) { return it.to_px(layout_node_with_style_and_box_metrics()).to_double(); }).value_or(0.0));
+                    return static_cast<float>(length.resolved(context).map([&](auto&& it) { return it.to_px(layout_node_with_style_and_box_metrics()).to_double(); }).value_or(0.0));
                 };
                 // The default value for omitted values is missing length values set to 0
                 // and the missing used color is taken from the color property.

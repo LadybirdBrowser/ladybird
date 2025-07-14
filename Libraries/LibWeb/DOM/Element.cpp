@@ -861,7 +861,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
         RefPtr<CSS::StyleValue const> old_animated_value = computed_properties->animated_property_values().get(property_id).value_or({});
         RefPtr<CSS::StyleValue const> new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, { *this })
-                                                               .map([&](auto& value) { return value.ptr(); })
+                                                               .map([](auto&& value) { return value.ptr(); })
                                                                .value_or({});
 
         invalidation |= CSS::compute_property_invalidation(property_id, old_animated_value, new_animated_value);

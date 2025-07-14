@@ -555,7 +555,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
     }
 
     if (property_name_and_id.is_custom_property())
-        return custom_property(property_name_and_id.name()).map([](auto& it) { return it; });
+        return custom_property(property_name_and_id.name()).copy();
 
     for (auto const& property : m_properties) {
         if (property.property_id == property_id)

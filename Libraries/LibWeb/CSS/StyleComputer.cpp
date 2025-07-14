@@ -2488,7 +2488,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
         VERIFY(font_size_value->is_length());
 
-        auto inherited_line_height = ancestor.element_to_inherit_style_from().map([](auto& parent_element) { return parent_element.computed_properties()->line_height(); }).value_or(InitialValues::line_height());
+        auto inherited_line_height = ancestor.element_to_inherit_style_from().map([](auto&& parent_element) { return parent_element.computed_properties()->line_height(); }).value_or(InitialValues::line_height());
 
         current_size_in_px = font_size_value->as_length().length().to_px(viewport_rect(), Length::FontMetrics { current_size_in_px, monospace_font->with_size(current_size_in_px * 0.75f)->pixel_metrics(), inherited_line_height }, m_root_element_font_metrics);
     };
