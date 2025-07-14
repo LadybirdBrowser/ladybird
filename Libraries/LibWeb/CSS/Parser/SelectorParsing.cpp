@@ -475,12 +475,12 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                     } else if (auto custom_ident = parse_custom_ident(function_tokens, {}); custom_ident.has_value()) {
                         value = Selector::PseudoElementSelector::PTNameSelector { .value = custom_ident.release_value() };
                     } else {
-                        dbgln_if(CSS_PARSER_DEBUG, "Invalid <pt-name-selector> in :{}() - expected `*` or `<custom-ident>`, got `{}`", pseudo_name, function_tokens.next_token().to_debug_string());
+                        dbgln_if(CSS_PARSER_DEBUG, "Invalid <pt-name-selector> in ::{}() - expected `*` or `<custom-ident>`, got `{}`", pseudo_name, function_tokens.next_token().to_debug_string());
                         return ParseError::SyntaxError;
                     }
                     function_tokens.discard_whitespace();
                     if (function_tokens.has_next_token()) {
-                        dbgln_if(CSS_PARSER_DEBUG, "Invalid <pt-name-selector> in :{}() - trailing tokens", pseudo_name);
+                        dbgln_if(CSS_PARSER_DEBUG, "Invalid <pt-name-selector> in ::{}() - trailing tokens", pseudo_name);
                         return ParseError::SyntaxError;
                     }
                     break;
