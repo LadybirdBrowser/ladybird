@@ -163,6 +163,19 @@ ErrorOr<int> LocalSocket::release_fd()
     return fd;
 }
 
+ErrorOr<NonnullOwnPtr<LocalSocket>> LocalSocket::connect(ByteString const& path, PreventSIGPIPE prevent_sigpipe)
+{
+    auto socket = TRY(adopt_nonnull_own_or_enomem(new (nothrow) LocalSocket(prevent_sigpipe)));
+
+    auto fd = TRY(create_fd(SocketDomain::Local, SocketType::Stream));
+    socket->m_helper.set_fd(fd);
+
+    TRY(connect_local(fd, path));
+
+    socket->setup_notifier();
+    return socket;
+}
+
 ErrorOr<int> Socket::create_fd(SocketDomain domain, SocketType type)
 {
     int socket_domain;
@@ -250,6 +263,19 @@ ErrorOr<void> Socket::connect_inet(int fd, SocketAddress const& address)
         auto addr = address.to_sockaddr_in();
         return System::connect(fd, bit_cast<struct sockaddr*>(&addr), sizeof(addr));
     }
+}
+
+ErrorOr<void> Socket::connect_local(int fd, ByteString const& path)
+{
+    auto address = SocketAddress::local(path);
+    auto maybe_sockaddr = address.to_sockaddr_un();
+    if (!maybe_sockaddr.has_value()) {
+        dbgln("Core::Socket::connect_local: Could not obtain a sockaddr_un");
+        return Error::from_errno(EINVAL);
+    }
+
+    auto addr = maybe_sockaddr.release_value();
+    return System::connect(fd, bit_cast<struct sockaddr*>(&addr), sizeof(addr));
 }
 
 ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(ByteString const& host, u16 port)
