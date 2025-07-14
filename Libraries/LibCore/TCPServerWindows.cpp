@@ -63,9 +63,9 @@ ErrorOr<void> TCPServer::listen(IPv4Address const& address, u16 port, AllowAddre
     return {};
 }
 
-ErrorOr<void> TCPServer::set_blocking(bool blocking)
+ErrorOr<void> TCPServer::set_blocking(bool)
 {
-    TRY(Core::System::ioctl(m_fd, FIONBIO, blocking ? 0 : 1));
+    // NOTE: Blocking does not seem to be supported. Error code returned is WSAEINVAL
     return {};
 }
 
