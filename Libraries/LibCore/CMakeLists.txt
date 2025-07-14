@@ -76,6 +76,8 @@ endif()
 
 if (NOT WIN32 AND NOT EMSCRIPTEN)
     list(APPEND SOURCES LocalServer.cpp)
+elseif (WIN32)
+    list(APPEND SOURCES LocalServerWindows.cpp)
 endif()
 
 # FIXME: Implement these for other systems.
