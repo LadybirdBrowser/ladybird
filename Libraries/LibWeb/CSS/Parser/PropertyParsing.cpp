@@ -98,7 +98,7 @@ RefPtr<CSSStyleValue const> Parser::parse_simple_comma_separated_value_list(Prop
 RefPtr<CSSStyleValue const> Parser::parse_css_value_for_property(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     return parse_css_value_for_properties({ &property_id, 1 }, tokens)
-        .map([](auto& it) { return it.style_value; })
+        .map([](auto&& it) { return it.style_value; })
         .value_or(nullptr);
 }
 
