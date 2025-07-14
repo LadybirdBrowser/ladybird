@@ -31,10 +31,25 @@
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/DOMExceptionPrototype.h>
+#include <LibWeb/Bindings/DOMMatrixPrototype.h>
+#include <LibWeb/Bindings/DOMMatrixReadOnlyPrototype.h>
+#include <LibWeb/Bindings/DOMPointPrototype.h>
+#include <LibWeb/Bindings/DOMPointReadOnlyPrototype.h>
+#include <LibWeb/Bindings/DOMQuadPrototype.h>
+#include <LibWeb/Bindings/DOMRectPrototype.h>
+#include <LibWeb/Bindings/DOMRectReadOnlyPrototype.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/FileListPrototype.h>
+#include <LibWeb/Bindings/FilePrototype.h>
+#include <LibWeb/Bindings/ImageBitmapPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MessagePortPrototype.h>
+#include <LibWeb/Bindings/ReadableStreamPrototype.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Transferable.h>
+#include <LibWeb/Bindings/TransformStreamPrototype.h>
+#include <LibWeb/Bindings/WritableStreamPrototype.h>
 #include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
@@ -46,6 +61,7 @@
 #include <LibWeb/Geometry/DOMQuad.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
+#include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -327,7 +343,7 @@ public:
             // 2. Let typeString be the identifier of the primary interface of value.
             // 3. Set serialized to { [[Type]]: typeString }.
             serialize_enum(m_serialized, ValueTag::SerializableObject);
-            TRY(serialize_string(m_vm, m_serialized, serializable.interface_name()));
+            serialize_enum(m_serialized, serializable.serialize_type());
 
             // 4. Set deep to true
             deep = true;
@@ -960,9 +976,9 @@ public:
 
             auto& realm = *m_vm.current_realm();
             // 1. Let interfaceName be serialized.[[Type]].
-            auto interface_name = TRY(deserialize_string(m_vm, m_serialized, m_position));
+            auto interface_name = deserialize_primitive_type<SerializeType>(m_serialized, m_position);
             // 2. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
-            if (!is_interface_exposed_on_target_realm(interface_name, realm))
+            if (!is_serializable_interface_exposed_on_target_realm(interface_name, realm))
                 return WebIDL::DataCloneError::create(realm, "Unsupported type"_string);
 
             // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
@@ -1047,44 +1063,82 @@ private:
     GC::RootVector<JS::Value> m_memory; // Index -> JS value
     size_t m_position { 0 };
 
-    static GC::Ref<Bindings::PlatformObject> create_serialized_type(StringView interface_name, JS::Realm& realm)
-    {
-        if (interface_name == "Blob"sv)
-            return FileAPI::Blob::create(realm);
-        if (interface_name == "File"sv)
-            return FileAPI::File::create(realm);
-        if (interface_name == "FileList"sv)
-            return FileAPI::FileList::create(realm);
-        if (interface_name == "DOMException"sv)
-            return WebIDL::DOMException::create(realm);
-        if (interface_name == "DOMMatrixReadOnly"sv)
-            return Geometry::DOMMatrixReadOnly::create(realm);
-        if (interface_name == "DOMMatrix"sv)
-            return Geometry::DOMMatrix::create(realm);
-        if (interface_name == "DOMPointReadOnly"sv)
-            return Geometry::DOMPointReadOnly::create(realm);
-        if (interface_name == "DOMPoint"sv)
-            return Geometry::DOMPoint::create(realm);
-        if (interface_name == "DOMRectReadOnly"sv)
-            return Geometry::DOMRectReadOnly::create(realm);
-        if (interface_name == "DOMRect"sv)
-            return Geometry::DOMRect::create(realm);
-        if (interface_name == "CryptoKey"sv)
-            return Crypto::CryptoKey::create(realm);
-        if (interface_name == "DOMQuad"sv)
-            return Geometry::DOMQuad::create(realm);
-        if (interface_name == "ImageData"sv)
-            return ImageData::create(realm);
-
-        VERIFY_NOT_REACHED();
-    }
-
-    // FIXME: Consolidate this function with the similar is_interface_exposed_on_target_realm() used when transferring objects.
-    //        Also, the name parameter would be better off being the interface name (as a string) so that we don't need a switch statement.
-    static bool is_interface_exposed_on_target_realm(StringView interface_name, JS::Realm& realm)
+    static bool is_serializable_interface_exposed_on_target_realm(SerializeType name, JS::Realm& realm)
     {
         auto const& intrinsics = Bindings::host_defined_intrinsics(realm);
-        return intrinsics.is_exposed(interface_name);
+        switch (name) {
+        case SerializeType::Blob:
+            return intrinsics.is_interface_exposed<Bindings::BlobPrototype>(realm);
+        case SerializeType::File:
+            return intrinsics.is_interface_exposed<Bindings::FilePrototype>(realm);
+        case SerializeType::FileList:
+            return intrinsics.is_interface_exposed<Bindings::FileListPrototype>(realm);
+        case SerializeType::DOMException:
+            return intrinsics.is_interface_exposed<Bindings::DOMExceptionPrototype>(realm);
+        case SerializeType::DOMMatrixReadOnly:
+            return intrinsics.is_interface_exposed<Bindings::DOMMatrixReadOnlyPrototype>(realm);
+        case SerializeType::DOMMatrix:
+            return intrinsics.is_interface_exposed<Bindings::DOMMatrixPrototype>(realm);
+        case SerializeType::DOMPointReadOnly:
+            return intrinsics.is_interface_exposed<Bindings::DOMPointReadOnlyPrototype>(realm);
+        case SerializeType::DOMPoint:
+            return intrinsics.is_interface_exposed<Bindings::DOMPointPrototype>(realm);
+        case SerializeType::DOMRectReadOnly:
+            return intrinsics.is_interface_exposed<Bindings::DOMRectReadOnlyPrototype>(realm);
+        case SerializeType::DOMRect:
+            return intrinsics.is_interface_exposed<Bindings::DOMRectPrototype>(realm);
+        case SerializeType::CryptoKey:
+            return intrinsics.is_interface_exposed<Bindings::CryptoKeyPrototype>(realm);
+        case SerializeType::DOMQuad:
+            return intrinsics.is_interface_exposed<Bindings::DOMQuadPrototype>(realm);
+        case SerializeType::ImageData:
+            return intrinsics.is_interface_exposed<Bindings::ImageDataPrototype>(realm);
+        case SerializeType::ImageBitmap:
+            return intrinsics.is_interface_exposed<Bindings::ImageBitmapPrototype>(realm);
+        case SerializeType::Unknown:
+            dbgln("Unknown interface type for serialization: {}", to_underlying(name));
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+        return false;
+    }
+
+    static GC::Ref<Bindings::PlatformObject> create_serialized_type(SerializeType serialize_type, JS::Realm& realm)
+    {
+        switch (serialize_type) {
+        case SerializeType::Blob:
+            return FileAPI::Blob::create(realm);
+        case SerializeType::File:
+            return FileAPI::File::create(realm);
+        case SerializeType::FileList:
+            return FileAPI::FileList::create(realm);
+        case SerializeType::DOMException:
+            return WebIDL::DOMException::create(realm);
+        case SerializeType::DOMMatrixReadOnly:
+            return Geometry::DOMMatrixReadOnly::create(realm);
+        case SerializeType::DOMMatrix:
+            return Geometry::DOMMatrix::create(realm);
+        case SerializeType::DOMPointReadOnly:
+            return Geometry::DOMPointReadOnly::create(realm);
+        case SerializeType::DOMPoint:
+            return Geometry::DOMPoint::create(realm);
+        case SerializeType::DOMRectReadOnly:
+            return Geometry::DOMRectReadOnly::create(realm);
+        case SerializeType::DOMRect:
+            return Geometry::DOMRect::create(realm);
+        case SerializeType::CryptoKey:
+            return Crypto::CryptoKey::create(realm);
+        case SerializeType::DOMQuad:
+            return Geometry::DOMQuad::create(realm);
+        case SerializeType::ImageData:
+            return ImageData::create(realm);
+        case SerializeType::ImageBitmap:
+            return ImageBitmap::create(realm);
+        case SerializeType::Unknown:
+        default:
+            VERIFY_NOT_REACHED();
+        }
     }
 };
 
@@ -1290,18 +1344,18 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
     return SerializedTransferRecord { .serialized = move(serialized), .transfer_data_holders = move(transfer_data_holders) };
 }
 
-static bool is_interface_exposed_on_target_realm(TransferType name, JS::Realm& realm)
+static bool is_transferable_interface_exposed_on_target_realm(TransferType name, JS::Realm& realm)
 {
     auto const& intrinsics = Bindings::host_defined_intrinsics(realm);
     switch (name) {
     case TransferType::MessagePort:
-        return intrinsics.is_exposed("MessagePort"sv);
+        return intrinsics.is_interface_exposed<Bindings::MessagePortPrototype>(realm);
     case TransferType::ReadableStream:
-        return intrinsics.is_exposed("ReadableStream"sv);
+        return intrinsics.is_interface_exposed<Bindings::ReadableStreamPrototype>(realm);
     case TransferType::WritableStream:
-        return intrinsics.is_exposed("WritableStream"sv);
+        return intrinsics.is_interface_exposed<Bindings::WritableStreamPrototype>(realm);
     case TransferType::TransformStream:
-        return intrinsics.is_exposed("TransformStream"sv);
+        return intrinsics.is_interface_exposed<Bindings::TransformStreamPrototype>(realm);
     case TransferType::Unknown:
         dbgln("Unknown interface type for transfer: {}", to_underlying(name));
         break;
@@ -1398,7 +1452,7 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
         else {
             // 1. Let interfaceName be transferDataHolder.[[Type]].
             // 2. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
-            if (!is_interface_exposed_on_target_realm(type, target_realm))
+            if (!is_transferable_interface_exposed_on_target_realm(type, target_realm))
                 return WebIDL::DataCloneError::create(target_realm, "Unknown type transferred"_string);
 
             // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
