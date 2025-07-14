@@ -217,6 +217,9 @@ int getpid()
 
 ErrorOr<int> dup(int handle)
 {
+    if (handle < 0) {
+        return Error::from_windows_error(ERROR_INVALID_HANDLE);
+    }
     if (is_socket(handle)) {
         WSAPROTOCOL_INFO pi = {};
         if (WSADuplicateSocket(handle, GetCurrentProcessId(), &pi))

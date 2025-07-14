@@ -6,10 +6,10 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
+#include <LibCore/System.h>
 #include <LibCore/ThreadedPromise.h>
 #include <LibTest/TestSuite.h>
 #include <LibThreading/Thread.h>
-#include <unistd.h>
 
 TEST_CASE(promise_await_async_event)
 {
@@ -115,6 +115,9 @@ TEST_CASE(promise_map_already_resolved)
     EXPECT_EQ(result.value(), 42);
 }
 
+// FIXME: Support EventLoop::WaitMode::PollForEvents on Windows, otherwise ThreadedPromise::await() blocks forever
+
+#if !defined(AK_OS_WINDOWS)
 TEST_CASE(threaded_promise_instantly_resolved)
 {
     Core::EventLoop loop;
@@ -165,7 +168,7 @@ TEST_CASE(threaded_promise_resolved_later)
     auto thread = Threading::Thread::construct([&, promise] {
         thread_id = pthread_self();
         while (!unblock_thread)
-            usleep(500);
+            MUST(Core::System::sleep_ms(5));
         promise->resolve(42);
         return 0;
     });
@@ -219,3 +222,5 @@ TEST_CASE(threaded_promise_synchronously_resolved)
     EXPECT(resolved);
     EXPECT(!rejected);
 }
+
+#endif
