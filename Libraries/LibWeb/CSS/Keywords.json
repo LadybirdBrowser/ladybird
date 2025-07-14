@@ -3,6 +3,7 @@
   "-libweb-buttonfacedisabled",
   "-libweb-buttonfacehover",
   "-libweb-center",
+  "-libweb-inherit-or-center",
   "-libweb-left",
   "-libweb-link",
   "-libweb-palette-active-link",

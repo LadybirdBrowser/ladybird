@@ -609,6 +609,7 @@
     "right",
     "match-parent",
     "-libweb-center",
+    "-libweb-inherit-or-center",
     "-libweb-left",
     "-libweb-right"
   ],
