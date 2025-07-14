@@ -69,7 +69,7 @@ public:
         return min(x(), x() + width());
     }
 
-    virtual StringView interface_name() const override { return "DOMRectReadOnly"sv; }
+    virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::DOMRectReadOnly; }
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::SerializationRecord&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const&, size_t& position, HTML::DeserializationMemory&) override;
 

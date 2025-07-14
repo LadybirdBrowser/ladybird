@@ -66,7 +66,8 @@ public:
         return *m_constructors.find(class_name)->value;
     }
 
-    bool is_exposed(StringView name) const;
+    template<typename PrototypeType>
+    bool is_interface_exposed(JS::Realm&) const;
 
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;

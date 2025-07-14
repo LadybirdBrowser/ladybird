@@ -69,7 +69,7 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> set_matrix_value(String const& transform_list);
 
-    virtual StringView interface_name() const override { return "DOMMatrix"sv; }
+    virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::DOMMatrix; }
 
 private:
     DOMMatrix(JS::Realm&, double m11, double m12, double m21, double m22, double m41, double m42);

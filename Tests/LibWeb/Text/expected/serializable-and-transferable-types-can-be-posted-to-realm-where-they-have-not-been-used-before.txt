@@ -1,0 +1,20 @@
+iframe received an object: Error
+iframe received an object: [object DOMRectReadOnly]
+iframe received an object: [object DOMRect]
+iframe received an object: [object Blob]
+iframe received an object: [object ImageBitmap]
+iframe received an object: [object CryptoKey]
+iframe received an object: [object File]
+iframe received an object: [object FileList]
+iframe received an object: matrix(1, 2, 3, 4, 5, 6)
+iframe received an object: matrix(6, 5, 4, 3, 2, 1)
+iframe received an object: [object DOMPointReadOnly]
+iframe received an object: [object DOMPoint]
+iframe received an object: [object DOMQuad]
+iframe received an object: [object ImageData]
+iframe received an object: [object MessagePort]
+iframe received an object: [object ArrayBuffer]
+iframe received an object: [object ArrayBuffer]
+iframe received an object: [object ReadableStream]
+iframe received an object: [object WritableStream]
+iframe received an object: [object TransformStream]
