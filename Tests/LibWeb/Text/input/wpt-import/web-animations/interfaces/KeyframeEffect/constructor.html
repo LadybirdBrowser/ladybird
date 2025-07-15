@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>KeyframeEffect constructor</title>
+<link rel="help"
+      href="https://drafts.csswg.org/web-animations/#dom-keyframeeffect-keyframeeffect">
+<link rel="help"
+      href="https://drafts.csswg.org/web-animations/#dom-keyframeeffectreadonly-keyframeeffectreadonly">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<script src="../../resources/easing-tests.js"></script>
+<script src="../../resources/keyframe-utils.js"></script>
+<script src="../../resources/keyframe-tests.js"></script>
+<body>
+<div id="log"></div>
+<div id="target"></div>
+<script>
+'use strict';
+
+const target = document.getElementById('target');
+
+test(t => {
+  for (const frames of gEmptyKeyframeListTests) {
+    assert_equals(new KeyframeEffect(target, frames).getKeyframes().length,
+                  0, `number of frames for ${JSON.stringify(frames)}`);
+  }
+}, 'A KeyframeEffect can be constructed with no frames');
+
+test(t => {
+  for (const subtest of gEasingParsingTests) {
+    const easing = subtest[0];
+    const expected = subtest[1];
+    const effect = new KeyframeEffect(target, {
+      left: ['10px', '20px']
+    }, { easing: easing });
+    assert_equals(effect.getTiming().easing, expected,
+                  `resulting easing for '${easing}'`);
+  }
+}, 'easing values are parsed correctly when passed to the ' +
+   'KeyframeEffect constructor in KeyframeEffectOptions');
+
+test(t => {
+  for (const invalidEasing of gInvalidEasings) {
+    assert_throws_js(TypeError, () => {
+      new KeyframeEffect(target, null, { easing: invalidEasing });
+    }, `TypeError is thrown for easing '${invalidEasing}'`);
+  }
+}, 'Invalid easing values are correctly rejected when passed to the ' +
+   'KeyframeEffect constructor in KeyframeEffectOptions');
+
+test(t => {
+  const getKeyframe =
+    composite => ({ left: [ '10px', '20px' ], composite: composite });
+  for (const composite of gGoodKeyframeCompositeValueTests) {
+    const effect = new KeyframeEffect(target, getKeyframe(composite));
+    assert_equals(effect.getKeyframes()[0].composite, composite,
+                  `resulting composite for '${composite}'`);
+  }
+  for (const composite of gBadKeyframeCompositeValueTests) {
+    assert_throws_js(TypeError, () => {
+      new KeyframeEffect(target, getKeyframe(composite));
+    });
+  }
+}, 'composite values are parsed correctly when passed to the ' +
+   'KeyframeEffect constructor in property-indexed keyframes');
+
+test(t => {
+  const getKeyframes = composite =>
+    [
+      { offset: 0, left: '10px', composite: composite },
+      { offset: 1, left: '20px' }
+    ];
+  for (const composite of gGoodKeyframeCompositeValueTests) {
+    const effect = new KeyframeEffect(target, getKeyframes(composite));
+    assert_equals(effect.getKeyframes()[0].composite, composite,
+                  `resulting composite for '${composite}'`);
+  }
+  for (const composite of gBadKeyframeCompositeValueTests) {
+    assert_throws_js(TypeError, () => {
+      new KeyframeEffect(target, getKeyframes(composite));
+    });
+  }
+}, 'composite values are parsed correctly when passed to the ' +
+   'KeyframeEffect constructor in regular keyframes');
+
+test(t => {
+  for (const composite of gGoodOptionsCompositeValueTests) {
+    const effect = new KeyframeEffect(target, {
+      left: ['10px', '20px']
+    }, { composite });
+    assert_equals(effect.getKeyframes()[0].composite, 'auto',
+                  `resulting composite for '${composite}'`);
+  }
+  for (const composite of gBadOptionsCompositeValueTests) {
+    assert_throws_js(TypeError, () => {
+      new KeyframeEffect(target, {
+        left: ['10px', '20px']
+      }, { composite: composite });
+    });
+  }
+}, 'composite value is auto if the composite operation specified on the ' +
+   'keyframe effect is being used');
+
+for (const subtest of gKeyframesTests) {
+  test(t => {
+    const effect = new KeyframeEffect(target, subtest.input);
+    assert_frame_lists_equal(effect.getKeyframes(), subtest.output);
+  }, `A KeyframeEffect can be constructed with ${subtest.desc}`);
+
+  test(t => {
+    const effect = new KeyframeEffect(target, subtest.input);
+    const secondEffect = new KeyframeEffect(target, effect.getKeyframes());
+    assert_frame_lists_equal(secondEffect.getKeyframes(),
+                             effect.getKeyframes());
+  }, `A KeyframeEffect constructed with ${subtest.desc} roundtrips`);
+}
+
+for (const subtest of gInvalidKeyframesTests) {
+  test(t => {
+    assert_throws_js(TypeError, () => {
+      new KeyframeEffect(target, subtest.input);
+    });
+  }, `KeyframeEffect constructor throws with ${subtest.desc}`);
+}
+
+test(t => {
+  const effect = new KeyframeEffect(target, { left: ['10px', '20px'] });
+
+  const timing = effect.getTiming();
+  assert_equals(timing.delay, 0, 'default delay');
+  assert_equals(timing.endDelay, 0, 'default endDelay');
+  assert_equals(timing.fill, 'auto', 'default fill');
+  assert_equals(timing.iterations, 1.0, 'default iterations');
+  assert_equals(timing.iterationStart, 0.0, 'default iterationStart');
+  assert_equals(timing.duration, 'auto', 'default duration');
+  assert_equals(timing.direction, 'normal', 'default direction');
+  assert_equals(timing.easing, 'linear', 'default easing');
+
+  assert_equals(effect.composite, 'replace', 'default composite');
+  assert_equals(effect.iterationComposite, 'replace',
+                'default iterationComposite');
+}, 'A KeyframeEffect constructed without any KeyframeEffectOptions object');
+
+for (const subtest of gKeyframeEffectOptionTests) {
+  test(t => {
+    const effect = new KeyframeEffect(target, { left: ['10px', '20px'] },
+                                      subtest.input);
+
+    // Helper function to provide default expected values when the test does
+    // not supply them.
+    const expected = (field, defaultValue) => {
+      return field in subtest.expected ? subtest.expected[field] : defaultValue;
+    };
+
+    const timing = effect.getTiming();
+    assert_equals(timing.delay, expected('delay', 0),
+                  'timing delay');
+    assert_equals(timing.fill, expected('fill', 'auto'),
+                  'timing fill');
+    assert_equals(timing.iterations, expected('iterations', 1),
+                  'timing iterations');
+    assert_equals(timing.duration, expected('duration', 'auto'),
+                  'timing duration');
+    assert_equals(timing.direction, expected('direction', 'normal'),
+                  'timing direction');
+
+  }, `A KeyframeEffect constructed by ${subtest.desc}`);
+}
+
+for (const subtest of gInvalidKeyframeEffectOptionTests) {
+  test(t => {
+    assert_throws_js(TypeError, () => {
+      new KeyframeEffect(target, { left: ['10px', '20px'] }, subtest.input);
+    });
+  }, `Invalid KeyframeEffect option by ${subtest.desc}`);
+}
+
+test(t => {
+  const effect = new KeyframeEffect(null, { left: ['10px', '20px'] },
+                                    { duration: 100 * MS_PER_SEC,
+                                      fill: 'forwards' });
+  assert_equals(effect.target, null,
+                'Effect created with null target has correct target');
+}, 'A KeyframeEffect constructed with null target');
+
+test(t => {
+  const test_error = { name: 'test' };
+
+  assert_throws_exactly(test_error, () => {
+    new KeyframeEffect(target, { get left() { throw test_error }})
+  });
+}, 'KeyframeEffect constructor propagates exceptions generated by accessing'
+   + ' the options object');
+</script>
+</body>

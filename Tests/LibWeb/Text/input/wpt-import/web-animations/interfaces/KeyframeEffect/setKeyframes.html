@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>KeyframeEffect.setKeyframes</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations/#dom-keyframeeffect-setkeyframes">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<script src="../../resources/keyframe-utils.js"></script>
+<script src="../../resources/keyframe-tests.js"></script>
+<body>
+<div id="log"></div>
+<div id="target"></div>
+<script>
+'use strict';
+
+const target = document.getElementById('target');
+
+test(t => {
+  for (const frame of gEmptyKeyframeListTests) {
+    const effect = new KeyframeEffect(target, {});
+    effect.setKeyframes(frame);
+    assert_frame_lists_equal(effect.getKeyframes(), []);
+  }
+}, 'Keyframes can be replaced with an empty keyframe');
+
+for (const subtest of gKeyframesTests) {
+  test(t => {
+    const effect = new KeyframeEffect(target, {});
+    effect.setKeyframes(subtest.input);
+    assert_frame_lists_equal(effect.getKeyframes(), subtest.output);
+  }, `Keyframes can be replaced with ${subtest.desc}`);
+}
+
+for (const subtest of gInvalidKeyframesTests) {
+  test(t => {
+    const effect = new KeyframeEffect(target, {});
+    assert_throws_js(TypeError, () => {
+      effect.setKeyframes(subtest.input);
+    });
+  }, `KeyframeEffect constructor throws with ${subtest.desc}`);
+}
+
+test(t => {
+  const frames1 = [ { left: '100px' }, { left: '200px' } ];
+  const frames2 = [ { left: '200px' }, { left: '300px' } ];
+
+  const animation = target.animate(frames1, 1000);
+  animation.currentTime = 500;
+  assert_equals(getComputedStyle(target).left, "150px");
+
+  animation.effect.setKeyframes(frames2);
+  assert_equals(getComputedStyle(target).left, "250px");
+}, 'Changes made via setKeyframes should be immediately visible in style');
+</script>
+</body>
