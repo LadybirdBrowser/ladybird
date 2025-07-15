@@ -1,0 +1,408 @@
+[
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/build.git",
+        "commit": "169fcf699b64d2d5e75a391beaec8a7ad6e41a7f",
+        "dest": "angle/build",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/buildtools.git",
+        "commit": "5b7491dfe58d387aaf1391749afdfbaa19dcbb89",
+        "dest": "angle/buildtools",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/llvm/llvm-project/clang/tools/clang-format.git",
+        "commit": "37f6e68a107df43b7d7e044fd36a13cbae3413f2",
+        "dest": "angle/third_party/clang-format/script",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/testing",
+        "commit": "0d5210a4b1978e7e2c6b8623c719dff0a0994a8f",
+        "dest": "angle/testing",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/third_party/abseil-cpp",
+        "commit": "e3d58ba1a2a04f85225c3c04fa4603bb64399b2c",
+        "dest": "angle/third_party/abseil-cpp",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/ARM-software/astc-encoder",
+        "commit": "2319d9c4d4af53a7fc7c52985e264ce6e8a02a9b",
+        "dest": "angle/third_party/astc-encoder/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/catapult.git",
+        "commit": "a03b70978cc52840b549947f0fb165f03764c700",
+        "dest": "angle/third_party/catapult",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://android.googlesource.com/platform/external/cherry",
+        "commit": "4f8fb08d33ca5ff05a1c638f04c85bbb8d8b52cc",
+        "dest": "angle/third_party/cherry",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/google/clspv",
+        "commit": "60f822e8123ca414dddc0e0f944440c99cb3c04d",
+        "dest": "angle/third_party/clspv/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://dawn.googlesource.com/dawn.git",
+        "commit": "7a8946456d4957dedd0137278f2198e02066b319",
+        "dest": "angle/third_party/dawn",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
+        "commit": "8f878438075a8d5d76f57bd10ab866d58d706319",
+        "dest": "angle/third_party/depot_tools",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/EGL-Registry",
+        "commit": "7dea2ed79187cd13f76183c4b9100159b9e3e071",
+        "dest": "angle/third_party/EGL-Registry/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/glmark2/glmark2",
+        "commit": "6edcf02205fd1e8979dc3f3964257a81959b80c8",
+        "dest": "angle/third_party/glmark2/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/third_party/googletest",
+        "commit": "17bbed2084d3127bd7bcd27283f18d7a5861bea8",
+        "dest": "angle/third_party/googletest",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromiumos/third_party/libdrm.git",
+        "commit": "ad78bb591d02162d3b90890aa4d0a238b2a37cde",
+        "dest": "angle/third_party/libdrm/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo.git",
+        "commit": "e14cbfaa85529d47f9f55b0f104a579c1061f9ad",
+        "dest": "angle/third_party/libjpeg_turbo",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://android.googlesource.com/platform/external/libpng",
+        "commit": "8cc222cd3e79fa5190f3aa039a03a4cbea6cfbe7",
+        "dest": "angle/third_party/libpng/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/llvm/llvm-project",
+        "commit": "1fd8d3fea53e6e4573cdce55bd38ef0a7813a442",
+        "dest": "angle/third_party/llvm/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/third_party/jinja2",
+        "commit": "c3027d884967773057bf74b957e3fea87e5df4d7",
+        "dest": "angle/third_party/jinja2",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/third_party/jsoncpp",
+        "commit": "f62d44704b4da6014aa231cfc116e7fd29617d2a",
+        "dest": "angle/third_party/jsoncpp",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git",
+        "commit": "2c359c239b138a20a03f798e47889448ef131c22",
+        "dest": "angle/third_party/libc++/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git",
+        "commit": "e44c3c4560f1742744ef3f9fb4217a5f26ebca1b",
+        "dest": "angle/third_party/libc++abi/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git",
+        "commit": "3dc83eebbdc6adf43831985d410fb451d385a5b1",
+        "dest": "angle/third_party/llvm-libc/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libunwind.git",
+        "commit": "5bbf35ae6801f579c523893176789774c0726e22",
+        "dest": "angle/third_party/libunwind/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/third_party/markupsafe",
+        "commit": "4256084ae14175d38a3ff7d739dca83ae49ccec6",
+        "dest": "angle/third_party/markupsafe",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/deps/nasm.git",
+        "commit": "e2c93c34982b286b27ce8b56dd7159e0b90869a2",
+        "dest": "angle/third_party/nasm",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/OpenCL-CTS",
+        "commit": "e0a31a03fc8f816d59fd8b3051ac6a61d3fa50c6",
+        "dest": "angle/third_party/OpenCL-CTS/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/OpenCL-Docs",
+        "commit": "774114e8761920b976d538d47fad8178d05984ec",
+        "dest": "angle/third_party/OpenCL-Docs/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/OpenCL-ICD-Loader",
+        "commit": "9b5e3849b49a1448996c8b96ba086cd774d987db",
+        "dest": "angle/third_party/OpenCL-ICD-Loader/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/OpenGL-Registry",
+        "commit": "200cea4030cb49d3e40677379e6368a5f0e8c27b",
+        "dest": "angle/third_party/OpenGL-Registry/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/third_party/protobuf",
+        "commit": "e0f7527112a9310b608afa49affe72e810697dce",
+        "dest": "angle/third_party/protobuf",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/third_party/Python-Markdown",
+        "commit": "0f4473546172a64636f5d841410c564c0edad625",
+        "dest": "angle/third_party/Python-Markdown",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/Tencent/rapidjson",
+        "commit": "781a4e667d84aeedbeb8184b7b62425ea66ec59f",
+        "dest": "angle/third_party/rapidjson/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/third_party/rust",
+        "commit": "274de19b1d9b411b98b81672d1e300c86aaa2601",
+        "dest": "angle/third_party/rust",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://swiftshader.googlesource.com/SwiftShader",
+        "commit": "0ce9bc68d3fc995f76dcab4771c26471100ce759",
+        "dest": "angle/third_party/SwiftShader",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/VK-GL-CTS",
+        "commit": "4c617fa74b67a177c7bde5f48c73f5a5509121ed",
+        "dest": "angle/third_party/VK-GL-CTS/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/vulkan-deps",
+        "commit": "317a1e4780ef130e7b92fc287cf390ac2aff0c22",
+        "dest": "angle/third_party/vulkan-deps",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/glslang",
+        "commit": "21b4e37133868b3a50ef15fc027ecd6d3a52c875",
+        "dest": "angle/third_party/glslang/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/LunarG/VulkanTools",
+        "commit": "da60ac4327af194dfa773a07db6cd5d5aaa6848d",
+        "dest": "angle/third_party/lunarg-vulkantools/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Cross",
+        "commit": "b8fcf307f1f347089e3c46eb4451d27f32ebc8d3",
+        "dest": "angle/third_party/spirv-cross/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Headers",
+        "commit": "2a611a970fdbc41ac2e3e328802aed9985352dca",
+        "dest": "angle/third_party/spirv-headers/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Tools",
+        "commit": "108b19e5c6979f496deffad4acbe354237afa7d3",
+        "dest": "angle/third_party/spirv-tools/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Headers",
+        "commit": "10739e8e00a7b6f74d22dd0a547f1406ff1f5eb9",
+        "dest": "angle/third_party/vulkan-headers/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Loader",
+        "commit": "c8a2c8c9164a58ce71c1c77104e28e8de724539e",
+        "dest": "angle/third_party/vulkan-loader/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Tools",
+        "commit": "e3fc64396755191b3c51e5c57d0454872e7fa487",
+        "dest": "angle/third_party/vulkan-tools/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Utility-Libraries",
+        "commit": "0f0babb553a60da5971d9f4d40cf720ce01602f1",
+        "dest": "angle/third_party/vulkan-utility-libraries/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-ValidationLayers",
+        "commit": "89c6a9b6500e2e0bda127113bbfe1d70f1ab2d20",
+        "dest": "angle/third_party/vulkan-validation-layers/src",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator",
+        "commit": "56300b29fbfcc693ee6609ddad3fdd5b7a449a21",
+        "dest": "angle/third_party/vulkan_memory_allocator",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/external/anongit.freedesktop.org/git/wayland/wayland",
+        "commit": "75c1a93e2067220fa06208f20f8f096bb463ec08",
+        "dest": "angle/third_party/wayland",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/third_party/zlib",
+        "commit": "4028ebf8710ee39d2286cb0f847f9b95c59f84d8",
+        "dest": "angle/third_party/zlib",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/tools/clang.git",
+        "commit": "ae0ff7090810342e6c7c378521bd78e79ed63bad",
+        "dest": "angle/tools/clang",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/tools/mb",
+        "commit": "1c0b50128bb1eee3d40731733ecae62f0e3ee40a",
+        "dest": "angle/tools/mb",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/tools/md_browser",
+        "commit": "6cc8e58a83412dc31de6fb7614fadb0b51748d4b",
+        "dest": "angle/tools/md_browser",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/tools/memory",
+        "commit": "cc38b4b04fbf942926366f420c43afb9e9ab364b",
+        "dest": "angle/tools/memory",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/tools/perf",
+        "commit": "bd0baf9e31a384c4ff99b8911be4c07772ad513c",
+        "dest": "angle/tools/perf",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/tools/protoc_wrapper",
+        "commit": "502dcad5230ec1da544e7720b15d91782f040d9f",
+        "dest": "angle/tools/protoc_wrapper",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/tools/rust.git",
+        "commit": "6c0ba3465b64d460de7426b707dcc73939a2226f",
+        "dest": "angle/tools/rust",
+        "disable-submodules": true
+    },
+    {
+        "type": "git",
+        "url": "https://chromium.googlesource.com/chromium/src/tools/valgrind",
+        "commit": "5ba62550b2f3d4d97974ebcdb4f8462e4ba14af2",
+        "dest": "angle/tools/valgrind",
+        "disable-submodules": true
+    }
+]

@@ -1,0 +1,23 @@
+$ServiceURL https://chrome-infra-packages.appspot.com
+$ParanoidMode CheckPresence
+
+@Subdir buildtools/linux64
+gn/gn/linux-${arch}	git_revision:97b68a0bb62b7528bc3491c7949d6804223c2b82
+
+@Subdir buildtools/reclient
+infra/rbe/client/${platform}	re_client_version:0.179.0.28341fc7-gomaip
+
+@Subdir third_party/ninja
+infra/3pp/tools/ninja/${platform}	version:3@1.12.1.chromium.4
+
+@Subdir third_party/siso/cipd
+infra/build/siso/${platform}	git_revision:c23de742b8483ddc09d8b68ef845efc7f5c6192f
+
+@Subdir tools/luci-go
+infra/tools/luci/cas/${platform}	git_revision:b0488766ec2a119f97c0189ffa5fff13e4da0131
+infra/tools/luci/isolate/${platform}	git_revision:b0488766ec2a119f97c0189ffa5fff13e4da0131
+infra/tools/luci/swarming/${platform}	git_revision:b0488766ec2a119f97c0189ffa5fff13e4da0131
+
+@Subdir tools/skia_goldctl/linux
+skia/tools/goldctl/linux-amd64	I1LygzXVm-v4LePMcFJ9j0k1AZoLq1UFO5FvEue2TbsC
+

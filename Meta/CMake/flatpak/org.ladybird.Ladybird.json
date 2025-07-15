@@ -88,12 +88,61 @@
       "build-options": {
         "build-args": [
           "--share=network"
-        ]
+        ],
+        "append-path": "/run/build/angle/angle/third_party/depot_tools"
       },
+      "build-commands": [
+        "./angle-checkout.sh",
+        "./angle-configure.sh",
+        "./angle-build.sh",
+        "./angle-install.sh"
+      ],
       "sources": [
         {
+          "type": "git",
+          "url": "https://chromium.googlesource.com/angle/angle",
+          "commit": "7ab02e1d49a649adaba62b8a7fdfabf8144b313f",
+          "dest": "angle",
+          "disable-submodules": true
+        },
+        {
+          "type": "git",
+          "url": "https://chromium.googlesource.com/external/github.com/open-source-parsers/jsoncpp.git",
+          "branch": "master",
+          "dest": "angle/third_party/jsoncpp/source"
+        },
+        "gclient-sources.json",
+        {
+          "type": "shell",
+          "commands": [
+            "cd angle/third_party/depot_tools && git checkout -b origin/main"
+          ]
+        },
+        {
           "type": "file",
-          "path": "angle-checkout.sh"
+          "path": ".gclient"
+        },
+        {
+          "type": "file",
+          "path": ".gclient_entries"
+        },
+        {
+          "type": "file",
+          "path": "angle.ensure"
+        },
+        {
+          "type": "file",
+          "path": "gclient_args.gni",
+          "dest": "angle/build/config"
+        },
+        {
+          "type": "script",
+          "commands": [
+            "set -e",
+            "cipd ensure -root angle -ensure-file angle.ensure",
+            "gclient runhooks"
+          ],
+          "dest-filename": "angle-checkout.sh"
         },
         {
           "type": "file",
@@ -107,12 +156,6 @@
           "type": "file",
           "path": "angle-install.sh"
         }
-      ],
-      "build-commands": [
-        "./angle-checkout.sh",
-        "./angle-configure.sh",
-        "./angle-build.sh",
-        "./angle-install.sh"
       ]
     },
     {

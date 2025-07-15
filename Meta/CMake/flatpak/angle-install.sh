@@ -41,5 +41,3 @@ cat > "$FLATPAK_DEST/lib/pkgconfig/angle.pc" <<EOF
     Libs: -L\${libdir} -lEGL -lGLESv2
     Cflags: -I\${includedir}/angle
 EOF
-
-git reset --hard origin/main
