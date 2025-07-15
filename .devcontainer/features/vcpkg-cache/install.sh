@@ -7,6 +7,11 @@ set -e
 
 case "$(uname -m)" in
     x86_64|x64)
+      export VCPKG_DEFAULT_TRIPLET=x64-linux-dynamic
+      ;;
+    aarch64|arm64)
+      export VCPKG_DEFAULT_TRIPLET=arm64-linux-dynamic
+      export VCPKG_FORCE_SYSTEM_BINARIES=1
       ;;
     *)
       export VCPKG_FORCE_SYSTEM_BINARIES=1
