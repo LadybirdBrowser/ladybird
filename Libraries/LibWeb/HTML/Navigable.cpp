@@ -2358,13 +2358,14 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     if (m_viewport_size == size)
         return;
 
+    m_viewport_size = size;
+
     if (!m_is_svg_page) {
         m_backing_store_manager->restart_resize_timer();
         m_backing_store_manager->resize_backing_stores_if_needed(Web::Painting::BackingStoreManager::WindowResizingInProgress::Yes);
         m_pending_set_browser_zoom_request = false;
     }
 
-    m_viewport_size = size;
     if (auto document = active_document()) {
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
