@@ -861,24 +861,6 @@ void Document::set_origin(URL::Origin const& origin)
     m_origin = origin;
 }
 
-void Document::schedule_style_update()
-{
-    if (!browsing_context())
-        return;
-
-    // NOTE: Update of the style is a step in HTML event loop processing.
-    HTML::main_thread_event_loop().schedule();
-}
-
-void Document::schedule_layout_update()
-{
-    if (!browsing_context())
-        return;
-
-    // NOTE: Update of the layout is a step in HTML event loop processing.
-    HTML::main_thread_event_loop().schedule();
-}
-
 bool Document::is_child_allowed(Node const& node) const
 {
     switch (node.type()) {
@@ -1238,7 +1220,6 @@ void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
     if (m_layout_root)
         dbgln_if(UPDATE_LAYOUT_DEBUG, "DROP TREE {}", to_string(reason));
     tear_down_layout_tree();
-    schedule_layout_update();
 }
 
 static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout::Viewport& viewport)
@@ -3426,8 +3407,6 @@ void Document::run_the_resize_steps()
         visual_viewport_resize_event->set_is_trusted(true);
         visual_viewport()->dispatch_event(visual_viewport_resize_event);
     }
-
-    schedule_layout_update();
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view-1/#document-run-the-scroll-steps
