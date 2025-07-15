@@ -616,6 +616,8 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return element.matches_enabled_pseudo_class();
     case CSS::PseudoClass::Checked:
         return element.matches_checked_pseudo_class();
+    case CSS::PseudoClass::Unchecked:
+        return element.matches_unchecked_pseudo_class();
     case CSS::PseudoClass::Indeterminate:
         return matches_indeterminate_pseudo_class(element);
     case CSS::PseudoClass::HighValue:

@@ -434,6 +434,7 @@ public:
     bool matches_enabled_pseudo_class() const;
     bool matches_disabled_pseudo_class() const;
     bool matches_checked_pseudo_class() const;
+    bool matches_unchecked_pseudo_class() const;
     bool matches_placeholder_shown_pseudo_class() const;
     bool matches_link_pseudo_class() const;
     bool matches_local_link_pseudo_class() const;

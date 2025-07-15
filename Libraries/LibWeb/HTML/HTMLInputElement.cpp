@@ -167,7 +167,10 @@ void HTMLInputElement::set_checked(bool checked)
 
     invalidate_style(
         DOM::StyleInvalidationReason::HTMLInputElementSetChecked,
-        { { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Checked } },
+        {
+            { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Checked },
+            { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Unchecked },
+        },
         {});
 
     if (auto* paintable = this->paintable())

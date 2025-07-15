@@ -1425,9 +1425,8 @@ bool Element::matches_checked_pseudo_class() const
     // The :checked pseudo-class must match any element falling into one of the following categories:
     // - input elements whose type attribute is in the Checkbox state and whose checkedness state is true
     // - input elements whose type attribute is in the Radio Button state and whose checkedness state is true
-    if (is<HTML::HTMLInputElement>(*this)) {
-        auto const& input_element = static_cast<HTML::HTMLInputElement const&>(*this);
-        switch (input_element.type_state()) {
+    if (auto* input_element = as_if<HTML::HTMLInputElement>(*this)) {
+        switch (input_element->type_state()) {
         case HTML::HTMLInputElement::TypeAttributeState::Checkbox:
         case HTML::HTMLInputElement::TypeAttributeState::RadioButton:
             return static_cast<HTML::HTMLInputElement const&>(*this).checked();
@@ -1437,8 +1436,27 @@ bool Element::matches_checked_pseudo_class() const
     }
 
     // - option elements whose selectedness is true
-    if (is<HTML::HTMLOptionElement>(*this)) {
-        return static_cast<HTML::HTMLOptionElement const&>(*this).selected();
+    if (auto* option_element = as_if<HTML::HTMLOptionElement>(*this)) {
+        return option_element->selected();
+    }
+    return false;
+}
+
+bool Element::matches_unchecked_pseudo_class() const
+{
+    // AD-HOC: There is no spec for this yet, so it's based on the spec for :checked, assuming that :unchecked applies to the same cases but with a `false` value.
+    if (auto* input_element = as_if<HTML::HTMLInputElement>(*this)) {
+        switch (input_element->type_state()) {
+        case HTML::HTMLInputElement::TypeAttributeState::Checkbox:
+        case HTML::HTMLInputElement::TypeAttributeState::RadioButton:
+            return !static_cast<HTML::HTMLInputElement const&>(*this).checked();
+        default:
+            return false;
+        }
+    }
+
+    if (auto* option_element = as_if<HTML::HTMLOptionElement>(*this)) {
+        return !option_element->selected();
     }
     return false;
 }
