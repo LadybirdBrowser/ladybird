@@ -1,0 +1,30 @@
+name: Flatpak Build
+
+on:
+  workflow_call:
+    inputs:
+      arch:
+        required: true
+        type: string
+      runner_labels:
+        required: true
+        type: string
+
+jobs:
+  flatpak:
+    runs-on: ${{ fromJSON(inputs.runner_labels) }}
+
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.9
+      options: --privileged
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: Ladybird.flatpak
+          manifest-path: Meta/CMake/flatpak/org.ladybird.Ladybird.json
+          cache: 'true'
+          arch: ${{ inputs.arch }}
+          # Note: default cache key is 'flatpak-builder-${arch}-${sha256(manifestPath)}'
+          upload-artifact: 'true'
