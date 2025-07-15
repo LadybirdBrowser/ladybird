@@ -349,9 +349,6 @@ public:
     Painting::ViewportPaintable const* paintable() const;
     Painting::ViewportPaintable* paintable();
 
-    void schedule_style_update();
-    void schedule_layout_update();
-
     GC::Ref<NodeList> get_elements_by_name(FlyString const&);
 
     GC::Ref<HTMLCollection> applets();

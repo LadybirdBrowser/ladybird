@@ -442,7 +442,6 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     if (is_document()) {
         auto& document = static_cast<DOM::Document&>(*this);
         document.set_needs_full_style_update(true);
-        document.schedule_style_update();
         return;
     }
 
@@ -493,8 +492,6 @@ void Node::invalidate_style(StyleInvalidationReason reason)
 
     for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host())
         ancestor->m_child_needs_style_update = true;
-
-    document().schedule_style_update();
 }
 
 void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties, StyleInvalidationOptions options)
@@ -558,8 +555,6 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
                 invalidate_entire_subtree(*sibling);
         }
     }
-
-    document().schedule_style_update();
 }
 
 String Node::child_text_content() const
@@ -1703,7 +1698,6 @@ void Node::set_needs_style_update(bool value)
                 break;
             ancestor->m_child_needs_style_update = true;
         }
-        document().schedule_style_update();
     }
 }
 
