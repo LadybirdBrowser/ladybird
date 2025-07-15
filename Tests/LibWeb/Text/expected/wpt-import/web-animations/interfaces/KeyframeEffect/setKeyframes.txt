@@ -1,0 +1,86 @@
+Harness status: OK
+
+Found 80 tests
+
+66 Pass
+14 Fail
+Pass	Keyframes can be replaced with an empty keyframe
+Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification
+Pass	Keyframes can be replaced with a one shorthand property two value property-indexed keyframes specification
+Pass	Keyframes can be replaced with a two property (one shorthand and one of its longhand components) two value property-indexed keyframes specification
+Pass	Keyframes can be replaced with a two property (one shorthand and one of its shorthand components) two value property-indexed keyframes specification
+Pass	Keyframes can be replaced with a two property two value property-indexed keyframes specification
+Pass	Keyframes can be replaced with a two property property-indexed keyframes specification with different numbers of values
+Pass	Keyframes can be replaced with a property-indexed keyframes specification with an invalid value
+Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification that needs to stringify its values
+Pass	Keyframes can be replaced with a property-indexed keyframes specification with a CSS variable reference
+Pass	Keyframes can be replaced with a property-indexed keyframes specification with a CSS variable reference in a shorthand property
+Pass	Keyframes can be replaced with a one property one value property-indexed keyframes specification
+Pass	Keyframes can be replaced with a one property one non-array value property-indexed keyframes specification
+Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification where the first value is invalid
+Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification where the second value is invalid
+Fail	Keyframes can be replaced with a property-indexed keyframes specification with a CSS variable as the property
+Fail	Keyframes can be replaced with a property-indexed keyframe with a single offset
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets that is too short
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets that is too long
+Pass	Keyframes can be replaced with a property-indexed keyframe with an empty array of offsets
+Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with an embedded null value
+Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with a trailing null value
+Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with leading and trailing null values
+Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with adjacent null values
+Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with all null values (and too many at that)
+Pass	Keyframes can be replaced with a property-indexed keyframe with a single null offset
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets that is not strictly ascending in the unused part of the array
+Pass	Keyframes can be replaced with a property-indexed keyframe without any specified easing
+Pass	Keyframes can be replaced with a property-indexed keyframe with a single easing
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of easings
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of easings that is too short
+Pass	Keyframes can be replaced with a property-indexed keyframe with a single-element array of easings
+Pass	Keyframes can be replaced with a property-indexed keyframe with an empty array of easings
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of easings that is too long
+Pass	Keyframes can be replaced with a property-indexed keyframe with a single composite operation
+Pass	Keyframes can be replaced with a property-indexed keyframe with a composite array
+Pass	Keyframes can be replaced with a property-indexed keyframe with a composite array that is too short
+Pass	Keyframes can be replaced with a property-indexed keyframe with a composite array that is too long
+Pass	Keyframes can be replaced with a property-indexed keyframe with a single-element composite array
+Pass	Keyframes can be replaced with a one property one keyframe sequence
+Pass	Keyframes can be replaced with a one property two keyframe sequence
+Pass	Keyframes can be replaced with a two property two keyframe sequence
+Pass	Keyframes can be replaced with a one shorthand property two keyframe sequence
+Pass	Keyframes can be replaced with a two property (a shorthand and one of its component longhands) two keyframe sequence
+Pass	Keyframes can be replaced with a two property keyframe sequence where one property is missing from the first keyframe
+Pass	Keyframes can be replaced with a two property keyframe sequence where one property is missing from the last keyframe
+Pass	Keyframes can be replaced with a one property two keyframe sequence that needs to stringify its values
+Pass	Keyframes can be replaced with a keyframe sequence with a CSS variable reference
+Pass	Keyframes can be replaced with a keyframe sequence with a CSS variable reference in a shorthand property
+Fail	Keyframes can be replaced with a keyframe sequence with a CSS variable as its property
+Pass	Keyframes can be replaced with a keyframe sequence with duplicate values for a given interior offset
+Pass	Keyframes can be replaced with a keyframe sequence with duplicate values for offsets 0 and 1
+Pass	Keyframes can be replaced with a two property four keyframe sequence
+Pass	Keyframes can be replaced with a single keyframe sequence with omitted offset
+Fail	Keyframes can be replaced with a single keyframe sequence with null offset
+Pass	Keyframes can be replaced with a single keyframe sequence with string offset
+Fail	Keyframes can be replaced with a single keyframe sequence with a single calc() offset
+Fail	Keyframes can be replaced with a one property keyframe sequence with some omitted offsets
+Fail	Keyframes can be replaced with a one property keyframe sequence with some null offsets
+Fail	Keyframes can be replaced with a two property keyframe sequence with some omitted offsets
+Pass	Keyframes can be replaced with a one property keyframe sequence with all omitted offsets
+Pass	Keyframes can be replaced with a keyframe sequence with different easing values, but the same easing value for a given offset
+Pass	Keyframes can be replaced with a keyframe sequence with different composite values, but the same composite value for a given offset
+Pass	KeyframeEffect constructor throws with keyframes with an out-of-bounded positive offset
+Pass	KeyframeEffect constructor throws with keyframes with an out-of-bounded negative offset
+Pass	KeyframeEffect constructor throws with property-indexed keyframes not loosely sorted by offset
+Pass	KeyframeEffect constructor throws with property-indexed keyframes not loosely sorted by offset even though not all offsets are specified
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with offsets out of range
+Pass	KeyframeEffect constructor throws with keyframes not loosely sorted by offset
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid easing value
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid easing value as one of the array values
+Pass	KeyframeEffect constructor throws with property-indexed keyframe with an invalid easing in the unused part of the array of easings
+Pass	KeyframeEffect constructor throws with empty property-indexed keyframe with an invalid easing
+Pass	KeyframeEffect constructor throws with empty property-indexed keyframe with an invalid easings array
+Pass	KeyframeEffect constructor throws with a keyframe sequence with an invalid easing value
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid composite value
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid composite value as one of the array values
+Pass	KeyframeEffect constructor throws with keyframes with an invalid composite value
+Fail	Changes made via setKeyframes should be immediately visible in style

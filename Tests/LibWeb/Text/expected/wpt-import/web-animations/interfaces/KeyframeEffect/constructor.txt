@@ -1,0 +1,181 @@
+Harness status: OK
+
+Found 175 tests
+
+120 Pass
+55 Fail
+Pass	A KeyframeEffect can be constructed with no frames
+Pass	easing values are parsed correctly when passed to the KeyframeEffect constructor in KeyframeEffectOptions
+Pass	Invalid easing values are correctly rejected when passed to the KeyframeEffect constructor in KeyframeEffectOptions
+Pass	composite values are parsed correctly when passed to the KeyframeEffect constructor in property-indexed keyframes
+Pass	composite values are parsed correctly when passed to the KeyframeEffect constructor in regular keyframes
+Pass	composite value is auto if the composite operation specified on the keyframe effect is being used
+Pass	A KeyframeEffect can be constructed with a one property two value property-indexed keyframes specification
+Fail	A KeyframeEffect constructed with a one property two value property-indexed keyframes specification roundtrips
+Pass	A KeyframeEffect can be constructed with a one shorthand property two value property-indexed keyframes specification
+Fail	A KeyframeEffect constructed with a one shorthand property two value property-indexed keyframes specification roundtrips
+Pass	A KeyframeEffect can be constructed with a two property (one shorthand and one of its longhand components) two value property-indexed keyframes specification
+Fail	A KeyframeEffect constructed with a two property (one shorthand and one of its longhand components) two value property-indexed keyframes specification roundtrips
+Pass	A KeyframeEffect can be constructed with a two property (one shorthand and one of its shorthand components) two value property-indexed keyframes specification
+Fail	A KeyframeEffect constructed with a two property (one shorthand and one of its shorthand components) two value property-indexed keyframes specification roundtrips
+Pass	A KeyframeEffect can be constructed with a two property two value property-indexed keyframes specification
+Fail	A KeyframeEffect constructed with a two property two value property-indexed keyframes specification roundtrips
+Pass	A KeyframeEffect can be constructed with a two property property-indexed keyframes specification with different numbers of values
+Fail	A KeyframeEffect constructed with a two property property-indexed keyframes specification with different numbers of values roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframes specification with an invalid value
+Fail	A KeyframeEffect constructed with a property-indexed keyframes specification with an invalid value roundtrips
+Pass	A KeyframeEffect can be constructed with a one property two value property-indexed keyframes specification that needs to stringify its values
+Fail	A KeyframeEffect constructed with a one property two value property-indexed keyframes specification that needs to stringify its values roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframes specification with a CSS variable reference
+Fail	A KeyframeEffect constructed with a property-indexed keyframes specification with a CSS variable reference roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframes specification with a CSS variable reference in a shorthand property
+Fail	A KeyframeEffect constructed with a property-indexed keyframes specification with a CSS variable reference in a shorthand property roundtrips
+Pass	A KeyframeEffect can be constructed with a one property one value property-indexed keyframes specification
+Fail	A KeyframeEffect constructed with a one property one value property-indexed keyframes specification roundtrips
+Pass	A KeyframeEffect can be constructed with a one property one non-array value property-indexed keyframes specification
+Fail	A KeyframeEffect constructed with a one property one non-array value property-indexed keyframes specification roundtrips
+Pass	A KeyframeEffect can be constructed with a one property two value property-indexed keyframes specification where the first value is invalid
+Fail	A KeyframeEffect constructed with a one property two value property-indexed keyframes specification where the first value is invalid roundtrips
+Pass	A KeyframeEffect can be constructed with a one property two value property-indexed keyframes specification where the second value is invalid
+Fail	A KeyframeEffect constructed with a one property two value property-indexed keyframes specification where the second value is invalid roundtrips
+Fail	A KeyframeEffect can be constructed with a property-indexed keyframes specification with a CSS variable as the property
+Pass	A KeyframeEffect constructed with a property-indexed keyframes specification with a CSS variable as the property roundtrips
+Fail	A KeyframeEffect can be constructed with a property-indexed keyframe with a single offset
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with a single offset roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets
+Pass	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets that is too short
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets that is too short roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets that is too long
+Pass	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets that is too long roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an empty array of offsets
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with an empty array of offsets roundtrips
+Fail	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets with an embedded null value
+Pass	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets with an embedded null value roundtrips
+Fail	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets with a trailing null value
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets with a trailing null value roundtrips
+Fail	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets with leading and trailing null values
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets with leading and trailing null values roundtrips
+Fail	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets with adjacent null values
+Pass	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets with adjacent null values roundtrips
+Fail	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets with all null values (and too many at that)
+Pass	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets with all null values (and too many at that) roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with a single null offset
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with a single null offset roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets that is not strictly ascending in the unused part of the array
+Pass	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets that is not strictly ascending in the unused part of the array roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe without any specified easing
+Fail	A KeyframeEffect constructed with a property-indexed keyframe without any specified easing roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with a single easing
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with a single easing roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of easings
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with an array of easings roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of easings that is too short
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with an array of easings that is too short roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with a single-element array of easings
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with a single-element array of easings roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an empty array of easings
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with an empty array of easings roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of easings that is too long
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with an array of easings that is too long roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with a single composite operation
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with a single composite operation roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with a composite array
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with a composite array roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with a composite array that is too short
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with a composite array that is too short roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with a composite array that is too long
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with a composite array that is too long roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with a single-element composite array
+Fail	A KeyframeEffect constructed with a property-indexed keyframe with a single-element composite array roundtrips
+Pass	A KeyframeEffect can be constructed with a one property one keyframe sequence
+Pass	A KeyframeEffect constructed with a one property one keyframe sequence roundtrips
+Pass	A KeyframeEffect can be constructed with a one property two keyframe sequence
+Pass	A KeyframeEffect constructed with a one property two keyframe sequence roundtrips
+Pass	A KeyframeEffect can be constructed with a two property two keyframe sequence
+Pass	A KeyframeEffect constructed with a two property two keyframe sequence roundtrips
+Pass	A KeyframeEffect can be constructed with a one shorthand property two keyframe sequence
+Pass	A KeyframeEffect constructed with a one shorthand property two keyframe sequence roundtrips
+Pass	A KeyframeEffect can be constructed with a two property (a shorthand and one of its component longhands) two keyframe sequence
+Pass	A KeyframeEffect constructed with a two property (a shorthand and one of its component longhands) two keyframe sequence roundtrips
+Pass	A KeyframeEffect can be constructed with a two property keyframe sequence where one property is missing from the first keyframe
+Pass	A KeyframeEffect constructed with a two property keyframe sequence where one property is missing from the first keyframe roundtrips
+Pass	A KeyframeEffect can be constructed with a two property keyframe sequence where one property is missing from the last keyframe
+Pass	A KeyframeEffect constructed with a two property keyframe sequence where one property is missing from the last keyframe roundtrips
+Pass	A KeyframeEffect can be constructed with a one property two keyframe sequence that needs to stringify its values
+Pass	A KeyframeEffect constructed with a one property two keyframe sequence that needs to stringify its values roundtrips
+Pass	A KeyframeEffect can be constructed with a keyframe sequence with a CSS variable reference
+Fail	A KeyframeEffect constructed with a keyframe sequence with a CSS variable reference roundtrips
+Pass	A KeyframeEffect can be constructed with a keyframe sequence with a CSS variable reference in a shorthand property
+Fail	A KeyframeEffect constructed with a keyframe sequence with a CSS variable reference in a shorthand property roundtrips
+Fail	A KeyframeEffect can be constructed with a keyframe sequence with a CSS variable as its property
+Fail	A KeyframeEffect constructed with a keyframe sequence with a CSS variable as its property roundtrips
+Pass	A KeyframeEffect can be constructed with a keyframe sequence with duplicate values for a given interior offset
+Pass	A KeyframeEffect constructed with a keyframe sequence with duplicate values for a given interior offset roundtrips
+Pass	A KeyframeEffect can be constructed with a keyframe sequence with duplicate values for offsets 0 and 1
+Pass	A KeyframeEffect constructed with a keyframe sequence with duplicate values for offsets 0 and 1 roundtrips
+Pass	A KeyframeEffect can be constructed with a two property four keyframe sequence
+Pass	A KeyframeEffect constructed with a two property four keyframe sequence roundtrips
+Pass	A KeyframeEffect can be constructed with a single keyframe sequence with omitted offset
+Fail	A KeyframeEffect constructed with a single keyframe sequence with omitted offset roundtrips
+Fail	A KeyframeEffect can be constructed with a single keyframe sequence with null offset
+Pass	A KeyframeEffect constructed with a single keyframe sequence with null offset roundtrips
+Pass	A KeyframeEffect can be constructed with a single keyframe sequence with string offset
+Pass	A KeyframeEffect constructed with a single keyframe sequence with string offset roundtrips
+Fail	A KeyframeEffect can be constructed with a single keyframe sequence with a single calc() offset
+Fail	A KeyframeEffect constructed with a single keyframe sequence with a single calc() offset roundtrips
+Fail	A KeyframeEffect can be constructed with a one property keyframe sequence with some omitted offsets
+Fail	A KeyframeEffect constructed with a one property keyframe sequence with some omitted offsets roundtrips
+Fail	A KeyframeEffect can be constructed with a one property keyframe sequence with some null offsets
+Fail	A KeyframeEffect constructed with a one property keyframe sequence with some null offsets roundtrips
+Fail	A KeyframeEffect can be constructed with a two property keyframe sequence with some omitted offsets
+Fail	A KeyframeEffect constructed with a two property keyframe sequence with some omitted offsets roundtrips
+Pass	A KeyframeEffect can be constructed with a one property keyframe sequence with all omitted offsets
+Fail	A KeyframeEffect constructed with a one property keyframe sequence with all omitted offsets roundtrips
+Pass	A KeyframeEffect can be constructed with a keyframe sequence with different easing values, but the same easing value for a given offset
+Pass	A KeyframeEffect constructed with a keyframe sequence with different easing values, but the same easing value for a given offset roundtrips
+Pass	A KeyframeEffect can be constructed with a keyframe sequence with different composite values, but the same composite value for a given offset
+Pass	A KeyframeEffect constructed with a keyframe sequence with different composite values, but the same composite value for a given offset roundtrips
+Pass	KeyframeEffect constructor throws with keyframes with an out-of-bounded positive offset
+Pass	KeyframeEffect constructor throws with keyframes with an out-of-bounded negative offset
+Pass	KeyframeEffect constructor throws with property-indexed keyframes not loosely sorted by offset
+Pass	KeyframeEffect constructor throws with property-indexed keyframes not loosely sorted by offset even though not all offsets are specified
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with offsets out of range
+Pass	KeyframeEffect constructor throws with keyframes not loosely sorted by offset
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid easing value
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid easing value as one of the array values
+Pass	KeyframeEffect constructor throws with property-indexed keyframe with an invalid easing in the unused part of the array of easings
+Pass	KeyframeEffect constructor throws with empty property-indexed keyframe with an invalid easing
+Pass	KeyframeEffect constructor throws with empty property-indexed keyframe with an invalid easings array
+Pass	KeyframeEffect constructor throws with a keyframe sequence with an invalid easing value
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid composite value
+Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid composite value as one of the array values
+Pass	KeyframeEffect constructor throws with keyframes with an invalid composite value
+Fail	A KeyframeEffect constructed without any KeyframeEffectOptions object
+Pass	A KeyframeEffect constructed by an empty KeyframeEffectOptions object
+Pass	A KeyframeEffect constructed by a normal KeyframeEffectOptions object
+Pass	A KeyframeEffect constructed by a double value
+Pass	A KeyframeEffect constructed by +Infinity
+Pass	A KeyframeEffect constructed by an Infinity duration
+Pass	A KeyframeEffect constructed by an auto duration
+Pass	A KeyframeEffect constructed by an Infinity iterations
+Pass	A KeyframeEffect constructed by an auto fill
+Pass	A KeyframeEffect constructed by a forwards fill
+Pass	Invalid KeyframeEffect option by -Infinity
+Pass	Invalid KeyframeEffect option by NaN
+Pass	Invalid KeyframeEffect option by a negative value
+Pass	Invalid KeyframeEffect option by a negative Infinity duration
+Pass	Invalid KeyframeEffect option by a NaN duration
+Pass	Invalid KeyframeEffect option by a negative duration
+Pass	Invalid KeyframeEffect option by a string duration
+Pass	Invalid KeyframeEffect option by a negative Infinity iterations
+Pass	Invalid KeyframeEffect option by a NaN iterations
+Pass	Invalid KeyframeEffect option by a negative iterations
+Pass	Invalid KeyframeEffect option by a blank easing
+Pass	Invalid KeyframeEffect option by an unrecognized easing
+Pass	Invalid KeyframeEffect option by an 'initial' easing
+Pass	Invalid KeyframeEffect option by an 'inherit' easing
+Pass	Invalid KeyframeEffect option by a variable easing
+Pass	Invalid KeyframeEffect option by a multi-value easing
+Pass	A KeyframeEffect constructed with null target
+Pass	KeyframeEffect constructor propagates exceptions generated by accessing the options object

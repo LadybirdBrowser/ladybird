@@ -1,0 +1,159 @@
+Harness status: OK
+
+Found 153 tests
+
+139 Pass
+14 Fail
+Pass	Element.animate() creates an Animation object
+Pass	Element.animate() creates an Animation object in the relevant realm of the target element
+Pass	Element.animate() creates an Animation object with a KeyframeEffect
+Pass	Element.animate() creates an Animation object with a KeyframeEffect that is created in the relevant realm of the target element
+Pass	Element.animate() accepts empty keyframe lists (input: [])
+Pass	Element.animate() accepts empty keyframe lists (input: null)
+Pass	Element.animate() accepts empty keyframe lists (input: undefined)
+Pass	Element.animate() accepts a one property two value property-indexed keyframes specification
+Pass	Element.animate() accepts a one shorthand property two value property-indexed keyframes specification
+Pass	Element.animate() accepts a two property (one shorthand and one of its longhand components) two value property-indexed keyframes specification
+Pass	Element.animate() accepts a two property (one shorthand and one of its shorthand components) two value property-indexed keyframes specification
+Pass	Element.animate() accepts a two property two value property-indexed keyframes specification
+Pass	Element.animate() accepts a two property property-indexed keyframes specification with different numbers of values
+Pass	Element.animate() accepts a property-indexed keyframes specification with an invalid value
+Pass	Element.animate() accepts a one property two value property-indexed keyframes specification that needs to stringify its values
+Pass	Element.animate() accepts a property-indexed keyframes specification with a CSS variable reference
+Pass	Element.animate() accepts a property-indexed keyframes specification with a CSS variable reference in a shorthand property
+Pass	Element.animate() accepts a one property one value property-indexed keyframes specification
+Pass	Element.animate() accepts a one property one non-array value property-indexed keyframes specification
+Pass	Element.animate() accepts a one property two value property-indexed keyframes specification where the first value is invalid
+Pass	Element.animate() accepts a one property two value property-indexed keyframes specification where the second value is invalid
+Fail	Element.animate() accepts a property-indexed keyframes specification with a CSS variable as the property
+Fail	Element.animate() accepts a property-indexed keyframe with a single offset
+Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets
+Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets that is too short
+Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets that is too long
+Pass	Element.animate() accepts a property-indexed keyframe with an empty array of offsets
+Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with an embedded null value
+Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with a trailing null value
+Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with leading and trailing null values
+Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with adjacent null values
+Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with all null values (and too many at that)
+Pass	Element.animate() accepts a property-indexed keyframe with a single null offset
+Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets that is not strictly ascending in the unused part of the array
+Pass	Element.animate() accepts a property-indexed keyframe without any specified easing
+Pass	Element.animate() accepts a property-indexed keyframe with a single easing
+Pass	Element.animate() accepts a property-indexed keyframe with an array of easings
+Pass	Element.animate() accepts a property-indexed keyframe with an array of easings that is too short
+Pass	Element.animate() accepts a property-indexed keyframe with a single-element array of easings
+Pass	Element.animate() accepts a property-indexed keyframe with an empty array of easings
+Pass	Element.animate() accepts a property-indexed keyframe with an array of easings that is too long
+Pass	Element.animate() accepts a property-indexed keyframe with a single composite operation
+Pass	Element.animate() accepts a property-indexed keyframe with a composite array
+Pass	Element.animate() accepts a property-indexed keyframe with a composite array that is too short
+Pass	Element.animate() accepts a property-indexed keyframe with a composite array that is too long
+Pass	Element.animate() accepts a property-indexed keyframe with a single-element composite array
+Pass	Element.animate() accepts a one property one keyframe sequence
+Pass	Element.animate() accepts a one property two keyframe sequence
+Pass	Element.animate() accepts a two property two keyframe sequence
+Pass	Element.animate() accepts a one shorthand property two keyframe sequence
+Pass	Element.animate() accepts a two property (a shorthand and one of its component longhands) two keyframe sequence
+Pass	Element.animate() accepts a two property keyframe sequence where one property is missing from the first keyframe
+Pass	Element.animate() accepts a two property keyframe sequence where one property is missing from the last keyframe
+Pass	Element.animate() accepts a one property two keyframe sequence that needs to stringify its values
+Pass	Element.animate() accepts a keyframe sequence with a CSS variable reference
+Pass	Element.animate() accepts a keyframe sequence with a CSS variable reference in a shorthand property
+Fail	Element.animate() accepts a keyframe sequence with a CSS variable as its property
+Pass	Element.animate() accepts a keyframe sequence with duplicate values for a given interior offset
+Pass	Element.animate() accepts a keyframe sequence with duplicate values for offsets 0 and 1
+Pass	Element.animate() accepts a two property four keyframe sequence
+Pass	Element.animate() accepts a single keyframe sequence with omitted offset
+Fail	Element.animate() accepts a single keyframe sequence with null offset
+Pass	Element.animate() accepts a single keyframe sequence with string offset
+Fail	Element.animate() accepts a single keyframe sequence with a single calc() offset
+Fail	Element.animate() accepts a one property keyframe sequence with some omitted offsets
+Fail	Element.animate() accepts a one property keyframe sequence with some null offsets
+Fail	Element.animate() accepts a two property keyframe sequence with some omitted offsets
+Pass	Element.animate() accepts a one property keyframe sequence with all omitted offsets
+Pass	Element.animate() accepts a keyframe sequence with different easing values, but the same easing value for a given offset
+Pass	Element.animate() accepts a keyframe sequence with different composite values, but the same composite value for a given offset
+Pass	Element.animate() does not accept keyframes with an out-of-bounded positive offset
+Pass	Element.animate() does not accept keyframes with an out-of-bounded negative offset
+Pass	Element.animate() does not accept property-indexed keyframes not loosely sorted by offset
+Pass	Element.animate() does not accept property-indexed keyframes not loosely sorted by offset even though not all offsets are specified
+Pass	Element.animate() does not accept property-indexed keyframes with offsets out of range
+Pass	Element.animate() does not accept keyframes not loosely sorted by offset
+Pass	Element.animate() does not accept property-indexed keyframes with an invalid easing value
+Pass	Element.animate() does not accept property-indexed keyframes with an invalid easing value as one of the array values
+Pass	Element.animate() does not accept property-indexed keyframe with an invalid easing in the unused part of the array of easings
+Pass	Element.animate() does not accept empty property-indexed keyframe with an invalid easing
+Pass	Element.animate() does not accept empty property-indexed keyframe with an invalid easings array
+Pass	Element.animate() does not accept a keyframe sequence with an invalid easing value
+Pass	Element.animate() does not accept property-indexed keyframes with an invalid composite value
+Pass	Element.animate() does not accept property-indexed keyframes with an invalid composite value as one of the array values
+Pass	Element.animate() does not accept keyframes with an invalid composite value
+Pass	Element.animate() accepts a double as an options argument
+Pass	Element.animate() accepts a KeyframeAnimationOptions argument
+Pass	Element.animate() accepts an absent options argument
+Pass	Element.animate() does not accept invalid delay value: NaN
+Pass	Element.animate() does not accept invalid delay value: Infinity
+Pass	Element.animate() does not accept invalid delay value: -Infinity
+Pass	Element.animate() accepts a duration of 'auto' using a dictionary object
+Pass	Element.animate() does not accept invalid duration value: -1
+Pass	Element.animate() does not accept invalid duration value: NaN
+Pass	Element.animate() does not accept invalid duration value: -Infinity
+Pass	Element.animate() does not accept invalid duration value: "abc"
+Pass	Element.animate() does not accept invalid duration value: -1 using a dictionary object
+Pass	Element.animate() does not accept invalid duration value: NaN using a dictionary object
+Pass	Element.animate() does not accept invalid duration value: -Infinity using a dictionary object
+Pass	Element.animate() does not accept invalid duration value: "abc" using a dictionary object
+Pass	Element.animate() does not accept invalid duration value: "100" using a dictionary object
+Pass	Element.animate() does not accept invalid easing: ''
+Pass	Element.animate() does not accept invalid easing: '7'
+Pass	Element.animate() does not accept invalid easing: 'test'
+Pass	Element.animate() does not accept invalid easing: 'initial'
+Pass	Element.animate() does not accept invalid easing: 'inherit'
+Pass	Element.animate() does not accept invalid easing: 'unset'
+Pass	Element.animate() does not accept invalid easing: 'unrecognized'
+Pass	Element.animate() does not accept invalid easing: 'var(--x)'
+Pass	Element.animate() does not accept invalid easing: 'ease-in-out, ease-out'
+Pass	Element.animate() does not accept invalid easing: 'cubic-bezier(1.1, 0, 1, 1)'
+Pass	Element.animate() does not accept invalid easing: 'cubic-bezier(0, 0, 1.1, 1)'
+Pass	Element.animate() does not accept invalid easing: 'cubic-bezier(-0.1, 0, 1, 1)'
+Pass	Element.animate() does not accept invalid easing: 'cubic-bezier(0, 0, -0.1, 1)'
+Pass	Element.animate() does not accept invalid easing: 'cubic-bezier(0.1, 0, 4, 0.4)'
+Pass	Element.animate() does not accept invalid easing: 'steps(-1, start)'
+Pass	Element.animate() does not accept invalid easing: 'steps(0.1, start)'
+Pass	Element.animate() does not accept invalid easing: 'steps(3, nowhere)'
+Pass	Element.animate() does not accept invalid easing: 'steps(-3, end)'
+Pass	Element.animate() does not accept invalid easing: 'function (a){return a}'
+Pass	Element.animate() does not accept invalid easing: 'function (x){return x}'
+Pass	Element.animate() does not accept invalid easing: 'function(x, y){return 0.3}'
+Pass	Element.animate() does not accept invalid iterationStart value: -1
+Pass	Element.animate() does not accept invalid iterationStart value: NaN
+Pass	Element.animate() does not accept invalid iterationStart value: Infinity
+Pass	Element.animate() does not accept invalid iterationStart value: -Infinity
+Pass	Element.animate() does not accept invalid iterations value: -1
+Pass	Element.animate() does not accept invalid iterations value: -Infinity
+Pass	Element.animate() does not accept invalid iterations value: NaN
+Pass	Element.animate() correctly sets the id attribute when no id is specified
+Pass	Element.animate() correctly sets the id attribute
+Pass	Element.animate() correctly sets the Animation's timeline
+Pass	Element.animate() correctly sets the Animation's timeline when triggered on an element in a different document
+Pass	Element.animate() correctly sets the Animation's timeline with no timeline parameter in KeyframeAnimationOptions.
+Pass	Element.animate() correctly sets the Animation's timeline with undefined timeline in KeyframeAnimationOptions.
+Pass	Element.animate() correctly sets the Animation's timeline with null timeline in KeyframeAnimationOptions.
+Pass	Element.animate() correctly sets the Animation's timeline with DocumentTimeline in KeyframeAnimationOptions.
+Pass	Element.animate() calls play on the Animation
+Pass	Element.animate() does NOT trigger a style change event
+Pass	animate() with pseudoElement parameter creates an Animation object
+Pass	animate() with pseudoElement parameter without content creates an Animation object
+Pass	animate() with pseudoElement parameter creates an Animation object for ::marker
+Pass	animate() with pseudoElement parameter creates an Animation object for ::first-line
+Pass	animate() with pseudoElement an Animation object targeting the correct pseudo-element
+Pass	animate() with pseudoElement without content creates an Animation object targeting the correct pseudo-element
+Pass	animate() with pseudoElement an Animation object targeting the correct pseudo-element for ::marker
+Pass	animate() with pseudoElement an Animation object targeting the correct pseudo-element for ::first-line
+Pass	animate() with a non-null invalid pseudoElement '' throws a SyntaxError
+Pass	animate() with a non-null invalid pseudoElement 'before' throws a SyntaxError
+Pass	animate() with a non-null invalid pseudoElement ':abc' throws a SyntaxError
+Pass	animate() with a non-null invalid pseudoElement '::abc' throws a SyntaxError
+Pass	animate() with pseudoElement ::placeholder does not throw
+Fail	Finished fill animation doesn't replace animation on a different pseudoElement
