@@ -3012,7 +3012,6 @@ void StyleComputer::build_rule_cache()
     m_pseudo_class_rule_cache[to_underlying(PseudoClass::FocusWithin)] = make<RuleCache>();
     m_pseudo_class_rule_cache[to_underlying(PseudoClass::FocusVisible)] = make<RuleCache>();
     m_pseudo_class_rule_cache[to_underlying(PseudoClass::Target)] = make<RuleCache>();
-    m_pseudo_class_rule_cache[to_underlying(PseudoClass::TargetWithin)] = make<RuleCache>();
 
     make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights);
     make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights);

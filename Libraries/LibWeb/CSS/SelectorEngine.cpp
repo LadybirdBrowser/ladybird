@@ -803,12 +803,6 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     }
     case CSS::PseudoClass::Target:
         return element.is_target();
-    case CSS::PseudoClass::TargetWithin: {
-        auto* target_element = element.document().target_element();
-        if (!target_element)
-            return false;
-        return element.is_inclusive_ancestor_of(*target_element);
-    }
     case CSS::PseudoClass::Dir: {
         // "Values other than ltr and rtl are not invalid, but do not match anything."
         // - https://www.w3.org/TR/selectors-4/#the-dir-pseudo
