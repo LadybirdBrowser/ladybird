@@ -66,11 +66,19 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
     }
 
     auto config = config_or_error.release_value();
+    auto add_to_skipped_tests = [&](auto const& group) -> ErrorOr<void> {
+        for (auto& key : config->keys(group))
+            s_skipped_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
+        return {};
+    };
 
     for (auto const& group : config->groups()) {
         if (group == "Skipped"sv) {
-            for (auto& key : config->keys(group))
-                s_skipped_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
+            TRY(add_to_skipped_tests(group));
+        } else if (group == "Skipped:arm64"sv) {
+#if ARCH(AARCH64)
+            TRY(add_to_skipped_tests(group));
+#endif
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
@@ -553,9 +561,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
     TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
-#if defined(AK_OS_LINUX) && ARCH(X86_64)
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
-#endif
 
     tests.remove_all_matching([&](auto const& test) {
         static constexpr Array support_file_patterns {
