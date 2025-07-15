@@ -2570,15 +2570,12 @@ void Document::set_target_element(GC::Ptr<Element> element)
     if (old_target_node_root != new_target_node_root) {
         if (old_target_node_root) {
             invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, m_target_element, *old_target_node_root, element);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::TargetWithin, m_target_element, *old_target_node_root, element);
         }
         if (new_target_node_root) {
             invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, m_target_element, *new_target_node_root, element);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::TargetWithin, m_target_element, *new_target_node_root, element);
         }
     } else {
         invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, m_target_element, *common_ancestor, element);
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::TargetWithin, m_target_element, *common_ancestor, element);
     }
 
     m_target_element = element;
