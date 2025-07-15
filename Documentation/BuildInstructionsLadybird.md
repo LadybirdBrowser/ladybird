@@ -26,7 +26,7 @@ sudo apt install autoconf autoconf-archive automake build-essential ccache cmake
 - Recommendation: Install `CMake 3.25` or newer from [Kitware's apt repository](https://apt.kitware.com/):
 
 > [!NOTE]
-> This repository is Ubuntu-only
+> Kitware's apt repository is Ubuntu-only
 
 ```bash
 # Add Kitware GPG signing key
