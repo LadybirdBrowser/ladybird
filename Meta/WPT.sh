@@ -16,6 +16,8 @@ BUILD_PRESET=${BUILD_PRESET:-default}
 
 BUILD_DIR=$(get_build_dir "$BUILD_PRESET")
 
+TMPDIR=${TMPDIR:-/tmp}
+
 : "${TRY_SHOW_LOGFILES_IN_TMUX:=false}"
 : "${SHOW_LOGFILES:=true}"
 : "${SHOW_PROGRESS:=true}"
@@ -107,6 +109,8 @@ print_help() {
                       List the tests in the given PATHS.
       clean:      $NAME clean
                       Clean up the extra resources and directories (if any leftover) created by this script.
+      bisect:     $NAME bisect BAD_COMMIT GOOD_COMMIT [TESTS...]
+                      Find the first commit where a given set of tests produce unexpected results.
 
     Env vars:
       EXTRA_WPT_ARGS:             Extra arguments for the wpt command, placed at the end; array, default empty
@@ -245,7 +249,7 @@ ensure_wpt_repository() {
 }
 
 build_ladybird_and_webdriver() {
-    "${DIR}"/ladybird.py build WebDriver
+    "${LADYBIRD_SOURCE_DIR}"/Meta/ladybird.py build WebDriver
 }
 
 update_wpt() {
@@ -565,6 +569,96 @@ serve_wpt()
     popd > /dev/null
 }
 
+cleanup_bisect()
+{
+    local temp_file_directory="$1"; shift
+    if [ -d "${temp_file_directory}" ]; then
+        echo "Removing temp file directory: ${temp_file_directory}"
+        rm -rf "${temp_file_directory}"
+    fi
+
+    git bisect reset
+}
+
+bisect_wpt()
+{
+    if ! git diff-index --quiet HEAD --; then
+        echo "You have uncommitted changes, please commit or stash them before bisecting."
+        exit 1
+    fi
+
+    local bad="$1"; shift
+    local good="$1"; shift
+    # Commits from before ladybird.py was added don't currently work with this script
+    OLDEST_COMMIT_ALLOWED="061a7f766ce"
+
+    if ! git rev-parse --verify "${bad}" >/dev/null 2>&1; then
+        echo "Bad commit '${bad}' not found."
+        exit 1
+    fi
+
+    if ! git rev-parse --verify "${good}" >/dev/null 2>&1; then
+        echo "Good commit '${good}' not found."
+        exit 1
+    fi
+
+    if ! git merge-base --is-ancestor ${OLDEST_COMMIT_ALLOWED} "${good}"; then
+        echo "Commits older than ${OLDEST_COMMIT_ALLOWED} aren't allowed (because ladybird.py is required)."
+        exit 1
+    fi
+
+    if [ "${good}" = "${bad}" ]; then
+        echo "The good commit and the bad commit must be different."
+        exit 1
+    fi
+
+    if ! git merge-base --is-ancestor "${good}" "${bad}"  ; then
+        echo "The good commit must be older than the bad commit."
+        exit 1
+    fi
+
+    ensure_wpt_repository
+    construct_test_list "${@}"
+
+    pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
+      local temp_file_directory_base
+      temp_file_directory_base="$(mktemp -p "${TMPDIR}" -d "wpt-bisect-helper-XXXXXX")"
+      mkdir "${temp_file_directory_base}/Meta"
+      local baseline_log_file
+      baseline_log_file="$(mktemp -p "${temp_file_directory_base}" -u "XXXXXX.log")"
+      local current_branch_or_commit
+      current_branch_or_commit="$(git branch --show-current 2> /dev/null)"
+      if [ -z "${current_branch_or_commit}" ]; then
+          current_branch_or_commit="$(git rev-parse HEAD)"
+      fi
+
+      # We create the baseline log file against the bad commit bcause building it may be significantly faster if the
+      # good commit is significantly older than the bad commit.
+      git checkout "${bad}" 2> /dev/null
+      trap 'git checkout "${current_branch_or_commit}" 2> /dev/null' EXIT INT TERM
+      echo "Generating baseline log file at \"${baseline_log_file}\""
+      $0 run --log "${baseline_log_file}" "${@}" || true
+      trap - EXIT INT TERM
+      git checkout "${current_branch_or_commit}" 2> /dev/null
+
+      # We need to copy scripts that will run during bisection to ensure that we will always have the latest version.
+      required_build_files=(
+          "shell_include.sh"
+          "wpt-bisect-helper.sh"
+      )
+      for file in "${required_build_files[@]}"; do
+          cp "${LADYBIRD_SOURCE_DIR}/Meta/${file}" "${temp_file_directory_base}/Meta/${file}"
+      done
+      cp "$0" "${temp_file_directory_base}/Meta/WPT.sh"
+
+      git bisect start "${bad}" "${good}"
+      trap cleanup_bisect INT TERM
+      git bisect run "${temp_file_directory_base}/Meta/wpt-bisect-helper.sh" "${baseline_log_file}" "${@}" || true
+      trap - INT TERM
+      cleanup_bisect "${temp_file_directory_base}"
+    popd > /dev/null
+}
+
 list_tests_wpt()
 {
     ensure_wpt_repository
@@ -643,7 +737,7 @@ compare_wpt() {
     rm -rf "${METADATA_DIR}"
 }
 
-if [[ "$CMD" =~ ^(update|clean|run|serve|compare|import|list-tests)$ ]]; then
+if [[ "$CMD" =~ ^(update|clean|run|serve|bisect|compare|import|list-tests)$ ]]; then
     case "$CMD" in
         update)
             update_wpt
@@ -658,6 +752,13 @@ if [[ "$CMD" =~ ^(update|clean|run|serve|compare|import|list-tests)$ ]]; then
         serve)
             serve_wpt
             ;;
+        bisect)
+          if [ $# -lt 3 ]; then
+              echo "Usage: $0 bisect <bad> <good> [test paths...]"
+              usage
+          fi
+          bisect_wpt "${@}"
+          ;;
         import)
             while [[ "$1" =~ ^--(force|wpt-base-url)$ ]]; do
                 if [ "$1" = "--wpt-base-url" ]; then
