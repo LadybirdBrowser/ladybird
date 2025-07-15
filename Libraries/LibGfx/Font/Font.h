@@ -58,7 +58,6 @@ public:
 
     float point_size() const;
     float pixel_size() const;
-    int pixel_size_rounded_up() const;
     FontPixelMetrics const& pixel_metrics() const { return m_pixel_metrics; }
     u8 slope() const { return m_typeface->slope(); }
     u16 weight() const { return m_typeface->weight(); }
@@ -94,7 +93,6 @@ private:
     FontPixelMetrics m_pixel_metrics;
 
     float m_pixel_size { 0.0f };
-    int m_pixel_size_rounded_up { 0 };
 };
 
 }
