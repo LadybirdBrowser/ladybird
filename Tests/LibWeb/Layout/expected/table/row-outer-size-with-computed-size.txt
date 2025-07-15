@@ -12,14 +12,13 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
               BlockContainer <td> at (11,15) content-size 0x0 table-cell [BFC] children: not-inline
               BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text>
-              BlockContainer <td> at (16,12) content-size 37.21875x18 table-cell [BFC] children: not-inline
-                BlockContainer <(anonymous)> at (16,12) content-size 37.21875x18 children: inline
+              BlockContainer <td> at (16,12) content-size 37.21875x18 table-cell [BFC] children: inline
+                TextNode <#text>
+                InlineNode <a>
+                  frag 0 from TextNode start: 0, length: 4, rect: [16,12 37.21875x18] baseline: 13.796875
+                      "Test"
                   TextNode <#text>
-                  InlineNode <a>
-                    frag 0 from TextNode start: 0, length: 4, rect: [16,12 37.21875x18] baseline: 13.796875
-                        "Test"
-                    TextNode <#text>
-                  TextNode <#text>
+                TextNode <#text>
               BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text>
             BlockContainer <(anonymous)> (not painted) children: inline
@@ -42,9 +41,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableBox (Box<TR>) [10,10 45.21875x10]
               PaintableWithLines (BlockContainer<TD>) [10,10 2x10]
               PaintableWithLines (BlockContainer<TD>) [14,10 41.21875x22]
-                PaintableWithLines (BlockContainer(anonymous)) [16,12 37.21875x18]
-                  PaintableWithLines (InlineNode<A>) [16,12 37.21875x18]
-                    TextPaintable (TextNode<#text>)
+                PaintableWithLines (InlineNode<A>) [16,12 37.21875x18]
+                  TextPaintable (TextNode<#text>)
             PaintableBox (Box<TR>) [10,22 45.21875x10]
               PaintableWithLines (BlockContainer<TD>) [10,22 2x10]
 
