@@ -680,7 +680,7 @@ if [[ "$CMD" =~ ^(update|clean|run|serve|compare|import|list-tests)$ ]]; then
             ;;
 
         compare)
-            INPUT_LOG_NAME="$(pwd -P)/$1"
+            INPUT_LOG_NAME="$(realpath "$1")"
             if [ ! -f "$INPUT_LOG_NAME" ]; then
                 echo "Log file not found: \"${INPUT_LOG_NAME}\""
                 usage;
