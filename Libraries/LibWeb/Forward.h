@@ -402,6 +402,7 @@ class RegisteredObserver;
 class ShadowRoot;
 class StaticNodeList;
 class StaticRange;
+class StyleInvalidator;
 class Text;
 class TreeWalker;
 class XMLDocument;

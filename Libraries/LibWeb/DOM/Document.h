@@ -1261,6 +1261,8 @@ private:
     HashTable<GC::Ref<Element>> m_render_blocking_elements;
 
     HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
+
+    GC::Ref<StyleInvalidator> m_style_invalidator;
 };
 
 template<>
