@@ -508,53 +508,33 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
     }
 
     auto invalidation_set = document().style_computer().invalidation_set_for_properties(properties);
-    if (options.invalidate_self)
-        invalidation_set.set_needs_invalidate_self();
-    if (invalidation_set.is_empty())
-        return;
-
-    if (invalidation_set.needs_invalidate_self()) {
-        set_needs_style_update(true);
-    }
-
     if (invalidation_set.needs_invalidate_whole_subtree()) {
         invalidate_style(reason);
         return;
+    }
+
+    if (options.invalidate_self || invalidation_set.needs_invalidate_self()) {
+        set_needs_style_update(true);
     }
 
     if (!invalidation_set.has_properties() && !options.invalidate_elements_that_use_css_custom_properties) {
         return;
     }
 
-    auto invalidate_entire_subtree = [&](Node& subtree_root) {
-        subtree_root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
-            if (!node.is_element())
-                return TraversalDecision::Continue;
-            auto& element = static_cast<Element&>(node);
-            bool needs_style_recalculation = false;
-            if (invalidation_set.needs_invalidate_whole_subtree()) {
-                VERIFY_NOT_REACHED();
-            }
-
-            if (element.includes_properties_from_invalidation_set(invalidation_set)) {
-                needs_style_recalculation = true;
-            } else if (options.invalidate_elements_that_use_css_custom_properties && element.style_uses_css_custom_properties()) {
-                needs_style_recalculation = true;
-            }
-            if (needs_style_recalculation)
-                element.set_needs_style_update(true);
+    for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        if (!node.is_element())
             return TraversalDecision::Continue;
-        });
-    };
-
-    invalidate_entire_subtree(*this);
-
-    if (invalidation_set.needs_invalidate_whole_subtree()) {
-        for (auto* sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
-            if (sibling->is_element())
-                invalidate_entire_subtree(*sibling);
+        auto& element = static_cast<Element&>(node);
+        bool needs_style_recalculation = false;
+        if (element.includes_properties_from_invalidation_set(invalidation_set)) {
+            needs_style_recalculation = true;
+        } else if (options.invalidate_elements_that_use_css_custom_properties && element.style_uses_css_custom_properties()) {
+            needs_style_recalculation = true;
         }
-    }
+        if (needs_style_recalculation)
+            element.set_needs_style_update(true);
+        return TraversalDecision::Continue;
+    });
 }
 
 String Node::child_text_content() const
