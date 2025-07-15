@@ -1,4 +1,4 @@
-name: CI
+name: CI (Windows)
 
 on:
   pull_request:
