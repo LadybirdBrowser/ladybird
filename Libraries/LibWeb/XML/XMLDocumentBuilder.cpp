@@ -232,7 +232,7 @@ void XMLDocumentBuilder::element_end(const XML::Name& name)
     };
 
     auto* parent = m_current_node->parent_node();
-    if (parent->is_document_fragment()) {
+    if (parent && parent->is_document_fragment()) {
         auto template_parent_node = m_template_node_stack.take_last();
         parent = template_parent_node.ptr();
     }
