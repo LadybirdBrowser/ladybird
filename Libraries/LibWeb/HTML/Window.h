@@ -204,7 +204,7 @@ public:
 
     Variant<GC::Root<DOM::Event>, Empty> event() const;
 
-    [[nodiscard]] GC::Ref<CSS::CSSStyleDeclaration> get_computed_style(DOM::Element&, Optional<String> const& pseudo_element) const;
+    [[nodiscard]] GC::Ref<CSS::CSSStyleProperties> get_computed_style(DOM::Element&, Optional<String> const& pseudo_element) const;
 
     WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> match_media(String const& query);
     [[nodiscard]] GC::Ref<CSS::Screen> screen();

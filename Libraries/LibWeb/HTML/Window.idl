@@ -71,8 +71,8 @@ interface Window : EventTarget {
     // https://dom.spec.whatwg.org/#interface-window-extensions
     [Replaceable] readonly attribute (Event or undefined) event; // legacy
 
-    // https://w3c.github.io/csswg-drafts/cssom/#extensions-to-the-window-interface
-    [NewObject] CSSStyleDeclaration getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
+    // https://drafts.csswg.org/cssom/#extensions-to-the-window-interface
+    [NewObject] CSSStyleProperties getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
 
     // https://w3c.github.io/csswg-drafts/cssom-view/#extensions-to-the-window-interface
     [NewObject] MediaQueryList matchMedia(CSSOMString query);

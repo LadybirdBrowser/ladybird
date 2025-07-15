@@ -1272,8 +1272,8 @@ Variant<GC::Root<DOM::Event>, Empty> Window::event() const
     return Empty {};
 }
 
-// https://w3c.github.io/csswg-drafts/cssom/#dom-window-getcomputedstyle
-GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& element, Optional<String> const& pseudo_element) const
+// https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
+GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& element, Optional<String> const& pseudo_element) const
 {
     // 1. Let doc be elt’s node document.
 
