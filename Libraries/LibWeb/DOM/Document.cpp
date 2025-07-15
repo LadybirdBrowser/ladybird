@@ -76,6 +76,7 @@
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/StyleInvalidator.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/DOM/TreeWalker.h>
 #include <LibWeb/DOM/Utils.h>
@@ -459,6 +460,7 @@ Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFr
     , m_url(url)
     , m_temporary_document_for_fragment_parsing(temporary_document_for_fragment_parsing)
     , m_editing_host_manager(EditingHostManager::create(realm, *this))
+    , m_style_invalidator(realm.heap().allocate<StyleInvalidator>())
 {
     m_legacy_platform_object_flags = PlatformObject::LegacyPlatformObjectFlags {
         .supports_named_properties = true,
@@ -616,6 +618,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_session_storage_holder);
     visitor.visit(m_render_blocking_elements);
     visitor.visit(m_policy_container);
+    visitor.visit(m_style_invalidator);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -1492,34 +1495,6 @@ void Document::update_layout(UpdateLayoutReason reason)
     return invalidation;
 }
 
-// This function makes a full pass over the entire DOM and converts "entire subtree needs style update"
-// into "needs style update" for each inclusive descendant where it's found.
-static void perform_pending_style_invalidations(Node& node, bool invalidate_entire_subtree)
-{
-    invalidate_entire_subtree |= node.entire_subtree_needs_style_update();
-
-    if (invalidate_entire_subtree) {
-        node.set_needs_style_update_internal(true);
-        if (node.has_child_nodes())
-            node.set_child_needs_style_update(true);
-    }
-
-    for (auto* child = node.first_child(); child; child = child->next_sibling()) {
-        perform_pending_style_invalidations(*child, invalidate_entire_subtree);
-    }
-
-    if (node.is_element()) {
-        auto& element = static_cast<Element&>(node);
-        if (auto shadow_root = element.shadow_root()) {
-            perform_pending_style_invalidations(*shadow_root, invalidate_entire_subtree);
-            if (invalidate_entire_subtree)
-                node.set_child_needs_style_update(true);
-        }
-    }
-
-    node.set_entire_subtree_needs_style_update(false);
-}
-
 void Document::update_style()
 {
     if (!browsing_context())
@@ -1536,7 +1511,7 @@ void Document::update_style()
     if (!needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
         return;
 
-    perform_pending_style_invalidations(*this, false);
+    m_style_invalidator->perform_pending_style_invalidations(*this, false);
 
     // NOTE: If this is a document hosting <template> contents, style update is unnecessary.
     if (m_created_for_appropriate_template_contents)
