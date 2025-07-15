@@ -83,11 +83,8 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
     if (layout_parent.display().is_inline_outside() && layout_parent.display().is_flow_inside())
         return layout_parent;
 
-    if (layout_parent.display().is_flex_inside()
-        || layout_parent.display().is_grid_inside()
-        || layout_parent.display().is_table_cell()) {
+    if (layout_parent.display().is_flex_inside() || layout_parent.display().is_grid_inside())
         return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
-    }
 
     if (!has_in_flow_block_children(layout_parent) || layout_parent.children_are_inline())
         return layout_parent;

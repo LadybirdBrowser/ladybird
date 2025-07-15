@@ -12,11 +12,10 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
                       Box <table.inner> at (12,12) content-size 192x24 table-box [TFC] children: not-inline
                         Box <tbody> at (14,14) content-size 188x20 table-row-group children: not-inline
                           Box <tr> at (14,14) content-size 188x20 table-row children: not-inline
-                            BlockContainer <td> at (15,15) content-size 186x18 table-cell [BFC] children: not-inline
-                              BlockContainer <(anonymous)> at (15,15) content-size 186x18 children: inline
-                                frag 0 from TextNode start: 0, length: 3, rect: [15,15 36.53125x18] baseline: 13.796875
-                                    "A A"
-                                TextNode <#text>
+                            BlockContainer <td> at (15,15) content-size 186x18 table-cell [BFC] children: inline
+                              frag 0 from TextNode start: 0, length: 3, rect: [15,15 36.53125x18] baseline: 13.796875
+                                  "A A"
+                              TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x48]
@@ -33,8 +32,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                         PaintableBox (Box<TBODY>) [14,14 188x20]
                           PaintableBox (Box<TR>) [14,14 188x20]
                             PaintableWithLines (BlockContainer<TD>) [14,14 188x20]
-                              PaintableWithLines (BlockContainer(anonymous)) [15,15 186x18]
-                                TextPaintable (TextNode<#text>)
+                              TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x48] [children: 0] (z-index: auto)
