@@ -302,6 +302,9 @@ void MessagePort::read_from_transport()
 {
     VERIFY(m_enabled);
 
+    if (!is_entangled())
+        return;
+
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([this](auto&& raw_message) {
         FixedMemoryStream stream { raw_message.bytes.span(), FixedMemoryStream::Mode::ReadOnly };
         IPC::Decoder decoder { stream, raw_message.fds };
