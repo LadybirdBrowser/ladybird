@@ -43,8 +43,8 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm
             }
         }
 
-        // 2. Let list be the result of constructing the entry list for form.
-        auto entry_list = TRY(construct_entry_list(realm, *form));
+        // 2. Let list be the result of constructing the entry list for form and submitter.
+        auto entry_list = TRY(construct_entry_list(realm, *form, submitter));
         // 3. If list is null, then throw an "InvalidStateError" DOMException.
         if (!entry_list.has_value())
             return WebIDL::InvalidStateError::create(realm, "Form element does not contain any entries."_string);
