@@ -28,33 +28,40 @@ Optional<String> ListItemMarkerBox::text() const
 
     return m_list_style_type.visit(
         [index](CSS::CounterStyleNameKeyword keyword) -> Optional<String> {
+            String text;
             switch (keyword) {
             case CSS::CounterStyleNameKeyword::Square:
             case CSS::CounterStyleNameKeyword::Circle:
             case CSS::CounterStyleNameKeyword::Disc:
             case CSS::CounterStyleNameKeyword::DisclosureClosed:
             case CSS::CounterStyleNameKeyword::DisclosureOpen:
-                return {};
-            case CSS::CounterStyleNameKeyword::Decimal:
-                return MUST(String::formatted("{}.", index));
-            case CSS::CounterStyleNameKeyword::DecimalLeadingZero:
-                // This is weird, but in accordance to spec.
-                return MUST(index < 10 ? String::formatted("0{}.", index) : String::formatted("{}.", index));
-            case CSS::CounterStyleNameKeyword::LowerAlpha:
-            case CSS::CounterStyleNameKeyword::LowerLatin:
-                return String::bijective_base_from(index - 1, String::Case::Lower);
-            case CSS::CounterStyleNameKeyword::UpperAlpha:
-            case CSS::CounterStyleNameKeyword::UpperLatin:
-                return String::bijective_base_from(index - 1, String::Case::Upper);
-            case CSS::CounterStyleNameKeyword::LowerRoman:
-                return String::roman_number_from(index, String::Case::Lower);
-            case CSS::CounterStyleNameKeyword::UpperRoman:
-                return String::roman_number_from(index, String::Case::Upper);
             case CSS::CounterStyleNameKeyword::None:
                 return {};
+            case CSS::CounterStyleNameKeyword::Decimal:
+                text = String::number(index);
+                break;
+            case CSS::CounterStyleNameKeyword::DecimalLeadingZero:
+                // This is weird, but in accordance to spec.
+                text = index < 10 ? MUST(String::formatted("0{}", index)) : String::number(index);
+                break;
+            case CSS::CounterStyleNameKeyword::LowerAlpha:
+            case CSS::CounterStyleNameKeyword::LowerLatin:
+                text = String::bijective_base_from(index - 1, String::Case::Lower);
+                break;
+            case CSS::CounterStyleNameKeyword::UpperAlpha:
+            case CSS::CounterStyleNameKeyword::UpperLatin:
+                text = String::bijective_base_from(index - 1, String::Case::Upper);
+                break;
+            case CSS::CounterStyleNameKeyword::LowerRoman:
+                text = String::roman_number_from(index, String::Case::Lower);
+                break;
+            case CSS::CounterStyleNameKeyword::UpperRoman:
+                text = String::roman_number_from(index, String::Case::Upper);
+                break;
             default:
                 VERIFY_NOT_REACHED();
             }
+            return MUST(String::formatted("{}. ", text));
         },
         [](String const& string) -> Optional<String> {
             return string;
