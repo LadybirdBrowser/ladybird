@@ -81,6 +81,26 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
     metadata.set("match_references"sv, TRY(collect_references("match"sv)));
     metadata.set("mismatch_references"sv, TRY(collect_references("mismatch"sv)));
 
+    // Collect all <meta name="fuzzy" content=".."> values.
+    JsonArray fuzzy_configurations;
+    auto fuzzy_nodes = TRY(document->query_selector_all("meta[name=fuzzy]"sv));
+    for (size_t i = 0; i < fuzzy_nodes->length(); ++i) {
+        auto const* fuzzy_node = fuzzy_nodes->item(i);
+        auto content = as<DOM::Element>(fuzzy_node)->get_attribute_value(HTML::AttributeNames::content);
+
+        JsonObject fuzzy_configuration;
+        if (content.contains(':')) {
+            auto content_parts = MUST(content.split_limit(':', 2));
+            auto reference_url = document->encoding_parse_url(content_parts[0]);
+            fuzzy_configuration.set("reference"sv, reference_url->to_string());
+            content = content_parts[1];
+        }
+        fuzzy_configuration.set("content"sv, content);
+
+        fuzzy_configurations.must_append(fuzzy_configuration);
+    }
+    metadata.set("fuzzy"sv, fuzzy_configurations);
+
     page.client().page_did_receive_reference_test_metadata(metadata);
     return {};
 }
