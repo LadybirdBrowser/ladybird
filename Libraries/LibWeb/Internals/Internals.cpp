@@ -1,9 +1,11 @@
 /*
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonObject.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibUnicode/TimeZone.h>
@@ -12,6 +14,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Window.h>
@@ -19,7 +22,6 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::Internals {
 
@@ -48,6 +50,39 @@ void Internals::signal_test_is_done(String const& text)
 void Internals::set_test_timeout(double milliseconds)
 {
     page().client().page_did_set_test_timeout(milliseconds);
+}
+
+// https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest
+WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
+{
+    auto& vm = this->vm();
+    auto& page = this->page();
+
+    auto* document = page.top_level_browsing_context().active_document();
+    if (!document)
+        return vm.throw_completion<JS::InternalError>("No active document available"sv);
+
+    JsonObject metadata;
+
+    // Collect all <link rel="match"> and <link rel="mismatch"> references.
+    auto collect_references = [&vm, &document](StringView type) -> WebIDL::ExceptionOr<JsonArray> {
+        JsonArray references;
+        auto reference_nodes = TRY(document->query_selector_all(MUST(String::formatted("link[rel={}]", type))));
+        for (size_t i = 0; i < reference_nodes->length(); ++i) {
+            auto const* reference_node = reference_nodes->item(i);
+            auto href = as<DOM::Element>(reference_node)->get_attribute_value(HTML::AttributeNames::href);
+            auto url = document->encoding_parse_url(href);
+            if (!url.has_value())
+                return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Failed to construct URL for '{}'", href)));
+            references.must_append(url->to_string());
+        }
+        return references;
+    };
+    metadata.set("match_references"sv, TRY(collect_references("match"sv)));
+    metadata.set("mismatch_references"sv, TRY(collect_references("mismatch"sv)));
+
+    page.client().page_did_receive_reference_test_metadata(metadata);
+    return {};
 }
 
 void Internals::gc()

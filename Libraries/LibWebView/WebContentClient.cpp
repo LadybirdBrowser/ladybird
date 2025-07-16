@@ -132,6 +132,14 @@ void WebContentClient::did_set_test_timeout(u64 page_id, double milliseconds)
     }
 }
 
+void WebContentClient::did_receive_reference_test_metadata(u64 page_id, JsonValue metadata)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_reference_test_metadata)
+            view->on_reference_test_metadata(metadata);
+    }
+}
+
 void WebContentClient::did_set_browser_zoom(u64 page_id, double factor)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

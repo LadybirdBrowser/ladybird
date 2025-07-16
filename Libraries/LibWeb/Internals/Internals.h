@@ -22,6 +22,7 @@ public:
 
     void signal_test_is_done(String const& text);
     void set_test_timeout(double milliseconds);
+    WebIDL::ExceptionOr<void> load_reference_test_metadata();
 
     WebIDL::ExceptionOr<String> set_time_zone(StringView time_zone);
 
