@@ -84,7 +84,7 @@ class Atomic;
 template<typename T, typename TSizeCalculationPolicy = DefaultSizeCalculationPolicy>
 class SinglyLinkedList;
 
-template<typename T>
+template<typename T, size_t node_cache_size = 0>
 class DoublyLinkedList;
 
 template<typename T, size_t capacity>
