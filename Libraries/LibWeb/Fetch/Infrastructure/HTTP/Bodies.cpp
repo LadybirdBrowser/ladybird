@@ -68,22 +68,21 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
 {
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-    // FIXME: 1. If taskDestination is null, then set taskDestination to the result of starting a new parallel queue.
-    // FIXME: Handle 'parallel queue' task destination
-    VERIFY(!task_destination.has<Empty>());
-    auto task_destination_object = task_destination.get<GC::Ref<JS::Object>>();
+    // 1. If taskDestination is null, then set taskDestination to the result of starting a new parallel queue.
+    if (task_destination.has<Empty>())
+        task_destination = HTML::ParallelQueue::create();
 
     // 2. Let successSteps given a byte sequence bytes be to queue a fetch task to run processBody given bytes, with taskDestination.
-    auto success_steps = [&realm, process_body, task_destination_object](ByteBuffer bytes) {
-        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body, bytes = move(bytes)]() mutable {
+    auto success_steps = [&realm, process_body, task_destination](ByteBuffer bytes) {
+        queue_fetch_task(task_destination, GC::create_function(realm.heap(), [process_body, bytes = move(bytes)]() mutable {
             process_body->function()(move(bytes));
         }));
     };
 
     // 3. Let errorSteps optionally given an exception exception be to queue a fetch task to run processBodyError given
     //    exception, with taskDestination.
-    auto error_steps = [&realm, process_body_error, task_destination_object](JS::Value exception) {
-        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body_error, exception]() {
+    auto error_steps = [&realm, process_body_error, task_destination](JS::Value exception) {
+        queue_fetch_task(task_destination, GC::create_function(realm.heap(), [process_body_error, exception]() {
             process_body_error->function()(exception);
         }));
     };
@@ -107,20 +106,21 @@ void Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, Proce
 {
     HTML::TemporaryExecutionContext const execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-    VERIFY(task_destination.has<GC::Ref<JS::Object>>());
-    // FIXME: 1. If taskDestination is null, then set taskDestination to the result of starting a new parallel queue.
-    // FIXME: Handle 'parallel queue' task destination
+    // 1. If taskDestination is null, then set taskDestination to the result of starting a new parallel queue.
+    if (task_destination.has<Empty>())
+        task_destination = HTML::ParallelQueue::create();
 
     // 2. Let reader be the result of getting a reader for body’s stream.
     // NOTE: This operation will not throw an exception.
     auto reader = MUST(m_stream->get_a_reader());
 
     // 3. Perform the incrementally-read loop given reader, taskDestination, processBodyChunk, processEndOfBody, and processBodyError.
+    VERIFY(!task_destination.has<Empty>());
     incrementally_read_loop(reader, task_destination.get<GC::Ref<JS::Object>>(), process_body_chunk, process_end_of_body, process_body_error);
 }
 
 // https://fetch.spec.whatwg.org/#incrementally-read-loop
-void Body::incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader, GC::Ref<JS::Object> task_destination, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error)
+void Body::incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader, TaskDestination task_destination, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error)
 {
     auto& realm = reader.realm();
     // 1. Let readRequest be the following read request:

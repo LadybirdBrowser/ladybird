@@ -77,4 +77,17 @@ UniqueTaskSource::~UniqueTaskSource()
     s_unique_task_source_allocator.deallocate(static_cast<int>(source));
 }
 
+NonnullRefPtr<ParallelQueue> ParallelQueue::create()
+{
+    return adopt_ref(*new (nothrow) ParallelQueue);
+}
+
+TaskID ParallelQueue::enqueue(GC::Ref<GC::Function<void()>> algorithm)
+{
+    auto& event_loop = HTML::main_thread_event_loop();
+    auto task = HTML::Task::create(event_loop.vm(), m_task_source.source, nullptr, algorithm);
+    event_loop.task_queue().add(task);
+    return task->id();
+}
+
 }

@@ -89,7 +89,7 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     VERIFY(request.mode() == Infrastructure::Request::Mode::Navigate || !algorithms.process_early_hints_response());
 
     // 2. Let taskDestination be null.
-    GC::Ptr<JS::Object> task_destination;
+    Infrastructure::TaskDestination task_destination;
 
     // 3. Let crossOriginIsolatedCapability be false.
     auto cross_origin_isolated_capability = HTML::CanUseCrossOriginIsolatedAPIs::No;
@@ -97,14 +97,15 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     // 4. If request’s client is non-null, then:
     if (request.client() != nullptr) {
         // 1. Set taskDestination to request’s client’s global object.
-        task_destination = request.client()->global_object();
+        task_destination = GC::Ref { request.client()->global_object() };
 
         // 2. Set crossOriginIsolatedCapability to request’s client’s cross-origin isolated capability.
         cross_origin_isolated_capability = request.client()->cross_origin_isolated_capability();
     }
 
-    // FIXME: 5. If useParallelQueue is true, then set taskDestination to the result of starting a new parallel queue.
-    (void)use_parallel_queue;
+    // 5. If useParallelQueue is true, then set taskDestination to the result of starting a new parallel queue.
+    if (use_parallel_queue == UseParallelQueue::Yes)
+        task_destination = HTML::ParallelQueue::create();
 
     // 6. Let timingInfo be a new fetch timing info whose start time and post-redirect start time are the coarsened
     //    shared current time given crossOriginIsolatedCapability, and render-blocking is set to request’s
@@ -122,8 +123,7 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     //    task destination is taskDestination, and cross-origin isolated capability is crossOriginIsolatedCapability.
     auto fetch_params = Infrastructure::FetchParams::create(vm, request, timing_info);
     fetch_params->set_algorithms(algorithms);
-    if (task_destination)
-        fetch_params->set_task_destination({ *task_destination });
+    fetch_params->set_task_destination(task_destination);
     fetch_params->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
 
     // 8. If request’s body is a byte sequence, then set request’s body to request’s body as a body.
@@ -724,20 +724,14 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             }
         });
 
-        // FIXME: Handle 'parallel queue' task destination
-        auto task_destination = fetch_params.task_destination().get<GC::Ref<JS::Object>>();
-
         // 5. Queue a fetch task to run processResponseEndOfBodyTask with fetchParams’s task destination.
-        Infrastructure::queue_fetch_task(fetch_params.controller(), task_destination, move(process_response_end_of_body_task));
+        Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), move(process_response_end_of_body_task));
     };
-
-    // FIXME: Handle 'parallel queue' task destination
-    auto task_destination = fetch_params.task_destination().get<GC::Ref<JS::Object>>();
 
     // 4. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s process response
     //    given response, with fetchParams’s task destination.
     if (fetch_params.algorithms()->process_response()) {
-        Infrastructure::queue_fetch_task(fetch_params.controller(), task_destination, GC::create_function(vm.heap(), [&fetch_params, &response]() {
+        Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(vm.heap(), [&fetch_params, &response]() {
             fetch_params.algorithms()->process_response()(response);
         }));
     }
@@ -791,7 +785,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         // 3. If internalResponse's body is null, then queue a fetch task to run processBody given null, with
         //    fetchParams’s task destination.
         if (!internal_response->body()) {
-            Infrastructure::queue_fetch_task(fetch_params.controller(), task_destination, GC::create_function(vm.heap(), [process_body]() {
+            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(vm.heap(), [process_body]() {
                 process_body->function()({});
             }));
         }

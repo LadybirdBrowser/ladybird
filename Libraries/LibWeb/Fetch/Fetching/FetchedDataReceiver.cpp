@@ -63,7 +63,7 @@ void FetchedDataReceiver::on_data_received(ReadonlyBytes bytes)
     // 3. Queue a fetch task to run the following steps, with fetchParams’s task destination.
     Infrastructure::queue_fetch_task(
         m_fetch_params->controller(),
-        m_fetch_params->task_destination().get<GC::Ref<JS::Object>>(),
+        m_fetch_params->task_destination(),
         GC::create_function(heap(), [this, bytes = MUST(ByteBuffer::copy(bytes))]() mutable {
             HTML::TemporaryExecutionContext execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
