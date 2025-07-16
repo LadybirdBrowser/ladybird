@@ -11,9 +11,12 @@
 #include <AK/Badge.h>
 #include <AK/Checked.h>
 #include <AK/Platform.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+
 #ifdef AK_OS_WINDOWS
+#    include <time.h>
 // https://learn.microsoft.com/en-us/windows/win32/api/winsock/ns-winsock-timeval
 struct timeval {
     long tv_sec { 0 };
@@ -636,6 +639,25 @@ constexpr Duration operator""_ms(unsigned long long milliseconds) { return Durat
 constexpr Duration operator""_sec(unsigned long long seconds) { return Duration::from_seconds(static_cast<i64>(seconds)); }
 
 }
+
+template<>
+struct Formatter<UnixDateTime> : StandardFormatter {
+    ErrorOr<void> format(FormatBuilder& builder, UnixDateTime const& value)
+    {
+        auto result_time = value.to_timespec().tv_sec;
+        struct tm tm;
+#ifdef AK_OS_WINDOWS
+        if (gmtime_s(&tm, &result_time) != 0)
+#else
+        if (gmtime_r(&result_time, &tm) == nullptr)
+#endif
+            return Error::from_string_literal("Formatter<UnixDateTime>::format gmtime_r failed");
+
+        return builder.builder().try_appendff("{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}",
+            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+            tm.tm_hour, tm.tm_min, tm.tm_sec);
+    }
+};
 
 }
 
