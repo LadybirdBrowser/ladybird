@@ -176,6 +176,9 @@ public:
     VisibleType const& last() const { return at(size() - 1); }
     VisibleType& last() { return at(size() - 1); }
 
+    VisibleType const& unsafe_last() const { return *slot(size() - 1); }
+    VisibleType& unsafe_last() { return *slot(size() - 1); }
+
     template<typename TUnaryPredicate>
     Optional<VisibleType&> first_matching(TUnaryPredicate const& predicate)
     requires(!contains_reference)
@@ -458,6 +461,18 @@ public:
     ALWAYS_INLINE T take_last()
     {
         VERIFY(!is_empty());
+        auto value = move(raw_last());
+        if constexpr (!contains_reference)
+            last().~T();
+        --m_size;
+        if constexpr (contains_reference)
+            return *value;
+        else
+            return value;
+    }
+
+    ALWAYS_INLINE T unsafe_take_last()
+    {
         auto value = move(raw_last());
         if constexpr (!contains_reference)
             last().~T();

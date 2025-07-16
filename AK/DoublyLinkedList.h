@@ -99,6 +99,15 @@ public:
         return m_tail->value;
     }
 
+    [[nodiscard]] T& unchecked_last()
+    {
+        return m_tail->value;
+    }
+    [[nodiscard]] T const& unchecked_last() const
+    {
+        return m_tail->value;
+    }
+
     template<typename U>
     ErrorOr<void> try_append(U&& value)
     {

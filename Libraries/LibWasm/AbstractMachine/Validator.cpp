@@ -1337,7 +1337,7 @@ VALIDATE_INSTRUCTION(select_typed)
 // https://webassembly.github.io/spec/core/bikeshed/#variable-instructions%E2%91%A2
 VALIDATE_INSTRUCTION(local_get)
 {
-    auto index = instruction.arguments().get<LocalIndex>();
+    auto index = instruction.local_index();
     TRY(validate(index));
 
     stack.append(m_context.locals[index.value()]);
@@ -1346,7 +1346,7 @@ VALIDATE_INSTRUCTION(local_get)
 
 VALIDATE_INSTRUCTION(local_set)
 {
-    auto index = instruction.arguments().get<LocalIndex>();
+    auto index = instruction.local_index();
     TRY(validate(index));
 
     auto& value_type = m_context.locals[index.value()];
@@ -1357,7 +1357,7 @@ VALIDATE_INSTRUCTION(local_set)
 
 VALIDATE_INSTRUCTION(local_tee)
 {
-    auto index = instruction.arguments().get<LocalIndex>();
+    auto index = instruction.local_index();
     TRY(validate(index));
 
     auto& value_type = m_context.locals[index.value()];

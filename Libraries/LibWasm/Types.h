@@ -461,14 +461,25 @@ public:
     {
     }
 
+    explicit Instruction(OpCode opcode, LocalIndex argument)
+        : m_opcode(opcode)
+        , m_local_index(argument)
+        , m_arguments(static_cast<u8>(0))
+    {
+    }
+
     static ParseResult<Instruction> parse(Stream& stream);
 
     auto& opcode() const { return m_opcode; }
     auto& arguments() const { return m_arguments; }
     auto& arguments() { return m_arguments; }
 
+    LocalIndex local_index() const { return m_local_index; }
+
 private:
     OpCode m_opcode { 0 };
+    LocalIndex m_local_index;
+
     Variant<
         BlockType,
         DataIndex,
@@ -478,7 +489,6 @@ private:
         IndirectCallArgs,
         LabelIndex,
         LaneIndex,
-        LocalIndex,
         MemoryArgument,
         MemoryAndLaneArgument,
         MemoryCopyArgs,
