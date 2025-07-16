@@ -32,8 +32,16 @@ ErrorOr<ByteBuffer> HKDF::derive_key(Optional<ReadonlyBytes> maybe_salt, Readonl
         OSSL_PARAM_END,
         OSSL_PARAM_END,
     };
+
     if (maybe_salt.has_value()) {
-        params[3] = OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT, const_cast<u8*>(maybe_salt->data()), maybe_salt->size());
+        static constexpr u8 empty_salt[0] {};
+
+        // FIXME: As of openssl 3.5.1, we can no longer pass a null salt pointer. This seems like a mistake; we should
+        //        check if this is still the case in the next openssl release. See:
+        //        https://github.com/openssl/openssl/pull/27305#discussion_r2198316685
+        auto salt = maybe_salt->is_null() ? ReadonlySpan<u8> { empty_salt, 0 } : *maybe_salt;
+
+        params[3] = OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT, const_cast<u8*>(salt.data()), salt.size());
     }
 
     auto buf = TRY(ByteBuffer::create_uninitialized(key_length_bytes));
