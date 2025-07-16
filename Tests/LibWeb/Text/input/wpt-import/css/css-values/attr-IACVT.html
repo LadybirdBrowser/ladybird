@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS Values Test: attr() IACVT</title>
+<meta name="assert" content="Fail to substitute attr() should be IACVT.">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#attr-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+    #expected {
+        background-color: red;
+    }
+    #test {
+        background-color: red;
+        background-color: attr(data-color type(<color>));
+    }
+</style>
+<div id="test" data-color=333></div>
+<div id="expected"></div>
+
+<script>
+    var elem = document.getElementById("test");
+    var value = window.getComputedStyle(elem).getPropertyValue("background-color");
+
+    var expected_elem = document.getElementById("expected");
+    var expected_value = window.getComputedStyle(expected_elem).getPropertyValue("background-color");
+    test(() => {
+        assert_not_equals(value, expected_value);
+    });
+</script>

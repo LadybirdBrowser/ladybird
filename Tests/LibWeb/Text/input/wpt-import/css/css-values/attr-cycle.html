@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: attr</title>
+<meta name="assert" content="test attr values">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#attr-notations">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="attr"></div>
+<div id="expected"></div>
+
+<script>
+  function test_attr_cycle(property, propertyValue, attrValue) {
+    var elem = document.getElementById("attr");
+    var expectedValue = window.getComputedStyle(elem).getPropertyValue(property);
+
+    elem.setAttribute("data-foo", attrValue);
+    elem.style.setProperty(property, propertyValue);
+
+    test(() => {
+      assert_equals(window.getComputedStyle(elem).getPropertyValue(property), expectedValue,
+        "Setting property \'" + property + "\' to the value \'" + propertyValue +
+        "\', where \'data-foo=" + attrValue + "\' should not change it's value.");
+    });
+    elem.style.setProperty(property, null);
+  }
+
+  function test_attr_no_cycle(property, propertyValue, attrValue, expectedValue) {
+    var elem = document.getElementById("attr");
+    elem.setAttribute("data-foo", attrValue);
+    elem.style.setProperty(property, propertyValue);
+
+    var expectedElem = document.getElementById("expected");
+    expectedElem.style.setProperty(property, expectedValue);
+
+    test(() => {
+      assert_equals(window.getComputedStyle(elem).getPropertyValue(property),
+        window.getComputedStyle(expectedElem).getPropertyValue(property),
+        "Value \'" + propertyValue + "\', where \'data-foo=" + attrValue +
+        "\' should be valid for the property \'" + property + "\'.");
+    });
+
+    elem.style.setProperty(property, null);
+    expectedElem.style.setProperty(property, null);
+  }
+
+  /* Simple cycle */
+  test_attr_cycle('--x', 'attr(data-foo type(<ident>))', 'attr(data-foo)');
+  test_attr_cycle('--x', 'attr(data-foo type(<length>))', 'attr(data-foo type(<length>))');
+  test_attr_cycle('--y', 'attr(data-foo type(*))', 'attr(data-foo type(*))');
+
+  var attrElem = document.getElementById("attr");
+
+  attrElem.setAttribute('data-bar', 'attr(data-foo)');
+  test_attr_cycle('--y', 'attr(data-foo type(*))', 'attr(data-bar type(*))');
+  attrElem.removeAttribute('data-bar');
+
+  /* Cycle with attr() and var() */
+  attrElem.style.setProperty('--x', 'attr(data-foo type(*))');
+  test_attr_cycle('--y', 'attr(data-foo type(*))', 'var(--x)');
+  attrElem.style.setProperty('--x', null);
+
+  attrElem.setAttribute('data-bar', 'var(--y)');
+  test_attr_cycle('--y', 'attr(data-foo type(<string>))', 'attr(data-bar type(<string>))');
+  attrElem.removeAttribute('data-bar');
+
+  attrElem.setAttribute('data-bar', 'var(--x)');
+  test_attr_cycle('--x', 'attr(data-foo type(*), attr(data-bar))', 'attr(data-foo type(*))');
+  attrElem.removeAttribute('data-bar');
+
+  attrElem.style.setProperty('--x', 'attr(data-foo type(*))');
+  attrElem.setAttribute('data-bar', 'var(--x)');
+  test_attr_cycle('--y', 'attr(data-foo type(*))', 'attr(data-bar type(*), 11) var(--x)');
+  attrElem.style.setProperty('--x', null);
+  attrElem.removeAttribute('data-bar');
+
+  /* Cycle with fallback */
+  test_attr_cycle('--x', 'attr(data-foo type(<length>), 11px)', 'attr(data-foo type(<length>))');
+  test_attr_cycle('--x', 'attr(data-foo type(<length>))', 'attr(data-foo type(<length>), 11px)');
+  test_attr_cycle('--y', 'attr(data-foo type(*), 11px)', 'attr(data-foo type(*))');
+
+  attrElem.setAttribute('data-bar', '11px');
+  test_attr_cycle('--x', 'attr(data-foo type(<length>), attr(data-bar type(<length>)))', 'attr(data-foo type(*))');
+  attrElem.removeAttribute('data-bar');
+  attrElem.setAttribute('data-bar', 'abc');
+  test_attr_cycle('--y', 'attr(data-foo type(*), attr(data-bar))', 'attr(data-foo type(*))');
+  attrElem.removeAttribute('data-bar');
+
+  /* Cycle with var() and fallback */
+  attrElem.style.setProperty('--x', 'var(--y)');
+  test_attr_cycle('--y', 'var(--x, 100)', 'var(--y)');
+  attrElem.style.setProperty('--x', null);
+
+  attrElem.setAttribute('data-bar', 'var(--y)');
+  attrElem.style.setProperty('--x', 'attr(data-foo)');
+  test_attr_cycle('--y', 'attr(data-foo type(*))', 'attr(data-bar type(*), 11) var(--x, 3)');
+  attrElem.style.setProperty('--x', null);
+  attrElem.removeAttribute('data-bar');
+
+  /* Cycle in unused fallbacks */
+  test_attr_no_cycle('--y', 'attr(data-foo type(*), var(--y))', '3', '3');
+  test_attr_no_cycle('--y', 'attr(data-foo type(*), attr(data-foo))', '3', '3');
+
+  attrElem.style.setProperty('--x', 'var(--y)');
+  test_attr_no_cycle('--y', 'attr(data-foo type(*), var(--x))', '3', '3');
+  attrElem.style.setProperty('--x', null);
+
+  attrElem.setAttribute('data-bar', 'attr(data-foo type(*))');
+  test_attr_no_cycle('--y', 'attr(data-foo type(*), attr(data-bar type(*)))', '3', '3');
+  attrElem.removeAttribute('data-bar');
+
+  /* Cycle in fallback */
+  test_attr_cycle('--y', 'attr(data-unknown type(*), var(--y))', '3');
+
+  /* No cycle, use raw CSS string without substitution */
+  attrElem.setAttribute('data-bar', 'var(--y)');
+  test_attr_no_cycle('--y', 'attr(data-foo type(<string>))', 'attr(data-bar type(<string>))', '');
+  attrElem.removeAttribute('data-bar');
+
+  attrElem.style.setProperty('--x', 'attr(data-foo)');
+  attrElem.setAttribute('data-bar', 'var(--x)');
+  test_attr_no_cycle('--y', 'attr(data-foo type(*))', 'attr(data-bar, 11) var(--x, 3)', '"var(--x)" "attr(data-bar, 11) var(--x, 3)"');
+  attrElem.removeAttribute('data-bar');
+  attrElem.style.setProperty('--x', null);
+</script>

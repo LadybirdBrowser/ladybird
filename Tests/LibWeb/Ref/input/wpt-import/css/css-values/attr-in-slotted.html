@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>CSS Values Test: attr() in pseudo element ::slotted</title>
+<link rel="help" href="https://drafts.csswg.org/css-values/#attr-notation">
+<link rel="match" href="../../../../expected/wpt-import/css/css-values/attr-in-slotted-ref.html">
+<div class=host>
+    <template shadowrootmode=open>
+        <style>
+            ::slotted(div) {
+                color: red;
+                color: attr(data-color type(<color>), yellow);
+            }
+        </style>
+        <slot data-color=blue></slot>
+    </template>
+    <div data-color=green>PASS if green</div>
+</div>
