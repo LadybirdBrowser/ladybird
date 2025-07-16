@@ -831,9 +831,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     compute_inset(box, content_box_rect(block_container_state).size());
 
     // Now that our children are formatted we place the ListItemBox with the left space we remembered.
-    if (is<ListItemBox>(box)) {
+    if (is<ListItemBox>(box))
         layout_list_item_marker(static_cast<ListItemBox const&>(box), left_space_before_children_formatted);
-    }
 
     bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.offset.y() + box_state.content_height() + box_state.margin_box_bottom());
 
@@ -1192,24 +1191,26 @@ void BlockFormattingContext::ensure_sizes_correct_for_left_offset_calculation(Li
     auto& marker = *list_item_box.marker();
     auto& marker_state = m_state.get_mutable(marker);
 
-    CSSPixels image_width = 0;
-    CSSPixels image_height = 0;
+    // If an image is used, the marker's dimensions are the same as the image.
     if (auto const* list_style_image = marker.list_style_image()) {
-        image_width = list_style_image->natural_width().value_or(0);
-        image_height = list_style_image->natural_height().value_or(0);
+        marker_state.set_content_width(list_style_image->natural_width().value_or(0));
+        marker_state.set_content_height(list_style_image->natural_height().value_or(0));
+        return;
     }
 
+    CSSPixels marker_size = marker.relative_size();
+    marker_state.set_content_height(marker_size);
+
+    // Text markers use text metrics to determine their width; other markers use square dimensions.
+    auto const& marker_font = marker.first_available_font();
     auto marker_text = marker.text();
-    if (!marker_text.has_value()) {
-        auto default_marker_width = max(4, marker.first_available_font().pixel_size() - 4);
-        marker_state.set_content_width(image_width + default_marker_width);
-    } else {
+    if (marker_text.has_value()) {
         // FIXME: Use per-code-point fonts to measure text.
-        auto text_width = marker.first_available_font().width(marker_text.value().code_points());
-        marker_state.set_content_width(image_width + CSSPixels::nearest_value_for(text_width));
+        auto text_width = marker_font.width(marker_text.value().code_points());
+        marker_state.set_content_width(CSSPixels::nearest_value_for(text_width));
+    } else {
+        marker_state.set_content_width(marker_size);
     }
-
-    marker_state.set_content_height(max(image_height, CSSPixels { marker.first_available_font().pixel_size() }));
 }
 
 void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_item_box, CSSPixels const& left_space_before_list_item_elements_formatted)
@@ -1222,20 +1223,26 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
     auto& list_item_state = m_state.get_mutable(list_item_box);
 
     auto marker_text = marker.text();
-    auto default_marker_width = marker_text.has_value() ? 0 : max(4, marker.first_available_font().pixel_size() - 4);
-    auto final_marker_width = marker_state.content_width() + default_marker_width;
+
+    // Text markers fit snug against the list item; non-text position themselves at 50% of the font size.
+    CSSPixels marker_distance = 0;
+    if (!marker_text.has_value())
+        marker_distance = CSSPixels::nearest_value_for(.5f * marker.first_available_font().pixel_size());
+
+    auto marker_height = marker_state.content_height();
+    auto marker_width = marker_state.content_width();
 
     if (marker.list_style_position() == CSS::ListStylePosition::Inside) {
-        list_item_state.set_content_x(list_item_state.offset.x() + final_marker_width);
-        list_item_state.set_content_width(list_item_state.content_width() - final_marker_width);
+        list_item_state.set_content_x(list_item_state.offset.x() + marker_width + marker_distance);
+        list_item_state.set_content_width(list_item_state.content_width() - marker_width);
     }
 
-    auto offset_y = max(CSSPixels(0), (marker.computed_values().line_height() - marker_state.content_height()) / 2);
+    auto offset_x = round(left_space_before_list_item_elements_formatted - marker_distance - marker_width);
+    auto offset_y = round(max(CSSPixels(0), (marker.computed_values().line_height() - marker_height) / 2));
+    marker_state.set_content_offset({ offset_x, offset_y });
 
-    marker_state.set_content_offset({ left_space_before_list_item_elements_formatted - final_marker_width, round(offset_y) });
-
-    if (marker_state.content_height() > list_item_state.content_height())
-        list_item_state.set_content_height(marker_state.content_height());
+    if (marker_height > list_item_state.content_height())
+        list_item_state.set_content_height(marker_height);
 }
 
 BlockFormattingContext::SpaceUsedAndContainingMarginForFloats BlockFormattingContext::space_used_and_containing_margin_for_floats(CSSPixels y) const

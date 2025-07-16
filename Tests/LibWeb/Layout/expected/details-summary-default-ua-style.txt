@@ -2,10 +2,10 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x154 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x138 children: not-inline
       BlockContainer <details> at (68,68) content-size 664x18 children: not-inline
-        ListItemBox <summary> at (92,68) content-size 640x18 children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [92,68 36.84375x18] baseline: 13.796875
+        ListItemBox <summary> at (84,68) content-size 656x18 children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [84,68 36.84375x18] baseline: 13.796875
               "hello"
-          ListItemMarkerBox <(anonymous)> at (68,69) content-size 12x16 children: not-inline
+          ListItemMarkerBox <(anonymous)> at (68,73) content-size 8x8 children: not-inline
           TextNode <#text>
         BlockContainer <slot> at (68,86) content-size 664x0 children: not-inline
 
@@ -13,8 +13,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x154]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x138]
       PaintableWithLines (BlockContainer<DETAILS>) [8,8 784x138]
-        PaintableWithLines (ListItemBox<SUMMARY>) [92,68 640x18]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [68,69 12x16]
+        PaintableWithLines (ListItemBox<SUMMARY>) [84,68 656x18]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [68,73 8x8]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<SLOT>) [68,86 664x0]
 

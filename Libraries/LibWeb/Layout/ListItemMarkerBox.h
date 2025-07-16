@@ -27,6 +27,8 @@ public:
     CSS::ListStyleType const& list_style_type() const { return m_list_style_type; }
     CSS::ListStylePosition list_style_position() const { return m_list_style_position; }
 
+    CSSPixels relative_size() const;
+
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 
