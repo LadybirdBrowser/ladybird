@@ -115,7 +115,7 @@
         {
           "type": "shell",
           "commands": [
-            "cd angle/third_party/depot_tools && git checkout -b origin/main"
+            "cd angle/third_party/depot_tools && echo ../../../../../../usr/bin > python3_bin_reldir.txt"
           ]
         },
         {
@@ -138,9 +138,8 @@
         {
           "type": "script",
           "commands": [
-            "set -e",
             "cipd ensure -root angle -ensure-file angle.ensure",
-            "gclient runhooks"
+            "./hooks.sh"
           ],
           "dest-filename": "angle-checkout.sh"
         },

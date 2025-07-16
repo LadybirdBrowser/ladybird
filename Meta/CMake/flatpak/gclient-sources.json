@@ -404,5 +404,21 @@
         "commit": "5ba62550b2f3d4d97974ebcdb4f8462e4ba14af2",
         "dest": "angle/tools/valgrind",
         "disable-submodules": true
+    },
+    {
+        "type": "script",
+        "commands": [
+            "cd angle",
+            "python3 third_party/depot_tools/update_depot_tools_toggle.py --disable",
+            "python3 build/linux/sysroot_scripts/install-sysroot.py --arch=x86",
+            "python3 build/linux/sysroot_scripts/install-sysroot.py --arch=x64",
+            "python3 tools/clang/scripts/update.py",
+            "python3 tools/rust/update_rust.py",
+            "python3 build/util/lastchange.py -o build/util/LASTCHANGE",
+            "python3 third_party/depot_tools/download_from_google_storage.py --no_resume --platform=linux* --bucket angle-glslang-validator -s tools/glslang/glslang_validator.sha1",
+            "python3 third_party/depot_tools/download_from_google_storage.py --no_resume --platform=linux* --bucket angle-flex-bison -d tools/flex-bison/linux/",
+            "python3 build/config/siso/configure_siso.py --rbe_instance projects/rbe-chrome-untrusted/instances/default_instance"
+        ],
+        "dest-filename": "hooks.sh"
     }
 ]
