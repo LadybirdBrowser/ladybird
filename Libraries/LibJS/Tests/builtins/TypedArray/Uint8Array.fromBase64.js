@@ -49,6 +49,22 @@ describe("errors", () => {
         expect(() => {
             Uint8Array.fromBase64("Zm9vaa=a", { lastChunkHandling: "strict" });
         }).toThrowWithMessage(SyntaxError, "Invalid base64 character");
+
+        expect(() => {
+            Uint8Array.fromBase64("A==");
+        }).toThrowWithMessage(SyntaxError, "Invalid trailing data");
+
+        expect(() => {
+            Uint8Array.fromBase64("A==", { lastChunkHandling: "loose" });
+        }).toThrowWithMessage(SyntaxError, "Invalid trailing data");
+
+        expect(() => {
+            Uint8Array.fromBase64("A==", { lastChunkHandling: "strict" });
+        }).toThrowWithMessage(SyntaxError, "Invalid trailing data");
+
+        expect(() => {
+            Uint8Array.fromBase64("A==", { lastChunkHandling: "stop-before-partial" });
+        }).toThrowWithMessage(SyntaxError, "Invalid trailing data");
     });
 
     test("invalid alphabet", () => {
