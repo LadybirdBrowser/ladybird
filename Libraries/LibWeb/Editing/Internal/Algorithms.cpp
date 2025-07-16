@@ -3460,7 +3460,7 @@ void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, FlyString const& co
     if (candidate == node
         || !is_simple_modifiable_element(*candidate)
         || specified_command_value(static_cast<DOM::Element&>(*candidate), command) != new_value
-        || !values_are_loosely_equivalent(CommandNames::createLink, effective_command_value(candidate, command), new_value))
+        || !values_are_loosely_equivalent(command, effective_command_value(candidate, command), new_value))
         return;
 
     // 4. While candidate has children, insert the first child of candidate into candidate's parent immediately before

@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<meta name="variant" content="?1-1000">
+<meta name="variant" content="?1001-2000">
+<meta name="variant" content="?2001-3000">
+<meta name="variant" content="?3001-last">
+<link rel=stylesheet href=../include/reset.css>
+<title>bold - HTML editing conformance tests</title>
+
+<div id=log></div>
+
+<div id=test-container></div>
+
+<script src=../include/implementation.js></script>
+<script>var testsJsLibraryOnly = true</script>
+<script src=../include/tests.js></script>
+<script src=../data/bold.js></script>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script src="../../common/subset-tests.js"></script>
+<script>
+"use strict";
+
+(function() {
+    // Make document.body.innerHTML more tidy by removing unnecessary things.
+    [].forEach.call(document.querySelectorAll("script"), function(node) {
+        node.parentNode.removeChild(node);
+    });
+
+    if (true) {
+        // Silly hack: the CSS styling flag should be true, not false, to match
+        // expected results.  This is because every group of tests except the
+        // last (multitest) sets styleWithCSS automatically, and it sets it
+        // first to false and then to true.  Thus it's left at true at the end
+        // of each group of tests, so in gentest.html it will be true when
+        // starting each group of tests other than the first.  But browsers are
+        // supposed to default it to false when the page loads, so flip it.
+        try { document.execCommand("styleWithCSS", false, "true") } catch(e) {}
+    }
+
+    browserTests.forEach(runConformanceTest);
+
+    document.getElementById("test-container").parentNode
+        .removeChild(document.getElementById("test-container"));
+
+})();
+</script>
