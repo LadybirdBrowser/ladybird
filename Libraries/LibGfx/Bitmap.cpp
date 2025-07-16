@@ -228,21 +228,47 @@ ErrorOr<BackingStore> Bitmap::allocate_backing_store(BitmapFormat format, IntSiz
     return BackingStore { data, pitch, data_size_in_bytes };
 }
 
-bool Bitmap::visually_equals(Bitmap const& other) const
+Bitmap::DiffResult Bitmap::diff(Bitmap const& other) const
 {
     auto own_width = width();
     auto own_height = height();
-    if (other.width() != own_width || other.height() != own_height)
-        return false;
+    VERIFY(own_width == other.width() && own_height == other.height());
 
+    DiffResult result;
     for (auto y = 0; y < own_height; ++y) {
         for (auto x = 0; x < own_width; ++x) {
-            if (get_pixel(x, y) != other.get_pixel(x, y))
-                return false;
+            auto own_pixel = get_pixel(x, y);
+            auto other_pixel = other.get_pixel(x, y);
+            if (own_pixel == other_pixel)
+                continue;
+
+            ++result.pixel_error_count;
+
+            u8 red_error = abs(static_cast<int>(own_pixel.red()) - other_pixel.red());
+            u8 green_error = abs(static_cast<int>(own_pixel.green()) - other_pixel.green());
+            u8 blue_error = abs(static_cast<int>(own_pixel.blue()) - other_pixel.blue());
+            u8 alpha_error = abs(static_cast<int>(own_pixel.alpha()) - other_pixel.alpha());
+
+            result.total_red_error += red_error;
+            result.total_green_error += green_error;
+            result.total_blue_error += blue_error;
+            result.total_alpha_error += alpha_error;
+
+            result.maximum_red_error = max(result.maximum_red_error, red_error);
+            result.maximum_green_error = max(result.maximum_green_error, green_error);
+            result.maximum_blue_error = max(result.maximum_blue_error, blue_error);
+            result.maximum_alpha_error = max(result.maximum_alpha_error, alpha_error);
         }
     }
 
-    return true;
+    result.identical = result.pixel_error_count == 0;
+    result.total_error = result.total_red_error + result.total_green_error + result.total_blue_error + result.total_alpha_error;
+
+    u8 maximum_red_green_error = max(result.maximum_red_error, result.maximum_green_error);
+    u8 maximum_blue_alpha_error = max(result.maximum_blue_error, result.maximum_alpha_error);
+    result.maximum_error = max(maximum_red_green_error, maximum_blue_alpha_error);
+
+    return result;
 }
 
 void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)

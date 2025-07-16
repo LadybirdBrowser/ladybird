@@ -376,7 +376,7 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
     auto handle_completed_test = [&test, url]() -> ErrorOr<TestResult> {
         VERIFY(test.ref_test_expectation_type.has_value());
         auto should_match = test.ref_test_expectation_type == RefTestExpectationType::Match;
-        auto screenshot_matches = test.actual_screenshot->visually_equals(*test.expectation_screenshot);
+        auto screenshot_matches = test.actual_screenshot->diff(*test.expectation_screenshot).identical;
         if (should_match == screenshot_matches)
             return TestResult::Pass;
 
