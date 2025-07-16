@@ -3798,7 +3798,9 @@ RefPtr<CSSStyleValue const> Parser::parse_calculated_value(ComponentValue const&
                 // The scale family of functions treats percentages as numbers.
                 if (function.name.is_one_of_ignoring_ascii_case(
                         "scale"sv, "scalex"sv, "scaley"sv, "scalez"sv, "scale3d"sv)) {
-                    return CalculationContext { .percentages_resolve_as = ValueType::Number };
+                    // NOTE: Resolving percentages as numbers isn't supported by the spec and we instead expect the
+                    //       caller to handle the resolved value being a percentage.
+                    return CalculationContext {};
                 }
                 // FIXME: Add other functions that provide a context for resolving values
                 return {};
