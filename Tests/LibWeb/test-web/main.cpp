@@ -16,7 +16,6 @@
 #include <AK/Enumerate.h>
 #include <AK/LexicalPath.h>
 #include <AK/QuickSort.h>
-#include <AK/Vector.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/Directory.h>
@@ -375,10 +374,11 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
         view.on_test_complete({ test, TestResult::Timeout });
     });
 
-    auto handle_completed_test = [&test, url]() -> ErrorOr<TestResult> {
+    auto handle_completed_test = [&view, &test, url]() -> ErrorOr<TestResult> {
         VERIFY(test.ref_test_expectation_type.has_value());
         auto should_match = test.ref_test_expectation_type == RefTestExpectationType::Match;
-        auto screenshot_matches = test.actual_screenshot->diff(*test.expectation_screenshot).identical;
+        auto screenshot_matches = fuzzy_screenshot_match(
+            view.url(), *test.actual_screenshot, *test.expectation_screenshot, test.fuzzy_matches);
         if (should_match == screenshot_matches)
             return TestResult::Pass;
 
@@ -449,6 +449,27 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
         auto match_references = metadata_object.get_array("match_references"sv);
         auto mismatch_references = metadata_object.get_array("mismatch_references"sv);
         VERIFY(!match_references->is_empty() || !mismatch_references->is_empty());
+
+        // Read fuzzy configurations.
+        test.fuzzy_matches.clear_with_capacity();
+        auto fuzzy_values = metadata_object.get_array("fuzzy"sv);
+        for (size_t i = 0; i < fuzzy_values->size(); ++i) {
+            auto fuzzy_configuration = fuzzy_values->at(i).as_object();
+
+            Optional<URL::URL> reference_url;
+            auto reference = fuzzy_configuration.get_string("reference"sv);
+            if (reference.has_value())
+                reference_url = URL::Parser::basic_parse(reference.release_value());
+
+            auto content = fuzzy_configuration.get_string("content"sv).release_value();
+            auto fuzzy_match_or_error = parse_fuzzy_match(reference_url, content);
+            if (fuzzy_match_or_error.is_error()) {
+                warnln("Failed to parse fuzzy configuration '{}' (reference: {})", content, reference_url);
+                continue;
+            }
+
+            test.fuzzy_matches.append(fuzzy_match_or_error.release_value());
+        }
 
         // Read (mis)match reference tests to load.
         // FIXME: Currently we only support single match or mismatch reference.
