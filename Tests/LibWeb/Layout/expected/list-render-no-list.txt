@@ -6,12 +6,12 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       ListItemBox <li> at (8,8) content-size 784x18 children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [8,8 29.8125x18] baseline: 13.796875
             "One"
-        ListItemMarkerBox <(anonymous)> at (-16,9) content-size 12x16 children: not-inline
+        ListItemMarkerBox <(anonymous)> at (-6,14) content-size 6x6 children: not-inline
         TextNode <#text>
       ListItemBox <li> at (8,26) content-size 784x18 children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [8,26 33.875x18] baseline: 13.796875
             "Two"
-        ListItemMarkerBox <(anonymous)> at (-16,27) content-size 12x16 children: not-inline
+        ListItemMarkerBox <(anonymous)> at (-6,32) content-size 6x6 children: not-inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
@@ -19,10 +19,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
       PaintableWithLines (ListItemBox<LI>) [8,8 784x18]
-        MarkerPaintable (ListItemMarkerBox(anonymous)) [-16,9 12x16]
+        MarkerPaintable (ListItemMarkerBox(anonymous)) [-6,14 6x6]
         TextPaintable (TextNode<#text>)
       PaintableWithLines (ListItemBox<LI>) [8,26 784x18]
-        MarkerPaintable (ListItemMarkerBox(anonymous)) [-16,27 12x16]
+        MarkerPaintable (ListItemMarkerBox(anonymous)) [-6,32 6x6]
         TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

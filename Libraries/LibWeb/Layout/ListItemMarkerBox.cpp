@@ -73,6 +73,23 @@ GC::Ptr<Painting::Paintable> ListItemMarkerBox::create_paintable() const
     return Painting::MarkerPaintable::create(*this);
 }
 
+CSSPixels ListItemMarkerBox::relative_size() const
+{
+    auto font_size = first_available_font().pixel_size();
+    auto marker_text = text();
+    if (marker_text.has_value())
+        return CSSPixels::nearest_value_for(font_size);
+
+    // Scale the marker box relative to the used font's pixel size.
+    switch (m_list_style_type.get<CSS::CounterStyleNameKeyword>()) {
+    case CSS::CounterStyleNameKeyword::DisclosureClosed:
+    case CSS::CounterStyleNameKeyword::DisclosureOpen:
+        return CSSPixels::nearest_value_for(ceilf(font_size * .5f));
+    default:
+        return CSSPixels::nearest_value_for(ceilf(font_size * .35f));
+    }
+}
+
 void ListItemMarkerBox::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
