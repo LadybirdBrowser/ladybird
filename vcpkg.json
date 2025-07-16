@@ -239,7 +239,7 @@
     },
     {
       "name": "openssl",
-      "version": "3.5.0#1"
+      "version": "3.5.1#0"
     },
     {
       "name": "qtbase",
