@@ -1,0 +1,27 @@
+/* Make sure various CSS values are what are expected, so that tests work
+ * right. */
+body { font-family: serif }
+/* http://www.w3.org/Bugs/Public/show_bug.cgi?id=12154
+ * https://bugzilla.mozilla.org/show_bug.cgi?id=589124
+ * https://bugs.webkit.org/show_bug.cgi?id=56400 */
+b, strong { font-weight: bold }
+.bold { font-weight: bold }
+.notbold { font-weight: normal }
+.underline { text-decoration: underline }
+.line-through { text-decoration: line-through }
+.underline-and-line-through { text-decoration: underline line-through }
+#purple { color: purple }
+/* https://bugs.webkit.org/show_bug.cgi?id=56670 */
+dfn { font-style: italic }
+/* Opera has weird default blockquote style */
+blockquote { margin: 1em 40px }
+/* Some tests assume links are blue, for the sake of argument, but they aren't
+ * blue in any browser.  And :visited definitely isn't blue, except in engines
+ * like Gecko that lie.
+ *
+ * This should really be #00e, probably.  See:
+ * http://www.w3.org/Bugs/Public/show_bug.cgi?id=13330 */
+:link, :visited { color: blue }
+/* http://www.w3.org/Bugs/Public/show_bug.cgi?id=14066
+ * https://bugs.webkit.org/show_bug.cgi?id=68392 */
+quasit { text-align: inherit }
