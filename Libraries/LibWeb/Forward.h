@@ -268,6 +268,7 @@ class GuaranteedInvalidStyleValue;
 class ImageStyleValue;
 class IntegerOrCalculated;
 class IntegerStyleValue;
+class InvalidationSet;
 class Length;
 class LengthBox;
 class LengthOrCalculated;

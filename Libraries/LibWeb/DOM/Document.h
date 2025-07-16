@@ -903,6 +903,8 @@ public:
 
     String dump_display_list();
 
+    StyleInvalidator& style_invalidator() { return m_style_invalidator; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
