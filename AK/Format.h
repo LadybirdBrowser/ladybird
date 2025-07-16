@@ -715,6 +715,17 @@ void set_log_tag_name(char const*);
             warnln(fmt, ##__VA_ARGS__); \
     } while (0)
 
+#define dbgln_if(flag, fmt, ...)       \
+    do {                               \
+        if constexpr (flag)            \
+            dbgln(fmt, ##__VA_ARGS__); \
+    } while (0)
+
+#define dbgln_dump(expr)             \
+    do {                             \
+        dbgln(#expr ": {}", (expr)); \
+    } while (0)
+
 void vdbg(StringView fmtstr, TypeErasedFormatParams&, bool newline = false);
 
 template<typename... Parameters>
@@ -842,11 +853,4 @@ using AK::dbgln;
 using AK::CheckedFormatString;
 using AK::FormatIfSupported;
 using AK::FormatString;
-
-#    define dbgln_if(flag, fmt, ...)       \
-        do {                               \
-            if constexpr (flag)            \
-                dbgln(fmt, ##__VA_ARGS__); \
-        } while (0)
-
 #endif
