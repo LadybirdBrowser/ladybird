@@ -729,10 +729,9 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
         1,
         fragment_rect.height()
     };
-
     auto cursor_device_rect = context.rounded_device_rect(cursor_rect).to_type<int>();
 
-    context.display_list_recorder().draw_rect(cursor_device_rect, caret_color);
+    context.display_list_recorder().fill_rect(cursor_device_rect, caret_color);
 }
 
 void paint_text_decoration(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
