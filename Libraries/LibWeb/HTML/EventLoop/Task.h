@@ -116,4 +116,13 @@ struct UniqueTaskSource {
     Task::Source const source;
 };
 
+class ParallelQueue : public RefCounted<ParallelQueue> {
+public:
+    static NonnullRefPtr<ParallelQueue> create();
+    TaskID enqueue(GC::Ref<GC::Function<void()>>);
+
+private:
+    UniqueTaskSource m_task_source;
+};
+
 }

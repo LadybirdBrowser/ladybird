@@ -61,7 +61,7 @@ void IncrementalReadLoopReadRequest::on_error(JS::Value error)
     }));
 }
 
-IncrementalReadLoopReadRequest::IncrementalReadLoopReadRequest(GC::Ref<Body> body, GC::Ref<Streams::ReadableStreamDefaultReader> reader, GC::Ref<JS::Object> task_destination, Body::ProcessBodyChunkCallback process_body_chunk, Body::ProcessEndOfBodyCallback process_end_of_body, Body::ProcessBodyErrorCallback process_body_error)
+IncrementalReadLoopReadRequest::IncrementalReadLoopReadRequest(GC::Ref<Body> body, GC::Ref<Streams::ReadableStreamDefaultReader> reader, TaskDestination task_destination, Body::ProcessBodyChunkCallback process_body_chunk, Body::ProcessEndOfBodyCallback process_end_of_body, Body::ProcessBodyErrorCallback process_body_error)
     : m_body(body)
     , m_reader(reader)
     , m_task_destination(task_destination)
@@ -76,7 +76,8 @@ void IncrementalReadLoopReadRequest::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_body);
     visitor.visit(m_reader);
-    visitor.visit(m_task_destination);
+    if (auto* task_destination_object = m_task_destination.get_pointer<GC::Ref<JS::Object>>(); task_destination_object)
+        visitor.visit(*task_destination_object);
     visitor.visit(m_process_body_chunk);
     visitor.visit(m_process_end_of_body);
     visitor.visit(m_process_body_error);
