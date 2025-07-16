@@ -890,3 +890,28 @@ TEST_CASE(parse_time_from_gmt)
     EXPECT_EQ(tm.tm_min, 30);
     EXPECT_EQ(tm.tm_sec, 45);
 }
+
+TEST_CASE(formatter_unix_date_time)
+{
+    auto test = [](auto expected, i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second) {
+        auto data = AK::UnixDateTime::from_unix_time_parts(year, month, day, hour, minute, second, 0);
+        StringBuilder builder;
+        builder.appendff("{}", data);
+
+        auto result = builder.to_string();
+        VERIFY(!result.is_error());
+
+        EXPECT_EQ(expected, builder.to_string().value());
+    };
+
+    test("2023-01-05 00:00:00"sv, 2023, 1, 5, 0, 0, 0);
+    test("1970-01-01 00:00:00"sv, 1970, 1, 1, 0, 0, 0);      // Edge case for Unix epoch
+    test("1970-01-01 23:59:59"sv, 1970, 1, 1, 23, 59, 59);   // Edge case for Unix epoch
+    test("2000-02-29 12:34:56"sv, 2000, 2, 29, 12, 34, 56);  // Leap year (valid)
+    test("1999-12-31 23:59:59"sv, 1999, 12, 31, 23, 59, 59); // Y2K edge
+    test("2024-02-29 23:59:59"sv, 2024, 2, 29, 23, 59, 59);  // Next leap year
+    test("1980-01-01 00:00:00"sv, 1980, 1, 1, 0, 0, 0);      // Another leap year start
+    test("2038-01-19 03:14:07"sv, 2038, 1, 19, 3, 14, 7);    // 32-bit Unix time max
+    test("2022-12-31 23:59:59"sv, 2022, 12, 31, 23, 59, 59); // End of year
+    test("2023-04-01 00:00:00"sv, 2023, 4, 1, 0, 0, 0);      // Start of month
+}
