@@ -1508,10 +1508,10 @@ void Document::update_style()
 
     invalidate_style_of_elements_affected_by_has();
 
-    if (!needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
+    if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
         return;
 
-    m_style_invalidator->perform_pending_style_invalidations(*this, false);
+    m_style_invalidator->invalidate(*this);
 
     // NOTE: If this is a document hosting <template> contents, style update is unnecessary.
     if (m_created_for_appropriate_template_contents)

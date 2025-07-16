@@ -36,6 +36,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StaticNodeList.h>
+#include <LibWeb/DOM/StyleInvalidator.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
@@ -521,20 +522,7 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
         return;
     }
 
-    for_each_shadow_including_inclusive_descendant([&](Node& node) {
-        if (!node.is_element())
-            return TraversalDecision::Continue;
-        auto& element = static_cast<Element&>(node);
-        bool needs_style_recalculation = false;
-        if (element.includes_properties_from_invalidation_set(invalidation_set)) {
-            needs_style_recalculation = true;
-        } else if (options.invalidate_elements_that_use_css_custom_properties && element.style_uses_css_custom_properties()) {
-            needs_style_recalculation = true;
-        }
-        if (needs_style_recalculation)
-            element.set_needs_style_update(true);
-        return TraversalDecision::Continue;
-    });
+    document().style_invalidator().add_pending_invalidation(*this, move(invalidation_set), options.invalidate_elements_that_use_css_custom_properties);
 }
 
 String Node::child_text_content() const
