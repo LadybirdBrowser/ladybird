@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: attr</title>
+<meta name="assert" content="Test attr use after free crash">
+<link rel="help" href="https://crbug.com/365802556">
+<head>
+    <style>
+        #div {
+            --prop: attr(data-foo type(<ident>));
+        }
+    </style>
+</head>
+<body>
+    <div id="div" data-foo="aaa123\aaa123aaa">Content</div>
+</body>
+<script>
+    var elem = document.getElementById("div");
+    getComputedStyle(elem).getPropertyValue("--prop");
+</script>

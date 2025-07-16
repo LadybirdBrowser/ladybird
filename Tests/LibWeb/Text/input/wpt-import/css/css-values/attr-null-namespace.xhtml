@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:nsfoo="http://nsfoo.org"
+      xmlns:nsbar="http://nsbar.org">
+  <head>
+    <title>CSS Values: attr() substitution with implicit null namespace</title>
+    <link rel="help" href="https://drafts.csswg.org/css-values-5/#attr-notation"/>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="target"
+         nsfoo:data-x="value1"
+         nsbar:data-x="value2"
+         data-x="value3"
+
+         nsfoo:data-y="value4"
+         nsbar:data-y="value5">
+        Test
+    </div>
+    <style>
+        #target {
+            --x: attr(data-x type(*), fallback);
+            --y: attr(data-y type(*), fallback);
+            --z: attr(data-z type(*), fallback);
+            --w: attr(data-w type(*), fallback);
+        }
+    </style>
+    <script>
+        test(() => {
+            let e = document.getElementById("target");
+            assert_equals("value1", e.getAttributeNS("http://nsfoo.org", "data-x"));
+            assert_equals("value2", e.getAttributeNS("http://nsbar.org", "data-x"));
+            assert_equals("value3", e.getAttributeNS(null, "data-x"));
+
+            assert_equals("value4", e.getAttributeNS("http://nsfoo.org", "data-y"));
+            assert_equals("value5", e.getAttributeNS("http://nsbar.org", "data-y"));
+            assert_equals(null, e.getAttributeNS(null, "data-y"));
+        }, "Sanity check");
+
+        test(() => {
+            let e = document.getElementById("target");
+            assert_equals(getComputedStyle(e).getPropertyValue("--x"), "value3");
+        }, "Attribute in null-namespace is substituted");
+
+        test(() => {
+            let e = document.getElementById("target");
+            assert_equals(getComputedStyle(e).getPropertyValue("--y"), "fallback");
+        }, "Fallback is taken when attribute does not exist in null-namespace");
+
+        test((t) => {
+            let e = document.getElementById("target");
+            t.add_cleanup(() => {
+                e.removeAttributeNS("http://nsfoo.org", "data-z");
+                e.removeAttributeNS("http://nsbar.org", "data-z");
+                e.removeAttributeNS(null, "data-z");
+            });
+            e.setAttributeNS("http://nsfoo.org", "data-z", "value6");
+            e.setAttributeNS("http://nsbar.org", "data-z", "value7");
+            e.setAttributeNS(null, "data-z", "value8");
+            assert_equals(getComputedStyle(e).getPropertyValue("--z"), "value8");
+        }, "Attribute in null-namespace is substituted (JS)");
+
+        test((t) => {
+            let e = document.getElementById("target");
+            t.add_cleanup(() => {
+                e.removeAttributeNS("http://nsfoo.org", "data-w");
+                e.removeAttributeNS("http://nsbar.org", "data-w");
+            });
+            e.setAttributeNS("http://nsfoo.org", "data-w", "value9");
+            e.setAttributeNS("http://nsbar.org", "data-w", "value10");
+            assert_equals(getComputedStyle(e).getPropertyValue("--w"), "fallback");
+        }, "Fallback is taken when attribute does not does exist in null-namespace (JS)");
+    </script>
+  </body>
+</html>
