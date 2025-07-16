@@ -224,6 +224,7 @@ public:
     Function<void(Web::DragEvent const&)> on_finish_handling_drag_event;
     Function<void(String const&)> on_test_finish;
     Function<void(double milliseconds)> on_set_test_timeout;
+    Function<void(JsonValue)> on_reference_test_metadata;
     Function<void(double factor)> on_set_browser_zoom;
     Function<void(size_t current_match_index, Optional<size_t> const& total_match_count)> on_find_in_page;
     Function<void(Gfx::Color)> on_theme_color_change;

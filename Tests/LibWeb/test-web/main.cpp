@@ -3,6 +3,7 @@
  * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -28,6 +29,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/SystemTheme.h>
+#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Utilities.h>
@@ -425,23 +427,46 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
 
     view.on_test_finish = [&view, &test, on_test_complete = move(on_test_complete)](auto const&) {
         if (test.actual_screenshot) {
-            if (view.url().query().has_value() && view.url().query()->equals_ignoring_ascii_case("mismatch"sv)) {
-                test.ref_test_expectation_type = RefTestExpectationType::Mismatch;
-            } else {
-                test.ref_test_expectation_type = RefTestExpectationType::Match;
-            }
+            // The reference has finished loading; take another screenshot and move on to handling the result.
             view.take_screenshot()->when_resolved([&view, &test, on_test_complete = move(on_test_complete)](RefPtr<Gfx::Bitmap const> screenshot) {
                 test.expectation_screenshot = move(screenshot);
                 view.reset_zoom();
                 on_test_complete();
             });
         } else {
+            // When the test initially finishes, we take a screenshot and request the reference test metadata.
             view.take_screenshot()->when_resolved([&view, &test](RefPtr<Gfx::Bitmap const> screenshot) {
                 test.actual_screenshot = move(screenshot);
                 view.reset_zoom();
-                view.debug_request("load-reference-page");
+                view.run_javascript("internals.loadReferenceTestMetadata();"_string);
             });
         }
+    };
+
+    view.on_reference_test_metadata = [&view, &test](JsonValue const& metadata) {
+        auto metadata_object = metadata.as_object();
+
+        auto match_references = metadata_object.get_array("match_references"sv);
+        auto mismatch_references = metadata_object.get_array("mismatch_references"sv);
+        VERIFY(!match_references->is_empty() || !mismatch_references->is_empty());
+
+        // Read (mis)match reference tests to load.
+        // FIXME: Currently we only support single match or mismatch reference.
+        String reference_to_load;
+        if (!match_references->is_empty()) {
+            if (match_references->size() > 1)
+                dbgln("FIXME: Only a single ref test match reference is supported");
+
+            test.ref_test_expectation_type = RefTestExpectationType::Match;
+            reference_to_load = match_references->at(0).as_string();
+        } else {
+            if (mismatch_references->size() > 1)
+                dbgln("FIXME: Only a single ref test mismatch reference is supported");
+
+            test.ref_test_expectation_type = RefTestExpectationType::Mismatch;
+            reference_to_load = mismatch_references->at(0).as_string();
+        }
+        view.load(URL::Parser::basic_parse(reference_to_load).release_value());
     };
 
     view.on_set_test_timeout = [timer, timeout_in_milliseconds](double milliseconds) {

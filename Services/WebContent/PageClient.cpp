@@ -333,6 +333,11 @@ void PageClient::page_did_set_test_timeout(double milliseconds)
     client().async_did_set_test_timeout(m_id, milliseconds);
 }
 
+void PageClient::page_did_receive_reference_test_metadata(JsonValue metadata)
+{
+    client().async_did_receive_reference_test_metadata(m_id, metadata);
+}
+
 void PageClient::page_did_set_browser_zoom(double factor)
 {
     auto traversable = page().top_level_traversable();
