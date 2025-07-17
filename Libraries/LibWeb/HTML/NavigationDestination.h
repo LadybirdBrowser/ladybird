@@ -8,7 +8,7 @@
 
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/StructuredSerializeTypes.h>
 
 namespace Web::HTML {
 

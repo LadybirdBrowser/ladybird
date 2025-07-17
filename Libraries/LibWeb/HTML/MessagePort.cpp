@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 
@@ -273,7 +274,7 @@ WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(GC::Ptr<M
     }
 
     // 7. Add a task that runs the following steps to the port message queue of targetPort:
-    post_port_message(move(serialize_with_transfer_result));
+    post_port_message(serialize_with_transfer_result);
 
     return {};
 }
@@ -288,7 +289,7 @@ ErrorOr<void> MessagePort::send_message_on_transport(SerializedTransferRecord co
     return {};
 }
 
-void MessagePort::post_port_message(SerializedTransferRecord serialize_with_transfer_result)
+void MessagePort::post_port_message(SerializedTransferRecord const& serialize_with_transfer_result)
 {
     if (!m_transport || !m_transport->is_open())
         return;

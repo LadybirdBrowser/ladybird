@@ -694,6 +694,7 @@ enum class MediaSeekMode;
 enum class SandboxingFlagSet;
 
 struct Agent;
+struct DeserializedTransferRecord;
 struct EmbedderPolicy;
 struct Environment;
 struct EnvironmentSettingsObject;
@@ -706,6 +707,7 @@ struct ScrollOptions;
 struct ScrollToOptions;
 struct SerializedFormData;
 struct SerializedPolicyContainer;
+struct SerializedTransferRecord;
 struct StructuredSerializeOptions;
 struct SyntheticRealmSettings;
 struct ToggleTaskTracker;

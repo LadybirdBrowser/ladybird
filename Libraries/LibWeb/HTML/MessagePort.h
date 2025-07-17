@@ -77,7 +77,7 @@ private:
     bool is_entangled() const;
 
     void post_message_task_steps(SerializedTransferRecord&);
-    void post_port_message(SerializedTransferRecord);
+    void post_port_message(SerializedTransferRecord const&);
     ErrorOr<void> send_message_on_transport(SerializedTransferRecord const&);
     void read_from_transport();
 
