@@ -18,6 +18,8 @@
 
 namespace WebView {
 
+static constexpr auto file_url_prefix = "file://"sv;
+
 static constexpr auto builtin_autocomplete_engines = to_array<AutocompleteEngine>({
     { "DuckDuckGo"sv, "https://duckduckgo.com/ac/?q={}"sv },
     { "Google"sv, "https://www.google.com/complete/search?client=chrome&q={}"sv },
@@ -46,7 +48,8 @@ void Autocomplete::query_autocomplete_engine(String query)
         m_request.clear();
     }
 
-    if (query.bytes_as_string_view().trim_whitespace().is_empty()) {
+    auto trimmed_query = query.bytes_as_string_view().trim_whitespace();
+    if (trimmed_query.is_empty() || trimmed_query.starts_with(file_url_prefix)) {
         invoke_autocomplete_query_complete({});
         return;
     }
