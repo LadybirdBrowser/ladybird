@@ -10,11 +10,14 @@
 #include <LibWeb/Bindings/PasswordCredentialPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CredentialManagement/Credential.h>
+#include <LibWeb/CredentialManagement/CredentialUserData.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 
 namespace Web::CredentialManagement {
 
-class PasswordCredential final : public Credential {
+class PasswordCredential final
+    : public Credential
+    , public CredentialUserData {
     WEB_PLATFORM_OBJECT(PasswordCredential, Credential);
     GC_DECLARE_ALLOCATOR(PasswordCredential);
 
