@@ -63,8 +63,6 @@ public:
     void set_window_position(Web::DevicePixelPoint);
     void set_window_size(Web::DevicePixelSize);
 
-    Web::DevicePixelSize content_size() const { return m_content_size; }
-
     Web::WebIDL::ExceptionOr<void> toggle_media_play_state();
     void toggle_media_mute_state();
     Web::WebIDL::ExceptionOr<void> toggle_media_loop_state();
@@ -112,7 +110,6 @@ private:
     virtual Web::CSS::PreferredContrast preferred_contrast() const override { return m_preferred_contrast; }
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return m_preferred_motion; }
     virtual void page_did_request_cursor_change(Gfx::Cursor const&) override;
-    virtual void page_did_layout() override;
     virtual void page_did_change_title(ByteString const&) override;
     virtual void page_did_change_url(URL::URL const&) override;
     virtual void page_did_request_refresh() override;
@@ -187,7 +184,6 @@ private:
     GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
     Web::DevicePixelRect m_screen_rect;
-    Web::DevicePixelSize m_content_size;
     float m_device_pixels_per_css_pixel { 1.0f };
     u64 m_id { 0 };
     bool m_has_focus { false };
