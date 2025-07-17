@@ -35,6 +35,13 @@ ErrorOr<void> MessageBuffer::append_file_descriptor(int fd)
     return {};
 }
 
+ErrorOr<void> MessageBuffer::extend(MessageBuffer&& buffer)
+{
+    TRY(m_data.try_extend(move(buffer.m_data)));
+    TRY(m_fds.try_extend(move(buffer.m_fds)));
+    return {};
+}
+
 ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
 {
     Checked<MessageSizeType> checked_message_size { m_data.size() };
