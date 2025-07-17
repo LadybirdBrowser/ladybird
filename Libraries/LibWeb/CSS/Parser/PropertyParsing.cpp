@@ -724,6 +724,17 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_text_decoration_line_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::TextJustify:
+        if (auto parsed_value = parse_css_value_for_property(property_id, tokens); parsed_value && !tokens.has_next_token()) {
+            // https://drafts.csswg.org/css-text-3/#valdef-text-justify-distribute
+            // For legacy reasons, UAs must also support the alternate keyword distribute which must compute to
+            // inter-character, thus having the exact same meaning and behavior. UAs may treat this as a legacy value alias.
+            // FIXME: Figure out a generic way of supporting legacy value aliases.
+            if (parsed_value->to_keyword() == Keyword::Distribute)
+                return CSSKeywordValue::create(Keyword::InterCharacter);
+            return parsed_value.release_nonnull();
+        }
+        return ParseError::SyntaxError;
     case PropertyID::TextShadow:
         if (auto parsed_value = parse_shadow_value(tokens, AllowInsetKeyword::No); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();

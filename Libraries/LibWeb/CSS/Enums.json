@@ -638,8 +638,7 @@
     "auto",
     "none",
     "inter-word",
-    "inter-character",
-    "distribute=inter-character"
+    "inter-character"
   ],
   "text-overflow": [
     "clip",

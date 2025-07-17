@@ -1,0 +1,14 @@
+<!doctype html>
+<link rel=author href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel=author href="https://mozilla.org" title="Mozilla">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/6156">
+<title>text-justify: distribute is a parse-time alias of inter-character</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  test(function() {
+    let style = document.createElement("div").style;
+    style.textJustify = "distribute";
+    assert_equals(style.textJustify, "inter-character");
+  });
+</script>

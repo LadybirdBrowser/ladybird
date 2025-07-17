@@ -3158,6 +3158,9 @@
     "initial": "auto",
     "valid-types": [
       "text-justify"
+    ],
+    "valid-identifiers": [
+      "distribute"
     ]
   },
   "text-overflow": {
