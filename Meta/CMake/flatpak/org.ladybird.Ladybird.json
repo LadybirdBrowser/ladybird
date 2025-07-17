@@ -113,6 +113,69 @@
         },
         "gclient-sources.json",
         {
+          "type": "archive",
+          "url": "https://commondatastorage.googleapis.com/chrome-linux-sysroot/63f0e5128b84f7b0421956a4a40affa472be8da0e58caf27e9acbc84072daee7",
+          "sha256": "63f0e5128b84f7b0421956a4a40affa472be8da0e58caf27e9acbc84072daee7",
+          "archive-type": "tar",
+          "strip-components": 0,
+          "dest": "angle/build/linux/debian_bullseye_i386-sysroot"
+        },
+        {
+          "type": "inline",
+          "contents": "https://commondatastorage.googleapis.com/chrome-linux-sysroot/63f0e5128b84f7b0421956a4a40affa472be8da0e58caf27e9acbc84072daee7",
+          "dest": "angle/build/linux/debian_bullseye_i386-sysroot",
+          "dest-filename": ".stamp"
+        },
+        {
+          "type": "archive",
+          "url": "https://commondatastorage.googleapis.com/chrome-linux-sysroot/36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50",
+          "sha256": "36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50",
+          "archive-type": "tar",
+          "strip-components": 0,
+          "dest": "angle/build/linux/debian_bullseye_amd64-sysroot"
+        },
+        {
+          "type": "inline",
+          "contents": "https://commondatastorage.googleapis.com/chrome-linux-sysroot/36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50",
+          "dest": "angle/build/linux/debian_bullseye_amd64-sysroot",
+          "dest-filename": ".stamp"
+        },
+        {
+          "type": "archive",
+          "url": "https://commondatastorage.googleapis.com/chromium-browser-clang/Linux_x64/clang-llvmorg-21-init-11777-gfd3fecfc-1.tar.xz",
+          "sha256": "5f69279b3697166facfc354634157e0a8a32fa6e36864200ad8a8f85add3f3f6",
+          "strip-components": 0,
+          "dest": "angle/third_party/llvm-build/Release+Asserts"
+        },
+        {
+          "type": "archive",
+          "url": "https://commondatastorage.googleapis.com/chromium-browser-clang/Linux_x64/rust-toolchain-4a0969e06dbeaaa43914d2d00b2e843d49aa3886-1-llvmorg-21-init-11777-gfd3fecfc.tar.xz",
+          "sha256": "df1573701599cb7d00c1050b71636a436320b8ad47bb09cb46d6e96b3f8ac585",
+          "strip-components": 0,
+          "dest": "angle/third_party/rust-toolchain"
+        },
+        {
+          "type": "file",
+          "url": "https://storage.googleapis.com/angle-glslang-validator/de8679c3e2f15291ba4f5c32eebc954ce78bf39c",
+          "sha256": "48296cebcdc8a57d9c1a0b93a51b3d33ad7c554d8d258d82ad2b9a9808a24a2e",
+          "dest": "angle/tools/glslang",
+          "dest-filename": "glslang_validator"
+        },
+        {
+          "type": "file",
+          "url": "https://storage.googleapis.com/angle-flex-bison/36625019a2442ac8efc92c32e1d61bd3f450b7ab",
+          "sha256": "d786285a7bdbaa8315b3af79ad7134bcc9924ee9bb49555b03a6fc94a103a80b",
+          "dest": "angle/tools/flex-bison/linux",
+          "dest-filename": "bison"
+        },
+        {
+          "type": "file",
+          "url": "https://storage.googleapis.com/angle-flex-bison/3c9694c62a4ad0d1f95b45bb748855c3688c923e",
+          "sha256": "fbfdf6cf32ecb5bf21b41cf7efc8c771d66cdcf5ca1e3ae5762a74ff136f93a3",
+          "dest": "angle/tools/flex-bison/linux",
+          "dest-filename": "flex"
+        },
+        {
           "type": "shell",
           "commands": [
             "cd angle/third_party/depot_tools && echo ../../../../../../usr/bin > python3_bin_reldir.txt"
