@@ -1393,10 +1393,6 @@ void Document::update_layout(UpdateLayoutReason reason)
     update_paint_and_hit_testing_properties_if_needed();
     paintable()->assign_clip_frames();
 
-    if (navigable->is_traversable()) {
-        page().client().page_did_layout();
-    }
-
     if (auto range = get_selection()->range()) {
         paintable()->recompute_selection_states(*range);
     }
