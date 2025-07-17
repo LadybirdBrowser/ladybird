@@ -130,10 +130,7 @@ WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(HTML::TransferDataDecod
 
     auto deserialize_dom_point = [&](GC::Ref<DOMPoint>& storage) -> WebIDL::ExceptionOr<void> {
         auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
-
-        if (auto* dom_point = as_if<DOMPoint>(deserialized.as_object()))
-            storage = *dom_point;
-
+        storage = as<DOMPoint>(deserialized.as_object());
         return {};
     };
 

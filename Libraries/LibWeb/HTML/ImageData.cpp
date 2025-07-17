@@ -210,9 +210,7 @@ WebIDL::ExceptionOr<void> ImageData::deserialization_steps(HTML::TransferDataDec
 
     // 1. Initialize value's data attribute to the sub-deserialization of serialized.[[Data]].
     auto deserialized = TRY(structured_deserialize_internal(vm, serialized, realm, memory));
-
-    if (auto* data = as_if<JS::Uint8ClampedArray>(deserialized.as_object()))
-        m_data = *data;
+    m_data = as<JS::Uint8ClampedArray>(deserialized.as_object());
 
     // 2. Initialize value's width attribute to serialized.[[Width]].
     auto width = serialized.decode<int>();
