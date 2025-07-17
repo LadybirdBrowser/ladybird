@@ -969,6 +969,7 @@ struct StorageEndpoint;
 
 namespace Web::SVG {
 
+class Path;
 class SVGAnimatedEnumeration;
 class SVGAnimatedLength;
 class SVGAnimatedRect;

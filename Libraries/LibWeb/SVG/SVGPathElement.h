@@ -6,9 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/Bitmap.h>
-#include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/Path.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 
 namespace Web::SVG {
@@ -29,9 +27,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    Vector<PathInstruction> m_instructions;
+    Path m_path {};
 };
-
-[[nodiscard]] Gfx::Path path_from_path_instructions(ReadonlySpan<PathInstruction>);
 
 }

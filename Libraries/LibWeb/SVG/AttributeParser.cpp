@@ -26,7 +26,7 @@ Optional<Vector<Transform>> AttributeParser::parse_transform(StringView input)
     return parser.parse_transform();
 }
 
-Vector<PathInstruction> AttributeParser::parse_path_data(StringView input)
+Path AttributeParser::parse_path_data(StringView input)
 {
     AttributeParser parser { input };
     parser.parse_whitespace();
@@ -37,9 +37,9 @@ Vector<PathInstruction> AttributeParser::parse_path_data(StringView input)
     }
     if (!parser.m_instructions.is_empty() && parser.m_instructions[0].type != PathInstructionType::Move) {
         // Invalid. "A path data segment (if there is one) must begin with a "moveto" command."
-        return {};
+        return Path { {} };
     }
-    return parser.m_instructions;
+    return Path { parser.m_instructions };
 }
 
 Optional<float> AttributeParser::parse_coordinate(StringView input)
