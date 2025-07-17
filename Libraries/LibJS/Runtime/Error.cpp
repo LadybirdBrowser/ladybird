@@ -41,10 +41,8 @@ GC::Ref<Error> Error::create(Realm& realm)
 
 GC::Ref<Error> Error::create(Realm& realm, String message)
 {
-    auto& vm = realm.vm();
     auto error = Error::create(realm);
-    u8 attr = Attribute::Writable | Attribute::Configurable;
-    error->define_direct_property(vm.names.message, PrimitiveString::create(vm, move(message)), attr);
+    error->set_message(move(message));
     return error;
 }
 
@@ -75,6 +73,14 @@ ThrowCompletionOr<void> Error::install_error_cause(Value options)
 
     // 2. Return unused.
     return {};
+}
+
+void Error::set_message(String message)
+{
+    auto& vm = this->vm();
+
+    u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_direct_property(vm.names.message, PrimitiveString::create(vm, move(message)), attr);
 }
 
 void Error::populate_stack()
@@ -156,30 +162,28 @@ String Error::stack_string(CompactTraceback compact) const
     return MUST(stack_string_builder.to_string());
 }
 
-#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType)                   \
-    GC_DEFINE_ALLOCATOR(ClassName);                                                                        \
-    GC::Ref<ClassName> ClassName::create(Realm& realm)                                                     \
-    {                                                                                                      \
-        return realm.create<ClassName>(realm.intrinsics().snake_name##_prototype());                       \
-    }                                                                                                      \
-                                                                                                           \
-    GC::Ref<ClassName> ClassName::create(Realm& realm, String message)                                     \
-    {                                                                                                      \
-        auto& vm = realm.vm();                                                                             \
-        auto error = ClassName::create(realm);                                                             \
-        u8 attr = Attribute::Writable | Attribute::Configurable;                                           \
-        error->define_direct_property(vm.names.message, PrimitiveString::create(vm, move(message)), attr); \
-        return error;                                                                                      \
-    }                                                                                                      \
-                                                                                                           \
-    GC::Ref<ClassName> ClassName::create(Realm& realm, StringView message)                                 \
-    {                                                                                                      \
-        return create(realm, MUST(String::from_utf8(message)));                                            \
-    }                                                                                                      \
-                                                                                                           \
-    ClassName::ClassName(Object& prototype)                                                                \
-        : Error(prototype)                                                                                 \
-    {                                                                                                      \
+#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
+    GC_DEFINE_ALLOCATOR(ClassName);                                                      \
+    GC::Ref<ClassName> ClassName::create(Realm& realm)                                   \
+    {                                                                                    \
+        return realm.create<ClassName>(realm.intrinsics().snake_name##_prototype());     \
+    }                                                                                    \
+                                                                                         \
+    GC::Ref<ClassName> ClassName::create(Realm& realm, String message)                   \
+    {                                                                                    \
+        auto error = ClassName::create(realm);                                           \
+        error->set_message(move(message));                                               \
+        return error;                                                                    \
+    }                                                                                    \
+                                                                                         \
+    GC::Ref<ClassName> ClassName::create(Realm& realm, StringView message)               \
+    {                                                                                    \
+        return create(realm, MUST(String::from_utf8(message)));                          \
+    }                                                                                    \
+                                                                                         \
+    ClassName::ClassName(Object& prototype)                                              \
+        : Error(prototype)                                                               \
+    {                                                                                    \
     }
 
 JS_ENUMERATE_NATIVE_ERRORS

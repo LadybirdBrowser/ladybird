@@ -41,6 +41,8 @@ public:
 
     ThrowCompletionOr<void> install_error_cause(Value options);
 
+    void set_message(String);
+
     Vector<TracebackFrame, 32> const& traceback() const { return m_traceback; }
 
 protected:
