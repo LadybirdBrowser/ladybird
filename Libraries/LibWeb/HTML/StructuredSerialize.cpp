@@ -64,6 +64,7 @@
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/TransformStream.h>
@@ -1507,15 +1508,12 @@ WebIDL::ExceptionOr<SerializationRecord> structured_serialize_internal(JS::VM& v
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
 WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, SerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory)
 {
+    TemporaryExecutionContext execution_context { target_realm };
+
     if (!memory.has_value())
         memory = DeserializationMemory { vm.heap() };
 
-    // IMPLEMENTATION DEFINED: We need to make sure there's an execution context for target_realm on the stack before constructing these JS objects
-    prepare_to_run_script(target_realm);
-
     auto result = TRY(structured_deserialize_internal(vm, serialized.span(), target_realm, *memory));
-
-    clean_up_after_running_script(target_realm);
     VERIFY(result.value.has_value());
     return *result.value;
 }
