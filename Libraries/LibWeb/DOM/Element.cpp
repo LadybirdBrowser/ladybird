@@ -237,6 +237,7 @@ bool is_valid_namespace_prefix(FlyString const& prefix)
     return !prefix.is_empty() && !prefix.code_points().contains_any_of(INVALID_NAMESPACE_PREFIX_CHARACTERS);
 }
 
+// https://dom.spec.whatwg.org/#valid-attribute-local-name
 bool is_valid_attribute_local_name(FlyString const& local_name)
 {
     // A string is a valid attribute local name if its length is at least 1 and it does not contain ASCII whitespace, U+0000 NULL, U+002F (/), U+003D (=), or U+003E (>).
