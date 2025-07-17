@@ -9,13 +9,14 @@
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <LibGC/Forward.h>
+#include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 
 namespace Web::HTML {
 
 using DeserializationMemory = GC::RootVector<JS::Value>;
-using SerializationRecord = Vector<u32>;
 using SerializationMemory = HashMap<GC::Root<JS::Value>, u32>;
+using SerializationRecord = IPC::MessageDataType;
 
 enum class SerializeType : u8 {
     Unknown = 0,

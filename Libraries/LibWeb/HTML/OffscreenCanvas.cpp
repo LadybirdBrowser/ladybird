@@ -80,17 +80,17 @@ OffscreenCanvas::OffscreenCanvas(JS::Realm& realm, RefPtr<Gfx::Bitmap> bitmap)
 
 OffscreenCanvas::~OffscreenCanvas() = default;
 
-WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_steps(HTML::TransferDataHolder&)
+WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_steps(HTML::TransferDataEncoder&)
 {
     // FIXME: Implement this
-    dbgln("(STUBBED) OffscreenCanvas::transfer_steps(HTML::TransferDataHolder&)");
+    dbgln("(STUBBED) OffscreenCanvas::transfer_steps(HTML::TransferDataEncoder&)");
     return {};
 }
 
-WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_receiving_steps(HTML::TransferDataHolder&)
+WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_receiving_steps(HTML::TransferDataDecoder&)
 {
     // FIXME: Implement this
-    dbgln("(STUBBED) OffscreenCanvas::transfer_receiving_steps(HTML::TransferDataHolder&)");
+    dbgln("(STUBBED) OffscreenCanvas::transfer_receiving_steps(HTML::TransferDataDecoder&)");
     return {};
 }
 

@@ -188,17 +188,10 @@ void TransformStream::set_up(GC::Ref<TransformAlgorithm> transform_algorithm, GC
 }
 
 // https://streams.spec.whatwg.org/#ref-for-transfer-steps②
-WebIDL::ExceptionOr<void> TransformStream::transfer_steps(HTML::TransferDataHolder& data_holder)
+WebIDL::ExceptionOr<void> TransformStream::transfer_steps(HTML::TransferDataEncoder& data_holder)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
-
-    auto serialize_stream = [&](auto stream) {
-        auto result = MUST(HTML::structured_serialize_with_transfer(vm, stream, { { GC::Root { stream } } }));
-
-        data_holder.data.extend(move(result.transfer_data_holders.first().data));
-        data_holder.fds.extend(move(result.transfer_data_holders.first().fds));
-    };
 
     // 1. Let readable be value.[[readable]].
     auto readable = this->readable();
@@ -215,48 +208,32 @@ WebIDL::ExceptionOr<void> TransformStream::transfer_steps(HTML::TransferDataHold
         return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_string);
 
     // 5. Set dataHolder.[[readable]] to ! StructuredSerializeWithTransfer(readable, « readable »).
-    serialize_stream(readable);
+    auto readable_result = MUST(HTML::structured_serialize_with_transfer(vm, readable, { { GC::Root { readable } } }));
+    data_holder.extend(move(readable_result.transfer_data_holders));
 
     // 6. Set dataHolder.[[writable]] to ! StructuredSerializeWithTransfer(writable, « writable »).
-    serialize_stream(writable);
+    auto writable_result = MUST(HTML::structured_serialize_with_transfer(vm, writable, { { GC::Root { writable } } }));
+    data_holder.extend(move(writable_result.transfer_data_holders));
 
     return {};
 }
 
-template<typename StreamType>
-static WebIDL::ExceptionOr<GC::Ref<StreamType>> deserialize_stream(JS::Realm& realm, HTML::TransferDataHolder& data_holder)
-{
-    auto transfer_type = data_holder.data.take_first();
-
-    if constexpr (IsSame<StreamType, ReadableStream>)
-        VERIFY(transfer_type == to_underlying(HTML::TransferType::ReadableStream));
-    else if constexpr (IsSame<StreamType, WritableStream>)
-        VERIFY(transfer_type == to_underlying(HTML::TransferType::WritableStream));
-    else
-        static_assert(DependentFalse<StreamType>);
-
-    auto stream = realm.create<StreamType>(realm);
-    TRY(stream->transfer_receiving_steps(data_holder));
-
-    return stream;
-}
-
 // https://streams.spec.whatwg.org/#ref-for-transfer-receiving-steps②
-WebIDL::ExceptionOr<void> TransformStream::transfer_receiving_steps(HTML::TransferDataHolder& data_holder)
+WebIDL::ExceptionOr<void> TransformStream::transfer_receiving_steps(HTML::TransferDataDecoder& data_holder)
 {
     auto& realm = this->realm();
 
     // 1. Let readableRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[readable]], the current Realm).
-    auto readable = TRY(deserialize_stream<ReadableStream>(realm, data_holder));
+    auto readable_record = MUST(HTML::structured_deserialize_with_transfer_internal(data_holder, realm));
 
     // 2. Let writableRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[writable]], the current Realm).
-    auto writable = TRY(deserialize_stream<WritableStream>(realm, data_holder));
+    auto writeable_record = MUST(HTML::structured_deserialize_with_transfer_internal(data_holder, realm));
 
     // 3. Set value.[[readable]] to readableRecord.[[Deserialized]].
-    set_readable(readable);
+    set_readable(as<ReadableStream>(readable_record.as_object()));
 
     // 4. Set value.[[writable]] to writableRecord.[[Deserialized]].
-    set_writable(writable);
+    set_writable(as<WritableStream>(writeable_record.as_object()));
 
     // 5. Set value.[[backpressure]], value.[[backpressureChangePromise]], and value.[[controller]] to undefined.
     set_backpressure({});

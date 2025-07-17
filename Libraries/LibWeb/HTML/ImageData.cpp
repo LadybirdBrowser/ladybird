@@ -180,22 +180,22 @@ const JS::Uint8ClampedArray* ImageData::data() const
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:serialization-steps
-WebIDL::ExceptionOr<void> ImageData::serialization_steps(SerializationRecord& serialized, bool for_storage, SerializationMemory& memory)
+WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
     auto& vm = this->vm();
 
     // 1. Set serialized.[[Data]] to the sub-serialization of the value of value's data attribute.
     auto serialized_data = TRY(structured_serialize_internal(vm, m_data, for_storage, memory));
-    serialized.extend(move(serialized_data));
+    serialized.append(move(serialized_data));
 
     // 2. Set serialized.[[Width]] to the value of value's width attribute.
-    serialize_primitive_type(serialized, m_bitmap->width());
+    serialized.encode(m_bitmap->width());
 
     // 3. Set serialized.[[Height]] to the value of value's height attribute.
-    serialize_primitive_type(serialized, m_bitmap->height());
+    serialized.encode(m_bitmap->height());
 
     // 4. Set serialized.[[ColorSpace]] to the value of value's colorSpace attribute.
-    serialize_enum(serialized, m_color_space);
+    serialized.encode(m_color_space);
 
     // FIXME:: 5. Set serialized.[[PixelFormat]] to the value of value's pixelFormat attribute.
 
@@ -203,26 +203,25 @@ WebIDL::ExceptionOr<void> ImageData::serialization_steps(SerializationRecord& se
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:deserialization-steps
-WebIDL::ExceptionOr<void> ImageData::deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> ImageData::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
 {
     auto& vm = this->vm();
     auto& realm = this->realm();
 
     // 1. Initialize value's data attribute to the sub-deserialization of serialized.[[Data]].
-    auto [value, position_after_deserialization] = TRY(structured_deserialize_internal(vm, serialized, realm, memory, position));
-    if (value.has_value() && value.value().is_object() && is<JS::Uint8ClampedArray>(value.value().as_object())) {
-        m_data = as<JS::Uint8ClampedArray>(value.release_value().as_object());
-    }
-    position = position_after_deserialization;
+    auto deserialized = TRY(structured_deserialize_internal(vm, serialized, realm, memory));
+
+    if (auto* data = as_if<JS::Uint8ClampedArray>(deserialized.as_object()))
+        m_data = *data;
 
     // 2. Initialize value's width attribute to serialized.[[Width]].
-    auto const width = deserialize_primitive_type<int>(serialized, position);
+    auto width = serialized.decode<int>();
 
     // 3. Initialize value's height attribute to serialized.[[Height]].
-    auto const height = deserialize_primitive_type<int>(serialized, position);
+    auto height = serialized.decode<int>();
 
     // 4. Initialize value's colorSpace attribute to serialized.[[ColorSpace]].
-    m_color_space = deserialize_primitive_type<Bindings::PredefinedColorSpace>(serialized, position);
+    m_color_space = serialized.decode<Bindings::PredefinedColorSpace>();
 
     // FIXME: 5. Initialize value's pixelFormat attribute to serialized.[[PixelFormat]].
 

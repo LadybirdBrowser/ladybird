@@ -35,12 +35,12 @@ public:
 
     // ^Web::Bindings::Serializable
     virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::ImageBitmap; }
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::SerializationRecord&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const&, size_t& position, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
     // ^Web::Bindings::Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataHolder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override;
 
     WebIDL::UnsignedLong width() const;

@@ -672,6 +672,8 @@ class Timer;
 class TimeRanges;
 class ToggleEvent;
 class TrackEvent;
+class TransferDataDecoder;
+class TransferDataEncoder;
 class TraversableNavigable;
 class UserActivation;
 class ValidityState;
@@ -711,7 +713,6 @@ struct SerializedTransferRecord;
 struct StructuredSerializeOptions;
 struct SyntheticRealmSettings;
 struct ToggleTaskTracker;
-struct TransferDataHolder;
 
 }
 

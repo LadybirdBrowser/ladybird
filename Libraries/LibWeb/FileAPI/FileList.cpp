@@ -48,31 +48,33 @@ void FileList::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_files);
 }
 
-WebIDL::ExceptionOr<void> FileList::serialization_steps(HTML::SerializationRecord& serialized, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> FileList::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
     auto& vm = this->vm();
 
     // 1. Set serialized.[[Files]] to an empty list.
     // 2. For each file in value, append the sub-serialization of file to serialized.[[Files]].
-    HTML::serialize_primitive_type(serialized, m_files.size());
-    for (auto& file : m_files)
-        serialized.extend(TRY(HTML::structured_serialize_internal(vm, file, for_storage, memory)));
+    serialized.encode(m_files.size());
+
+    for (auto file : m_files)
+        serialized.append(TRY(HTML::structured_serialize_internal(vm, file, for_storage, memory)));
 
     return {};
 }
 
-WebIDL::ExceptionOr<void> FileList::deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> FileList::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
 {
     auto& vm = this->vm();
-    auto& realm = *vm.current_realm();
+    auto& realm = this->realm();
 
     // 1. For each file of serialized.[[Files]], add the sub-deserialization of file to value.
-    auto size = HTML::deserialize_primitive_type<size_t>(serialized, position);
+    auto size = serialized.decode<size_t>();
+
     for (size_t i = 0; i < size; ++i) {
-        auto deserialized_record = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory, position));
-        if (deserialized_record.value.has_value() && is<File>(deserialized_record.value.value().as_object()))
-            m_files.append(dynamic_cast<File&>(deserialized_record.value.release_value().as_object()));
-        position = deserialized_record.position;
+        auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
+
+        if (auto* file = as_if<File>(deserialized.as_object()))
+            m_files.append(*file);
     }
 
     return {};

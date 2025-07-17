@@ -18,10 +18,10 @@ public:
     virtual ~Transferable() = default;
 
     // NOTE: It is an error to call Base::transfer_steps in your impl
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) = 0;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) = 0;
 
     // NOTE: It is an error to call Base::transfer_receiving_steps in your impl
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataHolder&) = 0;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) = 0;
 
     virtual HTML::TransferType primary_interface() const = 0;
 

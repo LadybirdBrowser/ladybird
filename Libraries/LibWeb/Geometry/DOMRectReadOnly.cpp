@@ -52,33 +52,39 @@ void DOMRectReadOnly::initialize(JS::Realm& realm)
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMRectReadOnly::serialization_steps(HTML::SerializationRecord& serialized, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> DOMRectReadOnly::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
 {
     // 1. Set serialized.[[X]] to value’s x coordinate.
-    HTML::serialize_primitive_type(serialized, this->x());
+    serialized.encode(x());
+
     // 2. Set serialized.[[Y]] to value’s y coordinate.
-    HTML::serialize_primitive_type(serialized, this->y());
+    serialized.encode(y());
+
     // 3. Set serialized.[[Width]] to value’s width.
-    HTML::serialize_primitive_type(serialized, this->width());
+    serialized.encode(width());
+
     // 4. Set serialized.[[Height]] to value’s height.
-    HTML::serialize_primitive_type(serialized, this->height());
+    serialized.encode(height());
+
     return {};
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMRectReadOnly::deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> DOMRectReadOnly::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
 {
     // 1. Set value’s x coordinate to serialized.[[X]].
-    auto x = HTML::deserialize_primitive_type<double>(serialized, position);
+    auto x = serialized.decode<double>();
+
     // 2. Set value’s y coordinate to serialized.[[Y]].
-    auto y = HTML::deserialize_primitive_type<double>(serialized, position);
+    auto y = serialized.decode<double>();
+
     // 3. Set value’s width to serialized.[[Width]].
-    auto width = HTML::deserialize_primitive_type<double>(serialized, position);
+    auto width = serialized.decode<double>();
+
     // 4. Set value’s height to serialized.[[Height]].
-    auto height = HTML::deserialize_primitive_type<double>(serialized, position);
+    auto height = serialized.decode<double>();
 
     m_rect = { x, y, width, height };
-
     return {};
 }
 

@@ -89,8 +89,8 @@ public:
     SinglyLinkedList<GC::Ref<WebIDL::Promise>>& write_requests() { return m_write_requests; }
 
     // ^Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataHolder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::WritableStream; }
 
 private:

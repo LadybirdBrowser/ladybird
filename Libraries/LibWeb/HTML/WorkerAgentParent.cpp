@@ -30,7 +30,7 @@ void WorkerAgentParent::initialize(JS::Realm& realm)
     m_message_port = MessagePort::create(realm);
     m_message_port->entangle_with(*m_outside_port);
 
-    TransferDataHolder data_holder;
+    TransferDataEncoder data_holder;
     MUST(m_message_port->transfer_steps(data_holder));
 
     // FIXME: Specification says this supposed to happen in step 11 of onComplete handler defined in https://html.spec.whatwg.org/multipage/workers.html#run-a-worker

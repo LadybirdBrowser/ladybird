@@ -151,34 +151,32 @@ void Blob::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::SerializationRecord& record, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
 {
-    auto& vm = this->vm();
-
     //  FIXME: 1. Set serialized.[[SnapshotState]] to value’s snapshot state.
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be serialized, although
     //               to be conformant with other browsers this needs to be serialized.
-    TRY(HTML::serialize_string(vm, record, m_type));
+    serialized.encode(m_type);
 
     // 2. Set serialized.[[ByteSequence]] to value’s underlying byte sequence.
-    TRY(HTML::serialize_bytes(vm, record, m_byte_buffer.bytes()));
+    serialized.encode(m_byte_buffer);
 
     return {};
 }
 
-WebIDL::ExceptionOr<void> Blob::deserialization_steps(ReadonlySpan<u32> const& record, size_t& position, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> Blob::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
 {
-    auto& vm = this->vm();
+    auto& realm = this->realm();
 
     // FIXME: 1. Set value’s snapshot state to serialized.[[SnapshotState]].
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be deserialized, although
     //               to be conformant with other browsers this needs to be deserialized.
-    m_type = TRY(HTML::deserialize_string(vm, record, position));
+    m_type = serialized.decode<String>();
 
     // 2. Set value’s underlying byte sequence to serialized.[[ByteSequence]].
-    m_byte_buffer = TRY(HTML::deserialize_bytes(vm, record, position));
+    m_byte_buffer = TRY(serialized.decode_buffer(realm));
 
     return {};
 }

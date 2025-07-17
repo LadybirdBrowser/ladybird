@@ -33,31 +33,31 @@ void ImageBitmap::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
 }
 
-WebIDL::ExceptionOr<void> ImageBitmap::serialization_steps(HTML::SerializationRecord&, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> ImageBitmap::serialization_steps(HTML::TransferDataEncoder&, bool, HTML::SerializationMemory&)
 {
     // FIXME: Implement this
-    dbgln("(STUBBED) ImageBitmap::serialization_steps(HTML::SerializationRecord&, bool, HTML::SerializationMemory&)");
+    dbgln("(STUBBED) ImageBitmap::serialization_steps(HTML::TransferDataEncoder&, bool, HTML::SerializationMemory&)");
     return {};
 }
 
-WebIDL::ExceptionOr<void> ImageBitmap::deserialization_steps(ReadonlySpan<u32> const&, size_t&, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> ImageBitmap::deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&)
 {
     // FIXME: Implement this
     dbgln("(STUBBED) ImageBitmap::deserialization_steps(ReadonlySpan<u32> const&, size_t&, HTML::DeserializationMemory&)");
     return {};
 }
 
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataHolder&)
+WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataEncoder&)
 {
     // FIXME: Implement this
-    dbgln("(STUBBED) ImageBitmap::transfer_steps(HTML::TransferDataHolder&)");
+    dbgln("(STUBBED) ImageBitmap::transfer_steps(HTML::TransferDataEncoder&)");
     return {};
 }
 
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_receiving_steps(HTML::TransferDataHolder&)
+WebIDL::ExceptionOr<void> ImageBitmap::transfer_receiving_steps(HTML::TransferDataDecoder&)
 {
     // FIXME: Implement this
-    dbgln("(STUBBED) ImageBitmap::transfer_receiving_steps(HTML::TransferDataHolder&)");
+    dbgln("(STUBBED) ImageBitmap::transfer_receiving_steps(HTML::TransferDataDecoder&)");
     return {};
 }
 
