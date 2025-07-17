@@ -162,7 +162,9 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 
     auto data_name = MUST(builder.to_string());
 
-    // FIXME: 4. If name does not match the XML Name production, throw an "InvalidCharacterError" DOMException.
+    // 4. If name is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
+    if (!DOM::is_valid_attribute_local_name(data_name))
+        return WebIDL::InvalidCharacterError::create(realm(), "Name is not a valid attribute local name."_string);
 
     // 5. Set an attribute value for the DOMStringMap's associated element using name and value.
     TRY(m_associated_element->set_attribute(data_name, value));
