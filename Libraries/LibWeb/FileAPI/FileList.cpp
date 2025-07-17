@@ -72,9 +72,7 @@ WebIDL::ExceptionOr<void> FileList::deserialization_steps(HTML::TransferDataDeco
 
     for (size_t i = 0; i < size; ++i) {
         auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
-
-        if (auto* file = as_if<File>(deserialized.as_object()))
-            m_files.append(*file);
+        m_files.append(as<File>(deserialized.as_object()));
     }
 
     return {};
