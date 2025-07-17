@@ -28,7 +28,7 @@ bool BarProp::visible() const
 {
     // 1. Let browsingContext be this's relevant global object's browsing context.
     auto& global_object = HTML::relevant_global_object(*this);
-    auto* browsing_context = as<HTML::Window>(global_object).associated_document().browsing_context();
+    auto browsing_context = as<HTML::Window>(global_object).associated_document().browsing_context();
 
     // 2. If browsingContext is null, then return true.
     if (!browsing_context) {

@@ -544,6 +544,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_inspected_node);
     visitor.visit(m_highlighted_node);
     visitor.visit(m_active_favicon);
+    visitor.visit(m_browsing_context);
     visitor.visit(m_focused_element);
     visitor.visit(m_active_element);
     visitor.visit(m_target_element);
@@ -4239,7 +4240,7 @@ GC::Ptr<HTML::HTMLParser> Document::active_parser()
     return m_parser;
 }
 
-void Document::set_browsing_context(HTML::BrowsingContext* browsing_context)
+void Document::set_browsing_context(GC::Ptr<HTML::BrowsingContext> browsing_context)
 {
     m_browsing_context = browsing_context;
 }

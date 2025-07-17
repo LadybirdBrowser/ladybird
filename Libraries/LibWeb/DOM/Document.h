@@ -308,10 +308,10 @@ public:
     String title() const;
     WebIDL::ExceptionOr<void> set_title(String const&);
 
-    HTML::BrowsingContext* browsing_context() { return m_browsing_context.ptr(); }
-    HTML::BrowsingContext const* browsing_context() const { return m_browsing_context.ptr(); }
+    GC::Ptr<HTML::BrowsingContext> browsing_context() { return m_browsing_context; }
+    GC::Ptr<HTML::BrowsingContext const> browsing_context() const { return m_browsing_context; }
 
-    void set_browsing_context(HTML::BrowsingContext*);
+    void set_browsing_context(GC::Ptr<HTML::BrowsingContext>);
 
     Page& page();
     Page const& page() const;
@@ -960,7 +960,7 @@ private:
     OwnPtr<CSS::StyleComputer> m_style_computer;
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
     GC::Ptr<Node> m_active_favicon;
-    WeakPtr<HTML::BrowsingContext> m_browsing_context;
+    GC::Ptr<HTML::BrowsingContext> m_browsing_context;
     URL::URL m_url;
     mutable OwnPtr<ElementByIdMap> m_element_by_id;
 

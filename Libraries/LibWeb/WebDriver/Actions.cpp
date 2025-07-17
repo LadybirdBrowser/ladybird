@@ -129,7 +129,7 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
     // 4. If parent navigable is not null:
     if (parent_navigable && parent_navigable->active_document() && parent_navigable->active_document()->browsing_context()) {
         // 1. Let parent context be parent navigable's document's browsing context.
-        auto* parent_context = parent_navigable->active_document()->browsing_context();
+        auto parent_context = parent_navigable->active_document()->browsing_context();
 
         // 2. Let (parentOffsetLeft, parentOffsetTop) be result of get parent offset of parent context.
         auto parent_offset = get_parent_offset(*parent_context);
