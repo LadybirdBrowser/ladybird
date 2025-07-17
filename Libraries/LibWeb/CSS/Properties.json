@@ -2644,6 +2644,9 @@
     "initial": "visible",
     "valid-types": [
       "overflow"
+    ],
+    "valid-identifiers": [
+      "overlay"
     ]
   },
   "overflow-y": {
@@ -2652,6 +2655,9 @@
     "initial": "visible",
     "valid-types": [
       "overflow"
+    ],
+    "valid-identifiers": [
+      "overlay"
     ]
   },
   "padding": {

@@ -673,6 +673,17 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_overflow_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::OverflowX:
+    case PropertyID::OverflowY:
+        if (auto parsed_value = parse_css_value_for_property(property_id, tokens); parsed_value && !tokens.has_next_token()) {
+            // https://drafts.csswg.org/css-overflow-3/#valdef-overflow-overlay
+            // User agents must also support the overlay keyword as a legacy value alias of auto.
+            // FIXME: Figure out a generic way of supporting legacy value aliases.
+            if (parsed_value->to_keyword() == Keyword::Overlay)
+                return CSSKeywordValue::create(Keyword::Auto);
+            return parsed_value.release_nonnull();
+        }
+        return ParseError::SyntaxError;
     case PropertyID::PlaceContent:
         if (auto parsed_value = parse_place_content_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -3600,11 +3611,24 @@ RefPtr<CSSStyleValue const> Parser::parse_opacity_value(PropertyID property_id, 
 
 RefPtr<CSSStyleValue const> Parser::parse_overflow_value(TokenStream<ComponentValue>& tokens)
 {
+    // https://drafts.csswg.org/css-overflow-3/#valdef-overflow-overlay
+    // User agents must also support the overlay keyword as a legacy value alias of auto.
+    // FIXME: Figure out a generic way of supporting legacy value aliases.
+    // FIXME: Even better, make parsing the longhands go through their proper parsing routine.
+    auto parse_an_overflow_longhand_value = [this](PropertyID property, auto& tokens) -> RefPtr<CSSStyleValue const> {
+        auto maybe_value = parse_css_value_for_property(property, tokens);
+        if (!maybe_value)
+            return nullptr;
+        if (maybe_value->to_keyword() == Keyword::Overlay)
+            return CSSKeywordValue::create(Keyword::Auto);
+        return maybe_value.release_nonnull();
+    };
+
     auto transaction = tokens.begin_transaction();
-    auto maybe_x_value = parse_css_value_for_property(PropertyID::OverflowX, tokens);
+    auto maybe_x_value = parse_an_overflow_longhand_value(PropertyID::OverflowX, tokens);
     if (!maybe_x_value)
         return nullptr;
-    auto maybe_y_value = parse_css_value_for_property(PropertyID::OverflowY, tokens);
+    auto maybe_y_value = parse_an_overflow_longhand_value(PropertyID::OverflowY, tokens);
     transaction.commit();
     if (maybe_y_value) {
         return ShorthandStyleValue::create(PropertyID::Overflow,
