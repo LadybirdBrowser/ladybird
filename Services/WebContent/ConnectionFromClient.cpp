@@ -251,6 +251,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     if (request == "dump-session-history") {
         auto const& traversable = page->page().top_level_traversable();
         Web::dump_tree(*traversable);
+        return;
     }
 
     if (request == "dump-display-list") {
@@ -393,8 +394,13 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 
     if (request == "dump-local-storage") {
-        if (auto* document = page->page().top_level_browsing_context().active_document())
-            document->window()->local_storage().release_value_but_fixme_should_propagate_errors()->dump();
+        if (auto* document = page->page().top_level_browsing_context().active_document()) {
+            auto storage_or_error = document->window()->local_storage();
+            if (storage_or_error.is_error())
+                dbgln("Failed to retrieve local storage: {}", storage_or_error.release_error());
+            else
+                storage_or_error.release_value()->dump();
+        }
         return;
     }
 
