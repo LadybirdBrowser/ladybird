@@ -38,14 +38,13 @@ static HashTable<GC::RawPtr<MessagePort>>& all_message_ports()
     return ports;
 }
 
-GC::Ref<MessagePort> MessagePort::create(JS::Realm& realm, HTML::TransferType primary_interface)
+GC::Ref<MessagePort> MessagePort::create(JS::Realm& realm)
 {
-    return realm.create<MessagePort>(realm, primary_interface);
+    return realm.create<MessagePort>(realm);
 }
 
-MessagePort::MessagePort(JS::Realm& realm, HTML::TransferType primary_interface)
+MessagePort::MessagePort(JS::Realm& realm)
     : DOM::EventTarget(realm)
-    , m_primary_interface(primary_interface)
 {
     all_message_ports().set(this);
 }
