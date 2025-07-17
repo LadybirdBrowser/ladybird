@@ -208,10 +208,9 @@ void Paintable::set_needs_display(InvalidateDisplayList should_invalidate_displa
 
     if (!is<Painting::PaintableWithLines>(*containing_block))
         return;
-    static_cast<Painting::PaintableWithLines const&>(*containing_block).for_each_fragment([&](auto& fragment) {
+    for (auto const& fragment : static_cast<Painting::PaintableWithLines const&>(*containing_block).fragments()) {
         document.set_needs_display(fragment.absolute_rect(), InvalidateDisplayList::No);
-        return IterationDecision::Continue;
-    });
+    };
 }
 
 CSSPixelPoint Paintable::box_type_agnostic_position() const
@@ -223,10 +222,10 @@ CSSPixelPoint Paintable::box_type_agnostic_position() const
 
     CSSPixelPoint position;
     if (auto const* block = containing_block(); block && is<Painting::PaintableWithLines>(*block)) {
-        static_cast<Painting::PaintableWithLines const&>(*block).for_each_fragment([&](auto& fragment) {
-            position = fragment.absolute_rect().location();
-            return IterationDecision::Break;
-        });
+        auto const& fragments = static_cast<Painting::PaintableWithLines const&>(*block).fragments();
+        if (!fragments.is_empty()) {
+            position = fragments[0].absolute_rect().location();
+        }
     }
 
     return position;
