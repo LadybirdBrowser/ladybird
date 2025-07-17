@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLParamElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="name, value of HTMLParamElement
+  interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-param-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<body>
+<script>
+
+function getParentElement() {
+  let element = document.createElement('object');
+  element['type'] = 'image/png';
+  element['data'] = '/images/blue.png';
+  document.body.appendChild(element);
+  return element;
+}
+
+function setAttributes(instance, attribute, value) {
+  instance.setAttribute(attribute, value);
+}
+
+testReflectAttributeWithDependentAttributes(
+  'name', 'name', 'image1',
+  'image2', 'name on HTMLParamElement', 'param',
+  getParentElement, instance => setAttributes(instance, 'value', 'blue'),
+  HTMLParamElement
+);
+testReflectAttributeWithDependentAttributes(
+  'value', 'value', 'blue1',
+  'blue2', 'value on HTMLParamElement', 'param',
+  getParentElement, instance => setAttributes(instance, 'name', 'image'),
+  HTMLParamElement
+);
+
+</script>
+</body>

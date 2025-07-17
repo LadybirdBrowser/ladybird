@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Custom Elements: CEReactions interaction with exceptions</title>
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<meta name="help" content="https://html.spec.whatwg.org/multipage/#cereactions">
+<meta name="help" content="https://github.com/whatwg/html/pull/3235">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+
+<div id="log"></div>
+
+<script>
+"use strict";
+// Basically from https://github.com/whatwg/html/issues/3217#issuecomment-343633273
+test_with_window((contentWindow, contentDocument) => {
+  let reactionRan = false;
+  contentWindow.customElements.define("custom-element", class extends contentWindow.HTMLElement {
+    disconnectedCallback() {
+      reactionRan = true;
+    }
+  });
+  const text = contentDocument.createTextNode("");
+  contentDocument.documentElement.appendChild(text);
+  const element = contentDocument.createElement("custom-element");
+  contentDocument.documentElement.appendChild(element);
+  assert_throws_dom(
+    "HierarchyRequestError",
+    contentWindow.DOMException,
+    () => text.before("", contentDocument.documentElement)
+  );
+  assert_true(reactionRan);
+}, "Reaction must run even after the exception is thrown");
+</script>

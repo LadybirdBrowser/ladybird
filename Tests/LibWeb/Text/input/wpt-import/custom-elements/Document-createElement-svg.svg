@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg:svg xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/1999/xhtml"
+   width="100%" height="100%" viewBox="0 0 800 600">
+<svg:title>document.createElement in SVG for custom elements</svg:title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script><![CDATA[
+test(() => {
+  class MyElement1 extends HTMLElement {}
+  customElements.define('my-element', MyElement1);
+  let element = document.createElement('my-element', {});
+  assert_false(element instanceof MyElement1, 'Autonomous custom element should not be created.');
+}, 'document.createElement() in SVG documents should not create autonomous custom elements.')
+
+test(() => {
+  class MyElement2 extends HTMLDivElement {}
+  customElements.define('my-div', MyElement2, { extends: 'div' });
+
+  let element = document.createElement('div', { is: 'my-div' });
+  assert_false(element instanceof MyElement2, 'Custom built-in element should not be created.');
+}, 'document.createElement() in SVG documents should not create custom built-in elements.')
+]]></script>
+</svg:svg>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script>
+customElements.define('custom-input-parser', class extends HTMLElement {
+  static get formAssociated() {return true;}
+});
+</script>
+
+<form>
+  <fieldset id="fs_outer">
+    <custom-input-parser name="custom-1"></custom-input>
+    <custom-input-upgrade name="custom-2"></custom-input>
+    <fieldset id="fs_inner">
+      <custom-input-parser name="custom-3"></custom-input>
+      <custom-input-upgrade name="custom-4"></custom-input>
+      <uncustom-input></custom-input>
+    </fieldset>
+  </fieldset>
+  <custom-input-parser name="custom-5"></custom-input>
+  <custom-input-upgrade name="custom-6"></custom-input>
+</form>
+
+<script>
+test(() => {
+  const formElements = document.forms[0].elements;
+  const fs_outer = document.getElementById("fs_outer");
+  const fs_inner = document.getElementById("fs_inner");
+
+  assert_array_equals(fs_inner.elements, [formElements['custom-3']],
+                      "The items in the collection must be children of the inner fieldset element.");
+  assert_array_equals(fs_outer.elements, [formElements['custom-1'], fs_inner, formElements['custom-3']],
+                      "The items in the collection must be descendants of the outer fieldset element.");
+
+  customElements.define('custom-input-upgrade', class extends HTMLElement {
+    static get formAssociated() {return true;}
+  });
+
+  assert_array_equals(fs_inner.elements, [formElements['custom-3'], formElements['custom-4']],
+                      "The items in the collection must be children of the inner fieldset element.");
+  assert_array_equals(fs_outer.elements,
+                      [formElements['custom-1'], formElements['custom-2'], fs_inner, formElements['custom-3'], formElements['custom-4']],
+                      "The items in the collection must be descendants of the outer fieldset element.");
+
+}, 'Form associated custom elements should work with fieldset.elements');
+
+</script>
+</body>

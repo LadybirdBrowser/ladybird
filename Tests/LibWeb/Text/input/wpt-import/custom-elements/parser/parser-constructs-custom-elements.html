@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Changes to the HTML parser</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="HTML parser creates a custom element">
+<link rel="help" href="https://html.spec.whatwg.org/#create-an-element-for-the-token">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<my-custom-element id="instance1"></my-custom-element>
+<script>
+
+class MyCustomElement extends HTMLElement { };
+
+test(function () {
+    var customElement = document.getElementById('instance1');
+
+    assert_true(customElement instanceof HTMLElement, 'An unresolved custom element must be an instance of HTMLElement');
+    assert_false(customElement instanceof MyCustomElement, 'An unresolved custom element must NOT be an instance of that custom element');
+    assert_equals(customElement.localName, 'my-custom-element');
+    assert_equals(customElement.namespaceURI, 'http://www.w3.org/1999/xhtml', 'A custom element HTML must use HTML namespace');
+
+}, 'HTML parser must NOT create a custom element before customElements.define is called');
+
+customElements.define('my-custom-element', MyCustomElement);
+
+</script>
+<my-custom-element id="instance2"></my-custom-element>
+<script>
+
+test(function () {
+    var customElement = document.getElementById('instance2');
+
+    assert_true(customElement instanceof HTMLElement, 'A resolved custom element must be an instance of HTMLElement');
+    assert_false(customElement instanceof HTMLUnknownElement, 'A resolved custom element must NOT be an instance of HTMLUnknownElement');
+    assert_true(customElement instanceof MyCustomElement, 'A resolved custom element must be an instance of that custom element');
+    assert_equals(customElement.localName, 'my-custom-element');
+    assert_equals(customElement.namespaceURI, 'http://www.w3.org/1999/xhtml', 'A custom element HTML must use HTML namespace');
+
+}, 'HTML parser must create a defined custom element before executing inline scripts');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Each element must have its own custom element reaction queue</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="Each element must have its own custom element reaction queue">
+<meta name="help" content="https://html.spec.whatwg.org/multipage/scripting.html#custom-element-reaction-queue">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    contentDocument.write('<test-element id="first-element">');
+    contentDocument.write('<test-element id="second-element">');
+
+    const element1 = contentDocument.getElementById('first-element');
+    const element2 = contentDocument.getElementById('second-element');
+    assert_equals(Object.getPrototypeOf(element1), contentWindow.HTMLElement.prototype);
+    assert_equals(Object.getPrototypeOf(element2), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            log.push(create_constructor_log(this));
+        }
+        connectedCallback(...args) {
+            log.push(create_connected_callback_log(this, ...args));
+        }
+        attributeChangedCallback(...args) {
+            log.push(create_attribute_changed_callback_log(this, ...args));
+        }
+        static get observedAttributes() { return ['id']; }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    assert_equals(Object.getPrototypeOf(element1), TestElement.prototype);
+    assert_equals(Object.getPrototypeOf(element2), TestElement.prototype);
+
+    assert_equals(log.length, 6);
+    assert_constructor_log_entry(log[0], element1);
+    assert_attribute_log_entry(log[1], {name: 'id', oldValue: null, newValue: 'first-element', namespace: null});
+    assert_connected_log_entry(log[2], element1);
+    assert_constructor_log_entry(log[3], element2);
+    assert_attribute_log_entry(log[4], {name: 'id', oldValue: null, newValue: 'second-element', namespace: null});
+    assert_connected_log_entry(log[5], element2);
+}, 'Upgrading a custom element must invoke attributeChangedCallback and connectedCallback before start upgrading another element');
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    contentDocument.write('<test-element>');
+
+    const element = contentDocument.querySelector('test-element');
+    assert_equals(Object.getPrototypeOf(element), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            this.id = "foo";
+            this.setAttribute('id', 'foo');
+            this.removeAttribute('id');
+            this.style.fontSize = '10px';
+            log.push(create_constructor_log(this));
+        }
+        connectedCallback(...args) {
+            log.push(create_connected_callback_log(this, ...args));
+        }
+        attributeChangedCallback(...args) {
+            log.push(create_attribute_changed_callback_log(this, ...args));
+        }
+        static get observedAttributes() { return ['id', 'style']; }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    assert_equals(Object.getPrototypeOf(element), TestElement.prototype);
+
+    assert_equals(log.length, 2);
+    assert_constructor_log_entry(log[0], element);
+    assert_connected_log_entry(log[1], element);
+}, 'Upgrading a custom element must not invoke attributeChangedCallback for the attribute that is changed during upgrading');
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    contentDocument.write('<test-element>');
+
+    const element = contentDocument.querySelector('test-element');
+    assert_equals(Object.getPrototypeOf(element), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            this.remove();
+            log.push(create_constructor_log(this));
+        }
+        connectedCallback(...args) {
+            log.push(create_connected_callback_log(this, ...args));
+        }
+        disconnectedCallback(...args) {
+            log.push(create_disconnected_callback_log(this, ...args));
+        }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    assert_equals(Object.getPrototypeOf(element), TestElement.prototype);
+
+    assert_equals(log.length, 2);
+    assert_constructor_log_entry(log[0], element);
+    assert_connected_log_entry(log[1], element);
+}, 'Upgrading a custom element must not invoke disconnectedCallback if the element is disconnected during upgrading');
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    const element = contentDocument.createElement('test-element');
+    assert_equals(Object.getPrototypeOf(element), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            contentDocument.documentElement.appendChild(this);
+            log.push(create_constructor_log(this));
+        }
+        connectedCallback(...args) {
+            log.push(create_connected_callback_log(this, ...args));
+        }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    contentWindow.customElements.upgrade(element);
+
+    assert_equals(Object.getPrototypeOf(element), TestElement.prototype);
+
+    assert_equals(log.length, 1);
+    assert_constructor_log_entry(log[0], element);
+}, 'Upgrading a disconnected custom element must not invoke connectedCallback if the element is connected during upgrading');
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    contentDocument.write('<test-element id="first-element">');
+    contentDocument.write('<test-element id="second-element">');
+
+    const element1 = contentDocument.getElementById('first-element');
+    const element2 = contentDocument.getElementById('second-element');
+    assert_equals(Object.getPrototypeOf(element1), contentWindow.HTMLElement.prototype);
+    assert_equals(Object.getPrototypeOf(element2), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            log.push(create_constructor_log(this));
+            if (this == element1) {
+                element2.setAttribute('title', 'hi');
+                element2.removeAttribute('title');
+                element2.setAttribute('class', 'foo');
+            }
+        }
+        connectedCallback(...args) {
+            log.push(create_connected_callback_log(this, ...args));
+        }
+        attributeChangedCallback(...args) {
+            log.push(create_attribute_changed_callback_log(this, ...args));
+        }
+        static get observedAttributes() { return ['id', 'class', 'title']; }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    assert_equals(Object.getPrototypeOf(element1), TestElement.prototype);
+    assert_equals(Object.getPrototypeOf(element2), TestElement.prototype);
+
+    assert_equals(log.length, 7);
+    assert_constructor_log_entry(log[0], element1);
+    assert_attribute_log_entry(log[1], {name: 'id', oldValue: null, newValue: 'first-element', namespace: null});
+    assert_connected_log_entry(log[2], element1);
+    assert_constructor_log_entry(log[3], element2);
+    assert_attribute_log_entry(log[4], {name: 'id', oldValue: null, newValue: 'second-element', namespace: null});
+    assert_attribute_log_entry(log[5], {name: 'class', oldValue: null, newValue: 'foo', namespace: null});
+    assert_connected_log_entry(log[6], element2);
+}, 'Mutating a undefined custom element while upgrading a custom element must not enqueue or invoke reactions on the mutated element');
+
+test_with_window(function (contentWindow) {
+    let log = [];
+    let element1;
+    let element2;
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            log.push(create_constructor_log(this));
+        }
+        adoptedCallback(...args) {
+            log.push(create_adopted_callback_log(this, ...args));
+            if (this == element1)
+                element3.setAttribute('id', 'foo');
+        }
+        connectedCallback(...args) {
+            log.push(create_connected_callback_log(this, ...args));
+        }
+        attributeChangedCallback(...args) {
+            log.push(create_attribute_changed_callback_log(this, ...args));
+        }
+        static get observedAttributes() { return ['id', 'class']; }
+    }
+
+    contentWindow.customElements.define('test-element', TestElement);
+
+    let contentDocument = contentWindow.document;
+    element1 = contentDocument.createElement('test-element');
+    element2 = contentDocument.createElement('test-element');
+    element3 = contentDocument.createElement('test-element');
+    assert_equals(Object.getPrototypeOf(element1), TestElement.prototype);
+    assert_equals(Object.getPrototypeOf(element2), TestElement.prototype);
+    assert_equals(Object.getPrototypeOf(element3), TestElement.prototype);
+
+    assert_equals(log.length, 3);
+    assert_constructor_log_entry(log[0], element1);
+    assert_constructor_log_entry(log[1], element2);
+    assert_constructor_log_entry(log[2], element3);
+    log = [];
+
+    const container = contentDocument.createElement('div');
+    container.appendChild(element1);
+    container.appendChild(element2);
+    container.appendChild(element3);
+
+    const anotherDocument = document.implementation.createHTMLDocument();
+    anotherDocument.documentElement.appendChild(container);
+
+    assert_equals(log.length, 7);
+    assert_adopted_log_entry(log[0], element1);
+    assert_adopted_log_entry(log[1], element3);
+    assert_connected_log_entry(log[2], element3);
+    assert_attribute_log_entry(log[3], {name: 'id', oldValue: null, newValue: 'foo', namespace: null});
+    assert_connected_log_entry(log[4], element1);
+    assert_adopted_log_entry(log[5], element2);
+    assert_connected_log_entry(log[6], element2);
+
+}, 'Mutating another custom element inside adopted callback must invoke all pending callbacks on the mutated element');
+
+
+</script>
+</body>
+</html>

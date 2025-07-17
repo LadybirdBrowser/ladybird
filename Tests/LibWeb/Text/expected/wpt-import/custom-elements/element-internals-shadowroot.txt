@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	ElementInternals.shadowRoot allows access to open shadow root
+Pass	ElementInternals.shadowRoot allows access to closed shadow root
+Pass	ElementInternals cannot be called before constructor, upgrade case
+Pass	ElementInternals *can* be called after constructor, upgrade case
+Pass	ElementInternals cannot be called after constructor calls it, create case
+Pass	ElementInternals disabled by disabledFeatures
+Pass	ElementInternals.shadowRoot doesn't reveal pre-attached closed shadowRoot

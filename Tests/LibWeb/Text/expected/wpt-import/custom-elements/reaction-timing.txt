@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	setAttribute and removeAttribute must enqueue and invoke attributeChangedCallback
+Pass	toggleAttribute must enqueue and invoke attributeChangedCallback
+Pass	Calling Node.prototype.cloneNode(false) must push a new element queue to the processing stack

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on Range interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="deleteContents, extractContents, cloneContents, insertNode, and surroundContents of Range interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+testNodeDisconnector(function (customElement) {
+    var range = document.createRange();
+    range.selectNode(customElement);
+    range.deleteContents();
+}, 'deleteContents on Range');
+
+testNodeDisconnector(function (customElement) {
+    var range = document.createRange();
+    range.selectNode(customElement);
+    range.extractContents();
+}, 'extractContents on Range');
+
+testCloner(function (customElement) {
+    var range = document.createRange();
+    range.selectNode(customElement);
+    range.cloneContents();
+}, 'cloneContents on Range')
+
+testNodeConnector(function (container, customElement) {
+    var range = document.createRange();
+    range.selectNodeContents(container);
+    range.insertNode(customElement);
+}, 'insertNode on Range');
+
+testNodeConnector(function (container, customElement) {
+    var range = document.createRange();
+    range.selectNodeContents(container);
+    range.surroundContents(customElement);
+}, 'surroundContents on Range');
+
+testParsingMarkup(function (document, markup) {
+    var range = document.createRange();
+    return range.createContextualFragment(markup);
+}, 'createContextualFragment on Range');
+
+</script>
+</body>
+</html>

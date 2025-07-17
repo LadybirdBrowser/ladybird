@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLMetaElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="name, httpEquiv, content of
+  HTMLMetaElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-meta-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<script>
+
+function getParentElement() {
+  return document.head;
+}
+
+function setAttributes(instance, attribute, value) {
+  instance.setAttribute(attribute, value);
+}
+
+testReflectAttributeWithDependentAttributes(
+  'name', 'name', 'description',
+  'keywords', 'name on HTMLMetaElement', 'meta',
+  getParentElement,
+  instance => setAttributes(instance, 'content', 'HTMLMetaElement'),
+  HTMLMetaElement
+);
+testReflectAttributeWithDependentAttributes(
+  'content', 'content', 'name1',
+  'name2', 'content on HTMLMetaElement', 'meta',
+  getParentElement, instance => setAttributes(instance, 'name', 'author'),
+  HTMLMetaElement
+);
+
+test(() => {
+  let element = define_build_in_custom_element(
+    ['http-equiv'], HTMLMetaElement, 'meta'
+  );
+  let instance = document.createElement('meta', { is: element.name });
+
+  assert_array_equals(element.takeLog().types(), ['constructed']);
+  document.head.appendChild(instance);
+  assert_array_equals(element.takeLog().types(), ['connected']);
+  instance['content'] = '300';
+  instance['httpEquiv'] = 'refresh';
+  let logEntries = element.takeLog();
+  assert_array_equals(logEntries.types(), ['attributeChanged']);
+  assert_attribute_log_entry(logEntries.last(), {
+    name: 'http-equiv', oldValue: null, newValue: 'refresh', namespace: null
+  });
+}, 'httpEquiv on HTMLMetaElement must enqueue an attributeChanged'
+  + ' reaction when adding a new attribute');
+
+test(() => {
+  let element = define_build_in_custom_element(
+    ['http-equiv'], HTMLMetaElement, 'meta'
+  );
+  let instance = document.createElement('meta', { is: element.name });
+  document.head.appendChild(instance);
+
+  assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+  instance['content'] = 'text/html; charset=UTF-8';
+  instance['httpEquiv'] = 'content-type';
+  assert_array_equals(element.takeLog().types(), ['attributeChanged']);
+  instance['content'] = '300';
+  instance['httpEquiv'] = 'refresh';
+  let logEntries = element.takeLog();
+  assert_array_equals(logEntries.types(), ['attributeChanged']);
+  assert_attribute_log_entry(logEntries.last(), {
+    name: 'http-equiv', oldValue: 'content-type',
+    newValue: 'refresh', namespace: null
+  });
+}, 'httpEquiv on HTMLMetaElement must enqueue an attributeChanged'
+  + ' reaction when replacing an existing attribute');
+
+</script>

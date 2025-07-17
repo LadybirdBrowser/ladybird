@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	autofocus on HTMLButtonElement must enqueue an attributeChanged reaction when adding autofocus content attribute
+Pass	autofocus on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	disabled on HTMLButtonElement must enqueue an attributeChanged reaction when adding disabled content attribute
+Pass	disabled on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	name on HTMLButtonElement must enqueue an attributeChanged reaction when adding name content attribute
+Pass	name on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	value on HTMLButtonElement must enqueue an attributeChanged reaction when adding value content attribute
+Pass	value on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	type on HTMLButtonElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	type on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	formAction on HTMLButtonElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	formAction on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	formEnctype on HTMLButtonElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	formEnctype on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	formMethod on HTMLButtonElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	formMethod on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	formNoValidate on HTMLButtonElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	formNoValidate on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	formTarget on HTMLButtonElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	formTarget on HTMLButtonElement must enqueue an attributeChanged reaction when replacing an existing attribute

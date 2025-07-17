@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	add on DOMTokenList must enqueue an attributeChanged reaction when adding an attribute
+Pass	add on DOMTokenList must not enqueue an attributeChanged reaction when adding an unobserved attribute
+Pass	add on DOMTokenList must enqueue an attributeChanged reaction when adding a value to an existing attribute
+Pass	add on DOMTokenList must not enqueue an attributeChanged reaction when adding a value to an unobserved attribute
+Pass	add on DOMTokenList must enqueue exactly one attributeChanged reaction when adding multiple values to an attribute
+Pass	remove on DOMTokenList must enqueue an attributeChanged reaction when removing a value from an attribute
+Pass	remove on DOMTokenList must enqueue exactly one attributeChanged reaction when removing multiple values to an attribute
+Pass	remove on DOMTokenList must enqueue an attributeChanged reaction even when removing a non-existent value from an attribute
+Pass	remove on DOMTokenList must not enqueue an attributeChanged reaction when removing a value from an unobserved attribute
+Pass	toggle on DOMTokenList must enqueue an attributeChanged reaction when adding a value to an attribute
+Pass	toggle on DOMTokenList must enqueue an attributeChanged reaction when removing a value from an attribute
+Pass	replace on DOMTokenList must enqueue an attributeChanged reaction when replacing a value in an attribute
+Pass	replace on DOMTokenList must not enqueue an attributeChanged reaction when the token to replace does not exist in the attribute
+Pass	replace on DOMTokenList must not enqueue an attributeChanged reaction when replacing a value in an unobserved attribute
+Pass	the stringifier of DOMTokenList must enqueue an attributeChanged reaction when adding an observed attribute
+Pass	the stringifier of DOMTokenList must not enqueue an attributeChanged reaction when adding an unobserved attribute
+Pass	the stringifier of DOMTokenList must enqueue an attributeChanged reaction when mutating the value of an observed attribute
+Pass	the stringifier of DOMTokenList must not enqueue an attributeChanged reaction when mutating the value of an unobserved attribute
+Pass	the stringifier of DOMTokenList must enqueue an attributeChanged reaction when the setter is called with the original value of the attribute

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	ariaColIndexText is defined in ElementInternals
+Fail	ariaDescription is defined in ElementInternals
+Fail	ariaRowIndexText is defined in ElementInternals

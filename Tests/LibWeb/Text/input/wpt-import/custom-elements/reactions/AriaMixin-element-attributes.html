@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on Element interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="Element attributes of AriaAttributes interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#element">
+<meta name="help" content="https://w3c.github.io/DOM-Parsing/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<div id="parentElement"></div>
+<script>
+
+function testElementReflectAttribute(jsAttributeName, contentAttributeName, validValue1, validValue2, name, getParentElement) {
+    test(function () {
+        let element = define_new_custom_element([contentAttributeName]);
+        let instance = document.createElement(element.name);
+        assert_array_equals(element.takeLog().types(), ['constructed']);
+        parentElement.appendChild(instance);
+        assert_array_equals(element.takeLog().types(), ['connected']);
+        instance[jsAttributeName] = validValue1;
+        let logEntries = element.takeLog();
+        assert_array_equals(logEntries.types(), ['attributeChanged']);
+
+        assert_attribute_log_entry(logEntries.last(), {name: contentAttributeName, oldValue: null, newValue: "", namespace: null});
+    }, name + ' must enqueue an attributeChanged reaction when adding ' + contentAttributeName + ' content attribute');
+
+    test(function () {
+        let element = define_new_custom_element([contentAttributeName]);
+        let instance = document.createElement(element.name);
+        parentElement.appendChild(instance);
+        instance[jsAttributeName] = validValue1;
+        assert_array_equals(element.takeLog().types(), ['constructed', 'connected', 'attributeChanged']);
+        instance[jsAttributeName] = validValue2;
+        var logEntries = element.takeLog();
+        assert_array_equals(logEntries.types(), ['attributeChanged']);
+        assert_attribute_log_entry(logEntries.last(), {name: contentAttributeName, oldValue: "", newValue: "", namespace: null});
+    }, name + ' must enqueue an attributeChanged reaction when replacing an existing attribute');
+}
+
+const dummy1 = document.createElement('div');
+dummy1.id = 'dummy1';
+document.body.appendChild(dummy1);
+
+const dummy2 = document.createElement('div');
+dummy2.id = 'dummy2';
+document.body.appendChild(dummy2);
+
+testElementReflectAttribute('ariaActiveDescendantElement', 'aria-activedescendant', dummy1, dummy2, 'ariaActiveDescendantElement in Element');
+testElementReflectAttribute('ariaControlsElements', 'aria-controls', [dummy1], [dummy2], 'ariaControlsElements in Element');
+testElementReflectAttribute('ariaDescribedByElements', 'aria-describedby', [dummy1], [dummy2], 'ariaDescribedByElements in Element');
+testElementReflectAttribute('ariaDetailsElements', 'aria-details', [dummy1], [dummy2], 'ariaDetailsElements in Element');
+testElementReflectAttribute('ariaErrorMessageElements', 'aria-errormessage', [dummy1], [dummy2], 'ariaErrorMessageElements in Element');
+testElementReflectAttribute('ariaFlowToElements', 'aria-flowto', [dummy1], [dummy2], 'ariaFlowToElements in Element');
+testElementReflectAttribute('ariaLabelledByElements', 'aria-labelledby', [dummy1], [dummy2], 'ariaLabelledByElements in Element')
+testElementReflectAttribute('ariaOwnsElements', 'aria-owns', [dummy1], [dummy2], 'ariaOwnsElements in Element')
+
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	contentEditable on ElementContentEditable must enqueue an attributeChanged reaction when adding contenteditable content attribute
+Pass	contentEditable on ElementContentEditable must enqueue an attributeChanged reaction when replacing an existing attribute

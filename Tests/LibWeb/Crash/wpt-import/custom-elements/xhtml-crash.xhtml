@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <script>
+      customElements.define('custom-el-1',
+        class extends HTMLElement {
+          constructor () {
+            super()
+            this.attachShadow({ mode: 'open' })
+            this.shadowRoot.innerHTML = '&lt;span/>'
+          }
+        })
+    </script>
+</head>
+<body>
+<custom-el-1/>

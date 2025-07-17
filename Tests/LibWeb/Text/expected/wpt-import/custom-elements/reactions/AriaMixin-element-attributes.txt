@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	ariaActiveDescendantElement in Element must enqueue an attributeChanged reaction when adding aria-activedescendant content attribute
+Pass	ariaActiveDescendantElement in Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaControlsElements in Element must enqueue an attributeChanged reaction when adding aria-controls content attribute
+Pass	ariaControlsElements in Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaDescribedByElements in Element must enqueue an attributeChanged reaction when adding aria-describedby content attribute
+Pass	ariaDescribedByElements in Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaDetailsElements in Element must enqueue an attributeChanged reaction when adding aria-details content attribute
+Pass	ariaDetailsElements in Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaErrorMessageElements in Element must enqueue an attributeChanged reaction when adding aria-errormessage content attribute
+Pass	ariaErrorMessageElements in Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaFlowToElements in Element must enqueue an attributeChanged reaction when adding aria-flowto content attribute
+Pass	ariaFlowToElements in Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaLabelledByElements in Element must enqueue an attributeChanged reaction when adding aria-labelledby content attribute
+Pass	ariaLabelledByElements in Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaOwnsElements in Element must enqueue an attributeChanged reaction when adding aria-owns content attribute
+Pass	ariaOwnsElements in Element must enqueue an attributeChanged reaction when replacing an existing attribute

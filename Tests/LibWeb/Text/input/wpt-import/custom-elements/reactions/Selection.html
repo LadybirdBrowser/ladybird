@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on Selection interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="deleteFromDocument of Selection interface must have CEReactions">
+<meta name="help" content="http://w3c.github.io/selection-api/#selection-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+testNodeDisconnector(function (customElement, window) {
+    let selection = window.getSelection();
+    let parent = customElement.parentNode;
+
+    // WebKit and Blink "normalizes" selection in selectAllChildren and not select the empty customElement.
+    // Workaround this orthogonal non-standard behavior by inserting text nodes around the custom element.
+    parent.prepend(document.createTextNode('start'));
+    parent.append(document.createTextNode('end'));
+
+    selection.selectAllChildren(parent);
+    selection.deleteFromDocument();
+}, 'deleteFromDocument on Selection');
+
+</script>
+</body>
+</html>

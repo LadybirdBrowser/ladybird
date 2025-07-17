@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on HTMLTableElement interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="caption, deleteCaption, thead, deleteTHead, tFoot, deleteTFoot, and deleteRow of HTMLTableElement interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table></table>`;
+    const table = contentDocument.querySelector('table');
+
+    const caption = contentDocument.createElement('caption');
+    caption.innerHTML = '<custom-element>hello</custom-element>';
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    assert_equals(caption.innerHTML, '<custom-element>hello</custom-element>');
+
+    assert_equals(table.caption, null);
+    table.caption = caption;
+    assert_array_equals(element.takeLog().types(), ['connected']);
+}, 'caption on HTMLTableElement must enqueue connectedCallback when inserting a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><caption><custom-element>hello</custom-element></caption></table>`;
+    const caption = contentDocument.querySelector('caption');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(caption.innerHTML, '<custom-element>hello</custom-element>');
+
+    const table = contentDocument.querySelector('table');
+    assert_equals(table.caption, caption);
+    const newCaption = contentDocument.createElement('caption');
+    table.caption = newCaption; // Chrome doesn't support setting to null.
+    assert_equals(table.caption, newCaption);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'caption on HTMLTableElement must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><caption><custom-element>hello</custom-element></caption></table>`;
+    const caption = contentDocument.querySelector('caption');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(caption.innerHTML, '<custom-element>hello</custom-element>');
+
+    const table = contentDocument.querySelector('table');
+    assert_equals(table.caption, caption);
+    const newCaption = contentDocument.createElement('caption');
+    table.deleteCaption();
+    assert_equals(table.caption, null);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'deleteCaption() on HTMLTableElement must enqueue disconnectedCallback when removing a custom element');
+
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table></table>`;
+    const table = contentDocument.querySelector('table');
+
+    const thead = contentDocument.createElement('thead');
+    thead.innerHTML = '<tr><td><custom-element>hello</custom-element></td></tr>';
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    assert_equals(thead.innerHTML, '<tr><td><custom-element>hello</custom-element></td></tr>');
+
+    assert_equals(table.tHead, null);
+    table.tHead = thead;
+    assert_array_equals(element.takeLog().types(), ['connected']);
+}, 'tHead on HTMLTableElement must enqueue connectedCallback when inserting a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><thead><tr><td><custom-element>hello</custom-element></td></tr></thead></table>`;
+    const thead = contentDocument.querySelector('thead');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(thead.innerHTML, '<tr><td><custom-element>hello</custom-element></td></tr>');
+
+    const table = contentDocument.querySelector('table');
+    assert_equals(table.tHead, thead);
+    const newThead = contentDocument.createElement('thead');
+    table.tHead = newThead; // Chrome doesn't support setting to null.
+    assert_equals(table.tHead, newThead);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'tHead on HTMLTableElement must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><thead><tr><td><custom-element>hello</custom-element></td></tr></thead></table>`;
+    const thead = contentDocument.querySelector('thead');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(thead.innerHTML, '<tr><td><custom-element>hello</custom-element></td></tr>');
+
+    const table = contentDocument.querySelector('table');
+    assert_equals(table.tHead, thead);
+    table.deleteTHead();
+    assert_equals(table.tHead, null);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'deleteTHead() on HTMLTableElement must enqueue disconnectedCallback when removing a custom element');
+
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table></table>`;
+    const table = contentDocument.querySelector('table');
+
+    const tfoot = contentDocument.createElement('tfoot');
+    tfoot.innerHTML = '<tr><td><custom-element>hello</custom-element></td></tr>';
+
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+    assert_equals(tfoot.innerHTML, '<tr><td><custom-element>hello</custom-element></td></tr>');
+
+    assert_equals(table.tFoot, null);
+    table.tFoot = tfoot;
+    assert_array_equals(element.takeLog().types(), ['connected']);
+}, 'tFoot on HTMLTableElement must enqueue connectedCallback when inserting a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><tfoot><tr><td><custom-element>hello</custom-element></td></tr></tfoot></table>`;
+    const tfoot = contentDocument.querySelector('tfoot');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(tfoot.innerHTML, '<tr><td><custom-element>hello</custom-element></td></tr>');
+
+    const table = contentDocument.querySelector('table');
+    assert_equals(table.tFoot, tfoot);
+    const newThead = contentDocument.createElement('tfoot');
+    table.tFoot = newThead; // Chrome doesn't support setting to null.
+    assert_equals(table.tFoot, newThead);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'tFoot on HTMLTableElement must enqueue disconnectedCallback when removing a custom element');
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><tfoot><tr><td><custom-element>hello</custom-element></td></tr></tfoot></table>`;
+    const tfoot = contentDocument.querySelector('tfoot');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(tfoot.innerHTML, '<tr><td><custom-element>hello</custom-element></td></tr>');
+
+    const table = contentDocument.querySelector('table');
+    assert_equals(table.tFoot, tfoot);
+    table.deleteTFoot();
+    assert_equals(table.tFoot, null);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'deleteTFoot() on HTMLTableElement must enqueue disconnectedCallback when removing a custom element');
+
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    contentDocument.body.innerHTML = `<table><tr><td><custom-element>hello</custom-element></td></tr></table>`;
+    const tr = contentDocument.querySelector('tr');
+    assert_array_equals(element.takeLog().types(), ['constructed', 'connected']);
+    assert_equals(tr.innerHTML, '<td><custom-element>hello</custom-element></td>');
+
+    const table = contentDocument.querySelector('table');
+    assert_equals(table.rows.length, 1);
+    assert_equals(table.rows[0], tr);
+    table.deleteRow(0);
+    assert_equals(table.rows.length, 0);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'deleteRow() on HTMLTableElement must enqueue disconnectedCallback when removing a custom element');
+
+</script>
+</body>
+</html>

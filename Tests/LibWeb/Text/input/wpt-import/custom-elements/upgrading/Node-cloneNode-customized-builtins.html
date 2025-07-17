@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Upgrading</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="Node.prototype.cloneNode should upgrade a custom element">
+<link rel="help" href="https://html.spec.whatwg.org/#upgrades">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+setup({allow_uncaught_exception:true});
+
+test(function () {
+    class MyDiv1 extends HTMLDivElement {};
+    class MyDiv2 extends HTMLDivElement {};
+    class MyDiv3 extends HTMLDivElement {};
+    customElements.define('my-div1', MyDiv1, { extends: 'div' });
+    customElements.define('my-div2', MyDiv2, { extends: 'div' });
+
+    let instance = document.createElement('div', { is: 'my-div1'});
+    assert_true(instance instanceof MyDiv1);
+    instance.setAttribute('is', 'my-div2');
+    let clone = instance.cloneNode(false);
+    assert_not_equals(instance, clone);
+    assert_true(clone instanceof MyDiv1,
+        'A cloned custom element must be an instance of the custom element even with an inconsistent "is" attribute');
+
+    let instance3 = document.createElement('div', { is: 'my-div3'});
+    assert_false(instance3 instanceof MyDiv3);
+    instance3.setAttribute('is', 'my-div2');
+    let clone3 = instance3.cloneNode(false);
+    assert_not_equals(instance3, clone);
+    customElements.define('my-div3', MyDiv3, { extends: 'div' });
+    document.body.appendChild(instance3);
+    document.body.appendChild(clone3);
+    assert_true(instance3 instanceof MyDiv3,
+        'An undefined element must be upgraded even with an inconsistent "is" attribute');
+    assert_true(clone3 instanceof MyDiv3,
+        'A cloned undefined element must be upgraded even with an inconsistent "is" attribute');
+}, 'Node.prototype.cloneNode(false) must be able to clone as a customized built-in element when it has an inconsistent "is" attribute');
+
+</script>
+</body>
+</html>

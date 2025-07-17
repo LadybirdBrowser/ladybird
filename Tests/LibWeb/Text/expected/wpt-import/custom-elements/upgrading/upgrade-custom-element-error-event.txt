@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	autonomous: exception thrown in constructor is reported to definition's global
+Fail	autonomous: exception thrown by spec due to invalid element state is reported to definition's global
+Fail	customized built-in: exception thrown in constructor is reported to definition's global
+Fail	customized built-in: exception thrown by spec due to not returning the same value is reported to definition's global

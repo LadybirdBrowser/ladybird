@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Check for crash at step #12 of HTML Constructors</title>
+<meta name='author' href='mailto:masonf@chromium.org'>
+<link rel='help' href='https://html.spec.whatwg.org/multipage/dom.html#html-element-constructors'>
+<link rel='help' href='https://crbug.com/1197894'>
+
+<uh-oh></uh-oh>
+
+<script type="module">
+  Reflect.preventExtensions(document.querySelector('uh-oh'));
+  customElements.define('uh-oh', class extends HTMLElement {});
+</script>
+
+This test passes if it does not crash.

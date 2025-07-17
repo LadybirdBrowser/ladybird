@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+function createConnectedShadowTree(test, customElementRegistry) {
+    const host = document.createElement('div');
+    const shadowRoot = host.attachShadow({mode: 'closed', customElementRegistry});
+    document.body.appendChild(host);
+    test.add_cleanup(() => host.remove());
+    return shadowRoot;
+}
+
+test((test) => {
+    const registry = new CustomElementRegistry;
+
+    class SomeElement extends HTMLElement { };
+    registry.define('some-element', SomeElement);
+
+    class OtherElement extends HTMLElement { };
+    registry.define('other-element', OtherElement);
+
+    const shadowRoot = createConnectedShadowTree(test, registry);
+    assert_true(document.createElement('some-element', {customElementRegistry: registry}) instanceof SomeElement);
+    assert_true(document.createElement('other-element', {customElementRegistry: registry}) instanceof OtherElement);
+    shadowRoot.innerHTML = '<some-element></some-element><other-element></other-element>';
+
+    assert_true(shadowRoot.querySelector('some-element') instanceof SomeElement);
+    assert_equals(shadowRoot.querySelector('some-element').customElementRegistry, registry);
+    assert_true(shadowRoot.querySelector('other-element') instanceof OtherElement);
+    assert_equals(shadowRoot.querySelector('other-element').customElementRegistry, registry);
+}, 'innerHTML on a shadow root should use the scoped registry');
+
+test((test) => {
+    class SomeElement1 extends HTMLElement { };
+    customElements.define('some-element', SomeElement1);
+
+    const registry = new CustomElementRegistry;
+    class SomeElement2 extends HTMLElement { };
+    registry.define('some-element', SomeElement2);
+
+    const shadowRoot = createConnectedShadowTree(test, registry);
+    shadowRoot.innerHTML = '<some-element></some-element>';
+    assert_true(shadowRoot.querySelector('some-element') instanceof SomeElement2);
+    assert_equals(shadowRoot.querySelector('some-element').customElementRegistry, registry);
+}, 'innerHTML on a connected shadow root should use the associated scoped registry');
+
+test((test) => {
+    const registry = new CustomElementRegistry;
+    class SomeElement extends HTMLElement { };
+    registry.define('some-element', SomeElement);
+    const shadowRoot = createConnectedShadowTree(test, registry);
+
+    shadowRoot.innerHTML = '<some-element></some-element><template><some-element></some-element></template>';
+    assert_equals(shadowRoot.querySelector('some-element').__proto__.constructor.name, 'SomeElement');
+    assert_equals(shadowRoot.querySelector('some-element').customElementRegistry, registry);
+    assert_equals(shadowRoot.querySelector('template').content.querySelector('some-element').__proto__.constructor.name, 'HTMLElement');
+    assert_equals(shadowRoot.querySelector('template').content.querySelector('some-element').customElementRegistry, null);
+}, 'innerHTML on a connected shadow root should not upgrade a custom element inside a template element');
+
+test((test) => {
+    const registry = new CustomElementRegistry;
+    const shadowRoot = createConnectedShadowTree(test, registry);
+    shadowRoot.innerHTML = '<someelement></someelement>';
+    assert_equals(shadowRoot.querySelector('someelement').__proto__.constructor.name, 'HTMLUnknownElement');
+    assert_equals(shadowRoot.querySelector('someelement').customElementRegistry, registry);
+}, 'innerHTML on a connected shadow root should be able to create an unknown element');
+
+</script>
+</body>
+</html>

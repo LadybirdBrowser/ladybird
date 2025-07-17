@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	setAttribute and removeAttribute must enqueue and invoke attributeChangedCallback
+Pass	setAttributeNS and removeAttributeNS must enqueue and invoke attributeChangedCallback
+Pass	setAttributeNode and removeAttributeNode must enqueue and invoke attributeChangedCallback for an HTML attribute
+Pass	setAttributeNode and removeAttributeNS must enqueue and invoke attributeChangedCallback for an SVG attribute
+Pass	toggleAttribute must enqueue and invoke attributeChangedCallback
+Pass	Mutating attributeChangedCallback after calling customElements.define must not affect the callback being invoked
+Pass	attributedChangedCallback must not be invoked when the observed attributes does not contain the attribute
+Pass	Mutating observedAttributes after calling customElements.define must not affect the set of attributes for which attributedChangedCallback is invoked
+Pass	attributedChangedCallback must be enqueued for attributes specified in a non-Array iterable observedAttributes
+Pass	attributedChangedCallback must be enqueued for style attribute change by mutating inline style declaration
+Pass	attributedChangedCallback must not be enqueued when mutating inline style declaration if the style attribute is not observed
+Pass	Upgrading a parser created element must enqueue and invoke attributeChangedCallback for an HTML attribute
+Pass	Upgrading a cloned element must enqueue and invoke attributeChangedCallback for an HTML attribute

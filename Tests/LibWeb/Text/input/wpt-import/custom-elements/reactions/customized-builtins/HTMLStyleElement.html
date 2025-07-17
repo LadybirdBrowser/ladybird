@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLStyleElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="media of HTMLStyleElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-style-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<script>
+
+function getParentElement() {
+  return document.head;
+}
+
+testReflectAttributeWithParentNode(
+  'media', 'media', 'print',
+  'screen', 'media on HTMLStyleElement', 'style',
+  getParentElement, HTMLStyleElement
+);
+
+</script>

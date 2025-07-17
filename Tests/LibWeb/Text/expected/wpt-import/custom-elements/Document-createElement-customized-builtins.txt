@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	document.createElement must create an instance of autonomous custom elements when it has is attribute
+Pass	document.createElement()'s second argument is to be ignored when it's a string
+Pass	document.createElement must report an exception thrown by a custom built-in element constructor
+Pass	document.createElement with unknown "is" value should create "undefined" state element

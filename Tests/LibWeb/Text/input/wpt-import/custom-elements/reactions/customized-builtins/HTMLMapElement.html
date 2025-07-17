@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLMapElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="name of HTMLMapElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-map-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<img usemap="#yellow" src="../../../images/yellow.png" alt="yellow pic">
+<img usemap="#green" src="../../../images/green.png" alt="green pic">
+<script>
+
+testReflectAttribute('name', 'name', 'yellow', 'green', 'name on HTMLMapElement', 'map', HTMLMapElement);
+
+</script>

@@ -1,0 +1,45 @@
+Harness status: OK
+
+Found 40 tests
+
+40 Pass
+Pass	Inserting a custom element into the document must enqueue and invoke connectedCallback
+Pass	Inserting an ancestor of custom element into the document must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a shadow tree in the document must enqueue and invoke connectedCallback
+Pass	Inserting the shadow host of a custom element into the document must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to the document must not enqueue and invoke connectedCallback
+Pass	Inserting a custom element into the document of the template elements must enqueue and invoke connectedCallback
+Pass	Inserting an ancestor of custom element into the document of the template elements must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a shadow tree in the document of the template elements must enqueue and invoke connectedCallback
+Pass	Inserting the shadow host of a custom element into the document of the template elements must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to the document of the template elements must not enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a new document must enqueue and invoke connectedCallback
+Pass	Inserting an ancestor of custom element into a new document must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a shadow tree in a new document must enqueue and invoke connectedCallback
+Pass	Inserting the shadow host of a custom element into a new document must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to a new document must not enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a cloned document must enqueue and invoke connectedCallback
+Pass	Inserting an ancestor of custom element into a cloned document must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a shadow tree in a cloned document must enqueue and invoke connectedCallback
+Pass	Inserting the shadow host of a custom element into a cloned document must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to a cloned document must not enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a document created by createHTMLDocument must enqueue and invoke connectedCallback
+Pass	Inserting an ancestor of custom element into a document created by createHTMLDocument must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a shadow tree in a document created by createHTMLDocument must enqueue and invoke connectedCallback
+Pass	Inserting the shadow host of a custom element into a document created by createHTMLDocument must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to a document created by createHTMLDocument must not enqueue and invoke connectedCallback
+Pass	Inserting a custom element into an HTML document created by createDocument must enqueue and invoke connectedCallback
+Pass	Inserting an ancestor of custom element into an HTML document created by createDocument must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a shadow tree in an HTML document created by createDocument must enqueue and invoke connectedCallback
+Pass	Inserting the shadow host of a custom element into an HTML document created by createDocument must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to an HTML document created by createDocument must not enqueue and invoke connectedCallback
+Pass	Inserting a custom element into the document of an iframe must enqueue and invoke connectedCallback
+Pass	Inserting an ancestor of custom element into the document of an iframe must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a shadow tree in the document of an iframe must enqueue and invoke connectedCallback
+Pass	Inserting the shadow host of a custom element into the document of an iframe must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to the document of an iframe must not enqueue and invoke connectedCallback
+Pass	Inserting a custom element into an HTML document fetched by XHR must enqueue and invoke connectedCallback
+Pass	Inserting an ancestor of custom element into an HTML document fetched by XHR must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a shadow tree in an HTML document fetched by XHR must enqueue and invoke connectedCallback
+Pass	Inserting the shadow host of a custom element into an HTML document fetched by XHR must enqueue and invoke connectedCallback
+Pass	Inserting a custom element into a detached shadow tree that belongs to an HTML document fetched by XHR must not enqueue and invoke connectedCallback

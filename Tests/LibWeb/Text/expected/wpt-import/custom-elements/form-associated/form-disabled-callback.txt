@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+1 Pass
+9 Fail
+Fail	Adding/removing disabled content attribute
+Fail	Relationship with FIELDSET
+Pass	A disabled form-associated custom element should not provide an entry for it
+Fail	A disabled form-associated custom element should not submit an entry for it
+Fail	Disabled attribute affects focus-capability
+Fail	Upgrading an element with disabled content attribute
+Fail	Toggling "disabled" attribute on a custom element inside disabled <fieldset> does not trigger a callback
+Fail	Toggling "disabled" attribute on a <fieldset> does not trigger a callback on disabled custom element descendant
+Fail	Callback triggered during a clone/append operation, with disabled state provided by ancestor
+Fail	Callback triggered during a clone operation, with disabled state provided by ancestor

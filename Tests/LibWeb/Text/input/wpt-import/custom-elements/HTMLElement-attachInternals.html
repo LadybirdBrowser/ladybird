@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<link rel="help" content="https://html.spec.whatwg.org/multipage/custom-elements.html#dom-attachinternals">
+<div id="container"></div>
+<script>
+test(() => {
+  class MyElement1 extends HTMLElement {
+  }
+  customElements.define('my-element1', MyElement1);
+  const container = document.querySelector('#container');
+
+  let element = new MyElement1();
+  assert_true(element.attachInternals() instanceof ElementInternals,
+              'New - 1st call');
+  assert_throws_dom('NotSupportedError', () => { element.attachInternals(); },
+                    'New - 2nd call');
+
+  element = document.createElement('my-element1');
+  assert_true(element.attachInternals() instanceof ElementInternals,
+              'createElement - 1st call');
+  assert_throws_dom('NotSupportedError', () => { element.attachInternals(); },
+                    'createElement - 2nd call');
+
+  container.innerHTML = '<my-element1></my-element1>';
+  assert_true(container.firstChild.attachInternals() instanceof ElementInternals,
+              'Parser - 1st call');
+  assert_throws_dom('NotSupportedError', () => {
+    container.firstChild.attachInternals();
+  }, 'Parser - 2nd call');
+}, 'Successful attachInternals() and the second call.');
+
+test(() => {
+  class MyDiv extends HTMLDivElement {}
+  customElements.define('my-div', MyDiv, { extends: 'div' });
+  const customizedBuiltin = document.createElement('div', { is: 'my-div'});
+  assert_throws_dom('NotSupportedError', () => { customizedBuiltin.attachInternals() });
+}, 'attachInternals() throws a NotSupportedError if it is called for ' +
+     'a customized built-in element');
+
+test(() => {
+  const builtin = document.createElement('div');
+  assert_throws_dom('NotSupportedError', () => { builtin.attachInternals() });
+
+  const doc = document.implementation.createDocument('foo', null);
+  const span = doc.appendChild(doc.createElementNS('http://www.w3.org/1999/xhtml', 'html:span'));
+  assert_true(span instanceof HTMLElement);
+  assert_throws_dom('NotSupportedError', () => { span.attachInternals(); });
+
+  const undefinedCustom = document.createElement('undefined-element');
+  assert_throws_dom('NotSupportedError', () => { undefinedCustom.attachInternals() });
+}, 'If a custom element definition for the local name of the element doesn\'t' +
+     ' exist, throw an NotSupportedError');
+
+test(() => {
+  class MyElement2 extends HTMLElement {
+    static get disabledFeatures() { return ['internals']; }
+  }
+  customElements.define('my-element2', MyElement2);
+  const container = document.querySelector('#container');
+
+  assert_throws_dom('NotSupportedError', () => {
+    (new MyElement2).attachInternals();
+  });
+  assert_throws_dom('NotSupportedError', () => {
+    document.createElement('my-element2').attachInternals();
+  });
+  assert_throws_dom('NotSupportedError', () => {
+    container.innerHTML = '<my-element2></my-element2>';
+    container.firstChild.attachInternals();
+  });
+
+  class MyElement3 extends HTMLElement {
+    static get disabledFeatures() { return ['INTERNALS']; }
+  }
+  customElements.define('my-element3', MyElement3);
+  assert_true((new MyElement3).attachInternals() instanceof ElementInternals);
+}, 'If a custom element definition for the local name of the element has ' +
+     'disable internals flag, throw a NotSupportedError');
+</script>
+</body>

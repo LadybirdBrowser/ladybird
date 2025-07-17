@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	span on HTMLTableColElement must enqueue an attributeChanged reaction when adding a new attribute
+Pass	span on HTMLTableColElement must enqueue an attributeChanged reaction when replacing an existing attribute

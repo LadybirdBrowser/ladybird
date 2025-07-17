@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/semantics-other.html#selector-defined">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<iframe id="iframe"></iframe>
+<script>
+const testList = [
+  { tag_name: 'div', defined: true },
+  { tag_name: 'a-a', defined: false },
+  { tag_name: 'font-face', defined: true },
+];
+
+// Setup iframe to test the parser.
+const neither = 'rgb(255, 0, 0)';
+const defined = 'rgb(255, 165, 0)';
+const not_defined = 'rgb(0, 0, 255)';
+const iframe = document.getElementById("iframe");
+iframe.srcdoc = `<style>
+  * { color:${neither}; }
+  :defined { color:${defined}; }
+  :not(:defined) { color:${not_defined}; }
+</style>`
+  + testList.map(d => `<${d.tag_name}></${d.tag_name}>`).join('');
+setup({ explicit_done: true });
+iframe.onload = () => {
+  const doc = iframe.contentDocument;
+  const doc_without_browsing_context = doc.implementation.createHTMLDocument();
+  for (const data of testList) {
+    // Test elements inserted by parser.
+    test_defined(data.defined, doc.getElementsByTagName(data.tag_name)[0], `<${data.tag_name}>`);
+
+    // Test DOM createElement() methods.
+    let try_upgrade = !data.defined;
+    test_defined_for_createElement(data.defined, try_upgrade, doc, data.tag_name);
+
+    // Documents without browsing context should behave the same.
+    test_defined_for_createElement(data.defined, false, doc_without_browsing_context, data.tag_name, data.is, 'Without browsing context: ');
+  }
+
+  done();
+};
+
+function test_defined_for_createElement(defined, should_test_change, doc, tag_name, is, description = '') {
+  // Test document.createElement().
+  let element = doc.createElement(tag_name);
+  doc.body.appendChild(element);
+  test_defined(defined, element, `${description}createElement("${tag_name}")`);
+
+  // Test document.createElementNS().
+  let html_element = doc.createElementNS('http://www.w3.org/1999/xhtml', tag_name);
+  doc.body.appendChild(html_element);
+  test_defined(defined, html_element, `${description}createElementNS("http://www.w3.org/1999/xhtml", "${tag_name}")`);
+
+  // If the element namespace is not HTML, it should be "uncustomized"; i.e., "defined".
+  let svg_element = doc.createElementNS('http://www.w3.org/2000/svg', tag_name);
+  doc.body.appendChild(svg_element);
+  test_defined(true, svg_element, `${description}createElementNS("http://www.w3.org/2000/svg", "${tag_name}")`);
+
+  // Test ":defined" changes when the custom element was defined.
+  if (should_test_change) {
+    let w = doc.defaultView;
+    assert_false(!w, 'defaultView required to test change');
+    w.customElements.define(tag_name, class extends w.HTMLElement {
+      constructor() { super(); }
+    });
+    test_defined(true, element, `Upgraded ${description}createElement("${tag_name}")`);
+    test_defined(true, html_element, `Upgraded ${description}createElementNS("http://www.w3.org/1999/xhtml", "${tag_name}")`);
+  }
+}
+
+function test_defined(expected, element, description) {
+  test(() => {
+    assert_equals(element.matches(':defined'), expected, 'matches(":defined")');
+    assert_equals(element.matches(':not(:defined)'), !expected, 'matches(":not(:defined")');
+    const view = element.ownerDocument.defaultView;
+    if (!view)
+      return;
+    const style = view.getComputedStyle(element);
+    assert_equals(style.color, expected ? defined : not_defined, 'getComputedStyle');
+  }, `${description} should ${expected ? 'be' : 'not be'} :defined`);
+}
+
+test(function () {
+    var log = [];
+    var instance = document.createElement('my-custom-element-2');
+    document.body.appendChild(instance);
+    assert_false(instance.matches(":defined"), "Prior to definition, instance should not match :defined");
+    customElements.define('my-custom-element-2',class extends HTMLElement {
+        constructor() {
+            assert_false(instance.matches(":defined"), "During construction, prior to super(), instance should not match :defined");
+            super();
+            log.push([this, 'begin']);
+            assert_false(this.matches(":defined"), "During construction, after super(), this should not match :defined");
+            log.push([this, 'end']);
+        }
+    });
+    assert_true(instance.matches(":defined"), "After construction, instance should match :defined");
+    assert_equals(log.length, 2);
+    assert_array_equals(log[0], [instance, 'begin']);
+    assert_array_equals(log[1], [instance, 'end']);
+}, 'this.matches(:defined) should not match during an upgrade');
+
+</script>

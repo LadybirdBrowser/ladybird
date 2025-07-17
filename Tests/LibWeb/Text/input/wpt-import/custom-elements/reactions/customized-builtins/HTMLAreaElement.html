@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLAreaElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="alt, coords, shape, target, download, ping, rel,
+  referrerPolicy of HTMLAreaElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-area-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<map name="yellow" id="map">
+</map>
+<img usemap="#yellow" src="../../../images/yellow.png" alt="yellow pic">
+
+<script>
+
+function getParentElement() {
+  let map = document.getElementById('map');
+  return map;
+}
+
+function setAttributes(instance) {
+  instance.setAttribute('href', '../../../images/yellow.png');
+}
+
+testReflectAttributeWithDependentAttributes(
+  'alt', 'alt', 'yellow pic',
+  'yellow pic2', 'alt on HTMLAreaElement', 'area',
+  getParentElement, instance => setAttributes(instance), HTMLAreaElement
+);
+testReflectAttributeWithParentNode(
+  'coords', 'coords', '1, 1, 5, 5',
+  '2, 2, 6, 6', 'coords on HTMLAreaElement', 'area',
+  getParentElement, HTMLAreaElement
+);
+testReflectAttributeWithDependentAttributes(
+  'shape', 'shape', 'rectangle',
+  'default', 'shape on HTMLAreaElement', 'area',
+  getParentElement, instance => instance.setAttribute('coords', '1, 1, 5, 5'),
+  HTMLAreaElement
+);
+testReflectAttributeWithDependentAttributes(
+  'target', 'target', '_blank',
+  '_top', 'target on HTMLAreaElement', 'area',
+  getParentElement, instance => setAttributes(instance), HTMLAreaElement
+);
+testReflectAttributeWithDependentAttributes(
+  'download', 'download', 'pic1',
+  'pic2', 'download on HTMLAreaElement', 'area',
+  getParentElement, instance => setAttributes(instance), HTMLAreaElement
+);
+testReflectAttributeWithDependentAttributes(
+  'ping', 'ping', 'location.href',
+  `${location.protocol}\/\/${location.host}`, 'ping on HTMLAreaElement', 'area',
+  getParentElement, instance => setAttributes(instance), HTMLAreaElement
+);
+testReflectAttributeWithDependentAttributes(
+  'rel', 'rel', 'help',
+  'noreferrer', 'rel on HTMLAreaElement', 'area',
+  getParentElement, instance => setAttributes(instance), HTMLAreaElement
+);
+testReflectAttributeWithDependentAttributes(
+  'referrerPolicy', 'referrerpolicy', 'same-origin',
+  'origin', 'referrerPolicy on HTMLAreaElement', 'area',
+  getParentElement, instance => setAttributes(instance), HTMLAreaElement
+);
+
+</script>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Changes to the HTML parser</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="HTML parser must construct a custom element synchronously">
+<link rel="help" href="https://html.spec.whatwg.org/#create-an-element-for-the-token">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+var childElementCountInConstructor;
+var containerChildNodesInConstructor = [];
+var containerNextSiblingInConstructor;
+class MyCustomElement extends HTMLElement {
+    constructor() {
+        super();
+        var container = document.getElementById('custom-element-container');
+        for (var i = 0; i < container.childNodes.length; i++)
+            containerChildNodesInConstructor.push(container.childNodes[i]);
+        containerNextSiblingInConstructor = container.nextSibling;
+    }
+};
+customElements.define('my-custom-element', MyCustomElement);
+
+</script>
+<div id="custom-element-container">
+    <span id="custom-element-previous-element"></span>
+    <my-custom-element></my-custom-element>
+    <div id="custom-element-next-element"></div>
+</div>
+<script>
+
+test(function () {
+    var instance = document.querySelector('my-custom-element');
+
+    assert_equals(containerChildNodesInConstructor.length, 3);
+    assert_equals(containerChildNodesInConstructor[0], instance.parentNode.firstChild);
+    assert_equals(containerChildNodesInConstructor[1], document.getElementById('custom-element-previous-element'));
+    assert_equals(containerChildNodesInConstructor[2], instance.previousSibling);
+    assert_equals(containerNextSiblingInConstructor, null);
+
+}, 'HTML parser must only append nodes that appear before a custom element before instantiating the custom element');
+
+</script>
+</body>
+</html>

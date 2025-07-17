@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: Upgrading custom elements should enqueue attributeChanged and connected callbacks</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="Upgrading custom elements should enqueue attributeChanged and connected callbacksml">
+<meta name="help" content="https://html.spec.whatwg.org/#upgrades">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+setup({allow_uncaught_exception:true});
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    contentDocument.write('<test-element id="some" title="This is a test">');
+
+    const undefinedElement = contentDocument.querySelector('test-element');
+    assert_equals(Object.getPrototypeOf(undefinedElement), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            log.push(create_constructor_log(this));
+        }
+        attributeChangedCallback(...args) {
+            log.push(create_attribute_changed_callback_log(this, ...args));
+        }
+        static get observedAttributes() { return ['id', 'title']; }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    assert_equals(Object.getPrototypeOf(undefinedElement), TestElement.prototype);
+
+    assert_equals(log.length, 3);
+    assert_constructor_log_entry(log[0], undefinedElement);
+    assert_attribute_log_entry(log[1], {name: 'id', oldValue: null, newValue: 'some', namespace: null});
+    assert_attribute_log_entry(log[2], {name: 'title', oldValue: null, newValue: 'This is a test', namespace: null});
+}, 'Upgrading a custom element must enqueue attributeChangedCallback on each attribute');
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    contentDocument.write('<test-element id="some" title="This is a test" class="foo">');
+
+    const undefinedElement = contentDocument.querySelector('test-element');
+    assert_equals(Object.getPrototypeOf(undefinedElement), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            log.push(create_constructor_log(this));
+        }
+        attributeChangedCallback(...args) {
+            log.push(create_attribute_changed_callback_log(this, ...args));
+        }
+        static get observedAttributes() { return ['class', 'id']; }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    assert_equals(Object.getPrototypeOf(undefinedElement), TestElement.prototype);
+
+    assert_equals(log.length, 3);
+    assert_constructor_log_entry(log[0], undefinedElement);
+    assert_attribute_log_entry(log[1], {name: 'id', oldValue: null, newValue: 'some', namespace: null});
+    assert_attribute_log_entry(log[2], {name: 'class', oldValue: null, newValue: 'foo', namespace: null});
+}, 'Upgrading a custom element not must enqueue attributeChangedCallback on unobserved attributes');
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    contentDocument.write('<test-element id="some" title="This is a test" class="foo">');
+
+    const undefinedElement = contentDocument.querySelector('test-element');
+    assert_equals(Object.getPrototypeOf(undefinedElement), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            log.push(create_constructor_log(this));
+        }
+        connectedCallback(...args) {
+            log.push(create_connected_callback_log(this, ...args));
+        }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    assert_equals(Object.getPrototypeOf(undefinedElement), TestElement.prototype);
+
+    assert_equals(log.length, 2);
+    assert_constructor_log_entry(log[0], undefinedElement);
+    assert_connected_log_entry(log[1], undefinedElement);
+}, 'Upgrading a custom element must enqueue connectedCallback if the element in the document');
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    contentDocument.write('<test-element id="some" title="This is a test" class="foo">');
+
+    const undefinedElement = contentDocument.querySelector('test-element');
+    assert_equals(Object.getPrototypeOf(undefinedElement), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            log.push(create_constructor_log(this));
+        }
+        connectedCallback(...args) {
+            log.push(create_connected_callback_log(this, ...args));
+        }
+        attributeChangedCallback(...args) {
+            log.push(create_attribute_changed_callback_log(this, ...args));
+        }
+        static get observedAttributes() { return ['class', 'id']; }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    assert_equals(Object.getPrototypeOf(undefinedElement), TestElement.prototype);
+
+    assert_equals(log.length, 4);
+    assert_constructor_log_entry(log[0], undefinedElement);
+    assert_attribute_log_entry(log[1], {name: 'id', oldValue: null, newValue: 'some', namespace: null});
+    assert_attribute_log_entry(log[2], {name: 'class', oldValue: null, newValue: 'foo', namespace: null});
+    assert_connected_log_entry(log[3], undefinedElement);
+}, 'Upgrading a custom element must enqueue attributeChangedCallback before connectedCallback');
+
+test_with_window(function (contentWindow) {
+    const contentDocument = contentWindow.document;
+    contentDocument.write('<test-element id="some" title="This is a test" class="foo">');
+
+    const undefinedElement = contentDocument.querySelector('test-element');
+    assert_equals(Object.getPrototypeOf(undefinedElement), contentWindow.HTMLElement.prototype);
+
+    let log = [];
+    class TestElement extends contentWindow.HTMLElement {
+        constructor() {
+            super();
+            log.push(create_constructor_log(this));
+            throw 'Exception thrown as a part of test';
+        }
+        connectedCallback(...args) {
+            log.push(create_connected_callback_log(this, ...args));
+        }
+        attributeChangedCallback(...args) {
+            log.push(create_attribute_changed_callback_log(this, ...args));
+        }
+        static get observedAttributes() { return ['class', 'id']; }
+    }
+    contentWindow.customElements.define('test-element', TestElement);
+    assert_equals(Object.getPrototypeOf(undefinedElement), TestElement.prototype);
+
+    assert_equals(log.length, 1);
+    assert_constructor_log_entry(log[0], undefinedElement);
+}, 'Upgrading a custom element must not invoke attributeChangedCallback and connectedCallback when the element failed to upgrade');
+
+</script>
+</body>
+</html>

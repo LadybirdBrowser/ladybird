@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	colSpan on HTMLTableCellElement in td must enqueue an attributeChanged reaction when adding a new attribute
+Pass	colSpan on HTMLTableCellElement in td must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	colSpan on HTMLTableCellElement in th must enqueue an attributeChanged reaction when adding a new attribute
+Pass	colSpan on HTMLTableCellElement in th must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	rowSpan on HTMLTableCellElement in td must enqueue an attributeChanged reaction when adding a new attribute
+Pass	rowSpan on HTMLTableCellElement in td must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	rowSpan on HTMLTableCellElement in th must enqueue an attributeChanged reaction when adding a new attribute
+Pass	rowSpan on HTMLTableCellElement in th must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	headers on HTMLTableCellElement in td must enqueue an attributeChanged reaction when adding a new attribute
+Pass	headers on HTMLTableCellElement in td must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	headers on HTMLTableCellElement in th must enqueue an attributeChanged reaction when adding a new attribute
+Pass	headers on HTMLTableCellElement in th must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	scope on HTMLTableCellElement in th must enqueue an attributeChanged reaction when adding a new attribute
+Pass	scope on HTMLTableCellElement in th must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	abbr on HTMLTableCellElement in th must enqueue an attributeChanged reaction when adding a new attribute
+Pass	abbr on HTMLTableCellElement in th must enqueue an attributeChanged reaction when replacing an existing attribute

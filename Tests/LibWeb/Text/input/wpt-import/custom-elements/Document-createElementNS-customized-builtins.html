@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>Custom Elements: document.createElementNS should support custom elements</title>
+<link rel="help" content="https://dom.spec.whatwg.org/#concept-create-element">
+<link rel="help" content="https://dom.spec.whatwg.org/#internal-createelementns-steps">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+test(() => {
+  class MyBuiltinElement extends HTMLElement {};
+
+  customElements.define('my-builtin', MyBuiltinElement, { extends: 'address' });
+  let element = document.createElementNS('http://www.w3.org/1999/xhtml', 'p:address', { is: 'my-builtin'});
+  assert_true(element instanceof MyBuiltinElement);
+  assert_equals(element.prefix, 'p');
+  assert_false(element.hasAttribute('is'));
+}, 'builtin: document.createElementNS should create custom elements with prefixes.');
+
+test(() => {
+  class MyBuiltinElement2 extends HTMLElement {};
+
+  customElements.define('my-builtin2', MyBuiltinElement2, { extends: 'address'});
+  let element = document.createElementNS('urn:example', 'address', { is: 'my-builtin2' });
+  assert_false(element instanceof MyBuiltinElement2);
+  assert_false(element.hasAttribute('is'));
+}, 'builtin: document.createElementNS should check namespaces.');
+
+test(() => {
+    class SuperP extends HTMLParagraphElement {}
+    customElements.define("super-p", SuperP, { extends: "p" });
+
+    const superP = document.createElementNS("http://www.w3.org/1999/xhtml", "p", { is: "super-p" });
+    assert_true(superP instanceof HTMLParagraphElement);
+    assert_true(superP instanceof SuperP);
+    assert_equals(superP.localName, "p");
+
+    const notSuperP = document.createElementNS("http://www.w3.org/1999/xhtml", "p", "super-p");
+    assert_true(notSuperP instanceof HTMLParagraphElement);
+    assert_false(notSuperP instanceof SuperP);
+    assert_equals(notSuperP.localName, "p");
+}, "document.createElementNS()'s third argument is to be ignored when it's a string");
+</script>
+</body>

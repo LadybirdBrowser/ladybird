@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	this.matches(:defined) should not match during an upgrade
+Pass	<div> should be :defined
+Pass	createElement("div") should be :defined
+Pass	createElementNS("http://www.w3.org/1999/xhtml", "div") should be :defined
+Pass	createElementNS("http://www.w3.org/2000/svg", "div") should be :defined
+Pass	Without browsing context: createElement("div") should be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/1999/xhtml", "div") should be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/2000/svg", "div") should be :defined
+Pass	<a-a> should not be :defined
+Pass	createElement("a-a") should not be :defined
+Pass	createElementNS("http://www.w3.org/1999/xhtml", "a-a") should not be :defined
+Pass	createElementNS("http://www.w3.org/2000/svg", "a-a") should be :defined
+Pass	Upgraded createElement("a-a") should be :defined
+Pass	Upgraded createElementNS("http://www.w3.org/1999/xhtml", "a-a") should be :defined
+Pass	Without browsing context: createElement("a-a") should not be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/1999/xhtml", "a-a") should not be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/2000/svg", "a-a") should be :defined
+Pass	<font-face> should be :defined
+Pass	createElement("font-face") should be :defined
+Pass	createElementNS("http://www.w3.org/1999/xhtml", "font-face") should be :defined
+Pass	createElementNS("http://www.w3.org/2000/svg", "font-face") should be :defined
+Pass	Without browsing context: createElement("font-face") should be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/1999/xhtml", "font-face") should be :defined
+Pass	Without browsing context: createElementNS("http://www.w3.org/2000/svg", "font-face") should be :defined

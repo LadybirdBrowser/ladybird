@@ -1,0 +1,86 @@
+<!DOCTYPE HTML>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+class TestElement extends HTMLElement {
+  constructor() {
+    super();
+    this._internals = this.attachInternals();
+  }
+
+  get internals() {
+    return this._internals;
+  }
+
+  set internals(val) {
+    throw "Can't set internals!";
+  }
+}
+customElements.define("test-element", TestElement);
+</script>
+
+<test-element id= "testElement"></test-element>
+
+<script>
+const element = document.getElementById("testElement");
+const properties = [
+  "role",
+  "ariaActiveDescendantElement",
+  "ariaAtomic",
+  "ariaAutoComplete",
+  "ariaBrailleLabel",
+  "ariaBrailleRoleDescription",
+  "ariaBusy",
+  "ariaChecked",
+  "ariaColCount",
+  "ariaColIndex",
+  // "ariaColIndexText", // tentative -> ElementInternals-accessibility.tentative.html
+  "ariaColSpan",
+  "ariaControlsElements",
+  "ariaCurrent",
+  "ariaDescribedByElements",
+  // "ariaDescription", // tentative -> ElementInternals-accessibility.tentative.html
+  "ariaDetailsElements",
+  "ariaDisabled",
+  "ariaErrorMessageElements",
+  "ariaExpanded",
+  "ariaFlowToElements",
+  "ariaHasPopup",
+  "ariaHidden",
+  "ariaInvalid",
+  "ariaKeyShortcuts",
+  "ariaLabel",
+  "ariaLabelledByElements",
+  "ariaLevel",
+  "ariaLive",
+  "ariaModal",
+  "ariaMultiLine",
+  "ariaMultiSelectable",
+  "ariaOrientation",
+  "ariaOwnsElements",
+  "ariaPlaceholder",
+  "ariaPosInSet",
+  "ariaPressed",
+  "ariaReadOnly",
+  "ariaRelevant",
+  "ariaRequired",
+  "ariaRoleDescription",
+  "ariaRowCount",
+  "ariaRowIndex",
+  // "ariaRowIndexText", // tentative -> ElementInternals-accessibility.tentative.html
+  "ariaRowSpan",
+  "ariaSelected",
+  "ariaSetSize",
+  "ariaSort",
+  "ariaValueMax",
+  "ariaValueMin",
+  "ariaValueNow",
+  "ariaValueText"
+];
+for (const property of properties) {
+  test(() => {
+    assert_inherits(element.internals, property);
+  }, property + " is defined in ElementInternals");
+}
+test(() => assert_false('ariaErrorMessageElement' in element.internals), 'ariaErrorMessageElement is not defined in ElementInternals')
+</script>

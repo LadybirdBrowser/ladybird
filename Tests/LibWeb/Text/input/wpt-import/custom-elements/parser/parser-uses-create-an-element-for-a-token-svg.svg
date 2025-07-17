@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg:svg xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/1999/xhtml"
+   width="100%" height="100%" viewBox="0 0 800 600">
+<svg:title>XML parser should use "create an element for a token"</svg:title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/xhtml.html#parsing-xhtml-documents:create-an-element-for-the-token"/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script><![CDATA[
+class MyElement1 extends HTMLElement {}
+customElements.define('my-element', MyElement1);
+class MyElement2 extends HTMLDivElement {}
+customElements.define('my-div', MyElement2, { extends: 'div' });
+
+var test1 = async_test('XML parser should create autonomous custom elements.');
+window.addEventListener('load', test1.step_func_done(() => {
+  assert_true(document.getElementById('me1') instanceof MyElement1);
+}));
+
+var test2 = async_test('XML parser should create custom built-in elements.');
+window.addEventListener('load', test2.step_func_done(() => {
+  assert_true(document.getElementById('me2') instanceof MyElement2);
+}));
+]]></script>
+<my-element id="me1"></my-element>
+<div is="my-div" id="me2"></div>
+</svg:svg>

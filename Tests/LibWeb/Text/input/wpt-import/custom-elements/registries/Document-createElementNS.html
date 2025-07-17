@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="help" href="https://github.com/whatwg/html/issues/10854">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+// Keep this ~synchronized with Document-createElement
+"use strict";
+
+const scopedRegistry = new CustomElementRegistry();
+const otherScopedRegistry = new CustomElementRegistry();
+class GlobalABElement extends HTMLElement {};
+class ScopedABElement extends HTMLElement {};
+customElements.define('a-b', GlobalABElement);
+scopedRegistry.define('a-b', ScopedABElement);
+
+test(() => {
+    assert_true(document.createElementNS('http://www.w3.org/1999/xhtml', 'a-b') instanceof GlobalABElement);
+}, 'createElementNS should use the global registry by default');
+
+test(() => {
+    assert_true(document.createElementNS('http://www.w3.org/1999/xhtml', 'a-b', {customElementRegistry: scopedRegistry}) instanceof ScopedABElement);
+}, 'createElementNS should use the specified scoped registry');
+
+test(() => {
+    const elements = {
+        div: HTMLDivElement,
+        form: HTMLFormElement,
+        span: HTMLSpanElement,
+        table: HTMLTableElement,
+        unknown: HTMLUnknownElement,
+    };
+    for (const localName in elements) {
+        const scopedElement = document.createElementNS('http://www.w3.org/1999/xhtml', localName, {customElementRegistry: scopedRegistry});
+        assert_true(scopedElement instanceof elements[localName], localName);
+        assert_equals(scopedElement.customElementRegistry, scopedRegistry);
+
+        const globalExplicitElement = document.createElementNS('http://www.w3.org/1999/xhtml', localName, {customElementRegistry: window.customElements});
+        assert_true(globalExplicitElement instanceof elements[localName], localName);
+        assert_equals(globalExplicitElement.customElementRegistry, window.customElements);
+
+        const globalImplicitElement = document.createElementNS('http://www.w3.org/1999/xhtml', localName);
+        assert_true(globalImplicitElement instanceof elements[localName], localName);
+        assert_equals(globalImplicitElement.customElementRegistry, window.customElements);
+    }
+}, 'createElementNS should create a builtin element regardless of a custom element registry specified');
+
+test(() => {
+    assert_true(document.createElementNS('http://www.w3.org/1999/xhtml', 'a-b', {customElementRegistry: window.customElements}) instanceof GlobalABElement);
+}, 'createElementNS should use the specified global registry');
+
+test(() => {
+    const element = document.createElementNS('http://www.w3.org/1999/xhtml', 'a-b', {customElementRegistry: otherScopedRegistry});
+    assert_equals(element.__proto__.constructor.name, 'HTMLElement');
+}, 'createElementNS should create an upgrade candidate when there is no matching definition in the specified registry');
+
+test(() => {
+    class CDElement extends HTMLElement { }
+    const registry = new CustomElementRegistry;
+    const cdElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'c-d', {customElementRegistry: registry});
+    assert_false(cdElement instanceof CDElement);
+    assert_equals(cdElement.__proto__.constructor.name, 'HTMLElement');
+    registry.define('c-d', CDElement);
+    assert_false(cdElement instanceof CDElement); // Not yet upgraded since it's disconnected.
+    assert_equals(cdElement.__proto__.constructor.name, 'HTMLElement');
+    document.body.appendChild(cdElement);
+    assert_true(cdElement instanceof CDElement);
+}, 'createElementNS should create an upgrade candidate and the candidate should be upgraded when the element is defined');
+
+test(() => {
+    const doc = new Document();
+    const scopedElement = doc.createElementNS(null, "time", {customElementRegistry: scopedRegistry});
+    assert_equals(scopedElement.namespaceURI, null);
+    assert_equals(scopedElement.customElementRegistry, scopedRegistry);
+
+    const abElement = doc.createElementNS(null, "a-b", {customElementRegistry: scopedRegistry});
+    assert_equals(abElement.namespaceURI, null);
+    assert_equals(abElement.customElementRegistry, scopedRegistry);
+    assert_false(abElement instanceof ScopedABElement);
+}, 'createElementNS on a non-HTML document should still handle registries correctly');
+
+</script>
+</body>
+</html>

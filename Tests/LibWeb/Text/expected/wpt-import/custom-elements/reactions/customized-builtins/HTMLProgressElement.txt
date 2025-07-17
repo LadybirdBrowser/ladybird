@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	value on HTMLProgressElement must enqueue an attributeChanged reaction when adding value content attribute
+Pass	value on HTMLProgressElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	max on HTMLProgressElement must enqueue an attributeChanged reaction when adding max content attribute
+Pass	max on HTMLProgressElement must enqueue an attributeChanged reaction when replacing an existing attribute

@@ -1,0 +1,52 @@
+Harness status: OK
+
+Found 47 tests
+
+47 Pass
+Pass	id on Element must enqueue an attributeChanged reaction when adding id content attribute
+Pass	id on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	className on Element must enqueue an attributeChanged reaction when adding class content attribute
+Pass	className on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	slot on Element must enqueue an attributeChanged reaction when adding slot content attribute
+Pass	slot on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	setAttribute on Element must enqueue an attributeChanged reaction when adding an attribute
+Pass	setAttribute on Element must not enqueue an attributeChanged reaction when adding an unobserved attribute
+Pass	setAttribute on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	setAttribute on Element must enqueue an attributeChanged reaction when replacing an existing unobserved attribute
+Pass	setAttributeNS on Element must enqueue an attributeChanged reaction when adding an attribute
+Pass	setAttributeNS on Element must not enqueue an attributeChanged reaction when adding an unobserved attribute
+Pass	setAttributeNS on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	setAttributeNS on Element must enqueue an attributeChanged reaction when replacing an existing unobserved attribute
+Pass	removeAttribute on Element must not enqueue an attributeChanged reaction when removing an unobserved attribute
+Pass	removeAttribute on Element must enqueue an attributeChanged reaction when removing an existing attribute
+Pass	removeAttribute on Element must not enqueue an attributeChanged reaction when removing an existing unobserved attribute
+Pass	removeAttributeNS on Element must not enqueue an attributeChanged reaction when removing an unobserved attribute
+Pass	removeAttributeNS on Element must enqueue an attributeChanged reaction when removing an existing attribute
+Pass	removeAttributeNS on Element must not enqueue an attributeChanged reaction when removing an existing unobserved attribute
+Pass	toggleAttribute (only removes) on Element must not enqueue an attributeChanged reaction when removing an unobserved attribute
+Pass	toggleAttribute (only removes) on Element must enqueue an attributeChanged reaction when removing an existing attribute
+Pass	toggleAttribute (only removes) on Element must not enqueue an attributeChanged reaction when removing an existing unobserved attribute
+Pass	toggleAttribute (force false) on Element must not enqueue an attributeChanged reaction when removing an unobserved attribute
+Pass	toggleAttribute (force false) on Element must enqueue an attributeChanged reaction when removing an existing attribute
+Pass	toggleAttribute (force false) on Element must not enqueue an attributeChanged reaction when removing an existing unobserved attribute
+Pass	setAttributeNode on Element must enqueue an attributeChanged reaction when adding an attribute
+Pass	setAttributeNode on Element must not enqueue an attributeChanged reaction when adding an unobserved attribute
+Pass	setAttributeNode on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	setAttributeNode on Element must enqueue an attributeChanged reaction when replacing an existing unobserved attribute
+Pass	setAttributeNodeNS on Element must enqueue an attributeChanged reaction when adding an attribute
+Pass	setAttributeNodeNS on Element must not enqueue an attributeChanged reaction when adding an unobserved attribute
+Pass	setAttributeNodeNS on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	setAttributeNodeNS on Element must enqueue an attributeChanged reaction when replacing an existing unobserved attribute
+Pass	removeAttributeNode on Element must not enqueue an attributeChanged reaction when removing an unobserved attribute
+Pass	removeAttributeNode on Element must enqueue an attributeChanged reaction when removing an existing attribute
+Pass	removeAttributeNode on Element must not enqueue an attributeChanged reaction when removing an existing unobserved attribute
+Pass	insertAdjacentElement on Element must enqueue a connected reaction
+Pass	insertAdjacentElement on Element must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
+Pass	innerHTML on Element must enqueue a connected reaction for a newly constructed custom element
+Pass	innerHTML on Element must enqueue a attributeChanged reaction for a newly constructed custom element
+Pass	innerHTML on Element must enqueue a disconnected reaction
+Pass	outerHTML on Element must enqueue a connected reaction for a newly constructed custom element
+Pass	outerHTML on Element must enqueue a attributeChanged reaction for a newly constructed custom element
+Pass	outerHTML on Element must enqueue a disconnected reaction
+Pass	insertAdjacentHTML on Element must enqueue a connected reaction for a newly constructed custom element
+Pass	insertAdjacentHTML on Element must enqueue a attributeChanged reaction for a newly constructed custom element

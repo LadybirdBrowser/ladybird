@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on Element interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="id, className, slot, setAttribute, setAttributeNS, removeAttribute, removeAttributeNS, setAttributeNode, setAttributeNodeNS, removeAttributeNode, insertAdjacentElement, innerHTML, outerHTML, and insertAdjacentHTML of Element interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#element">
+<meta name="help" content="https://w3c.github.io/DOM-Parsing/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+testReflectAttribute('id', 'id', 'foo', 'bar', 'id on Element');
+testReflectAttribute('className', 'class', 'foo', 'bar', 'className on Element');
+testReflectAttribute('slot', 'slot', 'foo', 'bar', 'slot on Element');
+
+testAttributeAdder(function (element, name, value) {
+    element.setAttribute(name, value);
+}, 'setAttribute on Element');
+
+testAttributeAdder(function (element, name, value) {
+    element.setAttributeNS(null, name, value);
+}, 'setAttributeNS on Element');
+
+testAttributeRemover(function (element, name) {
+    element.removeAttribute(name);
+}, 'removeAttribute on Element');
+
+testAttributeRemover(function (element, name) {
+    element.removeAttributeNS(null, name);
+}, 'removeAttributeNS on Element');
+
+testAttributeRemover(function (element, name, value) {
+  if (element.hasAttribute(name))
+    element.toggleAttribute(name);
+}, 'toggleAttribute (only removes) on Element');
+
+testAttributeRemover(function (element, name, value) {
+    element.toggleAttribute(name, false);
+}, 'toggleAttribute (force false) on Element');
+
+testAttributeAdder(function (element, name, value) {
+    var attr = document.createAttribute(name);
+    attr.value = value;
+    element.setAttributeNode(attr);
+}, 'setAttributeNode on Element');
+
+testAttributeAdder(function (element, name, value) {
+    var attr = document.createAttribute(name);
+    attr.value = value;
+    element.setAttributeNodeNS(attr);
+}, 'setAttributeNodeNS on Element');
+
+testAttributeRemover(function (element, name) {
+    var attr = element.getAttributeNode(name);
+    if (attr)
+        element.removeAttributeNode(element.getAttributeNode(name));
+}, 'removeAttributeNode on Element');
+
+testNodeConnector(function (newContainer, element) {
+    newContainer.insertAdjacentElement('afterBegin', element);
+}, 'insertAdjacentElement on Element');
+
+testInsertingMarkup(function (newContainer, markup) {
+    newContainer.innerHTML = markup;
+}, 'innerHTML on Element');
+
+testNodeDisconnector(function (customElement) {
+    customElement.parentNode.innerHTML = '';
+}, 'innerHTML on Element');
+
+testInsertingMarkup(function (newContainer, markup) {
+    newContainer.firstChild.outerHTML = markup;
+}, 'outerHTML on Element');
+
+testNodeDisconnector(function (customElement) {
+    customElement.outerHTML = '';
+}, 'outerHTML on Element');
+
+testInsertingMarkup(function (newContainer, markup) {
+    newContainer.insertAdjacentHTML('afterBegin', markup);
+}, 'insertAdjacentHTML on Element');
+
+</script>
+</body>
+</html>

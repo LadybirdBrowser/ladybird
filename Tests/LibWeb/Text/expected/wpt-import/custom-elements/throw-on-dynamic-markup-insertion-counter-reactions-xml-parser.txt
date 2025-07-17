@@ -1,0 +1,18 @@
+Harness status: Timeout
+
+Found 11 tests
+
+2 Pass
+1 Timeout
+8 Not Run
+Pass	document.open() must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Pass	document.open("text/html") must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Timeout	document.open(URL) must NOT throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Not Run	document.close() must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Not Run	document.write must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Not Run	document.writeln must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Not Run	document.open() of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Not Run	document.open("text/html") of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Not Run	document.close() of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Not Run	document.write of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+Not Run	document.writeln of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element

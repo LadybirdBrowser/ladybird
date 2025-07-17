@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<title>Custom elements: performing a microtask checkpoint after construction</title>
+<meta name="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/scripting.html#concept-upgrade-an-element">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<link rel="help" href="https://github.com/whatwg/html/issues/2381">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<x-upgrade></x-upgrade>
+
+<script>
+"use strict";
+setup({ allow_uncaught_exception: true });
+
+window.doMicrotasks = (callback1, callback2 = callback1) => {
+  Promise.resolve().then(callback1);
+
+  const mo = new MutationObserver(callback2);
+  const node = document.createTextNode("");
+  mo.observe(node, { characterData: true });
+  node.data = "x";
+};
+
+window.logMicrotasks = events => {
+  window.doMicrotasks(() => events.push("promise microtask"),
+                      () => events.push("MutationObserver microtask"));
+};
+
+window.flushAsyncEvents = () => {
+  return new Promise(resolve => step_timeout(resolve, 0));
+};
+
+window.x0Events = [];
+customElements.define("x-0", class extends HTMLElement {
+  constructor() {
+    super();
+    logMicrotasks(window.x0Events);
+  }
+});
+</script>
+
+<x-0></x-0>
+
+<script>
+"use strict";
+
+test(() => {
+  assert_array_equals(window.x0Events, ["promise microtask", "MutationObserver microtask"]);
+}, "Microtasks evaluate immediately when the stack is empty inside the parser");
+
+customElements.define("x-bad", class extends HTMLElement {
+  constructor() {
+    super();
+    doMicrotasks(() => this.setAttribute("attribute", "value"));
+  }
+});
+</script>
+
+<x-bad></x-bad>
+
+<script>
+"use strict";
+
+test(() => {
+  const xBad = document.querySelector("x-bad");
+  assert_false(xBad.hasAttribute("attribute"), "The attribute must not be present");
+  assert_true(xBad instanceof HTMLUnknownElement, "The element must be a HTMLUnknownElement");
+}, "Microtasks evaluate immediately when the stack is empty inside the parser, causing the " +
+   "checks on no attributes to fail")
+
+promise_test(() => {
+  const events = [];
+  customElements.define("x-1", class extends HTMLElement {
+    constructor() {
+      super();
+      logMicrotasks(events);
+    }
+  });
+
+  document.createElement("x-1");
+  events.push("after");
+
+  return flushAsyncEvents().then(() => {
+    assert_array_equals(events, ["after", "promise microtask", "MutationObserver microtask"]);
+  });
+}, "Microtasks evaluate afterward when the stack is not empty using createElement()");
+
+promise_test(() => {
+  const events = [];
+  class X2 extends HTMLElement {
+    constructor() {
+      super();
+      logMicrotasks(events);
+    }
+  }
+  customElements.define("x-2", X2);
+
+  new X2();
+  events.push("after");
+
+  return flushAsyncEvents().then(() => {
+    assert_array_equals(events, ["after", "promise microtask", "MutationObserver microtask"]);
+  });
+}, "Microtasks evaluate afterward when the stack is not empty using the constructor");
+
+promise_test(() => {
+  const events = [];
+  customElements.define("x-upgrade", class extends HTMLElement {
+    constructor() {
+      super();
+      logMicrotasks(events);
+    }
+  });
+  events.push("after");
+
+  return flushAsyncEvents().then(() => {
+    assert_array_equals(events, ["after", "promise microtask", "MutationObserver microtask"]);
+  });
+}, "Microtasks evaluate afterward when the stack is not empty due to upgrades");
+</script>

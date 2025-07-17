@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLOptGroupElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="disabled, label of
+  HTMLOptGroupElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#the-optgroup-element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<body>
+<script>
+
+function getParentElement() {
+  let element = document.createElement('select');
+  document.body.appendChild(element);
+  return element;
+}
+
+function setAttributes(instance) {
+  instance.setAttribute('label', 'group1');
+}
+
+testReflectBooleanAttributeWithDependentAttributes(
+  'disabled', 'disabled', 'disabled on HTMLOptGroupElement',
+  'optgroup', getParentElement, instance => setAttributes(instance),
+  HTMLOptGroupElement
+);
+
+testReflectAttributeWithParentNode(
+  'label', 'label', 'group1',
+  'group2', 'label on HTMLOptGroupElement', 'optgroup',
+  getParentElement, HTMLOptGroupElement
+);
+
+</script>
+</body>

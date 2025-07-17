@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	HTML parser must perform a microtask checkpoint before constructing a custom element
+Pass	HTML parser must perform a microtask checkpoint before constructing a custom element during the adoption agency algorithm

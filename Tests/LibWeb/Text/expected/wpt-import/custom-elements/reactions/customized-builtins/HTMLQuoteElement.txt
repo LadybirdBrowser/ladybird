@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	cite on blockquote use HTMLQuoteElement must enqueue an attributeChanged reaction when adding cite content attribute
+Pass	cite on blockquote use HTMLQuoteElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	cite on q use HTMLQuoteElement must enqueue an attributeChanged reaction when adding cite content attribute
+Pass	cite on q use HTMLQuoteElement must enqueue an attributeChanged reaction when replacing an existing attribute

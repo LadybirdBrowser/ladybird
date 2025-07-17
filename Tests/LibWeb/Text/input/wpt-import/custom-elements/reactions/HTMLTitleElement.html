@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on HTMLTitleElement interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="text of HTMLTitleElement interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#node">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test_with_window(function (contentWindow, contentDocument) {
+    const element = define_custom_element_in_window(contentWindow, 'custom-element', []);
+    const instance = contentWindow.document.createElement(element.name);
+    assert_array_equals(element.takeLog().types(), ['constructed']);
+
+    contentWindow.document.title = 'hello';
+    const titleElement = contentDocument.querySelector('title');
+    titleElement.appendChild(instance);
+    assert_array_equals(element.takeLog().types(), ['connected']);
+    assert_equals(titleElement.childNodes.length, 2);
+
+    titleElement.text = 'world';
+    assert_equals(titleElement.childNodes.length, 1);
+    assert_array_equals(element.takeLog().types(), ['disconnected']);
+}, 'text on HTMLTitleElement must enqueue disconnectedCallback when removing a custom element');
+
+</script>
+</body>
+</html>

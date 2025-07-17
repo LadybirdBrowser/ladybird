@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-document-importnode">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<body>
+<script>
+test_with_window((w, doc) => {
+  class MyElement extends HTMLElement {}
+  class MyElement2 extends w.HTMLElement {}
+  customElements.define('my-element', MyElement);
+  w.customElements.define('my-element', MyElement2);
+
+  let original = document.createElement('my-element');
+  assert_true(original instanceof MyElement);
+  assert_equals(original.customElementRegistry, customElements);
+
+  let imported = doc.importNode(original);
+  assert_true(imported instanceof MyElement);
+  assert_false(imported instanceof MyElement2);
+  assert_equals(imported.customElementRegistry, customElements);
+}, 'autonomous: document.importNode() should import custom elements successfully');
+
+test_with_window((w, doc) => {
+  class MyElement3 extends w.HTMLElement {}
+  w.customElements.define('my-element3', MyElement3);
+
+  let original = document.createElement('my-element3');
+  assert_equals(original.constructor, HTMLElement);
+  assert_equals(original.customElementRegistry, customElements);
+
+  let imported = doc.importNode(original);
+  assert_equals(imported.customElementRegistry, customElements);
+}, 'autonomous: document.importNode() should import "undefined" custom elements successfully');
+</script>
+</body>

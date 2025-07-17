@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	name on HTMLSlotElement must enqueue an attributeChanged reaction when adding name content attribute
+Pass	name on HTMLSlotElement must enqueue an attributeChanged reaction when replacing an existing attribute

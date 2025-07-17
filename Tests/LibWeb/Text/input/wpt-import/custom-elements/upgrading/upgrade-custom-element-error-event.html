@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-create-element">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<body>
+<script>
+// Returns a promise which will resolve with the next error event fired at any
+// of `windows`, after the invocation of this function. Once one does, this
+// function removes its listeners and produces that error event so that it can
+// be examined (most notably for which global proxy it was targeted at).
+async function nextErrorEvent(windows) {
+  let listener;
+  let p = new Promise((resolve, reject) => {
+    listener = (event) => { resolve(event); event.preventDefault(); };
+  });
+  for (let w of windows) {
+    w.addEventListener('error', listener);
+  }
+  try {
+    return await p;
+  } finally {
+    for (let w of windows) {
+      w.removeEventListener('error', listener);
+    }
+  }
+}
+const supportsCustomizedBuiltinElements = (function() {
+  let supported = false;
+  customElements.define('feature-detect', class extends HTMLDivElement {}, { get extends() { supported = true; return "div"; } });
+  return supported;
+})();
+
+promise_test(async t => {
+  let w = await create_window_in_test(t, `<script>self.MyElement = class extends HTMLElement { constructor() { throw new Error(); } };</`+`script>`);
+  let w2 = await create_window_in_test(t);
+  w2.customElements.define('my-element', w.MyElement);
+  let nextErrorPromise = nextErrorEvent([self, w, w2]);
+  let elem = w2.document.createElement('my-element');
+  let errorEvent = await nextErrorPromise;
+  assert_true(elem instanceof w2.HTMLUnknownElement, 'element should be an HTMLUnknownElement');
+  if (errorEvent.error) {
+    assert_true(errorEvent.error instanceof w.Error, 'error should be an instance created inside the MyElement constructor (if it was not muted)');
+  }
+  assert_equals(errorEvent.target, w, `error event should target definition's global but instead targets ${event.target === w2 ? 'document\'s global' : 'test harness global'}`);
+}, 'autonomous: exception thrown in constructor is reported to definition\'s global');
+
+promise_test(async t => {
+  let w = await create_window_in_test(t, `<script>self.MyElement = class extends HTMLElement { constructor() { this.textContent = 'hello!'; } };</`+`script>`);
+  let w2 = await create_window_in_test(t);
+  w2.customElements.define('my-element', w.MyElement);
+  let nextErrorPromise = nextErrorEvent([self, w, w2]);
+  let elem = w2.document.createElement('my-element');
+  let errorEvent = await nextErrorPromise;
+  assert_true(elem instanceof w2.HTMLUnknownElement, 'element should be an HTMLUnknownElement');
+  assert_equals(errorEvent.target, w, `error event should target definition's global but instead targets ${event.currentTarget === w2 ? 'document\'s global' : 'test harness global'}`);
+}, 'autonomous: exception thrown by spec due to invalid element state is reported to definition\'s global');
+
+promise_test(async t => {
+  assert_implements(supportsCustomizedBuiltinElements, 'customized built-in elements not supported');
+  let w = await create_window_in_test(t, `<script>self.MyDivElement = class extends HTMLDivElement { constructor() { throw new Error(); } };</`+`script>`);
+  let w2 = await create_window_in_test(t);
+  w2.customElements.define('my-div', w.MyDivElement, {extends: 'div'});
+  let nextErrorPromise = nextErrorEvent([self, w, w2]);
+  let elem = w2.document.createElement('div', {is: 'my-div'});
+  let errorEvent = await nextErrorPromise;
+  assert_equals(Object.getPrototypeOf(elem), w2.HTMLDivElement.prototype, 'element should be an HTMLDivElement (and not inherited from it)');
+  assert_true(errorEvent.error instanceof w.Error, 'error should be an instance created inside the MyElement constructor');
+  assert_equals(errorEvent.target, w, `error event should target definition's global but instead targets ${event.target === w2 ? 'document\'s global' : 'test harness global'}`);
+}, 'customized built-in: exception thrown in constructor is reported to definition\'s global');
+
+promise_test(async t => {
+  assert_implements(supportsCustomizedBuiltinElements, 'customized built-in elements not supported');
+  let w = await create_window_in_test(t, `<script>self.MyDivElement = class extends HTMLDivElement { constructor() { return document.createElement('div'); } };</`+`script>`);
+  let w2 = await create_window_in_test(t);
+  w2.customElements.define('my-div', w.MyDivElement, {extends: 'div'});
+  let nextErrorPromise = nextErrorEvent([self, w, w2]);
+  let elem = w2.document.createElement('div', {is: 'my-div'});
+  let errorEvent = await nextErrorPromise;
+  assert_equals(Object.getPrototypeOf(elem), w2.HTMLDivElement.prototype, 'element should be an HTMLDivElement (and not inherited from it)');
+  assert_equals(errorEvent.target, w, `error event should target definition's global but instead targets ${event.currentTarget === w2 ? 'document\'s global' : 'test harness global'}`);
+}, 'customized built-in: exception thrown by spec due to not returning the same value is reported to definition\'s global');
+</script>
+</body>

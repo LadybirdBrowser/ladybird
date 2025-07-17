@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	width on HTMLCanvasElement must enqueue an attributeChanged reaction when adding width content attribute
+Pass	width on HTMLCanvasElement must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	height on HTMLCanvasElement must enqueue an attributeChanged reaction when adding height content attribute
+Pass	height on HTMLCanvasElement must enqueue an attributeChanged reaction when replacing an existing attribute

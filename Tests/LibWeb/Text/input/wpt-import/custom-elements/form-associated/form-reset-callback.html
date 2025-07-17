@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<body>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+class MyControl extends HTMLElement {
+  static get formAssociated() { return true; }
+
+  constructor() {
+    super();
+    this.resetCalled_ = false;
+  }
+
+  formResetCallback() {
+    this.resetCalled_ = true;
+    if (this.outputElement_) {
+      this.outputValueDuringResetCallback_ = this.outputElement_.value;
+    }
+  }
+  get resetCalled() { return this.resetCalled_; }
+
+  // This is only used in a single test below; the idea is this: before the form
+  // gets reset (i.e., before `formResetCallback()` is queued and run by the
+  // platform), we assign an `HTMLOutputElement` whose value we record *while*
+  // `formResetCallback()` runs. This lets the test verify that built-in form
+  // controls are reset *before* custom element `formResetCallback()`s are run
+  // with custom element reaction timing, at the very end of the form reset
+  // process.
+  set outputToObserve(output) {
+    this.outputElement_ = output;
+  }
+  get outputElementValueDuringResetCallback() {
+    return this.outputValueDuringResetCallback_;
+  }
+}
+customElements.define('my-control', MyControl);
+
+test(() => {
+  document.body.insertAdjacentHTML('beforeend',
+      '<form><my-control></my-control></form>');
+  let form = document.body.lastChild;
+  let custom = form.firstChild;
+  form.reset();
+  assert_true(custom.resetCalled);
+}, 'form.reset() should trigger formResetCallback');
+
+test(() => {
+  document.body.insertAdjacentHTML('beforeend',
+      '<form><my-control></my-control><output>default</output></form>');
+  let form = document.body.lastChild;
+  let custom = form.firstChild;
+  let output = form.lastChild;
+  output.value = 'updated';
+
+  // This is the `HTMLOutputElement` that `custom` will record the `value` of,
+  // when `custom`'s `formResetCallback()` runs.
+  custom.outputToObserve = output;
+
+  // Reset the form.
+  assert_false(custom.resetCalled,
+      "formResetCallback is not called before the form is reset");
+  form.reset();
+  assert_true(custom.resetCalled, "formResetCallback is called " +
+      "synchronously after the form is reset");
+  assert_equals(custom.outputElementValueDuringResetCallback, "default",
+      "formResetCallback() runs *after* built-in form control reset " +
+      "algorithms run, and can observe their effects");
+}, 'form.reset(): formResetCallback is called synchronously at the end of ' +
+   'form reset, with custom element reaction timing, *after* built-in form ' +
+   'control reset algorithms run.');
+
+promise_test(() => {
+  document.body.insertAdjacentHTML('beforeend',
+      '<form><my-control></my-control><input type=reset></form>');
+  let form = document.body.lastChild;
+  let custom = form.firstChild;
+  let resetButton = form.lastChild;
+  assert_false(custom.resetCalled);
+  resetButton.click();
+  assert_false(custom.resetCalled);
+  return Promise.resolve().then(() => assert_true(custom.resetCalled));
+}, 'Clicking a reset button invokes formResetCallback in a microtask');
+</script>
+</body>

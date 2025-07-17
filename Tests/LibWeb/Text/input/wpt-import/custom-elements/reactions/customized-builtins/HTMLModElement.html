@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>Custom Elements: CEReactions on HTMLModElement interface</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<meta name="assert" content="cite, dateTime of HTMLModElement interface must have CEReactions">
+<meta name="help" content="https://html.spec.whatwg.org/#attributes-common-to-ins-and-del-elements">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../resources/custom-elements-helpers.js"></script>
+<script src="../resources/reactions.js"></script>
+
+<script>
+
+testReflectAttribute('cite', 'cite', '../resources/custom-elements-helpers.js', './resources/reactions.js', 'cite on ins use HTMLModElement', 'ins', HTMLModElement);
+testReflectAttribute('dateTime', 'datetime', '2018-12-19 00:00Z', '2018-12-20 00:00Z', 'dateTime on ins use HTMLModElement', 'ins', HTMLModElement);
+testReflectAttribute('cite', 'cite', '../resources/custom-elements-helpers.js', './resources/reactions.js', 'cite on del use HTMLModElement', 'del', HTMLModElement);
+testReflectAttribute('dateTime', 'datetime', '2018-10-11T01:25-07:00', '2018-10-12T01:25-07:00', 'dateTime on del use HTMLModElement', 'del', HTMLModElement);
+
+</script>

@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	HTML parser must set the attributes
+Pass	HTML parser must append child nodes
+Pass	HTML parser must set the attributes or append children before calling constructor
+Pass	HTML parser should call connectedCallback before appending child nodes.
+Pass	HTML parser must enqueue attributeChanged reactions
