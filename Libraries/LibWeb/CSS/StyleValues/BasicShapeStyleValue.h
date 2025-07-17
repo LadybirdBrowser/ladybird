@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +13,7 @@
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/SVG/AttributeParser.h>
 
 namespace Web::CSS {
 
@@ -89,8 +91,19 @@ struct Polygon {
     Vector<Point> points;
 };
 
-// FIXME: Implement path(). See: https://www.w3.org/TR/css-shapes-1/#basic-shape-functions
-using BasicShape = Variant<Inset, Xywh, Rect, Circle, Ellipse, Polygon>;
+// https://drafts.csswg.org/css-shapes/#funcdef-basic-shape-path
+struct Path {
+    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    String to_string(SerializationMode) const;
+
+    bool operator==(Path const&) const = default;
+
+    Gfx::WindingRule fill_rule;
+    SVG::Path path_instructions;
+};
+
+// https://www.w3.org/TR/css-shapes-1/#basic-shape-functions
+using BasicShape = Variant<Inset, Xywh, Rect, Circle, Ellipse, Polygon, Path>;
 
 class BasicShapeStyleValue : public StyleValueWithDefaultOperators<BasicShapeStyleValue> {
 public:

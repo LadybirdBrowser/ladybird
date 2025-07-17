@@ -1,11 +1,14 @@
 /*
  * Copyright (c) 2024, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "BasicShapeStyleValue.h"
 #include <LibGfx/Path.h>
+#include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/SVG/Path.h>
 
 namespace Web::CSS {
 
@@ -209,6 +212,43 @@ String Polygon::to_string(SerializationMode) const
     }
     builder.append(')');
     return MUST(builder.to_string());
+}
+
+Gfx::Path Path::to_path(CSSPixelRect, Layout::Node const&) const
+{
+    auto result = path_instructions.to_gfx_path();
+    // The UA must close a path with an implicit closepath command ("z" or "Z") if it is not present in the string for
+    // properties that require a closed loop (such as shape-outside and clip-path).
+    // https://drafts.csswg.org/css-shapes/#funcdef-basic-shape-path
+    // FIXME: For now, all users want a closed path, so we'll always close it.
+    result.close_all_subpaths();
+    result.set_fill_type(fill_rule);
+    return result;
+}
+
+// https://drafts.csswg.org/css-shapes/#basic-shape-serialization
+String Path::to_string(SerializationMode mode) const
+{
+    StringBuilder builder;
+    builder.append("path("sv);
+
+    // For serializing computed values, component values are computed, and omitted when possible without changing the meaning.
+    // NB: So, we don't include `nonzero` in that case.
+    if (!(mode == SerializationMode::ResolvedValue && fill_rule == Gfx::WindingRule::Nonzero)) {
+        switch (fill_rule) {
+        case Gfx::WindingRule::Nonzero:
+            builder.append("nonzero, "sv);
+            break;
+        case Gfx::WindingRule::EvenOdd:
+            builder.append("evenodd, "sv);
+        }
+    }
+
+    serialize_a_string(builder, path_instructions.serialize());
+
+    builder.append(')');
+
+    return builder.to_string_without_validation();
 }
 
 BasicShapeStyleValue::~BasicShapeStyleValue() = default;
