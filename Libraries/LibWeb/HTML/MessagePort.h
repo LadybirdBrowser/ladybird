@@ -59,8 +59,8 @@ public:
     GC::Ptr<WebIDL::CallbackType> onmessage();
 
     // ^Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataHolder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override { return m_primary_interface; }
 
     void set_worker_event_target(GC::Ref<DOM::EventTarget>);

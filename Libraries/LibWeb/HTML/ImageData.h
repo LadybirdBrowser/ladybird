@@ -47,8 +47,8 @@ public:
     Bindings::PredefinedColorSpace color_space() const { return m_color_space; }
 
     virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::ImageData; }
-    virtual WebIDL::ExceptionOr<void> serialization_steps(SerializationRecord& serialized, bool for_storage, SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
 private:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> initialize(JS::Realm&, u32 rows, u32 pixels_per_row, Optional<ImageDataSettings> const&, GC::Ptr<JS::Uint8ClampedArray> = {}, Optional<Bindings::PredefinedColorSpace> = {});

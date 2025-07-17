@@ -134,51 +134,47 @@ JS_DEFINE_NATIVE_FUNCTION(CryptoKeyPair::private_key_getter)
     return TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->private_key(); }));
 }
 
-WebIDL::ExceptionOr<void> CryptoKey::serialization_steps(HTML::SerializationRecord& serialized, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> CryptoKey::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
     auto& vm = this->vm();
 
     // 1. Set serialized.[[Type]] to the [[type]] internal slot of value.
-    HTML::serialize_primitive_type(serialized, static_cast<u32>(m_type));
+    serialized.encode(m_type);
 
     // 2. Set serialized.[[Extractable]] to the [[extractable]] internal slot of value.
-    HTML::serialize_primitive_type(serialized, m_extractable);
+    serialized.encode(m_extractable);
 
     // 3. Set serialized.[[Algorithm]] to the sub-serialization of the [[algorithm]] internal slot of value.
     auto serialized_algorithm = TRY(HTML::structured_serialize_internal(vm, m_algorithm, for_storage, memory));
-    serialized.extend(move(serialized_algorithm));
+    serialized.append(move(serialized_algorithm));
 
     // 4. Set serialized.[[Usages]] to the sub-serialization of the [[usages]] internal slot of value.
     auto serialized_usages = TRY(HTML::structured_serialize_internal(vm, m_usages, for_storage, memory));
-    serialized.extend(move(serialized_usages));
+    serialized.append(move(serialized_usages));
 
     // FIXME: 5. Set serialized.[[Handle]] to the [[handle]] internal slot of value.
 
     return {};
 }
 
-WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
 {
     auto& vm = this->vm();
     auto& realm = this->realm();
 
     // 1. Initialize the [[type]] internal slot of value to serialized.[[Type]].
-    m_type = static_cast<Bindings::KeyType>(HTML::deserialize_primitive_type<u32>(serialized, position));
+    m_type = serialized.decode<Bindings::KeyType>();
 
     // 2. Initialize the [[extractable]] internal slot of value to serialized.[[Extractable]].
-    m_extractable = HTML::deserialize_primitive_type<bool>(serialized, position);
+    m_extractable = serialized.decode<bool>();
 
     // 3. Initialize the [[algorithm]] internal slot of value to the sub-deserialization of serialized.[[Algorithm]].
-    auto deserialized_record = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory, position));
-    if (deserialized_record.value.has_value())
-        m_algorithm = deserialized_record.value.release_value().as_object();
-    position = deserialized_record.position;
+    auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
+    m_algorithm = deserialized.as_object();
 
     // 4. Initialize the [[usages]] internal slot of value to the sub-deserialization of serialized.[[Usages]].
-    deserialized_record = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory, position));
-    if (deserialized_record.value.has_value())
-        m_usages = deserialized_record.value.release_value().as_object();
-    position = deserialized_record.position;
+    deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
+    m_usages = deserialized.as_object();
 
     // FIXME: 5. Initialize the [[handle]] internal slot of value to serialized.[[Handle]].
 

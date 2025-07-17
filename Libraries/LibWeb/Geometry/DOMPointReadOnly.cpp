@@ -66,30 +66,37 @@ void DOMPointReadOnly::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-WebIDL::ExceptionOr<void> DOMPointReadOnly::serialization_steps(HTML::SerializationRecord& serialized, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> DOMPointReadOnly::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
 {
     // 1. Set serialized.[[X]] to value’s x coordinate.
-    HTML::serialize_primitive_type(serialized, m_x);
+    serialized.encode(m_x);
+
     // 2. Set serialized.[[Y]] to value’s y coordinate.
-    HTML::serialize_primitive_type(serialized, m_y);
+    serialized.encode(m_y);
+
     // 3. Set serialized.[[Z]] to value’s z coordinate.
-    HTML::serialize_primitive_type(serialized, m_z);
+    serialized.encode(m_z);
+
     // 4. Set serialized.[[W]] to value’s w coordinate.
-    HTML::serialize_primitive_type(serialized, m_w);
+    serialized.encode(m_w);
 
     return {};
 }
 
-WebIDL::ExceptionOr<void> DOMPointReadOnly::deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> DOMPointReadOnly::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
 {
     // 1. Set value’s x coordinate to serialized.[[X]].
-    m_x = HTML::deserialize_primitive_type<double>(serialized, position);
+    m_x = serialized.decode<double>();
+
     // 2. Set value’s y coordinate to serialized.[[Y]].
-    m_y = HTML::deserialize_primitive_type<double>(serialized, position);
+    m_y = serialized.decode<double>();
+
     // 3. Set value’s z coordinate to serialized.[[Z]].
-    m_z = HTML::deserialize_primitive_type<double>(serialized, position);
+    m_z = serialized.decode<double>();
+
     // 4. Set value’s w coordinate to serialized.[[W]].
-    m_w = HTML::deserialize_primitive_type<double>(serialized, position);
+    m_w = serialized.decode<double>();
+
     return {};
 }
 

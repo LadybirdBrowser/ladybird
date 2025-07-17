@@ -135,7 +135,7 @@ WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStream::get_wr
 }
 
 // https://streams.spec.whatwg.org/#ref-for-transfer-steps①
-WebIDL::ExceptionOr<void> WritableStream::transfer_steps(HTML::TransferDataHolder& data_holder)
+WebIDL::ExceptionOr<void> WritableStream::transfer_steps(HTML::TransferDataEncoder& data_holder)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -150,7 +150,7 @@ WebIDL::ExceptionOr<void> WritableStream::transfer_steps(HTML::TransferDataHolde
     auto port1 = HTML::MessagePort::create(realm);
 
     // 3. Let port2 be a new MessagePort in the current Realm.
-    auto port2 = HTML::MessagePort::create(realm, HTML::TransferType::WritableStream);
+    auto port2 = HTML::MessagePort::create(realm);
 
     // 4. Entangle port1 and port2.
     port1->entangle_with(port2);
@@ -169,22 +169,23 @@ WebIDL::ExceptionOr<void> WritableStream::transfer_steps(HTML::TransferDataHolde
 
     // 9. Set dataHolder.[[port]] to ! StructuredSerializeWithTransfer(port2, « port2 »).
     auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2, { { GC::Root { port2 } } }));
-    data_holder = move(result.transfer_data_holders.first());
+    data_holder.extend(move(result.transfer_data_holders));
 
     return {};
 }
 
 // https://streams.spec.whatwg.org/#ref-for-transfer-receiving-steps①
-WebIDL::ExceptionOr<void> WritableStream::transfer_receiving_steps(HTML::TransferDataHolder& data_holder)
+WebIDL::ExceptionOr<void> WritableStream::transfer_receiving_steps(HTML::TransferDataDecoder& data_holder)
 {
     auto& realm = this->realm();
 
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 1. Let deserializedRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[port]], the current Realm).
+    auto deserialized_record = MUST(HTML::structured_deserialize_with_transfer_internal(data_holder, realm));
+
     // 2. Let port be deserializedRecord.[[Deserialized]].
-    auto port = HTML::MessagePort::create(realm);
-    TRY(port->transfer_receiving_steps(data_holder));
+    auto& port = as<HTML::MessagePort>(deserialized_record.as_object());
 
     // 3. Perform ! SetUpCrossRealmTransformWritable(value, port).
     set_up_cross_realm_transform_writable(realm, *this, port);

@@ -103,48 +103,51 @@ GC::Ref<DOMRect> DOMQuad::get_bounds() const
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(HTML::SerializationRecord& serialized, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
     auto& vm = this->vm();
+
     // 1. Set serialized.[[P1]] to the sub-serialization of value’s point 1.
-    serialized.extend(TRY(HTML::structured_serialize_internal(vm, m_p1, for_storage, memory)));
+    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p1, for_storage, memory)));
+
     // 2. Set serialized.[[P2]] to the sub-serialization of value’s point 2.
-    serialized.extend(TRY(HTML::structured_serialize_internal(vm, m_p2, for_storage, memory)));
+    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p2, for_storage, memory)));
+
     // 3. Set serialized.[[P3]] to the sub-serialization of value’s point 3.
-    serialized.extend(TRY(HTML::structured_serialize_internal(vm, m_p3, for_storage, memory)));
+    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p3, for_storage, memory)));
+
     // 4. Set serialized.[[P4]] to the sub-serialization of value’s point 4.
-    serialized.extend(TRY(HTML::structured_serialize_internal(vm, m_p4, for_storage, memory)));
+    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p4, for_storage, memory)));
 
     return {};
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
 {
+    auto& vm = this->vm();
     auto& realm = this->realm();
+
+    auto deserialize_dom_point = [&](GC::Ref<DOMPoint>& storage) -> WebIDL::ExceptionOr<void> {
+        auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
+
+        if (auto* dom_point = as_if<DOMPoint>(deserialized.as_object()))
+            storage = *dom_point;
+
+        return {};
+    };
+
     // 1. Set value’s point 1 to the sub-deserialization of serialized.[[P1]].
-    auto deserialized_record = TRY(HTML::structured_deserialize_internal(vm(), serialized, realm, memory, position));
-    if (deserialized_record.value.has_value() && is<DOMPoint>(deserialized_record.value.value().as_object()))
-        m_p1 = dynamic_cast<DOMPoint&>(deserialized_record.value.release_value().as_object());
-    position = deserialized_record.position;
+    TRY(deserialize_dom_point(m_p1));
 
     // 2. Set value’s point 2 to the sub-deserialization of serialized.[[P2]].
-    deserialized_record = TRY(HTML::structured_deserialize_internal(vm(), serialized, realm, memory, position));
-    if (deserialized_record.value.has_value() && is<DOMPoint>(deserialized_record.value.value().as_object()))
-        m_p2 = dynamic_cast<DOMPoint&>(deserialized_record.value.release_value().as_object());
-    position = deserialized_record.position;
+    TRY(deserialize_dom_point(m_p2));
 
     // 3. Set value’s point 3 to the sub-deserialization of serialized.[[P3]].
-    deserialized_record = TRY(HTML::structured_deserialize_internal(vm(), serialized, realm, memory, position));
-    if (deserialized_record.value.has_value() && is<DOMPoint>(deserialized_record.value.value().as_object()))
-        m_p3 = dynamic_cast<DOMPoint&>(deserialized_record.value.release_value().as_object());
-    position = deserialized_record.position;
+    TRY(deserialize_dom_point(m_p3));
 
     // 4. Set value’s point 4 to the sub-deserialization of serialized.[[P4]].
-    deserialized_record = TRY(HTML::structured_deserialize_internal(vm(), serialized, realm, memory, position));
-    if (deserialized_record.value.has_value() && is<DOMPoint>(deserialized_record.value.value().as_object()))
-        m_p4 = dynamic_cast<DOMPoint&>(deserialized_record.value.release_value().as_object());
-    position = deserialized_record.position;
+    TRY(deserialize_dom_point(m_p4));
 
     return {};
 }

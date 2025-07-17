@@ -702,82 +702,85 @@ WebIDL::ExceptionOr<String> DOMMatrixReadOnly::to_string() const
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMMatrixReadOnly::serialization_steps(HTML::SerializationRecord& serialized, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> DOMMatrixReadOnly::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
 {
-    HTML::serialize_primitive_type(serialized, m_is_2d);
+    serialized.encode(m_is_2d);
+
     // 1. If value’s is 2D is true:
     if (m_is_2d) {
         // 1. Set serialized.[[M11]] to value’s m11 element.
-        HTML::serialize_primitive_type(serialized, this->m11());
+        serialized.encode(m11());
         // 2. Set serialized.[[M12]] to value’s m12 element.
-        HTML::serialize_primitive_type(serialized, this->m12());
+        serialized.encode(m12());
         // 3. Set serialized.[[M21]] to value’s m21 element.
-        HTML::serialize_primitive_type(serialized, this->m21());
+        serialized.encode(m21());
         // 4. Set serialized.[[M22]] to value’s m22 element.
-        HTML::serialize_primitive_type(serialized, this->m22());
+        serialized.encode(m22());
         // 5. Set serialized.[[M41]] to value’s m41 element.
-        HTML::serialize_primitive_type(serialized, this->m41());
+        serialized.encode(m41());
         // 6. Set serialized.[[M42]] to value’s m42 element.
-        HTML::serialize_primitive_type(serialized, this->m42());
+        serialized.encode(m42());
         // 7. Set serialized.[[Is2D]] to true.
         // NOTE: This is set in the beginning of the function.
     }
     // 2. Otherwise:
     else {
         // 1. Set serialized.[[M11]] to value’s m11 element.
-        HTML::serialize_primitive_type(serialized, this->m11());
+        serialized.encode(m11());
         // 2. Set serialized.[[M12]] to value’s m12 element.
-        HTML::serialize_primitive_type(serialized, this->m12());
+        serialized.encode(m12());
         // 3. Set serialized.[[M13]] to value’s m13 element.
-        HTML::serialize_primitive_type(serialized, this->m13());
+        serialized.encode(m13());
         // 4. Set serialized.[[M14]] to value’s m14 element.
-        HTML::serialize_primitive_type(serialized, this->m14());
+        serialized.encode(m14());
         // 5. Set serialized.[[M21]] to value’s m21 element.
-        HTML::serialize_primitive_type(serialized, this->m21());
+        serialized.encode(m21());
         // 6. Set serialized.[[M22]] to value’s m22 element.
-        HTML::serialize_primitive_type(serialized, this->m22());
+        serialized.encode(m22());
         // 7. Set serialized.[[M23]] to value’s m23 element.
-        HTML::serialize_primitive_type(serialized, this->m23());
+        serialized.encode(m23());
         // 8. Set serialized.[[M24]] to value’s m24 element.
-        HTML::serialize_primitive_type(serialized, this->m24());
+        serialized.encode(m24());
         // 9. Set serialized.[[M31]] to value’s m31 element.
-        HTML::serialize_primitive_type(serialized, this->m31());
+        serialized.encode(m31());
         // 10. Set serialized.[[M32]] to value’s m32 element.
-        HTML::serialize_primitive_type(serialized, this->m32());
+        serialized.encode(m32());
         // 11. Set serialized.[[M33]] to value’s m33 element.
-        HTML::serialize_primitive_type(serialized, this->m33());
+        serialized.encode(m33());
         // 12. Set serialized.[[M34]] to value’s m34 element.
-        HTML::serialize_primitive_type(serialized, this->m34());
+        serialized.encode(m34());
         // 13. Set serialized.[[M41]] to value’s m41 element.
-        HTML::serialize_primitive_type(serialized, this->m41());
+        serialized.encode(m41());
         // 14. Set serialized.[[M42]] to value’s m42 element.
-        HTML::serialize_primitive_type(serialized, this->m42());
+        serialized.encode(m42());
         // 15. Set serialized.[[M43]] to value’s m43 element.
-        HTML::serialize_primitive_type(serialized, this->m43());
+        serialized.encode(m43());
         // 16. Set serialized.[[M44]] to value’s m44 element.
-        HTML::serialize_primitive_type(serialized, this->m44());
+        serialized.encode(m44());
         // 17. Set serialized.[[Is2D]] to false.
         // NOTE: This is set in the beginning of the function.
     }
+
     return {};
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMMatrixReadOnly::deserialization_steps(ReadonlySpan<u32> const& record, size_t& position, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> DOMMatrixReadOnly::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
 {
-    bool is_2d = HTML::deserialize_primitive_type<bool>(record, position);
+    bool is_2d = serialized.decode<bool>();
+
     // 1. If serialized.[[Is2D]] is true:
     if (is_2d) {
         // 1. Set value’s m11 element to serialized.[[M11]].
-        double m11 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m11 = serialized.decode<double>();
         // 2. Set value’s m12 element to serialized.[[M12]].
-        double m12 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m12 = serialized.decode<double>();
         // 3. Set value’s m13 element to 0.
         // 4. Set value’s m14 element to 0.
         // 5. Set value’s m21 element to serialized.[[M21]].
-        double m21 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m21 = serialized.decode<double>();
         // 6. Set value’s m22 element to serialized.[[M22]].
-        double m22 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m22 = serialized.decode<double>();
         // 7. Set value’s m23 element to 0.
         // 8. Set value’s m24 element to 0.
         // 9. Set value’s m31 element to 0.
@@ -785,9 +788,9 @@ WebIDL::ExceptionOr<void> DOMMatrixReadOnly::deserialization_steps(ReadonlySpan<
         // 11. Set value’s m33 element to 1.
         // 12. Set value’s m34 element to 0.
         // 13. Set value’s m41 element to serialized.[[M41]].
-        double m41 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m41 = serialized.decode<double>();
         // 14 Set value’s m42 element to serialized.[[M42]].
-        double m42 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m42 = serialized.decode<double>();
         // 15. Set value’s m43 element to 0.
         // 16. Set value’s m44 element to 1.
         // 17. Set value’s is 2D to true.
@@ -797,41 +800,42 @@ WebIDL::ExceptionOr<void> DOMMatrixReadOnly::deserialization_steps(ReadonlySpan<
     // 2. Otherwise:
     else {
         // 1. Set value’s m11 element to serialized.[[M11]].
-        double m11 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m11 = serialized.decode<double>();
         // 2. Set value’s m12 element to serialized.[[M12]].
-        double m12 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m12 = serialized.decode<double>();
         // 3. Set value’s m13 element to serialized.[[M13]].
-        double m13 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m13 = serialized.decode<double>();
         // 4. Set value’s m14 element to serialized.[[M14]].
-        double m14 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m14 = serialized.decode<double>();
         // 5. Set value’s m21 element to serialized.[[M21]].
-        double m21 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m21 = serialized.decode<double>();
         // 6. Set value’s m22 element to serialized.[[M22]].
-        double m22 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m22 = serialized.decode<double>();
         // 7. Set value’s m23 element to serialized.[[M23]].
-        double m23 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m23 = serialized.decode<double>();
         // 8. Set value’s m24 element to serialized.[[M24]].
-        double m24 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m24 = serialized.decode<double>();
         // 9. Set value’s m31 element to serialized.[[M31]].
-        double m31 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m31 = serialized.decode<double>();
         // 10. Set value’s m32 element to serialized.[[M32]].
-        double m32 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m32 = serialized.decode<double>();
         // 11. Set value’s m33 element to serialized.[[M33]].
-        double m33 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m33 = serialized.decode<double>();
         // 12. Set value’s m34 element to serialized.[[M34]].
-        double m34 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m34 = serialized.decode<double>();
         // 13. Set value’s m41 element to serialized.[[M41]].
-        double m41 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m41 = serialized.decode<double>();
         // 14. Set value’s m42 element to serialized.[[M42]].
-        double m42 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m42 = serialized.decode<double>();
         // 15. Set value’s m43 element to serialized.[[M43]].
-        double m43 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m43 = serialized.decode<double>();
         // 16. Set value’s m44 element to serialized.[[M44]].
-        double m44 = HTML::deserialize_primitive_type<double>(record, position);
+        auto m44 = serialized.decode<double>();
         // 17. Set value’s is 2D to false.
 
         initialize_from_create_3d_matrix(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44);
     }
+
     return {};
 }
 

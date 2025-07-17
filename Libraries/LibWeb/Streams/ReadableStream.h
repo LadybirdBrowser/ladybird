@@ -117,8 +117,8 @@ public:
     GC::Ptr<WebIDL::ArrayBufferView> current_byob_request_view();
 
     // ^Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataHolder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::ReadableStream; }
 
 private:
