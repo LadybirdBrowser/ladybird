@@ -104,12 +104,6 @@
     {
       "name": "angle",
       "buildsystem": "simple",
-      "build-options": {
-        "build-args": [
-          "--share=network"
-        ],
-        "append-path": "/run/build/angle/angle/third_party/depot_tools"
-      },
       "build-commands": [
         "./angle-checkout.sh",
         "./angle-configure.sh",
@@ -220,7 +214,6 @@
         {
           "type": "script",
           "commands": [
-            "cipd ensure -root angle -ensure-file angle.ensure",
             "./hooks.sh"
           ],
           "dest-filename": "angle-checkout.sh"
