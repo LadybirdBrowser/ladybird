@@ -7,6 +7,7 @@
 #include <LibIPC/File.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TransformStreamPrototype.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>

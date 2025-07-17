@@ -8,7 +8,6 @@
 
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Bindings {

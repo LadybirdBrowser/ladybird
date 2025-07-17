@@ -12,7 +12,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/StructuredSerializeTypes.h>
 
 namespace Web::HTML {
 

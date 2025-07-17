@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/NavigationDestinationPrototype.h>
 #include <LibWeb/HTML/NavigationDestination.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::HTML {
 
