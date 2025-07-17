@@ -29,6 +29,7 @@ public:
     FlyString const& syntax() const { return m_syntax; }
     bool inherits() const { return m_inherits; }
     Optional<String> initial_value() const;
+    RefPtr<CSSStyleValue const> initial_style_value() const { return m_initial_value; }
 
 private:
     CSSPropertyRule(JS::Realm&, FlyString name, FlyString syntax, bool inherits, RefPtr<CSSStyleValue const> initial_value);
