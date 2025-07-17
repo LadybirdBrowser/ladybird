@@ -3841,9 +3841,9 @@ WebIDL::ExceptionOr<void> Document::set_domain(String const& domain)
 
     // FIXME: 6. If the surrounding agent's agent cluster's is origin-keyed is true, then return.
 
-    // FIXME: 7. Set this's origin's domain to the result of parsing the given value.
+    // 7. Set this's origin's domain to the result of parsing the given value.
+    m_origin = URL::Origin(m_origin.scheme(), m_origin.host(), m_origin.port(), URL::Parser::parse_host(domain));
 
-    dbgln("(STUBBED) Document::set_domain(domain='{}')", domain);
     return {};
 }
 
