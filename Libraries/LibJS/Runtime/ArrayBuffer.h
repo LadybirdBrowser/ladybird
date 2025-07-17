@@ -59,9 +59,9 @@ class JS_API ArrayBuffer : public Object {
     GC_DECLARE_ALLOCATOR(ArrayBuffer);
 
 public:
-    static ThrowCompletionOr<GC::Ref<ArrayBuffer>> create(Realm&, size_t);
-    static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer);
-    static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer*);
+    static ThrowCompletionOr<GC::Ref<ArrayBuffer>> create(Realm&, size_t, DataBlock::Shared = DataBlock::Shared::No);
+    static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer, DataBlock::Shared = DataBlock::Shared::No);
+    static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer*, DataBlock::Shared = DataBlock::Shared::No);
 
     virtual ~ArrayBuffer() override = default;
 
@@ -132,8 +132,8 @@ public:
     Value get_modify_set_value(size_t byte_index, Value value, ReadWriteModifyFunction operation, bool is_little_endian = true);
 
 private:
-    ArrayBuffer(ByteBuffer buffer, Object& prototype);
-    ArrayBuffer(ByteBuffer* buffer, Object& prototype);
+    ArrayBuffer(ByteBuffer buffer, DataBlock::Shared, Object& prototype);
+    ArrayBuffer(ByteBuffer* buffer, DataBlock::Shared, Object& prototype);
 
     virtual void visit_edges(Visitor&) override;
 

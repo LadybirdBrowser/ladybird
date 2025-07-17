@@ -13,35 +13,42 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(ArrayBuffer);
 
-ThrowCompletionOr<GC::Ref<ArrayBuffer>> ArrayBuffer::create(Realm& realm, size_t byte_length)
+static GC::Ref<Object> prototype_for_shared_state(Realm& realm, DataBlock::Shared is_shared)
+{
+    return is_shared == DataBlock::Shared::No
+        ? realm.intrinsics().array_buffer_prototype()
+        : realm.intrinsics().shared_array_buffer_prototype();
+}
+
+ThrowCompletionOr<GC::Ref<ArrayBuffer>> ArrayBuffer::create(Realm& realm, size_t byte_length, DataBlock::Shared is_shared)
 {
     auto buffer = ByteBuffer::create_zeroed(byte_length);
     if (buffer.is_error())
         return realm.vm().throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, byte_length);
 
-    return realm.create<ArrayBuffer>(buffer.release_value(), realm.intrinsics().array_buffer_prototype());
+    return realm.create<ArrayBuffer>(buffer.release_value(), is_shared, prototype_for_shared_state(realm, is_shared));
 }
 
-GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, ByteBuffer buffer)
+GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, ByteBuffer buffer, DataBlock::Shared is_shared)
 {
-    return realm.create<ArrayBuffer>(move(buffer), realm.intrinsics().array_buffer_prototype());
+    return realm.create<ArrayBuffer>(move(buffer), is_shared, prototype_for_shared_state(realm, is_shared));
 }
 
-GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, ByteBuffer* buffer)
+GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, ByteBuffer* buffer, DataBlock::Shared is_shared)
 {
-    return realm.create<ArrayBuffer>(buffer, realm.intrinsics().array_buffer_prototype());
+    return realm.create<ArrayBuffer>(buffer, is_shared, prototype_for_shared_state(realm, is_shared));
 }
 
-ArrayBuffer::ArrayBuffer(ByteBuffer buffer, Object& prototype)
+ArrayBuffer::ArrayBuffer(ByteBuffer buffer, DataBlock::Shared is_shared, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
-    , m_data_block(DataBlock { move(buffer), DataBlock::Shared::No })
+    , m_data_block(DataBlock { move(buffer), is_shared })
     , m_detach_key(js_undefined())
 {
 }
 
-ArrayBuffer::ArrayBuffer(ByteBuffer* buffer, Object& prototype)
+ArrayBuffer::ArrayBuffer(ByteBuffer* buffer, DataBlock::Shared is_shared, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
-    , m_data_block(DataBlock { buffer, DataBlock::Shared::No })
+    , m_data_block(DataBlock { buffer, is_shared })
     , m_detach_key(js_undefined())
 {
 }
@@ -156,7 +163,7 @@ ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM& vm, FunctionObject& co
     }
 
     // 4. Let obj be ? OrdinaryCreateFromConstructor(constructor, "%ArrayBuffer.prototype%", slots).
-    auto obj = TRY(ordinary_create_from_constructor<ArrayBuffer>(vm, constructor, &Intrinsics::array_buffer_prototype, nullptr));
+    auto obj = TRY(ordinary_create_from_constructor<ArrayBuffer>(vm, constructor, &Intrinsics::array_buffer_prototype, nullptr, DataBlock::Shared::No));
 
     // 5. Let block be ? CreateByteDataBlock(byteLength).
     auto block = TRY(create_byte_data_block(vm, byte_length));
@@ -305,7 +312,7 @@ ThrowCompletionOr<Optional<size_t>> get_array_buffer_max_byte_length_option(VM& 
 ThrowCompletionOr<GC::Ref<ArrayBuffer>> allocate_shared_array_buffer(VM& vm, FunctionObject& constructor, size_t byte_length)
 {
     // 1. Let obj be ? OrdinaryCreateFromConstructor(constructor, "%SharedArrayBuffer.prototype%", « [[ArrayBufferData]], [[ArrayBufferByteLength]] »).
-    auto obj = TRY(ordinary_create_from_constructor<ArrayBuffer>(vm, constructor, &Intrinsics::shared_array_buffer_prototype, nullptr));
+    auto obj = TRY(ordinary_create_from_constructor<ArrayBuffer>(vm, constructor, &Intrinsics::shared_array_buffer_prototype, nullptr, DataBlock::Shared::Yes));
 
     // 2. Let block be ? CreateSharedByteDataBlock(byteLength).
     auto block = TRY(create_shared_byte_data_block(vm, byte_length));
