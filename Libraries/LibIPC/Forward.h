@@ -10,6 +10,7 @@
 
 namespace IPC {
 
+class AutoCloseFileDescriptor;
 class Decoder;
 class Encoder;
 class Message;
@@ -22,5 +23,8 @@ ErrorOr<void> encode(Encoder&, T const&);
 
 template<typename T>
 ErrorOr<T> decode(Decoder&);
+
+using MessageDataType = Vector<u8, 1024>;
+using MessageFileType = Vector<NonnullRefPtr<AutoCloseFileDescriptor>, 1>;
 
 }

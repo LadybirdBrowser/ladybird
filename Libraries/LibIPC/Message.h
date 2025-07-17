@@ -10,6 +10,7 @@
 #include <AK/Error.h>
 #include <AK/Vector.h>
 #include <LibIPC/AutoCloseFileDescriptor.h>
+#include <LibIPC/Forward.h>
 #include <LibIPC/Transport.h>
 
 namespace IPC {
@@ -18,7 +19,7 @@ class MessageBuffer {
 public:
     MessageBuffer();
 
-    MessageBuffer(Vector<u8, 1024> data, Vector<NonnullRefPtr<AutoCloseFileDescriptor>, 1> fds)
+    MessageBuffer(MessageDataType data, MessageFileType fds)
         : m_data(move(data))
         , m_fds(move(fds))
     {
@@ -29,14 +30,19 @@ public:
 
     ErrorOr<void> append_file_descriptor(int fd);
 
+    ErrorOr<void> extend(MessageBuffer&& buffer);
+
     ErrorOr<void> transfer_message(Transport& transport);
 
-    auto const& data() const { return m_data; }
-    auto take_fds() { return move(m_fds); }
+    MessageDataType const& data() const { return m_data; }
+    MessageDataType take_data() { return move(m_data); }
+
+    MessageFileType const& fds() const { return m_fds; }
+    MessageFileType take_fds() { return move(m_fds); }
 
 private:
-    Vector<u8, 1024> m_data;
-    Vector<NonnullRefPtr<AutoCloseFileDescriptor>, 1> m_fds;
+    MessageDataType m_data;
+    MessageFileType m_fds;
 #ifdef AK_OS_WINDOWS
     Vector<size_t> m_handle_offsets;
 #endif
