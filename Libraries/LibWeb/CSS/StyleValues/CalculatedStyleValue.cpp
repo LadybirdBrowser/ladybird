@@ -3269,7 +3269,7 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
                     if (length.is_absolute())
                         return NumericCalculationNode::create(Length::make_px(length.absolute_length_to_px()).percentage_of(*percentage), context);
                     if (resolution_context.length_resolution_context.has_value())
-                        return NumericCalculationNode::create(Length::make_px(length.to_px(resolution_context.length_resolution_context.value())), context);
+                        return NumericCalculationNode::create(Length::make_px(length.to_px(resolution_context.length_resolution_context.value())).percentage_of(*percentage), context);
                     return nullptr;
                 },
                 [&](Time const& time) -> RefPtr<NumericCalculationNode const> {
