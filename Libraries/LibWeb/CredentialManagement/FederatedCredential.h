@@ -10,10 +10,13 @@
 #include <LibWeb/Bindings/FederatedCredentialPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CredentialManagement/Credential.h>
+#include <LibWeb/CredentialManagement/CredentialUserData.h>
 
 namespace Web::CredentialManagement {
 
-class FederatedCredential final : public Credential {
+class FederatedCredential final
+    : public Credential
+    , public CredentialUserData {
     WEB_PLATFORM_OBJECT(FederatedCredential, Credential);
     GC_DECLARE_ALLOCATOR(FederatedCredential);
 
