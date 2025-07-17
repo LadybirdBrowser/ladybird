@@ -24,8 +24,6 @@ public:
     virtual ~Credential() override;
 
     String const& id() { return m_id; }
-    String const& name() { return m_name; }
-    String const& icon_url() { return m_icon_url; }
 
     virtual String type() = 0;
 
@@ -35,8 +33,6 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
     String m_id;
-    String m_name;
-    String m_icon_url;
 };
 
 struct CredentialData {
