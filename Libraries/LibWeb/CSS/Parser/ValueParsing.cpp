@@ -2965,6 +2965,25 @@ RefPtr<CSSStyleValue const> Parser::parse_basic_shape_value(TokenStream<Componen
 
     auto function_name = component_value.function().name.bytes_as_string_view();
 
+    auto parse_fill_rule_argument = [](Vector<ComponentValue> const& component_values) -> Optional<Gfx::WindingRule> {
+        TokenStream tokens { component_values };
+
+        tokens.discard_whitespace();
+        auto& maybe_ident = tokens.consume_a_token();
+        tokens.discard_whitespace();
+
+        if (tokens.has_next_token())
+            return {};
+
+        if (maybe_ident.is_ident("nonzero"sv))
+            return Gfx::WindingRule::Nonzero;
+
+        if (maybe_ident.is_ident("evenodd"sv))
+            return Gfx::WindingRule::EvenOdd;
+
+        return {};
+    };
+
     // FIXME: Implement path(). See: https://www.w3.org/TR/css-shapes-1/#basic-shape-functions
     if (function_name.equals_ignoring_ascii_case("inset"sv)) {
         // inset() = inset( <length-percentage>{1,4} [ round <'border-radius'> ]? )
@@ -3147,21 +3166,9 @@ RefPtr<CSSStyleValue const> Parser::parse_basic_shape_value(TokenStream<Componen
             return nullptr;
 
         Optional<Gfx::WindingRule> fill_rule;
-        auto const& first_argument = arguments[0];
-        TokenStream first_argument_tokens { first_argument };
-
-        first_argument_tokens.discard_whitespace();
-        if (first_argument_tokens.next_token().is_ident("nonzero"sv)) {
-            fill_rule = Gfx::WindingRule::Nonzero;
-        } else if (first_argument_tokens.next_token().is_ident("evenodd"sv)) {
-            fill_rule = Gfx::WindingRule::EvenOdd;
-        }
+        fill_rule = parse_fill_rule_argument(arguments[0]);
 
         if (fill_rule.has_value()) {
-            first_argument_tokens.discard_a_token();
-            if (first_argument_tokens.has_next_token())
-                return nullptr;
-
             arguments.remove(0);
         } else {
             fill_rule = Gfx::WindingRule::Nonzero;
@@ -3193,6 +3200,39 @@ RefPtr<CSSStyleValue const> Parser::parse_basic_shape_value(TokenStream<Componen
 
         transaction.commit();
         return BasicShapeStyleValue::create(Polygon { fill_rule.value(), move(points) });
+    }
+
+    if (function_name.equals_ignoring_ascii_case("path"sv)) {
+        // <path()> = path( <'fill-rule'>?, <string> )
+        auto arguments_tokens = TokenStream { component_value.function().value };
+        auto arguments = parse_a_comma_separated_list_of_component_values(arguments_tokens);
+
+        if (arguments.size() < 1 || arguments.size() > 2)
+            return nullptr;
+
+        // <'fill-rule'>?
+        Gfx::WindingRule fill_rule { Gfx::WindingRule::Nonzero };
+        if (arguments.size() == 2) {
+            auto maybe_fill_rule = parse_fill_rule_argument(arguments[0]);
+            if (!maybe_fill_rule.has_value())
+                return nullptr;
+            fill_rule = maybe_fill_rule.release_value();
+        }
+
+        // <string>, which is a path string
+        TokenStream path_argument_tokens { arguments.last() };
+        path_argument_tokens.discard_whitespace();
+        auto& maybe_string = path_argument_tokens.consume_a_token();
+        path_argument_tokens.discard_whitespace();
+
+        if (!maybe_string.is(Token::Type::String) || path_argument_tokens.has_next_token())
+            return nullptr;
+        auto path_data = SVG::AttributeParser::parse_path_data(maybe_string.token().string().to_string());
+        if (path_data.instructions().is_empty())
+            return nullptr;
+
+        transaction.commit();
+        return BasicShapeStyleValue::create(Path { fill_rule, move(path_data) });
     }
 
     return nullptr;
