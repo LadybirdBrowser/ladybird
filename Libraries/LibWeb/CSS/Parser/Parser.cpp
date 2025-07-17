@@ -145,6 +145,13 @@ GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_r
 
             m_declared_namespaces.set(as<CSSNamespaceRule>(*rule).prefix());
             break;
+        case CSSRule::Type::Property: {
+            auto& property_rule = as<CSSPropertyRule>(*rule);
+            if (m_document) {
+                const_cast<DOM::Document*>(m_document.ptr())->registered_custom_properties().set(property_rule.name(), property_rule);
+            }
+            [[fallthrough]];
+        }
         default:
             import_rules_valid = false;
             namespace_rules_valid = false;

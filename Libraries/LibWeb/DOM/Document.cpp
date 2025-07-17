@@ -46,6 +46,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/TransitionEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
@@ -620,6 +621,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_render_blocking_elements);
     visitor.visit(m_policy_container);
     visitor.visit(m_style_invalidator);
+    visitor.visit(m_registered_custom_properties);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -6574,6 +6576,26 @@ String Document::dump_display_list()
     if (!display_list)
         return {};
     return display_list->dump();
+}
+
+HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>>& Document::registered_custom_properties()
+{
+    return m_registered_custom_properties;
+}
+
+NonnullRefPtr<CSS::CSSStyleValue const> Document::custom_property_initial_value(FlyString const& name) const
+{
+    auto maybe_custom_property = m_registered_custom_properties.get(name);
+    if (maybe_custom_property.has_value()) {
+        auto parsed_value = maybe_custom_property.value()->initial_style_value();
+        if (!parsed_value)
+            return CSS::GuaranteedInvalidStyleValue::create();
+        return parsed_value.release_nonnull();
+    }
+
+    // For non-registered properties, the initial value is the guaranteed-invalid value.
+    // See: https://drafts.csswg.org/css-variables/#propdef-
+    return CSS::GuaranteedInvalidStyleValue::create();
 }
 
 GC::Ptr<Element> ElementByIdMap::get(FlyString const& element_id) const

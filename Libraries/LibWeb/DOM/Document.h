@@ -21,6 +21,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibUnicode/Forward.h>
+#include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/Cookie/Cookie.h>
@@ -905,6 +906,11 @@ public:
 
     StyleInvalidator& style_invalidator() { return m_style_invalidator; }
 
+    // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
+    HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>>& registered_custom_properties();
+
+    NonnullRefPtr<CSS::CSSStyleValue const> custom_property_initial_value(FlyString const& name) const;
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1265,6 +1271,9 @@ private:
     HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
 
     GC::Ref<StyleInvalidator> m_style_invalidator;
+
+    // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
+    HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>> m_registered_custom_properties;
 };
 
 template<>
