@@ -36,6 +36,8 @@ struct PathInstruction {
 
     bool operator==(PathInstruction const&) const = default;
 
+    void serialize(StringBuilder&) const;
+
     void dump() const;
 };
 
@@ -50,6 +52,7 @@ public:
     ReadonlySpan<PathInstruction> instructions() const { return m_instructions; }
 
     [[nodiscard]] Gfx::Path to_gfx_path() const;
+    String serialize() const;
 
     bool operator==(Path const&) const = default;
 

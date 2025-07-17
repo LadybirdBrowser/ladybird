@@ -8,10 +8,53 @@
 
 #include <AK/Debug.h>
 #include <AK/Span.h>
+#include <AK/String.h>
 #include <LibGfx/Path.h>
 #include <LibWeb/SVG/Path.h>
 
 namespace Web::SVG {
+
+void PathInstruction::serialize(StringBuilder& builder) const
+{
+    switch (type) {
+    case PathInstructionType::Move:
+        builder.append(absolute ? 'M' : 'm');
+        break;
+    case PathInstructionType::ClosePath:
+        // NB: This is always canonicalized as Z, not z.
+        builder.append('Z');
+        break;
+    case PathInstructionType::Line:
+        builder.append(absolute ? 'L' : 'l');
+        break;
+    case PathInstructionType::HorizontalLine:
+        builder.append(absolute ? 'H' : 'h');
+        break;
+    case PathInstructionType::VerticalLine:
+        builder.append(absolute ? 'V' : 'v');
+        break;
+    case PathInstructionType::Curve:
+        builder.append(absolute ? 'C' : 'c');
+        break;
+    case PathInstructionType::SmoothCurve:
+        builder.append(absolute ? 'S' : 's');
+        break;
+    case PathInstructionType::QuadraticBezierCurve:
+        builder.append(absolute ? 'Q' : 'q');
+        break;
+    case PathInstructionType::SmoothQuadraticBezierCurve:
+        builder.append(absolute ? 'T' : 't');
+        break;
+    case PathInstructionType::EllipticalArc:
+        builder.append(absolute ? 'A' : 'a');
+        break;
+    case PathInstructionType::Invalid:
+        break;
+    }
+
+    for (auto const& value : data)
+        builder.appendff(" {}", value);
+}
 
 void PathInstruction::dump() const
 {
@@ -243,6 +286,21 @@ Gfx::Path Path::to_gfx_path() const
     }
 
     return path;
+}
+
+String Path::serialize() const
+{
+    StringBuilder builder;
+    bool first = true;
+    for (auto const& instruction : m_instructions) {
+        if (first) {
+            first = false;
+        } else {
+            builder.append(' ');
+        }
+        instruction.serialize(builder);
+    }
+    return builder.to_string_without_validation();
 }
 
 }
