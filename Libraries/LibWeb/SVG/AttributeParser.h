@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
- * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -12,28 +12,9 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/Point.h>
+#include <LibWeb/SVG/Path.h>
 
 namespace Web::SVG {
-
-enum class PathInstructionType {
-    Move,
-    ClosePath,
-    Line,
-    HorizontalLine,
-    VerticalLine,
-    Curve,
-    SmoothCurve,
-    QuadraticBezierCurve,
-    SmoothQuadraticBezierCurve,
-    EllipticalArc,
-    Invalid,
-};
-
-struct PathInstruction {
-    PathInstructionType type;
-    bool absolute;
-    Vector<float> data;
-};
 
 struct Transform {
     struct Translate {
@@ -154,7 +135,7 @@ public:
     static Optional<NumberPercentage> parse_number_percentage(StringView input);
     static Optional<float> parse_positive_length(StringView input);
     static Vector<Gfx::FloatPoint> parse_points(StringView input);
-    static Vector<PathInstruction> parse_path_data(StringView input);
+    static Path parse_path_data(StringView input);
     static Optional<Vector<Transform>> parse_transform(StringView input);
     static Optional<PreserveAspectRatio> parse_preserve_aspect_ratio(StringView input);
     static Optional<SVGUnits> parse_units(StringView input);
