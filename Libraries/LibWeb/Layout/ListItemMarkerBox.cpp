@@ -52,6 +52,9 @@ Optional<String> ListItemMarkerBox::text() const
             case CSS::CounterStyleNameKeyword::UpperLatin:
                 text = String::bijective_base_from(index - 1, String::Case::Upper);
                 break;
+            case CSS::CounterStyleNameKeyword::LowerGreek:
+                text = String::greek_letter_from(index);
+                break;
             case CSS::CounterStyleNameKeyword::LowerRoman:
                 text = String::roman_number_from(index, String::Case::Lower);
                 break;
