@@ -16,7 +16,7 @@ namespace Web::IndexedDB {
 
 // https://www.w3.org/TR/IndexedDB/#database-construct
 class Database : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Database, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(Database, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(Database);
 
 public:

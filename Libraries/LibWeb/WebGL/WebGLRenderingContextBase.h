@@ -37,7 +37,7 @@ static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 using TexImageSource = Variant<GC::Root<HTML::ImageBitmap>, GC::Root<HTML::ImageData>, GC::Root<HTML::HTMLImageElement>, GC::Root<HTML::HTMLCanvasElement>, GC::Root<HTML::OffscreenCanvas>, GC::Root<HTML::HTMLVideoElement>>;
 
 class WebGLRenderingContextBase : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLRenderingContextBase, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextBase, Bindings::PlatformObject);
 
 public:
     using Float32List = Variant<GC::Root<JS::Float32Array>, Vector<float>>;

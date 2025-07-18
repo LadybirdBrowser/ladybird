@@ -34,7 +34,7 @@ class TestEnvironmentClass : JS::Environment {
 
 class TestPlatformClass : Web::Bindings::PlatformObject {
     // expected-error@+1 {{Expected first argument of WEB_PLATFORM_OBJECT macro invocation to be TestPlatformClass}}
-    WEB_PLATFORM_OBJECT(bad, Web::Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(bad, Web::Bindings::PlatformObject);
 };
 
 struct Outer {

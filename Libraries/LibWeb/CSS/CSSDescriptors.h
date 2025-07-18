@@ -14,7 +14,7 @@ namespace Web::CSS {
 
 // A non-spec base class for descriptor-list classes
 class CSSDescriptors : public CSSStyleDeclaration {
-    WEB_PLATFORM_OBJECT(CSSDescriptors, CSSStyleDeclaration);
+    WEB_NON_IDL_PLATFORM_OBJECT(CSSDescriptors, CSSStyleDeclaration);
 
 public:
     virtual ~CSSDescriptors() override;

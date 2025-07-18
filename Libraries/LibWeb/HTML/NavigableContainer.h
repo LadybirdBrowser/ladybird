@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class WEB_API NavigableContainer : public HTMLElement {
-    WEB_PLATFORM_OBJECT(NavigableContainer, HTMLElement);
+    WEB_NON_IDL_PLATFORM_OBJECT(NavigableContainer, HTMLElement);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;

@@ -12,7 +12,7 @@
 namespace Web::XHR {
 
 class FormDataIterator : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(FormDataIterator, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(FormDataIterator, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(FormDataIterator);
 
 public:
