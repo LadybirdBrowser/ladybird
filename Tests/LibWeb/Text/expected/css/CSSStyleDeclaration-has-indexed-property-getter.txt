@@ -189,6 +189,7 @@ All properties associated with getComputedStyle(document.body):
     "mask-composite",
     "mask-image",
     "mask-mode",
+    "mask-position",
     "mask-type",
     "max-block-size",
     "max-height",
