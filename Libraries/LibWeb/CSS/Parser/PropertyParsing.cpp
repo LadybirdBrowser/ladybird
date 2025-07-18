@@ -20,7 +20,6 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
@@ -50,6 +49,7 @@
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
@@ -476,7 +476,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BackgroundRepeat:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_single_background_repeat_value(tokens); }))
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); }))
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BackgroundSize:
@@ -1252,9 +1252,10 @@ RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<Component
         if (!value_and_property.has_value())
             return nullptr;
         auto& value = value_and_property->style_value;
-        remove_property(remaining_layer_properties, value_and_property->property);
+        auto property = value_and_property->property;
+        remove_property(remaining_layer_properties, property);
 
-        switch (value_and_property->property) {
+        switch (property) {
         case PropertyID::BackgroundAttachment:
             VERIFY(!background_attachment);
             background_attachment = value.release_nonnull();
@@ -1306,7 +1307,7 @@ RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<Component
         case PropertyID::BackgroundRepeat: {
             VERIFY(!background_repeat);
             tokens.reconsume_current_input_token();
-            if (auto maybe_repeat = parse_single_background_repeat_value(tokens)) {
+            if (auto maybe_repeat = parse_single_repeat_style_value(property, tokens)) {
                 background_repeat = maybe_repeat.release_nonnull();
                 continue;
             }
@@ -1446,66 +1447,6 @@ RefPtr<CSSStyleValue const> Parser::parse_single_background_position_x_or_y_valu
     // If no offset is provided create this element but with an offset of default value of zero
     transaction.commit();
     return EdgeStyleValue::create(relative_edge, {});
-}
-
-RefPtr<CSSStyleValue const> Parser::parse_single_background_repeat_value(TokenStream<ComponentValue>& tokens)
-{
-    auto transaction = tokens.begin_transaction();
-
-    auto is_directional_repeat = [](CSSStyleValue const& value) -> bool {
-        auto keyword = value.to_keyword();
-        return keyword == Keyword::RepeatX || keyword == Keyword::RepeatY;
-    };
-
-    auto as_repeat = [](Keyword keyword) -> Optional<Repeat> {
-        switch (keyword) {
-        case Keyword::NoRepeat:
-            return Repeat::NoRepeat;
-        case Keyword::Repeat:
-            return Repeat::Repeat;
-        case Keyword::Round:
-            return Repeat::Round;
-        case Keyword::Space:
-            return Repeat::Space;
-        default:
-            return {};
-        }
-    };
-
-    auto maybe_x_value = parse_css_value_for_property(PropertyID::BackgroundRepeat, tokens);
-    if (!maybe_x_value)
-        return nullptr;
-    auto x_value = maybe_x_value.release_nonnull();
-
-    if (is_directional_repeat(*x_value)) {
-        auto keyword = x_value->to_keyword();
-        transaction.commit();
-        return BackgroundRepeatStyleValue::create(
-            keyword == Keyword::RepeatX ? Repeat::Repeat : Repeat::NoRepeat,
-            keyword == Keyword::RepeatX ? Repeat::NoRepeat : Repeat::Repeat);
-    }
-
-    auto x_repeat = as_repeat(x_value->to_keyword());
-    if (!x_repeat.has_value())
-        return nullptr;
-
-    // See if we have a second value for Y
-    auto maybe_y_value = parse_css_value_for_property(PropertyID::BackgroundRepeat, tokens);
-    if (!maybe_y_value) {
-        // We don't have a second value, so use x for both
-        transaction.commit();
-        return BackgroundRepeatStyleValue::create(x_repeat.value(), x_repeat.value());
-    }
-    auto y_value = maybe_y_value.release_nonnull();
-    if (is_directional_repeat(*y_value))
-        return nullptr;
-
-    auto y_repeat = as_repeat(y_value->to_keyword());
-    if (!y_repeat.has_value())
-        return nullptr;
-
-    transaction.commit();
-    return BackgroundRepeatStyleValue::create(x_repeat.value(), y_repeat.value());
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(TokenStream<ComponentValue>& tokens)
@@ -3762,6 +3703,66 @@ RefPtr<CSSStyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValu
 
     transaction.commit();
     return StyleValueList::create(move(string_values), StyleValueList::Separator::Space);
+}
+
+RefPtr<CSSStyleValue const> Parser::parse_single_repeat_style_value(PropertyID property, TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+
+    auto is_directional_repeat = [](CSSStyleValue const& value) -> bool {
+        auto keyword = value.to_keyword();
+        return keyword == Keyword::RepeatX || keyword == Keyword::RepeatY;
+    };
+
+    auto as_repeat = [](Keyword keyword) -> Optional<Repetition> {
+        switch (keyword) {
+        case Keyword::NoRepeat:
+            return Repetition::NoRepeat;
+        case Keyword::Repeat:
+            return Repetition::Repeat;
+        case Keyword::Round:
+            return Repetition::Round;
+        case Keyword::Space:
+            return Repetition::Space;
+        default:
+            return {};
+        }
+    };
+
+    auto maybe_x_value = parse_css_value_for_property(property, tokens);
+    if (!maybe_x_value)
+        return nullptr;
+    auto x_value = maybe_x_value.release_nonnull();
+
+    if (is_directional_repeat(*x_value)) {
+        auto keyword = x_value->to_keyword();
+        transaction.commit();
+        return RepeatStyleStyleValue::create(
+            keyword == Keyword::RepeatX ? Repetition::Repeat : Repetition::NoRepeat,
+            keyword == Keyword::RepeatX ? Repetition::NoRepeat : Repetition::Repeat);
+    }
+
+    auto x_repeat = as_repeat(x_value->to_keyword());
+    if (!x_repeat.has_value())
+        return nullptr;
+
+    // See if we have a second value for Y
+    auto maybe_y_value = parse_css_value_for_property(property, tokens);
+    if (!maybe_y_value) {
+        // We don't have a second value, so use x for both
+        transaction.commit();
+        return RepeatStyleStyleValue::create(x_repeat.value(), x_repeat.value());
+    }
+    auto y_value = maybe_y_value.release_nonnull();
+    if (is_directional_repeat(*y_value))
+        return nullptr;
+
+    auto y_repeat = as_repeat(y_value->to_keyword());
+    if (!y_repeat.has_value())
+        return nullptr;
+
+    transaction.commit();
+    return RepeatStyleStyleValue::create(x_repeat.value(), y_repeat.value());
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_text_decoration_value(TokenStream<ComponentValue>& tokens)

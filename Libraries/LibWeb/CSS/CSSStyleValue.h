@@ -102,10 +102,9 @@ public:
         Anchor,
         AnchorSize,
         Angle,
-        BackgroundRepeat,
         BackgroundSize,
-        BorderImageSlice,
         BasicShape,
+        BorderImageSlice,
         BorderRadius,
         Calculated,
         Color,
@@ -144,6 +143,7 @@ public:
         RadialGradient,
         Ratio,
         Rect,
+        RepeatStyle,
         Resolution,
         ScrollbarColor,
         ScrollbarGutter,
@@ -179,10 +179,6 @@ public:
     bool is_angle() const { return type() == Type::Angle; }
     AngleStyleValue const& as_angle() const;
     AngleStyleValue& as_angle() { return const_cast<AngleStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_angle()); }
-
-    bool is_background_repeat() const { return type() == Type::BackgroundRepeat; }
-    BackgroundRepeatStyleValue const& as_background_repeat() const;
-    BackgroundRepeatStyleValue& as_background_repeat() { return const_cast<BackgroundRepeatStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_background_repeat()); }
 
     bool is_background_size() const { return type() == Type::BackgroundSize; }
     BackgroundSizeStyleValue const& as_background_size() const;
@@ -348,6 +344,10 @@ public:
     bool is_rect() const { return type() == Type::Rect; }
     RectStyleValue const& as_rect() const;
     RectStyleValue& as_rect() { return const_cast<RectStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_rect()); }
+
+    bool is_repeat_style() const { return type() == Type::RepeatStyle; }
+    RepeatStyleStyleValue const& as_repeat_style() const;
+    RepeatStyleStyleValue& as_repeat_style() { return const_cast<RepeatStyleStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_repeat_style()); }
 
     bool is_resolution() const { return type() == Type::Resolution; }
     ResolutionStyleValue const& as_resolution() const;

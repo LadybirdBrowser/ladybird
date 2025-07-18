@@ -314,8 +314,8 @@ struct BackgroundLayerData {
     CSS::BackgroundSize size_type { CSS::BackgroundSize::LengthPercentage };
     CSS::LengthPercentage size_x { CSS::Length::make_auto() };
     CSS::LengthPercentage size_y { CSS::Length::make_auto() };
-    CSS::Repeat repeat_x { CSS::Repeat::Repeat };
-    CSS::Repeat repeat_y { CSS::Repeat::Repeat };
+    CSS::Repetition repeat_x { CSS::Repetition::Repeat };
+    CSS::Repetition repeat_y { CSS::Repetition::Repeat };
     CSS::MixBlendMode blend_mode { CSS::MixBlendMode::Normal };
 };
 

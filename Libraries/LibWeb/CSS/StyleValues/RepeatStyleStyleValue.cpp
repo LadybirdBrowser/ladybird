@@ -7,27 +7,27 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "BackgroundRepeatStyleValue.h"
+#include "RepeatStyleStyleValue.h"
 #include <AK/String.h>
 
 namespace Web::CSS {
 
-BackgroundRepeatStyleValue::BackgroundRepeatStyleValue(Repeat repeat_x, Repeat repeat_y)
-    : StyleValueWithDefaultOperators(Type::BackgroundRepeat)
+RepeatStyleStyleValue::RepeatStyleStyleValue(Repetition repeat_x, Repetition repeat_y)
+    : StyleValueWithDefaultOperators(Type::RepeatStyle)
     , m_properties { .repeat_x = repeat_x, .repeat_y = repeat_y }
 {
 }
 
-BackgroundRepeatStyleValue::~BackgroundRepeatStyleValue() = default;
+RepeatStyleStyleValue::~RepeatStyleStyleValue() = default;
 
-String BackgroundRepeatStyleValue::to_string(SerializationMode) const
+String RepeatStyleStyleValue::to_string(SerializationMode) const
 {
     if (m_properties.repeat_x == m_properties.repeat_y)
         return MUST(String::from_utf8(CSS::to_string(m_properties.repeat_x)));
 
-    if (m_properties.repeat_x == Repeat::Repeat && m_properties.repeat_y == Repeat::NoRepeat)
+    if (m_properties.repeat_x == Repetition::Repeat && m_properties.repeat_y == Repetition::NoRepeat)
         return "repeat-x"_string;
-    if (m_properties.repeat_x == Repeat::NoRepeat && m_properties.repeat_y == Repeat::Repeat)
+    if (m_properties.repeat_x == Repetition::NoRepeat && m_properties.repeat_y == Repetition::Repeat)
         return "repeat-y"_string;
 
     return MUST(String::formatted("{} {}", CSS::to_string(m_properties.repeat_x), CSS::to_string(m_properties.repeat_y)));

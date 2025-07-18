@@ -9,7 +9,6 @@
 #include <AK/Demangle.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
@@ -18,6 +17,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
@@ -510,9 +510,9 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                 }
             }
 
-            if (auto repeat_value = value_for_layer(repeats, layer_index); repeat_value && repeat_value->is_background_repeat()) {
-                layer.repeat_x = repeat_value->as_background_repeat().repeat_x();
-                layer.repeat_y = repeat_value->as_background_repeat().repeat_y();
+            if (auto repeat_value = value_for_layer(repeats, layer_index); repeat_value && repeat_value->is_repeat_style()) {
+                layer.repeat_x = repeat_value->as_repeat_style().repeat_x();
+                layer.repeat_y = repeat_value->as_repeat_style().repeat_y();
             }
 
             layer.blend_mode = CSS::keyword_to_mix_blend_mode(value_for_layer(background_blend_modes, layer_index)->to_keyword()).value_or(CSS::MixBlendMode::Normal);
