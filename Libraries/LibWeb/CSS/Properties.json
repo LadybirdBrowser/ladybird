@@ -2413,6 +2413,16 @@
     ],
     "initial": "match-source"
   },
+  "mask-position": {
+    "animation-type": "repeatable-list",
+    "affects-layout": false,
+    "inherited": false,
+    "initial": "0% 0%",
+    "valid-types": [
+      "position"
+    ],
+    "percentages-resolve-to": "length"
+  },
   "mask-type": {
     "animation-type": "discrete",
     "inherited": false,
