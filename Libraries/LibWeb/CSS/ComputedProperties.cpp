@@ -229,7 +229,7 @@ Color ComputedProperties::color_or_fallback(PropertyID id, Layout::NodeWithStyle
     auto const& value = property(id);
     if (!value.has_color())
         return fallback;
-    return value.to_color(node, { .length_resolution_context = Length::ResolutionContext::for_layout_node(node) }).value();
+    return value.to_color(ColorResolutionContext::for_layout_node_with_style(node)).value();
 }
 
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
@@ -450,7 +450,7 @@ Color ComputedProperties::flood_color(Layout::NodeWithStyle const& node) const
 {
     auto const& value = property(PropertyID::FloodColor);
     if (value.has_color()) {
-        return value.to_color(node, { .length_resolution_context = Length::ResolutionContext::for_layout_node(node) }).value();
+        return value.to_color(ColorResolutionContext::for_layout_node_with_style(node)).value();
     }
 
     return InitialValues::flood_color();
@@ -689,7 +689,7 @@ Optional<Color> ComputedProperties::accent_color(Layout::NodeWithStyle const& no
 {
     auto const& value = property(PropertyID::AccentColor);
     if (value.has_color())
-        return value.to_color(node, { .length_resolution_context = Length::ResolutionContext::for_layout_node(node) });
+        return value.to_color(ColorResolutionContext::for_layout_node_with_style(node));
     return {};
 }
 
@@ -943,7 +943,7 @@ Color ComputedProperties::caret_color(Layout::NodeWithStyle const& node) const
         return node.computed_values().color();
 
     if (value.has_color())
-        return value.to_color(node, { .length_resolution_context = Length::ResolutionContext::for_layout_node(node) }).value();
+        return value.to_color(ColorResolutionContext::for_layout_node_with_style(node)).value();
 
     return InitialValues::caret_color();
 }
@@ -1203,7 +1203,7 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
             maybe_offset_y.release_value(),
             maybe_blur_radius.release_value(),
             maybe_spread_distance.release_value(),
-            value.color()->to_color(as<Layout::NodeWithStyle>(layout_node), { .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value(),
+            value.color()->to_color(ColorResolutionContext::for_layout_node_with_style(as<Layout::NodeWithStyle>(layout_node))).value(),
             value.placement()
         };
     };
@@ -1826,7 +1826,7 @@ Color ComputedProperties::stop_color() const
         // FIXME: This is used by the SVGStopElement, which does not participate in layout, so we can't pass a layout
         //        node or CalculationResolutionContext. This means we don't support all valid colors (e.g. palette
         //        colors, calculated values which depend on length resolution, etc)
-        return value->to_color({}, {}).value_or(Color::Black);
+        return value->to_color({}).value_or(Color::Black);
     }
     return Color::Black;
 }
@@ -1910,8 +1910,8 @@ ScrollbarColorData ComputedProperties::scrollbar_color(Layout::NodeWithStyle con
 
     if (value.is_scrollbar_color()) {
         auto& scrollbar_color_value = value.as_scrollbar_color();
-        auto thumb_color = scrollbar_color_value.thumb_color()->to_color(layout_node, { .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value();
-        auto track_color = scrollbar_color_value.track_color()->to_color(layout_node, { .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value();
+        auto thumb_color = scrollbar_color_value.thumb_color()->to_color(ColorResolutionContext::for_layout_node_with_style(layout_node)).value();
+        auto track_color = scrollbar_color_value.track_color()->to_color(ColorResolutionContext::for_layout_node_with_style(layout_node)).value();
         return { thumb_color, track_color };
     }
 

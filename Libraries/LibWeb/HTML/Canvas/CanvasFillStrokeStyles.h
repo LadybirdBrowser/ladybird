@@ -45,14 +45,13 @@ public:
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
                 auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
-                    Optional<Layout::NodeWithStyle const&> layout_node;
-                    CSS::CalculationResolutionContext resolution_context {};
+                    CSS::ColorResolutionContext color_resolution_context {};
+
                     if (context && context->layout_node()) {
-                        layout_node = *context->layout_node();
-                        resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*context->layout_node());
+                        color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*context->layout_node());
                     }
 
-                    auto parsedValue = style_value->to_color(layout_node, resolution_context).value_or(Color::Black);
+                    auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
 
                     // 4. Set this's fill style to parsedValue.
                     my_drawing_state().fill_style = parsedValue;
@@ -98,14 +97,13 @@ public:
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
                 auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
-                    Optional<Layout::NodeWithStyle const&> layout_node;
-                    CSS::CalculationResolutionContext resolution_context {};
+                    CSS::ColorResolutionContext color_resolution_context {};
+
                     if (context && context->layout_node()) {
-                        layout_node = *context->layout_node();
-                        resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*context->layout_node());
+                        color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*context->layout_node());
                     }
 
-                    auto parsedValue = style_value->to_color(layout_node, resolution_context).value_or(Color::Black);
+                    auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
 
                     // 4. Set this's stroke style to parsedValue.
                     my_drawing_state().stroke_style = parsedValue;

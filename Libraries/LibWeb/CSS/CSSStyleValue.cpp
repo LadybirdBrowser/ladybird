@@ -71,8 +71,19 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
+#include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
+
+ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout::NodeWithStyle const& layout_node)
+{
+    return {
+        .color_scheme = layout_node.computed_values().color_scheme(),
+        .current_color = layout_node.computed_values().color(),
+        .document = layout_node.document(),
+        .calculation_resolution_context = { .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) },
+    };
+}
 
 CSSStyleValue::CSSStyleValue(Type type)
     : m_type(type)
