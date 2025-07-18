@@ -3,7 +3,6 @@ source_set("StyleValues") {
   deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
   sources = [
     "AngleStyleValue.cpp",
-    "BackgroundRepeatStyleValue.cpp",
     "BackgroundSizeStyleValue.cpp",
     "BasicShapeStyleValue.cpp",
     "BorderRadiusStyleValue.cpp",
@@ -39,6 +38,7 @@ source_set("StyleValues") {
     "PositionStyleValue.cpp",
     "RadialGradientStyleValue.cpp",
     "RectStyleValue.cpp",
+    "RepeatStyleStyleValue.cpp",
     "ShadowStyleValue.cpp",
     "ShorthandStyleValue.cpp",
     "StyleValueList.cpp",
