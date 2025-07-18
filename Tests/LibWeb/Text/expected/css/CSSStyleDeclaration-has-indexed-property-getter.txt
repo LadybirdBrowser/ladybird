@@ -186,6 +186,7 @@ All properties associated with getComputedStyle(document.body):
     "margin-left",
     "margin-right",
     "margin-top",
+    "mask-composite",
     "mask-image",
     "mask-type",
     "max-block-size",
