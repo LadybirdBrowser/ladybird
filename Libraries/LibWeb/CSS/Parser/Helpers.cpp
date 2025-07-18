@@ -133,4 +133,9 @@ RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const& conte
     return CSS::Parser::Parser::create(context, string).parse_as_supports();
 }
 
+Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const& parsing_params, StringView string)
+{
+    return CSS::Parser::Parser::create(parsing_params, string).parse_as_list_of_component_values();
+}
+
 }
