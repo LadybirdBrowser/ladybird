@@ -838,7 +838,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     do_border_style(computed_values.border_bottom(), CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
 
     if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); outline_color.has_color())
-        computed_values.set_outline_color(outline_color.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
+        computed_values.set_outline_color(outline_color.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
     if (auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset); outline_offset.is_length())
         computed_values.set_outline_offset(outline_offset.as_length().length());
     computed_values.set_outline_style(computed_style.outline_style());
@@ -878,16 +878,16 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     auto const& fill = computed_style.property(CSS::PropertyID::Fill);
     if (fill.has_color())
-        computed_values.set_fill(fill.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
+        computed_values.set_fill(fill.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
     else if (fill.is_url())
         computed_values.set_fill(fill.as_url().url());
     auto const& stroke = computed_style.property(CSS::PropertyID::Stroke);
     if (stroke.has_color())
-        computed_values.set_stroke(stroke.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
+        computed_values.set_stroke(stroke.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
     else if (stroke.is_url())
         computed_values.set_stroke(stroke.as_url().url());
     if (auto const& stop_color = computed_style.property(CSS::PropertyID::StopColor); stop_color.has_color())
-        computed_values.set_stop_color(stop_color.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
+        computed_values.set_stop_color(stop_color.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits

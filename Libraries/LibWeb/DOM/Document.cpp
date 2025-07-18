@@ -1649,14 +1649,12 @@ void Document::obtain_theme_color()
 
             // 4. If color is not failure, then return color.
             if (!css_value.is_null() && css_value->has_color()) {
-                Optional<Layout::NodeWithStyle const&> root_node;
-                CSS::CalculationResolutionContext resolution_context;
+                CSS::ColorResolutionContext color_resolution_context {};
                 if (html_element() && html_element()->layout_node()) {
-                    root_node = *html_element()->layout_node();
-                    resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*html_element()->layout_node());
+                    color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*html_element()->layout_node());
                 }
 
-                theme_color = css_value->to_color(root_node, resolution_context).value();
+                theme_color = css_value->to_color(color_resolution_context).value();
                 return TraversalDecision::Break;
             }
         }

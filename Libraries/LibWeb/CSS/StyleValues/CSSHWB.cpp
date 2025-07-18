@@ -12,12 +12,12 @@
 
 namespace Web::CSS {
 
-Optional<Color> CSSHWB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSHWB::to_color(ColorResolutionContext color_resolution_context) const
 {
-    auto h_val = resolve_hue(m_properties.h, resolution_context);
-    auto raw_w_value = resolve_with_reference_value(m_properties.w, 100.0, resolution_context);
-    auto raw_b_value = resolve_with_reference_value(m_properties.b, 100.0, resolution_context);
-    auto alpha_val = resolve_alpha(m_properties.alpha, resolution_context);
+    auto h_val = resolve_hue(m_properties.h, color_resolution_context.calculation_resolution_context);
+    auto raw_w_value = resolve_with_reference_value(m_properties.w, 100.0, color_resolution_context.calculation_resolution_context);
+    auto raw_b_value = resolve_with_reference_value(m_properties.b, 100.0, color_resolution_context.calculation_resolution_context);
+    auto alpha_val = resolve_alpha(m_properties.alpha, color_resolution_context.calculation_resolution_context);
 
     if (!h_val.has_value() || !raw_w_value.has_value() || !raw_b_value.has_value() || !alpha_val.has_value())
         return {};
@@ -52,7 +52,7 @@ bool CSSHWB::equals(CSSStyleValue const& other) const
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
 String CSSHWB::to_string(SerializationMode mode) const
 {
-    if (auto color = to_color({}, {}); color.has_value())
+    if (auto color = to_color({}); color.has_value())
         return serialize_a_srgb_value(color.value());
 
     StringBuilder builder;
