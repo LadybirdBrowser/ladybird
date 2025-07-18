@@ -461,13 +461,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
     auto& element = as<Web::DOM::Element>(*node);
     node->document().set_inspected_node(node);
 
-    GC::Ptr<Web::CSS::ComputedProperties> properties;
-    if (pseudo_element.has_value()) {
-        if (auto pseudo_element_node = element.get_pseudo_element_node(*pseudo_element))
-            properties = element.pseudo_element_computed_properties(*pseudo_element);
-    } else {
-        properties = element.computed_properties();
-    }
+    auto properties = element.computed_properties(pseudo_element);
 
     if (!properties) {
         async_did_inspect_dom_node(page_id, { property_type, {} });

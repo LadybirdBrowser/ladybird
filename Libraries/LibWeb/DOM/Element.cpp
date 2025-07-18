@@ -714,7 +714,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     auto old_display_is_none = m_computed_properties ? m_computed_properties->display().is_none() : true;
     auto new_display_is_none = new_computed_properties->display().is_none();
 
-    set_computed_properties(move(new_computed_properties));
+    set_computed_properties({}, move(new_computed_properties));
 
     if (old_display_is_none != new_display_is_none) {
         for_each_shadow_including_inclusive_descendant([&](auto& node) {
@@ -730,7 +730,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element) {
         style_computer.push_ancestor(*this);
 
-        auto pseudo_element_style = pseudo_element_computed_properties(pseudo_element);
+        auto pseudo_element_style = computed_properties(pseudo_element);
         auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed(*this, pseudo_element);
 
         // TODO: Can we be smarter about invalidation?
@@ -740,7 +740,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
             invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         }
 
-        set_pseudo_element_computed_properties(pseudo_element, move(new_pseudo_element_style));
+        set_computed_properties(pseudo_element, move(new_pseudo_element_style));
         style_computer.pop_ancestor(*this);
     };
 
@@ -770,7 +770,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
             if (!pseudo_element.has_value() || !pseudo_element->layout_node())
                 continue;
 
-            auto pseudo_element_style = pseudo_element_computed_properties(pseudo_element_type);
+            auto pseudo_element_style = computed_properties(pseudo_element_type);
             if (!pseudo_element_style)
                 continue;
 
@@ -2970,29 +2970,36 @@ void Element::set_cascaded_properties(Optional<CSS::PseudoElement> pseudo_elemen
     }
 }
 
-void Element::set_computed_properties(GC::Ptr<CSS::ComputedProperties> style)
+GC::Ptr<CSS::ComputedProperties> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type)
 {
+    if (pseudo_element_type.has_value()) {
+        if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
+            return pseudo_element->computed_properties();
+        return {};
+    }
+    return m_computed_properties;
+}
+
+GC::Ptr<CSS::ComputedProperties const> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type) const
+{
+    if (pseudo_element_type.has_value()) {
+        if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
+            return pseudo_element->computed_properties();
+        return {};
+    }
+    return m_computed_properties;
+}
+
+void Element::set_computed_properties(Optional<CSS::PseudoElement> pseudo_element_type, GC::Ptr<CSS::ComputedProperties> style)
+{
+    if (pseudo_element_type.has_value()) {
+        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(*pseudo_element_type))
+            return;
+        ensure_pseudo_element(*pseudo_element_type).set_computed_properties(style);
+        return;
+    }
     m_computed_properties = style;
     computed_properties_changed();
-}
-
-void Element::set_pseudo_element_computed_properties(CSS::PseudoElement pseudo_element, GC::Ptr<CSS::ComputedProperties> style)
-{
-    if (!m_pseudo_element_data && !style)
-        return;
-
-    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element))
-        return;
-
-    ensure_pseudo_element(pseudo_element).set_computed_properties(style);
-}
-
-GC::Ptr<CSS::ComputedProperties> Element::pseudo_element_computed_properties(CSS::PseudoElement type)
-{
-    auto pseudo_element = get_pseudo_element(type);
-    if (pseudo_element.has_value())
-        return pseudo_element->computed_properties();
-    return {};
 }
 
 Optional<PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement type) const
