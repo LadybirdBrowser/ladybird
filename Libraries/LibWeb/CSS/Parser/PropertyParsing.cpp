@@ -476,7 +476,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BackgroundSize:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_single_background_size_value(tokens); }))
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); }))
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Border:
@@ -671,6 +671,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         return ParseError::SyntaxError;
     case PropertyID::MaskRepeat:
         if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); }))
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::MaskSize:
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); }))
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Opacity:
@@ -1295,7 +1299,7 @@ RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<Component
             auto background_size_transaction = tokens.begin_transaction();
             auto& maybe_slash = tokens.consume_a_token();
             if (maybe_slash.is_delim('/')) {
-                if (auto maybe_background_size = parse_single_background_size_value(tokens)) {
+                if (auto maybe_background_size = parse_single_background_size_value(PropertyID::BackgroundSize, tokens)) {
                     background_size_transaction.commit();
                     background_size = maybe_background_size.release_nonnull();
                     continue;
@@ -1449,7 +1453,7 @@ RefPtr<CSSStyleValue const> Parser::parse_single_background_position_x_or_y_valu
     return EdgeStyleValue::create(relative_edge, {});
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(TokenStream<ComponentValue>& tokens)
+RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(PropertyID property, TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
 
@@ -1465,7 +1469,7 @@ RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(TokenStre
         return {};
     };
 
-    auto maybe_x_value = parse_css_value_for_property(PropertyID::BackgroundSize, tokens);
+    auto maybe_x_value = parse_css_value_for_property(property, tokens);
     if (!maybe_x_value)
         return nullptr;
     auto x_value = maybe_x_value.release_nonnull();
@@ -1475,7 +1479,7 @@ RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(TokenStre
         return x_value;
     }
 
-    auto maybe_y_value = parse_css_value_for_property(PropertyID::BackgroundSize, tokens);
+    auto maybe_y_value = parse_css_value_for_property(property, tokens);
     if (!maybe_y_value) {
         auto y_value = LengthPercentage { Length::make_auto() };
         auto x_size = get_length_percentage(*x_value);

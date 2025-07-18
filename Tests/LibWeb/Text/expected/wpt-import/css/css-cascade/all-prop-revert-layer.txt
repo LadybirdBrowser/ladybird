@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 251 tests
+Found 252 tests
 
-244 Pass
+245 Pass
 7 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -189,6 +189,7 @@ Pass	mask-composite
 Pass	mask-image
 Pass	mask-mode
 Pass	mask-repeat
+Pass	mask-size
 Pass	mask-type
 Pass	max-block-size
 Pass	max-height
