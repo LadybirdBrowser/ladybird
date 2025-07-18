@@ -1171,8 +1171,7 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString
             if (!background_color.has_value())
                 return NumericLimits<u8>::max();
             VERIFY(is<Layout::NodeWithStyle>(node->layout_node()));
-            auto& layout_node = *static_cast<Layout::NodeWithStyle*>(node->layout_node());
-            return background_color.value()->to_color(layout_node, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(layout_node) }).value().alpha();
+            return background_color.value()->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*static_cast<Layout::NodeWithStyle*>(node->layout_node()))).value().alpha();
         };
         while (resolved_background_alpha() == 0 && node->parent() && is<DOM::Element>(*node->parent()))
             node = node->parent();

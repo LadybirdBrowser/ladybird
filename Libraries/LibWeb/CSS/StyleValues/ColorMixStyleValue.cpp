@@ -175,13 +175,13 @@ ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_
 }
 
 // https://drafts.csswg.org/css-color-5/#color-mix-result
-Optional<Color> ColorMixStyleValue::to_color(Optional<Layout::NodeWithStyle const&> node, CalculationResolutionContext const& resolution_context) const
+Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     // FIXME: Take the color space and hue interpolation method into account.
     // The current implementation only uses oklab interpolation.
     auto normalized_percentages = normalize_percentages();
-    auto from_color = m_properties.first_component.color->to_color(node, resolution_context);
-    auto to_color = m_properties.second_component.color->to_color(node, resolution_context);
+    auto from_color = m_properties.first_component.color->to_color(color_resolution_context);
+    auto to_color = m_properties.second_component.color->to_color(color_resolution_context);
     auto delta = normalized_percentages.p2.value() / 100;
 
     if (!from_color.has_value() || !to_color.has_value())

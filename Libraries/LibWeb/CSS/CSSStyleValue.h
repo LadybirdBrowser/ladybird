@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/Forward.h>
 
@@ -81,6 +82,15 @@ private:
 };
 
 using StyleValueVector = Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>;
+
+struct ColorResolutionContext {
+    Optional<PreferredColorScheme> color_scheme;
+    Optional<Color> current_color;
+    GC::Ptr<DOM::Document const> document;
+    CalculationResolutionContext calculation_resolution_context;
+
+    [[nodiscard]] static ColorResolutionContext for_layout_node_with_style(Layout::NodeWithStyle const&);
+};
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue
 class CSSStyleValue : public RefCounted<CSSStyleValue> {
@@ -394,7 +404,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
 
-    virtual Optional<Color> to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const&) const { return {}; }
+    virtual Optional<Color> to_color(ColorResolutionContext) const { return {}; }
     Keyword to_keyword() const;
 
     virtual String to_string(SerializationMode) const = 0;

@@ -51,7 +51,7 @@ public:
 
     static bool is_color(Keyword);
     virtual bool has_color() const override;
-    virtual Optional<Color> to_color(Optional<Layout::NodeWithStyle const&> node, CalculationResolutionContext const&) const override;
+    virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
 

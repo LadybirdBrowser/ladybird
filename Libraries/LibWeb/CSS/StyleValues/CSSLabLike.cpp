@@ -26,12 +26,12 @@ bool CSSLabLike::equals(CSSStyleValue const& other) const
     return m_properties == other_lab_like.m_properties;
 }
 
-Optional<Color> CSSOKLab::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSOKLab::to_color(ColorResolutionContext color_resolution_context) const
 {
-    auto const l_val = resolve_with_reference_value(m_properties.l, 1.0, resolution_context);
-    auto const a_val = resolve_with_reference_value(m_properties.a, 0.4, resolution_context);
-    auto const b_val = resolve_with_reference_value(m_properties.b, 0.4, resolution_context);
-    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context);
+    auto const l_val = resolve_with_reference_value(m_properties.l, 1.0, color_resolution_context.calculation_resolution_context);
+    auto const a_val = resolve_with_reference_value(m_properties.a, 0.4, color_resolution_context.calculation_resolution_context);
+    auto const b_val = resolve_with_reference_value(m_properties.b, 0.4, color_resolution_context.calculation_resolution_context);
+    auto const alpha_val = resolve_alpha(m_properties.alpha, color_resolution_context.calculation_resolution_context);
 
     if (!l_val.has_value() || !a_val.has_value() || !b_val.has_value() || !alpha_val.has_value())
         return {};
@@ -59,12 +59,12 @@ String CSSOKLab::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-Optional<Color> CSSLab::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSLab::to_color(ColorResolutionContext color_resolution_context) const
 {
-    auto l_val = resolve_with_reference_value(m_properties.l, 100, resolution_context);
-    auto a_val = resolve_with_reference_value(m_properties.a, 125, resolution_context);
-    auto b_val = resolve_with_reference_value(m_properties.b, 125, resolution_context);
-    auto alpha_val = resolve_alpha(m_properties.alpha, resolution_context);
+    auto l_val = resolve_with_reference_value(m_properties.l, 100, color_resolution_context.calculation_resolution_context);
+    auto a_val = resolve_with_reference_value(m_properties.a, 125, color_resolution_context.calculation_resolution_context);
+    auto b_val = resolve_with_reference_value(m_properties.b, 125, color_resolution_context.calculation_resolution_context);
+    auto alpha_val = resolve_alpha(m_properties.alpha, color_resolution_context.calculation_resolution_context);
 
     if (!l_val.has_value() || !a_val.has_value() || !b_val.has_value() || !alpha_val.has_value())
         return {};

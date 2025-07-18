@@ -5061,7 +5061,7 @@ RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<Co
             Optional<Color> color = {};
             if (maybe_color)
                 // FIXME: We should support colors which require compute-time information (i.e. `em` and `vw` to `px` ratios).
-                color = maybe_color->to_color({}, {});
+                color = maybe_color->to_color({});
 
             return if_no_more_tokens_return(FilterOperation::DropShadow { x_offset.value(), y_offset.value(), maybe_radius, color });
         } else if (filter_token == FilterToken::HueRotate) {

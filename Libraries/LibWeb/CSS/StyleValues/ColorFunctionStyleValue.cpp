@@ -153,9 +153,9 @@ String ColorFunctionStyleValue::to_string(SerializationMode mode) const
         convert_percentage(m_properties.channels[2])->to_string(mode)));
 }
 
-Optional<Color> ColorFunctionStyleValue::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> ColorFunctionStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
-    auto properties = resolve_properties(resolution_context);
+    auto properties = resolve_properties(color_resolution_context.calculation_resolution_context);
 
     if (!properties.has_value())
         return {};
