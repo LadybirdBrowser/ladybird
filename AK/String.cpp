@@ -492,6 +492,21 @@ String String::bijective_base_from(size_t value, Case target_case, unsigned base
     return MUST(from_utf8(ReadonlyBytes(buffer.data(), i)));
 }
 
+String String::greek_letter_from(size_t value)
+{
+    static StringView const map = "αβγδεζηθικλμνξοπρστυφχψω"sv;
+    static unsigned const base = 24;
+
+    StringBuilder builder;
+    while (value > 0) {
+        value--;
+        builder.append(map.substring_view((value % base) * 2, 2));
+        value /= base;
+    }
+
+    return MUST(builder.to_string_without_validation().reverse());
+}
+
 String String::roman_number_from(size_t value, Case target_case)
 {
     if (value > 3999)

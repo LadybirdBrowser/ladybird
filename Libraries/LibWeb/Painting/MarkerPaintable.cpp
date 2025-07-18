@@ -108,6 +108,7 @@ void MarkerPaintable::paint(PaintContext& context, PaintPhase phase) const
         case CSS::CounterStyleNameKeyword::Decimal:
         case CSS::CounterStyleNameKeyword::DecimalLeadingZero:
         case CSS::CounterStyleNameKeyword::LowerAlpha:
+        case CSS::CounterStyleNameKeyword::LowerGreek:
         case CSS::CounterStyleNameKeyword::LowerLatin:
         case CSS::CounterStyleNameKeyword::LowerRoman:
         case CSS::CounterStyleNameKeyword::UpperAlpha:
