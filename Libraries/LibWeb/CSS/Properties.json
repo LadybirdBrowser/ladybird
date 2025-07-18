@@ -2376,6 +2376,15 @@
       "mask-image"
     ]
   },
+  "mask-composite": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "valid-types": [
+      "compositing-operator"
+    ],
+    "initial": "add"
+  },
   "mask-image": {
     "animation-type": "discrete",
     "inherited": false,
