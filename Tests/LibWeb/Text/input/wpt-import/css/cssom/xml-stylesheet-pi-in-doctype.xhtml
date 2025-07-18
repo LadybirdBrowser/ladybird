@@ -1,0 +1,17 @@
+<!DOCTYPE html [<?xml-stylesheet href="data:text/css,html{z-index: 1}"?>]>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>xml-stylesheet processing instruction in doctype internal subset</title>
+    <link rel="help" href="https://drafts.csswg.org/cssom/#prolog"/>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      promise_test(async () => {
+        await new Promise(resolve => window.onload = resolve);
+        assert_equals(getComputedStyle(document.documentElement).zIndex, "auto");
+      });
+    </script>
+  </body>
+</html>
