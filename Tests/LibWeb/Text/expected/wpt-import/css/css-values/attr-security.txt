@@ -1,9 +1,9 @@
-Harness status: Error
+Harness status: OK
 
-Found 22 tests
+Found 43 tests
 
-15 Pass
-7 Fail
+28 Pass
+15 Fail
 Pass	'--x: image-set(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Fail	'background-image: image-set("https://does-not-exist.test/404.png")' with data-foo="https://does-not-exist.test/404.png"
@@ -26,3 +26,38 @@ Pass	'--x: image-set(var(--some-string))' with data-foo="https://does-not-exist.
 Pass	'background-image: image-set(var(--some-string))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'--x: image-set(var(--some-string-list))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set(var(--some-string-list))' with data-foo="https://does-not-exist.test/404.png"
+Fail	'--registered-url: attr(data-foo type(<url>))' with data-foo="https://does-not-exist.test/404.png"
+Fail	'--registered-color: attr(data-foo type(<color>))' with data-foo="blue"
+Pass	'--x: image-set(var(--some-other-url))' with data-foo="https://does-not-exist.test/404.png"
+Pass	'background-image: image-set(var(--some-other-url))' with data-foo="https://does-not-exist.test/404.png"
+Fail	'background-image: attr(data-foo type(*))' with data-foo="url(https://does-not-exist.test/404.png), linear-gradient(black, white)"
+Pass	'background-image: image-set(var(--image-set-valid))' with data-foo="image/jpeg"
+Pass	'background-image: image-set(var(--image-set-invalid))' with data-foo="https://does-not-exist.test/404.png"
+Fail	'--x: image-set(if(style(--true): attr(data-foo);))' with data-foo="https://does-not-exist.test/404.png"
+Pass	'background-image: image-set(if(style(--true): attr(data-foo);))' with data-foo="https://does-not-exist.test/404.png"
+Fail	'background-image: image-set(
+                if(style(--true): url(https://does-not-exist-2.test/404.png);
+                   else: attr(data-foo);))' with data-foo="https://does-not-exist-2.test/404.png"
+Pass	'background-image: image-set(
+                if(style(--some-string): url(https://does-not-exist.test/404.png);))' with data-foo="https://does-not-exist.test/404.png"
+Pass	'background-image: image-set(
+                if(style(--condition-val: attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+Pass	'background-image: image-set(
+                if(style(--condition-val: attr(data-foo type(*))): url(https://does-not-exist.test/404.png);
+                   style(--true): url(https://does-not-exist.test/404.png);
+                   else: url(https://does-not-exist.test/404.png);))' with data-foo="1"
+Fail	'background-image: image-set(if(style(--true): url(https://does-not-exist.test/404.png);
+                            style(--condition-val): url(https://does-not-exist.test/404.png);
+                            else: url(https://does-not-exist.test/404.png);))' with data-foo="attr(data-foo type(*))"
+Pass	'background-image: image-set(
+                if(style(--condition-val: if(style(--true): attr(data-foo type(*));)): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+Fail	'--x: image-set(if(style(--condition-val: if(style(--true): attr(data-foo type(*));)): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+Fail	'--x: image-set(if(style(--condition-val >= attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+Pass	'background-image: image-set(
+                if(style(--condition-val >= attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+Pass	'background-image: image-set(
+                if(style(--condition-val < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+Pass	'background-image: image-set(
+                if(style(--str < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+Pass	'background-image: image-set(
+                if(style(--condition-val < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="text"

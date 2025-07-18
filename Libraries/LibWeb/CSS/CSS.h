@@ -15,9 +15,18 @@
 // https://www.w3.org/TR/cssom-1/#namespacedef-css
 namespace Web::CSS {
 
+struct PropertyDefinition {
+    String name;
+    String syntax;
+    bool inherits;
+    Optional<String> initial_value;
+};
+
 WebIDL::ExceptionOr<String> escape(JS::VM&, StringView identifier);
 
 bool supports(JS::VM&, StringView property, StringView value);
 WebIDL::ExceptionOr<bool> supports(JS::VM&, StringView condition_text);
+
+WebIDL::ExceptionOr<void> register_property(JS::VM&, PropertyDefinition definition);
 
 }
