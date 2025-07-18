@@ -178,7 +178,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             document->completely_finish_loading();
             return;
         }
-        XML::Parser parser(source.value(), { .resolve_external_resource = resolve_xml_resource });
+        XML::Parser parser(source.value(), { .preserve_cdata = true, .preserve_comments = true, .resolve_external_resource = resolve_xml_resource });
         XMLDocumentBuilder builder { document };
         auto result = parser.parse_with_listener(builder);
         if (result.is_error()) {
