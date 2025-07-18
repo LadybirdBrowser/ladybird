@@ -456,7 +456,7 @@
     "initial": "repeat",
     "max-values": 2,
     "valid-types": [
-      "repeat"
+      "repetition"
     ],
     "valid-identifiers": [
       "repeat-x",

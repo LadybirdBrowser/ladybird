@@ -176,7 +176,6 @@ set(SOURCES
     CSS/StyleSheetIdentifier.cpp
     CSS/StyleSheetList.cpp
     CSS/StyleValues/AngleStyleValue.cpp
-    CSS/StyleValues/BackgroundRepeatStyleValue.cpp
     CSS/StyleValues/BackgroundSizeStyleValue.cpp
     CSS/StyleValues/BasicShapeStyleValue.cpp
     CSS/StyleValues/BorderImageSliceStyleValue.cpp
@@ -218,6 +217,7 @@ set(SOURCES
     CSS/StyleValues/PositionStyleValue.cpp
     CSS/StyleValues/RadialGradientStyleValue.cpp
     CSS/StyleValues/RectStyleValue.cpp
+    CSS/StyleValues/RepeatStyleStyleValue.cpp
     CSS/StyleValues/ScrollbarColorStyleValue.cpp
     CSS/StyleValues/ShadowStyleValue.cpp
     CSS/StyleValues/ShorthandStyleValue.cpp
