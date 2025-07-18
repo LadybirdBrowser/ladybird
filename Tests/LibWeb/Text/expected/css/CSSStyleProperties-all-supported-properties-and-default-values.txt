@@ -533,6 +533,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'mask-mode': 'match-source'
 'maskPosition': '0% 0%'
 'mask-position': '0% 0%'
+'maskRepeat': 'repeat'
+'mask-repeat': 'repeat'
 'maskType': 'luminance'
 'mask-type': 'luminance'
 'mathDepth': '0'
