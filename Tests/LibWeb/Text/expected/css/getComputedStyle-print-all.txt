@@ -189,6 +189,7 @@ mask-image: none
 mask-mode: match-source
 mask-position: 0% 0%
 mask-repeat: repeat
+mask-size: auto
 mask-type: luminance
 max-block-size: none
 max-height: none

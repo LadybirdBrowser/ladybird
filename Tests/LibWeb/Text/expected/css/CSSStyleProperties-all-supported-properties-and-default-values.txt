@@ -535,6 +535,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'mask-position': '0% 0%'
 'maskRepeat': 'repeat'
 'mask-repeat': 'repeat'
+'maskSize': 'auto'
+'mask-size': 'auto'
 'maskType': 'luminance'
 'mask-type': 'luminance'
 'mathDepth': '0'
