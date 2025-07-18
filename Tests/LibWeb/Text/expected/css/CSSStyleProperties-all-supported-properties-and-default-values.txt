@@ -529,6 +529,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'mask-composite': 'add'
 'maskImage': 'none'
 'mask-image': 'none'
+'maskMode': 'match-source'
+'mask-mode': 'match-source'
 'maskType': 'luminance'
 'mask-type': 'luminance'
 'mathDepth': '0'

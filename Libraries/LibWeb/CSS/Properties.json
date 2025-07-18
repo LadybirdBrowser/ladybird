@@ -2404,6 +2404,15 @@
     ],
     "initial": "none"
   },
+  "mask-mode": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "valid-types": [
+      "masking-mode"
+    ],
+    "initial": "match-source"
+  },
   "mask-type": {
     "animation-type": "discrete",
     "inherited": false,
