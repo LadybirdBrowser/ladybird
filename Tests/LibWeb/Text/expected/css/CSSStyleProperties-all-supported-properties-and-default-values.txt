@@ -525,6 +525,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'marginTop': '8px'
 'margin-top': '8px'
 'mask': 'none'
+'maskClip': 'border-box'
+'mask-clip': 'border-box'
 'maskComposite': 'add'
 'mask-composite': 'add'
 'maskImage': 'none'
