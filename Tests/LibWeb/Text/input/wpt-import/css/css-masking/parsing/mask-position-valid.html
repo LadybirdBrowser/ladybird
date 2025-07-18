@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: parsing mask-position with valid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-masking-1/#the-mask-position">
+<meta name="assert" content="mask-position supports the full '<position>#' grammar.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("mask-position", "10%", "10% center");
+test_valid_value("mask-position", "right 30% top 60px");
+test_valid_value("mask-position", "-20% -30px");
+test_valid_value("mask-position", "30px center");
+test_valid_value("mask-position", "40px top");
+test_valid_value("mask-position", "bottom 10% right 20%", "right 20% bottom 10%");
+test_valid_value("mask-position", "bottom right", "right bottom");
+test_valid_value("mask-position", "center 50px");
+test_valid_value("mask-position", "center bottom");
+test_valid_value("mask-position", "center left", "left center");
+test_valid_value("mask-position", "left", "left center");
+test_valid_value("mask-position", "left bottom");
+test_valid_value("mask-position", "right 40%");
+test_valid_value("mask-position", "top", "center top");
+test_valid_value("mask-position", "top center", "center top");
+test_valid_value("mask-position", "center", "center center");
+test_valid_value("mask-position", "bottom left, right 20%", "left bottom, right 20%");
+test_valid_value("mask-position", "top, center, left", "center top, center center, left center");
+test_valid_value("mask-position", "20% 0%");
+test_valid_value("mask-position", "0% 0%");
+test_valid_value("mask-position", "0%", "0% center");
+test_valid_value("mask-position", "0% center");
+test_valid_value("mask-position", "center 0%");
+</script>
+</body>
+</html>

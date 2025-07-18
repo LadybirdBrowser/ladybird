@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>mask-image-interpolation</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-mask-image">
+<meta name="assert" content="mask-image supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  mask-image: url(../resources/blue-20.png);
+}
+.target {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  background-color: black;
+  mask-image: url(../resources/stripes-20.png);
+}
+.expected {
+  background-color: green;
+  margin-right: 10px;
+}
+</style>
+
+<body>
+<script>
+// neutral
+test_no_interpolation({
+  property: 'mask-image',
+  from: neutralKeyframe,
+  to: 'url(../resources/green-20.png)',
+});
+
+// initial
+test_no_interpolation({
+  property: 'mask-image',
+  from: 'initial',
+  to: 'url(../resources/green-20.png)',
+});
+
+// inherit
+test_no_interpolation({
+  property: 'mask-image',
+  from: 'inherit',
+  to: 'url(../resources/green-20.png)',
+});
+
+// unset
+test_no_interpolation({
+  property: 'mask-image',
+  from: 'unset',
+  to: 'url(../resources/stripes-20.png)',
+});
+
+// Image to image
+test_no_interpolation({
+  property: 'mask-image',
+  from: 'url(../resources/stripes-20.png)',
+  to: 'url(../resources/blue-20.png)',
+});
+
+//Image to gradient
+test_no_interpolation({
+  property: 'mask-image',
+  from: 'url(../resources/stripes-20.png)',
+  to: 'linear-gradient(45deg, blue, transparent)'
+});
+
+// Keyword to image
+test_no_interpolation({
+  property: 'mask-image',
+  from: 'none',
+  to: 'url(../resources/green-20.png)',
+});
+
+// Multiple to multiple
+var fromA = 'url(../resources/stripes-20.png)';
+var fromB = 'linear-gradient(-45deg, blue, transparent)';
+var toA = 'url(../resources/blue-20.png)';
+var toB = 'url(../resources/stripes-20.png)';
+var from = fromA + ', ' + fromB;
+var to = toA + ', ' + toB;
+test_no_interpolation({
+  property: 'mask-image',
+  from: from,
+  to: to,
+});
+
+// Single to multiple
+from = 'url(../resources/blue-20.png)';
+toA = 'url(../resources/stripes-20.png)';
+toB = 'url(../resources/blue-20.png)';
+to = toA + ', ' + toB;
+test_no_interpolation({
+  property: 'mask-image',
+  from: from,
+  to: to,
+});
+
+// Multiple mismatched types
+test_no_interpolation({
+  property: 'mask-image',
+  from: 'url(../resources/blue-20.png), none',
+  to: 'url(../resources/stripes-20.png), url(../resources/blue-20.png)',
+});
+</script>
+</body>

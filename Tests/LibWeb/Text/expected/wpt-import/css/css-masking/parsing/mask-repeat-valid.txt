@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Fail
+Fail	e.style['mask-repeat'] = "repeat-x" should set the property value
+Fail	e.style['mask-repeat'] = "repeat-y" should set the property value
+Fail	e.style['mask-repeat'] = "repeat" should set the property value
+Fail	e.style['mask-repeat'] = "space" should set the property value
+Fail	e.style['mask-repeat'] = "round" should set the property value
+Fail	e.style['mask-repeat'] = "no-repeat" should set the property value
+Fail	e.style['mask-repeat'] = "repeat repeat" should set the property value
+Fail	e.style['mask-repeat'] = "repeat space" should set the property value
+Fail	e.style['mask-repeat'] = "repeat round" should set the property value
+Fail	e.style['mask-repeat'] = "repeat no-repeat" should set the property value
+Fail	e.style['mask-repeat'] = "space repeat" should set the property value
+Fail	e.style['mask-repeat'] = "space space" should set the property value
+Fail	e.style['mask-repeat'] = "space round" should set the property value
+Fail	e.style['mask-repeat'] = "space no-repeat" should set the property value
+Fail	e.style['mask-repeat'] = "round repeat" should set the property value
+Fail	e.style['mask-repeat'] = "round space" should set the property value
+Fail	e.style['mask-repeat'] = "round round" should set the property value
+Fail	e.style['mask-repeat'] = "round no-repeat" should set the property value
+Fail	e.style['mask-repeat'] = "no-repeat repeat" should set the property value
+Fail	e.style['mask-repeat'] = "no-repeat space" should set the property value
+Fail	e.style['mask-repeat'] = "no-repeat round" should set the property value
+Fail	e.style['mask-repeat'] = "no-repeat no-repeat" should set the property value

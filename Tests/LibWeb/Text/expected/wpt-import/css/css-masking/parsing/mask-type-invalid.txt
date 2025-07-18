@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['mask-type'] = "auto" should not set the property value
+Pass	e.style['mask-type'] = "luminance alpha" should not set the property value
+Pass	e.style['mask-type'] = "alpha, luminance" should not set the property value
