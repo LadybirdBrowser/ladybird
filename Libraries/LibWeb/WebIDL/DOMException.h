@@ -111,8 +111,6 @@ public:
     FlyString const& message() const { return m_message; }
     u16 code() const { return get_legacy_code_for_name(m_name); }
 
-    virtual Bindings::InterfaceName serialize_type() const override { return Bindings::InterfaceName::DOMException; }
-
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
