@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>PNG Third Edition: Decoder error recovery, invalid ancillary</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://www.w3.org/TR/png-3/#13Decoders.Errors">
+<link rel="help" href="https://github.com/w3c/PNG-spec/issues/320">
+<link rel="match" href="../../../../expected/wpt-import/png/errors/unknown-ancillary-error-recovery-ref.html">
+<meta name="assert" content="Encountering an unknown ancillary chunk is never an error. The chunk can simply be ignored.">
+<style>
+    .test {
+        width: 32px;
+        height: 32px;
+        background-color: red;
+    }
+</style>
+<body>
+    <p>Test passes if you see a rainbow square, and not a red one.</p>
+    <div class="test"><img src="support/invalid-unknown-ancillary.png" alt=""></div>
+</body>
+</html>
