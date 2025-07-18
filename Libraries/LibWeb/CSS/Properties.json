@@ -2439,6 +2439,23 @@
       "repeat-y"
     ]
   },
+  "mask-size": {
+    "affects-layout": false,
+    "animation-type": "repeatable-list",
+    "inherited": false,
+    "initial": "auto",
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "cover",
+      "contain"
+    ],
+    "percentages-resolve-to": "length"
+  },
   "mask-type": {
     "animation-type": "discrete",
     "inherited": false,
