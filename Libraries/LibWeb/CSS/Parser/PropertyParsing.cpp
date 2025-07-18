@@ -660,6 +660,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_math_depth_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::MaskClip:
     case PropertyID::MaskComposite:
     case PropertyID::MaskMode:
     case PropertyID::MaskOrigin:

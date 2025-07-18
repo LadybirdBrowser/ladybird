@@ -340,6 +340,7 @@
   "ne-resize",
   "nearest",
   "nesw-resize",
+  "no-clip",
   "no-close-quote",
   "no-common-ligatures",
   "no-contextual",
