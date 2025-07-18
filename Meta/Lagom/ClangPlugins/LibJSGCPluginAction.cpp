@@ -513,6 +513,7 @@ void LibJSPPCallbacks::MacroExpands(clang::Token const& name_token, clang::Macro
             { "JS_ENVIRONMENT", LibJSCellMacro::Type::JSEnvironment },
             { "JS_PROTOTYPE_OBJECT", LibJSCellMacro::Type::JSPrototypeObject },
             { "WEB_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },
+            { "WEB_NON_IDL_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },
         };
 
         auto name = ident_info->getName();
