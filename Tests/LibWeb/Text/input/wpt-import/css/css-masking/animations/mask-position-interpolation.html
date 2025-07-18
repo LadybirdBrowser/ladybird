@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<meta charset="UTF-8">
+<title>mask-position-interpolation</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-mask-position">
+<meta name="assert" content="mask-position supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.container {
+  display: inline-block;
+  border: 2px solid black;
+}
+.parent {
+  mask-position: 30px 10px;
+}
+.target {
+  width: 120px;
+  height: 120px;
+  mask-position: 10px 30px;
+}
+</style>
+
+<body>
+<template id="target-template">
+  <div class="container">
+    <div class="target"></div>
+  </div>
+</template>
+<script>
+// neutral
+test_interpolation({
+  property: 'mask-position',
+  from: neutralKeyframe,
+  to: '20px 20px',
+}, [
+  {at: -0.25, expect: '7.5px 32.5px'},
+  {at: 0, expect: '10px 30px'},
+  {at: 0.25, expect: '12.5px 27.5px'},
+  {at: 0.5, expect: '15px 25px'},
+  {at: 0.75, expect: '17.5px 22.5px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.25, expect: '22.5px 17.5px'},
+]);
+
+// initial
+test_interpolation({
+  property: 'mask-position',
+  from: 'initial',
+  to: '20px 20px',
+}, [
+  {at: -0.25, expect: 'calc(0% - 5px) calc(0% - 5px)'},
+  {at: 0, expect: '0% 0%'},
+  {at: 0.25, expect: 'calc(0% + 5px) calc(0% + 5px)'},
+  {at: 0.5, expect: 'calc(0% + 10px) calc(0% + 10px)'},
+  {at: 0.75, expect: 'calc(0% + 15px) calc(0% + 15px)'},
+  {at: 1, expect: 'calc(0% + 20px) calc(0% + 20px)'},
+  {at: 1.25, expect:'calc(0% + 25px) calc(0% + 25px)'},
+]);
+
+// inherit
+test_interpolation({
+  property: 'mask-position',
+  from: 'inherit',
+  to: '20px 20px',
+}, [
+  {at: -0.25, expect: '32.5px 7.5px'},
+  {at: 0, expect: '30px 10px'},
+  {at: 0.25, expect: '27.5px 12.5px'},
+  {at: 0.5, expect: '25px 15px'},
+  {at: 0.75, expect: '22.5px 17.5px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.25, expect: '17.5px 22.5px'},
+]);
+
+// unset
+test_interpolation({
+  property: 'mask-position',
+  from: 'unset',
+  to: '20px 20px',
+}, [
+  {at: -0.25, expect: 'calc(0% - 5px) calc(0% - 5px)'},
+  {at: 0, expect: '0% 0%'},
+  {at: 0.25, expect: 'calc(0% + 5px) calc(0% + 5px)'},
+  {at: 0.5, expect: 'calc(0% + 10px) calc(0% + 10px)'},
+  {at: 0.75, expect: 'calc(0% + 15px) calc(0% + 15px)'},
+  {at: 1, expect: 'calc(0% + 20px) calc(0% + 20px)'},
+  {at: 1.25, expect:'calc(0% + 25px) calc(0% + 25px)'},
+]);
+
+// Test equal number of position values as background images.
+test_interpolation({
+  property: 'mask-position',
+  from: '0px 0px, 0px 0px, 0px 0px, 0px 0px',
+  to: '80px 80px, 80px 80px, 80px 80px, 80px 80px',
+}, [
+  {at: -0.25, expect: '-20px -20px, -20px -20px, -20px -20px, -20px -20px'},
+  {at: 0, expect:     '  0px   0px,   0px   0px,   0px   0px,   0px   0px'},
+  {at: 0.25, expect:  ' 20px  20px,  20px  20px,  20px  20px,  20px  20px'},
+  {at: 0.5, expect:   ' 40px  40px,  40px  40px,  40px  40px,  40px  40px'},
+  {at: 0.75, expect:  ' 60px  60px,  60px  60px,  60px  60px,  60px  60px'},
+  {at: 1, expect:     ' 80px  80px,  80px  80px,  80px  80px,  80px  80px'},
+  {at: 1.25, expect:  '100px 100px, 100px 100px, 100px 100px, 100px 100px'},
+]);
+
+// Test single position value repeated over background images.
+test_interpolation({
+  property: 'mask-position',
+  from: 'top 0px left 0px',
+  to: 'left 80px top 80px',
+}, [
+  {at: -0.25, expect: '-20px -20px'},
+  {at: 0, expect:     '  0px   0px'},
+  {at: 0.25, expect:  ' 20px  20px'},
+  {at: 0.5, expect:   ' 40px  40px'},
+  {at: 0.75, expect:  ' 60px  60px'},
+  {at: 1, expect:     ' 80px  80px'},
+  {at: 1.25, expect:  '100px 100px'},
+]);
+
+// Test mismatched numbers of position values.
+test_interpolation({
+  property: 'mask-position',
+  from: '0px 0px, 80px 0px',
+  to: '40px 40px, 80px 80px, 0px 80px',
+}, [
+  {at: -0.25, expect:
+    '-10px -10px, 80px -20px, 0px -20px, 90px -10px, -20px -20px, 100px -20px'},
+  {at: 0, expect:
+    '  0px   0px, 80px   0px, 0px   0px, 80px   0px,   0px   0px,  80px   0px'},
+  {at: 0.25, expect:
+    ' 10px  10px, 80px  20px, 0px  20px, 70px  10px,  20px  20px,  60px  20px'},
+  {at: 0.5, expect:
+    ' 20px  20px, 80px  40px, 0px  40px, 60px  20px,  40px  40px,  40px  40px'},
+  {at: 0.75, expect:
+    ' 30px  30px, 80px  60px, 0px  60px, 50px  30px,  60px  60px,  20px  60px'},
+  {at: 1, expect:
+    ' 40px  40px, 80px  80px, 0px  80px, 40px  40px,  80px  80px,   0px  80px'},
+  {at: 1.25, expect:
+    ' 50px  50px, 80px 100px, 0px 100px, 30px  50px, 100px 100px, -20px 100px'},
+]);
+</script>
+</body>
