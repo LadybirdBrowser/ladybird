@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 212 tests
 
-18 Pass
-194 Fail
+38 Pass
+174 Fail
 Pass	WebAssembly.instantiate(module): Non-object imports argument: null
 Pass	WebAssembly.instantiate(module): Non-object imports argument: true
 Pass	WebAssembly.instantiate(module): Non-object imports argument: ""
@@ -11,18 +11,18 @@ Pass	WebAssembly.instantiate(module): Non-object imports argument: symbol "Symbo
 Pass	WebAssembly.instantiate(module): Non-object imports argument: 1
 Pass	WebAssembly.instantiate(module): Non-object imports argument: 0.1
 Pass	WebAssembly.instantiate(module): Non-object imports argument: NaN
-Fail	WebAssembly.instantiate(module): Non-object module: undefined
-Fail	WebAssembly.instantiate(module): Non-object module: null
-Fail	WebAssembly.instantiate(module): Non-object module: true
-Fail	WebAssembly.instantiate(module): Non-object module: ""
-Fail	WebAssembly.instantiate(module): Non-object module: symbol "Symbol()"
-Fail	WebAssembly.instantiate(module): Non-object module: 1
-Fail	WebAssembly.instantiate(module): Non-object module: 0.1
-Fail	WebAssembly.instantiate(module): Non-object module: NaN
+Pass	WebAssembly.instantiate(module): Non-object module: undefined
+Pass	WebAssembly.instantiate(module): Non-object module: null
+Pass	WebAssembly.instantiate(module): Non-object module: true
+Pass	WebAssembly.instantiate(module): Non-object module: ""
+Pass	WebAssembly.instantiate(module): Non-object module: symbol "Symbol()"
+Pass	WebAssembly.instantiate(module): Non-object module: 1
+Pass	WebAssembly.instantiate(module): Non-object module: 0.1
+Pass	WebAssembly.instantiate(module): Non-object module: NaN
 Pass	WebAssembly.instantiate(module): Missing imports argument
 Pass	WebAssembly.instantiate(module): Imports argument with missing property: undefined
-Fail	WebAssembly.instantiate(module): Imports argument with missing property: empty object
-Fail	WebAssembly.instantiate(module): Imports argument with missing property: wrong property
+Pass	WebAssembly.instantiate(module): Imports argument with missing property: empty object
+Pass	WebAssembly.instantiate(module): Imports argument with missing property: wrong property
 Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: undefined
 Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: null
 Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: true
@@ -117,18 +117,18 @@ Pass	WebAssembly.instantiate(buffer): Non-object imports argument: symbol "Symbo
 Pass	WebAssembly.instantiate(buffer): Non-object imports argument: 1
 Pass	WebAssembly.instantiate(buffer): Non-object imports argument: 0.1
 Pass	WebAssembly.instantiate(buffer): Non-object imports argument: NaN
-Fail	WebAssembly.instantiate(buffer): Non-object module: undefined
-Fail	WebAssembly.instantiate(buffer): Non-object module: null
-Fail	WebAssembly.instantiate(buffer): Non-object module: true
-Fail	WebAssembly.instantiate(buffer): Non-object module: ""
-Fail	WebAssembly.instantiate(buffer): Non-object module: symbol "Symbol()"
-Fail	WebAssembly.instantiate(buffer): Non-object module: 1
-Fail	WebAssembly.instantiate(buffer): Non-object module: 0.1
-Fail	WebAssembly.instantiate(buffer): Non-object module: NaN
+Pass	WebAssembly.instantiate(buffer): Non-object module: undefined
+Pass	WebAssembly.instantiate(buffer): Non-object module: null
+Pass	WebAssembly.instantiate(buffer): Non-object module: true
+Pass	WebAssembly.instantiate(buffer): Non-object module: ""
+Pass	WebAssembly.instantiate(buffer): Non-object module: symbol "Symbol()"
+Pass	WebAssembly.instantiate(buffer): Non-object module: 1
+Pass	WebAssembly.instantiate(buffer): Non-object module: 0.1
+Pass	WebAssembly.instantiate(buffer): Non-object module: NaN
 Pass	WebAssembly.instantiate(buffer): Missing imports argument
 Pass	WebAssembly.instantiate(buffer): Imports argument with missing property: undefined
-Fail	WebAssembly.instantiate(buffer): Imports argument with missing property: empty object
-Fail	WebAssembly.instantiate(buffer): Imports argument with missing property: wrong property
+Pass	WebAssembly.instantiate(buffer): Imports argument with missing property: empty object
+Pass	WebAssembly.instantiate(buffer): Imports argument with missing property: wrong property
 Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: undefined
 Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: null
 Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: true

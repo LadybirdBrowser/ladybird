@@ -232,37 +232,38 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
     if (!module.import_section().imports().is_empty() && !import_object) {
         return vm.throw_completion<JS::TypeError>("ImportObject must be provided when module has imports"sv);
     }
+
     // 2. Let imports be « ».
     HashMap<Wasm::Linker::Name, Wasm::ExternValue> resolved_imports;
     if (import_object) {
         dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve stuff because import object was specified");
+
         // 3. For each (moduleName, componentName, externtype) of module_imports(module),
         for (Wasm::Linker::Name const& import_name : linker.unresolved_imports()) {
             dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import_name.module, import_name.name);
+
             // 3.1. Let o be ? Get(importObject, moduleName).
-            auto value_or_error = import_object->get(MUST(String::from_byte_string(import_name.module)));
-            if (value_or_error.is_error())
-                break;
-            auto value = value_or_error.release_value();
+            auto value = TRY(import_object->get(MUST(String::from_byte_string(import_name.module))));
+
             // 3.2. If o is not an Object, throw a TypeError exception.
-            auto object_or_error = value.to_object(vm);
-            if (object_or_error.is_error())
-                break;
-            auto object = object_or_error.release_value();
+            if (!value.is_object())
+                return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, value);
+            auto const& object = value.as_object();
+
             // 3.3. Let v be ? Get(o, componentName).
-            auto import_or_error = object->get(MUST(String::from_byte_string(import_name.name)));
-            if (import_or_error.is_error())
-                break;
-            auto import_ = import_or_error.release_value();
+            auto import_ = TRY(object.get(MUST(String::from_byte_string(import_name.name))));
+
             TRY(import_name.type.visit(
                 // 3.4. If externtype is of the form func functype,
                 [&](Wasm::TypeIndex index) -> JS::ThrowCompletionOr<void> {
                     dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve a function {}::{}, type index {}", import_name.module, import_name.name, index.value());
                     auto& type = module.type_section().types()[index.value()];
-                    // FIXME: 3.4.1. If IsCallable(v) is false, throw a LinkError exception.
+
+                    // 3.4.1. If IsCallable(v) is false, throw a LinkError exception.
                     if (!import_.is_function())
-                        return {};
+                        return vm.throw_completion<LinkError>(JS::ErrorType::NotAFunction, import_);
                     auto& function = import_.as_function();
+
                     // 3.4.2. If v has a [[FunctionAddress]] internal slot, and therefore is an Exported Function,
                     Optional<Wasm::FunctionAddress> address;
                     if (is<ExportedWasmFunction>(function)) {
