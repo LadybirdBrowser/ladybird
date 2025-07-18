@@ -136,6 +136,27 @@ void Parser::append_comment(StringView text, LineTrackingLexer::Position positio
         });
 }
 
+void Parser::append_cdata_section(StringView text, LineTrackingLexer::Position position)
+{
+    if (m_listener) {
+        m_listener->cdata_section(text);
+        return;
+    }
+
+    // FIXME: Non-listener parsing should probably expect a CDATA node as well
+    append_text(text, position);
+}
+
+void Parser::append_processing_instruction(StringView target, StringView data)
+{
+    if (m_listener) {
+        m_listener->processing_instruction(target, data);
+        return;
+    }
+
+    m_processing_instructions.set(target, data);
+}
+
 void Parser::enter_node(Node& node)
 {
     if (m_listener) {
@@ -505,7 +526,8 @@ ErrorOr<void, ParseError> Parser::parse_processing_instruction()
         data = m_lexer.consume_until("?>");
     TRY(expect("?>"sv));
 
-    m_processing_instructions.set(target, data);
+    append_processing_instruction(target, data);
+
     rollback.disarm();
     return {};
 }
@@ -898,7 +920,7 @@ ErrorOr<void, ParseError> Parser::parse_content()
         }
         if (auto result = parse_cdata_section(); !result.is_error()) {
             if (m_options.preserve_cdata)
-                append_text(result.release_value(), m_lexer.position_for(node_start));
+                append_cdata_section(result.release_value(), m_lexer.position_for(node_start));
             goto try_char_data;
         }
         if (auto result = parse_processing_instruction(); !result.is_error())
