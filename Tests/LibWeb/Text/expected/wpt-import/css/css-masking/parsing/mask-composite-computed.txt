@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	Property mask-composite value 'add'
-Fail	Property mask-composite value 'subtract'
-Fail	Property mask-composite value 'intersect'
-Fail	Property mask-composite value 'exclude'
+4 Pass
+Pass	Property mask-composite value 'add'
+Pass	Property mask-composite value 'subtract'
+Pass	Property mask-composite value 'intersect'
+Pass	Property mask-composite value 'exclude'
