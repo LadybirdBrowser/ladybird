@@ -34,6 +34,9 @@ public:
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
+    bool property_applies_to(CSS::PropertyID) const;
+    bool establishes_a_new_viewport() const;
+
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
 

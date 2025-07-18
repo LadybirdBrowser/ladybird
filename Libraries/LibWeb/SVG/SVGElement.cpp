@@ -302,6 +302,73 @@ GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::Pro
     return SVGAnimatedLength::create(realm(), make_length(), make_length());
 }
 
+bool SVGElement::property_applies_to(CSS::PropertyID property_id) const
+{
+    // FIXME: This is very incomplete. Can we store this data in Properties.json instead?
+    switch (property_id) {
+    case CSS::PropertyID::Clip:
+        // https://drafts.fxtf.org/css-masking-1/#propdef-clip
+        // In SVG, it applies to elements which establish a new viewport, pattern elements and mask elements.
+        return establishes_a_new_viewport() || is_svg_pattern_element() || is_svg_mask_element();
+
+    case CSS::PropertyID::ClipPath:
+        // https://drafts.fxtf.org/css-masking-1/#propdef-clip-path
+        // In SVG, it applies to container elements excluding the defs element, all graphics elements and the use element
+        return (is_svg_container_element() && !is_svg_defs_element())
+            || is_svg_graphics_element()
+            || is_svg_use_element();
+
+    case CSS::PropertyID::Filter:
+        // https://drafts.fxtf.org/filter-effects/#propdef-filter
+        // In SVG, it applies to container elements without the defs element, all graphics elements and the use element.
+        return (is_svg_container_element() && !is_svg_defs_element())
+            || is_svg_graphics_element()
+            || is_svg_use_element();
+
+    case CSS::PropertyID::Mask:
+        // https://drafts.fxtf.org/css-masking-1/#propdef-mask
+        // In SVG, it applies to container elements excluding the defs element, all graphics elements and the use element
+        return (is_svg_container_element() && !is_svg_defs_element())
+            || is_svg_graphics_element()
+            || is_svg_use_element();
+
+    case CSS::PropertyID::Opacity:
+        // https://www.w3.org/TR/SVG2/render.html#ObjectAndGroupOpacityProperties
+        // The opacity property applies to the following SVG elements:
+        // ‘svg’, ‘g’, ‘symbol’, ‘marker’, ‘a’, ‘switch’, ‘use’, ‘unknown’ and graphics elements.
+        return is_svg_svg_element()
+            || is_svg_g_element()
+            || is_svg_symbol_element()
+            || is_svg_marker_element()
+            || is_svg_a_element()
+            || is_svg_switch_element()
+            || is_svg_use_element()
+            || is_svg_unknown_element()
+            || is_svg_graphics_element();
+
+    default:
+        // Just assume everything else does apply.
+        return true;
+    }
+}
+
+// https://www.w3.org/TR/SVG/coords.html#EstablishingANewSVGViewport
+bool SVGElement::establishes_a_new_viewport() const
+{
+    // The following elements establish new SVG viewports:
+
+    // - The ‘svg’ element
+    if (is_svg_svg_element())
+        return true;
+
+    // - A ‘symbol’ element that is instanced by a ‘use’ element.
+    // FIXME: Only if instanced by a `use`.
+    if (is_svg_symbol_element())
+        return true;
+
+    return false;
+}
+
 // https://svgwg.org/svg2-draft/struct.html#container-element
 bool SVGElement::is_svg_container_element() const
 {

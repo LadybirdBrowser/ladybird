@@ -129,4 +129,11 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x700]
         SVGPathPaintable (SVGGeometryBox<rect>) [160,560 80x80]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x700] [children: 0] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x700] [children: 7] (z-index: auto)
+  SC for SVGSVGBox<svg> [50,150 200x100] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [258,50 200x200] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [466,50 200x200] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [50,250 200x200] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [258,250 200x200] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [466,250 200x200] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [50,450 200x200] [children: 0] (z-index: auto)
