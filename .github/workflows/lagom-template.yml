@@ -150,6 +150,9 @@ jobs:
       - name: Create Build Environment (Fuzzers)
         if: ${{ inputs.build_preset == 'Fuzzers' }}
         working-directory: ${{ github.workspace }}
+        env:
+          VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
+          VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
         run: |
           cmake --preset=Distribution -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
             -DLAGOM_TOOLS_ONLY=ON \
