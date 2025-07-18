@@ -2724,7 +2724,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     // 9. Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(computed_style, element, pseudo_element);
-    if (auto previous_style = element.computed_properties(); previous_style) {
+    if (auto previous_style = element.computed_properties(pseudo_element)) {
         start_needed_transitions(*previous_style, computed_style, element, pseudo_element);
     }
 

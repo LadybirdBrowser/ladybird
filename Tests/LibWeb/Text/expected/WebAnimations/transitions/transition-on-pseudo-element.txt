@@ -1,0 +1,1 @@
+running animations count (0) should be zero
