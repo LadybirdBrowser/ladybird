@@ -824,7 +824,7 @@ public:
             VERIFY(tag == ValueTag::SerializableObject);
 
             // 1. Let interfaceName be serialized.[[Type]].
-            auto interface_name = m_serialized.decode<SerializeType>();
+            auto interface_name = m_serialized.decode<Bindings::InterfaceName>();
 
             // 2. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
             if (!is_serializable_interface_exposed_on_target_realm(interface_name, realm))
@@ -910,39 +910,39 @@ public:
     }
 
 private:
-    static bool is_serializable_interface_exposed_on_target_realm(SerializeType name, JS::Realm& realm)
+    static bool is_serializable_interface_exposed_on_target_realm(Bindings::InterfaceName name, JS::Realm& realm)
     {
         auto const& intrinsics = Bindings::host_defined_intrinsics(realm);
         switch (name) {
-        case SerializeType::Blob:
+        case Bindings::InterfaceName::Blob:
             return intrinsics.is_interface_exposed<Bindings::BlobPrototype>(realm);
-        case SerializeType::File:
+        case Bindings::InterfaceName::File:
             return intrinsics.is_interface_exposed<Bindings::FilePrototype>(realm);
-        case SerializeType::FileList:
+        case Bindings::InterfaceName::FileList:
             return intrinsics.is_interface_exposed<Bindings::FileListPrototype>(realm);
-        case SerializeType::DOMException:
+        case Bindings::InterfaceName::DOMException:
             return intrinsics.is_interface_exposed<Bindings::DOMExceptionPrototype>(realm);
-        case SerializeType::DOMMatrixReadOnly:
+        case Bindings::InterfaceName::DOMMatrixReadOnly:
             return intrinsics.is_interface_exposed<Bindings::DOMMatrixReadOnlyPrototype>(realm);
-        case SerializeType::DOMMatrix:
+        case Bindings::InterfaceName::DOMMatrix:
             return intrinsics.is_interface_exposed<Bindings::DOMMatrixPrototype>(realm);
-        case SerializeType::DOMPointReadOnly:
+        case Bindings::InterfaceName::DOMPointReadOnly:
             return intrinsics.is_interface_exposed<Bindings::DOMPointReadOnlyPrototype>(realm);
-        case SerializeType::DOMPoint:
+        case Bindings::InterfaceName::DOMPoint:
             return intrinsics.is_interface_exposed<Bindings::DOMPointPrototype>(realm);
-        case SerializeType::DOMRectReadOnly:
+        case Bindings::InterfaceName::DOMRectReadOnly:
             return intrinsics.is_interface_exposed<Bindings::DOMRectReadOnlyPrototype>(realm);
-        case SerializeType::DOMRect:
+        case Bindings::InterfaceName::DOMRect:
             return intrinsics.is_interface_exposed<Bindings::DOMRectPrototype>(realm);
-        case SerializeType::CryptoKey:
+        case Bindings::InterfaceName::CryptoKey:
             return intrinsics.is_interface_exposed<Bindings::CryptoKeyPrototype>(realm);
-        case SerializeType::DOMQuad:
+        case Bindings::InterfaceName::DOMQuad:
             return intrinsics.is_interface_exposed<Bindings::DOMQuadPrototype>(realm);
-        case SerializeType::ImageData:
+        case Bindings::InterfaceName::ImageData:
             return intrinsics.is_interface_exposed<Bindings::ImageDataPrototype>(realm);
-        case SerializeType::ImageBitmap:
+        case Bindings::InterfaceName::ImageBitmap:
             return intrinsics.is_interface_exposed<Bindings::ImageBitmapPrototype>(realm);
-        case SerializeType::Unknown:
+        case Bindings::InterfaceName::Unknown:
             dbgln("Unknown interface type for serialization: {}", to_underlying(name));
             break;
         default:
@@ -951,38 +951,38 @@ private:
         return false;
     }
 
-    static GC::Ref<Bindings::PlatformObject> create_serialized_type(SerializeType serialize_type, JS::Realm& realm)
+    static GC::Ref<Bindings::PlatformObject> create_serialized_type(Bindings::InterfaceName serialize_type, JS::Realm& realm)
     {
         switch (serialize_type) {
-        case SerializeType::Blob:
+        case Bindings::InterfaceName::Blob:
             return FileAPI::Blob::create(realm);
-        case SerializeType::File:
+        case Bindings::InterfaceName::File:
             return FileAPI::File::create(realm);
-        case SerializeType::FileList:
+        case Bindings::InterfaceName::FileList:
             return FileAPI::FileList::create(realm);
-        case SerializeType::DOMException:
+        case Bindings::InterfaceName::DOMException:
             return WebIDL::DOMException::create(realm);
-        case SerializeType::DOMMatrixReadOnly:
+        case Bindings::InterfaceName::DOMMatrixReadOnly:
             return Geometry::DOMMatrixReadOnly::create(realm);
-        case SerializeType::DOMMatrix:
+        case Bindings::InterfaceName::DOMMatrix:
             return Geometry::DOMMatrix::create(realm);
-        case SerializeType::DOMPointReadOnly:
+        case Bindings::InterfaceName::DOMPointReadOnly:
             return Geometry::DOMPointReadOnly::create(realm);
-        case SerializeType::DOMPoint:
+        case Bindings::InterfaceName::DOMPoint:
             return Geometry::DOMPoint::create(realm);
-        case SerializeType::DOMRectReadOnly:
+        case Bindings::InterfaceName::DOMRectReadOnly:
             return Geometry::DOMRectReadOnly::create(realm);
-        case SerializeType::DOMRect:
+        case Bindings::InterfaceName::DOMRect:
             return Geometry::DOMRect::create(realm);
-        case SerializeType::CryptoKey:
+        case Bindings::InterfaceName::CryptoKey:
             return Crypto::CryptoKey::create(realm);
-        case SerializeType::DOMQuad:
+        case Bindings::InterfaceName::DOMQuad:
             return Geometry::DOMQuad::create(realm);
-        case SerializeType::ImageData:
+        case Bindings::InterfaceName::ImageData:
             return ImageData::create(realm);
-        case SerializeType::ImageBitmap:
+        case Bindings::InterfaceName::ImageBitmap:
             return ImageBitmap::create(realm);
-        case SerializeType::Unknown:
+        case Bindings::InterfaceName::Unknown:
         default:
             VERIFY_NOT_REACHED();
         }

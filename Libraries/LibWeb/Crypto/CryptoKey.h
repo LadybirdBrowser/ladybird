@@ -47,7 +47,7 @@ public:
     InternalKeyData const& handle() const { return m_key_data; }
     String algorithm_name() const;
 
-    virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::CryptoKey; }
+    virtual Bindings::InterfaceName serialize_type() const override { return Bindings::InterfaceName::CryptoKey; }
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
