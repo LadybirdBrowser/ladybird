@@ -98,6 +98,8 @@ enum class InterfaceName : u16 {
     generator.append(R"~~~(
 };
 
+bool is_exposed(InterfaceName, JS::Realm&);
+
 }
 )~~~");
 
@@ -178,76 +180,74 @@ void Intrinsics::create_web_namespace<@namespace_class@>(JS::Realm& realm)
 )~~~");
     };
 
-    auto add_interface = [](SourceGenerator& gen, InterfaceSets const& interface_sets, StringView name, StringView prototype_class, StringView constructor_class, Optional<LegacyConstructor> const& legacy_constructor, StringView named_properties_class) {
+    auto generate_global_exposed = [&generator](StringView global_name, Vector<IDL::Interface&> const& interface_set) {
+        generator.set("global_name", global_name);
+        generator.append(R"~~~(
+static bool is_@global_name@_exposed(InterfaceName name)
+{
+    switch (name) {
+)~~~");
+        for (auto const& interface : interface_set) {
+            auto gen = generator.fork();
+            gen.set("interface_name", interface.name);
+            gen.append(R"~~~(
+    case InterfaceName::@interface_name@:)~~~");
+        }
+
+        generator.append(R"~~~(
+        return true;
+    default:
+        return false;
+    }
+}
+)~~~");
+    };
+
+    generate_global_exposed("window"sv, interface_sets.window_exposed);
+    generate_global_exposed("dedicated_worker"sv, interface_sets.dedicated_worker_exposed);
+    generate_global_exposed("shared_worker"sv, interface_sets.shared_worker_exposed);
+    generate_global_exposed("shadow_realm"sv, interface_sets.shadow_realm_exposed);
+
+    // https://webidl.spec.whatwg.org/#dfn-exposed
+    generator.append(R"~~~(
+// An interface, callback interface, namespace, or member construct is exposed in a given realm realm if the following steps return true:
+// FIXME: Make this compatible with non-interface types.
+bool is_exposed(InterfaceName name, JS::Realm& realm)
+{
+    auto const& global_object = realm.global_object();
+
+    // 1. If construct’s exposure set is not *, and realm.[[GlobalObject]] does not implement an interface that is in construct’s exposure set, then return false.
+    if (is<HTML::Window>(global_object)) {
+       if (!is_window_exposed(name))
+           return false;
+    } else if (is<HTML::DedicatedWorkerGlobalScope>(global_object)) {
+       if (!is_dedicated_worker_exposed(name))
+           return false;
+    } else if (is<HTML::SharedWorkerGlobalScope>(global_object)) {
+        if (!is_shared_worker_exposed(name))
+            return false;
+    } else if (is<HTML::ShadowRealmGlobalScope>(global_object)) {
+        if (!is_shadow_realm_exposed(name))
+            return false;
+    } else {
+        TODO(); // FIXME: ServiceWorkerGlobalScope and WorkletGlobalScope.
+    }
+
+    // FIXME: 2. If realm’s settings object is not a secure context, and construct is conditionally exposed on
+    //           [SecureContext], then return false.
+    // FIXME: 3. If realm’s settings object’s cross-origin isolated capability is false, and construct is
+    //           conditionally exposed on [CrossOriginIsolated], then return false.
+
+    // 4. Return true.
+    return true;
+}
+
+)~~~");
+
+    auto add_interface = [](SourceGenerator& gen, StringView name, StringView prototype_class, StringView constructor_class, Optional<LegacyConstructor> const& legacy_constructor, StringView named_properties_class) {
         gen.set("interface_name", name);
         gen.set("prototype_class", prototype_class);
         gen.set("constructor_class", constructor_class);
-
-        // https://webidl.spec.whatwg.org/#dfn-exposed
-        // An interface, callback interface, namespace, or member construct is exposed in a given realm realm if the
-        // following steps return true:
-        // FIXME: Make this compatible with the non-interface types.
-        gen.append(R"~~~(
-template<>
-bool Intrinsics::is_interface_exposed<@prototype_class@>(JS::Realm& realm) const
-{
-    [[maybe_unused]] auto& global_object = realm.global_object();
-)~~~");
-
-        // 1. If construct’s exposure set is not *, and realm.[[GlobalObject]] does not implement an interface that is in construct’s exposure set, then return false.
-        auto window_exposed_iterator = interface_sets.window_exposed.find_if([&name](IDL::Interface const& interface) {
-            return interface.name == name;
-        });
-
-        if (window_exposed_iterator != interface_sets.window_exposed.end()) {
-            gen.append(R"~~~(
-    if (is<HTML::Window>(global_object))
-        return true;
-)~~~");
-        }
-
-        auto dedicated_worker_exposed_iterator = interface_sets.dedicated_worker_exposed.find_if([&name](IDL::Interface const& interface) {
-            return interface.name == name;
-        });
-
-        if (dedicated_worker_exposed_iterator != interface_sets.dedicated_worker_exposed.end()) {
-            gen.append(R"~~~(
-    if (is<HTML::DedicatedWorkerGlobalScope>(global_object))
-        return true;
-)~~~");
-        }
-
-        auto shared_worker_exposed_iterator = interface_sets.shared_worker_exposed.find_if([&name](IDL::Interface const& interface) {
-            return interface.name == name;
-        });
-
-        if (shared_worker_exposed_iterator != interface_sets.shared_worker_exposed.end()) {
-            gen.append(R"~~~(
-    if (is<HTML::SharedWorkerGlobalScope>(global_object))
-        return true;
-)~~~");
-        }
-
-        auto shadow_realm_exposed_iterator = interface_sets.shadow_realm_exposed.find_if([&name](IDL::Interface const& interface) {
-            return interface.name == name;
-        });
-
-        if (shadow_realm_exposed_iterator != interface_sets.shadow_realm_exposed.end()) {
-            gen.append(R"~~~(
-    if (is<HTML::ShadowRealmGlobalScope>(global_object))
-        return true;
-)~~~");
-        }
-
-        // FIXME: 2. If realm’s settings object is not a secure context, and construct is conditionally exposed on
-        //           [SecureContext], then return false.
-        // FIXME: 3. If realm’s settings object’s cross-origin isolated capability is false, and construct is
-        //           conditionally exposed on [CrossOriginIsolated], then return false.
-
-        gen.append(R"~~~(
-    return false;
-}
-)~~~");
 
         gen.append(R"~~~(
 template<>
@@ -298,7 +298,7 @@ void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>(JS::Rea
         if (interface.is_namespace)
             add_namespace(gen, interface.name, interface.namespace_class);
         else
-            add_interface(gen, interface_sets, interface.namespaced_name, interface.prototype_class, interface.constructor_class, lookup_legacy_constructor(interface), named_properties_class);
+            add_interface(gen, interface.namespaced_name, interface.prototype_class, interface.constructor_class, lookup_legacy_constructor(interface), named_properties_class);
     }
 
     generator.append(R"~~~(

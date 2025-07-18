@@ -827,7 +827,7 @@ public:
             auto interface_name = m_serialized.decode<Bindings::InterfaceName>();
 
             // 2. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
-            if (!is_serializable_interface_exposed_on_target_realm(interface_name, realm))
+            if (!is_exposed(interface_name, realm))
                 return WebIDL::DataCloneError::create(realm, "Unsupported type"_string);
 
             // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
@@ -910,47 +910,6 @@ public:
     }
 
 private:
-    static bool is_serializable_interface_exposed_on_target_realm(Bindings::InterfaceName name, JS::Realm& realm)
-    {
-        auto const& intrinsics = Bindings::host_defined_intrinsics(realm);
-        switch (name) {
-        case Bindings::InterfaceName::Blob:
-            return intrinsics.is_interface_exposed<Bindings::BlobPrototype>(realm);
-        case Bindings::InterfaceName::File:
-            return intrinsics.is_interface_exposed<Bindings::FilePrototype>(realm);
-        case Bindings::InterfaceName::FileList:
-            return intrinsics.is_interface_exposed<Bindings::FileListPrototype>(realm);
-        case Bindings::InterfaceName::DOMException:
-            return intrinsics.is_interface_exposed<Bindings::DOMExceptionPrototype>(realm);
-        case Bindings::InterfaceName::DOMMatrixReadOnly:
-            return intrinsics.is_interface_exposed<Bindings::DOMMatrixReadOnlyPrototype>(realm);
-        case Bindings::InterfaceName::DOMMatrix:
-            return intrinsics.is_interface_exposed<Bindings::DOMMatrixPrototype>(realm);
-        case Bindings::InterfaceName::DOMPointReadOnly:
-            return intrinsics.is_interface_exposed<Bindings::DOMPointReadOnlyPrototype>(realm);
-        case Bindings::InterfaceName::DOMPoint:
-            return intrinsics.is_interface_exposed<Bindings::DOMPointPrototype>(realm);
-        case Bindings::InterfaceName::DOMRectReadOnly:
-            return intrinsics.is_interface_exposed<Bindings::DOMRectReadOnlyPrototype>(realm);
-        case Bindings::InterfaceName::DOMRect:
-            return intrinsics.is_interface_exposed<Bindings::DOMRectPrototype>(realm);
-        case Bindings::InterfaceName::CryptoKey:
-            return intrinsics.is_interface_exposed<Bindings::CryptoKeyPrototype>(realm);
-        case Bindings::InterfaceName::DOMQuad:
-            return intrinsics.is_interface_exposed<Bindings::DOMQuadPrototype>(realm);
-        case Bindings::InterfaceName::ImageData:
-            return intrinsics.is_interface_exposed<Bindings::ImageDataPrototype>(realm);
-        case Bindings::InterfaceName::ImageBitmap:
-            return intrinsics.is_interface_exposed<Bindings::ImageBitmapPrototype>(realm);
-        case Bindings::InterfaceName::Unknown:
-            dbgln("Unknown interface type for serialization: {}", to_underlying(name));
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-        return false;
-    }
-
     static GC::Ref<Bindings::PlatformObject> create_serialized_type(Bindings::InterfaceName serialize_type, JS::Realm& realm)
     {
         switch (serialize_type) {
@@ -1105,18 +1064,17 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
 static bool is_transferable_interface_exposed_on_target_realm(TransferType name, JS::Realm& realm)
 {
-    auto const& intrinsics = Bindings::host_defined_intrinsics(realm);
     switch (name) {
     case TransferType::MessagePort:
-        return intrinsics.is_interface_exposed<Bindings::MessagePortPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::MessagePort, realm);
     case TransferType::ReadableStream:
-        return intrinsics.is_interface_exposed<Bindings::ReadableStreamPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::ReadableStream, realm);
     case TransferType::WritableStream:
-        return intrinsics.is_interface_exposed<Bindings::WritableStreamPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::WritableStream, realm);
     case TransferType::TransformStream:
-        return intrinsics.is_interface_exposed<Bindings::TransformStreamPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::TransformStream, realm);
     case TransferType::ImageBitmap:
-        return intrinsics.is_interface_exposed<Bindings::ImageBitmapPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::ImageBitmap, realm);
     case TransferType::Unknown:
         dbgln("Unknown interface type for transfer: {}", to_underlying(name));
         break;
