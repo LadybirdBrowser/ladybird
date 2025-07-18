@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="800px">
+  <title>Filter Effects Module Level 1: parsing flood-opacity with valid values</title>
+  <metadata>
+    <h:link rel="help" href="https://drafts.fxtf.org/filter-effects/#propdef-flood-opacity"/>
+    <h:meta name="assert" content="flood-opacity supports the full grammar 'alpha-value'."/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/parsing-testcommon.js"/>
+  <script><![CDATA[
+
+test_valid_value("flood-opacity", "-1");
+test_valid_value("flood-opacity", "0.5");
+test_valid_value("flood-opacity", "3");
+test_valid_value("flood-opacity", "-100%", "-1");
+test_valid_value("flood-opacity", "50%", "0.5");
+test_valid_value("flood-opacity", "300%", "3");
+test_valid_value("flood-opacity", "calc(0.5 * sign(10em - 1px))");
+
+  ]]></script>
+</svg>
