@@ -431,7 +431,7 @@ public:
                 // 2. Let typeString be the identifier of the primary interface of value.
                 // 3. Set serialized to { [[Type]]: typeString }.
                 serialized.encode(ValueTag::SerializableObject);
-                serialized.encode(serializable->serialize_type());
+                serialized.encode(as<Bindings::PlatformObject>(serializable)->interface_name());
 
                 // 4. Set deep to true
                 deep = true;
