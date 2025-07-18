@@ -2,20 +2,20 @@ Harness status: OK
 
 Found 256 tests
 
-92 Pass
-164 Fail
-Fail	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (-0.3) should be [17px 37px 57px 77px]
-Fail	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0) should be [20px 40px 60px 80px]
-Fail	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.3) should be [23px 43px 63px 83px]
-Fail	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.6) should be [26px 46px 66px 86px]
+102 Pass
+154 Fail
+Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (-0.3) should be [17px 37px 57px 77px]
+Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0) should be [20px 40px 60px 80px]
+Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.3) should be [23px 43px 63px 83px]
+Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.6) should be [26px 46px 66px 86px]
 Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (1) should be [30px 50px 70px 90px]
-Fail	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (1.5) should be [35px 55px 75px 95px]
-Fail	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (-0.3) should be [17px 37px 57px 77px]
-Fail	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0) should be [20px 40px 60px 80px]
-Fail	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.3) should be [23px 43px 63px 83px]
-Fail	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.6) should be [26px 46px 66px 86px]
+Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (1.5) should be [35px 55px 75px 95px]
+Pass	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (-0.3) should be [17px 37px 57px 77px]
+Pass	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0) should be [20px 40px 60px 80px]
+Pass	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.3) should be [23px 43px 63px 83px]
+Pass	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.6) should be [26px 46px 66px 86px]
 Pass	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (1) should be [30px 50px 70px 90px]
-Fail	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (1.5) should be [35px 55px 75px 95px]
+Pass	CSS Transitions with transition: all: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (1.5) should be [35px 55px 75px 95px]
 Pass	CSS Animations: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (-0.3) should be [17px 37px 57px 77px]
 Pass	CSS Animations: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0) should be [20px 40px 60px 80px]
 Pass	CSS Animations: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.3) should be [23px 43px 63px 83px]
