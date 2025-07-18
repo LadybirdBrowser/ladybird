@@ -91,6 +91,7 @@ set(SOURCES
     CSS/CSS.cpp
     CSS/CSSAnimation.cpp
     CSS/CSSConditionRule.cpp
+    CSS/CSSCounterStyleRule.cpp
     CSS/CSSDescriptors.cpp
     CSS/CSSFontFaceDescriptors.cpp
     CSS/CSSFontFaceRule.cpp

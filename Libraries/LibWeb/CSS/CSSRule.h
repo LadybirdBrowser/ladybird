@@ -63,7 +63,7 @@ public:
     virtual void clear_caches();
 
 protected:
-    explicit CSSRule(JS::Realm&, Type);
+    CSSRule(JS::Realm&, Type);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
