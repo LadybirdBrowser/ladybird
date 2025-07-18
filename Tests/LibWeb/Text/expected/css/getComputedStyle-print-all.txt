@@ -187,6 +187,7 @@ margin-top: 8px
 mask-composite: add
 mask-image: none
 mask-mode: match-source
+mask-position: 0% 0%
 mask-type: luminance
 max-block-size: none
 max-height: none
