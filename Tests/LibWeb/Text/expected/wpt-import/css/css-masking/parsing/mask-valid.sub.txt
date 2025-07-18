@@ -2,60 +2,60 @@ Harness status: OK
 
 Found 55 tests
 
-5 Pass
-50 Fail
-Pass	e.style['mask'] = "none" should set the property value
+25 Pass
+30 Fail
+Fail	e.style['mask'] = "none" should set the property value
 Pass	e.style['mask'] = "linear-gradient(to left bottom, red, blue)" should set the property value
-Fail	e.style['mask'] = "linear-gradient(to left bottom, red, blue) luminance" should set the property value
+Pass	e.style['mask'] = "linear-gradient(to left bottom, red, blue) luminance" should set the property value
 Pass	e.style['mask'] = "url(\"https://wpt.live/\")" should set the property value
-Fail	e.style['mask'] = "linear-gradient(to left bottom, red, blue) 1px 2px" should set the property value
+Pass	e.style['mask'] = "linear-gradient(to left bottom, red, blue) 1px 2px" should set the property value
 Fail	e.style['mask'] = "url(\"https://wpt.live/\") 1px 2px / contain" should set the property value
-Fail	e.style['mask'] = "repeat-y" should set the property value
+Pass	e.style['mask'] = "repeat-y" should set the property value
 Fail	e.style['mask'] = "border-box" should set the property value
 Fail	e.style['mask'] = "linear-gradient(to left bottom, red, blue) padding-box" should set the property value
 Fail	e.style['mask'] = "content-box" should set the property value
 Fail	e.style['mask'] = "url(\"https://wpt.live/\") fill-box" should set the property value
 Fail	e.style['mask'] = "linear-gradient(to left bottom, red, blue) stroke-box" should set the property value
 Fail	e.style['mask'] = "view-box" should set the property value
-Fail	e.style['mask'] = "no-clip" should set the property value
-Fail	e.style['mask'] = "url(\"https://wpt.live/\") add" should set the property value
-Fail	e.style['mask'] = "subtract" should set the property value
+Pass	e.style['mask'] = "no-clip" should set the property value
+Pass	e.style['mask'] = "url(\"https://wpt.live/\") add" should set the property value
+Pass	e.style['mask'] = "subtract" should set the property value
 Fail	e.style['mask'] = "url(\"https://wpt.live/\") intersect" should set the property value
 Fail	e.style['mask'] = "linear-gradient(to left bottom, red, blue) exclude" should set the property value
-Fail	e.style['mask'] = "alpha" should set the property value
-Fail	e.style['mask'] = "url(\"https://wpt.live/\") alpha" should set the property value
+Pass	e.style['mask'] = "alpha" should set the property value
+Pass	e.style['mask'] = "url(\"https://wpt.live/\") alpha" should set the property value
 Fail	e.style['mask'] = "border-box border-box" should set the property value
 Fail	e.style['mask'] = "content-box content-box" should set the property value
 Fail	e.style['mask'] = "border-box content-box" should set the property value
-Fail	e.style['mask'] = "border-box no-clip" should set the property value
+Pass	e.style['mask'] = "border-box no-clip" should set the property value
 Fail	e.style['mask'] = "intersect no-clip space round 1px 2px / contain stroke-box linear-gradient(to left bottom, red, blue) luminance" should set the property value
 Fail	e.style['mask'] = "intersect no-clip space round 1px 2px / contain view-box, stroke-box linear-gradient(to left bottom, red, blue) luminance" should set the property value
-Fail	e.style['mask'] = "none alpha" should set the property value
+Pass	e.style['mask'] = "none alpha" should set the property value
 Fail	e.style['mask'] = "none" should set mask-border-outset
 Fail	e.style['mask'] = "none" should set mask-border-repeat
 Fail	e.style['mask'] = "none" should set mask-border-slice
 Fail	e.style['mask'] = "none" should set mask-border-source
 Fail	e.style['mask'] = "none" should set mask-border-width
-Fail	e.style['mask'] = "none" should set mask-clip
-Fail	e.style['mask'] = "none" should set mask-composite
+Pass	e.style['mask'] = "none" should set mask-clip
+Pass	e.style['mask'] = "none" should set mask-composite
 Pass	e.style['mask'] = "none" should set mask-image
-Fail	e.style['mask'] = "none" should set mask-mode
-Fail	e.style['mask'] = "none" should set mask-origin
-Fail	e.style['mask'] = "none" should set mask-position
-Fail	e.style['mask'] = "none" should set mask-repeat
-Fail	e.style['mask'] = "none" should set mask-size
+Pass	e.style['mask'] = "none" should set mask-mode
+Pass	e.style['mask'] = "none" should set mask-origin
+Pass	e.style['mask'] = "none" should set mask-position
+Pass	e.style['mask'] = "none" should set mask-repeat
+Pass	e.style['mask'] = "none" should set mask-size
 Pass	e.style['mask'] = "none" should not set unrelated longhands
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-outset
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-repeat
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-slice
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-source
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-width
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-clip
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-clip
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-composite
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-image
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-image
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-mode
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-origin
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-origin
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-position
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-repeat
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-size
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should not set unrelated longhands
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should not set unrelated longhands

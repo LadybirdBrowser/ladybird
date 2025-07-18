@@ -2376,11 +2376,19 @@
     ]
   },
   "mask": {
+    "__comment": "FIXME: reset mask-border",
     "inherited": false,
-    "__comment": "FIXME: add longhands mask-clip, mask-composite, mask-mode, mask-origin, mask-position, mask-repeat, mask-size; also reset mask-border",
+    "affects-layout": false,
     "initial": "none",
     "longhands": [
-      "mask-image"
+      "mask-clip",
+      "mask-composite",
+      "mask-image",
+      "mask-mode",
+      "mask-origin",
+      "mask-position",
+      "mask-repeat",
+      "mask-size"
     ]
   },
   "mask-clip": {
