@@ -18,7 +18,7 @@ public:
     static ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue const> c1, ValueComparingNonnullRefPtr<CSSStyleValue const> c2, ValueComparingNonnullRefPtr<CSSStyleValue const> c3, ValueComparingRefPtr<CSSStyleValue const> alpha = {});
 
     virtual bool equals(CSSStyleValue const&) const override;
-    virtual Optional<Color> to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const override;
+    virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 
     virtual bool is_color_function() const override { return true; }
