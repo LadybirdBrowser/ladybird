@@ -40,6 +40,8 @@ struct Listener {
     virtual void element_start(Name const&, HashMap<Name, ByteString> const&) { }
     virtual void element_end(Name const&) { }
     virtual void text(StringView) { }
+    virtual void cdata_section(StringView) { }
+    virtual void processing_instruction(StringView, StringView) { }
     virtual void comment(StringView) { }
     virtual void error(ParseError const&) { }
 };
@@ -82,6 +84,8 @@ private:
     void append_node(NonnullOwnPtr<Node>);
     void append_text(StringView, LineTrackingLexer::Position);
     void append_comment(StringView, LineTrackingLexer::Position);
+    void append_cdata_section(StringView, LineTrackingLexer::Position);
+    void append_processing_instruction(StringView target, StringView data);
     void enter_node(Node&);
     void leave_node();
 
