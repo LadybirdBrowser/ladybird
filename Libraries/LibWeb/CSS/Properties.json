@@ -2381,6 +2381,18 @@
       "mask-image"
     ]
   },
+  "mask-clip": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "valid-types": [
+      "coord-box"
+    ],
+    "valid-identifiers": [
+      "no-clip"
+    ],
+    "initial": "border-box"
+  },
   "mask-composite": {
     "animation-type": "discrete",
     "inherited": false,
