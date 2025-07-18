@@ -204,11 +204,11 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
         CSSPixels y_step = 0;
 
         switch (layer.repeat_x) {
-        case CSS::Repeat::Round:
+        case CSS::Repetition::Round:
             x_step = image_rect.width();
             repeat_x = true;
             break;
-        case CSS::Repeat::Space: {
+        case CSS::Repetition::Space: {
             int whole_images = (background_positioning_area.width() / image_rect.width()).to_int();
             if (whole_images <= 1) {
                 x_step = image_rect.width();
@@ -221,11 +221,11 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             }
             break;
         }
-        case CSS::Repeat::Repeat:
+        case CSS::Repetition::Repeat:
             x_step = image_rect.width();
             repeat_x = true;
             break;
-        case CSS::Repeat::NoRepeat:
+        case CSS::Repetition::NoRepeat:
             repeat_x = false;
             break;
         }
@@ -236,11 +236,11 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
         }
 
         switch (layer.repeat_y) {
-        case CSS::Repeat::Round:
+        case CSS::Repetition::Round:
             y_step = image_rect.height();
             repeat_y = true;
             break;
-        case CSS::Repeat::Space: {
+        case CSS::Repetition::Space: {
             int whole_images = (background_positioning_area.height() / image_rect.height()).to_int();
             if (whole_images <= 1) {
                 y_step = image_rect.height();
@@ -253,11 +253,11 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             }
             break;
         }
-        case CSS::Repeat::Repeat:
+        case CSS::Repetition::Repeat:
             y_step = image_rect.height();
             repeat_y = true;
             break;
-        case CSS::Repeat::NoRepeat:
+        case CSS::Repetition::NoRepeat:
             repeat_y = false;
             break;
         }
@@ -417,15 +417,15 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         // If background-repeat is round for one (or both) dimensions, there is a second step.
         // The UA must scale the image in that dimension (or both dimensions) so that it fits a
         // whole number of times in the background positioning area.
-        if (layer.repeat_x == CSS::Repeat::Round || layer.repeat_y == CSS::Repeat::Round) {
+        if (layer.repeat_x == CSS::Repetition::Round || layer.repeat_y == CSS::Repetition::Round) {
             // If X ≠ 0 is the width of the image after step one and W is the width of the
             // background positioning area, then the rounded width X' = W / round(W / X)
             // where round() is a function that returns the nearest natural number
             // (integer greater than zero).
-            if (layer.repeat_x == CSS::Repeat::Round) {
+            if (layer.repeat_x == CSS::Repetition::Round) {
                 image_rect.set_width(background_positioning_area.width() / round(background_positioning_area.width() / image_rect.width()));
             }
-            if (layer.repeat_y == CSS::Repeat::Round) {
+            if (layer.repeat_y == CSS::Repetition::Round) {
                 image_rect.set_height(background_positioning_area.height() / round(background_positioning_area.height() / image_rect.height()));
             }
 

@@ -15,7 +15,6 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
@@ -57,6 +56,7 @@
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
@@ -96,10 +96,10 @@ AngleStyleValue const& CSSStyleValue::as_angle() const
     return static_cast<AngleStyleValue const&>(*this);
 }
 
-BackgroundRepeatStyleValue const& CSSStyleValue::as_background_repeat() const
+RepeatStyleStyleValue const& CSSStyleValue::as_repeat_style() const
 {
-    VERIFY(is_background_repeat());
-    return static_cast<BackgroundRepeatStyleValue const&>(*this);
+    VERIFY(is_repeat_style());
+    return static_cast<RepeatStyleStyleValue const&>(*this);
 }
 
 BackgroundSizeStyleValue const& CSSStyleValue::as_background_size() const
