@@ -79,6 +79,8 @@ static String generate_a_counter_representation(CSSStyleValue const& counter_sty
                 case CounterStyleNameKeyword::UpperAlpha:
                 case CounterStyleNameKeyword::UpperLatin:
                     return String::bijective_base_from(value - 1, String::Case::Upper);
+                case CounterStyleNameKeyword::LowerGreek:
+                    return String::greek_letter_from(value);
                 case CounterStyleNameKeyword::LowerRoman:
                     return String::roman_number_from(value, String::Case::Lower);
                 case CounterStyleNameKeyword::UpperRoman:
