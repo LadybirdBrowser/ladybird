@@ -22,9 +22,8 @@ class PasswordCredential final
     GC_DECLARE_ALLOCATOR(PasswordCredential);
 
 public:
-    [[nodiscard]] static GC::Ref<PasswordCredential> create(JS::Realm&);
-    static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, HTML::HTMLFormElement const&);
-    static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, PasswordCredentialData const&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, GC::Ptr<HTML::HTMLFormElement>);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, PasswordCredentialData const&);
 
     virtual ~PasswordCredential() override;
 
@@ -34,7 +33,7 @@ public:
     String type() override { return "password"_string; }
 
 private:
-    explicit PasswordCredential(JS::Realm&);
+    explicit PasswordCredential(JS::Realm&, PasswordCredentialData const&);
     virtual void initialize(JS::Realm&) override;
 
     // TODO: Use Core::SecretString when it comes back
