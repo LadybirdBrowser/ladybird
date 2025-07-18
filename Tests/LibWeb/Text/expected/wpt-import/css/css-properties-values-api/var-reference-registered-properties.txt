@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 16 tests
+
+7 Pass
+9 Fail
+Fail	var() references work with registered properties
+Fail	References to registered var()-properties work in registered lists
+Fail	References to mixed registered and unregistered var()-properties work in registered lists
+Fail	Registered lists may be concatenated
+Fail	Font-relative units are absolutized when substituting
+Fail	Calc expressions are resolved when substituting
+Fail	Lists with relative units are absolutized when substituting
+Fail	Values are absolutized when substituting into properties with universal syntax
+Fail	Invalid values for registered properties are serialized as the empty string
+Pass	Valid fallback does not invalidate var()-reference [<length>, 10px]
+Pass	Valid fallback does not invalidate var()-reference [<length> | <color>, red]
+Pass	Valid fallback does not invalidate var()-reference [<length> | none, none]
+Pass	Invalid fallback doesn't invalidate var()-reference [<length>, red]
+Pass	Invalid fallback doesn't invalidate var()-reference [<length> | none, nolength]
+Pass	Invalid fallback doesn't invalidate var()-reference [<length>, var(--novar)]
+Pass	Empty universal custom property can be substituted with var()
