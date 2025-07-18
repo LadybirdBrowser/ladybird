@@ -31,11 +31,6 @@ struct CalculationContext {
     Optional<ValueType> percentages_resolve_as {};
     bool resolve_numbers_as_integers = false;
 };
-// Contains the context for resolving the calculation.
-struct CalculationResolutionContext {
-    Variant<Empty, Angle, Frequency, Length, Time> percentage_basis {};
-    Optional<Length::ResolutionContext> length_resolution_context;
-};
 
 class CalculatedStyleValue : public CSSStyleValue {
 public:
