@@ -229,26 +229,38 @@ Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, 
     auto l_bottom = l_top;
     auto l_left = rect.height();
     auto l_right = l_left;
-    auto s_top = (top_left_radius_px.horizontal_radius + top_right_radius_px.horizontal_radius);
-    auto s_right = (top_right_radius_px.vertical_radius + bottom_right_radius_px.vertical_radius);
-    auto s_bottom = (bottom_left_radius_px.horizontal_radius + bottom_right_radius_px.horizontal_radius);
-    auto s_left = (top_left_radius_px.vertical_radius + bottom_left_radius_px.vertical_radius);
-    CSSPixelFraction f = 1;
-    f = (s_top != 0) ? min(f, l_top / s_top) : f;
-    f = (s_right != 0) ? min(f, l_right / s_right) : f;
-    f = (s_bottom != 0) ? min(f, l_bottom / s_bottom) : f;
-    f = (s_left != 0) ? min(f, l_left / s_left) : f;
 
-    // If f < 1, then all corner radii are reduced by multiplying them by f.
-    if (f < 1) {
-        top_left_radius_px.horizontal_radius *= f;
-        top_left_radius_px.vertical_radius *= f;
-        top_right_radius_px.horizontal_radius *= f;
-        top_right_radius_px.vertical_radius *= f;
-        bottom_right_radius_px.horizontal_radius *= f;
-        bottom_right_radius_px.vertical_radius *= f;
-        bottom_left_radius_px.horizontal_radius *= f;
-        bottom_left_radius_px.vertical_radius *= f;
+    // Applying this once creates precision errors at border radii 17000000+ simply clamping the values would not preserve ratios
+    for (int i = 0; i < 2; ++i) {
+        auto s_top = (top_left_radius_px.horizontal_radius + top_right_radius_px.horizontal_radius);
+        auto s_right = (top_right_radius_px.vertical_radius + bottom_right_radius_px.vertical_radius);
+        auto s_bottom = (bottom_left_radius_px.horizontal_radius + bottom_right_radius_px.horizontal_radius);
+        auto s_left = (top_left_radius_px.vertical_radius + bottom_left_radius_px.vertical_radius);
+
+        CSSPixelFraction f = 1;
+        if (s_top != 0)
+            f = min(f, l_top / s_top);
+        if (s_right != 0)
+            f = min(f, l_right / s_right);
+        if (s_bottom != 0)
+            f = min(f, l_bottom / s_bottom);
+        if (s_left != 0)
+            f = min(f, l_left / s_left);
+
+        // If f < 1, then all corner radii are reduced by multiplying them by f.
+        if (f < 1) {
+            top_left_radius_px.horizontal_radius *= f;
+            top_left_radius_px.vertical_radius *= f;
+
+            top_right_radius_px.horizontal_radius *= f;
+            top_right_radius_px.vertical_radius *= f;
+
+            bottom_right_radius_px.horizontal_radius *= f;
+            bottom_right_radius_px.vertical_radius *= f;
+
+            bottom_left_radius_px.horizontal_radius *= f;
+            bottom_left_radius_px.vertical_radius *= f;
+        }
     }
 
     return Painting::BorderRadiiData { top_left_radius_px, top_right_radius_px, bottom_right_radius_px, bottom_left_radius_px };
