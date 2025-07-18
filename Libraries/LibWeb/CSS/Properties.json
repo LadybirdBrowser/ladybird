@@ -1561,7 +1561,8 @@
     "inherited": false,
     "initial": "1",
     "valid-types": [
-      "number [0,1]"
+      "number [-∞,∞]",
+      "percentage [-∞,∞]"
     ]
   },
   "font": {

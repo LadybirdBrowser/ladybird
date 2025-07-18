@@ -662,6 +662,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         return ParseError::SyntaxError;
     case PropertyID::Opacity:
     case PropertyID::FillOpacity:
+    case PropertyID::FloodOpacity:
     case PropertyID::StopOpacity:
     case PropertyID::StrokeOpacity:
         if (auto parsed_value = parse_opacity_value(property_id, tokens); parsed_value && !tokens.has_next_token())

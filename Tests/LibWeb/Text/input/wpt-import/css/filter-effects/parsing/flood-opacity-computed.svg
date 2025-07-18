@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="800px">
+  <title>Filter Effects Module Level 1: getComputedStyle().floodOpacity</title>
+  <metadata>
+    <h:link rel="help" href="https://drafts.fxtf.org/filter-effects/#propdef-flood-opacity"/>
+    <h:meta name="assert" content="flood-opacity computed value is clamped to the range [0,1]."/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/computed-testcommon.js"/>
+  <script><![CDATA[
+
+test_computed_value("flood-opacity", "-1", "0");
+test_computed_value("flood-opacity", "0.5");
+test_computed_value("flood-opacity", "3", "1");
+test_computed_value("flood-opacity", "-100%", "0");
+test_computed_value("flood-opacity", "50%", "0.5");
+test_computed_value("flood-opacity", "300%", "1");
+test_computed_value("flood-opacity", "calc(0.5 * sign(10em - 1px))", "0.5");
+test_computed_value("flood-opacity", "calc(50% * sign(10em - 1px))", "0.5");
+
+  ]]></script>
+</svg>
