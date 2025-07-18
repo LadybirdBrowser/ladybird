@@ -438,7 +438,8 @@ void LibJSGCVisitor::validate_record_macros(clang::CXXRecordDecl const& record)
             if (macro.args.size() < 2)
                 return;
 
-            if (macro.args[0].text != record_name) {
+            // NOTE: DOMURL is a special case since the C++ class is named differently than the IDL.
+            if (macro.args[0].text != record_name && record_name != "DOMURL") {
                 auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Expected first argument of %0 macro invocation to be %1");
                 auto builder = diag_engine.Report(macro.args[0].location, diag_id);
                 builder << LibJSCellMacro::type_name(expected_cell_macro_type) << record_name;
