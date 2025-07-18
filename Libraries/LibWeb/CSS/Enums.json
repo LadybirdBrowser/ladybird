@@ -491,6 +491,11 @@
     "luminance",
     "alpha"
   ],
+  "masking-mode": [
+    "alpha",
+    "luminance",
+    "match-source"
+  ],
   "math-shift": [
     "normal",
     "compact"
