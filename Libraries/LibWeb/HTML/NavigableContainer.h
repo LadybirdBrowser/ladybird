@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class NavigableContainer : public HTMLElement {
-    WEB_PLATFORM_OBJECT(NavigableContainer, HTMLElement);
+    WEB_NON_IDL_PLATFORM_OBJECT(NavigableContainer, HTMLElement);
 
 public:
     static GC::Ptr<NavigableContainer> navigable_container_with_content_navigable(GC::Ref<Navigable> navigable);

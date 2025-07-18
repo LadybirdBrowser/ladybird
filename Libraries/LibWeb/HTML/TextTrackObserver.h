@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 class TextTrackObserver final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(TextTrackObserver, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(TextTrackObserver, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(TextTrackObserver);
 
 public:
