@@ -48,10 +48,10 @@
 #include <LibWeb/Layout/SVGBox.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
-#include <stdio.h>
 
 namespace Web {
 
@@ -94,65 +94,57 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     static int indent = 0;
     for (int i = 0; i < indent; ++i)
         builder.append("  "sv);
-    if (is<DOM::Element>(node)) {
+    if (auto const* element = as_if<DOM::Element>(node)) {
         auto short_namespace = [&] -> FlyString {
-            auto const& namespace_uri = as<DOM::Element>(node).namespace_uri();
+            auto const& namespace_uri = element->namespace_uri();
             if (!namespace_uri.has_value())
                 return "n/a"_fly_string;
-            if (namespace_uri == "http://www.w3.org/1999/xhtml"sv)
+            if (namespace_uri == Namespace::HTML)
                 return "html"_fly_string;
-            if (namespace_uri == "http://www.w3.org/2000/svg"sv)
+            if (namespace_uri == Namespace::SVG)
                 return "svg"_fly_string;
-            if (namespace_uri == "http://www.w3.org/1998/Math/MathML"sv)
+            if (namespace_uri == Namespace::MathML)
                 return "mathml"_fly_string;
             return *namespace_uri;
         }();
 
-        builder.appendff("<{}:{}", short_namespace, as<DOM::Element>(node).local_name());
-        as<DOM::Element>(node).for_each_attribute([&](auto& name, auto& value) {
+        builder.appendff("<{}:{}", short_namespace, element->local_name());
+        element->for_each_attribute([&](auto& name, auto& value) {
             builder.appendff(" {}={}", name, value);
         });
         builder.append(">\n"sv);
-        auto& element = as<DOM::Element>(node);
-        if (element.use_pseudo_element().has_value()) {
+        if (element->use_pseudo_element().has_value()) {
             for (int i = 0; i < indent; ++i)
                 builder.append("  "sv);
-            builder.appendff("  (pseudo-element: {})\n", CSS::pseudo_element_name(element.use_pseudo_element().value()));
+            builder.appendff("  (pseudo-element: {})\n", CSS::pseudo_element_name(element->use_pseudo_element().value()));
         }
-    } else if (is<DOM::Text>(node)) {
-        builder.appendff("\"{}\"\n", as<DOM::Text>(node).data());
+    } else if (auto const* text = as_if<DOM::Text>(node)) {
+        builder.appendff("\"{}\"\n", text->data());
     } else {
         builder.appendff("{}\n", node.node_name());
     }
     ++indent;
-    if (is<DOM::Element>(node)) {
-        if (auto shadow_root = static_cast<DOM::Element const&>(node).shadow_root()) {
-            dump_tree(builder, *shadow_root);
+    if (auto const* element = as_if<DOM::Element>(node); element && element->shadow_root())
+        dump_tree(builder, *element->shadow_root());
+    if (auto const* image = as_if<HTML::HTMLImageElement>(node)) {
+        if (auto const* svg_data = as_if<SVG::SVGDecodedImageData>(image->current_request().image_data().ptr())) {
+            ++indent;
+            for (int i = 0; i < indent; ++i)
+                builder.append("  "sv);
+            builder.append("(SVG-as-image isolated context)\n"sv);
+            dump_tree(builder, svg_data->svg_document());
+            --indent;
         }
     }
-    if (is<HTML::HTMLImageElement>(node)) {
-        if (auto image_data = static_cast<HTML::HTMLImageElement const&>(node).current_request().image_data()) {
-            if (is<SVG::SVGDecodedImageData>(*image_data)) {
-                ++indent;
-                for (int i = 0; i < indent; ++i)
-                    builder.append("  "sv);
-                builder.append("(SVG-as-image isolated context)\n"sv);
-                auto& svg_data = as<SVG::SVGDecodedImageData>(*image_data);
-                dump_tree(builder, svg_data.svg_document());
-                --indent;
-            }
-        }
-    }
-    if (is<HTML::HTMLTemplateElement>(node)) {
-        auto& template_element = as<HTML::HTMLTemplateElement>(node);
+    if (auto const* template_element = as_if<HTML::HTMLTemplateElement>(node)) {
         for (int i = 0; i < indent; ++i)
             builder.append("  "sv);
         builder.append("(template content)\n"sv);
-        dump_tree(builder, template_element.content());
+        dump_tree(builder, template_element->content());
         builder.append("(template normal subtree)\n"sv);
     }
-    if (is<DOM::ParentNode>(node)) {
-        static_cast<DOM::ParentNode const&>(node).for_each_child([&](auto& child) {
+    if (auto const* parent_node = as_if<DOM::ParentNode>(node)) {
+        parent_node->for_each_child([&](auto const& child) {
             dump_tree(builder, child);
             return IterationDecision::Continue;
         });
