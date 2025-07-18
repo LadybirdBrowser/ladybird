@@ -68,7 +68,47 @@ static Optional<LegacyConstructor> const& lookup_legacy_constructor(IDL::Interfa
     return s_legacy_constructors.get(interface.name).value();
 }
 
-static ErrorOr<void> generate_intrinsic_definitions(StringView output_path, InterfaceSets const& interface_sets)
+static ErrorOr<void> generate_intrinsic_definitions_header(StringView output_path, InterfaceSets const& interface_sets)
+{
+    StringBuilder builder;
+    SourceGenerator generator(builder);
+
+    generator.append(R"~~~(
+#pragma once
+
+#include <AK/Types.h>
+
+namespace Web::Bindings {
+
+enum class InterfaceName : u16 {
+    Unknown = 0,
+)~~~");
+
+    for (size_t i = 0; i < interface_sets.intrinsics.size(); ++i) {
+        auto const& interface = interface_sets.intrinsics[i];
+        size_t index = i + 1; // 0 is reserved for Unknown
+
+        generator.set("interface_name", interface.name);
+        generator.set("index", String::number(index));
+
+        generator.append(R"~~~(
+    @interface_name@ = @index@,)~~~");
+    }
+
+    generator.append(R"~~~(
+};
+
+}
+)~~~");
+
+    auto generated_intrinsics_path = LexicalPath(output_path).append("IntrinsicDefinitions.h"sv).string();
+    auto generated_intrinsics_file = TRY(Core::File::open(generated_intrinsics_path, Core::File::OpenMode::Write));
+    TRY(generated_intrinsics_file->write_until_depleted(generator.as_string_view().bytes()));
+
+    return {};
+}
+
+static ErrorOr<void> generate_intrinsic_definitions_implementation(StringView output_path, InterfaceSets const& interface_sets)
 {
     StringBuilder builder;
     SourceGenerator generator(builder);
@@ -491,7 +531,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         parsers.append(move(parser));
     }
 
-    TRY(generate_intrinsic_definitions(output_path, interface_sets));
+    TRY(generate_intrinsic_definitions_header(output_path, interface_sets));
+    TRY(generate_intrinsic_definitions_implementation(output_path, interface_sets));
 
     TRY(generate_exposed_interface_header("Window"sv, output_path));
     TRY(generate_exposed_interface_header("DedicatedWorker"sv, output_path));
