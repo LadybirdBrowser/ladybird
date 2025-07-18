@@ -671,6 +671,9 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     if (computed_style.filter().has_filters())
         computed_values.set_filter(resolve_filter(computed_style.filter()));
 
+    computed_values.set_flood_color(computed_style.flood_color(*this));
+    computed_values.set_flood_opacity(computed_style.flood_opacity());
+
     computed_values.set_justify_content(computed_style.justify_content());
     computed_values.set_justify_items(computed_style.justify_items());
     computed_values.set_justify_self(computed_style.justify_self());
