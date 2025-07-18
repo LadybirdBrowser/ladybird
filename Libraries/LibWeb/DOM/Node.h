@@ -164,7 +164,6 @@ public:
     virtual bool is_shadow_root() const { return false; }
 
     virtual bool requires_svg_container() const { return false; }
-    virtual bool is_svg_container() const { return false; }
     virtual bool is_svg_element() const { return false; }
     virtual bool is_svg_graphics_element() const { return false; }
     virtual bool is_svg_script_element() const { return false; }

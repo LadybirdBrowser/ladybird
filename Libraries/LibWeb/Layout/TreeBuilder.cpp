@@ -470,7 +470,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         }
     };
 
-    if (dom_node.is_svg_container()) {
+    if (dom_node.is_svg_svg_element()) {
         has_svg_root_change.emplace(context.has_svg_root, true);
     } else if (dom_node.requires_svg_container() && !context.has_svg_root) {
         return;
