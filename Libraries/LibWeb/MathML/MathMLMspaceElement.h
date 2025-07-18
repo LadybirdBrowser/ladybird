@@ -11,7 +11,7 @@
 namespace Web::MathML {
 
 class MathMLMspaceElement final : public MathMLElement {
-    WEB_PLATFORM_OBJECT(MathMLMspaceElement, MathMLElement);
+    WEB_NON_IDL_PLATFORM_OBJECT(MathMLMspaceElement, MathMLElement);
     GC_DECLARE_ALLOCATOR(MathMLMspaceElement);
 
 public:

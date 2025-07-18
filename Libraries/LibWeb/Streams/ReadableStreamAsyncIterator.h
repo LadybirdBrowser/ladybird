@@ -18,7 +18,7 @@ struct ReadableStreamIteratorOptions {
 };
 
 class ReadableStreamAsyncIterator final : public WebIDL::AsyncIterator {
-    WEB_PLATFORM_OBJECT(ReadableStreamAsyncIterator, WebIDL::AsyncIterator);
+    WEB_NON_IDL_PLATFORM_OBJECT(ReadableStreamAsyncIterator, WebIDL::AsyncIterator);
     GC_DECLARE_ALLOCATOR(ReadableStreamAsyncIterator);
 
 public:

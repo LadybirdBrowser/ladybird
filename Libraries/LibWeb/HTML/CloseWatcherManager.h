@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#close-watcher-manager
 class CloseWatcherManager final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CloseWatcherManager, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(CloseWatcherManager, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(CloseWatcherManager);
 
 public:
