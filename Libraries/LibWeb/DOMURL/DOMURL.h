@@ -19,7 +19,8 @@
 namespace Web::DOMURL {
 
 class DOMURL : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMURL, Bindings::PlatformObject);
+    // NOTE: This is 'URL' in the IDL, but we call it DOMURL to avoid name conflicts with LibURL.
+    WEB_PLATFORM_OBJECT(URL, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(DOMURL);
 
 public:
