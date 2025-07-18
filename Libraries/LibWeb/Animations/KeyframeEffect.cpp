@@ -946,27 +946,17 @@ void KeyframeEffect::update_computed_properties()
         return;
     }
 
-    GC::Ptr<CSS::ComputedProperties> style = {};
-    if (!pseudo_element_type().has_value())
-        style = target->computed_properties();
-    else
-        style = target->pseudo_element_computed_properties(pseudo_element_type().value());
-
-    if (!style)
+    auto computed_properties = target->computed_properties(pseudo_element_type());
+    if (!computed_properties)
         return;
 
-    auto animated_properties_before_update = style->animated_property_values();
-    if (!pseudo_element_type().has_value()) {
-        if (auto computed_properties = target->computed_properties())
-            computed_properties->reset_animated_properties({});
-    } else if (auto computed_properties = target->pseudo_element_computed_properties(pseudo_element_type().value())) {
-        computed_properties->reset_animated_properties({});
-    }
+    auto animated_properties_before_update = computed_properties->animated_property_values();
+    computed_properties->reset_animated_properties({});
 
     auto& document = target->document();
-    document.style_computer().collect_animation_into(*target, pseudo_element_type(), *this, *style, CSS::StyleComputer::AnimationRefresh::Yes);
+    document.style_computer().collect_animation_into(*target, pseudo_element_type(), *this, *computed_properties, CSS::StyleComputer::AnimationRefresh::Yes);
 
-    auto invalidation = compute_required_invalidation(animated_properties_before_update, style->animated_property_values());
+    auto invalidation = compute_required_invalidation(animated_properties_before_update, computed_properties->animated_property_values());
 
     if (invalidation.is_none())
         return;
@@ -982,11 +972,11 @@ void KeyframeEffect::update_computed_properties()
 
     if (!pseudo_element_type().has_value()) {
         if (target->layout_node())
-            target->layout_node()->apply_style(*style);
+            target->layout_node()->apply_style(*computed_properties);
     } else {
         auto pseudo_element_node = target->get_pseudo_element_node(pseudo_element_type().value());
         if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element_node.ptr())) {
-            node_with_style->apply_style(*style);
+            node_with_style->apply_style(*computed_properties);
         }
     }
 

@@ -187,7 +187,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
 {
     auto& document = element.document();
 
-    auto pseudo_element_style = element.pseudo_element_computed_properties(pseudo_element);
+    auto pseudo_element_style = element.computed_properties(pseudo_element);
     if (!pseudo_element_style)
         return;
 
@@ -726,7 +726,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
         auto marker_style = style_computer.compute_style(element, CSS::PseudoElement::Marker);
         auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), element, marker_style);
         static_cast<ListItemBox&>(*layout_node).set_marker(list_item_marker);
-        element.set_pseudo_element_computed_properties(CSS::PseudoElement::Marker, marker_style);
+        element.set_computed_properties(CSS::PseudoElement::Marker, marker_style);
         element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
         layout_node->prepend_child(*list_item_marker);
         DOM::AbstractElement marker_reference { element, CSS::PseudoElement::Marker };

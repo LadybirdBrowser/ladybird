@@ -75,9 +75,7 @@ bool AbstractElement::is_before(AbstractElement const& other) const
 
 GC::Ptr<CSS::ComputedProperties const> AbstractElement::computed_properties() const
 {
-    if (m_pseudo_element.has_value())
-        return m_element->pseudo_element_computed_properties(*m_pseudo_element);
-    return m_element->computed_properties();
+    return m_element->computed_properties(m_pseudo_element);
 }
 
 HashMap<FlyString, CSS::StyleProperty> const& AbstractElement::custom_properties() const

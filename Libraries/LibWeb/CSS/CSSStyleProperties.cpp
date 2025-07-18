@@ -518,19 +518,11 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
     };
 
     auto get_computed_value = [&element, pseudo_element](PropertyID property_id) -> auto const& {
-        if (pseudo_element.has_value())
-            return element.pseudo_element_computed_properties(pseudo_element.value())->property(property_id);
-        return element.computed_properties()->property(property_id);
+        return element.computed_properties(pseudo_element)->property(property_id);
     };
 
     if (property_is_logical_alias(property_id)) {
-        GC::Ptr<ComputedProperties> computed_properties;
-
-        if (pseudo_element.has_value())
-            computed_properties = element.pseudo_element_computed_properties(pseudo_element.value());
-        else
-            computed_properties = element.computed_properties();
-
+        auto computed_properties = element.computed_properties(pseudo_element);
         return style_value_for_computed_property(
             layout_node,
             map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { computed_properties->writing_mode(), computed_properties->direction() }));
