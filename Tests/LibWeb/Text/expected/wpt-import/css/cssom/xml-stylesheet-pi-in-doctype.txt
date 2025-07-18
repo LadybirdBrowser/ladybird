@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	xml-stylesheet processing instruction in doctype internal subset

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<body>
+<div id="elem"><![CDATA[beep]]><?test test?><!-- I am a comment --><p>Hello</p><p>World</p></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const elem = document.getElementById("elem");
+        println(`elem.childNodes.length: ${elem.childNodes.length}`);
+        println(`child node 0: ${elem.childNodes[0].toString()}, ${elem.childNodes[0].nodeType}`);
+        println(`child node 1 ${elem.childNodes[1].toString()}, ${elem.childNodes[1].nodeType}`);
+        println(`child node 2: ${elem.childNodes[2].toString()}, ${elem.childNodes[2].nodeType}`);
+    });
+</script>
+</body>
+</html>

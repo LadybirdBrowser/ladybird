@@ -1,0 +1,15 @@
+<!DOCTYPE html [<!--x-->]><html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>XML: Comment in doctype internal subset</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      test(() => {
+        assert_equals(document.documentElement.previousSibling, document.firstChild);
+        assert_equals(document.firstChild.nodeType, Node.DOCUMENT_TYPE_NODE);
+      });
+    </script>
+  </body>
+</html>

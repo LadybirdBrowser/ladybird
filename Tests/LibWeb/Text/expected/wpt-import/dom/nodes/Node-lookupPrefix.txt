@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Node.lookupPrefix
+Pass	Node.lookupPrefix 1
+Pass	Node.lookupPrefix 2
+Pass	Node.lookupPrefix 3
+Pass	Node.lookupPrefix 4
+Pass	Node.lookupPrefix 5
+Pass	Node.lookupPrefix 6
+Pass	Node.lookupPrefix 7
+Pass	Node.lookupPrefix 8
+Pass	Node.lookupPrefix 9
+Pass	Node.lookupPrefix 10
