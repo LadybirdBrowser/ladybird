@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 212 tests
 
-38 Pass
-174 Fail
+212 Pass
 Pass	WebAssembly.instantiate(module): Non-object imports argument: null
 Pass	WebAssembly.instantiate(module): Non-object imports argument: true
 Pass	WebAssembly.instantiate(module): Non-object imports argument: ""
@@ -23,93 +22,93 @@ Pass	WebAssembly.instantiate(module): Missing imports argument
 Pass	WebAssembly.instantiate(module): Imports argument with missing property: undefined
 Pass	WebAssembly.instantiate(module): Imports argument with missing property: empty object
 Pass	WebAssembly.instantiate(module): Imports argument with missing property: wrong property
-Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: 1
-Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: 0.1
-Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: NaN
-Fail	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: object "[object Object]"
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global.prototype
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: BigInt
-Fail	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global.prototype
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: Number
-Fail	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global.prototype
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: BigInt
-Fail	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global.prototype
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: BigInt
-Fail	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
-Fail	WebAssembly.instantiate(module): Importing an i32 mutable global with a primitive value
-Fail	WebAssembly.instantiate(module): Importing an i32 mutable global with an immutable Global object
-Fail	WebAssembly.instantiate(module): Importing an i64 mutable global with a primitive value
-Fail	WebAssembly.instantiate(module): Importing an i64 mutable global with an immutable Global object
-Fail	WebAssembly.instantiate(module): Importing an f32 mutable global with a primitive value
-Fail	WebAssembly.instantiate(module): Importing an f32 mutable global with an immutable Global object
-Fail	WebAssembly.instantiate(module): Importing an f64 mutable global with a primitive value
-Fail	WebAssembly.instantiate(module): Importing an f64 mutable global with an immutable Global object
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: 1
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: 0.1
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: NaN
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: WebAssembly.Memory
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: WebAssembly.Memory.prototype
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: Object.create(WebAssembly.Memory.prototype)
-Fail	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: WebAssembly.Memory object (too large)
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: 1
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: 0.1
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: NaN
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: WebAssembly.Table
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: WebAssembly.Table.prototype
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: Object.create(WebAssembly.Table.prototype)
-Fail	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: WebAssembly.Table object (too large)
+Pass	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: 1
+Pass	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: 0.1
+Pass	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: NaN
+Pass	WebAssembly.instantiate(module): Importing a function with an incorrectly-typed value: object "[object Object]"
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: BigInt
+Pass	WebAssembly.instantiate(module): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: Number
+Pass	WebAssembly.instantiate(module): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: BigInt
+Pass	WebAssembly.instantiate(module): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: BigInt
+Pass	WebAssembly.instantiate(module): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	WebAssembly.instantiate(module): Importing an i32 mutable global with a primitive value
+Pass	WebAssembly.instantiate(module): Importing an i32 mutable global with an immutable Global object
+Pass	WebAssembly.instantiate(module): Importing an i64 mutable global with a primitive value
+Pass	WebAssembly.instantiate(module): Importing an i64 mutable global with an immutable Global object
+Pass	WebAssembly.instantiate(module): Importing an f32 mutable global with a primitive value
+Pass	WebAssembly.instantiate(module): Importing an f32 mutable global with an immutable Global object
+Pass	WebAssembly.instantiate(module): Importing an f64 mutable global with a primitive value
+Pass	WebAssembly.instantiate(module): Importing an f64 mutable global with an immutable Global object
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: 1
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: 0.1
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: NaN
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: WebAssembly.Memory
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: WebAssembly.Memory.prototype
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: Object.create(WebAssembly.Memory.prototype)
+Pass	WebAssembly.instantiate(module): Importing memory with an incorrectly-typed value: WebAssembly.Memory object (too large)
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: 1
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: 0.1
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: NaN
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: WebAssembly.Table
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: WebAssembly.Table.prototype
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: Object.create(WebAssembly.Table.prototype)
+Pass	WebAssembly.instantiate(module): Importing table with an incorrectly-typed value: WebAssembly.Table object (too large)
 Pass	WebAssembly.instantiate(buffer): Non-object imports argument: null
 Pass	WebAssembly.instantiate(buffer): Non-object imports argument: true
 Pass	WebAssembly.instantiate(buffer): Non-object imports argument: ""
@@ -129,90 +128,90 @@ Pass	WebAssembly.instantiate(buffer): Missing imports argument
 Pass	WebAssembly.instantiate(buffer): Imports argument with missing property: undefined
 Pass	WebAssembly.instantiate(buffer): Imports argument with missing property: empty object
 Pass	WebAssembly.instantiate(buffer): Imports argument with missing property: wrong property
-Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: 1
-Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: 0.1
-Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: NaN
-Fail	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: object "[object Object]"
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global.prototype
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: BigInt
-Fail	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global.prototype
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: Number
-Fail	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global.prototype
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: BigInt
-Fail	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global.prototype
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: BigInt
-Fail	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
-Fail	WebAssembly.instantiate(buffer): Importing an i32 mutable global with a primitive value
-Fail	WebAssembly.instantiate(buffer): Importing an i32 mutable global with an immutable Global object
-Fail	WebAssembly.instantiate(buffer): Importing an i64 mutable global with a primitive value
-Fail	WebAssembly.instantiate(buffer): Importing an i64 mutable global with an immutable Global object
-Fail	WebAssembly.instantiate(buffer): Importing an f32 mutable global with a primitive value
-Fail	WebAssembly.instantiate(buffer): Importing an f32 mutable global with an immutable Global object
-Fail	WebAssembly.instantiate(buffer): Importing an f64 mutable global with a primitive value
-Fail	WebAssembly.instantiate(buffer): Importing an f64 mutable global with an immutable Global object
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: 1
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: 0.1
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: NaN
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: WebAssembly.Memory
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: WebAssembly.Memory.prototype
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: Object.create(WebAssembly.Memory.prototype)
-Fail	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: WebAssembly.Memory object (too large)
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: undefined
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: null
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: true
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: ""
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: symbol "Symbol()"
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: 1
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: 0.1
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: NaN
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: plain object
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: WebAssembly.Table
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: WebAssembly.Table.prototype
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: Object.create(WebAssembly.Table.prototype)
-Fail	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: WebAssembly.Table object (too large)
+Pass	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: 1
+Pass	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: 0.1
+Pass	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: NaN
+Pass	WebAssembly.instantiate(buffer): Importing a function with an incorrectly-typed value: object "[object Object]"
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: BigInt
+Pass	WebAssembly.instantiate(buffer): Importing an i32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: Number
+Pass	WebAssembly.instantiate(buffer): Importing an i64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: BigInt
+Pass	WebAssembly.instantiate(buffer): Importing an f32 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global.prototype
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: Object.create(WebAssembly.Global.prototype)
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: BigInt
+Pass	WebAssembly.instantiate(buffer): Importing an f64 global with an incorrectly-typed value: WebAssembly.Global object (wrong value type)
+Pass	WebAssembly.instantiate(buffer): Importing an i32 mutable global with a primitive value
+Pass	WebAssembly.instantiate(buffer): Importing an i32 mutable global with an immutable Global object
+Pass	WebAssembly.instantiate(buffer): Importing an i64 mutable global with a primitive value
+Pass	WebAssembly.instantiate(buffer): Importing an i64 mutable global with an immutable Global object
+Pass	WebAssembly.instantiate(buffer): Importing an f32 mutable global with a primitive value
+Pass	WebAssembly.instantiate(buffer): Importing an f32 mutable global with an immutable Global object
+Pass	WebAssembly.instantiate(buffer): Importing an f64 mutable global with a primitive value
+Pass	WebAssembly.instantiate(buffer): Importing an f64 mutable global with an immutable Global object
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: 1
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: 0.1
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: NaN
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: WebAssembly.Memory
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: WebAssembly.Memory.prototype
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: Object.create(WebAssembly.Memory.prototype)
+Pass	WebAssembly.instantiate(buffer): Importing memory with an incorrectly-typed value: WebAssembly.Memory object (too large)
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: undefined
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: null
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: true
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: ""
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: symbol "Symbol()"
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: 1
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: 0.1
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: NaN
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: plain object
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: WebAssembly.Table
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: WebAssembly.Table.prototype
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: Object.create(WebAssembly.Table.prototype)
+Pass	WebAssembly.instantiate(buffer): Importing table with an incorrectly-typed value: WebAssembly.Table object (too large)
