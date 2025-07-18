@@ -9,6 +9,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Bitmap.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
@@ -1537,15 +1538,18 @@ void Document::update_animated_style_if_needed()
     if (!m_needs_animated_style_update)
         return;
 
+    Animations::AnimationUpdateContext context;
+
     for (auto& timeline : m_associated_animation_timelines) {
         for (auto& animation : timeline->associated_animations()) {
             if (animation->is_idle() || animation->is_finished())
                 continue;
             if (auto effect = animation->effect()) {
-                effect->update_computed_properties();
+                effect->update_computed_properties(context);
             }
         }
     }
+
     m_needs_animated_style_update = false;
 }
 

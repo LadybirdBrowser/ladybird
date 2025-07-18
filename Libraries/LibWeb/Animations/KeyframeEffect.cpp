@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -912,28 +913,7 @@ void KeyframeEffect::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_keyframe_objects);
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(HashMap<CSS::PropertyID, NonnullRefPtr<CSS::CSSStyleValue const>> const& old_properties, HashMap<CSS::PropertyID, NonnullRefPtr<CSS::CSSStyleValue const>> const& new_properties)
-{
-    CSS::RequiredInvalidationAfterStyleChange invalidation;
-    auto old_and_new_properties = MUST(Bitmap::create(to_underlying(CSS::last_property_id) + 1, 0));
-    for (auto const& [property_id, _] : old_properties)
-        old_and_new_properties.set(to_underlying(property_id), 1);
-    for (auto const& [property_id, _] : new_properties)
-        old_and_new_properties.set(to_underlying(property_id), 1);
-    for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
-        if (!old_and_new_properties.get(i))
-            continue;
-        auto property_id = static_cast<CSS::PropertyID>(i);
-        auto const* old_value = old_properties.get(property_id).value_or({});
-        auto const* new_value = new_properties.get(property_id).value_or({});
-        if (!old_value && !new_value)
-            continue;
-        invalidation |= compute_property_invalidation(property_id, old_value, new_value);
-    }
-    return invalidation;
-}
-
-void KeyframeEffect::update_computed_properties()
+void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 {
     auto target = this->target();
     if (!target || !target->is_connected())
@@ -950,53 +930,13 @@ void KeyframeEffect::update_computed_properties()
     if (!computed_properties)
         return;
 
-    auto animated_properties_before_update = computed_properties->animated_property_values();
-    computed_properties->reset_animated_properties({});
-
-    auto& document = target->document();
-    document.style_computer().collect_animation_into(*target, pseudo_element_type(), *this, *computed_properties, CSS::StyleComputer::AnimationRefresh::Yes);
-
-    auto invalidation = compute_required_invalidation(animated_properties_before_update, computed_properties->animated_property_values());
-
-    if (invalidation.is_none())
-        return;
-
-    // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
-    target->for_each_in_subtree_of_type<DOM::Element>([&](auto& element) {
-        auto element_invalidation = element.recompute_inherited_style();
-        if (element_invalidation.is_none())
-            return TraversalDecision::SkipChildrenAndContinue;
-        invalidation |= element_invalidation;
-        return TraversalDecision::Continue;
+    context.elements.ensure(DOM::AbstractElement { *target, pseudo_element_type() }, [computed_properties] {
+        auto old_animated_properties = computed_properties->animated_property_values();
+        computed_properties->reset_animated_properties({});
+        return make<AnimationUpdateContext::ElementData>(move(old_animated_properties), computed_properties);
     });
 
-    if (!pseudo_element_type().has_value()) {
-        if (target->layout_node())
-            target->layout_node()->apply_style(*computed_properties);
-    } else {
-        auto pseudo_element_node = target->get_pseudo_element_node(pseudo_element_type().value());
-        if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element_node.ptr())) {
-            node_with_style->apply_style(*computed_properties);
-        }
-    }
-
-    if (invalidation.relayout && target->layout_node())
-        target->layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
-    if (invalidation.rebuild_layout_tree) {
-        // We mark layout tree for rebuild starting from parent element to correctly invalidate
-        // "display" property change to/from "contents" value.
-        if (auto parent_element = target->parent_element()) {
-            parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
-        } else {
-            target->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
-        }
-    }
-    if (invalidation.repaint) {
-        document.set_needs_display();
-        document.set_needs_to_resolve_paint_only_properties();
-    }
-    if (invalidation.rebuild_stacking_context_tree)
-        document.invalidate_stacking_context_tree();
+    target->document().style_computer().collect_animation_into(*target, pseudo_element_type(), *this, *computed_properties, CSS::StyleComputer::AnimationRefresh::Yes);
 }
 
 }

@@ -92,8 +92,10 @@ void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect)
     m_effect = new_effect;
 
     // Once animated properties of the old effect no longer apply, we need to ensure appropriate invalidations are scheduled
-    if (old_effect)
-        old_effect->update_computed_properties();
+    if (old_effect) {
+        AnimationUpdateContext context;
+        old_effect->update_computed_properties(context);
+    }
 
     // 7. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.

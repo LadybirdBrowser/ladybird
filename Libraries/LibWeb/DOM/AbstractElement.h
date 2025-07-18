@@ -59,3 +59,11 @@ private:
 };
 
 }
+
+template<>
+struct AK::Traits<Web::DOM::AbstractElement> : public DefaultTraits<Web::DOM::AbstractElement> {
+    static unsigned hash(Web::DOM::AbstractElement const& key)
+    {
+        return pair_int_hash(ptr_hash(&key.element()), key.pseudo_element().has_value() ? to_underlying(key.pseudo_element().value()) : -1);
+    }
+};
