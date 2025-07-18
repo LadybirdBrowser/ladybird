@@ -22,22 +22,25 @@ class PasswordCredential final
     GC_DECLARE_ALLOCATOR(PasswordCredential);
 
 public:
-    [[nodiscard]] static GC::Ref<PasswordCredential> create(JS::Realm&);
-    static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, HTML::HTMLFormElement const&);
-    static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, PasswordCredentialData const&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, GC::Ptr<HTML::HTMLFormElement> const&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, PasswordCredentialData const&);
 
     virtual ~PasswordCredential() override;
 
     String const& password() { return m_password; }
+    URL::Origin const& origin() { return m_origin; }
 
     String type() override { return "password"_string; }
 
 private:
-    explicit PasswordCredential(JS::Realm&);
+    PasswordCredential(JS::Realm&, PasswordCredentialData const&, URL::Origin);
     virtual void initialize(JS::Realm&) override;
 
     // TODO: Use Core::SecretString when it comes back
     String m_password;
+
+    // https://www.w3.org/TR/credential-management-1/#dom-credential-origin-slot
+    URL::Origin m_origin;
 };
 
 struct PasswordCredentialData : CredentialData {
