@@ -127,7 +127,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
         if (command == Editing::CommandNames::insertText)
             event_init.data = value;
 
-        auto event = realm().create<UIEvents::InputEvent>(realm(), HTML::EventNames::input, event_init);
+        auto event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, event_init);
         event->set_is_trusted(true);
         affected_editing_host->dispatch_event(event);
     }

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<div contenteditable>text</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const editableElement = document.querySelector("div");
+        editableElement.addEventListener("beforeinput", e => {
+            const targetRanges = e.getTargetRanges();
+            if (targetRanges.length === 0) {
+                println("No target ranges");
+            } else {
+                println(`Target range count: ${targetRanges.length}. Start offset: ${targetRanges[0].startOffset}, End offset: ${targetRanges[0].endOffset}`);
+            }
+        });
+        editableElement.focus();
+        const range = document.createRange();
+        range.setStart(editableElement.firstChild, 1);
+        range.setEnd(editableElement.firstChild, 3);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        // GetTargetRanges should return a single range representing the selection.
+        internals.sendKey(editableElement, "Backspace");
+        // An input event shouldn't be dispatched for events that wouldn't affect the DOM.
+        internals.sendKey(editableElement, "End");
+        // GetTargetRanges should be empty because there are no ranges.
+        internals.sendKey(editableElement, "Backspace");
+    });
+</script>

@@ -1117,6 +1117,18 @@ static bool is_enter_key_or_interoperable_enter_key_combo(UIEvents::KeyCode key,
     return false;
 }
 
+static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(DOM::Document const& document)
+{
+    GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges { document.heap() };
+    if (auto selection = document.get_selection(); selection && !selection->is_collapsed()) {
+        if (auto range = selection->range()) {
+            auto static_range = document.realm().create<DOM::StaticRange>(range->start_container(), range->start_offset(), range->end_container(), range->end_offset());
+            target_ranges.append(static_range);
+        }
+    }
+    return target_ranges;
+}
+
 EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable& navigable, u32 code_point)
 {
     auto document = navigable.active_document();
@@ -1138,11 +1150,11 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
                 return input_event(event_name, input_type, *navigable_container.content_navigable(), code_point);
         }
 
-        auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init);
+        auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init, target_ranges_for_input_event(*document));
         return focused_element->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
     }
 
-    auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init);
+    auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init, target_ranges_for_input_event(*document));
 
     if (auto* body = document->body())
         return body->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
