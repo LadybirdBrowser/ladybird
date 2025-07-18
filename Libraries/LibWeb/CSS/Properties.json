@@ -2423,6 +2423,20 @@
     ],
     "percentages-resolve-to": "length"
   },
+  "mask-repeat": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "repeat",
+    "max-values": 2,
+    "valid-types": [
+      "repetition"
+    ],
+    "valid-identifiers": [
+      "repeat-x",
+      "repeat-y"
+    ]
+  },
   "mask-type": {
     "animation-type": "discrete",
     "inherited": false,
