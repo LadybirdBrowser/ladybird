@@ -20,6 +20,7 @@
 #include <LibGfx/Color.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
+#include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/SerializationMode.h>
