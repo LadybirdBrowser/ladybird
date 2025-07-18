@@ -17,7 +17,7 @@
 namespace Web::HTML {
 
 class WEB_API WindowProxy final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(WindowProxy, DOM::EventTarget)
+    WEB_NON_IDL_PLATFORM_OBJECT(WindowProxy, DOM::EventTarget)
     GC_DECLARE_ALLOCATOR(WindowProxy);
 
 public:

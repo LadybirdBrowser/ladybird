@@ -21,7 +21,7 @@ namespace Web::WebGL {
 using namespace Web::HTML;
 
 class WebGLRenderingContextImpl : public WebGLRenderingContextBase {
-    WEB_PLATFORM_OBJECT(WebGLRenderingContextImpl, WebGLRenderingContextBase);
+    WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextImpl, WebGLRenderingContextBase);
 
 public:
     WebGLRenderingContextImpl(JS::Realm&, NonnullOwnPtr<OpenGLContext>);

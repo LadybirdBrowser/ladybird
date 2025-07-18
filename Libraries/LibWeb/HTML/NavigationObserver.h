@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 class WEB_API NavigationObserver final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(NavigationObserver, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(NavigationObserver, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(NavigationObserver);
 
 public:

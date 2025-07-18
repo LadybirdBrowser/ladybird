@@ -13,7 +13,7 @@
 namespace Web::Internals {
 
 class WEB_API InternalsBase : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(InternalsBase, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(InternalsBase, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(InternalsBase);
 
 public:

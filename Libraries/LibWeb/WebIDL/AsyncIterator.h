@@ -18,7 +18,7 @@
 namespace Web::WebIDL {
 
 class WEB_API AsyncIterator : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AsyncIterator, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(AsyncIterator, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(AsyncIterator);
 
 public:
