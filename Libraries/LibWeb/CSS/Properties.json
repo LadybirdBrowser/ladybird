@@ -2413,6 +2413,15 @@
     ],
     "initial": "match-source"
   },
+  "mask-origin": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "valid-types": [
+      "coord-box"
+    ],
+    "initial": "border-box"
+  },
   "mask-position": {
     "animation-type": "repeatable-list",
     "affects-layout": false,

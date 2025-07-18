@@ -531,6 +531,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'mask-image': 'none'
 'maskMode': 'match-source'
 'mask-mode': 'match-source'
+'maskOrigin': 'border-box'
+'mask-origin': 'border-box'
 'maskPosition': '0% 0%'
 'mask-position': '0% 0%'
 'maskRepeat': 'repeat'

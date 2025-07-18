@@ -144,6 +144,14 @@
     "auto",
     "hidden"
   ],
+  "coord-box": [
+    "content-box",
+    "padding-box",
+    "border-box",
+    "fill-box",
+    "stroke-box",
+    "view-box"
+  ],
   "counter-style-name-keyword": [
     "circle",
     "decimal",
