@@ -166,12 +166,24 @@ public:
     virtual bool requires_svg_container() const { return false; }
     virtual bool is_svg_element() const { return false; }
     virtual bool is_svg_graphics_element() const { return false; }
+    virtual bool is_svg_container_element() const { return false; }
+
+    virtual bool is_svg_a_element() const { return false; }
+    virtual bool is_svg_clip_path_element() const { return false; }
+    virtual bool is_svg_defs_element() const { return false; }
+    virtual bool is_svg_foreign_object_element() const { return false; }
+    virtual bool is_svg_g_element() const { return false; }
+    virtual bool is_svg_image_element() const { return false; }
+    virtual bool is_svg_marker_element() const { return false; }
+    virtual bool is_svg_mask_element() const { return false; }
+    virtual bool is_svg_pattern_element() const { return false; }
+    virtual bool is_svg_symbol_element() const { return false; }
     virtual bool is_svg_script_element() const { return false; }
     virtual bool is_svg_style_element() const { return false; }
     virtual bool is_svg_svg_element() const { return false; }
+    virtual bool is_svg_switch_element() const { return false; }
+    virtual bool is_svg_unknown_element() const { return false; }
     virtual bool is_svg_use_element() const { return false; }
-    virtual bool is_svg_a_element() const { return false; }
-    virtual bool is_svg_foreign_object_element() const { return false; }
 
     bool in_a_document_tree() const;
 

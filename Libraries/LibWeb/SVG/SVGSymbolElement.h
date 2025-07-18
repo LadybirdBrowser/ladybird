@@ -36,6 +36,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual bool is_svg_symbol_element() const override { return true; }
 
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
 
@@ -47,5 +48,12 @@ private:
 
     GC::Ptr<SVGAnimatedRect> m_view_box_for_bindings;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGSymbolElement>() const { return is_svg_symbol_element(); }
 
 }

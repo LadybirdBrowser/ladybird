@@ -39,3 +39,10 @@ private:
 };
 
 }
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGStyleElement>() const { return is_svg_style_element(); }
+
+}

@@ -302,4 +302,21 @@ GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::Pro
     return SVGAnimatedLength::create(realm(), make_length(), make_length());
 }
 
+// https://svgwg.org/svg2-draft/struct.html#container-element
+bool SVGElement::is_svg_container_element() const
+{
+    // An element which can have graphics elements and other container elements as child elements.
+    // Specifically: ‘a’, ‘clipPath’, ‘defs’, ‘g’, ‘marker’, ‘mask’, ‘pattern’, ‘svg’, ‘switch’ and ‘symbol’.
+    return is_svg_a_element()
+        || is_svg_clip_path_element()
+        || is_svg_defs_element()
+        || is_svg_g_element()
+        || is_svg_marker_element()
+        || is_svg_mask_element()
+        || is_svg_pattern_element()
+        || is_svg_svg_element()
+        || is_svg_switch_element()
+        || is_svg_symbol_element();
+}
+
 }
