@@ -136,6 +136,12 @@
     "none",
     "all"
   ],
+  "compositing-operator": [
+    "add",
+    "subtract",
+    "intersect",
+    "exclude"
+  ],
   "contain": [
     "none",
     "strict",
