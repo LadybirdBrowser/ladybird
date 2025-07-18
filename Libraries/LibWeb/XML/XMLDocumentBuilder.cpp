@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -260,9 +262,28 @@ void XMLDocumentBuilder::text(StringView data)
 
 void XMLDocumentBuilder::comment(StringView data)
 {
-    if (m_has_error)
+    if (m_has_error || !m_current_node)
         return;
-    MUST(m_document->append_child(m_document->create_comment(MUST(String::from_utf8(data)))));
+
+    MUST(m_current_node->append_child(m_document->create_comment(MUST(String::from_utf8(data)))));
+}
+
+void XMLDocumentBuilder::cdata_section(StringView data)
+{
+    if (m_has_error || !m_current_node)
+        return;
+
+    auto section = MUST(m_document->create_cdata_section(MUST(String::from_utf8(data))));
+    MUST(m_current_node->append_child(section));
+}
+
+void XMLDocumentBuilder::processing_instruction(StringView target, StringView data)
+{
+    if (m_has_error || !m_current_node)
+        return;
+
+    auto processing_instruction = MUST(m_document->create_processing_instruction(MUST(String::from_utf8(target)), MUST(String::from_utf8(data))));
+    MUST(m_current_node->append_child(processing_instruction));
 }
 
 void XMLDocumentBuilder::document_end()

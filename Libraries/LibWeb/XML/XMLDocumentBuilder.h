@@ -36,6 +36,8 @@ private:
     virtual void element_end(XML::Name const& name) override;
     virtual void text(StringView data) override;
     virtual void comment(StringView data) override;
+    virtual void cdata_section(StringView data) override;
+    virtual void processing_instruction(StringView target, StringView data) override;
     virtual void document_end() override;
 
     Optional<FlyString> namespace_for_name(XML::Name const&);
