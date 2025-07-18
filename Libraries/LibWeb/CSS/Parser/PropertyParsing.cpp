@@ -669,6 +669,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens))
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::MaskPosition:
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens); }))
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::Opacity:
     case PropertyID::FillOpacity:
     case PropertyID::FloodOpacity:
