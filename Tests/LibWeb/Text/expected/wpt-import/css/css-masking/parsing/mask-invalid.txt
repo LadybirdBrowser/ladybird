@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	e.style['mask'] = "none linear-gradient(to 0% 0%, rgb(0, 0, 0), rgb(0, 0, 255))" should not set the property value
+Pass	e.style['mask'] = "none alpha luminance" should not set the property value
+Pass	e.style['mask'] = "linear-gradient(to 0% 0%, rgb(0, 0, 0), rgb(0, 0, 255)) url(\"https://example.com/\")" should not set the property value
+Pass	e.style['mask'] = "1px 2px 3px" should not set the property value
+Pass	e.style['mask'] = "1px 2px 3px 4px" should not set the property value
+Pass	e.style['mask'] = "1px 2px / contain / cover" should not set the property value
+Pass	e.style['mask'] = "repeat-y repeat-x" should not set the property value
+Pass	e.style['mask'] = "stroke-box no-clip view-box" should not set the property value
+Pass	e.style['mask'] = "border-box view-box padding-box" should not set the property value
+Pass	e.style['mask'] = "no-clip border-box content-box" should not set the property value
+Pass	e.style['mask'] = "content-box stroke-box no-clip" should not set the property value
+Pass	e.style['mask'] = "margin-box" should not set the property value
+Pass	e.style['mask'] = "add intersect" should not set the property value

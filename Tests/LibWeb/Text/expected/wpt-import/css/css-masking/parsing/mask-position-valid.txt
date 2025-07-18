@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 23 tests
+
+23 Fail
+Fail	e.style['mask-position'] = "10%" should set the property value
+Fail	e.style['mask-position'] = "right 30% top 60px" should set the property value
+Fail	e.style['mask-position'] = "-20% -30px" should set the property value
+Fail	e.style['mask-position'] = "30px center" should set the property value
+Fail	e.style['mask-position'] = "40px top" should set the property value
+Fail	e.style['mask-position'] = "bottom 10% right 20%" should set the property value
+Fail	e.style['mask-position'] = "bottom right" should set the property value
+Fail	e.style['mask-position'] = "center 50px" should set the property value
+Fail	e.style['mask-position'] = "center bottom" should set the property value
+Fail	e.style['mask-position'] = "center left" should set the property value
+Fail	e.style['mask-position'] = "left" should set the property value
+Fail	e.style['mask-position'] = "left bottom" should set the property value
+Fail	e.style['mask-position'] = "right 40%" should set the property value
+Fail	e.style['mask-position'] = "top" should set the property value
+Fail	e.style['mask-position'] = "top center" should set the property value
+Fail	e.style['mask-position'] = "center" should set the property value
+Fail	e.style['mask-position'] = "bottom left, right 20%" should set the property value
+Fail	e.style['mask-position'] = "top, center, left" should set the property value
+Fail	e.style['mask-position'] = "20% 0%" should set the property value
+Fail	e.style['mask-position'] = "0% 0%" should set the property value
+Fail	e.style['mask-position'] = "0%" should set the property value
+Fail	e.style['mask-position'] = "0% center" should set the property value
+Fail	e.style['mask-position'] = "center 0%" should set the property value

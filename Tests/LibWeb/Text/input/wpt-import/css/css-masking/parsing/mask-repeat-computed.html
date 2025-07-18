@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: getComputedStyle().maskRepeat</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-mask-repeat">
+<meta name="assert" content="mask-repeat computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+  test_computed_value("mask-repeat", "repeat-x");
+  test_computed_value("mask-repeat", "repeat-y");
+
+  test_computed_value("mask-repeat", "repeat");
+  test_computed_value("mask-repeat", "space");
+  test_computed_value("mask-repeat", "round");
+  test_computed_value("mask-repeat", "no-repeat");
+
+  test_computed_value("mask-repeat", "repeat repeat", "repeat");
+  test_computed_value("mask-repeat", "repeat space");
+  test_computed_value("mask-repeat", "repeat round");
+  test_computed_value("mask-repeat", "repeat no-repeat", "repeat-x");
+
+  test_computed_value("mask-repeat", "space repeat");
+  test_computed_value("mask-repeat", "space space", "space");
+  test_computed_value("mask-repeat", "space round");
+  test_computed_value("mask-repeat", "space no-repeat");
+
+  test_computed_value("mask-repeat", "round repeat");
+  test_computed_value("mask-repeat", "round space");
+  test_computed_value("mask-repeat", "round round", "round");
+  test_computed_value("mask-repeat", "round no-repeat");
+
+  test_computed_value("mask-repeat", "no-repeat repeat", "repeat-y");
+  test_computed_value("mask-repeat", "no-repeat space");
+  test_computed_value("mask-repeat", "no-repeat round");
+  test_computed_value("mask-repeat", "no-repeat no-repeat", "no-repeat");
+</script>
+</body>
+</html>

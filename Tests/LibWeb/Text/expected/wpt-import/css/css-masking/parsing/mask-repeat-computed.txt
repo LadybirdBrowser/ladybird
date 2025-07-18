@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Fail
+Fail	Property mask-repeat value 'repeat-x'
+Fail	Property mask-repeat value 'repeat-y'
+Fail	Property mask-repeat value 'repeat'
+Fail	Property mask-repeat value 'space'
+Fail	Property mask-repeat value 'round'
+Fail	Property mask-repeat value 'no-repeat'
+Fail	Property mask-repeat value 'repeat repeat'
+Fail	Property mask-repeat value 'repeat space'
+Fail	Property mask-repeat value 'repeat round'
+Fail	Property mask-repeat value 'repeat no-repeat'
+Fail	Property mask-repeat value 'space repeat'
+Fail	Property mask-repeat value 'space space'
+Fail	Property mask-repeat value 'space round'
+Fail	Property mask-repeat value 'space no-repeat'
+Fail	Property mask-repeat value 'round repeat'
+Fail	Property mask-repeat value 'round space'
+Fail	Property mask-repeat value 'round round'
+Fail	Property mask-repeat value 'round no-repeat'
+Fail	Property mask-repeat value 'no-repeat repeat'
+Fail	Property mask-repeat value 'no-repeat space'
+Fail	Property mask-repeat value 'no-repeat round'
+Fail	Property mask-repeat value 'no-repeat no-repeat'
