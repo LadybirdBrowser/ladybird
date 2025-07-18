@@ -52,6 +52,7 @@ enum class QuirksMode {
 
 #define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASONS(X)       \
     X(DocumentAddAnElementToTheTopLayer)                  \
+    X(DocumentRemoveAnElementFromTheTopLayer)             \
     X(DocumentRequestAnElementToBeRemovedFromTheTopLayer) \
     X(ShadowRootSetInnerHTML)
 
@@ -156,6 +157,15 @@ struct ElementCreationOptions {
 enum class PolicyControlledFeature : u8 {
     Autoplay,
     FocusWithoutUserActivation,
+    Fullscreen,
+};
+
+struct PendingFullscreenEvent {
+    enum class Type {
+        Change,
+        Error,
+    } type;
+    GC::Ref<Element> element;
 };
 
 class Document
@@ -849,6 +859,12 @@ public:
     [[nodiscard]] WebIDL::CallbackType* onvisibilitychange();
     void set_onvisibilitychange(WebIDL::CallbackType*);
 
+    // https://fullscreen.spec.whatwg.org/#api
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenchange();
+    void set_onfullscreenchange(WebIDL::CallbackType*);
+    [[nodiscard]] WebIDL::CallbackType* onfullscreenerror();
+    void set_onfullscreenerror(WebIDL::CallbackType*);
+
     void reset_cursor_blink_cycle();
 
     GC::Ref<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
@@ -898,6 +914,22 @@ public:
 
     ElementByIdMap& element_by_id() const;
 
+    // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
+    void run_fullscreen_steps();
+    void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element);
+
+    void fullscreen_element_within_doc(GC::Ref<Element> element);
+    GC::Ptr<Element> fullscreen_element() const;
+    GC::Ptr<Element> fullscreen_element_for_bindings() const;
+
+    bool fullscreen() const;
+    bool fullscreen_enabled() const;
+
+    void fully_exit_fullscreen();
+    GC::Ref<WebIDL::Promise> exit_fullscreen();
+
+    void unfullscreen_element(GC::Ref<Element> element);
+
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
 
@@ -924,6 +956,9 @@ private:
     void run_unloading_cleanup_steps();
 
     void evaluate_media_rules();
+
+    bool is_simple_fullscreen_document() const;
+    GC::RootVector<GC::Ref<Document>> collect_documents_to_unfullscreen() const;
 
     enum class AddLineFeed {
         Yes,
@@ -1265,6 +1300,9 @@ private:
     HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
 
     GC::Ref<StyleInvalidator> m_style_invalidator;
+
+    // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events
+    Vector<PendingFullscreenEvent> m_pending_fullscreen_events;
 };
 
 template<>
