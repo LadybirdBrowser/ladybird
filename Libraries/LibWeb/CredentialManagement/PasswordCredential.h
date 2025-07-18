@@ -29,6 +29,7 @@ public:
     virtual ~PasswordCredential() override;
 
     String const& password() { return m_password; }
+    String const& origin() { return m_origin; }
 
     String type() override { return "password"_string; }
 
@@ -38,6 +39,9 @@ private:
 
     // TODO: Use Core::SecretString when it comes back
     String m_password;
+
+    // https://www.w3.org/TR/credential-management-1/#dom-credential-origin-slot
+    String m_origin;
 };
 
 struct PasswordCredentialData : CredentialData {
