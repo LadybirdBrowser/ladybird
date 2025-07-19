@@ -16,7 +16,7 @@
 namespace Web::DOM {
 
 class DocumentObserver final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DocumentObserver, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(DocumentObserver, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(DocumentObserver);
 
 public:
