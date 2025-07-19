@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class JS_API DisposableStack final : public Object {
+class DisposableStack final : public Object {
     JS_OBJECT(DisposableStack, Object);
     GC_DECLARE_ALLOCATOR(DisposableStack);
 

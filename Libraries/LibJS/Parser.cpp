@@ -5205,8 +5205,8 @@ Parser::ForbiddenTokens Parser::ForbiddenTokens::forbid(std::initializer_list<To
     return result;
 }
 
-template JS_API NonnullRefPtr<FunctionExpression> Parser::parse_function_node(u16, Optional<Position> const&);
-template JS_API NonnullRefPtr<FunctionDeclaration> Parser::parse_function_node(u16, Optional<Position> const&);
+template NonnullRefPtr<FunctionExpression> Parser::parse_function_node(u16, Optional<Position> const&);
+template NonnullRefPtr<FunctionDeclaration> Parser::parse_function_node(u16, Optional<Position> const&);
 
 NonnullRefPtr<Identifier const> Parser::create_identifier_and_register_in_current_scope(SourceRange range, FlyString string, Optional<DeclarationKind> declaration_kind)
 {

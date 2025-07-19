@@ -13,7 +13,7 @@
 
 namespace JS::Temporal {
 
-class JS_API Now final : public Object {
+class Now final : public Object {
     JS_OBJECT(Now, Object);
     GC_DECLARE_ALLOCATOR(Now);
 
@@ -32,8 +32,8 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(plain_time_iso);
 };
 
-JS_API double system_utc_epoch_milliseconds(VM&);
-JS_API Crypto::SignedBigInteger system_utc_epoch_nanoseconds(VM&);
-JS_API ThrowCompletionOr<ISODateTime> system_date_time(VM&, Value temporal_time_zone_like);
+double system_utc_epoch_milliseconds(VM&);
+Crypto::SignedBigInteger system_utc_epoch_nanoseconds(VM&);
+ThrowCompletionOr<ISODateTime> system_date_time(VM&, Value temporal_time_zone_like);
 
 }

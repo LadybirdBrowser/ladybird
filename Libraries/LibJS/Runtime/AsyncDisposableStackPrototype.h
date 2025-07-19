@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API AsyncDisposableStackPrototype final : public PrototypeObject<AsyncDisposableStackPrototype, AsyncDisposableStack> {
+class AsyncDisposableStackPrototype final : public PrototypeObject<AsyncDisposableStackPrototype, AsyncDisposableStack> {
     JS_PROTOTYPE_OBJECT(AsyncDisposableStackPrototype, AsyncDisposableStack, AsyncDisposableStack);
     GC_DECLARE_ALLOCATOR(AsyncDisposableStackPrototype);
 

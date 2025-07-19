@@ -15,7 +15,7 @@
 namespace JS {
 
 // 9.5.1 JobCallback Records, https://tc39.es/ecma262/#sec-jobcallback-records
-class JS_API JobCallback : public JS::Cell {
+class JobCallback : public JS::Cell {
     GC_CELL(JobCallback, JS::Cell);
     GC_DECLARE_ALLOCATOR(JobCallback);
 
@@ -42,7 +42,7 @@ private:
     OwnPtr<CustomData> m_custom_data { nullptr };
 };
 
-JS_API GC::Ref<JobCallback> make_job_callback(FunctionObject& callback);
-JS_API ThrowCompletionOr<Value> call_job_callback(VM&, GC::Ref<JobCallback>, Value this_value, ReadonlySpan<Value> arguments_list);
+GC::Ref<JobCallback> make_job_callback(FunctionObject& callback);
+ThrowCompletionOr<Value> call_job_callback(VM&, GC::Ref<JobCallback>, Value this_value, ReadonlySpan<Value> arguments_list);
 
 }

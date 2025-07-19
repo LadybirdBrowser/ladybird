@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API PromisePrototype final : public PrototypeObject<PromisePrototype, Promise> {
+class PromisePrototype final : public PrototypeObject<PromisePrototype, Promise> {
     JS_PROTOTYPE_OBJECT(PromisePrototype, Promise, Promise);
     GC_DECLARE_ALLOCATOR(PromisePrototype);
 

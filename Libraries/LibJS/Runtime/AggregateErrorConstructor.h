@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API AggregateErrorConstructor final : public NativeFunction {
+class AggregateErrorConstructor final : public NativeFunction {
     JS_OBJECT(AggregateErrorConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(AggregateErrorConstructor);
 

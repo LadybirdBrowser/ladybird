@@ -12,7 +12,7 @@
 
 namespace JS::Temporal {
 
-class JS_API PlainMonthDayPrototype final : public PrototypeObject<PlainMonthDayPrototype, PlainMonthDay> {
+class PlainMonthDayPrototype final : public PrototypeObject<PlainMonthDayPrototype, PlainMonthDay> {
     JS_PROTOTYPE_OBJECT(PlainMonthDayPrototype, PlainMonthDay, Temporal.PlainMonthDay);
     GC_DECLARE_ALLOCATOR(PlainMonthDayPrototype);
 

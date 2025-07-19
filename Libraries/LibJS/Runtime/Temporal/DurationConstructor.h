@@ -11,7 +11,7 @@
 
 namespace JS::Temporal {
 
-class JS_API DurationConstructor final : public NativeFunction {
+class DurationConstructor final : public NativeFunction {
     JS_OBJECT(DurationConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(DurationConstructor);
 

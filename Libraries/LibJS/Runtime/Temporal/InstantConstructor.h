@@ -11,7 +11,7 @@
 
 namespace JS::Temporal {
 
-class JS_API InstantConstructor final : public NativeFunction {
+class InstantConstructor final : public NativeFunction {
     JS_OBJECT(InstantConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(InstantConstructor);
 

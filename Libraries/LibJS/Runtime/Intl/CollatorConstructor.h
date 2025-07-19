@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-class JS_API CollatorConstructor final : public NativeFunction {
+class CollatorConstructor final : public NativeFunction {
     JS_OBJECT(CollatorConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(CollatorConstructor);
 

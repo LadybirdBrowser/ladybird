@@ -15,7 +15,7 @@
 namespace JS {
 
 // 16.1.4 Script Records, https://tc39.es/ecma262/#sec-script-records
-class JS_API Script final : public Cell {
+class Script final : public Cell {
     GC_CELL(Script, Cell);
     GC_DECLARE_ALLOCATOR(Script);
 

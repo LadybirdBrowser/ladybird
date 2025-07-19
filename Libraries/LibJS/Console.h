@@ -23,7 +23,7 @@ namespace JS {
 class ConsoleClient;
 
 // https://console.spec.whatwg.org
-class JS_API Console : public Cell {
+class Console : public Cell {
     GC_CELL(Console, Cell);
     GC_DECLARE_ALLOCATOR(Console);
 
@@ -105,7 +105,7 @@ private:
     Vector<Group> m_group_stack;
 };
 
-class JS_API ConsoleClient : public Cell {
+class ConsoleClient : public Cell {
     GC_CELL(ConsoleClient, Cell);
     GC_DECLARE_ALLOCATOR(ConsoleClient);
 

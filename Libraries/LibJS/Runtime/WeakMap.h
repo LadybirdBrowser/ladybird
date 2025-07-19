@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class JS_API WeakMap final
+class WeakMap final
     : public Object
     , public GC::WeakContainer {
     JS_OBJECT(WeakMap, Object);

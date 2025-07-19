@@ -14,7 +14,7 @@
 namespace JS {
 
 // 16.2.1.6 Source Text Module Records, https://tc39.es/ecma262/#sec-source-text-module-records
-class JS_API SourceTextModule final : public CyclicModule {
+class SourceTextModule final : public CyclicModule {
     GC_CELL(SourceTextModule, CyclicModule);
     GC_DECLARE_ALLOCATOR(SourceTextModule);
 

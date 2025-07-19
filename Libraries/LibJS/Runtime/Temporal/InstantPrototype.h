@@ -12,7 +12,7 @@
 
 namespace JS::Temporal {
 
-class JS_API InstantPrototype final : public PrototypeObject<InstantPrototype, Instant> {
+class InstantPrototype final : public PrototypeObject<InstantPrototype, Instant> {
     JS_PROTOTYPE_OBJECT(InstantPrototype, Instant, Temporal.Instant);
     GC_DECLARE_ALLOCATOR(InstantPrototype);
 

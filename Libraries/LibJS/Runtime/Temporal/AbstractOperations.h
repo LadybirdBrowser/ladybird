@@ -99,7 +99,7 @@ enum class Unit {
     Microsecond,
     Nanosecond,
 };
-JS_API StringView temporal_unit_to_string(Unit);
+StringView temporal_unit_to_string(Unit);
 
 // https://tc39.es/proposal-temporal/#sec-temporal-units
 enum class UnitCategory {
@@ -157,44 +157,44 @@ struct DifferenceSettings {
     u64 rounding_increment { 0 };
 };
 
-JS_API double iso_date_to_epoch_days(double year, double month, double date);
-JS_API double epoch_days_to_epoch_ms(double day, double time);
-JS_API ThrowCompletionOr<void> check_iso_days_range(VM&, ISODate);
-JS_API ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM&, Object const& options);
-JS_API ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM&, Object const& options);
-JS_API RoundingMode negate_rounding_mode(RoundingMode);
-JS_API ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM&, Object const& options, OffsetOption fallback);
-JS_API ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM&, Object const& options);
-JS_API ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM&, Object const& options);
-JS_API ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM&, Object const& options);
-JS_API ThrowCompletionOr<Direction> get_direction_option(VM&, Object const& options);
-JS_API ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
-JS_API ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
-JS_API SecondsStringPrecision to_seconds_string_precision_record(UnitValue, Precision);
-JS_API ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM&, Object const& options, PropertyKey const&, UnitGroup, UnitDefault const&, ReadonlySpan<UnitValue> extra_values = {});
-JS_API ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM&, Object const& options);
-JS_API Unit larger_of_two_temporal_units(Unit, Unit);
-JS_API bool is_calendar_unit(Unit);
-JS_API UnitCategory temporal_unit_category(Unit);
-JS_API RoundingIncrement maximum_temporal_duration_rounding_increment(Unit);
-JS_API Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit);
-JS_API ThrowCompletionOr<bool> is_partial_temporal_object(VM&, Value);
-JS_API String format_fractional_seconds(u64, Precision);
-JS_API String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseconds, SecondsStringPrecision::Precision, Optional<TimeStyle> = {});
-JS_API UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode, Sign);
-JS_API double apply_unsigned_rounding_mode(double, double r1, double r2, UnsignedRoundingMode);
-JS_API Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResult const&, Crypto::SignedBigInteger r1, Crypto::SignedBigInteger r2, UnsignedRoundingMode, Crypto::UnsignedBigInteger const& increment);
-JS_API double round_number_to_increment(double, u64 increment, RoundingMode);
-JS_API Crypto::SignedBigInteger round_number_to_increment(Crypto::SignedBigInteger const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
-JS_API Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::SignedBigInteger const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
-JS_API ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM&, StringView iso_string, ReadonlySpan<Production> allowed_formats);
-JS_API ThrowCompletionOr<String> parse_temporal_calendar_string(VM&, String const&);
-JS_API ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, StringView iso_string);
-JS_API ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM&, StringView time_zone_string);
-JS_API ThrowCompletionOr<String> to_month_code(VM&, Value argument);
-JS_API ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
-JS_API CalendarFields iso_date_to_fields(StringView calendar, ISODate, DateType);
-JS_API ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOperation, Object const& options, UnitGroup, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit);
+double iso_date_to_epoch_days(double year, double month, double date);
+double epoch_days_to_epoch_ms(double day, double time);
+ThrowCompletionOr<void> check_iso_days_range(VM&, ISODate);
+ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM&, Object const& options);
+ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM&, Object const& options);
+RoundingMode negate_rounding_mode(RoundingMode);
+ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM&, Object const& options, OffsetOption fallback);
+ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM&, Object const& options);
+ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM&, Object const& options);
+ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM&, Object const& options);
+ThrowCompletionOr<Direction> get_direction_option(VM&, Object const& options);
+ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
+ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
+SecondsStringPrecision to_seconds_string_precision_record(UnitValue, Precision);
+ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM&, Object const& options, PropertyKey const&, UnitGroup, UnitDefault const&, ReadonlySpan<UnitValue> extra_values = {});
+ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM&, Object const& options);
+Unit larger_of_two_temporal_units(Unit, Unit);
+bool is_calendar_unit(Unit);
+UnitCategory temporal_unit_category(Unit);
+RoundingIncrement maximum_temporal_duration_rounding_increment(Unit);
+Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit);
+ThrowCompletionOr<bool> is_partial_temporal_object(VM&, Value);
+String format_fractional_seconds(u64, Precision);
+String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseconds, SecondsStringPrecision::Precision, Optional<TimeStyle> = {});
+UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode, Sign);
+double apply_unsigned_rounding_mode(double, double r1, double r2, UnsignedRoundingMode);
+Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResult const&, Crypto::SignedBigInteger r1, Crypto::SignedBigInteger r2, UnsignedRoundingMode, Crypto::UnsignedBigInteger const& increment);
+double round_number_to_increment(double, u64 increment, RoundingMode);
+Crypto::SignedBigInteger round_number_to_increment(Crypto::SignedBigInteger const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
+Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::SignedBigInteger const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
+ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM&, StringView iso_string, ReadonlySpan<Production> allowed_formats);
+ThrowCompletionOr<String> parse_temporal_calendar_string(VM&, String const&);
+ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, StringView iso_string);
+ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM&, StringView time_zone_string);
+ThrowCompletionOr<String> to_month_code(VM&, Value argument);
+ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
+CalendarFields iso_date_to_fields(StringView calendar, ISODate, DateType);
+ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOperation, Object const& options, UnitGroup, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit);
 
 // 13.38 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
 template<typename... Args>

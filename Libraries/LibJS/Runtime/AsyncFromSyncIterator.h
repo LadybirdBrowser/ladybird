@@ -13,7 +13,7 @@
 namespace JS {
 
 // 27.1.4.3 Properties of Async-from-Sync Iterator Instances, https://tc39.es/ecma262/#sec-properties-of-async-from-sync-iterator-instances
-class JS_API AsyncFromSyncIterator final : public Object {
+class AsyncFromSyncIterator final : public Object {
     JS_OBJECT(AsyncFromSyncIterator, Object);
     GC_DECLARE_ALLOCATOR(AsyncFromSyncIterator);
 

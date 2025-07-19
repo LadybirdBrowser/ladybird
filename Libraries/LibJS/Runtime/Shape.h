@@ -34,7 +34,7 @@ struct TransitionKey {
     }
 };
 
-class JS_API PrototypeChainValidity final : public Cell
+class PrototypeChainValidity final : public Cell
     , public Weakable<PrototypeChainValidity> {
     GC_CELL(PrototypeChainValidity, Cell);
     GC_DECLARE_ALLOCATOR(PrototypeChainValidity);
@@ -48,7 +48,7 @@ private:
     size_t padding { 0 };
 };
 
-class JS_API Shape final : public Cell
+class Shape final : public Cell
     , public Weakable<Shape> {
     GC_CELL(Shape, Cell);
     GC_DECLARE_ALLOCATOR(Shape);

@@ -47,7 +47,7 @@ struct SourceRecord {
     u32 source_end_offset {};
 };
 
-class JS_API Executable final : public Cell {
+class Executable final : public Cell {
     GC_CELL(Executable, Cell);
     GC_DECLARE_ALLOCATOR(Executable);
 

@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API BooleanPrototype final : public BooleanObject {
+class BooleanPrototype final : public BooleanObject {
     JS_OBJECT(BooleanPrototype, BooleanObject);
     GC_DECLARE_ALLOCATOR(BooleanPrototype);
 

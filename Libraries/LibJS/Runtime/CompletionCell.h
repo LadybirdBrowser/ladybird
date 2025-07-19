@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class JS_API CompletionCell final : public Cell {
+class CompletionCell final : public Cell {
     GC_CELL(CompletionCell, Cell);
     GC_DECLARE_ALLOCATOR(CompletionCell);
 

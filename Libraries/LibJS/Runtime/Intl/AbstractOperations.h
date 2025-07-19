@@ -63,23 +63,23 @@ AK_ENUM_BITWISE_OPERATORS(SpecialBehaviors);
 
 using StringOrBoolean = Variant<StringView, bool>;
 
-JS_API bool is_structurally_valid_language_tag(StringView locale);
-JS_API String canonicalize_unicode_locale_id(StringView locale);
-JS_API bool is_well_formed_currency_code(StringView currency);
-JS_API Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers();
-JS_API Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(StringView time_zone_identifier);
-JS_API bool is_well_formed_unit_identifier(StringView unit_identifier);
-JS_API ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM&, Value locales);
-JS_API Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> requested_locales);
-JS_API Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<String> requested_locales);
-JS_API String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale_id, Vector<String> attributes, Vector<Unicode::Keyword> keywords);
-JS_API ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOptions const& options, ReadonlySpan<StringView> relevant_extension_keys);
-JS_API ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, Value locales, Value options_value, SpecialBehaviors special_behaviours = SpecialBehaviors::None, Function<void(LocaleOptions&)> modify_resolution_options = {});
-JS_API ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options);
-JS_API ThrowCompletionOr<GC::Ref<Object>> coerce_options_to_object(VM&, Value options);
-JS_API ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM& vm, Object const& options, PropertyKey const& property, ReadonlySpan<StringView> string_values, StringOrBoolean fallback);
-JS_API ThrowCompletionOr<Optional<int>> default_number_option(VM&, Value value, int minimum, int maximum, Optional<int> fallback);
-JS_API ThrowCompletionOr<Optional<int>> get_number_option(VM&, Object const& options, PropertyKey const& property, int minimum, int maximum, Optional<int> fallback);
+bool is_structurally_valid_language_tag(StringView locale);
+String canonicalize_unicode_locale_id(StringView locale);
+bool is_well_formed_currency_code(StringView currency);
+Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers();
+Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(StringView time_zone_identifier);
+bool is_well_formed_unit_identifier(StringView unit_identifier);
+ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM&, Value locales);
+Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> requested_locales);
+Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<String> requested_locales);
+String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale_id, Vector<String> attributes, Vector<Unicode::Keyword> keywords);
+ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOptions const& options, ReadonlySpan<StringView> relevant_extension_keys);
+ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, Value locales, Value options_value, SpecialBehaviors special_behaviours = SpecialBehaviors::None, Function<void(LocaleOptions&)> modify_resolution_options = {});
+ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options);
+ThrowCompletionOr<GC::Ref<Object>> coerce_options_to_object(VM&, Value options);
+ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM& vm, Object const& options, PropertyKey const& property, ReadonlySpan<StringView> string_values, StringOrBoolean fallback);
+ThrowCompletionOr<Optional<int>> default_number_option(VM&, Value value, int minimum, int maximum, Optional<int> fallback);
+ThrowCompletionOr<Optional<int>> get_number_option(VM&, Object const& options, PropertyKey const& property, int minimum, int maximum, Optional<int> fallback);
 
 template<size_t Size>
 ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM& vm, Object const& options, PropertyKey const& property, StringView const (&string_values)[Size], StringOrBoolean fallback)

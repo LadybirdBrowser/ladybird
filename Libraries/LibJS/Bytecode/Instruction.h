@@ -153,7 +153,7 @@
 
 namespace JS::Bytecode {
 
-class alignas(void*) JS_API Instruction {
+class alignas(void*) Instruction {
 public:
     constexpr static bool IsTerminator = false;
     static constexpr bool IsVariableLength = false;
@@ -185,7 +185,7 @@ private:
     Type m_type {};
 };
 
-class JS_API InstructionStreamIterator {
+class InstructionStreamIterator {
 public:
     InstructionStreamIterator(ReadonlyBytes bytes, Executable const* executable = nullptr, size_t offset = 0)
         : m_begin(bytes.data())

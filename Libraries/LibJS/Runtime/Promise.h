@@ -13,7 +13,7 @@ namespace JS {
 
 ThrowCompletionOr<Object*> promise_resolve(VM&, Object& constructor, Value);
 
-class JS_API Promise : public Object {
+class Promise : public Object {
     JS_OBJECT(Promise, Object);
     GC_DECLARE_ALLOCATOR(Promise);
 

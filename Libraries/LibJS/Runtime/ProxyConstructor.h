@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API ProxyConstructor final : public NativeFunction {
+class ProxyConstructor final : public NativeFunction {
     JS_OBJECT(ProxyConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(ProxyConstructor);
 

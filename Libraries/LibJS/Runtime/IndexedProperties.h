@@ -23,7 +23,7 @@ class IndexedProperties;
 class IndexedPropertyIterator;
 class GenericIndexedPropertyStorage;
 
-class JS_API IndexedPropertyStorage {
+class IndexedPropertyStorage {
 public:
     virtual ~IndexedPropertyStorage() = default;
 
@@ -59,7 +59,7 @@ private:
     bool m_is_simple_storage { false };
 };
 
-class JS_API SimpleIndexedPropertyStorage final : public IndexedPropertyStorage {
+class SimpleIndexedPropertyStorage final : public IndexedPropertyStorage {
 public:
     SimpleIndexedPropertyStorage()
         : IndexedPropertyStorage(IsSimpleStorage::Yes)
@@ -103,7 +103,7 @@ private:
     Vector<Value> m_packed_elements;
 };
 
-class JS_API GenericIndexedPropertyStorage final : public IndexedPropertyStorage {
+class GenericIndexedPropertyStorage final : public IndexedPropertyStorage {
 public:
     explicit GenericIndexedPropertyStorage(SimpleIndexedPropertyStorage&&);
     explicit GenericIndexedPropertyStorage()
@@ -128,7 +128,7 @@ private:
     HashMap<u32, ValueAndAttributes> m_sparse_elements;
 };
 
-class JS_API IndexedPropertyIterator {
+class IndexedPropertyIterator {
 public:
     IndexedPropertyIterator(IndexedProperties const&, u32 starting_index, bool skip_empty);
 
@@ -148,7 +148,7 @@ private:
     bool m_skip_empty { false };
 };
 
-class JS_API IndexedProperties {
+class IndexedProperties {
 public:
     IndexedProperties() = default;
 

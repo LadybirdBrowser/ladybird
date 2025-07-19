@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API BoundFunction final : public FunctionObject {
+class BoundFunction final : public FunctionObject {
     JS_OBJECT(BoundFunction, FunctionObject);
     GC_DECLARE_ALLOCATOR(BoundFunction);
 

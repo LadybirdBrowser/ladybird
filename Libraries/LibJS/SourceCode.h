@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class JS_API SourceCode : public RefCounted<SourceCode> {
+class SourceCode : public RefCounted<SourceCode> {
 public:
     static NonnullRefPtr<SourceCode const> create(String filename, String code);
 

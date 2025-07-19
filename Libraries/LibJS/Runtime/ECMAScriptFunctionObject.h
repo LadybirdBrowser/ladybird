@@ -98,7 +98,7 @@ public:
 };
 
 // 10.2 ECMAScript Function Objects, https://tc39.es/ecma262/#sec-ecmascript-function-objects
-class JS_API ECMAScriptFunctionObject final : public FunctionObject {
+class ECMAScriptFunctionObject final : public FunctionObject {
     JS_OBJECT(ECMAScriptFunctionObject, FunctionObject);
     GC_DECLARE_ALLOCATOR(ECMAScriptFunctionObject);
 

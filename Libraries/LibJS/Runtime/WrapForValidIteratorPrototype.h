@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class JS_API WrapForValidIteratorPrototype final : public PrototypeObject<WrapForValidIteratorPrototype, Iterator> {
+class WrapForValidIteratorPrototype final : public PrototypeObject<WrapForValidIteratorPrototype, Iterator> {
     JS_PROTOTYPE_OBJECT(WrapForValidIteratorPrototype, Iterator, Iterator);
     GC_DECLARE_ALLOCATOR(WrapForValidIteratorPrototype);
 

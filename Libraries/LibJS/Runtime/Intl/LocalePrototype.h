@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-class JS_API LocalePrototype final : public PrototypeObject<LocalePrototype, Locale> {
+class LocalePrototype final : public PrototypeObject<LocalePrototype, Locale> {
     JS_PROTOTYPE_OBJECT(LocalePrototype, Locale, Intl.Locale);
     GC_DECLARE_ALLOCATOR(LocalePrototype);
 

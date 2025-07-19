@@ -16,7 +16,7 @@
 
 namespace JS::Intl {
 
-class JS_API NumberFormatBase : public IntlObject {
+class NumberFormatBase : public IntlObject {
     JS_OBJECT(NumberFormatBase, IntlObject);
     GC_DECLARE_ALLOCATOR(NumberFormatBase);
 
@@ -108,7 +108,7 @@ private:
     OwnPtr<Unicode::NumberFormat> m_formatter;
 };
 
-class JS_API NumberFormat final : public NumberFormatBase {
+class NumberFormat final : public NumberFormatBase {
     JS_OBJECT(NumberFormat, NumberFormatBase);
     GC_DECLARE_ALLOCATOR(NumberFormat);
 
@@ -179,13 +179,13 @@ private:
     GC::Ptr<NativeFunction> m_bound_format;                        // [[BoundFormat]]
 };
 
-JS_API int currency_digits(StringView currency);
-JS_API Vector<Unicode::NumberFormat::Partition> partition_number_pattern(NumberFormat const&, MathematicalValue const& number);
-JS_API String format_numeric(NumberFormat const&, MathematicalValue const& number);
-JS_API GC::Ref<Array> format_numeric_to_parts(VM&, NumberFormat const&, MathematicalValue const& number);
-JS_API ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM&, Value value);
-JS_API ThrowCompletionOr<Vector<Unicode::NumberFormat::Partition>> partition_number_range_pattern(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);
-JS_API ThrowCompletionOr<String> format_numeric_range(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);
-JS_API ThrowCompletionOr<GC::Ref<Array>> format_numeric_range_to_parts(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);
+int currency_digits(StringView currency);
+Vector<Unicode::NumberFormat::Partition> partition_number_pattern(NumberFormat const&, MathematicalValue const& number);
+String format_numeric(NumberFormat const&, MathematicalValue const& number);
+GC::Ref<Array> format_numeric_to_parts(VM&, NumberFormat const&, MathematicalValue const& number);
+ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM&, Value value);
+ThrowCompletionOr<Vector<Unicode::NumberFormat::Partition>> partition_number_range_pattern(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);
+ThrowCompletionOr<String> format_numeric_range(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);
+ThrowCompletionOr<GC::Ref<Array>> format_numeric_range_to_parts(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);
 
 }

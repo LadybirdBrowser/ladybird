@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class JS_API ProxyObject final : public FunctionObject {
+class ProxyObject final : public FunctionObject {
     JS_OBJECT(ProxyObject, FunctionObject);
     GC_DECLARE_ALLOCATOR(ProxyObject);
 

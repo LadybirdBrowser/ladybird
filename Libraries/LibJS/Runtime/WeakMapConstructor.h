@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API WeakMapConstructor final : public NativeFunction {
+class WeakMapConstructor final : public NativeFunction {
     JS_OBJECT(WeakMapConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(WeakMapConstructor);
 

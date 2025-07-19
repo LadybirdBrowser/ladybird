@@ -19,7 +19,7 @@ struct Variable {
 
 #define JS_ENVIRONMENT(class_, base_class) GC_CELL(class_, base_class)
 
-class JS_API Environment : public Cell {
+class Environment : public Cell {
     GC_CELL(Environment, Cell);
 
 public:

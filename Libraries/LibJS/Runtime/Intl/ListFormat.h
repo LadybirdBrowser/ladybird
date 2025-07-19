@@ -15,7 +15,7 @@
 
 namespace JS::Intl {
 
-class JS_API ListFormat final : public IntlObject {
+class ListFormat final : public IntlObject {
     JS_OBJECT(ListFormat, IntlObject);
     GC_DECLARE_ALLOCATOR(ListFormat);
 
@@ -57,9 +57,9 @@ private:
     OwnPtr<Unicode::ListFormat> m_formatter;
 };
 
-JS_API Vector<Unicode::ListFormat::Partition> create_parts_from_list(ListFormat const&, ReadonlySpan<String> list);
-JS_API String format_list(ListFormat const&, ReadonlySpan<String> list);
-JS_API GC::Ref<Array> format_list_to_parts(VM&, ListFormat const&, ReadonlySpan<String> list);
-JS_API ThrowCompletionOr<Vector<String>> string_list_from_iterable(VM&, Value iterable);
+Vector<Unicode::ListFormat::Partition> create_parts_from_list(ListFormat const&, ReadonlySpan<String> list);
+String format_list(ListFormat const&, ReadonlySpan<String> list);
+GC::Ref<Array> format_list_to_parts(VM&, ListFormat const&, ReadonlySpan<String> list);
+ThrowCompletionOr<Vector<String>> string_list_from_iterable(VM&, Value iterable);
 
 }

@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API RawJSONObject final : public Object {
+class RawJSONObject final : public Object {
     JS_OBJECT(RawJSONObject, Object);
     GC_DECLARE_ALLOCATOR(RawJSONObject);
 

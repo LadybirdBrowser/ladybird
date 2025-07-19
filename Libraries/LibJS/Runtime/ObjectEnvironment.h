@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API ObjectEnvironment final : public Environment {
+class ObjectEnvironment final : public Environment {
     JS_ENVIRONMENT(ObjectEnvironment, Environment);
     GC_DECLARE_ALLOCATOR(ObjectEnvironment);
 

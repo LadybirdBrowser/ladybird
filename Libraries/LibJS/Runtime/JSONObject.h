@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API JSONObject final : public Object {
+class JSONObject final : public Object {
     JS_OBJECT(JSONObject, Object);
     GC_DECLARE_ALLOCATOR(JSONObject);
 

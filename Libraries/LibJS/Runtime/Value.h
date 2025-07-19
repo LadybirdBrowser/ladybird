@@ -85,7 +85,7 @@ static constexpr u64 SHIFTED_INT32_TAG = INT32_TAG << GC::TAG_SHIFT;
 // options from 8 tags to 15 but since we currently only use 5 for both sign bits
 // this is not needed.
 
-class JS_API Value : public GC::NanBoxedValue {
+class Value : public GC::NanBoxedValue {
 public:
     enum class PreferredType {
         Default,
@@ -458,15 +458,15 @@ private:
 
     ThrowCompletionOr<i32> to_i32_slow_case(VM&) const;
 
-    JS_API friend constexpr Value js_undefined();
-    JS_API friend constexpr Value js_null();
-    JS_API friend constexpr Value js_special_empty_value();
-    JS_API friend ThrowCompletionOr<bool> greater_than(VM&, Value lhs, Value rhs);
-    JS_API friend ThrowCompletionOr<bool> greater_than_equals(VM&, Value lhs, Value rhs);
-    JS_API friend ThrowCompletionOr<bool> less_than(VM&, Value lhs, Value rhs);
-    JS_API friend ThrowCompletionOr<bool> less_than_equals(VM&, Value lhs, Value rhs);
-    JS_API friend ThrowCompletionOr<Value> add(VM&, Value lhs, Value rhs);
-    JS_API friend bool same_value_non_number(Value lhs, Value rhs);
+    friend constexpr Value js_undefined();
+    friend constexpr Value js_null();
+    friend constexpr Value js_special_empty_value();
+    friend ThrowCompletionOr<bool> greater_than(VM&, Value lhs, Value rhs);
+    friend ThrowCompletionOr<bool> greater_than_equals(VM&, Value lhs, Value rhs);
+    friend ThrowCompletionOr<bool> less_than(VM&, Value lhs, Value rhs);
+    friend ThrowCompletionOr<bool> less_than_equals(VM&, Value lhs, Value rhs);
+    friend ThrowCompletionOr<Value> add(VM&, Value lhs, Value rhs);
+    friend bool same_value_non_number(Value lhs, Value rhs);
 };
 
 inline constexpr Value js_undefined()
@@ -499,45 +499,45 @@ inline Value js_negative_infinity()
     return Value(-INFINITY);
 }
 
-JS_API ThrowCompletionOr<bool> greater_than(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<bool> greater_than_equals(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<bool> less_than(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<bool> less_than_equals(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> bitwise_and(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> bitwise_or(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> bitwise_xor(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> bitwise_not(VM&, Value);
-JS_API ThrowCompletionOr<Value> unary_plus(VM&, Value);
-JS_API ThrowCompletionOr<Value> unary_minus(VM&, Value);
-JS_API ThrowCompletionOr<Value> left_shift(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> right_shift(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> unsigned_right_shift(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> add(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> sub(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> mul(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> div(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> mod(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> exp(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> in(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> instance_of(VM&, Value lhs, Value rhs);
-JS_API ThrowCompletionOr<Value> ordinary_has_instance(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<bool> greater_than(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<bool> greater_than_equals(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<bool> less_than(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<bool> less_than_equals(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> bitwise_and(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> bitwise_or(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> bitwise_xor(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> bitwise_not(VM&, Value);
+ThrowCompletionOr<Value> unary_plus(VM&, Value);
+ThrowCompletionOr<Value> unary_minus(VM&, Value);
+ThrowCompletionOr<Value> left_shift(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> right_shift(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> unsigned_right_shift(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> add(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> sub(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> mul(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> div(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> mod(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> exp(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> in(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> instance_of(VM&, Value lhs, Value rhs);
+ThrowCompletionOr<Value> ordinary_has_instance(VM&, Value lhs, Value rhs);
 
-JS_API ThrowCompletionOr<bool> is_loosely_equal(VM&, Value lhs, Value rhs);
-JS_API bool is_strictly_equal(Value lhs, Value rhs);
-JS_API bool same_value(Value lhs, Value rhs);
-JS_API bool same_value_zero(Value lhs, Value rhs);
-JS_API bool same_value_non_number(Value lhs, Value rhs);
-JS_API ThrowCompletionOr<TriState> is_less_than(VM&, Value lhs, Value rhs, bool left_first);
+ThrowCompletionOr<bool> is_loosely_equal(VM&, Value lhs, Value rhs);
+bool is_strictly_equal(Value lhs, Value rhs);
+bool same_value(Value lhs, Value rhs);
+bool same_value_zero(Value lhs, Value rhs);
+bool same_value_non_number(Value lhs, Value rhs);
+ThrowCompletionOr<TriState> is_less_than(VM&, Value lhs, Value rhs, bool left_first);
 
-JS_API double to_integer_or_infinity(double);
+double to_integer_or_infinity(double);
 
 enum class NumberToStringMode {
     WithExponent,
     WithoutExponent,
 };
-[[nodiscard]] JS_API String number_to_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
-[[nodiscard]] JS_API ByteString number_to_byte_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
-JS_API double string_to_number(StringView);
+[[nodiscard]] String number_to_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
+[[nodiscard]] ByteString number_to_byte_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
+double string_to_number(StringView);
 
 inline bool Value::operator==(Value const& value) const { return same_value(*this, value); }
 

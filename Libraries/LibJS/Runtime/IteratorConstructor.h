@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API IteratorConstructor : public NativeFunction {
+class IteratorConstructor : public NativeFunction {
     JS_OBJECT(IteratorConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(IteratorConstructor);
 

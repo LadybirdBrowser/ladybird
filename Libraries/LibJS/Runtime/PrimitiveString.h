@@ -19,7 +19,7 @@
 
 namespace JS {
 
-class JS_API PrimitiveString : public Cell {
+class PrimitiveString : public Cell {
     GC_CELL(PrimitiveString, Cell);
     GC_DECLARE_ALLOCATOR(PrimitiveString);
 
