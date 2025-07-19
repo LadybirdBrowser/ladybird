@@ -370,9 +370,8 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
             return CSS::MediaFeatureValue(CSS::Keyword::Light);
         case CSS::PreferredColorScheme::Dark:
             return CSS::MediaFeatureValue(CSS::Keyword::Dark);
-        case CSS::PreferredColorScheme::Auto:
         default:
-            return CSS::MediaFeatureValue(page().palette().is_dark() ? CSS::Keyword::Dark : CSS::Keyword::Light);
+            VERIFY_NOT_REACHED();
         }
     }
     case CSS::MediaFeatureID::PrefersContrast:
