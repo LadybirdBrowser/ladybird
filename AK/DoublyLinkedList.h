@@ -37,7 +37,7 @@ private:
     typename ListType::Node* m_node;
 };
 
-template<typename T>
+template<typename T, size_t node_cache_size>
 class DoublyLinkedList {
 private:
     struct Node {
@@ -55,7 +55,14 @@ private:
 
 public:
     DoublyLinkedList() = default;
-    ~DoublyLinkedList() { clear(); }
+    ~DoublyLinkedList()
+    {
+        clear();
+        if constexpr (node_cache_size > 0) {
+            for (size_t i = 0; i < m_node_cache.used_count; ++i)
+                delete m_node_cache.nodes[i];
+        }
+    }
 
     [[nodiscard]] bool is_empty() const { return !m_head; }
 
@@ -63,11 +70,12 @@ public:
     {
         for (auto* node = m_head; node;) {
             auto* next = node->next;
-            delete node;
+            drop_node(node);
             node = next;
         }
         m_head = nullptr;
         m_tail = nullptr;
+        m_size = 0;
     }
 
     [[nodiscard]] T& first()
@@ -91,14 +99,24 @@ public:
         return m_tail->value;
     }
 
+    [[nodiscard]] T& unchecked_last()
+    {
+        return m_tail->value;
+    }
+    [[nodiscard]] T const& unchecked_last() const
+    {
+        return m_tail->value;
+    }
+
     template<typename U>
     ErrorOr<void> try_append(U&& value)
     {
         static_assert(
             requires { T(value); }, "Conversion operator is missing.");
-        auto* node = new (nothrow) Node(forward<U>(value));
+        auto* node = make_node(forward<U>(value));
         if (!node)
             return Error::from_errno(ENOMEM);
+        m_size += 1;
         if (!m_head) {
             VERIFY(!m_tail);
             m_head = node;
@@ -117,9 +135,10 @@ public:
     ErrorOr<void> try_prepend(U&& value)
     {
         static_assert(IsSame<T, U>);
-        auto* node = new (nothrow) Node(forward<U>(value));
+        auto* node = make_node(forward<U>(value));
         if (!node)
             return Error::from_errno(ENOMEM);
+        m_size += 1;
         if (!m_head) {
             VERIFY(!m_tail);
             m_head = node;
@@ -189,12 +208,94 @@ public:
             VERIFY(node == m_tail);
             m_tail = node->prev;
         }
-        delete node;
+        m_size -= 1;
+        drop_node(node);
+    }
+
+    T take_first()
+    {
+        VERIFY(m_head);
+        auto value = move(m_head->value);
+        auto* old_head = m_head;
+        m_head = m_head->next;
+        if (m_head)
+            m_head->prev = nullptr;
+        else
+            m_tail = nullptr; // We removed the only element, no more elements left.
+        drop_node(old_head);
+        m_size -= 1;
+        return value;
+    }
+
+    T take_last()
+    {
+        VERIFY(m_tail);
+        auto value = move(m_tail->value);
+        auto* old_tail = m_tail;
+        m_tail = m_tail->prev;
+        if (m_tail)
+            m_tail->next = nullptr;
+        else
+            m_head = nullptr; // We removed the only element, no more elements left.
+        drop_node(old_tail);
+        m_size -= 1;
+        return value;
+    }
+
+    size_t size() const { return m_size; }
+
+    template<typename F>
+    void ensure_capacity(size_t new_capacity, F make_default_value = [] -> T { return T{}; })
+    {
+        if constexpr (node_cache_size == 0)
+            return;
+
+        if (m_size >= new_capacity)
+            return;
+        auto const rest = min(new_capacity - m_size, node_cache_size);
+        for (size_t i = m_node_cache.used_count; i <= rest; ++i)
+            m_node_cache.nodes[m_node_cache.used_count++] = make_node(make_default_value());
     }
 
 private:
+    void drop_node(Node* node)
+    {
+        if constexpr (node_cache_size > 0) {
+            if (m_node_cache.used_count < node_cache_size) {
+                node->value.~T();
+                m_node_cache.nodes[m_node_cache.used_count++] = node;
+                return;
+            }
+        }
+
+        delete node;
+    }
+
+    template<typename... Args>
+    Node* make_node(Args&&... args)
+    {
+        if constexpr (node_cache_size > 0) {
+            if (m_node_cache.used_count > 0) {
+                auto* node = m_node_cache.nodes[--m_node_cache.used_count];
+                new (node) Node(forward<Args>(args)...);
+                return node;
+            }
+        }
+
+        return new (nothrow) Node(forward<Args>(args)...);
+    }
+
     Node* m_head { nullptr };
     Node* m_tail { nullptr };
+    size_t m_size { 0 };
+
+    struct NonemptyNodeCache {
+        Array<Node*, node_cache_size> nodes;
+        size_t used_count { 0 };
+    };
+    using NodeCache = Conditional<(node_cache_size > 0), NonemptyNodeCache, Empty>;
+
+    NO_UNIQUE_ADDRESS NodeCache m_node_cache;
 };
 
 }

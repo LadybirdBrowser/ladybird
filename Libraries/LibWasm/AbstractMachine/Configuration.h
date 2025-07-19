@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/DoublyLinkedList.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 
 namespace Wasm {
@@ -21,11 +22,13 @@ public:
     {
         Label label(frame.arity(), frame.expression().instructions().size(), m_value_stack.size());
         frame.label_index() = m_label_stack.size();
+        if (auto hint = frame.expression().stack_usage_hint(); hint.has_value())
+            m_value_stack.ensure_capacity(*hint + m_value_stack.size());
         m_frame_stack.append(move(frame));
         m_label_stack.append(label);
     }
-    ALWAYS_INLINE auto& frame() const { return m_frame_stack.last(); }
-    ALWAYS_INLINE auto& frame() { return m_frame_stack.last(); }
+    ALWAYS_INLINE auto& frame() const { return m_frame_stack.unchecked_last(); }
+    ALWAYS_INLINE auto& frame() { return m_frame_stack.unchecked_last(); }
     ALWAYS_INLINE auto& ip() const { return m_ip; }
     ALWAYS_INLINE auto& ip() { return m_ip; }
     ALWAYS_INLINE auto& depth() const { return m_depth; }
@@ -66,8 +69,8 @@ public:
 private:
     Store& m_store;
     Vector<Value> m_value_stack;
-    Vector<Label> m_label_stack;
-    Vector<Frame> m_frame_stack;
+    DoublyLinkedList<Label, 512> m_label_stack;
+    DoublyLinkedList<Frame, 512> m_frame_stack;
     size_t m_depth { 0 };
     InstructionPointer m_ip;
     bool m_should_limit_instruction_count { false };
