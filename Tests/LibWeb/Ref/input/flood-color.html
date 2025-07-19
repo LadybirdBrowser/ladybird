@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html style="color: green">
+    <link rel="match" href="../expected/flood-color-ref.html" />
+    <svg width="200" height="200">
+        <defs>
+            <filter id="floodFilter1" filterUnits="userSpaceOnUse">
+                <feFlood x="0" y="0" flood-color="red" />
+            </filter>
+        </defs>
+        <use filter="url(#floodFilter1)" />
+    </svg>
+    <svg width="200" height="200">
+        <defs>
+            <filter id="floodFilter2" filterUnits="userSpaceOnUse">
+                <feFlood x="0" y="0" flood-color="currentcolor" />
+            </filter>
+        </defs>
+        <use filter="url(#floodFilter2)" />
+    </svg>
+    <svg width="200" height="200">
+        <defs>
+            <filter id="floodFilter3" filterUnits="userSpaceOnUse">
+                <feFlood x="0" y="0" flood-color="rgb(0 0 calc(255 * sign(1em - 1px)))" />
+            </filter>
+        </defs>
+        <use filter="url(#floodFilter3)" />
+    </svg>
+</html>

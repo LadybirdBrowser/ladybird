@@ -23,7 +23,7 @@ public:
 
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
 
-    Gfx::Color flood_color() const;
+    Gfx::Color flood_color();
     float flood_opacity() const;
 
 private:
