@@ -44,6 +44,7 @@ enum class TransferType : u8 {
     ReadableStream = 4,
     WritableStream = 5,
     TransformStream = 6,
+    ImageBitmap = 7,
 };
 
 }

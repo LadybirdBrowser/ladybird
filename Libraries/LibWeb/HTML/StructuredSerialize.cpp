@@ -1147,6 +1147,11 @@ static WebIDL::ExceptionOr<GC::Ref<Bindings::PlatformObject>> create_transferred
         TRY(transform_stream->transfer_receiving_steps(decoder));
         return transform_stream;
     }
+    case TransferType::ImageBitmap: {
+        auto image_bitmap = target_realm.create<ImageBitmap>(target_realm);
+        TRY(image_bitmap->transfer_receiving_steps(decoder));
+        return image_bitmap;
+    }
     case TransferType::ArrayBuffer:
     case TransferType::ResizableArrayBuffer:
     case TransferType::Unknown:
