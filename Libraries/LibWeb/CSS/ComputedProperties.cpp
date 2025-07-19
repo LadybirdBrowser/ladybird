@@ -1813,24 +1813,6 @@ MaskType ComputedProperties::mask_type() const
     return keyword_to_mask_type(value.to_keyword()).release_value();
 }
 
-Color ComputedProperties::stop_color() const
-{
-    NonnullRawPtr<CSSStyleValue const> value = property(PropertyID::StopColor);
-    if (value->is_keyword()) {
-        // Workaround lack of layout node to resolve current color.
-        auto const& keyword = value->as_keyword();
-        if (keyword.keyword() == Keyword::Currentcolor)
-            value = property(PropertyID::Color);
-    }
-    if (value->has_color()) {
-        // FIXME: This is used by the SVGStopElement, which does not participate in layout, so we can't pass a layout
-        //        node or CalculationResolutionContext. This means we don't support all valid colors (e.g. palette
-        //        colors, calculated values which depend on length resolution, etc)
-        return value->to_color({}).value_or(Color::Black);
-    }
-    return Color::Black;
-}
-
 void ComputedProperties::set_math_depth(int math_depth)
 {
     m_math_depth = math_depth;
