@@ -292,6 +292,21 @@ ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(SocketAddress const& addres
     return socket;
 }
 
+ErrorOr<Bytes> UDPSocket::read_some(Bytes buffer)
+{
+    auto pending_bytes = TRY(this->pending_bytes());
+    if (pending_bytes > buffer.size()) {
+        // With UDP datagrams, reading a datagram into a buffer that's
+        // smaller than the datagram's size will cause the rest of the
+        // datagram to be discarded. That's not very nice, so let's bail
+        // early, telling the caller that he should allocate a bigger
+        // buffer.
+        return Error::from_errno(EMSGSIZE);
+    }
+
+    return m_helper.read(buffer, default_flags());
+}
+
 ErrorOr<NonnullOwnPtr<LocalSocket>> LocalSocket::connect(ByteString const& path, PreventSIGPIPE prevent_sigpipe)
 {
     auto socket = TRY(adopt_nonnull_own_or_enomem(new (nothrow) LocalSocket(prevent_sigpipe)));
