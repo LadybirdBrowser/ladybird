@@ -27,7 +27,7 @@
 #include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
-#include <LibWeb/Platform/EventLoopPluginSerenity.h>
+#include <LibWeb/Platform/EventLoopPluginLadybird.h>
 #include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
@@ -82,7 +82,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     WebView::platform_init();
 
-    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
+    Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginLadybird);
 
     Web::Platform::AudioCodecPlugin::install_creation_hook([](auto loader) {
 #if defined(HAVE_QT_MULTIMEDIA)

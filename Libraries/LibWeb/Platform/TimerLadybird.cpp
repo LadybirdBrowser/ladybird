@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "TimerSerenity.h"
 #include <LibCore/Timer.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/Platform/TimerLadybird.h>
 
 namespace Web::Platform {
 
-GC::Ref<TimerSerenity> TimerSerenity::create(GC::Heap& heap)
+GC::Ref<TimerLadybird> TimerLadybird::create(GC::Heap& heap)
 {
-    return heap.allocate<TimerSerenity>();
+    return heap.allocate<TimerLadybird>();
 }
 
-TimerSerenity::TimerSerenity()
+TimerLadybird::TimerLadybird()
     : m_timer(Core::Timer::try_create().release_value_but_fixme_should_propagate_errors())
 {
     m_timer->on_timeout = [this] {
@@ -25,59 +25,59 @@ TimerSerenity::TimerSerenity()
     };
 }
 
-TimerSerenity::~TimerSerenity() = default;
+TimerLadybird::~TimerLadybird() = default;
 
-void TimerSerenity::start()
+void TimerLadybird::start()
 {
     m_timer->start();
 }
 
-void TimerSerenity::start(int interval_ms)
+void TimerLadybird::start(int interval_ms)
 {
     m_timer->start(interval_ms);
 }
 
-void TimerSerenity::restart()
+void TimerLadybird::restart()
 {
     m_timer->restart();
 }
 
-void TimerSerenity::restart(int interval_ms)
+void TimerLadybird::restart(int interval_ms)
 {
     m_timer->restart(interval_ms);
 }
 
-void TimerSerenity::stop()
+void TimerLadybird::stop()
 {
     m_timer->stop();
 }
 
-void TimerSerenity::set_active(bool active)
+void TimerLadybird::set_active(bool active)
 {
     m_timer->set_active(active);
 }
 
-bool TimerSerenity::is_active() const
+bool TimerLadybird::is_active() const
 {
     return m_timer->is_active();
 }
 
-int TimerSerenity::interval() const
+int TimerLadybird::interval() const
 {
     return m_timer->interval();
 }
 
-void TimerSerenity::set_interval(int interval_ms)
+void TimerLadybird::set_interval(int interval_ms)
 {
     m_timer->set_interval(interval_ms);
 }
 
-bool TimerSerenity::is_single_shot() const
+bool TimerLadybird::is_single_shot() const
 {
     return m_timer->is_single_shot();
 }
 
-void TimerSerenity::set_single_shot(bool single_shot)
+void TimerLadybird::set_single_shot(bool single_shot)
 {
     m_timer->set_single_shot(single_shot);
 }

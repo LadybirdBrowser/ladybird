@@ -11,13 +11,13 @@
 
 namespace Web::Platform {
 
-class TimerSerenity final : public Timer {
-    GC_CELL(TimerSerenity, Timer);
+class TimerLadybird final : public Timer {
+    GC_CELL(TimerLadybird, Timer);
 
 public:
-    static GC::Ref<TimerSerenity> create(GC::Heap&);
+    static GC::Ref<TimerLadybird> create(GC::Heap&);
 
-    virtual ~TimerSerenity();
+    virtual ~TimerLadybird();
 
     virtual void start() override;
     virtual void start(int interval_ms) override;
@@ -35,7 +35,7 @@ public:
     virtual void set_single_shot(bool) override;
 
 private:
-    TimerSerenity();
+    TimerLadybird();
 
     NonnullRefPtr<Core::Timer> m_timer;
 };
