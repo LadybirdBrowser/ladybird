@@ -41,6 +41,7 @@ public:
 
     String to_data_url(StringView type, JS::Value quality);
     WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value quality);
+    RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
 
     void present();
 
