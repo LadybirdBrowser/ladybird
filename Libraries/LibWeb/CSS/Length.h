@@ -162,6 +162,7 @@ public:
     StringView unit_name() const;
 
     struct ResolutionContext {
+        [[nodiscard]] static ResolutionContext for_element(DOM::AbstractElement const&);
         [[nodiscard]] static ResolutionContext for_window(HTML::Window const&);
         [[nodiscard]] static ResolutionContext for_layout_node(Layout::Node const&);
 

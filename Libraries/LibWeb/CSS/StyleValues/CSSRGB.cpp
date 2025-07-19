@@ -14,9 +14,9 @@
 
 namespace Web::CSS {
 
-Optional<Color> CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSRGB::to_color(ColorResolutionContext color_resolution_context) const
 {
-    auto resolve_rgb_to_u8 = [&resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
+    auto resolve_rgb_to_u8 = [&color_resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
         // <number> | <percentage> | none
         auto normalized = [](double number) {
             if (isnan(number))
@@ -33,7 +33,7 @@ Optional<Color> CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, Calcula
         if (style_value.is_calculated()) {
             auto const& calculated = style_value.as_calculated();
             if (calculated.resolves_to_number()) {
-                auto maybe_number = calculated.resolve_number(resolution_context);
+                auto maybe_number = calculated.resolve_number(color_resolution_context.calculation_resolution_context);
 
                 if (!maybe_number.has_value())
                     return {};
@@ -42,7 +42,7 @@ Optional<Color> CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, Calcula
             }
 
             if (calculated.resolves_to_percentage()) {
-                auto maybe_percentage = calculated.resolve_percentage(resolution_context);
+                auto maybe_percentage = calculated.resolve_percentage(color_resolution_context.calculation_resolution_context);
 
                 if (!maybe_percentage.has_value())
                     return {};
@@ -54,8 +54,8 @@ Optional<Color> CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, Calcula
         return 0;
     };
 
-    auto resolve_alpha_to_u8 = [&resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
-        auto alpha_0_1 = resolve_alpha(style_value, resolution_context);
+    auto resolve_alpha_to_u8 = [&color_resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
+        auto alpha_0_1 = resolve_alpha(style_value, color_resolution_context.calculation_resolution_context);
         if (alpha_0_1.has_value())
             return llround(clamp(alpha_0_1.value() * 255.0f, 0.0f, 255.0f));
         return {};
@@ -89,7 +89,7 @@ String CSSRGB::to_string(SerializationMode mode) const
     if (mode != SerializationMode::ResolvedValue && m_properties.name.has_value())
         return m_properties.name.value().to_string().to_ascii_lowercase();
 
-    if (auto color = to_color({}, {}); color.has_value())
+    if (auto color = to_color({}); color.has_value())
         return serialize_a_srgb_value(color.value());
 
     StringBuilder builder;

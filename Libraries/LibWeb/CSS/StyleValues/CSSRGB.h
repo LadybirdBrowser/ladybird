@@ -29,7 +29,7 @@ public:
     CSSStyleValue const& b() const { return *m_properties.b; }
     CSSStyleValue const& alpha() const { return *m_properties.alpha; }
 
-    virtual Optional<Color> to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const&) const override;
+    virtual Optional<Color> to_color(ColorResolutionContext) const override;
 
     virtual String to_string(SerializationMode) const override;
 
