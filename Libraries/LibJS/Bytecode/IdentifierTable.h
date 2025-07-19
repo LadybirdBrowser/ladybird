@@ -9,7 +9,6 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/FlyString.h>
 #include <AK/Vector.h>
-#include <LibJS/Forward.h>
 
 namespace JS::Bytecode {
 
@@ -19,7 +18,7 @@ struct IdentifierTableIndex {
     u32 value { 0 };
 };
 
-class JS_API IdentifierTable {
+class IdentifierTable {
     AK_MAKE_NONMOVABLE(IdentifierTable);
     AK_MAKE_NONCOPYABLE(IdentifierTable);
 

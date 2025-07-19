@@ -12,7 +12,7 @@
 
 namespace JS::Temporal {
 
-class JS_API DurationPrototype final : public PrototypeObject<DurationPrototype, Duration> {
+class DurationPrototype final : public PrototypeObject<DurationPrototype, Duration> {
     JS_PROTOTYPE_OBJECT(DurationPrototype, Duration, Temporal.Duration);
     GC_DECLARE_ALLOCATOR(DurationPrototype);
 

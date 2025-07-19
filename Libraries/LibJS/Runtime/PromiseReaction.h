@@ -14,7 +14,7 @@
 namespace JS {
 
 // 27.2.1.2 PromiseReaction Records, https://tc39.es/ecma262/#sec-promisereaction-records
-class JS_API PromiseReaction final : public Cell {
+class PromiseReaction final : public Cell {
     GC_CELL(PromiseReaction, Cell);
     GC_DECLARE_ALLOCATOR(PromiseReaction);
 

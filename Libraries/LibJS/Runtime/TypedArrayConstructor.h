@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API TypedArrayConstructor : public NativeFunction {
+class TypedArrayConstructor : public NativeFunction {
     JS_OBJECT(TypedArrayConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(TypedArrayConstructor);
 

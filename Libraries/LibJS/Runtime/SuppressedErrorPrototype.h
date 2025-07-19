@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API SuppressedErrorPrototype final : public Object {
+class SuppressedErrorPrototype final : public Object {
     JS_OBJECT(SuppressedErrorPrototype, Object);
     GC_DECLARE_ALLOCATOR(SuppressedErrorPrototype);
 

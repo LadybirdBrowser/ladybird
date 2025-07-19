@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class JS_API ShadowRealm final : public Object {
+class ShadowRealm final : public Object {
     JS_OBJECT(ShadowRealm, Object);
     GC_DECLARE_ALLOCATOR(ShadowRealm);
 

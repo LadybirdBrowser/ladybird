@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-class JS_API LocaleConstructor final : public NativeFunction {
+class LocaleConstructor final : public NativeFunction {
     JS_OBJECT(LocaleConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(LocaleConstructor);
 

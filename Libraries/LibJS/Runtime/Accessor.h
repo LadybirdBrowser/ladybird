@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class JS_API Accessor final : public Cell {
+class Accessor final : public Cell {
     GC_CELL(Accessor, Cell);
     GC_DECLARE_ALLOCATOR(Accessor);
 

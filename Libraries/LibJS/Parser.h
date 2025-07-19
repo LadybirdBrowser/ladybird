@@ -13,6 +13,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/AST.h>
+#include <LibJS/Export.h>
 #include <LibJS/Lexer.h>
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/FunctionConstructor.h>

@@ -10,22 +10,23 @@
 #include <AK/EnumBits.h>
 #include <AK/Optional.h>
 #include <AK/Result.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibRegex/Regex.h>
 
 namespace JS {
 
 JS_API ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_create(VM&, Value pattern, Value flags);
-JS_API ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_alloc(VM&, FunctionObject& new_target);
+ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_alloc(VM&, FunctionObject& new_target);
 
-JS_API Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(StringView flags);
+Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(StringView flags);
 struct ParseRegexPatternError {
     String error;
 };
-JS_API ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets);
-JS_API ThrowCompletionOr<String> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets);
+ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets);
+ThrowCompletionOr<String> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets);
 
-class JS_API RegExpObject : public Object {
+class RegExpObject : public Object {
     JS_OBJECT(RegExpObject, Object);
     GC_DECLARE_ALLOCATOR(RegExpObject);
 

@@ -14,7 +14,7 @@
 
 namespace JS {
 
-class JS_API IteratorHelper final : public GeneratorObject {
+class IteratorHelper final : public GeneratorObject {
     JS_OBJECT(IteratorHelper, GeneratorObject);
     GC_DECLARE_ALLOCATOR(IteratorHelper);
 

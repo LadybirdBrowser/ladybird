@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API ArrayIteratorPrototype final : public PrototypeObject<ArrayIteratorPrototype, ArrayIterator> {
+class ArrayIteratorPrototype final : public PrototypeObject<ArrayIteratorPrototype, ArrayIterator> {
     JS_PROTOTYPE_OBJECT(ArrayIteratorPrototype, ArrayIterator, ArrayIterator);
     GC_DECLARE_ALLOCATOR(ArrayIteratorPrototype);
 

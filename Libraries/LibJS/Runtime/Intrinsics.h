@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibGC/CellAllocator.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 
@@ -251,6 +252,6 @@ private:
     GC::Ptr<Intl::Collator> m_default_collator;
 };
 
-JS_API void add_restricted_function_properties(FunctionObject&, Realm&);
+void add_restricted_function_properties(FunctionObject&, Realm&);
 
 }

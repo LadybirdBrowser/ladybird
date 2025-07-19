@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API MapPrototype final : public PrototypeObject<MapPrototype, Map> {
+class MapPrototype final : public PrototypeObject<MapPrototype, Map> {
     JS_PROTOTYPE_OBJECT(MapPrototype, Map, Map);
     GC_DECLARE_ALLOCATOR(MapPrototype);
 

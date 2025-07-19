@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API DataViewPrototype final : public PrototypeObject<DataViewPrototype, DataView> {
+class DataViewPrototype final : public PrototypeObject<DataViewPrototype, DataView> {
     JS_PROTOTYPE_OBJECT(DataViewPrototype, DataView, DataView);
     GC_DECLARE_ALLOCATOR(DataViewPrototype);
 

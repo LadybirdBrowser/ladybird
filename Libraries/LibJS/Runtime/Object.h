@@ -11,6 +11,7 @@
 #include <AK/StringView.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/RootVector.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Completion.h>

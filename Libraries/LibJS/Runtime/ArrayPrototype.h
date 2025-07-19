@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API ArrayPrototype final : public Array {
+class ArrayPrototype final : public Array {
     JS_OBJECT(ArrayPrototype, Array);
     GC_DECLARE_ALLOCATOR(ArrayPrototype);
 
@@ -64,6 +64,6 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(with);
 };
 
-JS_API ThrowCompletionOr<void> array_merge_sort(VM&, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::RootVector<Value>& arr_to_sort);
+ThrowCompletionOr<void> array_merge_sort(VM&, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::RootVector<Value>& arr_to_sort);
 
 }

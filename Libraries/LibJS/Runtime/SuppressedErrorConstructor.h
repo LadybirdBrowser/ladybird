@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API SuppressedErrorConstructor final : public NativeFunction {
+class SuppressedErrorConstructor final : public NativeFunction {
     JS_OBJECT(SuppressedErrorConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(SuppressedErrorConstructor);
 

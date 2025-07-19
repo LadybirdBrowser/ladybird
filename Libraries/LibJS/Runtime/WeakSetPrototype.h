@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API WeakSetPrototype final : public PrototypeObject<WeakSetPrototype, WeakSet> {
+class WeakSetPrototype final : public PrototypeObject<WeakSetPrototype, WeakSet> {
     JS_PROTOTYPE_OBJECT(WeakSetPrototype, WeakSet, WeakSet);
     GC_DECLARE_ALLOCATOR(WeakSetPrototype);
 

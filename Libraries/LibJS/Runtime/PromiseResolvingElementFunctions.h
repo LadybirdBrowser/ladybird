@@ -12,7 +12,7 @@
 
 namespace JS {
 
-struct JS_API RemainingElements final : public Cell {
+struct RemainingElements final : public Cell {
     GC_CELL(RemainingElements, Cell);
     GC_DECLARE_ALLOCATOR(RemainingElements);
 
@@ -27,7 +27,7 @@ private:
     }
 };
 
-class JS_API PromiseValueList final : public Cell {
+class PromiseValueList final : public Cell {
     GC_CELL(PromiseValueList, Cell);
     GC_DECLARE_ALLOCATOR(PromiseValueList);
 
@@ -43,7 +43,7 @@ private:
     Vector<Value> m_values;
 };
 
-class JS_API PromiseResolvingElementFunction : public NativeFunction {
+class PromiseResolvingElementFunction : public NativeFunction {
     JS_OBJECT(PromiseResolvingElementFunction, NativeFunction);
     GC_DECLARE_ALLOCATOR(PromiseResolvingElementFunction);
 
@@ -70,7 +70,7 @@ private:
 };
 
 // 27.2.4.1.3 Promise.all Resolve Element Functions, https://tc39.es/ecma262/#sec-promise.all-resolve-element-functions
-class JS_API PromiseAllResolveElementFunction final : public PromiseResolvingElementFunction {
+class PromiseAllResolveElementFunction final : public PromiseResolvingElementFunction {
     JS_OBJECT(PromiseAllResolveElementFunction, PromiseResolvingElementFunction);
     GC_DECLARE_ALLOCATOR(PromiseAllResolveElementFunction);
 
@@ -86,7 +86,7 @@ private:
 };
 
 // 27.2.4.2.2 Promise.allSettled Resolve Element Functions, https://tc39.es/ecma262/#sec-promise.allsettled-resolve-element-functions
-class JS_API PromiseAllSettledResolveElementFunction final : public PromiseResolvingElementFunction {
+class PromiseAllSettledResolveElementFunction final : public PromiseResolvingElementFunction {
     JS_OBJECT(PromiseAllSettledResolveElementFunction, PromiseResolvingElementFunction);
     GC_DECLARE_ALLOCATOR(PromiseAllSettledResolveElementFunction);
 
@@ -102,7 +102,7 @@ private:
 };
 
 // 27.2.4.2.3 Promise.allSettled Reject Element Functions, https://tc39.es/ecma262/#sec-promise.allsettled-reject-element-functions
-class JS_API PromiseAllSettledRejectElementFunction final : public PromiseResolvingElementFunction {
+class PromiseAllSettledRejectElementFunction final : public PromiseResolvingElementFunction {
     JS_OBJECT(PromiseAllSettledRejectElementFunction, PromiseResolvingElementFunction);
     GC_DECLARE_ALLOCATOR(PromiseAllSettledRejectElementFunction);
 
@@ -118,7 +118,7 @@ private:
 };
 
 // 27.2.4.3.2 Promise.any Reject Element Functions, https://tc39.es/ecma262/#sec-promise.any-reject-element-functions
-class JS_API PromiseAnyRejectElementFunction final : public PromiseResolvingElementFunction {
+class PromiseAnyRejectElementFunction final : public PromiseResolvingElementFunction {
     JS_OBJECT(PromiseAnyRejectElementFunction, PromiseResolvingElementFunction);
     GC_DECLARE_ALLOCATOR(PromiseAnyRejectElementFunction);
 

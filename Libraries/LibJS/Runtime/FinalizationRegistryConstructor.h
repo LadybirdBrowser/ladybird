@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API FinalizationRegistryConstructor final : public NativeFunction {
+class FinalizationRegistryConstructor final : public NativeFunction {
     JS_OBJECT(FinalizationRegistryConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(FinalizationRegistryConstructor);
 

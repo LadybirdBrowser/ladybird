@@ -12,7 +12,7 @@
 
 namespace JS::Temporal {
 
-class JS_API PlainDateTimePrototype final : public PrototypeObject<PlainDateTimePrototype, PlainDateTime> {
+class PlainDateTimePrototype final : public PrototypeObject<PlainDateTimePrototype, PlainDateTime> {
     JS_PROTOTYPE_OBJECT(PlainDateTimePrototype, PlainDateTime, Temporal.PlainDateTime);
     GC_DECLARE_ALLOCATOR(PlainDateTimePrototype);
 

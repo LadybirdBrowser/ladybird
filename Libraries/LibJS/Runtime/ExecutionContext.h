@@ -11,6 +11,7 @@
 
 #include <AK/WeakPtr.h>
 #include <LibJS/Bytecode/BasicBlock.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>

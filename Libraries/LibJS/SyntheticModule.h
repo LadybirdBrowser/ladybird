@@ -13,7 +13,7 @@
 namespace JS {
 
 // 16.2.1.8 Synthetic Module Records, https://tc39.es/ecma262/#sec-synthetic-module-records
-class JS_API SyntheticModule final : public Module {
+class SyntheticModule final : public Module {
     GC_CELL(SyntheticModule, Module);
     GC_DECLARE_ALLOCATOR(SyntheticModule);
 
@@ -39,6 +39,6 @@ private:
     EvaluationFunction m_evaluation_steps; // [[EvaluationSteps]]
 };
 
-JS_API ThrowCompletionOr<GC::Ref<Module>> parse_json_module(Realm& realm, StringView source_text, ByteString filename);
+ThrowCompletionOr<GC::Ref<Module>> parse_json_module(Realm& realm, StringView source_text, ByteString filename);
 
 }

@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API SetPrototype final : public PrototypeObject<SetPrototype, Set> {
+class SetPrototype final : public PrototypeObject<SetPrototype, Set> {
     JS_PROTOTYPE_OBJECT(SetPrototype, Set, Set);
     GC_DECLARE_ALLOCATOR(SetPrototype);
 

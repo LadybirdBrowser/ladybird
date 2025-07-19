@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class JS_API GeneratorResult final : public Cell {
+class GeneratorResult final : public Cell {
     GC_CELL(GeneratorResult, Cell);
     GC_DECLARE_ALLOCATOR(GeneratorResult);
 

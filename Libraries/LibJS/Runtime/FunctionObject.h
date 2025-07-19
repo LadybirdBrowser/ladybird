@@ -16,7 +16,7 @@
 
 namespace JS {
 
-class JS_API FunctionObject : public Object {
+class FunctionObject : public Object {
     JS_OBJECT(FunctionObject, Object);
 
 public:

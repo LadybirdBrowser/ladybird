@@ -19,7 +19,7 @@
 
 namespace JS::Intl {
 
-class JS_API DateTimeFormat final : public IntlObject {
+class DateTimeFormat final : public IntlObject {
     JS_OBJECT(DateTimeFormat, IntlObject);
     GC_DECLARE_ALLOCATOR(DateTimeFormat);
 
@@ -135,27 +135,27 @@ struct ValueFormat {
     double epoch_milliseconds { 0 };          // [[EpochNanoseconds]]
 };
 
-JS_API Vector<Unicode::DateTimeFormat::Partition> format_date_time_pattern(ValueFormat const&);
-JS_API ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_pattern(VM&, DateTimeFormat&, FormattableDateTime const&);
-JS_API ThrowCompletionOr<String> format_date_time(VM&, DateTimeFormat&, FormattableDateTime const&);
-JS_API ThrowCompletionOr<GC::Ref<Array>> format_date_time_to_parts(VM&, DateTimeFormat&, FormattableDateTime const&);
-JS_API ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
-JS_API ThrowCompletionOr<String> format_date_time_range(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
-JS_API ThrowCompletionOr<GC::Ref<Array>> format_date_time_range_to_parts(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
+Vector<Unicode::DateTimeFormat::Partition> format_date_time_pattern(ValueFormat const&);
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_pattern(VM&, DateTimeFormat&, FormattableDateTime const&);
+ThrowCompletionOr<String> format_date_time(VM&, DateTimeFormat&, FormattableDateTime const&);
+ThrowCompletionOr<GC::Ref<Array>> format_date_time_to_parts(VM&, DateTimeFormat&, FormattableDateTime const&);
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
+ThrowCompletionOr<String> format_date_time_range(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
+ThrowCompletionOr<GC::Ref<Array>> format_date_time_range_to_parts(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
 
-JS_API Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern const& options, OptionRequired, OptionDefaults, OptionInherit);
-JS_API Unicode::CalendarPattern adjust_date_time_style_format(Unicode::CalendarPattern const& base_format, ReadonlySpan<Unicode::CalendarPattern::Field> allowed_options);
-JS_API ThrowCompletionOr<FormattableDateTime> to_date_time_formattable(VM&, Value);
-JS_API bool is_temporal_object(FormattableDateTime const&);
-JS_API bool same_temporal_type(FormattableDateTime const&, FormattableDateTime const&);
-JS_API ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM&, DateTimeFormat&, Temporal::PlainDate const&);
-JS_API ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM&, DateTimeFormat&, Temporal::PlainYearMonth const&);
-JS_API ThrowCompletionOr<ValueFormat> handle_date_time_temporal_month_day(VM&, DateTimeFormat&, Temporal::PlainMonthDay const&);
-JS_API ThrowCompletionOr<ValueFormat> handle_date_time_temporal_time(VM&, DateTimeFormat&, Temporal::PlainTime const&);
-JS_API ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date_time(VM&, DateTimeFormat&, Temporal::PlainDateTime const&);
-JS_API ValueFormat handle_date_time_temporal_instant(DateTimeFormat&, Temporal::Instant const&);
-JS_API ThrowCompletionOr<ValueFormat> handle_date_time_others(VM&, DateTimeFormat&, double);
-JS_API ThrowCompletionOr<ValueFormat> handle_date_time_value(VM&, DateTimeFormat&, FormattableDateTime const&);
+Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern const& options, OptionRequired, OptionDefaults, OptionInherit);
+Unicode::CalendarPattern adjust_date_time_style_format(Unicode::CalendarPattern const& base_format, ReadonlySpan<Unicode::CalendarPattern::Field> allowed_options);
+ThrowCompletionOr<FormattableDateTime> to_date_time_formattable(VM&, Value);
+bool is_temporal_object(FormattableDateTime const&);
+bool same_temporal_type(FormattableDateTime const&, FormattableDateTime const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM&, DateTimeFormat&, Temporal::PlainDate const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM&, DateTimeFormat&, Temporal::PlainYearMonth const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_month_day(VM&, DateTimeFormat&, Temporal::PlainMonthDay const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_time(VM&, DateTimeFormat&, Temporal::PlainTime const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date_time(VM&, DateTimeFormat&, Temporal::PlainDateTime const&);
+ValueFormat handle_date_time_temporal_instant(DateTimeFormat&, Temporal::Instant const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_others(VM&, DateTimeFormat&, double);
+ThrowCompletionOr<ValueFormat> handle_date_time_value(VM&, DateTimeFormat&, FormattableDateTime const&);
 
 template<typename Callback>
 ThrowCompletionOr<void> for_each_calendar_field(VM& vm, Unicode::CalendarPattern& pattern, Callback&& callback)

@@ -9,6 +9,7 @@
 
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 
 namespace JS {
@@ -38,6 +39,6 @@ private:
     CanBlock m_can_block { false };
 };
 
-JS_API bool agent_can_suspend(VM const&);
+bool agent_can_suspend(VM const&);
 
 }

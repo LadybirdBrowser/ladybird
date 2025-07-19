@@ -23,7 +23,7 @@
 
 namespace JS::Bytecode {
 
-class JS_API Generator {
+class Generator {
 public:
     VM& vm() { return m_vm; }
 
@@ -55,7 +55,7 @@ public:
     [[nodiscard]] bool is_local_initialized(Identifier::Local const&) const;
     [[nodiscard]] bool is_local_lexically_declared(Identifier::Local const& local) const;
 
-    class JS_API SourceLocationScope {
+    class SourceLocationScope {
     public:
         SourceLocationScope(Generator&, ASTNode const& node);
         ~SourceLocationScope();
@@ -65,7 +65,7 @@ public:
         ASTNode const* m_previous_node { nullptr };
     };
 
-    class JS_API UnwindContext {
+    class UnwindContext {
     public:
         UnwindContext(Generator&, Optional<Label> finalizer);
 

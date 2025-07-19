@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API PromiseConstructor final : public NativeFunction {
+class PromiseConstructor final : public NativeFunction {
     JS_OBJECT(PromiseConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(PromiseConstructor);
 

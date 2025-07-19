@@ -11,6 +11,7 @@
 #include <AK/StringView.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibGC/CellAllocator.h>
+#include <LibJS/Export.h>
 #include <LibJS/Heap/Cell.h>
 
 namespace JS {
@@ -35,6 +36,6 @@ private:
     Crypto::SignedBigInteger m_big_integer;
 };
 
-JS_API ThrowCompletionOr<GC::Ref<BigInt>> number_to_bigint(VM&, Value);
+ThrowCompletionOr<GC::Ref<BigInt>> number_to_bigint(VM&, Value);
 
 }

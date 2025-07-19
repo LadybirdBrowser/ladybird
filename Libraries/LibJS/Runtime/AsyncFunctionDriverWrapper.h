@@ -14,7 +14,7 @@
 
 namespace JS {
 
-class JS_API AsyncFunctionDriverWrapper final : public Promise {
+class AsyncFunctionDriverWrapper final : public Promise {
     JS_OBJECT(AsyncFunctionDriverWrapper, Promise);
     GC_DECLARE_ALLOCATOR(AsyncFunctionDriverWrapper);
 

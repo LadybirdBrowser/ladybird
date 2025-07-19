@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API AsyncFunctionPrototype final : public Object {
+class AsyncFunctionPrototype final : public Object {
     JS_OBJECT(AsyncFunctionPrototype, Object);
     GC_DECLARE_ALLOCATOR(AsyncFunctionPrototype);
 

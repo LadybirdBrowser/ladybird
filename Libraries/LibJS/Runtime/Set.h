@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Map.h>
 #include <LibJS/Runtime/Object.h>
@@ -55,7 +56,7 @@ struct SetRecord {
     GC::Ref<FunctionObject> keys;     // [[Keys]]
 };
 
-JS_API ThrowCompletionOr<SetRecord> get_set_record(VM&, Value);
-JS_API bool set_data_has(GC::Ref<Set>, Value);
+ThrowCompletionOr<SetRecord> get_set_record(VM&, Value);
+bool set_data_has(GC::Ref<Set>, Value);
 
 }

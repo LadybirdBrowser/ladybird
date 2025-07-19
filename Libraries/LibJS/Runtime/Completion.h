@@ -11,6 +11,7 @@
 #include <AK/Try.h>
 #include <AK/TypeCasts.h>
 #include <AK/Variant.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/ErrorTypes.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -335,7 +336,7 @@ private:
     Value m_value;
 };
 
-JS_API ThrowCompletionOr<Value> await(VM&, Value);
+ThrowCompletionOr<Value> await(VM&, Value);
 
 // 6.2.4.1 NormalCompletion ( value ), https://tc39.es/ecma262/#sec-normalcompletion
 inline Completion normal_completion(Value value)

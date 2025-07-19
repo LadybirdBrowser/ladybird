@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGC/Cell.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 
 namespace JS {

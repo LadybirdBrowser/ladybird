@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/SourceRange.h>

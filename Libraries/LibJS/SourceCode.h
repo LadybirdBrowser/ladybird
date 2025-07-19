@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Position.h>
 

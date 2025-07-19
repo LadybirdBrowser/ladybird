@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API AsyncIteratorPrototype final : public Object {
+class AsyncIteratorPrototype final : public Object {
     JS_OBJECT(AsyncIteratorPrototype, Object)
     GC_DECLARE_ALLOCATOR(AsyncIteratorPrototype);
 

@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibUnicode/NumberFormat.h>

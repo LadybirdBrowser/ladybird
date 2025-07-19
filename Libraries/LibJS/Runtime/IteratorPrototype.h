@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API IteratorPrototype : public PrototypeObject<IteratorPrototype, Iterator> {
+class IteratorPrototype : public PrototypeObject<IteratorPrototype, Iterator> {
     JS_PROTOTYPE_OBJECT(IteratorPrototype, Iterator, Iterator);
     GC_DECLARE_ALLOCATOR(IteratorPrototype);
 

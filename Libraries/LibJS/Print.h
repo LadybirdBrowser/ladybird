@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/HashTable.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {

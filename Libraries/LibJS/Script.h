@@ -9,6 +9,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
+#include <LibJS/Export.h>
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/Realm.h>
 

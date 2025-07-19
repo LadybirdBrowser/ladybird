@@ -72,13 +72,13 @@ enum class Production {
     TimeZoneIdentifier,
 };
 
-JS_API Optional<ParseResult> parse_iso8601(Production, StringView);
+Optional<ParseResult> parse_iso8601(Production, StringView);
 
 enum class SubMinutePrecision {
     No,
     Yes,
 };
 
-JS_API Optional<TimeZoneOffset> parse_utc_offset(StringView, SubMinutePrecision);
+Optional<TimeZoneOffset> parse_utc_offset(StringView, SubMinutePrecision);
 
 }

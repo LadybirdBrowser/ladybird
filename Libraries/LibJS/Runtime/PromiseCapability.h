@@ -7,13 +7,14 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 
 namespace JS {
 
 // 27.2.1.1 PromiseCapability Records, https://tc39.es/ecma262/#sec-promisecapability-records
-class JS_API PromiseCapability final : public Cell {
+class PromiseCapability final : public Cell {
     GC_CELL(PromiseCapability, Cell);
     GC_DECLARE_ALLOCATOR(PromiseCapability);
 

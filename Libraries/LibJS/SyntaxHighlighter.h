@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
+#include <LibJS/Export.h>
 #include <LibSyntax/Highlighter.h>
 
 namespace JS {

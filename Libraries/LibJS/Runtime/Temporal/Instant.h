@@ -16,7 +16,7 @@
 
 namespace JS::Temporal {
 
-class JS_API Instant final : public Object {
+class Instant final : public Object {
     JS_OBJECT(Instant, Object);
     GC_DECLARE_ALLOCATOR(Instant);
 
@@ -56,15 +56,15 @@ extern Crypto::UnsignedBigInteger const SECONDS_PER_MINUTE;
 extern Crypto::UnsignedBigInteger const MINUTES_PER_HOUR;
 extern Crypto::UnsignedBigInteger const HOURS_PER_DAY;
 
-JS_API bool is_valid_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds);
-JS_API ThrowCompletionOr<GC::Ref<Instant>> create_temporal_instant(VM&, BigInt const& epoch_nanoseconds, GC::Ptr<FunctionObject> new_target = {});
-JS_API ThrowCompletionOr<GC::Ref<Instant>> to_temporal_instant(VM&, Value item);
-JS_API i8 compare_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds_one, Crypto::SignedBigInteger const& epoch_nanoseconds_two);
-JS_API ThrowCompletionOr<Crypto::SignedBigInteger> add_instant(VM&, Crypto::SignedBigInteger const& epoch_nanoseconds, TimeDuration const&);
-JS_API InternalDuration difference_instant(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, u64 rounding_increment, Unit smallest_unit, RoundingMode);
-JS_API Crypto::SignedBigInteger round_temporal_instant(Crypto::SignedBigInteger const& nanoseconds, u64 increment, Unit, RoundingMode);
-JS_API String temporal_instant_to_string(Instant const&, Optional<StringView> time_zone, SecondsStringPrecision::Precision);
-JS_API ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_instant(VM&, DurationOperation, Instant const&, Value other, Value options);
-JS_API ThrowCompletionOr<GC::Ref<Instant>> add_duration_to_instant(VM&, ArithmeticOperation, Instant const&, Value temporal_duration_like);
+bool is_valid_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds);
+ThrowCompletionOr<GC::Ref<Instant>> create_temporal_instant(VM&, BigInt const& epoch_nanoseconds, GC::Ptr<FunctionObject> new_target = {});
+ThrowCompletionOr<GC::Ref<Instant>> to_temporal_instant(VM&, Value item);
+i8 compare_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds_one, Crypto::SignedBigInteger const& epoch_nanoseconds_two);
+ThrowCompletionOr<Crypto::SignedBigInteger> add_instant(VM&, Crypto::SignedBigInteger const& epoch_nanoseconds, TimeDuration const&);
+InternalDuration difference_instant(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, u64 rounding_increment, Unit smallest_unit, RoundingMode);
+Crypto::SignedBigInteger round_temporal_instant(Crypto::SignedBigInteger const& nanoseconds, u64 increment, Unit, RoundingMode);
+String temporal_instant_to_string(Instant const&, Optional<StringView> time_zone, SecondsStringPrecision::Precision);
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_instant(VM&, DurationOperation, Instant const&, Value other, Value options);
+ThrowCompletionOr<GC::Ref<Instant>> add_duration_to_instant(VM&, ArithmeticOperation, Instant const&, Value temporal_duration_like);
 
 }

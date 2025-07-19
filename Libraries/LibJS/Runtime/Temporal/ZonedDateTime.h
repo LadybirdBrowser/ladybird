@@ -16,7 +16,7 @@
 
 namespace JS::Temporal {
 
-class JS_API ZonedDateTime final : public Object {
+class ZonedDateTime final : public Object {
     JS_OBJECT(ZonedDateTime, Object);
     GC_DECLARE_ALLOCATOR(ZonedDateTime);
 
@@ -48,15 +48,15 @@ enum class MatchBehavior {
     MatchMinutes,
 };
 
-JS_API ThrowCompletionOr<Crypto::SignedBigInteger> interpret_iso_date_time_offset(VM&, ISODate, Variant<ParsedISODateTime::StartOfDay, Time> const&, OffsetBehavior, double offset_nanoseconds, StringView time_zone, Disambiguation, OffsetOption, MatchBehavior);
-JS_API ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM&, Value item, Value options = js_undefined());
-JS_API ThrowCompletionOr<GC::Ref<ZonedDateTime>> create_temporal_zoned_date_time(VM&, BigInt const& epoch_nanoseconds, String time_zone, String calendar, GC::Ptr<FunctionObject> new_target = {});
-JS_API String temporal_zoned_date_time_to_string(ZonedDateTime const&, SecondsStringPrecision::Precision, ShowCalendar, ShowTimeZoneName, ShowOffset, u64 increment = 1, Unit = Unit::Nanosecond, RoundingMode = RoundingMode::Trunc);
-JS_API ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM&, Crypto::SignedBigInteger const& epoch_nanoseconds, StringView time_zone, StringView calendar, InternalDuration const&, Overflow);
-JS_API ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit largest_unit);
-JS_API ThrowCompletionOr<InternalDuration> difference_zoned_date_time_with_rounding(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode);
-JS_API ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit);
-JS_API ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_zoned_date_time(VM&, DurationOperation, ZonedDateTime const&, Value other, Value options);
-JS_API ThrowCompletionOr<GC::Ref<ZonedDateTime>> add_duration_to_zoned_date_time(VM&, ArithmeticOperation, ZonedDateTime const&, Value temporal_duration_like, Value options);
+ThrowCompletionOr<Crypto::SignedBigInteger> interpret_iso_date_time_offset(VM&, ISODate, Variant<ParsedISODateTime::StartOfDay, Time> const&, OffsetBehavior, double offset_nanoseconds, StringView time_zone, Disambiguation, OffsetOption, MatchBehavior);
+ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM&, Value item, Value options = js_undefined());
+ThrowCompletionOr<GC::Ref<ZonedDateTime>> create_temporal_zoned_date_time(VM&, BigInt const& epoch_nanoseconds, String time_zone, String calendar, GC::Ptr<FunctionObject> new_target = {});
+String temporal_zoned_date_time_to_string(ZonedDateTime const&, SecondsStringPrecision::Precision, ShowCalendar, ShowTimeZoneName, ShowOffset, u64 increment = 1, Unit = Unit::Nanosecond, RoundingMode = RoundingMode::Trunc);
+ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM&, Crypto::SignedBigInteger const& epoch_nanoseconds, StringView time_zone, StringView calendar, InternalDuration const&, Overflow);
+ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit largest_unit);
+ThrowCompletionOr<InternalDuration> difference_zoned_date_time_with_rounding(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode);
+ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit);
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_zoned_date_time(VM&, DurationOperation, ZonedDateTime const&, Value other, Value options);
+ThrowCompletionOr<GC::Ref<ZonedDateTime>> add_duration_to_zoned_date_time(VM&, ArithmeticOperation, ZonedDateTime const&, Value temporal_duration_like, Value options);
 
 }

@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API DatePrototype final : public PrototypeObject<DatePrototype, Date> {
+class DatePrototype final : public PrototypeObject<DatePrototype, Date> {
     JS_PROTOTYPE_OBJECT(DatePrototype, Date, Date);
     GC_DECLARE_ALLOCATOR(DatePrototype);
 
@@ -74,10 +74,10 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(symbol_to_primitive);
 };
 
-JS_API ThrowCompletionOr<double> this_time_value(VM&, Value value);
-JS_API ByteString time_string(double time);
-JS_API ByteString date_string(double time);
-JS_API ByteString time_zone_string(double time);
-JS_API ByteString to_date_string(double time);
+ThrowCompletionOr<double> this_time_value(VM&, Value value);
+ByteString time_string(double time);
+ByteString date_string(double time);
+ByteString time_zone_string(double time);
+ByteString to_date_string(double time);
 
 }

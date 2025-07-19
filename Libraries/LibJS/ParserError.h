@@ -11,6 +11,7 @@
 #include <AK/Error.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibJS/Export.h>
 #include <LibJS/SourceRange.h>
 
 namespace JS {

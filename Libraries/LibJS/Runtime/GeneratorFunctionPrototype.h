@@ -12,7 +12,7 @@
 namespace JS {
 
 // 27.3.3 %GeneratorFunction.prototype%, https://tc39.es/ecma262/#sec-properties-of-the-generatorfunction-prototype-object
-class JS_API GeneratorFunctionPrototype final : public Object {
+class GeneratorFunctionPrototype final : public Object {
     JS_OBJECT(GeneratorFunctionPrototype, Object);
     GC_DECLARE_ALLOCATOR(GeneratorFunctionPrototype);
 

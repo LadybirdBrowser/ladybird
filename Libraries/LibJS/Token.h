@@ -10,7 +10,6 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Variant.h>
-#include <LibJS/Export.h>
 
 namespace JS {
 
@@ -180,7 +179,7 @@ enum class TokenCategory {
     Identifier
 };
 
-class JS_API Token {
+class Token {
 public:
     Token() = default;
 

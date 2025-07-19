@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API FunctionPrototype final : public FunctionObject {
+class FunctionPrototype final : public FunctionObject {
     JS_OBJECT(FunctionPrototype, FunctionObject);
     GC_DECLARE_ALLOCATOR(FunctionPrototype);
 

@@ -11,7 +11,7 @@
 
 namespace JS::Temporal {
 
-class JS_API ZonedDateTimeConstructor final : public NativeFunction {
+class ZonedDateTimeConstructor final : public NativeFunction {
     JS_OBJECT(ZonedDateTimeConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(ZonedDateTimeConstructor);
 

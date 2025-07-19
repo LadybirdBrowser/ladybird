@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API ConsoleObjectPrototype final : public Object {
+class ConsoleObjectPrototype final : public Object {
     JS_OBJECT(ConsoleObjectPrototype, Object);
     GC_DECLARE_ALLOCATOR(ConsoleObjectPrototype);
 

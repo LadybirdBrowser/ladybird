@@ -20,7 +20,7 @@ namespace JS {
 // [[RegExpLeftContext]]
 // [[RegExpRightContext]]
 // [[RegExpParen1]] ... [[RegExpParen9]]
-class JS_API RegExpLegacyStaticProperties {
+class RegExpLegacyStaticProperties {
 public:
     Optional<Utf16String> const& input() const { return m_input; }
     Optional<Utf16String> const& last_match() const
@@ -102,9 +102,9 @@ private:
     mutable Optional<Utf16String> m_right_context_string;
 };
 
-JS_API ThrowCompletionOr<void> set_legacy_regexp_static_property(VM& vm, RegExpConstructor& constructor, Value this_value, void (RegExpLegacyStaticProperties::*property_setter)(Utf16String), Value value);
-JS_API ThrowCompletionOr<Value> get_legacy_regexp_static_property(VM& vm, RegExpConstructor& constructor, Value this_value, Optional<Utf16String> const& (RegExpLegacyStaticProperties::*property_getter)() const);
-JS_API void update_legacy_regexp_static_properties(RegExpConstructor& constructor, Utf16String const& string, size_t start_index, size_t end_index, Vector<Utf16String> const& captured_values);
-JS_API void invalidate_legacy_regexp_static_properties(RegExpConstructor& constructor);
+ThrowCompletionOr<void> set_legacy_regexp_static_property(VM& vm, RegExpConstructor& constructor, Value this_value, void (RegExpLegacyStaticProperties::*property_setter)(Utf16String), Value value);
+ThrowCompletionOr<Value> get_legacy_regexp_static_property(VM& vm, RegExpConstructor& constructor, Value this_value, Optional<Utf16String> const& (RegExpLegacyStaticProperties::*property_getter)() const);
+void update_legacy_regexp_static_properties(RegExpConstructor& constructor, Utf16String const& string, size_t start_index, size_t end_index, Vector<Utf16String> const& captured_values);
+void invalidate_legacy_regexp_static_properties(RegExpConstructor& constructor);
 
 }

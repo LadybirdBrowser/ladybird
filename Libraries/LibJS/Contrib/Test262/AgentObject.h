@@ -11,7 +11,7 @@
 
 namespace JS::Test262 {
 
-class JS_API AgentObject final : public Object {
+class AgentObject final : public Object {
     JS_OBJECT(AgentObject, Object);
     GC_DECLARE_ALLOCATOR(AgentObject);
 

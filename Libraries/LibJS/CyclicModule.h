@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Module.h>
 
@@ -76,8 +77,8 @@ protected:
     Optional<u32> m_pending_async_dependencies;           // [[PendingAsyncDependencies]]
 };
 
-JS_API void inner_module_loading(VM&, GraphLoadingState& state, GC::Ref<Module>);
-JS_API void continue_module_loading(GraphLoadingState&, ThrowCompletionOr<GC::Ref<Module>> const&);
-JS_API void continue_dynamic_import(GC::Ref<PromiseCapability>, ThrowCompletionOr<GC::Ref<Module>> const& module_completion);
+void inner_module_loading(VM&, GraphLoadingState& state, GC::Ref<Module>);
+void continue_module_loading(GraphLoadingState&, ThrowCompletionOr<GC::Ref<Module>> const&);
+void continue_dynamic_import(GC::Ref<PromiseCapability>, ThrowCompletionOr<GC::Ref<Module>> const& module_completion);
 
 }

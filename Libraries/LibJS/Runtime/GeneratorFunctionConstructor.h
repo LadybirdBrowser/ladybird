@@ -11,7 +11,7 @@
 namespace JS {
 
 // 27.3.1 %GeneratorFunction%, https://tc39.es/ecma262/#sec-generatorfunction-constructor
-class JS_API GeneratorFunctionConstructor final : public NativeFunction {
+class GeneratorFunctionConstructor final : public NativeFunction {
     JS_OBJECT(GeneratorFunctionConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(GeneratorFunctionConstructor);
 

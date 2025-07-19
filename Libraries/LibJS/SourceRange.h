@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <LibJS/Export.h>
 #include <LibJS/Position.h>
 #include <LibJS/SourceCode.h>
 

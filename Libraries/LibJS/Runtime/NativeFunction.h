@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <LibGC/Function.h>
 #include <LibJS/Bytecode/Builtins.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/PropertyKey.h>

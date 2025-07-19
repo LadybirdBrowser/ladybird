@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -23,7 +24,7 @@ class IndexedProperties;
 class IndexedPropertyIterator;
 class GenericIndexedPropertyStorage;
 
-class JS_API IndexedPropertyStorage {
+class IndexedPropertyStorage {
 public:
     virtual ~IndexedPropertyStorage() = default;
 
@@ -59,7 +60,7 @@ private:
     bool m_is_simple_storage { false };
 };
 
-class JS_API SimpleIndexedPropertyStorage final : public IndexedPropertyStorage {
+class SimpleIndexedPropertyStorage final : public IndexedPropertyStorage {
 public:
     SimpleIndexedPropertyStorage()
         : IndexedPropertyStorage(IsSimpleStorage::Yes)
@@ -103,7 +104,7 @@ private:
     Vector<Value> m_packed_elements;
 };
 
-class JS_API GenericIndexedPropertyStorage final : public IndexedPropertyStorage {
+class GenericIndexedPropertyStorage final : public IndexedPropertyStorage {
 public:
     explicit GenericIndexedPropertyStorage(SimpleIndexedPropertyStorage&&);
     explicit GenericIndexedPropertyStorage()

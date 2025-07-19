@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class JS_API MarkupGenerator {
+class MarkupGenerator {
 public:
     static ErrorOr<String> html_from_source(StringView);
     static ErrorOr<String> html_from_value(Value);

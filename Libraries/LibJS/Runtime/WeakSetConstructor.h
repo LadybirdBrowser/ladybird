@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API WeakSetConstructor final : public NativeFunction {
+class WeakSetConstructor final : public NativeFunction {
     JS_OBJECT(WeakSetConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(WeakSetConstructor);
 

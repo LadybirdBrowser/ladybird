@@ -11,7 +11,7 @@
 
 namespace JS {
 
-struct JS_API AlreadyResolved final : public Cell {
+struct AlreadyResolved final : public Cell {
     GC_CELL(AlreadyResolved, Cell);
     GC_DECLARE_ALLOCATOR(AlreadyResolved);
 
@@ -23,7 +23,7 @@ protected:
     u8 dummy[8];
 };
 
-class JS_API PromiseResolvingFunction final : public NativeFunction {
+class PromiseResolvingFunction final : public NativeFunction {
     JS_OBJECT(PromiseResolvingFunction, NativeFunction);
     GC_DECLARE_ALLOCATOR(PromiseResolvingFunction);
 

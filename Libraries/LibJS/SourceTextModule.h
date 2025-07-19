@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibJS/CyclicModule.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/ExecutionContext.h>
 

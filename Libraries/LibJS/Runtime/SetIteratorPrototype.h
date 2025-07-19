@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API SetIteratorPrototype final : public PrototypeObject<SetIteratorPrototype, SetIterator> {
+class SetIteratorPrototype final : public PrototypeObject<SetIteratorPrototype, SetIterator> {
     JS_PROTOTYPE_OBJECT(SetIteratorPrototype, SetIterator, SetIterator);
     GC_DECLARE_ALLOCATOR(SetIteratorPrototype);
 

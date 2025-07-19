@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <LibGC/Root.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/VM.h>
@@ -42,7 +43,7 @@ private:
     OwnPtr<CustomData> m_custom_data { nullptr };
 };
 
-JS_API GC::Ref<JobCallback> make_job_callback(FunctionObject& callback);
-JS_API ThrowCompletionOr<Value> call_job_callback(VM&, GC::Ref<JobCallback>, Value this_value, ReadonlySpan<Value> arguments_list);
+GC::Ref<JobCallback> make_job_callback(FunctionObject& callback);
+ThrowCompletionOr<Value> call_job_callback(VM&, GC::Ref<JobCallback>, Value this_value, ReadonlySpan<Value> arguments_list);
 
 }

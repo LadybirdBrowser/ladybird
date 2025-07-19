@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-class JS_API CollatorPrototype final : public PrototypeObject<CollatorPrototype, Collator> {
+class CollatorPrototype final : public PrototypeObject<CollatorPrototype, Collator> {
     JS_PROTOTYPE_OBJECT(CollatorPrototype, Collator, Collator);
     GC_DECLARE_ALLOCATOR(CollatorPrototype);
 

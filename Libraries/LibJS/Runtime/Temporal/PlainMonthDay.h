@@ -15,7 +15,7 @@
 
 namespace JS::Temporal {
 
-class JS_API PlainMonthDay final : public Object {
+class PlainMonthDay final : public Object {
     JS_OBJECT(PlainMonthDay, Object);
     GC_DECLARE_ALLOCATOR(PlainMonthDay);
 
@@ -32,8 +32,8 @@ private:
     String m_calendar;  // [[Calendar]]
 };
 
-JS_API ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM&, Value item, Value options = js_undefined());
-JS_API ThrowCompletionOr<GC::Ref<PlainMonthDay>> create_temporal_month_day(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
-JS_API String temporal_month_day_to_string(PlainMonthDay const&, ShowCalendar);
+ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM&, Value item, Value options = js_undefined());
+ThrowCompletionOr<GC::Ref<PlainMonthDay>> create_temporal_month_day(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
+String temporal_month_day_to_string(PlainMonthDay const&, ShowCalendar);
 
 }

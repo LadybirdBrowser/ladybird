@@ -16,7 +16,7 @@
 
 namespace JS::Temporal {
 
-class JS_API PlainYearMonth final : public Object {
+class PlainYearMonth final : public Object {
     JS_OBJECT(PlainYearMonth, Object);
     GC_DECLARE_ALLOCATOR(PlainYearMonth);
 
@@ -33,12 +33,12 @@ private:
     String m_calendar;  // [[Calendar]]
 };
 
-JS_API ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM&, Value item, Value options = js_undefined());
-JS_API bool iso_year_month_within_limits(ISODate);
-JS_API ISOYearMonth balance_iso_year_month(double year, double month);
-JS_API ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
-JS_API String temporal_year_month_to_string(PlainYearMonth const&, ShowCalendar);
-JS_API ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM&, DurationOperation, PlainYearMonth const&, Value other, Value options);
-JS_API ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM&, ArithmeticOperation, PlainYearMonth const&, Value temporal_duration_like, Value options);
+ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM&, Value item, Value options = js_undefined());
+bool iso_year_month_within_limits(ISODate);
+ISOYearMonth balance_iso_year_month(double year, double month);
+ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
+String temporal_year_month_to_string(PlainYearMonth const&, ShowCalendar);
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM&, DurationOperation, PlainYearMonth const&, Value other, Value options);
+ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM&, ArithmeticOperation, PlainYearMonth const&, Value temporal_duration_like, Value options);
 
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {

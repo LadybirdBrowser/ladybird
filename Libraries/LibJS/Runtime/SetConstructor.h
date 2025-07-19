@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API SetConstructor final : public NativeFunction {
+class SetConstructor final : public NativeFunction {
     JS_OBJECT(SetConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(SetConstructor);
 

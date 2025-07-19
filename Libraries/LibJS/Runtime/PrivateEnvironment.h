@@ -14,7 +14,7 @@
 
 namespace JS {
 
-struct JS_API PrivateName {
+struct PrivateName {
     PrivateName() = default;
     PrivateName(u64 unique_id, FlyString description)
         : unique_id(unique_id)
@@ -28,7 +28,7 @@ struct JS_API PrivateName {
     bool operator==(PrivateName const& rhs) const;
 };
 
-class JS_API PrivateEnvironment : public Cell {
+class PrivateEnvironment : public Cell {
     GC_CELL(PrivateEnvironment, Cell);
     GC_DECLARE_ALLOCATOR(PrivateEnvironment);
 

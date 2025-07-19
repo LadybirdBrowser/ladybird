@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API NumberPrototype final : public NumberObject {
+class NumberPrototype final : public NumberObject {
     JS_OBJECT(NumberPrototype, NumberObject);
     GC_DECLARE_ALLOCATOR(NumberPrototype);
 

@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API ArrayBufferPrototype final : public PrototypeObject<ArrayBufferPrototype, ArrayBuffer> {
+class ArrayBufferPrototype final : public PrototypeObject<ArrayBufferPrototype, ArrayBuffer> {
     JS_PROTOTYPE_OBJECT(ArrayBufferPrototype, ArrayBuffer, ArrayBuffer);
     GC_DECLARE_ALLOCATOR(ArrayBufferPrototype);
 

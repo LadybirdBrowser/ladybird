@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class JS_API StringIteratorPrototype final : public PrototypeObject<StringIteratorPrototype, StringIterator> {
+class StringIteratorPrototype final : public PrototypeObject<StringIteratorPrototype, StringIterator> {
     JS_PROTOTYPE_OBJECT(StringIteratorPrototype, StringIterator, StringIterator);
     GC_DECLARE_ALLOCATOR(StringIteratorPrototype);
 

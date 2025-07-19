@@ -14,7 +14,7 @@
 
 namespace JS::Intl {
 
-class JS_API Collator final : public IntlObject {
+class Collator final : public IntlObject {
     JS_OBJECT(Collator, IntlObject);
     GC_DECLARE_ALLOCATOR(Collator);
 
