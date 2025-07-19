@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 39 tests
 
-35 Pass
-4 Fail
+36 Pass
+3 Fail
 Pass	e.style['filter'] = "none" should set the property value
 Pass	e.style['filter'] = "blur(100px)" should set the property value
 Pass	e.style['filter'] = "blur(0)" should set the property value
@@ -25,7 +25,7 @@ Pass	e.style['filter'] = "grayscale(300%)" should set the property value
 Pass	e.style['filter'] = "grayscale(calc(300%))" should set the property value
 Pass	e.style['filter'] = "grayscale(calc(101% * sign(1em - 1px)))" should set the property value
 Pass	e.style['filter'] = "grayscale()" should set the property value
-Fail	e.style['filter'] = "hue-rotate(90deg)" should set the property value
+Pass	e.style['filter'] = "hue-rotate(90deg)" should set the property value
 Pass	e.style['filter'] = "hue-rotate(0)" should set the property value
 Pass	e.style['filter'] = "hue-rotate()" should set the property value
 Pass	e.style['filter'] = "invert(0)" should set the property value

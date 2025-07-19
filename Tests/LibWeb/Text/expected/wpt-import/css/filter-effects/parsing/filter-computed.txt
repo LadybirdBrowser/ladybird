@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 34 tests
 
-22 Pass
-12 Fail
+23 Pass
+11 Fail
 Pass	Property filter value 'none'
 Pass	Property filter value 'blur(100px)'
 Pass	Property filter value 'blur()'
@@ -20,7 +20,7 @@ Fail	Property filter value 'grayscale(calc(50%))'
 Pass	Property filter value 'grayscale(2)'
 Fail	Property filter value 'grayscale(calc(2))'
 Pass	Property filter value 'grayscale()'
-Fail	Property filter value 'hue-rotate(90deg)'
+Pass	Property filter value 'hue-rotate(90deg)'
 Pass	Property filter value 'hue-rotate()'
 Pass	Property filter value 'invert(0)'
 Fail	Property filter value 'invert(100%)'
