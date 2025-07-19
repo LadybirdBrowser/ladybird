@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/HTML/CookieStore.h>
 #include <LibWeb/ServiceWorker/EventNames.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 
@@ -16,6 +17,15 @@ ServiceWorkerGlobalScope::~ServiceWorkerGlobalScope() = default;
 ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
     : HTML::WorkerGlobalScope(realm, page)
 {
+}
+
+void ServiceWorkerGlobalScope::visit_edges(JS::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    WindowOrWorkerGlobalScopeMixin::visit_edges(visitor);
+    UniversalGlobalScopeMixin::visit_edges(visitor);
+
+    visitor.visit(m_cookie_store);
 }
 
 // https://w3c.github.io/ServiceWorker/#dom-serviceworkerglobalscope-oninstall
@@ -76,6 +86,20 @@ void ServiceWorkerGlobalScope::set_onmessageerror(GC::Ptr<WebIDL::CallbackType> 
 GC::Ptr<WebIDL::CallbackType> ServiceWorkerGlobalScope::onmessageerror()
 {
     return event_handler_attribute(EventNames::messageerror);
+}
+
+// https://wicg.github.io/cookie-store/#serviceworkerglobalscope-associated-cookiestore
+GC::Ref<HTML::CookieStore> ServiceWorkerGlobalScope::cookie_store()
+{
+    auto& realm = this->realm();
+
+    if (!m_cookie_store) {
+        auto* page_ptr = page();
+        if (page_ptr)
+            m_cookie_store = realm.create<HTML::CookieStore>(realm, GC::Ref<Web::Page>(*page_ptr));
+    }
+
+    return GC::Ref { *m_cookie_store };
 }
 
 }
