@@ -18,7 +18,7 @@
 
 namespace JS {
 
-JS_API bool g_log_all_js_exceptions = false;
+bool g_log_all_js_exceptions = false;
 
 Completion::Completion(ThrowCompletionOr<Value> const& throw_completion_or_value)
 {
@@ -147,6 +147,11 @@ Completion throw_completion(Value value)
 
     // 1. Return Completion Record { [[Type]]: throw, [[Value]]: value, [[Target]]: empty }.
     return { Completion::Type::Throw, value };
+}
+
+void set_log_all_js_exceptions(bool const enabled)
+{
+    g_log_all_js_exceptions = enabled;
 }
 
 }

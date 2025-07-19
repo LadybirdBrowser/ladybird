@@ -8,6 +8,7 @@
 
 #include <AK/Platform.h>
 #include <AK/Traits.h>
+#include <LibWebView/Export.h>
 
 namespace WebView {
 

@@ -10,12 +10,13 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWebView/Forward.h>
 
 namespace DevTools {
 
-class FrameActor final : public Actor {
+class DEVTOOLS_API FrameActor final : public Actor {
 public:
     static constexpr auto base_name = "frame"sv;
 
