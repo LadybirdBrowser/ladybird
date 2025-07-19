@@ -46,8 +46,16 @@ public:
 private:
     SVGClipPathElement(DOM::Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
+    virtual bool is_svg_clip_path_element() const override { return true; }
 
     Optional<ClipPathUnits> m_clip_path_units = {};
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGClipPathElement>() const { return is_svg_clip_path_element(); }
 
 }

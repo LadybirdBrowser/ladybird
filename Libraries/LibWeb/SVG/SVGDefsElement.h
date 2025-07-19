@@ -26,6 +26,14 @@ private:
     SVGDefsElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+    virtual bool is_svg_defs_element() const override { return true; }
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGDefsElement>() const { return is_svg_defs_element(); }
 
 }

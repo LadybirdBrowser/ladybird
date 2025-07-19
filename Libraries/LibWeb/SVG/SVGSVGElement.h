@@ -32,7 +32,6 @@ public:
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     virtual bool requires_svg_container() const override { return false; }
-    virtual bool is_svg_container() const override { return true; }
 
     virtual Optional<ViewBox> view_box() const override;
     virtual Optional<PreserveAspectRatio> preserve_aspect_ratio() const override { return m_preserve_aspect_ratio; }
