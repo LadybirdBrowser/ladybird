@@ -193,7 +193,6 @@ public:
     float stroke_opacity() const;
     FillRule fill_rule() const;
     ClipRule clip_rule() const;
-    Color flood_color(Layout::NodeWithStyle const&) const;
     float flood_opacity() const;
 
     Gfx::FontCascadeList const& computed_font_list() const
