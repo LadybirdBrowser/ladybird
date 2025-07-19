@@ -7,6 +7,7 @@
 
 #include <AK/Checked.h>
 #include <AK/DateConstants.h>
+#include <AK/GenericLexer.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
@@ -16,6 +17,7 @@
 #    define localtime_r(time, tm) localtime_s(tm, time)
 #    define gmtime_r(time, tm) gmtime_s(tm, time)
 #    define tzname _tzname
+#    define timegm _mkgmtime
 #endif
 
 namespace AK {
@@ -472,6 +474,263 @@ ErrorOr<String> UnixDateTime::to_string(StringView format, LocalTime local_time)
 ByteString UnixDateTime::to_byte_string(StringView format, LocalTime local_time) const
 {
     return MUST(to_string(format, local_time)).to_byte_string();
+}
+
+Optional<UnixDateTime> UnixDateTime::parse(StringView format, StringView string, bool from_gmt)
+{
+    unsigned format_pos = 0;
+
+    struct tm tm = {};
+    tm.tm_isdst = -1;
+
+    auto parsing_failed = false;
+
+    GenericLexer string_lexer(string);
+
+    auto parse_number = [&] {
+        auto result = string_lexer.consume_decimal_integer<int>();
+        if (result.is_error()) {
+            parsing_failed = true;
+            return 0;
+        }
+        return result.value();
+    };
+
+    auto consume = [&](char c) {
+        if (!string_lexer.consume_specific(c))
+            parsing_failed = true;
+    };
+
+    auto consume_specific_ascii_case_insensitive = [&](StringView name) {
+        auto next_string = string_lexer.peek_string(name.length());
+        if (next_string.has_value() && next_string->equals_ignoring_ascii_case(name)) {
+            string_lexer.consume(name.length());
+            return true;
+        }
+        return false;
+    };
+
+    while (format_pos < format.length() && !string_lexer.is_eof()) {
+        if (format[format_pos] != '%') {
+            consume(format[format_pos]);
+            format_pos++;
+            continue;
+        }
+
+        format_pos++;
+        if (format_pos == format.length())
+            return {};
+
+        switch (format[format_pos]) {
+        case 'a': {
+            auto wday = 0;
+            for (auto name : short_day_names) {
+                if (consume_specific_ascii_case_insensitive(name)) {
+                    tm.tm_wday = wday;
+                    break;
+                }
+                ++wday;
+            }
+            if (wday == 7)
+                return {};
+            break;
+        }
+        case 'A': {
+            auto wday = 0;
+            for (auto name : long_day_names) {
+                if (consume_specific_ascii_case_insensitive(name)) {
+                    tm.tm_wday = wday;
+                    break;
+                }
+                ++wday;
+            }
+            if (wday == 7)
+                return {};
+            break;
+        }
+        case 'h':
+        case 'b': {
+            auto mon = 0;
+            for (auto name : short_month_names) {
+                if (consume_specific_ascii_case_insensitive(name)) {
+                    tm.tm_mon = mon;
+                    break;
+                }
+                ++mon;
+            }
+            if (mon == 12)
+                return {};
+            break;
+        }
+        case 'B': {
+            auto mon = 0;
+            for (auto name : long_month_names) {
+                if (consume_specific_ascii_case_insensitive(name)) {
+                    tm.tm_mon = mon;
+                    break;
+                }
+                ++mon;
+            }
+            if (mon == 12)
+                return {};
+            break;
+        }
+        case 'C': {
+            int num = parse_number();
+            tm.tm_year = (num - 19) * 100 + (tm.tm_year % 100);
+            break;
+        }
+        case 'd':
+            tm.tm_mday = parse_number();
+            break;
+        case 'D': {
+            int mon = parse_number();
+            consume('/');
+            int day = parse_number();
+            consume('/');
+            int year = parse_number();
+            tm.tm_mon = mon - 1;
+            tm.tm_mday = day;
+            tm.tm_year = year > 1900 ? year - 1900 : (year <= 99 && year > 69 ? year : 100 + year);
+            break;
+        }
+        case 'e':
+            tm.tm_mday = parse_number();
+            break;
+        case 'H':
+            tm.tm_hour = parse_number();
+            break;
+        case 'I': {
+            int num = parse_number();
+            tm.tm_hour = num % 12;
+            break;
+        }
+        case 'j':
+            // a little trickery here... we can get mktime() to figure out mon and mday using out of range values.
+            // yday is not used so setting it is pointless.
+            tm.tm_mday = parse_number();
+            tm.tm_mon = 0;
+            (void)mktime(&tm);
+            break;
+        case 'm': {
+            int num = parse_number();
+            tm.tm_mon = num - 1;
+            break;
+        }
+        case 'M':
+            tm.tm_min = parse_number();
+            break;
+        case 'n':
+        case 't':
+            string_lexer.consume_while(is_ascii_space);
+            break;
+        case 'r':
+        case 'p': {
+            auto ampm = string_lexer.consume(2);
+            if (ampm == "PM") {
+                if (tm.tm_hour < 12)
+                    tm.tm_hour += 12;
+            } else if (ampm != "AM") {
+                return {};
+            }
+            break;
+        }
+        case 'R':
+            tm.tm_hour = parse_number();
+            consume(':');
+            tm.tm_min = parse_number();
+            break;
+        case 'S':
+            tm.tm_sec = parse_number();
+            break;
+        case 'T':
+            tm.tm_hour = parse_number();
+            consume(':');
+            tm.tm_min = parse_number();
+            consume(':');
+            tm.tm_sec = parse_number();
+            break;
+        case 'w':
+            tm.tm_wday = parse_number();
+            break;
+        case 'y': {
+            int year = parse_number();
+            tm.tm_year = year <= 99 && year > 69 ? 1900 + year : 2000 + year;
+            break;
+        }
+        case 'Y': {
+            int year = parse_number();
+            tm.tm_year = year - 1900;
+            break;
+        }
+        case 'x': {
+            auto hours = parse_number();
+            int minutes;
+            if (string_lexer.consume_specific(':')) {
+                minutes = parse_number();
+            } else {
+                minutes = hours % 100;
+                hours = hours / 100;
+            }
+
+            tm.tm_hour -= hours;
+            tm.tm_min -= minutes;
+            break;
+        }
+        case 'X': {
+            if (!string_lexer.consume_specific('.'))
+                return {};
+            auto discarded = parse_number();
+            (void)discarded; // NOTE: the tm structure does not support sub second precision, so drop this value.
+            break;
+        }
+        case '+': {
+            Optional<char> next_format_character;
+
+            if (format_pos + 1 < format.length()) {
+                next_format_character = format[format_pos + 1];
+
+                // Disallow another formatter directly after %+. This is to avoid ambiguity when parsing a string like
+                // "ignoreJan" with "%+%b", as it would be non-trivial to know that where the %b field begins.
+                if (next_format_character == '%')
+                    return {};
+            }
+
+            auto discarded = string_lexer.consume_until([&](auto ch) { return ch == next_format_character; });
+            if (discarded.is_empty())
+                return {};
+
+            break;
+        }
+        case '%':
+            consume('%');
+            break;
+        default:
+            parsing_failed = true;
+            break;
+        }
+
+        if (parsing_failed)
+            return {};
+
+        format_pos++;
+    }
+
+    if (!string_lexer.is_eof() || format_pos != format.length())
+        return {};
+
+    if (from_gmt) {
+        // When from_gmt is true, the parsed time is in GMT and needs to be converted to Unix time
+        tm.tm_isdst = 0; // GMT doesn't have daylight saving time
+        auto gmt_time = timegm(&tm);
+        if (gmt_time == -1)
+            return {};
+        return UnixDateTime::from_seconds_since_epoch(gmt_time);
+    }
+
+    return UnixDateTime::from_unix_time_parts(
+        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+        tm.tm_hour, tm.tm_min, tm.tm_sec, 0);
 }
 
 }
