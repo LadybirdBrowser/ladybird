@@ -22,15 +22,17 @@ struct SessionHistoryTraversalQueueEntry : public JS::Cell {
     GC_DECLARE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
 public:
-    static GC::Ref<SessionHistoryTraversalQueueEntry> create(JS::VM& vm, GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable);
+    static GC::Ref<SessionHistoryTraversalQueueEntry> create(JS::VM& vm, GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable, GC::Ptr<DOM::Document> document);
 
     GC::Ptr<HTML::Navigable> target_navigable() const { return m_target_navigable; }
+    GC::Ptr<DOM::Document> document() const { return m_document; }
     void execute_steps() const { m_steps->function()(); }
 
 private:
-    SessionHistoryTraversalQueueEntry(GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable)
+    SessionHistoryTraversalQueueEntry(GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable, GC::Ptr<DOM::Document> document)
         : m_steps(steps)
         , m_target_navigable(target_navigable)
+        , m_document(document)
     {
     }
 
@@ -38,6 +40,7 @@ private:
 
     GC::Ref<GC::Function<void()>> m_steps;
     GC::Ptr<HTML::Navigable> m_target_navigable;
+    GC::Ptr<DOM::Document> m_document;
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-traversal-queue
@@ -48,7 +51,7 @@ class SessionHistoryTraversalQueue : public JS::Cell {
 public:
     SessionHistoryTraversalQueue();
 
-    void append(GC::Ref<GC::Function<void()>> steps);
+    void append(GC::Ref<GC::Function<void()>> steps, GC::Ptr<DOM::Document> document);
     void append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
@@ -60,6 +63,7 @@ private:
     Vector<GC::Ref<SessionHistoryTraversalQueueEntry>> m_queue;
     RefPtr<Core::Timer> m_timer;
     bool m_is_task_running { false };
+    GC::Ptr<DOM::Document> m_current_document { nullptr };
 };
 
 }
