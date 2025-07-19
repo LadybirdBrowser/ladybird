@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestWGSLLexer.cpp
     TestWGSLPreprocessor.cpp
 )
 
