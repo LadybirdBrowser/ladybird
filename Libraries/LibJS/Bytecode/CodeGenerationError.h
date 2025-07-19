@@ -13,7 +13,7 @@
 
 namespace JS::Bytecode {
 
-struct JS_API CodeGenerationError {
+struct CodeGenerationError {
     ASTNode const* failing_node { nullptr };
     StringView reason_literal;
 

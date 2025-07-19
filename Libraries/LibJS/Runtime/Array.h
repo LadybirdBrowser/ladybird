@@ -19,7 +19,7 @@
 
 namespace JS {
 
-class JS_API Array : public Object {
+class Array : public Object {
     JS_OBJECT(Array, Object);
     GC_DECLARE_ALLOCATOR(Array);
 
@@ -81,7 +81,7 @@ enum class Holes {
     ReadThroughHoles,
 };
 
-JS_API ThrowCompletionOr<GC::RootVector<Value>> sort_indexed_properties(VM&, Object const&, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes);
-JS_API ThrowCompletionOr<double> compare_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
+ThrowCompletionOr<GC::RootVector<Value>> sort_indexed_properties(VM&, Object const&, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes);
+ThrowCompletionOr<double> compare_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
 
 }

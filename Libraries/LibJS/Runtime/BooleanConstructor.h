@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API BooleanConstructor final : public NativeFunction {
+class BooleanConstructor final : public NativeFunction {
     JS_OBJECT(BooleanConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(BooleanConstructor);
 

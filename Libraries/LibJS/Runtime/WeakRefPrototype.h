@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API WeakRefPrototype final : public PrototypeObject<WeakRefPrototype, WeakRef> {
+class WeakRefPrototype final : public PrototypeObject<WeakRefPrototype, WeakRef> {
     JS_PROTOTYPE_OBJECT(WeakRefPrototype, WeakRef, WeakRef);
     GC_DECLARE_ALLOCATOR(WeakRefPrototype);
 

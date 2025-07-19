@@ -21,7 +21,7 @@
 namespace JS {
 
 // 9.3 Realms, https://tc39.es/ecma262/#realm-record
-class JS_API Realm final : public Cell {
+class Realm final : public Cell {
     GC_CELL(Realm, Cell);
     GC_DECLARE_ALLOCATOR(Realm);
 

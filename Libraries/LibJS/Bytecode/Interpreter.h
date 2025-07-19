@@ -19,7 +19,7 @@ namespace JS::Bytecode {
 
 class InstructionStreamIterator;
 
-class JS_API Interpreter {
+class Interpreter {
 public:
     explicit Interpreter(VM&);
     ~Interpreter();

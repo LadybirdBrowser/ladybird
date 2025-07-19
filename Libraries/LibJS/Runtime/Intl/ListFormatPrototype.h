@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-class JS_API ListFormatPrototype final : public PrototypeObject<ListFormatPrototype, ListFormat> {
+class ListFormatPrototype final : public PrototypeObject<ListFormatPrototype, ListFormat> {
     JS_PROTOTYPE_OBJECT(ListFormatPrototype, ListFormat, Intl.ListFormat);
     GC_DECLARE_ALLOCATOR(ListFormatPrototype);
 

@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API AggregateErrorPrototype final : public Object {
+class AggregateErrorPrototype final : public Object {
     JS_OBJECT(AggregateErrorPrototype, Object);
     GC_DECLARE_ALLOCATOR(AggregateErrorPrototype);
 

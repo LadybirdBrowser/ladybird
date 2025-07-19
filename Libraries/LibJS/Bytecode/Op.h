@@ -34,7 +34,7 @@ class FunctionExpression;
 
 namespace JS::Bytecode::Op {
 
-class JS_API CreateRestParams final : public Instruction {
+class CreateRestParams final : public Instruction {
 public:
     CreateRestParams(Operand dst, u32 rest_index)
         : Instruction(Type::CreateRestParams)
@@ -55,7 +55,7 @@ private:
     u32 m_rest_index;
 };
 
-class JS_API CreateArguments final : public Instruction {
+class CreateArguments final : public Instruction {
 public:
     enum class Kind {
         Mapped,
@@ -84,7 +84,7 @@ private:
     bool m_is_immutable { false };
 };
 
-class JS_API Mov final : public Instruction {
+class Mov final : public Instruction {
 public:
     Mov(Operand dst, Operand src)
         : Instruction(Type::Mov)
@@ -135,7 +135,7 @@ private:
     O(StrictlyEquals, strict_equals)
 
 #define JS_DECLARE_COMMON_BINARY_OP(OpTitleCase, op_snake_case)             \
-    class JS_API OpTitleCase final : public Instruction {                   \
+    class OpTitleCase final : public Instruction {                          \
     public:                                                                 \
         explicit OpTitleCase(Operand dst, Operand lhs, Operand rhs)         \
             : Instruction(Type::OpTitleCase)                                \
@@ -176,7 +176,7 @@ JS_ENUMERATE_COMMON_BINARY_OPS_WITH_FAST_PATH(JS_DECLARE_COMMON_BINARY_OP)
     O(Typeof, typeof_)
 
 #define JS_DECLARE_COMMON_UNARY_OP(OpTitleCase, op_snake_case)              \
-    class JS_API OpTitleCase final : public Instruction {                   \
+    class OpTitleCase final : public Instruction {                          \
     public:                                                                 \
         OpTitleCase(Operand dst, Operand src)                               \
             : Instruction(Type::OpTitleCase)                                \
@@ -204,7 +204,7 @@ JS_ENUMERATE_COMMON_BINARY_OPS_WITH_FAST_PATH(JS_DECLARE_COMMON_BINARY_OP)
 JS_ENUMERATE_COMMON_UNARY_OPS(JS_DECLARE_COMMON_UNARY_OP)
 #undef JS_DECLARE_COMMON_UNARY_OP
 
-class JS_API NewObject final : public Instruction {
+class NewObject final : public Instruction {
 public:
     explicit NewObject(Operand dst)
         : Instruction(Type::NewObject)
@@ -225,7 +225,7 @@ private:
     Operand m_dst;
 };
 
-class JS_API NewRegExp final : public Instruction {
+class NewRegExp final : public Instruction {
 public:
     NewRegExp(Operand dst, StringTableIndex source_index, StringTableIndex flags_index, RegexTableIndex regex_index)
         : Instruction(Type::NewRegExp)
@@ -259,7 +259,7 @@ private:
     O(TypeError)
 
 #define JS_DECLARE_NEW_BUILTIN_ERROR_OP(ErrorName)                         \
-    class JS_API New##ErrorName final : public Instruction {               \
+    class New##ErrorName final : public Instruction {                      \
     public:                                                                \
         New##ErrorName(Operand dst, StringTableIndex error_string)         \
             : Instruction(Type::New##ErrorName)                            \
@@ -287,7 +287,7 @@ JS_ENUMERATE_NEW_BUILTIN_ERROR_OPS(JS_DECLARE_NEW_BUILTIN_ERROR_OP)
 #undef JS_DECLARE_NEW_BUILTIN_ERROR_OP
 
 // NOTE: This instruction is variable-width depending on the number of excluded names
-class JS_API CopyObjectExcludingProperties final : public Instruction {
+class CopyObjectExcludingProperties final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
@@ -330,7 +330,7 @@ private:
 };
 
 // NOTE: This instruction is variable-width depending on the number of elements!
-class JS_API NewArray final : public Instruction {
+class NewArray final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
@@ -375,7 +375,7 @@ private:
     Operand m_elements[];
 };
 
-class JS_API NewPrimitiveArray final : public Instruction {
+class NewPrimitiveArray final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
@@ -410,7 +410,7 @@ private:
     Value m_elements[];
 };
 
-class JS_API AddPrivateName final : public Instruction {
+class AddPrivateName final : public Instruction {
 public:
     explicit AddPrivateName(IdentifierTableIndex name)
         : Instruction(Type::AddPrivateName)
@@ -425,7 +425,7 @@ private:
     IdentifierTableIndex m_name;
 };
 
-class JS_API ArrayAppend final : public Instruction {
+class ArrayAppend final : public Instruction {
 public:
     ArrayAppend(Operand dst, Operand src, bool is_spread)
         : Instruction(Type::ArrayAppend)
@@ -453,7 +453,7 @@ private:
     bool m_is_spread = false;
 };
 
-class JS_API ImportCall final : public Instruction {
+class ImportCall final : public Instruction {
 public:
     ImportCall(Operand dst, Operand specifier, Operand options)
         : Instruction(Type::ImportCall)
@@ -482,7 +482,7 @@ private:
     Operand m_options;
 };
 
-class JS_API IteratorToArray final : public Instruction {
+class IteratorToArray final : public Instruction {
 public:
     explicit IteratorToArray(Operand dst, Operand iterator)
         : Instruction(Type::IteratorToArray)
@@ -508,7 +508,7 @@ private:
     Operand m_iterator;
 };
 
-class JS_API ConcatString final : public Instruction {
+class ConcatString final : public Instruction {
 public:
     explicit ConcatString(Operand dst, Operand src)
         : Instruction(Type::ConcatString)
@@ -544,7 +544,7 @@ enum class BindingInitializationMode {
     Set,
 };
 
-class JS_API CreateLexicalEnvironment final : public Instruction {
+class CreateLexicalEnvironment final : public Instruction {
 public:
     explicit CreateLexicalEnvironment(u32 capacity = 0)
         : Instruction(Type::CreateLexicalEnvironment)
@@ -559,7 +559,7 @@ private:
     u32 m_capacity { 0 };
 };
 
-class JS_API CreateVariableEnvironment final : public Instruction {
+class CreateVariableEnvironment final : public Instruction {
 public:
     explicit CreateVariableEnvironment(u32 capacity = 0)
         : Instruction(Type::CreateVariableEnvironment)
@@ -574,7 +574,7 @@ private:
     u32 m_capacity { 0 };
 };
 
-class JS_API CreatePrivateEnvironment final : public Instruction {
+class CreatePrivateEnvironment final : public Instruction {
 public:
     explicit CreatePrivateEnvironment()
         : Instruction(Type::CreatePrivateEnvironment)
@@ -585,7 +585,7 @@ public:
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
 };
 
-class JS_API EnterObjectEnvironment final : public Instruction {
+class EnterObjectEnvironment final : public Instruction {
 public:
     explicit EnterObjectEnvironment(Operand object)
         : Instruction(Type::EnterObjectEnvironment)
@@ -607,7 +607,7 @@ private:
     Operand m_object;
 };
 
-class JS_API Catch final : public Instruction {
+class Catch final : public Instruction {
 public:
     explicit Catch(Operand dst)
         : Instruction(Type::Catch)
@@ -629,7 +629,7 @@ private:
     Operand m_dst;
 };
 
-class JS_API LeaveFinally final : public Instruction {
+class LeaveFinally final : public Instruction {
 public:
     explicit LeaveFinally()
         : Instruction(Type::LeaveFinally)
@@ -640,7 +640,7 @@ public:
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
 };
 
-class JS_API RestoreScheduledJump final : public Instruction {
+class RestoreScheduledJump final : public Instruction {
 public:
     explicit RestoreScheduledJump()
         : Instruction(Type::RestoreScheduledJump)
@@ -651,7 +651,7 @@ public:
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
 };
 
-class JS_API CreateVariable final : public Instruction {
+class CreateVariable final : public Instruction {
 public:
     explicit CreateVariable(IdentifierTableIndex identifier, EnvironmentMode mode, bool is_immutable, bool is_global = false, bool is_strict = false)
         : Instruction(Type::CreateVariable)
@@ -680,7 +680,7 @@ private:
     bool m_is_strict { false };
 };
 
-class JS_API InitializeLexicalBinding final : public Instruction {
+class InitializeLexicalBinding final : public Instruction {
 public:
     explicit InitializeLexicalBinding(IdentifierTableIndex identifier, Operand src)
         : Instruction(Type::InitializeLexicalBinding)
@@ -705,7 +705,7 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
-class JS_API InitializeVariableBinding final : public Instruction {
+class InitializeVariableBinding final : public Instruction {
 public:
     explicit InitializeVariableBinding(IdentifierTableIndex identifier, Operand src)
         : Instruction(Type::InitializeVariableBinding)
@@ -730,7 +730,7 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
-class JS_API SetLexicalBinding final : public Instruction {
+class SetLexicalBinding final : public Instruction {
 public:
     explicit SetLexicalBinding(IdentifierTableIndex identifier, Operand src)
         : Instruction(Type::SetLexicalBinding)
@@ -755,7 +755,7 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
-class JS_API SetVariableBinding final : public Instruction {
+class SetVariableBinding final : public Instruction {
 public:
     explicit SetVariableBinding(IdentifierTableIndex identifier, Operand src)
         : Instruction(Type::SetVariableBinding)
@@ -780,7 +780,7 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
-class JS_API GetCalleeAndThisFromEnvironment final : public Instruction {
+class GetCalleeAndThisFromEnvironment final : public Instruction {
 public:
     explicit GetCalleeAndThisFromEnvironment(Operand callee, Operand this_value, IdentifierTableIndex identifier)
         : Instruction(Type::GetCalleeAndThisFromEnvironment)
@@ -809,7 +809,7 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
-class JS_API GetBinding final : public Instruction {
+class GetBinding final : public Instruction {
 public:
     explicit GetBinding(Operand dst, IdentifierTableIndex identifier)
         : Instruction(Type::GetBinding)
@@ -835,7 +835,7 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
-class JS_API GetInitializedBinding final : public Instruction {
+class GetInitializedBinding final : public Instruction {
 public:
     explicit GetInitializedBinding(Operand dst, IdentifierTableIndex identifier)
         : Instruction(Type::GetInitializedBinding)
@@ -861,7 +861,7 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
-class JS_API GetGlobal final : public Instruction {
+class GetGlobal final : public Instruction {
 public:
     GetGlobal(Operand dst, IdentifierTableIndex identifier, u32 cache_index)
         : Instruction(Type::GetGlobal)
@@ -889,7 +889,7 @@ private:
     u32 m_cache_index { 0 };
 };
 
-class JS_API SetGlobal final : public Instruction {
+class SetGlobal final : public Instruction {
 public:
     SetGlobal(IdentifierTableIndex identifier, Operand src, u32 cache_index)
         : Instruction(Type::SetGlobal)
@@ -917,7 +917,7 @@ private:
     u32 m_cache_index { 0 };
 };
 
-class JS_API DeleteVariable final : public Instruction {
+class DeleteVariable final : public Instruction {
 public:
     explicit DeleteVariable(Operand dst, IdentifierTableIndex identifier)
         : Instruction(Type::DeleteVariable)
@@ -942,7 +942,7 @@ private:
     IdentifierTableIndex m_identifier;
 };
 
-class JS_API GetById final : public Instruction {
+class GetById final : public Instruction {
 public:
     GetById(Operand dst, Operand base, IdentifierTableIndex property, Optional<IdentifierTableIndex> base_identifier, u32 cache_index)
         : Instruction(Type::GetById)
@@ -975,7 +975,7 @@ private:
     u32 m_cache_index { 0 };
 };
 
-class JS_API GetCompletionFields final : public Instruction {
+class GetCompletionFields final : public Instruction {
 public:
     GetCompletionFields(Operand type_dst, Operand value_dst, Operand completion)
         : Instruction(Type::GetCompletionFields)
@@ -1004,7 +1004,7 @@ private:
     Operand m_completion;
 };
 
-class JS_API SetCompletionType final : public Instruction {
+class SetCompletionType final : public Instruction {
 public:
     SetCompletionType(Operand completion, Completion::Type type)
         : Instruction(Type::SetCompletionType)
@@ -1027,7 +1027,7 @@ private:
     Completion::Type m_type;
 };
 
-class JS_API GetByIdWithThis final : public Instruction {
+class GetByIdWithThis final : public Instruction {
 public:
     GetByIdWithThis(Operand dst, Operand base, IdentifierTableIndex property, Operand this_value, u32 cache_index)
         : Instruction(Type::GetByIdWithThis)
@@ -1062,7 +1062,7 @@ private:
     u32 m_cache_index { 0 };
 };
 
-class JS_API GetLength final : public Instruction {
+class GetLength final : public Instruction {
 public:
     GetLength(Operand dst, Operand base, Optional<IdentifierTableIndex> base_identifier, u32 cache_index)
         : Instruction(Type::GetLength)
@@ -1092,7 +1092,7 @@ private:
     u32 m_cache_index { 0 };
 };
 
-class JS_API GetLengthWithThis final : public Instruction {
+class GetLengthWithThis final : public Instruction {
 public:
     GetLengthWithThis(Operand dst, Operand base, Operand this_value, u32 cache_index)
         : Instruction(Type::GetLengthWithThis)
@@ -1124,7 +1124,7 @@ private:
     u32 m_cache_index { 0 };
 };
 
-class JS_API GetPrivateById final : public Instruction {
+class GetPrivateById final : public Instruction {
 public:
     explicit GetPrivateById(Operand dst, Operand base, IdentifierTableIndex property)
         : Instruction(Type::GetPrivateById)
@@ -1152,7 +1152,7 @@ private:
     IdentifierTableIndex m_property;
 };
 
-class JS_API HasPrivateId final : public Instruction {
+class HasPrivateId final : public Instruction {
 public:
     HasPrivateId(Operand dst, Operand base, IdentifierTableIndex property)
         : Instruction(Type::HasPrivateId)
@@ -1188,7 +1188,7 @@ enum class PropertyKind {
     ProtoSetter,
 };
 
-class JS_API PutBySpread final : public Instruction {
+class PutBySpread final : public Instruction {
 public:
     PutBySpread(Operand base, Operand src)
         : Instruction(Type::PutBySpread)
@@ -1213,7 +1213,7 @@ private:
     Operand m_src;
 };
 
-class JS_API PutById final : public Instruction {
+class PutById final : public Instruction {
 public:
     explicit PutById(Operand base, IdentifierTableIndex property, Operand src, PropertyKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier = {})
         : Instruction(Type::PutById)
@@ -1249,7 +1249,7 @@ private:
     Optional<IdentifierTableIndex> m_base_identifier {};
 };
 
-class JS_API PutByIdWithThis final : public Instruction {
+class PutByIdWithThis final : public Instruction {
 public:
     PutByIdWithThis(Operand base, Operand this_value, IdentifierTableIndex property, Operand src, PropertyKind kind, u32 cache_index)
         : Instruction(Type::PutByIdWithThis)
@@ -1287,7 +1287,7 @@ private:
     u32 m_cache_index { 0 };
 };
 
-class JS_API PutPrivateById final : public Instruction {
+class PutPrivateById final : public Instruction {
 public:
     explicit PutPrivateById(Operand base, IdentifierTableIndex property, Operand src, PropertyKind kind = PropertyKind::KeyValue)
         : Instruction(Type::PutPrivateById)
@@ -1317,7 +1317,7 @@ private:
     PropertyKind m_kind;
 };
 
-class JS_API DeleteById final : public Instruction {
+class DeleteById final : public Instruction {
 public:
     explicit DeleteById(Operand dst, Operand base, IdentifierTableIndex property)
         : Instruction(Type::DeleteById)
@@ -1345,7 +1345,7 @@ private:
     IdentifierTableIndex m_property;
 };
 
-class JS_API DeleteByIdWithThis final : public Instruction {
+class DeleteByIdWithThis final : public Instruction {
 public:
     DeleteByIdWithThis(Operand dst, Operand base, Operand this_value, IdentifierTableIndex property)
         : Instruction(Type::DeleteByIdWithThis)
@@ -1377,7 +1377,7 @@ private:
     IdentifierTableIndex m_property;
 };
 
-class JS_API GetByValue final : public Instruction {
+class GetByValue final : public Instruction {
 public:
     GetByValue(Operand dst, Operand base, Operand property, Optional<IdentifierTableIndex> base_identifier = {})
         : Instruction(Type::GetByValue)
@@ -1408,7 +1408,7 @@ private:
     Optional<IdentifierTableIndex> m_base_identifier;
 };
 
-class JS_API GetByValueWithThis final : public Instruction {
+class GetByValueWithThis final : public Instruction {
 public:
     GetByValueWithThis(Operand dst, Operand base, Operand property, Operand this_value)
         : Instruction(Type::GetByValueWithThis)
@@ -1441,7 +1441,7 @@ private:
     Operand m_this_value;
 };
 
-class JS_API PutByValue final : public Instruction {
+class PutByValue final : public Instruction {
 public:
     PutByValue(Operand base, Operand property, Operand src, PropertyKind kind = PropertyKind::KeyValue, Optional<IdentifierTableIndex> base_identifier = {})
         : Instruction(Type::PutByValue)
@@ -1475,7 +1475,7 @@ private:
     Optional<IdentifierTableIndex> m_base_identifier;
 };
 
-class JS_API PutByValueWithThis final : public Instruction {
+class PutByValueWithThis final : public Instruction {
 public:
     PutByValueWithThis(Operand base, Operand property, Operand this_value, Operand src, PropertyKind kind = PropertyKind::KeyValue)
         : Instruction(Type::PutByValueWithThis)
@@ -1511,7 +1511,7 @@ private:
     PropertyKind m_kind;
 };
 
-class JS_API DeleteByValue final : public Instruction {
+class DeleteByValue final : public Instruction {
 public:
     DeleteByValue(Operand dst, Operand base, Operand property)
         : Instruction(Type::DeleteByValue)
@@ -1540,7 +1540,7 @@ private:
     Operand m_property;
 };
 
-class JS_API DeleteByValueWithThis final : public Instruction {
+class DeleteByValueWithThis final : public Instruction {
 public:
     DeleteByValueWithThis(Operand dst, Operand base, Operand this_value, Operand property)
         : Instruction(Type::DeleteByValueWithThis)
@@ -1573,7 +1573,7 @@ private:
     Operand m_property;
 };
 
-class JS_API Jump final : public Instruction {
+class Jump final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -1595,7 +1595,7 @@ protected:
     Label m_target;
 };
 
-class JS_API JumpIf final : public Instruction {
+class JumpIf final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -1628,7 +1628,7 @@ private:
     Label m_false_target;
 };
 
-class JS_API JumpTrue final : public Instruction {
+class JumpTrue final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -1657,7 +1657,7 @@ private:
     Label m_target;
 };
 
-class JS_API JumpFalse final : public Instruction {
+class JumpFalse final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -1697,7 +1697,7 @@ private:
     X(StrictlyInequals, strict_inequals, !=)
 
 #define DECLARE_COMPARISON_OP(op_TitleCase, op_snake_case, numeric_operator)                         \
-    class JS_API Jump##op_TitleCase final : public Instruction {                                     \
+    class Jump##op_TitleCase final : public Instruction {                                            \
     public:                                                                                          \
         constexpr static bool IsTerminator = true;                                                   \
                                                                                                      \
@@ -1737,7 +1737,7 @@ private:
 
 JS_ENUMERATE_COMPARISON_OPS(DECLARE_COMPARISON_OP)
 
-class JS_API JumpNullish final : public Instruction {
+class JumpNullish final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -1770,7 +1770,7 @@ private:
     Label m_false_target;
 };
 
-class JS_API JumpUndefined final : public Instruction {
+class JumpUndefined final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -1809,7 +1809,7 @@ enum class CallType : u8 {
     DirectEval,
 };
 
-class JS_API Call final : public Instruction {
+class Call final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
@@ -1858,7 +1858,7 @@ private:
     Operand m_arguments[];
 };
 
-class JS_API CallBuiltin final : public Instruction {
+class CallBuiltin final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
@@ -1911,7 +1911,7 @@ private:
     Operand m_arguments[];
 };
 
-class JS_API CallConstruct final : public Instruction {
+class CallConstruct final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
@@ -1956,7 +1956,7 @@ private:
     Operand m_arguments[];
 };
 
-class JS_API CallDirectEval final : public Instruction {
+class CallDirectEval final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
@@ -2005,7 +2005,7 @@ private:
     Operand m_arguments[];
 };
 
-class JS_API CallWithArgumentArray final : public Instruction {
+class CallWithArgumentArray final : public Instruction {
 public:
     CallWithArgumentArray(CallType type, Operand dst, Operand callee, Operand this_value, Operand arguments, Optional<StringTableIndex> expression_string = {})
         : Instruction(Type::CallWithArgumentArray)
@@ -2044,7 +2044,7 @@ private:
     Optional<StringTableIndex> m_expression_string;
 };
 
-class JS_API SuperCallWithArgumentArray : public Instruction {
+class SuperCallWithArgumentArray : public Instruction {
 public:
     explicit SuperCallWithArgumentArray(Operand dst, Operand arguments, bool is_synthetic)
         : Instruction(Type::SuperCallWithArgumentArray)
@@ -2072,7 +2072,7 @@ private:
     bool m_is_synthetic;
 };
 
-class JS_API NewClass final : public Instruction {
+class NewClass final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
@@ -2123,7 +2123,7 @@ private:
     Optional<Operand> m_element_keys[];
 };
 
-class JS_API NewFunction final : public Instruction {
+class NewFunction final : public Instruction {
 public:
     explicit NewFunction(Operand dst, FunctionNode const& function_node, Optional<IdentifierTableIndex> lhs_name, Optional<Operand> home_object = {})
         : Instruction(Type::NewFunction)
@@ -2155,7 +2155,7 @@ private:
     Optional<Operand> m_home_object;
 };
 
-class JS_API BlockDeclarationInstantiation final : public Instruction {
+class BlockDeclarationInstantiation final : public Instruction {
 public:
     explicit BlockDeclarationInstantiation(ScopeNode const& scope_node)
         : Instruction(Type::BlockDeclarationInstantiation)
@@ -2172,7 +2172,7 @@ private:
     ScopeNode const& m_scope_node;
 };
 
-class JS_API Return final : public Instruction {
+class Return final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -2195,7 +2195,7 @@ private:
     Operand m_value;
 };
 
-class JS_API Increment final : public Instruction {
+class Increment final : public Instruction {
 public:
     explicit Increment(Operand dst)
         : Instruction(Type::Increment)
@@ -2216,7 +2216,7 @@ private:
     Operand m_dst;
 };
 
-class JS_API PostfixIncrement final : public Instruction {
+class PostfixIncrement final : public Instruction {
 public:
     explicit PostfixIncrement(Operand dst, Operand src)
         : Instruction(Type::PostfixIncrement)
@@ -2241,7 +2241,7 @@ private:
     Operand m_src;
 };
 
-class JS_API Decrement final : public Instruction {
+class Decrement final : public Instruction {
 public:
     explicit Decrement(Operand dst)
         : Instruction(Type::Decrement)
@@ -2262,7 +2262,7 @@ private:
     Operand m_dst;
 };
 
-class JS_API PostfixDecrement final : public Instruction {
+class PostfixDecrement final : public Instruction {
 public:
     explicit PostfixDecrement(Operand dst, Operand src)
         : Instruction(Type::PostfixDecrement)
@@ -2287,7 +2287,7 @@ private:
     Operand m_src;
 };
 
-class JS_API Throw final : public Instruction {
+class Throw final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -2310,7 +2310,7 @@ private:
     Operand m_src;
 };
 
-class JS_API ThrowIfNotObject final : public Instruction {
+class ThrowIfNotObject final : public Instruction {
 public:
     ThrowIfNotObject(Operand src)
         : Instruction(Type::ThrowIfNotObject)
@@ -2331,7 +2331,7 @@ private:
     Operand m_src;
 };
 
-class JS_API ThrowIfNullish final : public Instruction {
+class ThrowIfNullish final : public Instruction {
 public:
     explicit ThrowIfNullish(Operand src)
         : Instruction(Type::ThrowIfNullish)
@@ -2352,7 +2352,7 @@ private:
     Operand m_src;
 };
 
-class JS_API ThrowIfTDZ final : public Instruction {
+class ThrowIfTDZ final : public Instruction {
 public:
     explicit ThrowIfTDZ(Operand src)
         : Instruction(Type::ThrowIfTDZ)
@@ -2373,7 +2373,7 @@ private:
     Operand m_src;
 };
 
-class JS_API EnterUnwindContext final : public Instruction {
+class EnterUnwindContext final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -2395,7 +2395,7 @@ private:
     Label m_entry_point;
 };
 
-class JS_API ScheduleJump final : public Instruction {
+class ScheduleJump final : public Instruction {
 public:
     // Note: We use this instruction to tell the next `finally` block to
     //       continue execution with a specific break/continue target;
@@ -2419,7 +2419,7 @@ private:
     Label m_target;
 };
 
-class JS_API LeaveLexicalEnvironment final : public Instruction {
+class LeaveLexicalEnvironment final : public Instruction {
 public:
     LeaveLexicalEnvironment()
         : Instruction(Type::LeaveLexicalEnvironment)
@@ -2430,7 +2430,7 @@ public:
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
 };
 
-class JS_API LeavePrivateEnvironment final : public Instruction {
+class LeavePrivateEnvironment final : public Instruction {
 public:
     LeavePrivateEnvironment()
         : Instruction(Type::LeavePrivateEnvironment)
@@ -2441,7 +2441,7 @@ public:
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
 };
 
-class JS_API LeaveUnwindContext final : public Instruction {
+class LeaveUnwindContext final : public Instruction {
 public:
     LeaveUnwindContext()
         : Instruction(Type::LeaveUnwindContext)
@@ -2452,7 +2452,7 @@ public:
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
 };
 
-class JS_API ContinuePendingUnwind final : public Instruction {
+class ContinuePendingUnwind final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -2474,7 +2474,7 @@ private:
     Label m_resume_target;
 };
 
-class JS_API Yield final : public Instruction {
+class Yield final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -2511,7 +2511,7 @@ private:
     Operand m_value;
 };
 
-class JS_API PrepareYield final : public Instruction {
+class PrepareYield final : public Instruction {
 public:
     explicit PrepareYield(Operand dest, Operand value)
         : Instruction(Type::PrepareYield)
@@ -2536,7 +2536,7 @@ private:
     Operand m_value;
 };
 
-class JS_API Await final : public Instruction {
+class Await final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -2566,7 +2566,7 @@ private:
     Operand m_argument;
 };
 
-class JS_API GetIterator final : public Instruction {
+class GetIterator final : public Instruction {
 public:
     GetIterator(Operand dst, Operand iterable, IteratorHint hint = IteratorHint::Sync)
         : Instruction(Type::GetIterator)
@@ -2594,7 +2594,7 @@ private:
     IteratorHint m_hint { IteratorHint::Sync };
 };
 
-class JS_API GetObjectFromIteratorRecord final : public Instruction {
+class GetObjectFromIteratorRecord final : public Instruction {
 public:
     GetObjectFromIteratorRecord(Operand object, Operand iterator_record)
         : Instruction(Type::GetObjectFromIteratorRecord)
@@ -2619,7 +2619,7 @@ private:
     Operand m_iterator_record;
 };
 
-class JS_API GetNextMethodFromIteratorRecord final : public Instruction {
+class GetNextMethodFromIteratorRecord final : public Instruction {
 public:
     GetNextMethodFromIteratorRecord(Operand next_method, Operand iterator_record)
         : Instruction(Type::GetNextMethodFromIteratorRecord)
@@ -2644,7 +2644,7 @@ private:
     Operand m_iterator_record;
 };
 
-class JS_API GetMethod final : public Instruction {
+class GetMethod final : public Instruction {
 public:
     GetMethod(Operand dst, Operand object, IdentifierTableIndex property)
         : Instruction(Type::GetMethod)
@@ -2672,7 +2672,7 @@ private:
     IdentifierTableIndex m_property;
 };
 
-class JS_API GetObjectPropertyIterator final : public Instruction {
+class GetObjectPropertyIterator final : public Instruction {
 public:
     GetObjectPropertyIterator(Operand dst, Operand object)
         : Instruction(Type::GetObjectPropertyIterator)
@@ -2697,7 +2697,7 @@ private:
     Operand m_object;
 };
 
-class JS_API IteratorClose final : public Instruction {
+class IteratorClose final : public Instruction {
 public:
     IteratorClose(Operand iterator_record, Completion::Type completion_type, Optional<Value> completion_value)
         : Instruction(Type::IteratorClose)
@@ -2724,7 +2724,7 @@ private:
     Optional<Value> m_completion_value;
 };
 
-class JS_API AsyncIteratorClose final : public Instruction {
+class AsyncIteratorClose final : public Instruction {
 public:
     AsyncIteratorClose(Operand iterator_record, Completion::Type completion_type, Optional<Value> completion_value)
         : Instruction(Type::AsyncIteratorClose)
@@ -2751,7 +2751,7 @@ private:
     Optional<Value> m_completion_value;
 };
 
-class JS_API IteratorNext final : public Instruction {
+class IteratorNext final : public Instruction {
 public:
     IteratorNext(Operand dst, Operand iterator_record)
         : Instruction(Type::IteratorNext)
@@ -2776,7 +2776,7 @@ private:
     Operand m_iterator_record;
 };
 
-class JS_API IteratorNextUnpack final : public Instruction {
+class IteratorNextUnpack final : public Instruction {
 public:
     IteratorNextUnpack(Operand dst_value, Operand dst_done, Operand iterator_record)
         : Instruction(Type::IteratorNextUnpack)
@@ -2805,7 +2805,7 @@ private:
     Operand m_iterator_record;
 };
 
-class JS_API ResolveThisBinding final : public Instruction {
+class ResolveThisBinding final : public Instruction {
 public:
     ResolveThisBinding()
         : Instruction(Type::ResolveThisBinding)
@@ -2817,7 +2817,7 @@ public:
     void visit_operands_impl(Function<void(Operand&)>) { }
 };
 
-class JS_API ResolveSuperBase final : public Instruction {
+class ResolveSuperBase final : public Instruction {
 public:
     explicit ResolveSuperBase(Operand dst)
         : Instruction(Type::ResolveSuperBase)
@@ -2838,7 +2838,7 @@ private:
     Operand m_dst;
 };
 
-class JS_API GetNewTarget final : public Instruction {
+class GetNewTarget final : public Instruction {
 public:
     explicit GetNewTarget(Operand dst)
         : Instruction(Type::GetNewTarget)
@@ -2859,7 +2859,7 @@ private:
     Operand m_dst;
 };
 
-class JS_API GetImportMeta final : public Instruction {
+class GetImportMeta final : public Instruction {
 public:
     explicit GetImportMeta(Operand dst)
         : Instruction(Type::GetImportMeta)
@@ -2880,7 +2880,7 @@ private:
     Operand m_dst;
 };
 
-class JS_API TypeofBinding final : public Instruction {
+class TypeofBinding final : public Instruction {
 public:
     TypeofBinding(Operand dst, IdentifierTableIndex identifier)
         : Instruction(Type::TypeofBinding)
@@ -2905,7 +2905,7 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
-class JS_API End final : public Instruction {
+class End final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
@@ -2927,7 +2927,7 @@ private:
     Operand m_value;
 };
 
-class JS_API Dump final : public Instruction {
+class Dump final : public Instruction {
 public:
     explicit Dump(StringView text, Operand value)
         : Instruction(Type::Dump)

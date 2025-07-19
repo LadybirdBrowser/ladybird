@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class JS_API SetIterator final : public Object
+class SetIterator final : public Object
     , public BuiltinIterator {
     JS_OBJECT(SetIterator, Object);
     GC_DECLARE_ALLOCATOR(SetIterator);

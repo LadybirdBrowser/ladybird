@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API ReflectObject final : public Object {
+class ReflectObject final : public Object {
     JS_OBJECT(ReflectObject, Object);
     GC_DECLARE_ALLOCATOR(ReflectObject);
 

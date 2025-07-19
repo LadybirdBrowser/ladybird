@@ -7,13 +7,12 @@
 #pragma once
 
 #include <AK/Format.h>
-#include <LibJS/Forward.h>
 
 namespace JS::Bytecode {
 
 class BasicBlock;
 
-class JS_API Label {
+class Label {
 public:
     explicit Label(BasicBlock const&);
 

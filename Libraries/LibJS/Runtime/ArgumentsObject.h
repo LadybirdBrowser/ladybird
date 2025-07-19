@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class JS_API ArgumentsObject final : public Object {
+class ArgumentsObject final : public Object {
     JS_OBJECT(ArgumentsObject, Object);
     GC_DECLARE_ALLOCATOR(ArgumentsObject);
 

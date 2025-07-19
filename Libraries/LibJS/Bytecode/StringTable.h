@@ -9,7 +9,6 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibJS/Forward.h>
 
 namespace JS::Bytecode {
 
@@ -19,7 +18,7 @@ struct StringTableIndex {
     u32 value { 0 };
 };
 
-class JS_API StringTable {
+class StringTable {
     AK_MAKE_NONMOVABLE(StringTable);
     AK_MAKE_NONCOPYABLE(StringTable);
 

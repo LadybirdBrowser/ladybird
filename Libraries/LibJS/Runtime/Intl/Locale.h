@@ -18,7 +18,7 @@
 
 namespace JS::Intl {
 
-class JS_API Locale final : public Object {
+class Locale final : public Object {
     JS_OBJECT(Locale, Object);
     GC_DECLARE_ALLOCATOR(Locale);
 
@@ -85,21 +85,21 @@ private:
 };
 
 // Table 1: WeekInfo Record Fields, https://tc39.es/proposal-intl-locale-info/#table-locale-weekinfo-record
-struct JS_API WeekInfo {
+struct WeekInfo {
     u8 minimal_days { 0 }; // [[MinimalDays]]
     u8 first_day { 0 };    // [[FirstDay]]
     Vector<u8> weekend;    // [[Weekend]]
 };
 
-JS_API Optional<String> get_locale_variants(Unicode::LocaleID const&);
+Optional<String> get_locale_variants(Unicode::LocaleID const&);
 
-JS_API GC::Ref<Array> calendars_of_locale(VM&, Locale const&);
-JS_API GC::Ref<Array> collations_of_locale(VM&, Locale const& locale);
-JS_API GC::Ref<Array> hour_cycles_of_locale(VM&, Locale const& locale);
-JS_API GC::Ref<Array> numbering_systems_of_locale(VM&, Locale const&);
-JS_API GC::Ref<Array> time_zones_of_locale(VM&, Locale const&);
-JS_API StringView weekday_to_string(StringView weekday);
-JS_API Optional<u8> string_to_weekday_value(StringView weekday);
-JS_API WeekInfo week_info_of_locale(Locale const&);
+GC::Ref<Array> calendars_of_locale(VM&, Locale const&);
+GC::Ref<Array> collations_of_locale(VM&, Locale const& locale);
+GC::Ref<Array> hour_cycles_of_locale(VM&, Locale const& locale);
+GC::Ref<Array> numbering_systems_of_locale(VM&, Locale const&);
+GC::Ref<Array> time_zones_of_locale(VM&, Locale const&);
+StringView weekday_to_string(StringView weekday);
+Optional<u8> string_to_weekday_value(StringView weekday);
+WeekInfo week_info_of_locale(Locale const&);
 
 }

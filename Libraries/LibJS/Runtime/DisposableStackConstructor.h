@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API DisposableStackConstructor final : public NativeFunction {
+class DisposableStackConstructor final : public NativeFunction {
     JS_OBJECT(DisposableStackConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(DisposableStackConstructor);
 

@@ -17,7 +17,7 @@
 
 namespace JS {
 
-class JS_API Uint8ArrayConstructorHelpers {
+class Uint8ArrayConstructorHelpers {
 public:
     static void initialize(Realm&, Object& constructor);
 
@@ -26,7 +26,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(from_hex);
 };
 
-class JS_API Uint8ArrayPrototypeHelpers {
+class Uint8ArrayPrototypeHelpers {
 public:
     static void initialize(Realm&, Object& prototype);
 
@@ -48,10 +48,10 @@ struct DecodeResult {
     Optional<Completion> error; // [[Error]]
 };
 
-JS_API ThrowCompletionOr<GC::Ref<TypedArrayBase>> validate_uint8_array(VM&);
-JS_API ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM&, TypedArrayBase const&);
-JS_API void set_uint8_array_bytes(TypedArrayBase&, ReadonlyBytes);
-JS_API DecodeResult from_base64(VM&, StringView string, Alphabet alphabet, AK::LastChunkHandling last_chunk_handling, Optional<size_t> max_length = {});
-JS_API DecodeResult from_hex(VM&, StringView string, Optional<size_t> max_length = {});
+ThrowCompletionOr<GC::Ref<TypedArrayBase>> validate_uint8_array(VM&);
+ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM&, TypedArrayBase const&);
+void set_uint8_array_bytes(TypedArrayBase&, ReadonlyBytes);
+DecodeResult from_base64(VM&, StringView string, Alphabet alphabet, AK::LastChunkHandling last_chunk_handling, Optional<size_t> max_length = {});
+DecodeResult from_hex(VM&, StringView string, Optional<size_t> max_length = {});
 
 }

@@ -20,6 +20,6 @@ struct PrintContext {
     bool raw_strings { false };
 };
 
-JS_API ErrorOr<void> print(JS::Value value, PrintContext&);
+ErrorOr<void> print(JS::Value value, PrintContext&);
 
 }

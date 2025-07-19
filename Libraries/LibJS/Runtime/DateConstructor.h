@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API DateConstructor final : public NativeFunction {
+class DateConstructor final : public NativeFunction {
     JS_OBJECT(DateConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(DateConstructor);
 

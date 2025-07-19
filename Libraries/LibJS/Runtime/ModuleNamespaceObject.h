@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class JS_API ModuleNamespaceObject final : public Object {
+class ModuleNamespaceObject final : public Object {
     JS_OBJECT(ModuleNamespaceObject, Object);
     GC_DECLARE_ALLOCATOR(ModuleNamespaceObject);
 

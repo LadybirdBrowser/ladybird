@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-class JS_API DisplayNamesPrototype final : public PrototypeObject<DisplayNamesPrototype, DisplayNames> {
+class DisplayNamesPrototype final : public PrototypeObject<DisplayNamesPrototype, DisplayNames> {
     JS_PROTOTYPE_OBJECT(DisplayNamesPrototype, DisplayNames, Intl.DisplayNames);
     GC_DECLARE_ALLOCATOR(DisplayNamesPrototype);
 

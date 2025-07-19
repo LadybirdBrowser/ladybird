@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API NumberConstructor final : public NativeFunction {
+class NumberConstructor final : public NativeFunction {
     JS_OBJECT(NumberConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(NumberConstructor);
 

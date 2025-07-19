@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API SymbolConstructor final : public NativeFunction {
+class SymbolConstructor final : public NativeFunction {
     JS_OBJECT(SymbolConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(SymbolConstructor);
 

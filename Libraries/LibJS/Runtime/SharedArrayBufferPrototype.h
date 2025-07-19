@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API SharedArrayBufferPrototype final : public PrototypeObject<SharedArrayBufferPrototype, ArrayBuffer> {
+class SharedArrayBufferPrototype final : public PrototypeObject<SharedArrayBufferPrototype, ArrayBuffer> {
     JS_PROTOTYPE_OBJECT(SharedArrayBufferPrototype, ArrayBuffer, SharedArrayBuffer);
     GC_DECLARE_ALLOCATOR(SharedArrayBufferPrototype);
 

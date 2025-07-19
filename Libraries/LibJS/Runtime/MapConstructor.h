@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API MapConstructor final : public NativeFunction {
+class MapConstructor final : public NativeFunction {
     JS_OBJECT(MapConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(MapConstructor);
 

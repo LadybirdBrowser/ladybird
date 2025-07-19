@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-class JS_API DateTimeFormatPrototype final : public PrototypeObject<DateTimeFormatPrototype, DateTimeFormat> {
+class DateTimeFormatPrototype final : public PrototypeObject<DateTimeFormatPrototype, DateTimeFormat> {
     JS_PROTOTYPE_OBJECT(DateTimeFormatPrototype, DateTimeFormat, Intl.DateTimeFormat);
     GC_DECLARE_ALLOCATOR(DateTimeFormatPrototype);
 

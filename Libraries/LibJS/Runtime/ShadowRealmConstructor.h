@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API ShadowRealmConstructor final : public NativeFunction {
+class ShadowRealmConstructor final : public NativeFunction {
     JS_OBJECT(ShadowRealmConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(ShadowRealmConstructor);
 

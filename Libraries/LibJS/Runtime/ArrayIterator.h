@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API ArrayIterator final : public Object
+class ArrayIterator final : public Object
     , public BuiltinIterator {
     JS_OBJECT(ArrayIterator, Object);
     GC_DECLARE_ALLOCATOR(ArrayIterator);

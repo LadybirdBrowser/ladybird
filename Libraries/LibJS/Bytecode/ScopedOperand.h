@@ -11,7 +11,7 @@
 
 namespace JS::Bytecode {
 
-class JS_API ScopedOperandImpl : public RefCounted<ScopedOperandImpl> {
+class ScopedOperandImpl : public RefCounted<ScopedOperandImpl> {
 public:
     ScopedOperandImpl(Generator& generator, Operand operand)
         : m_generator(generator)
@@ -29,7 +29,7 @@ private:
     Operand m_operand;
 };
 
-class JS_API ScopedOperand {
+class ScopedOperand {
 public:
     explicit ScopedOperand(Generator& generator, Operand operand)
         : m_impl(adopt_ref(*new ScopedOperandImpl(generator, operand)))

@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-class JS_API ListFormatConstructor final : public NativeFunction {
+class ListFormatConstructor final : public NativeFunction {
     JS_OBJECT(ListFormatConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(ListFormatConstructor);
 

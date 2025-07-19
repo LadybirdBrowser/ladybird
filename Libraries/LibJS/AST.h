@@ -51,7 +51,7 @@ create_ast_node(SourceRange range, Args&&... args)
     return adopt_ref(*new T(move(range), forward<Args>(args)...));
 }
 
-class JS_API ASTNode : public RefCounted<ASTNode> {
+class ASTNode : public RefCounted<ASTNode> {
 public:
     virtual ~ASTNode() = default;
 
@@ -167,7 +167,7 @@ enum class DeclarationKind {
     Const,
 };
 
-class JS_API Statement : public ASTNode {
+class Statement : public ASTNode {
 public:
     explicit Statement(SourceRange source_range)
         : ASTNode(move(source_range))
@@ -182,7 +182,7 @@ private:
 };
 
 // 14.13 Labelled Statements, https://tc39.es/ecma262/#sec-labelled-statements
-class JS_API LabelledStatement final : public Statement {
+class LabelledStatement final : public Statement {
 public:
     LabelledStatement(SourceRange source_range, FlyString label, NonnullRefPtr<Statement const> labelled_item)
         : Statement(move(source_range))
@@ -206,7 +206,7 @@ private:
     NonnullRefPtr<Statement const> m_labelled_item;
 };
 
-class JS_API LabelableStatement : public Statement {
+class LabelableStatement : public Statement {
 public:
     using Statement::Statement;
 
@@ -217,7 +217,7 @@ protected:
     Vector<FlyString> m_labels;
 };
 
-class JS_API IterationStatement : public Statement {
+class IterationStatement : public Statement {
 public:
     using Statement::Statement;
 
@@ -227,7 +227,7 @@ private:
     virtual bool is_iteration_statement() const final { return true; }
 };
 
-class JS_API EmptyStatement final : public Statement {
+class EmptyStatement final : public Statement {
 public:
     explicit EmptyStatement(SourceRange source_range)
         : Statement(move(source_range))
@@ -236,7 +236,7 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 };
 
-class JS_API ErrorStatement final : public Statement {
+class ErrorStatement final : public Statement {
 public:
     explicit ErrorStatement(SourceRange source_range)
         : Statement(move(source_range))
@@ -244,7 +244,7 @@ public:
     }
 };
 
-class JS_API ExpressionStatement final : public Statement {
+class ExpressionStatement final : public Statement {
 public:
     ExpressionStatement(SourceRange source_range, NonnullRefPtr<Expression const> expression)
         : Statement(move(source_range))
@@ -292,7 +292,7 @@ public:
     }
 };
 
-class JS_API ScopeNode : public Statement {
+class ScopeNode : public Statement {
 public:
     template<typename T, typename... Args>
     T& append(SourceRange range, Args&&... args)
@@ -368,7 +368,7 @@ private:
 };
 
 // ImportEntry Record, https://tc39.es/ecma262/#table-importentry-record-fields
-struct JS_API ImportEntry {
+struct ImportEntry {
     Optional<FlyString> import_name; // [[ImportName]]: stored string if Optional is not empty, NAMESPACE-OBJECT otherwise
     FlyString local_name;            // [[LocalName]]
 
@@ -391,7 +391,7 @@ private:
     ModuleRequest* m_module_request = nullptr; // [[ModuleRequest]]
 };
 
-class JS_API ImportStatement final : public Statement {
+class ImportStatement final : public Statement {
 public:
     explicit ImportStatement(SourceRange source_range, ModuleRequest from_module, Vector<ImportEntry> entries = {})
         : Statement(move(source_range))
@@ -482,7 +482,7 @@ public:
     }
 };
 
-class JS_API ExportStatement final : public Statement {
+class ExportStatement final : public Statement {
 public:
     static FlyString local_name_for_default;
 
@@ -528,7 +528,7 @@ private:
     Optional<ModuleRequest> m_module_request;
 };
 
-class JS_API Program final : public ScopeNode {
+class Program final : public ScopeNode {
 public:
     enum class Type {
         Script,
@@ -580,7 +580,7 @@ private:
     bool m_has_top_level_await { false };
 };
 
-class JS_API BlockStatement final : public ScopeNode {
+class BlockStatement final : public ScopeNode {
 public:
     explicit BlockStatement(SourceRange source_range)
         : ScopeNode(move(source_range))
@@ -591,7 +591,7 @@ private:
     virtual bool is_block_statement() const override { return true; }
 };
 
-class JS_API FunctionBody final : public ScopeNode {
+class FunctionBody final : public ScopeNode {
 public:
     explicit FunctionBody(SourceRange source_range)
         : ScopeNode(move(source_range))
@@ -608,7 +608,7 @@ private:
     bool m_in_strict_mode { false };
 };
 
-class JS_API Expression : public ASTNode {
+class Expression : public ASTNode {
 public:
     explicit Expression(SourceRange source_range)
         : ASTNode(move(source_range))
@@ -616,7 +616,7 @@ public:
     }
 };
 
-class JS_API Declaration : public Statement {
+class Declaration : public Statement {
 public:
     explicit Declaration(SourceRange source_range)
         : Statement(move(source_range))
@@ -631,7 +631,7 @@ public:
     virtual bool is_lexical_declaration() const { return false; }
 };
 
-class JS_API ErrorDeclaration final : public Declaration {
+class ErrorDeclaration final : public Declaration {
 public:
     explicit ErrorDeclaration(SourceRange source_range)
         : Declaration(move(source_range))
@@ -644,7 +644,7 @@ public:
     }
 };
 
-struct JS_API BindingPattern : RefCounted<BindingPattern> {
+struct BindingPattern : RefCounted<BindingPattern> {
     // This covers both BindingProperty and BindingElement, hence the more generic name
     struct BindingEntry {
         // If this entry represents a BindingElement, then name will be Empty
@@ -673,7 +673,7 @@ struct JS_API BindingPattern : RefCounted<BindingPattern> {
     Kind kind { Kind::Object };
 };
 
-class JS_API Identifier final : public Expression {
+class Identifier final : public Expression {
 public:
     explicit Identifier(SourceRange source_range, FlyString string)
         : Expression(move(source_range))
@@ -777,7 +777,7 @@ struct FunctionParsingInsights {
     bool might_need_arguments_object { false };
 };
 
-class JS_API FunctionNode {
+class FunctionNode {
 public:
     FlyString name() const { return m_name ? m_name->string() : ""_fly_string; }
     RefPtr<Identifier const> name_identifier() const { return m_name; }
@@ -824,7 +824,7 @@ private:
     mutable RefPtr<SharedFunctionInstanceData> m_shared_data;
 };
 
-class JS_API FunctionDeclaration final
+class FunctionDeclaration final
     : public Declaration
     , public FunctionNode {
 public:
@@ -854,7 +854,7 @@ private:
     bool m_is_hoisted { false };
 };
 
-class JS_API FunctionExpression final
+class FunctionExpression final
     : public Expression
     , public FunctionNode {
 public:
@@ -881,7 +881,7 @@ private:
     virtual bool is_function_expression() const override { return true; }
 };
 
-class JS_API ErrorExpression final : public Expression {
+class ErrorExpression final : public Expression {
 public:
     explicit ErrorExpression(SourceRange source_range)
         : Expression(move(source_range))
@@ -909,7 +909,7 @@ private:
     bool m_is_yield_from { false };
 };
 
-class JS_API AwaitExpression final : public Expression {
+class AwaitExpression final : public Expression {
 public:
     explicit AwaitExpression(SourceRange source_range, NonnullRefPtr<Expression const> argument)
         : Expression(move(source_range))
@@ -924,7 +924,7 @@ private:
     NonnullRefPtr<Expression const> m_argument;
 };
 
-class JS_API ReturnStatement final : public Statement {
+class ReturnStatement final : public Statement {
 public:
     explicit ReturnStatement(SourceRange source_range, RefPtr<Expression const> argument)
         : Statement(move(source_range))
@@ -941,7 +941,7 @@ private:
     RefPtr<Expression const> m_argument;
 };
 
-class JS_API IfStatement final : public Statement {
+class IfStatement final : public Statement {
 public:
     IfStatement(SourceRange source_range, NonnullRefPtr<Expression const> predicate, NonnullRefPtr<Statement const> consequent, RefPtr<Statement const> alternate)
         : Statement(move(source_range))
@@ -964,7 +964,7 @@ private:
     RefPtr<Statement const> m_alternate;
 };
 
-class JS_API WhileStatement final : public IterationStatement {
+class WhileStatement final : public IterationStatement {
 public:
     WhileStatement(SourceRange source_range, NonnullRefPtr<Expression const> test, NonnullRefPtr<Statement const> body)
         : IterationStatement(move(source_range))
@@ -985,7 +985,7 @@ private:
     NonnullRefPtr<Statement const> m_body;
 };
 
-class JS_API DoWhileStatement final : public IterationStatement {
+class DoWhileStatement final : public IterationStatement {
 public:
     DoWhileStatement(SourceRange source_range, NonnullRefPtr<Expression const> test, NonnullRefPtr<Statement const> body)
         : IterationStatement(move(source_range))
@@ -1006,7 +1006,7 @@ private:
     NonnullRefPtr<Statement const> m_body;
 };
 
-class JS_API WithStatement final : public Statement {
+class WithStatement final : public Statement {
 public:
     WithStatement(SourceRange source_range, NonnullRefPtr<Expression const> object, NonnullRefPtr<Statement const> body)
         : Statement(move(source_range))
@@ -1026,7 +1026,7 @@ private:
     NonnullRefPtr<Statement const> m_body;
 };
 
-class JS_API ForStatement final : public IterationStatement {
+class ForStatement final : public IterationStatement {
 public:
     ForStatement(SourceRange source_range, RefPtr<ASTNode const> init, RefPtr<Expression const> test, RefPtr<Expression const> update, NonnullRefPtr<Statement const> body)
         : IterationStatement(move(source_range))
@@ -1053,7 +1053,7 @@ private:
     NonnullRefPtr<Statement const> m_body;
 };
 
-class JS_API ForInStatement final : public IterationStatement {
+class ForInStatement final : public IterationStatement {
 public:
     ForInStatement(SourceRange source_range, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> lhs, NonnullRefPtr<Expression const> rhs, NonnullRefPtr<Statement const> body)
         : IterationStatement(move(source_range))
@@ -1077,7 +1077,7 @@ private:
     NonnullRefPtr<Statement const> m_body;
 };
 
-class JS_API ForOfStatement final : public IterationStatement {
+class ForOfStatement final : public IterationStatement {
 public:
     ForOfStatement(SourceRange source_range, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> lhs, NonnullRefPtr<Expression const> rhs, NonnullRefPtr<Statement const> body)
         : IterationStatement(move(source_range))
@@ -1101,7 +1101,7 @@ private:
     NonnullRefPtr<Statement const> m_body;
 };
 
-class JS_API ForAwaitOfStatement final : public IterationStatement {
+class ForAwaitOfStatement final : public IterationStatement {
 public:
     ForAwaitOfStatement(SourceRange source_range, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> lhs, NonnullRefPtr<Expression const> rhs, NonnullRefPtr<Statement const> body)
         : IterationStatement(move(source_range))
@@ -1146,7 +1146,7 @@ enum class BinaryOp {
     InstanceOf,
 };
 
-class JS_API BinaryExpression final : public Expression {
+class BinaryExpression final : public Expression {
 public:
     BinaryExpression(SourceRange source_range, BinaryOp op, NonnullRefPtr<Expression const> lhs, NonnullRefPtr<Expression const> rhs)
         : Expression(move(source_range))
@@ -1171,7 +1171,7 @@ enum class LogicalOp {
     NullishCoalescing,
 };
 
-class JS_API LogicalExpression final : public Expression {
+class LogicalExpression final : public Expression {
 public:
     LogicalExpression(SourceRange source_range, LogicalOp op, NonnullRefPtr<Expression const> lhs, NonnullRefPtr<Expression const> rhs)
         : Expression(move(source_range))
@@ -1200,7 +1200,7 @@ enum class UnaryOp {
     Delete,
 };
 
-class JS_API UnaryExpression final : public Expression {
+class UnaryExpression final : public Expression {
 public:
     UnaryExpression(SourceRange source_range, UnaryOp op, NonnullRefPtr<Expression const> lhs)
         : Expression(move(source_range))
@@ -1217,7 +1217,7 @@ private:
     NonnullRefPtr<Expression const> m_lhs;
 };
 
-class JS_API SequenceExpression final : public Expression {
+class SequenceExpression final : public Expression {
 public:
     SequenceExpression(SourceRange source_range, Vector<NonnullRefPtr<Expression const>> expressions)
         : Expression(move(source_range))
@@ -1233,7 +1233,7 @@ private:
     Vector<NonnullRefPtr<Expression const>> m_expressions;
 };
 
-class JS_API PrimitiveLiteral : public Expression {
+class PrimitiveLiteral : public Expression {
 public:
     virtual Value value() const = 0;
 
@@ -1247,7 +1247,7 @@ private:
     virtual bool is_primitive_literal() const override { return true; }
 };
 
-class JS_API BooleanLiteral final : public PrimitiveLiteral {
+class BooleanLiteral final : public PrimitiveLiteral {
 public:
     explicit BooleanLiteral(SourceRange source_range, bool value)
         : PrimitiveLiteral(move(source_range))
@@ -1266,7 +1266,7 @@ private:
     bool m_value { false };
 };
 
-class JS_API NumericLiteral final : public PrimitiveLiteral {
+class NumericLiteral final : public PrimitiveLiteral {
 public:
     explicit NumericLiteral(SourceRange source_range, double value)
         : PrimitiveLiteral(move(source_range))
@@ -1285,7 +1285,7 @@ private:
     Value m_value;
 };
 
-class JS_API BigIntLiteral final : public Expression {
+class BigIntLiteral final : public Expression {
 public:
     explicit BigIntLiteral(SourceRange source_range, ByteString value)
         : Expression(move(source_range))
@@ -1300,7 +1300,7 @@ private:
     ByteString m_value;
 };
 
-class JS_API StringLiteral final : public Expression {
+class StringLiteral final : public Expression {
 public:
     explicit StringLiteral(SourceRange source_range, String value)
         : Expression(move(source_range))
@@ -1319,7 +1319,7 @@ private:
     String m_value;
 };
 
-class JS_API NullLiteral final : public PrimitiveLiteral {
+class NullLiteral final : public PrimitiveLiteral {
 public:
     explicit NullLiteral(SourceRange source_range)
         : PrimitiveLiteral(move(source_range))
@@ -1335,7 +1335,7 @@ private:
     virtual bool is_null_literal() const override { return true; }
 };
 
-class JS_API RegExpLiteral final : public Expression {
+class RegExpLiteral final : public Expression {
 public:
     RegExpLiteral(SourceRange source_range, regex::Parser::Result parsed_regex, String parsed_pattern, regex::RegexOptions<ECMAScriptFlags> parsed_flags, String pattern, String flags)
         : Expression(move(source_range))
@@ -1364,7 +1364,7 @@ private:
     String m_flags;
 };
 
-class JS_API PrivateIdentifier final : public Expression {
+class PrivateIdentifier final : public Expression {
 public:
     explicit PrivateIdentifier(SourceRange source_range, FlyString string)
         : Expression(move(source_range))
@@ -1382,7 +1382,7 @@ private:
     FlyString m_string;
 };
 
-class JS_API ClassElement : public ASTNode {
+class ClassElement : public ASTNode {
 public:
     ClassElement(SourceRange source_range, bool is_static)
         : ASTNode(move(source_range))
@@ -1409,7 +1409,7 @@ private:
     bool m_is_static { false };
 };
 
-class JS_API ClassMethod final : public ClassElement {
+class ClassMethod final : public ClassElement {
 public:
     enum class Kind {
         Method,
@@ -1440,7 +1440,7 @@ private:
     Kind m_kind;
 };
 
-class JS_API ClassField final : public ClassElement {
+class ClassField final : public ClassElement {
 public:
     ClassField(SourceRange source_range, NonnullRefPtr<Expression const> key, RefPtr<Expression const> init, bool is_static)
         : ClassElement(move(source_range), is_static)
@@ -1464,7 +1464,7 @@ private:
     RefPtr<Expression const> m_initializer;
 };
 
-class JS_API StaticInitializer final : public ClassElement {
+class StaticInitializer final : public ClassElement {
 public:
     StaticInitializer(SourceRange source_range, NonnullRefPtr<FunctionBody> function_body)
         : ClassElement(move(source_range), true)
@@ -1481,7 +1481,7 @@ private:
     NonnullRefPtr<FunctionBody> m_function_body;
 };
 
-class JS_API SuperExpression final : public Expression {
+class SuperExpression final : public Expression {
 public:
     explicit SuperExpression(SourceRange source_range)
         : Expression(move(source_range))
@@ -1494,7 +1494,7 @@ public:
     virtual bool is_super_expression() const override { return true; }
 };
 
-class JS_API ClassExpression final : public Expression {
+class ClassExpression final : public Expression {
 public:
     ClassExpression(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, RefPtr<FunctionExpression const> constructor, RefPtr<Expression const> super_class, Vector<NonnullRefPtr<ClassElement const>> elements)
         : Expression(move(source_range))
@@ -1531,7 +1531,7 @@ private:
     Vector<NonnullRefPtr<ClassElement const>> m_elements;
 };
 
-class JS_API ClassDeclaration final : public Declaration {
+class ClassDeclaration final : public Declaration {
 public:
     ClassDeclaration(SourceRange source_range, NonnullRefPtr<ClassExpression const> class_expression)
         : Declaration(move(source_range))
@@ -1558,7 +1558,7 @@ private:
 
 // We use this class to mimic  Initializer : = AssignmentExpression of
 // 10.2.1.3 Runtime Semantics: EvaluateBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatebody
-class JS_API ClassFieldInitializerStatement final : public Statement {
+class ClassFieldInitializerStatement final : public Statement {
 public:
     ClassFieldInitializerStatement(SourceRange source_range, NonnullRefPtr<Expression const> expression, FlyString field_name)
         : Statement(move(source_range))
@@ -1575,7 +1575,7 @@ private:
     FlyString m_class_field_identifier_name; // [[ClassFieldIdentifierName]]
 };
 
-class JS_API SpreadExpression final : public Expression {
+class SpreadExpression final : public Expression {
 public:
     explicit SpreadExpression(SourceRange source_range, NonnullRefPtr<Expression const> target)
         : Expression(move(source_range))
@@ -1592,7 +1592,7 @@ private:
     NonnullRefPtr<Expression const> m_target;
 };
 
-class JS_API ThisExpression final : public Expression {
+class ThisExpression final : public Expression {
 public:
     explicit ThisExpression(SourceRange source_range)
         : Expression(move(source_range))
@@ -1617,7 +1617,7 @@ enum InsideParenthesesEnum {
     NotInsideParentheses,
 };
 
-class JS_API CallExpression : public ASTNodeWithTailArray<CallExpression, Expression, CallExpressionArgument> {
+class CallExpression : public ASTNodeWithTailArray<CallExpression, Expression, CallExpressionArgument> {
     friend class ASTNodeWithTailArray;
 
     InvocationStyleEnum m_invocation_style;
@@ -1655,7 +1655,7 @@ protected:
     NonnullRefPtr<Expression const> m_callee;
 };
 
-class JS_API NewExpression final : public CallExpression {
+class NewExpression final : public CallExpression {
     friend class ASTNodeWithTailArray;
 
 public:
@@ -1672,7 +1672,7 @@ private:
 
 static_assert(sizeof(NewExpression) == sizeof(CallExpression), "Adding members to NewExpression will break CallExpression memory layout");
 
-class JS_API SuperCall final : public Expression {
+class SuperCall final : public Expression {
 public:
     // This is here to be able to make a constructor like
     // constructor(...args) { super(...args); } which does not use @@iterator of %Array.prototype%.
@@ -1723,7 +1723,7 @@ enum class AssignmentOp {
     NullishAssignment,
 };
 
-class JS_API AssignmentExpression final : public Expression {
+class AssignmentExpression final : public Expression {
 public:
     AssignmentExpression(SourceRange source_range, AssignmentOp op, NonnullRefPtr<Expression const> lhs, NonnullRefPtr<Expression const> rhs)
         : Expression(move(source_range))
@@ -1755,7 +1755,7 @@ enum class UpdateOp {
     Decrement,
 };
 
-class JS_API UpdateExpression final : public Expression {
+class UpdateExpression final : public Expression {
 public:
     UpdateExpression(SourceRange source_range, UpdateOp op, NonnullRefPtr<Expression const> argument, bool prefixed = false)
         : Expression(move(source_range))
@@ -1776,7 +1776,7 @@ private:
     bool m_prefixed;
 };
 
-class JS_API VariableDeclarator final : public ASTNode {
+class VariableDeclarator final : public ASTNode {
 public:
     VariableDeclarator(SourceRange source_range, NonnullRefPtr<Identifier const> id)
         : ASTNode(move(source_range))
@@ -1808,7 +1808,7 @@ private:
     RefPtr<Expression const> m_init;
 };
 
-class JS_API VariableDeclaration final : public Declaration {
+class VariableDeclaration final : public Declaration {
 public:
     VariableDeclaration(SourceRange source_range, DeclarationKind declaration_kind, Vector<NonnullRefPtr<VariableDeclarator const>> declarations)
         : Declaration(move(source_range))
@@ -1837,7 +1837,7 @@ private:
     Vector<NonnullRefPtr<VariableDeclarator const>> m_declarations;
 };
 
-class JS_API UsingDeclaration final : public Declaration {
+class UsingDeclaration final : public Declaration {
 public:
     UsingDeclaration(SourceRange source_range, Vector<NonnullRefPtr<VariableDeclarator const>> declarations)
         : Declaration(move(source_range))
@@ -1859,7 +1859,7 @@ private:
     Vector<NonnullRefPtr<VariableDeclarator const>> m_declarations;
 };
 
-class JS_API ObjectProperty final : public ASTNode {
+class ObjectProperty final : public ASTNode {
 public:
     enum class Type : u8 {
         KeyValue,
@@ -1897,7 +1897,7 @@ private:
     RefPtr<Expression const> m_value;
 };
 
-class JS_API ObjectExpression final : public Expression {
+class ObjectExpression final : public Expression {
 public:
     explicit ObjectExpression(SourceRange source_range, Vector<NonnullRefPtr<ObjectProperty>> properties = {})
         : Expression(move(source_range))
@@ -1914,7 +1914,7 @@ private:
     Vector<NonnullRefPtr<ObjectProperty>> m_properties;
 };
 
-class JS_API ArrayExpression final : public Expression {
+class ArrayExpression final : public Expression {
 public:
     ArrayExpression(SourceRange source_range, Vector<RefPtr<Expression const>> elements)
         : Expression(move(source_range))
@@ -1933,7 +1933,7 @@ private:
     Vector<RefPtr<Expression const>> m_elements;
 };
 
-class JS_API TemplateLiteral final : public Expression {
+class TemplateLiteral final : public Expression {
 public:
     TemplateLiteral(SourceRange source_range, Vector<NonnullRefPtr<Expression const>> expressions)
         : Expression(move(source_range))
@@ -1959,7 +1959,7 @@ private:
     Vector<NonnullRefPtr<Expression const>> const m_raw_strings;
 };
 
-class JS_API TaggedTemplateLiteral final : public Expression {
+class TaggedTemplateLiteral final : public Expression {
 public:
     TaggedTemplateLiteral(SourceRange source_range, NonnullRefPtr<Expression const> tag, NonnullRefPtr<TemplateLiteral const> template_literal)
         : Expression(move(source_range))
@@ -1976,7 +1976,7 @@ private:
     NonnullRefPtr<TemplateLiteral const> const m_template_literal;
 };
 
-class JS_API MemberExpression final : public Expression {
+class MemberExpression final : public Expression {
 public:
     MemberExpression(SourceRange source_range, NonnullRefPtr<Expression const> object, NonnullRefPtr<Expression const> property, bool computed = false)
         : Expression(move(source_range))
@@ -2005,7 +2005,7 @@ private:
     NonnullRefPtr<Expression const> m_property;
 };
 
-class JS_API OptionalChain final : public Expression {
+class OptionalChain final : public Expression {
 public:
     enum class Mode {
         Optional,
@@ -2051,7 +2051,7 @@ private:
     Vector<Reference> m_references;
 };
 
-class JS_API MetaProperty final : public Expression {
+class MetaProperty final : public Expression {
 public:
     enum class Type {
         NewTarget,
@@ -2071,7 +2071,7 @@ private:
     Type m_type;
 };
 
-class JS_API ImportCall final : public Expression {
+class ImportCall final : public Expression {
 public:
     ImportCall(SourceRange source_range, NonnullRefPtr<Expression const> specifier, RefPtr<Expression const> options)
         : Expression(move(source_range))
@@ -2090,7 +2090,7 @@ private:
     RefPtr<Expression const> m_options;
 };
 
-class JS_API ConditionalExpression final : public Expression {
+class ConditionalExpression final : public Expression {
 public:
     ConditionalExpression(SourceRange source_range, NonnullRefPtr<Expression const> test, NonnullRefPtr<Expression const> consequent, NonnullRefPtr<Expression const> alternate)
         : Expression(move(source_range))
@@ -2109,7 +2109,7 @@ private:
     NonnullRefPtr<Expression const> m_alternate;
 };
 
-class JS_API CatchClause final : public ASTNode {
+class CatchClause final : public ASTNode {
 public:
     CatchClause(SourceRange source_range, NonnullRefPtr<Identifier const> parameter, NonnullRefPtr<BlockStatement const> body)
         : ASTNode(move(source_range))
@@ -2142,7 +2142,7 @@ private:
     NonnullRefPtr<BlockStatement const> m_body;
 };
 
-class JS_API TryStatement final : public Statement {
+class TryStatement final : public Statement {
 public:
     TryStatement(SourceRange source_range, NonnullRefPtr<BlockStatement const> block, RefPtr<CatchClause const> handler, RefPtr<BlockStatement const> finalizer)
         : Statement(move(source_range))
@@ -2165,7 +2165,7 @@ private:
     RefPtr<BlockStatement const> m_finalizer;
 };
 
-class JS_API ThrowStatement final : public Statement {
+class ThrowStatement final : public Statement {
 public:
     explicit ThrowStatement(SourceRange source_range, NonnullRefPtr<Expression const> argument)
         : Statement(move(source_range))
@@ -2182,7 +2182,7 @@ private:
     NonnullRefPtr<Expression const> m_argument;
 };
 
-class JS_API SwitchCase final : public ScopeNode {
+class SwitchCase final : public ScopeNode {
 public:
     SwitchCase(SourceRange source_range, RefPtr<Expression const> test)
         : ScopeNode(move(source_range))
@@ -2198,7 +2198,7 @@ private:
     RefPtr<Expression const> m_test;
 };
 
-class JS_API SwitchStatement final : public ScopeNode {
+class SwitchStatement final : public ScopeNode {
 public:
     SwitchStatement(SourceRange source_range, NonnullRefPtr<Expression const> discriminant)
         : ScopeNode(move(source_range))
@@ -2217,7 +2217,7 @@ private:
     Vector<NonnullRefPtr<SwitchCase const>> m_cases;
 };
 
-class JS_API BreakStatement final : public Statement {
+class BreakStatement final : public Statement {
 public:
     BreakStatement(SourceRange source_range, Optional<FlyString> target_label)
         : Statement(move(source_range))
@@ -2232,7 +2232,7 @@ private:
     Optional<FlyString> m_target_label;
 };
 
-class JS_API ContinueStatement final : public Statement {
+class ContinueStatement final : public Statement {
 public:
     ContinueStatement(SourceRange source_range, Optional<FlyString> target_label)
         : Statement(move(source_range))
@@ -2248,7 +2248,7 @@ private:
     Optional<FlyString> m_target_label;
 };
 
-class JS_API DebuggerStatement final : public Statement {
+class DebuggerStatement final : public Statement {
 public:
     explicit DebuggerStatement(SourceRange source_range)
         : Statement(move(source_range))
@@ -2258,7 +2258,7 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 };
 
-class JS_API SyntheticReferenceExpression final : public Expression {
+class SyntheticReferenceExpression final : public Expression {
 public:
     explicit SyntheticReferenceExpression(SourceRange source_range, Reference reference, Value value)
         : Expression(move(source_range))

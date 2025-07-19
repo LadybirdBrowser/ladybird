@@ -52,7 +52,7 @@ enum class CompilationType {
     Timer,
 };
 
-class JS_API VM : public RefCounted<VM> {
+class VM : public RefCounted<VM> {
 public:
     static NonnullRefPtr<VM> create();
     ~VM();

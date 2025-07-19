@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API AsyncDisposableStack final : public Object {
+class AsyncDisposableStack final : public Object {
     JS_OBJECT(AsyncDisposableStack, Object);
     GC_DECLARE_ALLOCATOR(AsyncDisposableStack);
 

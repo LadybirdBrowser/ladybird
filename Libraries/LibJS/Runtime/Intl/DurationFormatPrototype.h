@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-class JS_API DurationFormatPrototype final : public PrototypeObject<DurationFormatPrototype, DurationFormat> {
+class DurationFormatPrototype final : public PrototypeObject<DurationFormatPrototype, DurationFormat> {
     JS_PROTOTYPE_OBJECT(DurationFormatPrototype, DurationFormat, Intl.DurationFormat);
     GC_DECLARE_ALLOCATOR(DurationFormatPrototype);
 

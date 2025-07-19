@@ -57,7 +57,7 @@ struct ResolvedBinding {
 };
 
 // https://tc39.es/ecma262/#graphloadingstate-record
-struct JS_API GraphLoadingState : public Cell {
+struct GraphLoadingState : public Cell {
     GC_CELL(GraphLoadingState, Cell);
     GC_DECLARE_ALLOCATOR(GraphLoadingState);
 
@@ -88,7 +88,7 @@ private:
 };
 
 // 16.2.1.4 Abstract Module Records, https://tc39.es/ecma262/#sec-abstract-module-records
-class JS_API Module : public Cell {
+class Module : public Cell {
     GC_CELL(Module, Cell);
     GC_DECLARE_ALLOCATOR(Module);
 
@@ -150,6 +150,6 @@ private:
 class CyclicModule;
 struct GraphLoadingState;
 
-JS_API void finish_loading_imported_module(ImportedModuleReferrer, ModuleRequest const&, ImportedModulePayload, ThrowCompletionOr<GC::Ref<Module>> const&);
+void finish_loading_imported_module(ImportedModuleReferrer, ModuleRequest const&, ImportedModulePayload, ThrowCompletionOr<GC::Ref<Module>> const&);
 
 }

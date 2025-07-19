@@ -17,7 +17,7 @@
 namespace JS {
 
 // 7.4.1 Iterator Records, https://tc39.es/ecma262/#sec-iterator-records
-class JS_API IteratorRecord final : public Cell {
+class IteratorRecord final : public Cell {
     GC_CELL(IteratorRecord, Cell);
     GC_DECLARE_ALLOCATOR(IteratorRecord);
 
@@ -42,7 +42,7 @@ private:
 static_assert(sizeof(IteratorRecord) == 32);
 #endif
 
-class JS_API Iterator : public Object {
+class Iterator : public Object {
     JS_OBJECT(Iterator, Object);
     GC_DECLARE_ALLOCATOR(Iterator);
 
@@ -70,7 +70,7 @@ enum class PrimitiveHandling {
     RejectPrimitives,
 };
 
-class JS_API BuiltinIterator {
+class BuiltinIterator {
 public:
     virtual ~BuiltinIterator() = default;
     virtual ThrowCompletionOr<void> next(VM&, bool& done, Value& value) = 0;
@@ -101,22 +101,22 @@ using IterationResultOrDone = Variant<IterationResult, IterationDone>;
         _temporary_try_or_close_result.release_value();                                                           \
     })
 
-JS_API ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_direct(VM&, Object&);
-JS_API ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_from_method(VM&, Value, GC::Ref<FunctionObject>);
-JS_API ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator(VM&, Value, IteratorHint);
-JS_API ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM&, Value, PrimitiveHandling);
-JS_API ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM&, IteratorRecord&, Optional<Value> = {});
-JS_API ThrowCompletionOr<bool> iterator_complete(VM&, Object& iterator_result);
-JS_API ThrowCompletionOr<Value> iterator_value(VM&, Object& iterator_result);
-JS_API ThrowCompletionOr<IterationResultOrDone> iterator_step(VM&, IteratorRecord&);
-JS_API ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecord&);
-JS_API Completion iterator_close(VM&, IteratorRecord const&, Completion);
-JS_API Completion async_iterator_close(VM&, IteratorRecord const&, Completion);
-JS_API GC::Ref<Object> create_iterator_result_object(VM&, Value, bool done);
-JS_API ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM&, IteratorRecord&);
-JS_API ThrowCompletionOr<void> setter_that_ignores_prototype_properties(VM&, Value this_, Object const& home, PropertyKey const& property, Value value);
+ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_direct(VM&, Object&);
+ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_from_method(VM&, Value, GC::Ref<FunctionObject>);
+ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator(VM&, Value, IteratorHint);
+ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM&, Value, PrimitiveHandling);
+ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM&, IteratorRecord&, Optional<Value> = {});
+ThrowCompletionOr<bool> iterator_complete(VM&, Object& iterator_result);
+ThrowCompletionOr<Value> iterator_value(VM&, Object& iterator_result);
+ThrowCompletionOr<IterationResultOrDone> iterator_step(VM&, IteratorRecord&);
+ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecord&);
+Completion iterator_close(VM&, IteratorRecord const&, Completion);
+Completion async_iterator_close(VM&, IteratorRecord const&, Completion);
+GC::Ref<Object> create_iterator_result_object(VM&, Value, bool done);
+ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM&, IteratorRecord&);
+ThrowCompletionOr<void> setter_that_ignores_prototype_properties(VM&, Value this_, Object const& home, PropertyKey const& property, Value value);
 
 using IteratorValueCallback = Function<Optional<Completion>(Value)>;
-JS_API Completion get_iterator_values(VM&, Value iterable, IteratorValueCallback callback);
+Completion get_iterator_values(VM&, Value iterable, IteratorValueCallback callback);
 
 }

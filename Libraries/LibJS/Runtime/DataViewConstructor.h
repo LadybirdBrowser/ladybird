@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API DataViewConstructor final : public NativeFunction {
+class DataViewConstructor final : public NativeFunction {
     JS_OBJECT(DataViewConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(DataViewConstructor);
 

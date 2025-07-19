@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API ErrorConstructor final : public NativeFunction {
+class ErrorConstructor final : public NativeFunction {
     JS_OBJECT(ErrorConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(ErrorConstructor);
 

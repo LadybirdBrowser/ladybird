@@ -12,7 +12,7 @@
 namespace JS {
 
 // 27.5.1 Properties of the Generator Prototype Object, https://tc39.es/ecma262/#sec-properties-of-generator-prototype
-class JS_API GeneratorPrototype final : public PrototypeObject<GeneratorPrototype, GeneratorObject> {
+class GeneratorPrototype final : public PrototypeObject<GeneratorPrototype, GeneratorObject> {
     JS_PROTOTYPE_OBJECT(GeneratorPrototype, GeneratorObject, Generator);
     GC_DECLARE_ALLOCATOR(GeneratorPrototype);
 

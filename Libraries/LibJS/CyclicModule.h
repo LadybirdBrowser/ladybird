@@ -23,7 +23,7 @@ enum class ModuleStatus {
 };
 
 // 16.2.1.5 Cyclic Module Records, https://tc39.es/ecma262/#cyclic-module-record
-class JS_API CyclicModule : public Module {
+class CyclicModule : public Module {
     GC_CELL(CyclicModule, Module);
     GC_DECLARE_ALLOCATOR(CyclicModule);
 
@@ -76,8 +76,8 @@ protected:
     Optional<u32> m_pending_async_dependencies;           // [[PendingAsyncDependencies]]
 };
 
-JS_API void inner_module_loading(VM&, GraphLoadingState& state, GC::Ref<Module>);
-JS_API void continue_module_loading(GraphLoadingState&, ThrowCompletionOr<GC::Ref<Module>> const&);
-JS_API void continue_dynamic_import(GC::Ref<PromiseCapability>, ThrowCompletionOr<GC::Ref<Module>> const& module_completion);
+void inner_module_loading(VM&, GraphLoadingState& state, GC::Ref<Module>);
+void continue_module_loading(GraphLoadingState&, ThrowCompletionOr<GC::Ref<Module>> const&);
+void continue_dynamic_import(GC::Ref<PromiseCapability>, ThrowCompletionOr<GC::Ref<Module>> const& module_completion);
 
 }

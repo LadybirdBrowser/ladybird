@@ -15,7 +15,7 @@ namespace JS {
 
 Reference make_private_reference(VM&, Value base_value, FlyString const& private_identifier);
 
-class JS_API Reference {
+class Reference {
 public:
     enum class BaseType : u8 {
         Unresolvable,

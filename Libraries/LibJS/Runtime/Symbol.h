@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class JS_API Symbol final : public Cell {
+class Symbol final : public Cell {
     GC_CELL(Symbol, Cell);
     GC_DECLARE_ALLOCATOR(Symbol);
 

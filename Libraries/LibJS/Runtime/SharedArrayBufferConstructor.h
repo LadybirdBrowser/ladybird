@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API SharedArrayBufferConstructor final : public NativeFunction {
+class SharedArrayBufferConstructor final : public NativeFunction {
     JS_OBJECT(SharedArrayBufferConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(SharedArrayBufferConstructor);
 

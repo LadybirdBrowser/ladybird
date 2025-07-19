@@ -32,7 +32,7 @@ struct CachedSourceRange : public RefCounted<CachedSourceRange> {
 };
 
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
-struct JS_API ExecutionContext {
+struct ExecutionContext {
     static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_constants_and_locals_count, u32 arguments_count);
     [[nodiscard]] NonnullOwnPtr<ExecutionContext> copy() const;
 

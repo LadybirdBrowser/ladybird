@@ -30,7 +30,7 @@ namespace JS::Temporal {
     __JS_ENUMERATE(microseconds)    \
     __JS_ENUMERATE(nanoseconds)
 
-class JS_API Duration final : public Object {
+class Duration final : public Object {
     JS_OBJECT(Duration, Object);
     GC_DECLARE_ALLOCATOR(Duration);
 
@@ -109,41 +109,41 @@ struct CalendarNudgeResult {
     Crypto::BigFraction total;
 };
 
-JS_API DateDuration zero_date_duration(VM&);
-JS_API InternalDuration to_internal_duration_record(VM&, Duration const&);
-JS_API InternalDuration to_internal_duration_record_with_24_hour_days(VM&, Duration const&);
-JS_API DateDuration to_date_duration_record_without_time(VM&, Duration const&);
-JS_API ThrowCompletionOr<GC::Ref<Duration>> temporal_duration_from_internal(VM&, InternalDuration const&, Unit largest_unit);
-JS_API ThrowCompletionOr<DateDuration> create_date_duration_record(VM&, double years, double months, double weeks, double days);
-JS_API ThrowCompletionOr<DateDuration> adjust_date_duration_record(VM&, DateDuration const&, double days, Optional<double> weeks = {}, Optional<double> months = {});
-JS_API InternalDuration combine_date_and_time_duration(DateDuration, TimeDuration);
-JS_API ThrowCompletionOr<GC::Ref<Duration>> to_temporal_duration(VM&, Value);
-JS_API i8 duration_sign(Duration const&);
-JS_API i8 date_duration_sign(DateDuration const&);
-JS_API i8 internal_duration_sign(InternalDuration const&);
-JS_API bool is_valid_duration(double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
-JS_API Unit default_temporal_largest_unit(Duration const&);
-JS_API ThrowCompletionOr<PartialDuration> to_temporal_partial_duration_record(VM&, Value temporal_duration_like);
-JS_API ThrowCompletionOr<GC::Ref<Duration>> create_temporal_duration(VM&, double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds, GC::Ptr<FunctionObject> new_target = {});
-JS_API GC::Ref<Duration> create_negated_temporal_duration(VM&, Duration const&);
-JS_API TimeDuration time_duration_from_components(double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
-JS_API ThrowCompletionOr<TimeDuration> add_time_duration(VM&, TimeDuration const&, TimeDuration const&);
-JS_API ThrowCompletionOr<TimeDuration> add_24_hour_days_to_time_duration(VM&, TimeDuration const&, double days);
-JS_API Crypto::SignedBigInteger add_time_duration_to_epoch_nanoseconds(TimeDuration const& duration, Crypto::SignedBigInteger const& epoch_nanoseconds);
-JS_API i8 compare_time_duration(TimeDuration const&, TimeDuration const&);
-JS_API TimeDuration time_duration_from_epoch_nanoseconds_difference(Crypto::SignedBigInteger const&, Crypto::SignedBigInteger const&);
-JS_API ThrowCompletionOr<TimeDuration> round_time_duration_to_increment(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
-JS_API i8 time_duration_sign(TimeDuration const&);
-JS_API ThrowCompletionOr<double> date_duration_days(VM&, DateDuration const&, PlainDate const&);
-JS_API ThrowCompletionOr<TimeDuration> round_time_duration(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, Unit, RoundingMode);
-JS_API Crypto::BigFraction total_time_duration(TimeDuration const&, Unit);
-JS_API ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
-JS_API ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM&, i8 sign, InternalDuration const&, ISODateTime const&, StringView time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
-JS_API ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM&, InternalDuration const&, Crypto::SignedBigInteger const& dest_epoch_ns, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
-JS_API ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM&, i8 sign, InternalDuration, Crypto::SignedBigInteger const& nudged_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, Unit smallest_unit);
-JS_API ThrowCompletionOr<InternalDuration> round_relative_duration(VM&, InternalDuration, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
-JS_API ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM&, InternalDuration const&, TimeDuration const&, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit);
-JS_API String temporal_duration_to_string(Duration const&, Precision);
-JS_API ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM&, ArithmeticOperation, Duration const&, Value);
+DateDuration zero_date_duration(VM&);
+InternalDuration to_internal_duration_record(VM&, Duration const&);
+InternalDuration to_internal_duration_record_with_24_hour_days(VM&, Duration const&);
+DateDuration to_date_duration_record_without_time(VM&, Duration const&);
+ThrowCompletionOr<GC::Ref<Duration>> temporal_duration_from_internal(VM&, InternalDuration const&, Unit largest_unit);
+ThrowCompletionOr<DateDuration> create_date_duration_record(VM&, double years, double months, double weeks, double days);
+ThrowCompletionOr<DateDuration> adjust_date_duration_record(VM&, DateDuration const&, double days, Optional<double> weeks = {}, Optional<double> months = {});
+InternalDuration combine_date_and_time_duration(DateDuration, TimeDuration);
+ThrowCompletionOr<GC::Ref<Duration>> to_temporal_duration(VM&, Value);
+i8 duration_sign(Duration const&);
+i8 date_duration_sign(DateDuration const&);
+i8 internal_duration_sign(InternalDuration const&);
+bool is_valid_duration(double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
+Unit default_temporal_largest_unit(Duration const&);
+ThrowCompletionOr<PartialDuration> to_temporal_partial_duration_record(VM&, Value temporal_duration_like);
+ThrowCompletionOr<GC::Ref<Duration>> create_temporal_duration(VM&, double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds, GC::Ptr<FunctionObject> new_target = {});
+GC::Ref<Duration> create_negated_temporal_duration(VM&, Duration const&);
+TimeDuration time_duration_from_components(double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
+ThrowCompletionOr<TimeDuration> add_time_duration(VM&, TimeDuration const&, TimeDuration const&);
+ThrowCompletionOr<TimeDuration> add_24_hour_days_to_time_duration(VM&, TimeDuration const&, double days);
+Crypto::SignedBigInteger add_time_duration_to_epoch_nanoseconds(TimeDuration const& duration, Crypto::SignedBigInteger const& epoch_nanoseconds);
+i8 compare_time_duration(TimeDuration const&, TimeDuration const&);
+TimeDuration time_duration_from_epoch_nanoseconds_difference(Crypto::SignedBigInteger const&, Crypto::SignedBigInteger const&);
+ThrowCompletionOr<TimeDuration> round_time_duration_to_increment(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
+i8 time_duration_sign(TimeDuration const&);
+ThrowCompletionOr<double> date_duration_days(VM&, DateDuration const&, PlainDate const&);
+ThrowCompletionOr<TimeDuration> round_time_duration(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, Unit, RoundingMode);
+Crypto::BigFraction total_time_duration(TimeDuration const&, Unit);
+ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
+ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM&, i8 sign, InternalDuration const&, ISODateTime const&, StringView time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
+ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM&, InternalDuration const&, Crypto::SignedBigInteger const& dest_epoch_ns, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
+ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM&, i8 sign, InternalDuration, Crypto::SignedBigInteger const& nudged_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, Unit smallest_unit);
+ThrowCompletionOr<InternalDuration> round_relative_duration(VM&, InternalDuration, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
+ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM&, InternalDuration const&, TimeDuration const&, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit);
+String temporal_duration_to_string(Duration const&, Precision);
+ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM&, ArithmeticOperation, Duration const&, Value);
 
 }

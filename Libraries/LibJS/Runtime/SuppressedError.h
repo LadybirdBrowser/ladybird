@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class JS_API SuppressedError : public Error {
+class SuppressedError : public Error {
     JS_OBJECT(SuppressedError, Error);
     GC_DECLARE_ALLOCATOR(SuppressedError);
 

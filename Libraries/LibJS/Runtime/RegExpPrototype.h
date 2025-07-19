@@ -11,10 +11,10 @@
 
 namespace JS {
 
-JS_API ThrowCompletionOr<Value> regexp_exec(VM&, Object& regexp_object, GC::Ref<PrimitiveString> string);
-JS_API size_t advance_string_index(Utf16View const& string, size_t index, bool unicode);
+ThrowCompletionOr<Value> regexp_exec(VM&, Object& regexp_object, GC::Ref<PrimitiveString> string);
+size_t advance_string_index(Utf16View const& string, size_t index, bool unicode);
 
-class JS_API RegExpPrototype final : public PrototypeObject<RegExpPrototype, RegExpObject> {
+class RegExpPrototype final : public PrototypeObject<RegExpPrototype, RegExpObject> {
     JS_PROTOTYPE_OBJECT(RegExpPrototype, RegExpObject, RegExp);
     GC_DECLARE_ALLOCATOR(RegExpPrototype);
 

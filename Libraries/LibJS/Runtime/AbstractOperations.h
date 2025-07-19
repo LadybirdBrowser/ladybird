@@ -23,27 +23,27 @@
 
 namespace JS {
 
-JS_API GC::Ref<DeclarativeEnvironment> new_declarative_environment(Environment&);
-JS_API GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, Environment*);
-JS_API GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject&, Object* new_target);
-JS_API GC::Ref<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer);
-JS_API GC::Ref<Environment> get_this_environment(VM&);
-JS_API bool can_be_held_weakly(Value);
-JS_API Object* get_super_constructor(VM&);
-JS_API ThrowCompletionOr<Value> require_object_coercible(VM&, Value);
-JS_API ThrowCompletionOr<Value> call_impl(VM&, Value function, Value this_value, ReadonlySpan<Value> arguments = {});
-JS_API ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_value, ReadonlySpan<Value> arguments = {});
-JS_API ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject&, ReadonlySpan<Value> arguments = {}, FunctionObject* new_target = nullptr);
-JS_API ThrowCompletionOr<size_t> length_of_array_like(VM&, Object const&);
-JS_API ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM&, Value, Function<ThrowCompletionOr<void>(Value)> = {});
-JS_API ThrowCompletionOr<FunctionObject*> species_constructor(VM&, Object const&, FunctionObject& default_constructor);
-JS_API ThrowCompletionOr<Realm*> get_function_realm(VM&, FunctionObject const&);
-JS_API ThrowCompletionOr<void> initialize_bound_name(VM&, FlyString const&, Value, Environment*);
-JS_API bool is_compatible_property_descriptor(bool extensible, PropertyDescriptor const&, Optional<PropertyDescriptor> const& current);
-JS_API bool validate_and_apply_property_descriptor(Object*, PropertyKey const&, bool extensible, PropertyDescriptor const&, Optional<PropertyDescriptor> const& current);
-JS_API ThrowCompletionOr<Object*> get_prototype_from_constructor(VM&, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)());
-JS_API Object* create_unmapped_arguments_object(VM&, ReadonlySpan<Value> arguments);
-JS_API Object* create_mapped_arguments_object(VM&, FunctionObject&, NonnullRefPtr<FunctionParameters const> const&, ReadonlySpan<Value> arguments, Environment&);
+GC::Ref<DeclarativeEnvironment> new_declarative_environment(Environment&);
+GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, Environment*);
+GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject&, Object* new_target);
+GC::Ref<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer);
+GC::Ref<Environment> get_this_environment(VM&);
+bool can_be_held_weakly(Value);
+Object* get_super_constructor(VM&);
+ThrowCompletionOr<Value> require_object_coercible(VM&, Value);
+ThrowCompletionOr<Value> call_impl(VM&, Value function, Value this_value, ReadonlySpan<Value> arguments = {});
+ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_value, ReadonlySpan<Value> arguments = {});
+ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject&, ReadonlySpan<Value> arguments = {}, FunctionObject* new_target = nullptr);
+ThrowCompletionOr<size_t> length_of_array_like(VM&, Object const&);
+ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM&, Value, Function<ThrowCompletionOr<void>(Value)> = {});
+ThrowCompletionOr<FunctionObject*> species_constructor(VM&, Object const&, FunctionObject& default_constructor);
+ThrowCompletionOr<Realm*> get_function_realm(VM&, FunctionObject const&);
+ThrowCompletionOr<void> initialize_bound_name(VM&, FlyString const&, Value, Environment*);
+bool is_compatible_property_descriptor(bool extensible, PropertyDescriptor const&, Optional<PropertyDescriptor> const& current);
+bool validate_and_apply_property_descriptor(Object*, PropertyKey const&, bool extensible, PropertyDescriptor const&, Optional<PropertyDescriptor> const& current);
+ThrowCompletionOr<Object*> get_prototype_from_constructor(VM&, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)());
+Object* create_unmapped_arguments_object(VM&, ReadonlySpan<Value> arguments);
+Object* create_mapped_arguments_object(VM&, FunctionObject&, NonnullRefPtr<FunctionParameters const> const&, ReadonlySpan<Value> arguments, Environment&);
 
 // 2.1.1 DisposeCapability Records, https://tc39.es/proposal-explicit-resource-management/#sec-disposecapability-records
 struct DisposeCapability {
@@ -61,30 +61,30 @@ struct DisposableResource {
     GC::Ptr<FunctionObject> dispose_method;  // [[DisposeMethod]]
 };
 
-JS_API DisposeCapability new_dispose_capability();
-JS_API ThrowCompletionOr<void> add_disposable_resource(VM&, DisposeCapability&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> = {});
-JS_API ThrowCompletionOr<DisposableResource> create_disposable_resource(VM&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> = {});
-JS_API ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM&, Value, Environment::InitializeBindingHint);
-JS_API Completion dispose(VM&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> method);
-JS_API Completion dispose_resources(VM&, DisposeCapability&, Completion);
+DisposeCapability new_dispose_capability();
+ThrowCompletionOr<void> add_disposable_resource(VM&, DisposeCapability&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> = {});
+ThrowCompletionOr<DisposableResource> create_disposable_resource(VM&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> = {});
+ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM&, Value, Environment::InitializeBindingHint);
+Completion dispose(VM&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> method);
+Completion dispose_resources(VM&, DisposeCapability&, Completion);
 
-JS_API ThrowCompletionOr<Value> perform_import_call(VM&, Value specifier, Value options_value);
+ThrowCompletionOr<Value> perform_import_call(VM&, Value specifier, Value options_value);
 
 enum class CanonicalIndexMode {
     DetectNumericRoundtrip,
     IgnoreNumericRoundtrip,
 };
-[[nodiscard]] JS_API CanonicalIndex canonical_numeric_index_string(PropertyKey const&, CanonicalIndexMode needs_numeric);
-JS_API ThrowCompletionOr<String> get_substitution(VM&, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement);
+[[nodiscard]] CanonicalIndex canonical_numeric_index_string(PropertyKey const&, CanonicalIndexMode needs_numeric);
+ThrowCompletionOr<String> get_substitution(VM&, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement);
 
 enum class CallerMode {
     Strict,
     NonStrict
 };
 
-JS_API ThrowCompletionOr<Value> perform_eval(VM&, Value, CallerMode, EvalMode);
+ThrowCompletionOr<Value> perform_eval(VM&, Value, CallerMode, EvalMode);
 
-JS_API ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& program, Environment* variable_environment, Environment* lexical_environment, PrivateEnvironment* private_environment, bool strict);
+ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& program, Environment* variable_environment, Environment* lexical_environment, PrivateEnvironment* private_environment, bool strict);
 
 // 7.3.14 Call ( F, V [ , argumentsList ] ), https://tc39.es/ecma262/#sec-call
 ALWAYS_INLINE ThrowCompletionOr<Value> call(VM& vm, Value function, Value this_value, ReadonlySpan<Value> arguments_list)
@@ -342,8 +342,8 @@ enum class OptionType {
 struct Required { };
 using OptionDefault = Variant<Required, Empty, bool, StringView, double>;
 
-JS_API ThrowCompletionOr<GC::Ref<Object>> get_options_object(VM&, Value options);
-JS_API ThrowCompletionOr<Value> get_option(VM&, Object const& options, PropertyKey const& property, OptionType type, ReadonlySpan<StringView> values, OptionDefault const&);
+ThrowCompletionOr<GC::Ref<Object>> get_options_object(VM&, Value options);
+ThrowCompletionOr<Value> get_option(VM&, Object const& options, PropertyKey const& property, OptionType type, ReadonlySpan<StringView> values, OptionDefault const&);
 
 template<size_t Size>
 ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey const& property, OptionType type, StringView const (&values)[Size], OptionDefault const& default_)
@@ -364,9 +364,9 @@ enum class RoundingMode {
     HalfEven,
 };
 
-JS_API ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM&, Object const& options, RoundingMode fallback);
-JS_API ThrowCompletionOr<u64> get_rounding_increment_option(VM&, Object const& options);
+ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM&, Object const& options, RoundingMode fallback);
+ThrowCompletionOr<u64> get_rounding_increment_option(VM&, Object const& options);
 
-JS_API Crypto::SignedBigInteger big_floor(Crypto::SignedBigInteger const& numerator, Crypto::UnsignedBigInteger const& denominator);
+Crypto::SignedBigInteger big_floor(Crypto::SignedBigInteger const& numerator, Crypto::UnsignedBigInteger const& denominator);
 
 }

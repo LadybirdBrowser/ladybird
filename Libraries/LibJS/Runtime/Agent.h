@@ -14,7 +14,7 @@
 namespace JS {
 
 // https://tc39.es/ecma262/#sec-agents
-class JS_API Agent {
+class Agent {
 public:
     enum class CanBlock {
         Yes,
@@ -38,6 +38,6 @@ private:
     CanBlock m_can_block { false };
 };
 
-JS_API bool agent_can_suspend(VM const&);
+bool agent_can_suspend(VM const&);
 
 }

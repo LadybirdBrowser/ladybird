@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class JS_API Cell : public GC::Cell {
+class Cell : public GC::Cell {
     GC_CELL(Cell, GC::Cell);
 
 public:

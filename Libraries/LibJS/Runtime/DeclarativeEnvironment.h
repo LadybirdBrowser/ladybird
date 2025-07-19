@@ -15,7 +15,7 @@
 
 namespace JS {
 
-class JS_API DeclarativeEnvironment : public Environment {
+class DeclarativeEnvironment : public Environment {
     JS_ENVIRONMENT(DeclarativeEnvironment, Environment);
     GC_DECLARE_ALLOCATOR(DeclarativeEnvironment);
 

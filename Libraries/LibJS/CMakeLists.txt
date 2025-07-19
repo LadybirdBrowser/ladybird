@@ -266,7 +266,7 @@ set(SOURCES
     Token.cpp
 )
 
-ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
+ladybird_lib(LibJS js)
 target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibGC)
 
 # Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.

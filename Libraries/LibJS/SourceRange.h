@@ -15,7 +15,7 @@
 
 namespace JS {
 
-struct JS_API SourceRange {
+struct SourceRange {
     [[nodiscard]] bool contains(Position const& position) const { return position.offset <= end.offset && position.offset >= start.offset; }
 
     NonnullRefPtr<SourceCode const> code;
