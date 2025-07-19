@@ -1,0 +1,18 @@
+#import <HTML/HTMLCanvasElement.idl>
+#import <WebGPU/GPUDevice.idl>
+#import <WebGPU/GPUTexture.idl>
+
+// https://www.w3.org/TR/webgpu/#canvas-configuration
+dictionary GPUCanvasConfiguration {
+    required GPUDevice device;
+};
+
+// https://www.w3.org/TR/webgpu/#canvas-context
+[Exposed=(Window,Worker), SecureContext]
+interface GPUCanvasContext {
+    [ImplementedAs=canvas_for_binding] readonly attribute HTMLCanvasElement canvas;
+
+    undefined configure(GPUCanvasConfiguration configuration);
+
+    GPUTexture getCurrentTexture();
+};

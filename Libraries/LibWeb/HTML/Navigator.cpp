@@ -73,6 +73,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
     visitor.visit(m_credentials);
+    visitor.visit(m_gpu);
 }
 
 GC::Ref<MimeTypeArray> Navigator::mime_types()
@@ -115,6 +116,14 @@ GC::Ref<CredentialManagement::CredentialsContainer> Navigator::credentials()
     if (!m_credentials)
         m_credentials = realm().create<CredentialManagement::CredentialsContainer>(realm());
     return *m_credentials;
+}
+
+// https://www.w3.org/TR/webgpu/#navigator-gpu
+GC::Ref<WebGPU::GPU> Navigator::gpu()
+{
+    if (!m_gpu)
+        m_gpu = realm().create<WebGPU::GPU>(realm());
+    return *m_gpu;
 }
 
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints

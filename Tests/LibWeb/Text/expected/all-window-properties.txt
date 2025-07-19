@@ -138,6 +138,16 @@ FontFaceSet
 FormData
 FormDataEvent
 Function
+GPU
+GPUAdapter
+GPUCanvasContext
+GPUCommandBuffer
+GPUCommandEncoder
+GPUDevice
+GPUQueue
+GPURenderPassEncoder
+GPUTexture
+GPUTextureView
 GainNode
 Geolocation
 GeolocationCoordinates

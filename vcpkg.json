@@ -163,12 +163,22 @@
     "sqlite3",
     "vulkan",
     {
+      "name": "vk-bootstrap",
+      "platform": "!android"
+    },
+    {
+      "name": "vulkan-utility-libraries",
+      "platform": "!android"
+    },
+    {
       "name": "tiff",
       "features": [
         "zstd"
       ]
     },
     "vulkan-headers",
+    "spirv-tools",
+    "spirv-cross",
     "woff2",
     "zlib"
   ],

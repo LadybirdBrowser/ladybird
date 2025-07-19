@@ -1,0 +1,90 @@
+if (NOT ENABLE_WEBGPUNATIVE)
+    message(WARNING "No backend implementation for WebGPUNative available")
+    return()
+endif()
+
+set(SOURCES)
+ladybird_lib(LibWebGPUNative webgpunative EXPLICIT_SYMBOL_EXPORT)
+target_compile_definitions(LibWebGPUNative PRIVATE $<$<CONFIG:Debug>:WEBGPUNATIVE_DEBUG>)
+target_link_libraries(LibWebGPUNative PRIVATE AK LibCore)
+
+if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
+    set(WEBGPUNATIVE_METAL_BRIDGE_SOURCES
+        Metal/AdapterImpl.mm
+        Metal/DeviceImpl.mm
+    )
+    target_sources(LibWebGPUNative
+        PRIVATE
+            Metal/Adapter.cpp
+            Metal/AdapterImpl.swift
+            Metal/CommandBuffer.cpp
+            Metal/CommandBufferImpl.mm
+            Metal/CommandEncoder.cpp
+            Metal/CommandEncoderImpl.mm
+            Metal/Device.cpp
+            Metal/DeviceImpl.swift
+            Metal/Handle.mm
+            Metal/Instance.cpp
+            Metal/Queue.cpp
+            Metal/QueueImpl.mm
+            Metal/RenderPassEncoder.cpp
+            Metal/RenderPassEncoderImpl.mm
+            Metal/Texture.cpp
+            Metal/TextureImpl.mm
+            Metal/TextureView.cpp
+            Metal/TextureViewImpl.mm
+            ${WEBGPUNATIVE_METAL_BRIDGE_SOURCES}
+    )
+    find_library(METAL_FRAMEWORK Metal REQUIRED)
+    find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+    target_link_libraries(LibWebGPUNative PRIVATE ${METAL_FRAMEWORK} ${FOUNDATION_FRAMEWORK})
+    target_compile_definitions(LibWebGPUNative PUBLIC WEBGPUNATIVE_METAL)
+    # NOTE: Required for (__bridge_transfer NSString *) call in generated swift bindings header, otherwise build fails due to -Warc-bridge-casts-disallowed-in-nonarc
+    set_source_files_properties(${WEBGPUNATIVE_METAL_BRIDGE_SOURCES}
+        PROPERTIES
+            COMPILE_FLAGS
+                "-Wno-arc-bridge-casts-disallowed-in-nonarc"
+    )
+    add_swift_target_properties(LibWebGPUNative LAGOM_LIBRARIES AK LibCore)
+    generate_clang_module_map(LibWebGPUNative)
+elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
+    target_sources(LibWebGPUNative
+        PRIVATE
+            Vulkan/Adapter.cpp
+            Vulkan/AdapterImpl.cpp
+            Vulkan/CommandBuffer.cpp
+            Vulkan/CommandBufferImpl.cpp
+            Vulkan/CommandEncoder.cpp
+            Vulkan/CommandEncoderImpl.cpp
+            Vulkan/Device.cpp
+            Vulkan/DeviceImpl.cpp
+            Vulkan/Instance.cpp
+            Vulkan/InstanceImpl.cpp
+            Vulkan/Queue.cpp
+            Vulkan/QueueImpl.cpp
+            Vulkan/RenderPassEncoder.cpp
+            Vulkan/RenderPassEncoderImpl.cpp
+            Vulkan/Texture.cpp
+            Vulkan/TextureImpl.cpp
+            Vulkan/TextureView.cpp
+            Vulkan/TextureViewImpl.cpp
+    )
+    find_package(Vulkan REQUIRED)
+    find_package(VulkanUtilityLibraries CONFIG REQUIRED)
+    find_package(vk-bootstrap CONFIG REQUIRED)
+    target_link_libraries(LibWebGPUNative PRIVATE Vulkan::Vulkan Vulkan::UtilityHeaders vk-bootstrap::vk-bootstrap)
+    target_compile_definitions(LibWebGPUNative PUBLIC WEBGPUNATIVE_VULKAN)
+    if (WIN32)
+        # FIXME: Build vcpkg libraries with clang-cl so they can also build in sanitize. Currently the VkBootstrap lib
+        #  causes the following linker error in Windows_Sanitizer* presets only:
+        #   lld-link: error: /failifmismatch: mismatch detected for 'annotate_string':
+        #   >>> Lagom\Libraries\LibWebGPUNative\CMakeFiles\LibWebGPUNative.dir\Vulkan\TextureViewImpl.cpp.obj has value 1
+        #   >>> vk-bootstrap.lib(VkBootstrap.cpp.obj) has value 0
+        # https://learn.microsoft.com/en-us/answers/questions/864574/enabling-address-sanitizer-results-in-error-lnk203
+        if (ENABLE_WINDOWS_CI)
+            # We have to disable ASAN for the full target as fixing the issue in the initial TextureViewImpl.cpp TU
+            #  alone causes transitive issues in other TUs that depend on it
+            target_compile_options(LibWebGPUNative PRIVATE -fno-sanitize=address)
+        endif()
+    endif()
+endif()

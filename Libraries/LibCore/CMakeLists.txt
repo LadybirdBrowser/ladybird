@@ -134,7 +134,7 @@ if (ANDROID)
     target_link_libraries(LibCore PRIVATE log)
 endif()
 
-if (ENABLE_SWIFT)
+if (ENABLE_SWIFT OR ENABLE_WEBGPUNATIVE_METAL_IMPL)
     set(SWIFT_EXCLUDE_HEADERS "SocketAddressWindows.h")
     if(WIN32)
         list(APPEND SWIFT_EXCLUDE_HEADERS "EventLoopImplementationUnix.h")
