@@ -1,0 +1,79 @@
+Harness status: OK
+
+Found 73 tests
+
+53 Pass
+20 Fail
+Pass	no variable
+Pass	variable
+Pass	single char variable
+Pass	single char '-' variable
+Pass	no char variable
+Fail	white space value (single space)
+Fail	white space value (double space)
+Pass	overwrite
+Fail	can overwrite with no value
+Fail	can overwrite with space value
+Pass	case sensetivity
+Pass	case sensetivity2
+Pass	parsing three dashes at start of variable
+Pass	parsing multiple dashes with one dash at start of variable
+Pass	 leading white space (single space)
+Pass	 middle white space (single space)
+Pass	 trailing white space (single space)
+Pass	 leading white space (double space) 2
+Pass	 middle white space (double space) 2
+Pass	 trailing white space (double space) 2
+Pass	!important
+Fail	!important 2
+Fail	!important (with space)
+Pass	no variable (Computed Style)
+Pass	variable (Computed Style)
+Pass	single char variable (Computed Style)
+Pass	single char '-' variable (Computed Style)
+Pass	no char variable (Computed Style)
+Fail	white space value (single space) (Computed Style)
+Fail	white space value (double space) (Computed Style)
+Pass	overwrite (Computed Style)
+Fail	can overwrite with no value (Computed Style)
+Fail	can overwrite with space value (Computed Style)
+Pass	case sensetivity (Computed Style)
+Pass	case sensetivity2 (Computed Style)
+Pass	parsing three dashes at start of variable (Computed Style)
+Pass	parsing multiple dashes with one dash at start of variable (Computed Style)
+Pass	 leading white space (single space) (Computed Style)
+Pass	 middle white space (single space) (Computed Style)
+Pass	 trailing white space (single space) (Computed Style)
+Pass	 leading white space (double space) 2 (Computed Style)
+Pass	 middle white space (double space) 2 (Computed Style)
+Pass	 trailing white space (double space) 2 (Computed Style)
+Pass	!important (Computed Style)
+Fail	!important 2 (Computed Style)
+Fail	!important (with space) (Computed Style)
+Pass	no variable (Cascading)
+Pass	variable (Cascading)
+Pass	single char variable (Cascading)
+Pass	single char '-' variable (Cascading)
+Pass	no char variable (Cascading)
+Fail	white space value (single space) (Cascading)
+Fail	white space value (double space) (Cascading)
+Pass	overwrite (Cascading)
+Fail	can overwrite with no value (Cascading)
+Fail	can overwrite with space value (Cascading)
+Pass	case sensetivity (Cascading)
+Pass	case sensetivity2 (Cascading)
+Pass	parsing three dashes at start of variable (Cascading)
+Pass	parsing multiple dashes with one dash at start of variable (Cascading)
+Pass	 leading white space (single space) (Cascading)
+Pass	 middle white space (single space) (Cascading)
+Pass	 trailing white space (single space) (Cascading)
+Pass	 leading white space (double space) 2 (Cascading)
+Pass	 middle white space (double space) 2 (Cascading)
+Pass	 trailing white space (double space) 2 (Cascading)
+Pass	!important (Cascading)
+Fail	!important 2 (Cascading)
+Fail	!important (with space) (Cascading)
+Pass	basic CSSOM.setProperty
+Fail	CSSOM.setProperty with space 1
+Fail	CSSOM.setProperty with space 2
+Pass	CSSOM.setProperty with space 3
