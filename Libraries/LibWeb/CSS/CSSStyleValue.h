@@ -89,6 +89,7 @@ struct ColorResolutionContext {
     GC::Ptr<DOM::Document const> document;
     CalculationResolutionContext calculation_resolution_context;
 
+    [[nodiscard]] static ColorResolutionContext for_element(DOM::AbstractElement const&);
     [[nodiscard]] static ColorResolutionContext for_layout_node_with_style(Layout::NodeWithStyle const&);
 };
 

@@ -73,6 +73,20 @@
 
 namespace Web::CSS {
 
+ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement const& element)
+{
+    auto color_scheme = element.computed_properties()->color_scheme(element.document().page().preferred_color_scheme(), element.document().supported_color_schemes());
+
+    CalculationResolutionContext calculation_resolution_context { .length_resolution_context = Length::ResolutionContext::for_element(element) };
+
+    return {
+        .color_scheme = color_scheme,
+        .current_color = element.computed_properties()->color_or_fallback(PropertyID::Color, { color_scheme, CSS::InitialValues::color(), element.document(), calculation_resolution_context }, CSS::InitialValues::color()),
+        .document = element.document(),
+        .calculation_resolution_context = calculation_resolution_context
+    };
+}
+
 ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout::NodeWithStyle const& layout_node)
 {
     return {
