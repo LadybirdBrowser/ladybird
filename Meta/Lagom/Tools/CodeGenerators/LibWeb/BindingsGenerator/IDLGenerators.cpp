@@ -324,7 +324,20 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 
 static ByteString make_input_acceptable_cpp(ByteString const& input)
 {
-    if (input.is_one_of("class", "template", "for", "default", "char", "namespace", "delete", "inline", "register", "switch", "mutable", "continue")) {
+    if (input.is_one_of(
+            "char",
+            "class",
+            "continue",
+            "default",
+            "delete",
+            "for",
+            "initialize",
+            "inline",
+            "mutable",
+            "namespace",
+            "register",
+            "switch",
+            "template")) {
         StringBuilder builder;
         builder.append(input);
         builder.append('_');
@@ -1652,7 +1665,12 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
                         union_generator.append(R"~~~(
     @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @parameter.optional_default_value@ : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
+                    } else if (optional_default_value == "true"sv || optional_default_value == "false"sv) {
+                        union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @parameter.optional_default_value@ : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
                     } else {
+                        dbgln("Don't know how to handle optional default value of `{}`", *optional_default_value);
                         TODO();
                     }
                 }
@@ -2715,22 +2733,24 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
         // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
         // Important steps from "internally create a new object implementing the interface"
-        // 3.2: Let prototype be ? Get(newTarget, "prototype").
-        auto prototype = TRY(new_target.get(vm.names.prototype));
+        {
+            // 3.2: Let prototype be ? Get(newTarget, "prototype").
+            auto prototype = TRY(new_target.get(vm.names.prototype));
 
-        // 3.3. If Type(prototype) is not Object, then:
-        if (!prototype.is_object()) {
-            // 1. Let targetRealm be ? GetFunctionRealm(newTarget).
-            auto* target_realm = TRY(JS::get_function_realm(vm, new_target));
+            // 3.3. If Type(prototype) is not an Object, then:
+            if (!prototype.is_object()) {
+                // 1. Let targetRealm be ? GetFunctionRealm(newTarget).
+                auto* target_realm = TRY(JS::get_function_realm(vm, new_target));
 
-            // 2. Set prototype to the interface prototype object for interface in targetRealm.
-            VERIFY(target_realm);
-            prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@name@"_fly_string);
+                // 2. Set prototype to the interface prototype object for interface in targetRealm.
+                VERIFY(target_realm);
+                prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@name@"_fly_string);
+            }
+
+            // 9. Set instance.[[Prototype]] to prototype.
+            VERIFY(prototype.is_object());
+            MUST(element->internal_set_prototype_of(&prototype.as_object()));
         }
-
-        // 7. Set instance.[[Prototype]] to prototype.
-        VERIFY(prototype.is_object());
-        MUST(element->internal_set_prototype_of(&prototype.as_object()));
 
         // 6. Set element's custom element state to "custom".
         // 7. Set element's custom element definition to definition.
