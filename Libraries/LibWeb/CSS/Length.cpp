@@ -137,6 +137,21 @@ CSSPixels Length::viewport_relative_length_to_px(CSSPixelRect const& viewport_re
     }
 }
 
+Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractElement const& element)
+{
+    auto const* root_element = element.element().document().document_element();
+
+    VERIFY(element.computed_properties());
+    VERIFY(root_element);
+    VERIFY(root_element->computed_properties());
+
+    return Length::ResolutionContext {
+        .viewport_rect = element.element().navigable()->viewport_rect(),
+        .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font().pixel_metrics() },
+        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font().pixel_metrics() }
+    };
+}
+
 Length::ResolutionContext Length::ResolutionContext::for_window(HTML::Window const& window)
 {
     auto const& initial_font = window.associated_document().style_computer().initial_font();
