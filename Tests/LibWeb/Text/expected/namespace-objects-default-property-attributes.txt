@@ -1,4 +1,9 @@
 == CSS property descriptors
+registerProperty writable: true
+registerProperty configurable: true
+registerProperty enumerable: true
+registerProperty value before: function registerProperty() { [native code] }
+registerProperty value after: replaced
 supports writable: true
 supports configurable: true
 supports enumerable: true
