@@ -218,6 +218,15 @@ void Animatable::clear_transitions(Optional<CSS::PseudoElement> pseudo_element)
     transition.transition_attributes.clear();
 }
 
+void Animatable::remove_animations_from_timeline()
+{
+    // This is needed to avoid leaking Animation objects
+    auto& impl = ensure_impl();
+    for (auto animation : impl.associated_animations) {
+        animation->set_timeline({});
+    }
+}
+
 void Animatable::visit_edges(JS::Cell::Visitor& visitor)
 {
     auto& impl = ensure_impl();
