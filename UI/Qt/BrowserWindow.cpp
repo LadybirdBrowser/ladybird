@@ -328,6 +328,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     inspect_menu->addAction(m_view_source_action);
     QObject::connect(m_view_source_action, &QAction::triggered, this, [this] {
         if (m_current_tab) {
+            // Prevent recursive view source: check if current page is already a source view
+            auto current_title = m_current_tab->view().title();
+            if (current_title.starts_with("View Source -"sv)) {
+                // Already viewing source, don't allow recursive source viewing
+                return;
+            }
+
             m_current_tab->view().get_source();
         }
     });
@@ -725,6 +732,11 @@ void BrowserWindow::set_current_tab(Tab* tab)
     if (tab) {
         update_displayed_zoom_level();
         tab->update_navigation_buttons_state();
+
+        // Update view source action state based on current page
+        auto current_title = tab->view().title();
+        bool is_already_viewing_source = current_title.starts_with("View Source -"sv);
+        m_view_source_action->setEnabled(!is_already_viewing_source);
     }
 }
 
@@ -902,8 +914,14 @@ void BrowserWindow::tab_title_changed(int index, QString const& title)
     m_tabs_container->setTabText(index, title_escaped);
     m_tabs_container->setTabToolTip(index, title);
 
-    if (m_tabs_container->currentIndex() == index)
+    if (m_tabs_container->currentIndex() == index) {
         setWindowTitle(QString("%1 - Ladybird").arg(title));
+
+        // Update view source action state when current tab title changes
+        auto title_string = ak_string_from_qstring(title);
+        bool is_already_viewing_source = title_string.starts_with_bytes("View Source -"sv);
+        m_view_source_action->setEnabled(!is_already_viewing_source);
+    }
 }
 
 void BrowserWindow::tab_favicon_changed(int index, QIcon const& icon)

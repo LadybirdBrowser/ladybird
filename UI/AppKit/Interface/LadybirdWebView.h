@@ -88,6 +88,6 @@
 
 - (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument;
 
-- (void)viewSource;
+- (void)viewSource:(id)sender;
 
 @end
