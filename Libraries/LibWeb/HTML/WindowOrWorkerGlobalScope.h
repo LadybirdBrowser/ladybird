@@ -103,6 +103,8 @@ public:
 
     [[nodiscard]] GC::Ref<ServiceWorker::CacheStorage> caches();
 
+    [[nodiscard]] GC::Ref<TrustedTypes::TrustedTypePolicyFactory> trusted_types();
+
 protected:
     void initialize(JS::Realm&);
     void visit_edges(JS::Cell::Visitor&);
@@ -150,6 +152,8 @@ private:
     GC::Ptr<Crypto::Crypto> m_crypto;
 
     GC::Ptr<ServiceWorker::CacheStorage> m_cache_storage;
+
+    GC::Ptr<TrustedTypes::TrustedTypePolicyFactory> m_trusted_type_policy_factory;
 
     bool m_error_reporting_mode { false };
 
