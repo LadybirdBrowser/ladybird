@@ -82,25 +82,32 @@ WebIDL::ExceptionOr<void> ImageBitmap::deserialization_steps(HTML::TransferDataD
     return {};
 }
 
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataEncoder&)
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-steps
+WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataEncoder& data_holder)
 {
-    // FIXME: Implement this
-    dbgln("(STUBBED) ImageBitmap::transfer_steps(HTML::TransferDataEncoder&)");
+    // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
+
+    // 2. Set dataHolder.[[BitmapData]] to value's bitmap data.
+    serialize_bitmap(data_holder, *m_bitmap);
+
+    // 3. Unset value's bitmap data.
+    m_bitmap = nullptr;
+
     return {};
 }
 
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_receiving_steps(HTML::TransferDataDecoder&)
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-receiving-steps
+WebIDL::ExceptionOr<void> ImageBitmap::transfer_receiving_steps(HTML::TransferDataDecoder& data_holder)
 {
-    // FIXME: Implement this
-    dbgln("(STUBBED) ImageBitmap::transfer_receiving_steps(HTML::TransferDataDecoder&)");
+    // 1. Set value's bitmap data to dataHolder.[[BitmapData]].
+    m_bitmap = TRY(deserialize_bitmap(this->realm(), data_holder));
+
     return {};
 }
 
 HTML::TransferType ImageBitmap::primary_interface() const
 {
-    // FIXME: Implement this
-    dbgln("(STUBBED) ImageBitmap::primary_interface()");
-    return TransferType::Unknown;
+    return TransferType::ImageBitmap;
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagebitmap-width
