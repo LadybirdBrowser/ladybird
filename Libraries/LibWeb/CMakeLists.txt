@@ -75,8 +75,10 @@ set(SOURCES
     Cookie/ParsedCookie.cpp
     CredentialManagement/Credential.cpp
     CredentialManagement/CredentialsContainer.cpp
+    CredentialManagement/CredentialUserData.cpp
     CredentialManagement/FederatedCredential.cpp
     CredentialManagement/PasswordCredential.cpp
+    CredentialManagement/PasswordCredentialOperations.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp
