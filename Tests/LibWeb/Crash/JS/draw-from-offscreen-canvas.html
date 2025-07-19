@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<canvas id="canvas" width="100" height="50">
+  <p class="fallback">FAIL (fallback content)</p>
+</canvas>
+<script id='myWorker' type='text/worker'>
+  self.onmessage = function(e) {
+    const canvas = new OffscreenCanvas(100, 50);
+    const ctx = canvas.getContext('2d');
+    const bitmap = canvas.transferToImageBitmap();
+    self.postMessage(bitmap, bitmap);
+  };
+</script>
+<script>
+  const blob = new Blob([document.getElementById('myWorker').textContent]);
+  const worker = new Worker(URL.createObjectURL(blob));
+  worker.addEventListener('message', msg => {
+    const outputCtx = document.getElementById("canvas").getContext('2d');
+    outputCtx.drawImage(msg.data, 0, 0);
+  });
+  worker.postMessage(null);
+</script>
+</html>
