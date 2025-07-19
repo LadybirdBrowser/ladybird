@@ -38,11 +38,11 @@ GC::Ptr<Layout::Node> SVGFEFloodElement::create_layout_node(GC::Ref<CSS::Compute
 }
 
 // https://www.w3.org/TR/filter-effects-1/#FloodColorProperty
-Gfx::Color SVGFEFloodElement::flood_color() const
+Gfx::Color SVGFEFloodElement::flood_color()
 {
-    // FIXME: Find a way to get the Gfx::Color of the flood_color property
-    //        without having a layout node.
-    return Color::Black;
+    if (this->computed_properties())
+        return this->computed_properties()->color_or_fallback(CSS::PropertyID::FloodColor, CSS::ColorResolutionContext::for_element({ *this }), CSS::InitialValues::flood_color());
+    return CSS::InitialValues::flood_color();
 }
 
 // https://www.w3.org/TR/filter-effects-1/#FloodOpacityProperty

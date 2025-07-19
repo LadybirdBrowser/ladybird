@@ -443,16 +443,6 @@ ClipRule ComputedProperties::clip_rule() const
     return keyword_to_fill_rule(value.to_keyword()).release_value();
 }
 
-Color ComputedProperties::flood_color(Layout::NodeWithStyle const& node) const
-{
-    auto const& value = property(PropertyID::FloodColor);
-    if (value.has_color()) {
-        return value.to_color(ColorResolutionContext::for_layout_node_with_style(node)).value();
-    }
-
-    return InitialValues::flood_color();
-}
-
 float ComputedProperties::flood_opacity() const
 {
     auto const& value = property(PropertyID::FloodOpacity);
