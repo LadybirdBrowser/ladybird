@@ -984,6 +984,7 @@ class SVGAnimatedLength;
 class SVGAnimatedRect;
 class SVGCircleElement;
 class SVGClipPathElement;
+class SVGDecodedImageData;
 class SVGDefsElement;
 class SVGDescElement;
 class SVGElement;
@@ -1007,6 +1008,7 @@ class SVGRectElement;
 class SVGScriptElement;
 class SVGSVGElement;
 class SVGTitleElement;
+class SVGViewElement;
 
 }
 

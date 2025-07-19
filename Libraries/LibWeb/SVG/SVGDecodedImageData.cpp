@@ -22,6 +22,7 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/SVGViewElement.h>
 
 namespace Web::SVG {
 
@@ -69,6 +70,16 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     auto* svg_root = document->body()->first_child_of_type<SVG::SVGSVGElement>();
     if (!svg_root)
         return Error::from_string_literal("SVGDecodedImageData: Invalid SVG input");
+
+    // FIXME: Add support for all types of SVG fragment identifier.
+    //        See: https://svgwg.org/svg2-draft/linking.html#LinksIntoSVG
+    if (url.fragment().has_value()) {
+        if (auto referenced_element = document->get_element_by_id(*url.fragment())) {
+            if (auto* view_element = as_if<SVGViewElement>(*referenced_element)) {
+                svg_root->set_active_view_element({}, *view_element);
+            }
+        }
+    }
 
     svg_root->remove();
     document->remove_all_children();

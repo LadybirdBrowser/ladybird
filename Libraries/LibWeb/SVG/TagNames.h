@@ -42,7 +42,8 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(textPath)       \
     __ENUMERATE_SVG_TAG(title)          \
     __ENUMERATE_SVG_TAG(tspan)          \
-    __ENUMERATE_SVG_TAG(use)
+    __ENUMERATE_SVG_TAG(use)            \
+    __ENUMERATE_SVG_TAG(view)
 
 #define __ENUMERATE_SVG_TAG(name) extern FlyString name;
 ENUMERATE_SVG_TAGS
