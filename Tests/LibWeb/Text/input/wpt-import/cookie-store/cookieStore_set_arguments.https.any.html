@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Cookie Store API: cookieStore.set() arguments</title>
+<script>
+self.GLOBAL = {
+  isWindow: function() { return true; },
+  isWorker: function() { return false; },
+  isShadowRealm: function() { return false; },
+};
+</script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/cookie-test-helpers.js"></script>
+<div id=log></div>
+<script src="../cookie-store/cookieStore_set_arguments.https.any.js"></script>
