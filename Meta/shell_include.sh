@@ -66,7 +66,7 @@ get_build_dir() {
 
     # Note: Keep in sync with buildDir defaults in CMakePresets.json
     case "$1" in
-        "default")
+        "Release")
             BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/release"
             ;;
         "Debug")
