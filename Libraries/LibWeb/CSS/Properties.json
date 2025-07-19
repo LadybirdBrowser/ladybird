@@ -456,7 +456,7 @@
     "initial": "repeat",
     "max-values": 2,
     "valid-types": [
-      "repeat"
+      "repetition"
     ],
     "valid-identifiers": [
       "repeat-x",
@@ -2370,11 +2370,39 @@
   },
   "mask": {
     "inherited": false,
-    "__comment": "FIXME: add longhands mask-clip, mask-composite, mask-mode, mask-origin, mask-position, mask-repeat, mask-size; also reset mask-border",
+    "affects-layout": false,
     "initial": "none",
     "longhands": [
-      "mask-image"
+      "mask-clip",
+      "mask-composite",
+      "mask-image",
+      "mask-mode",
+      "mask-origin",
+      "mask-position",
+      "mask-repeat",
+      "mask-size"
     ]
+  },
+  "mask-clip": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "valid-types": [
+      "coord-box"
+    ],
+    "valid-identifiers": [
+      "no-clip"
+    ],
+    "initial": "border-box"
+  },
+  "mask-composite": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "valid-types": [
+      "compositing-operator"
+    ],
+    "initial": "add"
   },
   "mask-image": {
     "animation-type": "discrete",
@@ -2389,6 +2417,65 @@
       "none"
     ],
     "initial": "none"
+  },
+  "mask-mode": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "valid-types": [
+      "masking-mode"
+    ],
+    "initial": "match-source"
+  },
+  "mask-origin": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "valid-types": [
+      "coord-box"
+    ],
+    "initial": "border-box"
+  },
+  "mask-position": {
+    "animation-type": "repeatable-list",
+    "affects-layout": false,
+    "inherited": false,
+    "initial": "0% 0%",
+    "valid-types": [
+      "position"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "mask-repeat": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "repeat",
+    "max-values": 2,
+    "valid-types": [
+      "repetition"
+    ],
+    "valid-identifiers": [
+      "repeat-x",
+      "repeat-y"
+    ]
+  },
+  "mask-size": {
+    "affects-layout": false,
+    "animation-type": "repeatable-list",
+    "inherited": false,
+    "initial": "auto",
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "cover",
+      "contain"
+    ],
+    "percentages-resolve-to": "length"
   },
   "mask-type": {
     "animation-type": "discrete",
