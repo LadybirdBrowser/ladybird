@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/HashTable.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
@@ -20,6 +21,6 @@ struct PrintContext {
     bool raw_strings { false };
 };
 
-ErrorOr<void> print(JS::Value value, PrintContext&);
+JS_API ErrorOr<void> print(JS::Value value, PrintContext&);
 
 }

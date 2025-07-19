@@ -11,11 +11,12 @@
 #include <AK/Error.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibJS/Export.h>
 #include <LibJS/SourceRange.h>
 
 namespace JS {
 
-struct ParserError {
+struct JS_API ParserError {
     String message;
     Optional<Position> position;
 

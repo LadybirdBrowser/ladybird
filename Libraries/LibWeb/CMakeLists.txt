@@ -1053,19 +1053,4 @@ if (ENABLE_SWIFT)
     )
     target_link_libraries(LibWeb PRIVATE AK Collections)
     add_swift_target_properties(LibWeb LAGOM_LIBRARIES AK LibGfx LibGC)
-elseif (WIN32)
-    # FIXME: This is a hack to get around lld-link error undefined symbol JS::BigInt::cell_allocator
-    #        LibJS BigInt.obj and other .obj's it depends on is given directly to LibWeb linker
-    target_link_libraries(LibWeb PRIVATE
-        $<FILTER:$<TARGET_OBJECTS:LibJS>,INCLUDE,BigInt>
-        $<FILTER:$<TARGET_OBJECTS:LibJS>,INCLUDE,ErrorType>
-    )
-
-    # FIXME: This is a hack to get around lld-link error undefined symbol JS::GlobalEnvironment::cell_allocator
-    #        LibJS GlobalEnvironment.obj and other .obj's it depends on is given directly to LibWeb linker
-    target_link_libraries(LibWeb PRIVATE
-        $<FILTER:$<TARGET_OBJECTS:LibJS>,INCLUDE,GlobalEnvironment>
-        $<FILTER:$<TARGET_OBJECTS:LibJS>,INCLUDE,ObjectEnvironment>
-        $<FILTER:$<TARGET_OBJECTS:LibJS>,INCLUDE,DeclarativeEnvironment>
-    )
 endif()

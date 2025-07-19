@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/ByteLength.h>
@@ -91,10 +92,10 @@ struct TypedArrayWithBufferWitness {
     ByteLength cached_buffer_byte_length; // [[CachedBufferByteLength]]
 };
 
-TypedArrayWithBufferWitness make_typed_array_with_buffer_witness_record(TypedArrayBase const&, ArrayBuffer::Order);
-u32 typed_array_byte_length(TypedArrayWithBufferWitness const&);
-u32 typed_array_length(TypedArrayWithBufferWitness const&);
-bool is_typed_array_out_of_bounds(TypedArrayWithBufferWitness const&);
+JS_API TypedArrayWithBufferWitness make_typed_array_with_buffer_witness_record(TypedArrayBase const&, ArrayBuffer::Order);
+JS_API u32 typed_array_byte_length(TypedArrayWithBufferWitness const&);
+JS_API u32 typed_array_length(TypedArrayWithBufferWitness const&);
+JS_API bool is_typed_array_out_of_bounds(TypedArrayWithBufferWitness const&);
 bool is_typed_array_fixed_length(TypedArrayBase const&);
 bool is_valid_integer_index_slow_case(TypedArrayBase const&, CanonicalIndex property_index);
 
@@ -507,14 +508,14 @@ protected:
     }
 };
 
-ThrowCompletionOr<TypedArrayBase*> typed_array_from(VM&, Value);
+JS_API ThrowCompletionOr<TypedArrayBase*> typed_array_from(VM&, Value);
 ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM&, FunctionObject& constructor, GC::RootVector<Value> arguments);
 ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM&, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments);
 ThrowCompletionOr<TypedArrayWithBufferWitness> validate_typed_array(VM&, Object const&, ArrayBuffer::Order);
 ThrowCompletionOr<double> compare_typed_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
 
 #define JS_DECLARE_TYPED_ARRAY(ClassName, snake_name, PrototypeName, ConstructorName, Type)                  \
-    class ClassName : public TypedArray<Type> {                                                              \
+    class JS_API ClassName : public TypedArray<Type> {                                                       \
         JS_OBJECT(ClassName, TypedArray);                                                                    \
         GC_DECLARE_ALLOCATOR(ClassName);                                                                     \
                                                                                                              \

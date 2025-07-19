@@ -9,13 +9,14 @@
 #include <AK/NonnullRefPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
+#include <LibJS/Export.h>
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/Realm.h>
 
 namespace JS {
 
 // 16.1.4 Script Records, https://tc39.es/ecma262/#sec-script-records
-class Script final : public Cell {
+class JS_API Script final : public Cell {
     GC_CELL(Script, Cell);
     GC_DECLARE_ALLOCATOR(Script);
 

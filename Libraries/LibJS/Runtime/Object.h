@@ -11,6 +11,7 @@
 #include <AK/StringView.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/RootVector.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Completion.h>
@@ -51,7 +52,7 @@ struct CacheablePropertyMetadata {
     GC::Ptr<Object const> prototype;
 };
 
-class Object : public Cell
+class JS_API Object : public Cell
     , public Weakable<Object> {
     GC_CELL(Object, Cell);
     GC_DECLARE_ALLOCATOR(Object);

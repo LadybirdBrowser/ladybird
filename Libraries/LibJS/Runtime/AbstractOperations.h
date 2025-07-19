@@ -10,6 +10,7 @@
 #include <AK/Forward.h>
 #include <LibCrypto/Forward.h>
 #include <LibGC/RootVector.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/CanonicalIndex.h>
 #include <LibJS/Runtime/Environment.h>
@@ -24,29 +25,29 @@
 namespace JS {
 
 GC::Ref<DeclarativeEnvironment> new_declarative_environment(Environment&);
-GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, Environment*);
+JS_API GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, Environment*);
 GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject&, Object* new_target);
 GC::Ref<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer);
 GC::Ref<Environment> get_this_environment(VM&);
 bool can_be_held_weakly(Value);
 Object* get_super_constructor(VM&);
 ThrowCompletionOr<Value> require_object_coercible(VM&, Value);
-ThrowCompletionOr<Value> call_impl(VM&, Value function, Value this_value, ReadonlySpan<Value> arguments = {});
-ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_value, ReadonlySpan<Value> arguments = {});
-ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject&, ReadonlySpan<Value> arguments = {}, FunctionObject* new_target = nullptr);
-ThrowCompletionOr<size_t> length_of_array_like(VM&, Object const&);
+JS_API ThrowCompletionOr<Value> call_impl(VM&, Value function, Value this_value, ReadonlySpan<Value> arguments = {});
+JS_API ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_value, ReadonlySpan<Value> arguments = {});
+JS_API ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject&, ReadonlySpan<Value> arguments = {}, FunctionObject* new_target = nullptr);
+JS_API ThrowCompletionOr<size_t> length_of_array_like(VM&, Object const&);
 ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM&, Value, Function<ThrowCompletionOr<void>(Value)> = {});
 ThrowCompletionOr<FunctionObject*> species_constructor(VM&, Object const&, FunctionObject& default_constructor);
-ThrowCompletionOr<Realm*> get_function_realm(VM&, FunctionObject const&);
+JS_API ThrowCompletionOr<Realm*> get_function_realm(VM&, FunctionObject const&);
 ThrowCompletionOr<void> initialize_bound_name(VM&, FlyString const&, Value, Environment*);
 bool is_compatible_property_descriptor(bool extensible, PropertyDescriptor const&, Optional<PropertyDescriptor> const& current);
 bool validate_and_apply_property_descriptor(Object*, PropertyKey const&, bool extensible, PropertyDescriptor const&, Optional<PropertyDescriptor> const& current);
-ThrowCompletionOr<Object*> get_prototype_from_constructor(VM&, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)());
+JS_API ThrowCompletionOr<Object*> get_prototype_from_constructor(VM&, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)());
 Object* create_unmapped_arguments_object(VM&, ReadonlySpan<Value> arguments);
 Object* create_mapped_arguments_object(VM&, FunctionObject&, NonnullRefPtr<FunctionParameters const> const&, ReadonlySpan<Value> arguments, Environment&);
 
 // 2.1.1 DisposeCapability Records, https://tc39.es/proposal-explicit-resource-management/#sec-disposecapability-records
-struct DisposeCapability {
+struct JS_API DisposeCapability {
     void visit_edges(GC::Cell::Visitor&) const;
 
     Vector<DisposableResource> disposable_resource_stack; // [[DisposableResourceStack]]
@@ -61,8 +62,8 @@ struct DisposableResource {
     GC::Ptr<FunctionObject> dispose_method;  // [[DisposeMethod]]
 };
 
-DisposeCapability new_dispose_capability();
-ThrowCompletionOr<void> add_disposable_resource(VM&, DisposeCapability&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> = {});
+JS_API DisposeCapability new_dispose_capability();
+JS_API ThrowCompletionOr<void> add_disposable_resource(VM&, DisposeCapability&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> = {});
 ThrowCompletionOr<DisposableResource> create_disposable_resource(VM&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> = {});
 ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM&, Value, Environment::InitializeBindingHint);
 Completion dispose(VM&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> method);

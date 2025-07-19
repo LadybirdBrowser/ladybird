@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/RedBlackTree.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Value.h>
@@ -15,7 +16,7 @@
 
 namespace JS {
 
-class Map : public Object {
+class JS_API Map : public Object {
     JS_OBJECT(Map, Object);
     GC_DECLARE_ALLOCATOR(Map);
 

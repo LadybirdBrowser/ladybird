@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 
@@ -65,6 +66,6 @@ private:
     __TRY_OR_REJECT(vm, capability, expression, MUST)
 
 // 27.2.1.5 NewPromiseCapability ( C ), https://tc39.es/ecma262/#sec-newpromisecapability
-ThrowCompletionOr<GC::Ref<PromiseCapability>> new_promise_capability(VM& vm, Value constructor);
+JS_API ThrowCompletionOr<GC::Ref<PromiseCapability>> new_promise_capability(VM& vm, Value constructor);
 
 }

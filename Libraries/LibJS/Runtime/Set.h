@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Map.h>
 #include <LibJS/Runtime/Object.h>
@@ -13,7 +14,7 @@
 
 namespace JS {
 
-class Set : public Object {
+class JS_API Set : public Object {
     JS_OBJECT(Set, Object);
     GC_DECLARE_ALLOCATOR(Set);
 

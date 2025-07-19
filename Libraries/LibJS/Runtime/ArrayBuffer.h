@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/Variant.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -54,7 +55,7 @@ struct DataBlock {
     Shared is_shared = { Shared::No };
 };
 
-class ArrayBuffer : public Object {
+class JS_API ArrayBuffer : public Object {
     JS_OBJECT(ArrayBuffer, Object);
     GC_DECLARE_ALLOCATOR(ArrayBuffer);
 
@@ -145,14 +146,14 @@ private:
     Value m_detach_key;
 };
 
-ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size);
-void copy_data_block_bytes(ByteBuffer& to_block, u64 to_index, ByteBuffer const& from_block, u64 from_index, u64 count);
+JS_API ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size);
+JS_API void copy_data_block_bytes(ByteBuffer& to_block, u64 to_index, ByteBuffer const& from_block, u64 from_index, u64 count);
 ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM&, FunctionObject& constructor, size_t byte_length, Optional<size_t> const& max_byte_length = {});
 ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM&, ArrayBuffer& array_buffer, Value new_length, PreserveResizability preserve_resizability);
-ThrowCompletionOr<void> detach_array_buffer(VM&, ArrayBuffer& array_buffer, Optional<Value> key = {});
+JS_API ThrowCompletionOr<void> detach_array_buffer(VM&, ArrayBuffer& array_buffer, Optional<Value> key = {});
 ThrowCompletionOr<Optional<size_t>> get_array_buffer_max_byte_length_option(VM&, Value options);
-ThrowCompletionOr<ArrayBuffer*> clone_array_buffer(VM&, ArrayBuffer& source_buffer, size_t source_byte_offset, size_t source_length);
-ThrowCompletionOr<GC::Ref<ArrayBuffer>> allocate_shared_array_buffer(VM&, FunctionObject& constructor, size_t byte_length);
+JS_API ThrowCompletionOr<ArrayBuffer*> clone_array_buffer(VM&, ArrayBuffer& source_buffer, size_t source_byte_offset, size_t source_length);
+JS_API ThrowCompletionOr<GC::Ref<ArrayBuffer>> allocate_shared_array_buffer(VM&, FunctionObject& constructor, size_t byte_length);
 
 // 25.1.3.2 ArrayBufferByteLength ( arrayBuffer, order ), https://tc39.es/ecma262/#sec-arraybufferbytelength
 inline size_t array_buffer_byte_length(ArrayBuffer const& array_buffer, ArrayBuffer::Order)

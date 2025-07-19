@@ -12,6 +12,7 @@
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
 #include <LibGC/CellAllocator.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Completion.h>
@@ -19,7 +20,7 @@
 
 namespace JS {
 
-class PrimitiveString : public Cell {
+class JS_API PrimitiveString : public Cell {
     GC_CELL(PrimitiveString, Cell);
     GC_DECLARE_ALLOCATOR(PrimitiveString);
 

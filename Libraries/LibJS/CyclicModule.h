@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Module.h>
 
@@ -23,7 +24,7 @@ enum class ModuleStatus {
 };
 
 // 16.2.1.5 Cyclic Module Records, https://tc39.es/ecma262/#cyclic-module-record
-class CyclicModule : public Module {
+class JS_API CyclicModule : public Module {
     GC_CELL(CyclicModule, Module);
     GC_DECLARE_ALLOCATOR(CyclicModule);
 

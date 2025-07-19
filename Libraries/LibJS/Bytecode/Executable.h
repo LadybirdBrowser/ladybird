@@ -15,6 +15,7 @@
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/StringTable.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/LocalVariable.h>
@@ -47,7 +48,7 @@ struct SourceRecord {
     u32 source_end_offset {};
 };
 
-class Executable final : public Cell {
+class JS_API Executable final : public Cell {
     GC_CELL(Executable, Cell);
     GC_DECLARE_ALLOCATOR(Executable);
 

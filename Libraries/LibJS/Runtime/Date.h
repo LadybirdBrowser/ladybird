@@ -8,12 +8,13 @@
 #pragma once
 
 #include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibUnicode/TimeZone.h>
 
 namespace JS {
 
-class Date final : public Object {
+class JS_API Date final : public Object {
     JS_OBJECT(Date, Object);
     GC_DECLARE_ALLOCATOR(Date);
 
@@ -68,27 +69,27 @@ double time_within_day(double);
 u16 days_in_year(i32);
 double day_from_year(i32);
 double time_from_year(i32);
-i32 year_from_time(double);
+JS_API i32 year_from_time(double);
 u16 day_within_year(double);
 bool in_leap_year(double);
-u8 month_from_time(double);
-u8 date_from_time(double);
+JS_API u8 month_from_time(double);
+JS_API u8 date_from_time(double);
 u8 week_day(double);
-u8 hour_from_time(double);
-u8 min_from_time(double);
-u8 sec_from_time(double);
-u16 ms_from_time(double);
+JS_API u8 hour_from_time(double);
+JS_API u8 min_from_time(double);
+JS_API u8 sec_from_time(double);
+JS_API u16 ms_from_time(double);
 Crypto::SignedBigInteger get_utc_epoch_nanoseconds(Temporal::ISODateTime const&);
 Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringView time_zone_identifier, Temporal::ISODateTime const&);
 Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds);
 Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(StringView time_zone_identifier, double epoch_milliseconds);
 String system_time_zone_identifier();
-void clear_system_time_zone_cache();
+JS_API void clear_system_time_zone_cache();
 double local_time(double time);
 double utc_time(double time);
-double make_time(double hour, double min, double sec, double ms);
-double make_day(double year, double month, double date);
-double make_date(double day, double time);
+JS_API double make_time(double hour, double min, double sec, double ms);
+JS_API double make_day(double year, double month, double date);
+JS_API double make_date(double day, double time);
 double time_clip(double time);
 bool is_offset_time_zone_identifier(StringView offset_string);
 ThrowCompletionOr<double> parse_date_time_utc_offset(VM&, StringView offset_string);
