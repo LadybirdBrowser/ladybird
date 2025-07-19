@@ -1,0 +1,5 @@
+# Generated from 'DEPS'
+checkout_angle_internal = false
+checkout_angle_mesa = false
+checkout_angle_restricted_traces = false
+generate_location_tags = false
