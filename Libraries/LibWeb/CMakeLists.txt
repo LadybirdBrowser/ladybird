@@ -1054,3 +1054,31 @@ if (ENABLE_SWIFT)
     target_link_libraries(LibWeb PRIVATE AK Collections)
     add_swift_target_properties(LibWeb LAGOM_LIBRARIES AK LibGfx LibGC)
 endif()
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(LibWeb PROPERTIES UNITY_BUILD ON)
+
+    set_source_files_properties(
+        Platform/AudioCodecPlugin.cpp
+        Platform/AudioCodecPluginAgnostic.cpp
+        Platform/EventLoopPlugin.cpp
+        Platform/EventLoopPluginSerenity.cpp
+        Platform/FontPlugin.cpp
+        Platform/ImageCodecPlugin.cpp
+        HTML/SyntaxHighlighter/SyntaxHighlighter.cpp
+        HTML/Parser/HTMLTokenizer.cpp
+        HTML/Parser/HTMLParser.cpp
+        HTML/TrackEvent.cpp
+        Painting/SVGSVGPaintable.cpp
+        Painting/StackingContext.cpp
+        WebGL/WebGLRenderingContextImpl.cpp
+        WebGL/WebGL2RenderingContextImpl.cpp
+        XML/XMLDocumentBuilder.cpp
+        HTML/TraversableNavigable.cpp
+        Layout/FlexFormattingContext.cpp
+        Layout/GridFormattingContext.cpp
+        SRI/SRI.cpp
+        ${LIBWEB_BINDINGS_SOURCES}
+        PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
+    )
+endif()
