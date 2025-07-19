@@ -27,7 +27,7 @@ public:
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     float stop_offset() { return offset()->base_val(); }
-    Gfx::Color stop_color() const;
+    Gfx::Color stop_color();
     float stop_opacity() const;
 
 private:

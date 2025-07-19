@@ -185,7 +185,6 @@ public:
     Optional<Transformation> scale() const;
 
     MaskType mask_type() const;
-    Color stop_color() const;
     float stop_opacity() const;
     float fill_opacity() const;
     StrokeLinecap stroke_linecap() const;
