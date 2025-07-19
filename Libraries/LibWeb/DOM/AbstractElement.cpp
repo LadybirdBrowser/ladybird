@@ -1,9 +1,11 @@
 /*
  * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
@@ -114,7 +116,7 @@ bool AbstractElement::has_non_empty_counters_set() const
     return m_element->has_non_empty_counters_set();
 }
 
-Optional<CSS::CountersSet const&> AbstractElement::counters_set() const
+Optional<CSS::CountersSet&> AbstractElement::counters_set() const
 {
     if (m_pseudo_element.has_value())
         return m_element->get_pseudo_element(*m_pseudo_element)->counters_set();

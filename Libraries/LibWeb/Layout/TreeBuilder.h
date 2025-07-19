@@ -1,15 +1,18 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/RefPtr.h>
+#include <AK/Assertions.h>
+#include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Layout {
@@ -65,6 +68,25 @@ private:
     Vector<GC::Ref<Layout::NodeWithStyle>> m_ancestor_stack;
 
     u32 m_quote_nesting_level { 0 };
+
+    // Everything we need to recalculate `content` that contains `reversed` counters for a pseudo-element.
+    struct ElementWithReversedCounterContent {
+        OwnPtr<DOM::AbstractElement> pseudo_element_reference;
+        GC::Ptr<DOM::Text> text;
+        u32 intial_quote_nesting_level;
+    };
+
+    OwnPtr<Vector<ElementWithReversedCounterContent>> m_content_with_reversed_counters_fixup_queue;
+
+    ALWAYS_INLINE Vector<ElementWithReversedCounterContent>& ensure_content_with_reverse_counter_fixup_queue()
+    {
+        if (!m_content_with_reversed_counters_fixup_queue)
+            m_content_with_reversed_counters_fixup_queue = make<Vector<ElementWithReversedCounterContent>>();
+
+        return *m_content_with_reversed_counters_fixup_queue;
+    }
+
+    void fixup_reversed_counters_content();
 };
 
 }
