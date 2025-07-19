@@ -881,8 +881,9 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_stroke(stroke.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
     else if (stroke.is_url())
         computed_values.set_stroke(stroke.as_url().url());
-    if (auto const& stop_color = computed_style.property(CSS::PropertyID::StopColor); stop_color.has_color())
-        computed_values.set_stop_color(stop_color.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
+
+    computed_values.set_stop_color(computed_style.color_or_fallback(CSS::PropertyID::StopColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::stop_color()));
+
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
