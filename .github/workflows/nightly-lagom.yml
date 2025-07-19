@@ -68,6 +68,7 @@ jobs:
             clang_plugins: false
             runner_labels: '["windows-2025"]'
 
+    secrets: inherit
     uses: ./.github/workflows/lagom-template.yml
     with:
       toolchain: ${{ matrix.toolchain }}

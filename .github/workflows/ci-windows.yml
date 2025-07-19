@@ -22,6 +22,7 @@ jobs:
       github.repository == 'LadybirdBrowser/ladybird'
       && contains(github.event.pull_request.labels.*.name, 'windows')
     name: 'Windows, x86_64, Windows_Sanitizer_CI, ClangCL'
+    secrets: inherit
     uses: ./.github/workflows/lagom-template.yml
     with:
       toolchain: 'ClangCL'

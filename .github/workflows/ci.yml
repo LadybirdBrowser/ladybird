@@ -44,6 +44,7 @@ jobs:
             clang_plugins: false
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
 
+    secrets: inherit
     uses: ./.github/workflows/lagom-template.yml
     with:
       toolchain: ${{ matrix.toolchain }}
