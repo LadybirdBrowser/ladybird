@@ -1,6 +1,6 @@
 # Troubleshooting
 
-In case of an error, you might find an answer of how to deal it here.
+In case of an error, you might find an answer of how to deal with it here.
 
 ## Building Ladybird
 
@@ -49,3 +49,20 @@ Build/vcpkg/scripts/buildsystems/vcpkg.cmake:859 (_find_package)
 ```
 
 …and all of it shown in bright yellow, making you think it must be important and something must need to be fixed. But that’s not the case. Instead, despite that, you’ll be able to build successfully with the Qt UI.
+
+## Running Ladybird
+
+### Race condition on exit when running headless on systems with `llvmpipe`
+
+When running `--headless=text` or `--headless=layout-tree` on a UNIX system with the [llvmpipe](https://docs.mesa3d.org/drivers/llvmpipe.html) software rasterizer
+(common default on virtual machines), Ladybird will occasionally terminate with:
+
+```
+double free or corruption (!prev)
+```
+
+Run Ladybird with `--force-cpu-painting` to make that go away.
+
+Likely explanation ([this thread](https://github.com/LadybirdBrowser/ladybird/issues/5097)):
+
+> suspect […] atexit handlers are registered twice possibly due to llvmpipe and fork/exec interaction issues when starting WebContent process
