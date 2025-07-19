@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibSyntax/Highlighter.h>
 
 namespace JS {
 
-class SyntaxHighlighter : public Syntax::Highlighter {
+class JS_API SyntaxHighlighter : public Syntax::Highlighter {
 public:
     SyntaxHighlighter() = default;
     virtual ~SyntaxHighlighter() override = default;

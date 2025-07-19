@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {
 
-class JSONObject final : public Object {
+class JS_API JSONObject final : public Object {
     JS_OBJECT(JSONObject, Object);
     GC_DECLARE_ALLOCATOR(JSONObject);
 

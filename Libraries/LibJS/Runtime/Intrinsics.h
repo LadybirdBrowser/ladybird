@@ -8,12 +8,13 @@
 #pragma once
 
 #include <LibGC/CellAllocator.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 
 namespace JS {
 
-class Intrinsics final : public Cell {
+class JS_API Intrinsics final : public Cell {
     GC_CELL(Intrinsics, Cell);
     GC_DECLARE_ALLOCATOR(Intrinsics);
 

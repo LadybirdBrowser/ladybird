@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Set.h>
 
 namespace JS {
 
-class SetIterator final : public Object
+class JS_API SetIterator final : public Object
     , public BuiltinIterator {
     JS_OBJECT(SetIterator, Object);
     GC_DECLARE_ALLOCATOR(SetIterator);

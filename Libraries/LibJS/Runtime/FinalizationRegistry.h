@@ -9,6 +9,7 @@
 #include <AK/SinglyLinkedList.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/WeakContainer.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/JobCallback.h>
@@ -17,7 +18,7 @@
 
 namespace JS {
 
-class FinalizationRegistry final
+class JS_API FinalizationRegistry final
     : public Object
     , public GC::WeakContainer {
     JS_OBJECT(FinalizationRegistry, Object);

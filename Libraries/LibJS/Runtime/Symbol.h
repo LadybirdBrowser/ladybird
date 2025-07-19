@@ -9,11 +9,12 @@
 
 #include <AK/String.h>
 #include <LibGC/CellAllocator.h>
+#include <LibJS/Export.h>
 #include <LibJS/Heap/Cell.h>
 
 namespace JS {
 
-class Symbol final : public Cell {
+class JS_API Symbol final : public Cell {
     GC_CELL(Symbol, Cell);
     GC_DECLARE_ALLOCATOR(Symbol);
 

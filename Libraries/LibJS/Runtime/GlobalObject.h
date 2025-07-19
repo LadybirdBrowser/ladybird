@@ -8,12 +8,13 @@
 #pragma once
 
 #include <LibGC/Heap.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS {
 
-class GlobalObject : public Object {
+class JS_API GlobalObject : public Object {
     JS_OBJECT(GlobalObject, Object);
     GC_DECLARE_ALLOCATOR(GlobalObject);
 
@@ -43,7 +44,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(unescape);
 };
 
-void set_default_global_bindings(Realm&);
+JS_API void set_default_global_bindings(Realm&);
 
 template<>
 inline bool Object::fast_is<GlobalObject>() const { return is_global_object(); }

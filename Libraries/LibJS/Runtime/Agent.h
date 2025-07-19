@@ -9,12 +9,13 @@
 
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 
 namespace JS {
 
 // https://tc39.es/ecma262/#sec-agents
-class Agent {
+class JS_API Agent {
 public:
     enum class CanBlock {
         Yes,

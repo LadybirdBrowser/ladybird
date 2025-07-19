@@ -10,6 +10,7 @@
 
 #include <AK/Function.h>
 #include <AK/Optional.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Value.h>
@@ -102,18 +103,18 @@ using IterationResultOrDone = Variant<IterationResult, IterationDone>;
     })
 
 ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_direct(VM&, Object&);
-ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_from_method(VM&, Value, GC::Ref<FunctionObject>);
-ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator(VM&, Value, IteratorHint);
+JS_API ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_from_method(VM&, Value, GC::Ref<FunctionObject>);
+JS_API ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator(VM&, Value, IteratorHint);
 ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM&, Value, PrimitiveHandling);
-ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM&, IteratorRecord&, Optional<Value> = {});
-ThrowCompletionOr<bool> iterator_complete(VM&, Object& iterator_result);
-ThrowCompletionOr<Value> iterator_value(VM&, Object& iterator_result);
-ThrowCompletionOr<IterationResultOrDone> iterator_step(VM&, IteratorRecord&);
-ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecord&);
+JS_API ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM&, IteratorRecord&, Optional<Value> = {});
+JS_API ThrowCompletionOr<bool> iterator_complete(VM&, Object& iterator_result);
+JS_API ThrowCompletionOr<Value> iterator_value(VM&, Object& iterator_result);
+JS_API ThrowCompletionOr<IterationResultOrDone> iterator_step(VM&, IteratorRecord&);
+JS_API ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecord&);
 Completion iterator_close(VM&, IteratorRecord const&, Completion);
 Completion async_iterator_close(VM&, IteratorRecord const&, Completion);
-GC::Ref<Object> create_iterator_result_object(VM&, Value, bool done);
-ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM&, IteratorRecord&);
+JS_API GC::Ref<Object> create_iterator_result_object(VM&, Value, bool done);
+JS_API ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM&, IteratorRecord&);
 ThrowCompletionOr<void> setter_that_ignores_prototype_properties(VM&, Value this_, Object const& home, PropertyKey const& property, Value value);
 
 using IteratorValueCallback = Function<Optional<Completion>(Value)>;

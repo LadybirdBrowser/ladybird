@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -18,7 +19,7 @@ namespace JS {
 Value from_property_descriptor(VM&, Optional<PropertyDescriptor> const&);
 ThrowCompletionOr<PropertyDescriptor> to_property_descriptor(VM&, Value);
 
-class PropertyDescriptor {
+class JS_API PropertyDescriptor {
 public:
     [[nodiscard]] bool is_accessor_descriptor() const;
     [[nodiscard]] bool is_data_descriptor() const;

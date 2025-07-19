@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/StringView.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 
@@ -19,7 +20,7 @@ struct Variable {
 
 #define JS_ENVIRONMENT(class_, base_class) GC_CELL(class_, base_class)
 
-class Environment : public Cell {
+class JS_API Environment : public Cell {
     GC_CELL(Environment, Cell);
 
 public:

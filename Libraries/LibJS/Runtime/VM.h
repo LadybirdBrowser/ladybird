@@ -20,6 +20,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/CyclicModule.h>
+#include <LibJS/Export.h>
 #include <LibJS/ModuleLoading.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/CommonPropertyNames.h>
@@ -52,7 +53,7 @@ enum class CompilationType {
     Timer,
 };
 
-class VM : public RefCounted<VM> {
+class JS_API VM : public RefCounted<VM> {
 public:
     static NonnullRefPtr<VM> create();
     ~VM();

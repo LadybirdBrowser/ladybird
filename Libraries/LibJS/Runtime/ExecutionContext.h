@@ -11,6 +11,7 @@
 
 #include <AK/WeakPtr.h>
 #include <LibJS/Bytecode/BasicBlock.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
@@ -32,7 +33,7 @@ struct CachedSourceRange : public RefCounted<CachedSourceRange> {
 };
 
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
-struct ExecutionContext {
+struct JS_API ExecutionContext {
     static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_constants_and_locals_count, u32 arguments_count);
     [[nodiscard]] NonnullOwnPtr<ExecutionContext> copy() const;
 

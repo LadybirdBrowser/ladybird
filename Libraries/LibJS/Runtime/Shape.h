@@ -11,6 +11,7 @@
 #include <AK/StringView.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/PropertyAttributes.h>
@@ -48,7 +49,7 @@ private:
     size_t padding { 0 };
 };
 
-class Shape final : public Cell
+class JS_API Shape final : public Cell
     , public Weakable<Shape> {
     GC_CELL(Shape, Cell);
     GC_DECLARE_ALLOCATOR(Shape);

@@ -21,6 +21,7 @@
 #include <LibGC/NanBoxedValue.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <math.h>
@@ -85,7 +86,7 @@ static constexpr u64 SHIFTED_INT32_TAG = INT32_TAG << GC::TAG_SHIFT;
 // options from 8 tags to 15 but since we currently only use 5 for both sign bits
 // this is not needed.
 
-class Value : public GC::NanBoxedValue {
+class JS_API Value : public GC::NanBoxedValue {
 public:
     enum class PreferredType {
         Default,
@@ -524,8 +525,8 @@ ThrowCompletionOr<Value> ordinary_has_instance(VM&, Value lhs, Value rhs);
 
 ThrowCompletionOr<bool> is_loosely_equal(VM&, Value lhs, Value rhs);
 bool is_strictly_equal(Value lhs, Value rhs);
-bool same_value(Value lhs, Value rhs);
-bool same_value_zero(Value lhs, Value rhs);
+JS_API bool same_value(Value lhs, Value rhs);
+JS_API bool same_value_zero(Value lhs, Value rhs);
 bool same_value_non_number(Value lhs, Value rhs);
 ThrowCompletionOr<TriState> is_less_than(VM&, Value lhs, Value rhs, bool left_first);
 
@@ -535,7 +536,7 @@ enum class NumberToStringMode {
     WithExponent,
     WithoutExponent,
 };
-[[nodiscard]] String number_to_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
+[[nodiscard]] JS_API String number_to_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
 [[nodiscard]] ByteString number_to_byte_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
 double string_to_number(StringView);
 

@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibJS/Runtime/Intl/MathematicalValue.h>
@@ -181,7 +182,7 @@ private:
 
 int currency_digits(StringView currency);
 Vector<Unicode::NumberFormat::Partition> partition_number_pattern(NumberFormat const&, MathematicalValue const& number);
-String format_numeric(NumberFormat const&, MathematicalValue const& number);
+JS_API String format_numeric(NumberFormat const&, MathematicalValue const& number);
 GC::Ref<Array> format_numeric_to_parts(VM&, NumberFormat const&, MathematicalValue const& number);
 ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM&, Value value);
 ThrowCompletionOr<Vector<Unicode::NumberFormat::Partition>> partition_number_range_pattern(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);

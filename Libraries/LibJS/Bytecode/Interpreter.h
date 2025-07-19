@@ -9,6 +9,7 @@
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Register.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/FunctionKind.h>
@@ -19,7 +20,7 @@ namespace JS::Bytecode {
 
 class InstructionStreamIterator;
 
-class Interpreter {
+class JS_API Interpreter {
 public:
     explicit Interpreter(VM&);
     ~Interpreter();

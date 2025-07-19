@@ -10,12 +10,13 @@
 #include <AK/EnumBits.h>
 #include <AK/Optional.h>
 #include <AK/Result.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibRegex/Regex.h>
 
 namespace JS {
 
-ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_create(VM&, Value pattern, Value flags);
+JS_API ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_create(VM&, Value pattern, Value flags);
 ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_alloc(VM&, FunctionObject& new_target);
 
 Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(StringView flags);

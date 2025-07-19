@@ -11,11 +11,12 @@
 #include <AK/StringView.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibGC/CellAllocator.h>
+#include <LibJS/Export.h>
 #include <LibJS/Heap/Cell.h>
 
 namespace JS {
 
-class BigInt final : public Cell {
+class JS_API BigInt final : public Cell {
     GC_CELL(BigInt, Cell);
     GC_DECLARE_ALLOCATOR(BigInt);
 

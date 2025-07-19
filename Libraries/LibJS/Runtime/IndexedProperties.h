@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -128,7 +129,7 @@ private:
     HashMap<u32, ValueAndAttributes> m_sparse_elements;
 };
 
-class IndexedPropertyIterator {
+class JS_API IndexedPropertyIterator {
 public:
     IndexedPropertyIterator(IndexedProperties const&, u32 starting_index, bool skip_empty);
 
@@ -148,7 +149,7 @@ private:
     bool m_skip_empty { false };
 };
 
-class IndexedProperties {
+class JS_API IndexedProperties {
 public:
     IndexedProperties() = default;
 

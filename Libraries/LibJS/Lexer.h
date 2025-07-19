@@ -12,10 +12,11 @@
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <LibJS/Export.h>
 
 namespace JS {
 
-class Lexer {
+class JS_API Lexer {
 public:
     explicit Lexer(StringView source, StringView filename = "(unknown)"sv, size_t line_number = 1, size_t line_column = 0);
 

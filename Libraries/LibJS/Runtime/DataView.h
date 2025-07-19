@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/ByteLength.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -13,7 +14,7 @@
 
 namespace JS {
 
-class DataView : public Object {
+class JS_API DataView : public Object {
     JS_OBJECT(DataView, Object);
     GC_DECLARE_ALLOCATOR(DataView);
 
@@ -42,8 +43,8 @@ struct DataViewWithBufferWitness {
     ByteLength cached_buffer_byte_length; // [[CachedBufferByteLength]]
 };
 
-DataViewWithBufferWitness make_data_view_with_buffer_witness_record(DataView const&, ArrayBuffer::Order);
-u32 get_view_byte_length(DataViewWithBufferWitness const&);
-bool is_view_out_of_bounds(DataViewWithBufferWitness const&);
+JS_API DataViewWithBufferWitness make_data_view_with_buffer_witness_record(DataView const&, ArrayBuffer::Order);
+JS_API u32 get_view_byte_length(DataViewWithBufferWitness const&);
+JS_API bool is_view_out_of_bounds(DataViewWithBufferWitness const&);
 
 }
