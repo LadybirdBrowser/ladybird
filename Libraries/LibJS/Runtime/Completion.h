@@ -11,6 +11,7 @@
 #include <AK/Try.h>
 #include <AK/TypeCasts.h>
 #include <AK/Variant.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/ErrorTypes.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -49,7 +50,7 @@ namespace JS {
     })
 
 // 6.2.3 The Completion Record Specification Type, https://tc39.es/ecma262/#sec-completion-record-specification-type
-class [[nodiscard]] Completion {
+class [[nodiscard]] JS_API Completion {
 public:
     enum class Type {
         Empty,
@@ -345,6 +346,6 @@ inline Completion normal_completion(Value value)
 }
 
 // 6.2.4.2 ThrowCompletion ( value ), https://tc39.es/ecma262/#sec-throwcompletion
-Completion throw_completion(Value);
+JS_API Completion throw_completion(Value);
 
 }

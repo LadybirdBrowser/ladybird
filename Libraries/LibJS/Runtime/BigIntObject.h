@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {
 
-class BigIntObject final : public Object {
+class JS_API BigIntObject final : public Object {
     JS_OBJECT(BigIntObject, Object);
     GC_DECLARE_ALLOCATOR(BigIntObject);
 

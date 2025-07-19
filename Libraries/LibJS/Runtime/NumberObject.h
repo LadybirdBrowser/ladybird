@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {
 
-class NumberObject : public Object {
+class JS_API NumberObject : public Object {
     JS_OBJECT(NumberObject, Object);
     GC_DECLARE_ALLOCATOR(NumberObject);
 

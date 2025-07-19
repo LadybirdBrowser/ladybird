@@ -9,6 +9,7 @@
 
 #include <AK/FlyString.h>
 #include <LibGC/Ptr.h>
+#include <LibJS/Export.h>
 #include <LibJS/ModuleLoading.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/Realm.h>
@@ -150,6 +151,6 @@ private:
 class CyclicModule;
 struct GraphLoadingState;
 
-void finish_loading_imported_module(ImportedModuleReferrer, ModuleRequest const&, ImportedModulePayload, ThrowCompletionOr<GC::Ref<Module>> const&);
+JS_API void finish_loading_imported_module(ImportedModuleReferrer, ModuleRequest const&, ImportedModulePayload, ThrowCompletionOr<GC::Ref<Module>> const&);
 
 }

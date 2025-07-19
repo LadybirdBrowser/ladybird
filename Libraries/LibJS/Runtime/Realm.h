@@ -14,6 +14,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Bytecode/Builtins.h>
+#include <LibJS/Export.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Value.h>
@@ -21,7 +22,7 @@
 namespace JS {
 
 // 9.3 Realms, https://tc39.es/ecma262/#realm-record
-class Realm final : public Cell {
+class JS_API Realm final : public Cell {
     GC_CELL(Realm, Cell);
     GC_DECLARE_ALLOCATOR(Realm);
 

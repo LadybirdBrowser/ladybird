@@ -12,6 +12,7 @@
 #include <AK/Function.h>
 #include <AK/Span.h>
 #include <AK/Vector.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
@@ -19,7 +20,7 @@
 
 namespace JS {
 
-class Array : public Object {
+class JS_API Array : public Object {
     JS_OBJECT(Array, Object);
     GC_DECLARE_ALLOCATOR(Array);
 

@@ -10,6 +10,7 @@
 
 #include <LibJS/Bytecode/Generator.h>
 #include <LibJS/Bytecode/Interpreter.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/ClassFieldDefinition.h>
 #include <LibJS/Runtime/ExecutionContext.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -98,7 +99,7 @@ public:
 };
 
 // 10.2 ECMAScript Function Objects, https://tc39.es/ecma262/#sec-ecmascript-function-objects
-class ECMAScriptFunctionObject final : public FunctionObject {
+class JS_API ECMAScriptFunctionObject final : public FunctionObject {
     JS_OBJECT(ECMAScriptFunctionObject, FunctionObject);
     GC_DECLARE_ALLOCATOR(ECMAScriptFunctionObject);
 

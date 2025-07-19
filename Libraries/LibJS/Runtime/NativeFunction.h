@@ -11,13 +11,14 @@
 #include <AK/Optional.h>
 #include <LibGC/Function.h>
 #include <LibJS/Bytecode/Builtins.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/PropertyKey.h>
 
 namespace JS {
 
-class NativeFunction : public FunctionObject {
+class JS_API NativeFunction : public FunctionObject {
     JS_OBJECT(NativeFunction, FunctionObject);
     GC_DECLARE_ALLOCATOR(NativeFunction);
 

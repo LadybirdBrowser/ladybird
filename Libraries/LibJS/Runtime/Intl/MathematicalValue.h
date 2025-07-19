@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibUnicode/NumberFormat.h>
@@ -16,7 +17,7 @@
 namespace JS::Intl {
 
 // https://tc39.es/ecma402/#intl-mathematical-value
-class MathematicalValue {
+class JS_API MathematicalValue {
 public:
     enum class Symbol {
         PositiveInfinity,

@@ -8,12 +8,13 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Position.h>
 
 namespace JS {
 
-class SourceCode : public RefCounted<SourceCode> {
+class JS_API SourceCode : public RefCounted<SourceCode> {
 public:
     static NonnullRefPtr<SourceCode const> create(String filename, String code);
 

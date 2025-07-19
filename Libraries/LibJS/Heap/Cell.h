@@ -7,11 +7,12 @@
 #pragma once
 
 #include <LibGC/Cell.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 
 namespace JS {
 
-class Cell : public GC::Cell {
+class JS_API Cell : public GC::Cell {
     GC_CELL(Cell, GC::Cell);
 
 public:

@@ -21,6 +21,7 @@
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/Operand.h>
 #include <LibJS/Bytecode/ScopedOperand.h>
+#include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/ClassFieldDefinition.h>
@@ -292,7 +293,7 @@ public:
     }
 };
 
-class ScopeNode : public Statement {
+class JS_API ScopeNode : public Statement {
 public:
     template<typename T, typename... Args>
     T& append(SourceRange range, Args&&... args)
