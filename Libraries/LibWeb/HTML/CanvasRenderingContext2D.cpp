@@ -144,7 +144,10 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
         },
         [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
         [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
+            auto* bitmap = source->bitmap();
+            if (!bitmap)
+                return {};
+            return Gfx::ImmutableBitmap::create(*bitmap);
         });
     if (!bitmap)
         return {};
