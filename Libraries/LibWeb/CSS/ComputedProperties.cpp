@@ -221,12 +221,12 @@ LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, 
     return box;
 }
 
-Color ComputedProperties::color_or_fallback(PropertyID id, Layout::NodeWithStyle const& node, Color fallback) const
+Color ComputedProperties::color_or_fallback(PropertyID id, ColorResolutionContext color_resolution_context, Color fallback) const
 {
     auto const& value = property(id);
     if (!value.has_color())
         return fallback;
-    return value.to_color(ColorResolutionContext::for_layout_node_with_style(node)).value();
+    return value.to_color(color_resolution_context).value();
 }
 
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
