@@ -169,6 +169,8 @@
       ]
     },
     "vulkan-headers",
+    "spirv-tools",
+    "spirv-cross",
     "woff2",
     "zlib"
   ],
