@@ -1020,6 +1020,102 @@ void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_wor
     selection_was_changed();
 }
 
+FormAssociatedTextControlElement::PositionInLine FormAssociatedTextControlElement::find_cursor_position_in_line(size_t offset)
+{
+    auto const text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return PositionInLine {};
+
+    auto const& code_points = text_node->data().code_points();
+    PositionInLine result;
+
+    auto it = code_points.iterator_at_byte_offset(offset);
+    if (it.at_start()) {
+        return PositionInLine {};
+    }
+    --it;
+
+    result.column_code_point = 0;
+    for (; !it.at_start(); --it) {
+        if (*it == '\n') {
+            result.previous_newline_index = code_points.byte_offset_of(it);
+            break;
+        }
+        result.column_code_point++;
+    }
+    if (it.at_start())
+        result.column_code_point++;
+
+    return result;
+}
+
+void FormAssociatedTextControlElement::increment_cursor_position_to_next_line(CollapseSelection collapse)
+{
+    auto const text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+
+    auto const& code_points = text_node->data().code_points();
+
+    PositionInLine position_in_line = find_cursor_position_in_line(m_selection_end);
+
+    auto it = code_points.iterator_at_byte_offset(m_selection_end);
+    for (; !it.done(); ++it) {
+        if (*it == '\n') {
+            ++it;
+            for (auto j = 1; j <= position_in_line.column_code_point; j++) {
+                if (it.done() || *it == '\n') {
+                    break;
+                }
+                ++it;
+            }
+            break;
+        }
+    }
+    size_t new_offset = code_points.byte_offset_of(it);
+
+    if (collapse == CollapseSelection::Yes) {
+        collapse_selection_to_offset(new_offset);
+    } else {
+        m_selection_end = new_offset;
+    }
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_line(CollapseSelection collapse)
+{
+    auto const text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+
+    auto const& code_points = text_node->data().code_points();
+    PositionInLine current_position = find_cursor_position_in_line(m_selection_end);
+    size_t new_offset = 0;
+    if (current_position.previous_newline_index != 0) {
+
+        PositionInLine previous_position = find_cursor_position_in_line(current_position.previous_newline_index - 1);
+        auto it = code_points.iterator_at_byte_offset(previous_position.previous_newline_index);
+        if (previous_position.previous_newline_index != 0) {
+            ++it;
+        }
+        for (auto j = 1; j <= current_position.column_code_point; j++) {
+            if (it.done() || *it == '\n') {
+                break;
+            }
+            ++it;
+        }
+        new_offset = code_points.byte_offset_of(it);
+    }
+
+    if (collapse == CollapseSelection::Yes) {
+        collapse_selection_to_offset(new_offset);
+    } else {
+        m_selection_end = new_offset;
+    }
+
+    selection_was_changed();
+}
+
 GC::Ptr<DOM::Position> FormAssociatedTextControlElement::cursor_position() const
 {
     auto const node = form_associated_element_to_text_node();
