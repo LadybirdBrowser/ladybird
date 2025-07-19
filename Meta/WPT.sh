@@ -12,7 +12,7 @@ ensure_ladybird_source_dir
 WPT_SOURCE_DIR=${WPT_SOURCE_DIR:-"${LADYBIRD_SOURCE_DIR}/Tests/LibWeb/WPT/wpt"}
 WPT_REPOSITORY_URL=${WPT_REPOSITORY_URL:-"https://github.com/web-platform-tests/wpt.git"}
 
-BUILD_PRESET=${BUILD_PRESET:-default}
+BUILD_PRESET=${BUILD_PRESET:-Release}
 
 BUILD_DIR=$(get_build_dir "$BUILD_PRESET")
 
