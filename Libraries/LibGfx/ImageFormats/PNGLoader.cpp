@@ -135,8 +135,83 @@ static void log_png_warning(png_structp, char const* warning_message)
     dbgln("libpng warning: {}", warning_message);
 }
 
+static ErrorOr<ByteBuffer> preprocess_png_data(ReadonlyBytes input_data)
+{
+    constexpr size_t PNG_SIGNATURE_SIZE = 8;
+    constexpr size_t CHUNK_HEADER_SIZE = 8;
+    constexpr size_t CHUNK_CRC_SIZE = 4;
+    constexpr u32 MAX_CHUNK_LENGTH = 0x7FFFFFFF; // 2^31-1 as per PNG spec
+
+    if (input_data.size() < PNG_SIGNATURE_SIZE) {
+        return Error::from_string_view("PNG data too small"sv);
+    }
+
+    u8 const png_signature[] = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+    if (memcmp(input_data.data(), png_signature, PNG_SIGNATURE_SIZE) != 0) {
+        return Error::from_string_view("Invalid PNG signature"sv);
+    }
+
+    ByteBuffer output_buffer;
+    TRY(output_buffer.try_append(png_signature, PNG_SIGNATURE_SIZE));
+
+    size_t pos = PNG_SIGNATURE_SIZE;
+
+    while (pos < input_data.size()) {
+
+        if (pos + CHUNK_HEADER_SIZE > input_data.size()) {
+            dbgln("Incomplete chunk header at position {}", pos);
+            break;
+        }
+
+        // big-endian
+        u32 chunk_length = 0;
+        for (int i = 0; i < 4; i++) {
+            chunk_length = (chunk_length << 8) | input_data[pos + i];
+        }
+
+        if (chunk_length > MAX_CHUNK_LENGTH) {
+            return Error::from_string_view("Chunk length exceeds maximum allowed size"sv);
+        }
+
+        size_t total_chunk_size = CHUNK_HEADER_SIZE + chunk_length + CHUNK_CRC_SIZE;
+        if (pos + total_chunk_size > input_data.size()) {
+            dbgln("Incomplete chunk at position {}, expected {} bytes but only {} available",
+                pos, total_chunk_size, input_data.size() - pos);
+            break;
+        }
+
+        u8 chunk_type[4];
+        memcpy(chunk_type, input_data.data() + pos + 4, 4);
+
+        // Validate chunk type (must be ASCII letters)
+        bool is_valid_chunk_type = true;
+        for (int i = 0; i < 4; i++) {
+            if (!((chunk_type[i] >= 'A' && chunk_type[i] <= 'Z') || (chunk_type[i] >= 'a' && chunk_type[i] <= 'z'))) {
+                is_valid_chunk_type = false;
+                break;
+            }
+        }
+
+        if (!is_valid_chunk_type) {
+            dbgln("Skipping malformed chunk with type: {:#02x} {:#02x} {:#02x} {:#02x}",
+                chunk_type[0], chunk_type[1], chunk_type[2], chunk_type[3]);
+            pos += total_chunk_size;
+            continue;
+        }
+
+        TRY(output_buffer.try_append(input_data.data() + pos, total_chunk_size));
+        pos += total_chunk_size;
+    }
+
+    return output_buffer;
+}
+
 ErrorOr<void> PNGImageDecoderPlugin::initialize()
 {
+    auto sanitized_data = TRY(preprocess_png_data(m_context->data));
+    ReadonlyBytes clean_data = sanitized_data.bytes();
+    m_context->data = clean_data;
+
     m_context->png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
     if (!m_context->png_ptr)
         return Error::from_string_view("Failed to allocate read struct"sv);
