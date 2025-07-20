@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -49,34 +49,34 @@ void PlainMonthDayPrototype::initialize(Realm& realm)
 // 10.3.3 get Temporal.PlainMonthDay.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plainmonthday.prototype.calendarid
 JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::calendar_id_getter)
 {
-    // 1. Let monthDay be the this value
-    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
-    auto month_day = TRY(typed_this_object(vm));
+    // 1. Let plainMonthDay be the this value
+    // 2. Perform ? RequireInternalSlot(plainMonthDay, [[InitializedTemporalMonthDay]]).
+    auto plain_month_day = TRY(typed_this_object(vm));
 
-    // 3. Return monthDay.[[Calendar]].
-    return PrimitiveString::create(vm, month_day->calendar());
+    // 3. Return plainMonthDay.[[Calendar]].
+    return PrimitiveString::create(vm, plain_month_day->calendar());
 }
 
 // 10.3.4 get Temporal.PlainMonthDay.prototype.monthCode, https://tc39.es/proposal-temporal/#sec-get-temporal.plainmonthday.prototype.monthcode
 JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::month_code_getter)
 {
-    // 1. Let monthDay be the this value
-    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
-    auto month_day = TRY(typed_this_object(vm));
+    // 1. Let plainMonthDay be the this value
+    // 2. Perform ? RequireInternalSlot(plainMonthDay, [[InitializedTemporalMonthDay]]).
+    auto plain_month_day = TRY(typed_this_object(vm));
 
-    // 3. Return CalendarISOToDate(monthDay.[[Calendar]], monthDay.[[ISODate]]).[[MonthCode]].
-    return PrimitiveString::create(vm, calendar_iso_to_date(month_day->calendar(), month_day->iso_date()).month_code);
+    // 3. Return CalendarISOToDate(plainMonthDay.[[Calendar]], plainMonthDay.[[ISODate]]).[[MonthCode]].
+    return PrimitiveString::create(vm, calendar_iso_to_date(plain_month_day->calendar(), plain_month_day->iso_date()).month_code);
 }
 
 // 10.3.5 get Temporal.PlainMonthDay.prototype.day, https://tc39.es/proposal-temporal/#sec-get-temporal.plainmonthday.prototype.day
 JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::day_getter)
 {
-    // 1. Let monthDay be the this value.
-    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
-    auto month_day = TRY(typed_this_object(vm));
+    // 1. Let plainMonthDay be the this value.
+    // 2. Perform ? RequireInternalSlot(plainMonthDay, [[InitializedTemporalMonthDay]]).
+    auto plain_month_day = TRY(typed_this_object(vm));
 
-    // 3. Return 𝔽(CalendarISOToDate(monthDay.[[Calendar]], monthDay.[[ISODate]]).[[Day]]).
-    return calendar_iso_to_date(month_day->calendar(), month_day->iso_date()).day;
+    // 3. Return 𝔽(CalendarISOToDate(plainMonthDay.[[Calendar]], plainMonthDay.[[ISODate]]).[[Day]]).
+    return calendar_iso_to_date(plain_month_day->calendar(), plain_month_day->iso_date()).day;
 }
 
 // 10.3.6 Temporal.PlainMonthDay.prototype.with ( temporalMonthDayLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.with
@@ -85,19 +85,19 @@ JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::with)
     auto temporal_month_day_like = vm.argument(0);
     auto options = vm.argument(1);
 
-    // 1. Let monthDay be the this value.
-    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
-    auto month_day = TRY(typed_this_object(vm));
+    // 1. Let plainMonthDay be the this value.
+    // 2. Perform ? RequireInternalSlot(plainMonthDay, [[InitializedTemporalMonthDay]]).
+    auto plain_month_day = TRY(typed_this_object(vm));
 
     // 3. If ? IsPartialTemporalObject(temporalMonthDayLike) is false, throw a TypeError exception.
     if (!TRY(is_partial_temporal_object(vm, temporal_month_day_like)))
         return vm.throw_completion<TypeError>(ErrorType::TemporalObjectMustBePartialTemporalObject);
 
-    // 4. Let calendar be monthDay.[[Calendar]].
-    auto const& calendar = month_day->calendar();
+    // 4. Let calendar be plainMonthDay.[[Calendar]].
+    auto const& calendar = plain_month_day->calendar();
 
-    // 5. Let fields be ISODateToFields(calendar, monthDay.[[ISODate]], MONTH-DAY).
-    auto fields = iso_date_to_fields(calendar, month_day->iso_date(), DateType::MonthDay);
+    // 5. Let fields be ISODateToFields(calendar, plainMonthDay.[[ISODate]], MONTH-DAY).
+    auto fields = iso_date_to_fields(calendar, plain_month_day->iso_date(), DateType::MonthDay);
 
     // 6. Let partialMonthDay be ? PrepareCalendarFields(calendar, temporalMonthDayLike, « YEAR, MONTH, MONTH-CODE, DAY », « », PARTIAL).
     auto partial_month_day = TRY(prepare_calendar_fields(vm, calendar, temporal_month_day_like.as_object(), { { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day } }, {}, Partial {}));
@@ -121,27 +121,27 @@ JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::with)
 // 10.3.7 Temporal.PlainMonthDay.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.equals
 JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::equals)
 {
-    // 1. Let monthDay be the this value.
-    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
-    auto month_day = TRY(typed_this_object(vm));
+    // 1. Let plainMonthDay be the this value.
+    // 2. Perform ? RequireInternalSlot(plainMonthDay, [[InitializedTemporalMonthDay]]).
+    auto plain_month_day = TRY(typed_this_object(vm));
 
     // 3. Set other to ? ToTemporalMonthDay(other).
     auto other = TRY(to_temporal_month_day(vm, vm.argument(0)));
 
-    // 4. If CompareISODate(monthDay.[[ISODate]], other.[[ISODate]]) ≠ 0, return false.
-    if (compare_iso_date(month_day->iso_date(), other->iso_date()) != 0)
+    // 4. If CompareISODate(plainMonthDay.[[ISODate]], other.[[ISODate]]) ≠ 0, return false.
+    if (compare_iso_date(plain_month_day->iso_date(), other->iso_date()) != 0)
         return false;
 
-    // 5. Return CalendarEquals(monthDay.[[Calendar]], other.[[Calendar]]).
-    return calendar_equals(month_day->calendar(), other->calendar());
+    // 5. Return CalendarEquals(plainMonthDay.[[Calendar]], other.[[Calendar]]).
+    return calendar_equals(plain_month_day->calendar(), other->calendar());
 }
 
 // 10.3.8 Temporal.PlainMonthDay.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tostring
 JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::to_string)
 {
-    // 1. Let monthDay be the this value.
-    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
-    auto month_day = TRY(typed_this_object(vm));
+    // 1. Let plainMonthDay be the this value.
+    // 2. Perform ? RequireInternalSlot(plainMonthDay, [[InitializedTemporalMonthDay]]).
+    auto plain_month_day = TRY(typed_this_object(vm));
 
     // 3. Let resolvedOptions be ? GetOptionsObject(options).
     auto resolved_options = TRY(get_options_object(vm, vm.argument(0)));
@@ -149,8 +149,8 @@ JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::to_string)
     // 4. Let showCalendar be ? GetTemporalShowCalendarNameOption(resolvedOptions).
     auto show_calendar = TRY(get_temporal_show_calendar_name_option(vm, resolved_options));
 
-    // 5. Return TemporalMonthDayToString(monthDay, showCalendar).
-    return PrimitiveString::create(vm, temporal_month_day_to_string(month_day, show_calendar));
+    // 5. Return TemporalMonthDayToString(plainMonthDay, showCalendar).
+    return PrimitiveString::create(vm, temporal_month_day_to_string(plain_month_day, show_calendar));
 }
 
 // 10.3.9 Temporal.PlainMonthDay.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tolocalestring
@@ -162,26 +162,26 @@ JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::to_locale_string)
     auto locales = vm.argument(0);
     auto options = vm.argument(1);
 
-    // 1. Let monthDay be the this value.
-    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
-    auto month_day = TRY(typed_this_object(vm));
+    // 1. Let plainMonthDay be the this value.
+    // 2. Perform ? RequireInternalSlot(plainMonthDay, [[InitializedTemporalMonthDay]]).
+    auto plain_month_day = TRY(typed_this_object(vm));
 
     // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, DATE, DATE).
     auto date_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Date, Intl::OptionDefaults::Date));
 
-    // 4. Return ? FormatDateTime(dateFormat, monthDay).
-    return PrimitiveString::create(vm, TRY(Intl::format_date_time(vm, date_format, month_day)));
+    // 4. Return ? FormatDateTime(dateFormat, plainMonthDay).
+    return PrimitiveString::create(vm, TRY(Intl::format_date_time(vm, date_format, plain_month_day)));
 }
 
 // 10.3.10 Temporal.PlainMonthDay.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::to_json)
 {
-    // 1. Let monthDay be the this value.
-    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
-    auto month_day = TRY(typed_this_object(vm));
+    // 1. Let plainMonthDay be the this value.
+    // 2. Perform ? RequireInternalSlot(plainMonthDay, [[InitializedTemporalMonthDay]]).
+    auto plain_month_day = TRY(typed_this_object(vm));
 
-    // 3. Return TemporalMonthDayToString(monthDay, auto).
-    return PrimitiveString::create(vm, temporal_month_day_to_string(month_day, ShowCalendar::Auto));
+    // 3. Return TemporalMonthDayToString(plainMonthDay, auto).
+    return PrimitiveString::create(vm, temporal_month_day_to_string(plain_month_day, ShowCalendar::Auto));
 }
 
 // 10.3.11 Temporal.PlainMonthDay.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.valueof
@@ -196,9 +196,9 @@ JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::to_plain_date)
 {
     auto item = vm.argument(0);
 
-    // 1. Let monthDay be the this value.
-    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
-    auto month_day = TRY(typed_this_object(vm));
+    // 1. Let plainMonthDay be the this value.
+    // 2. Perform ? RequireInternalSlot(plainMonthDay, [[InitializedTemporalMonthDay]]).
+    auto plain_month_day = TRY(typed_this_object(vm));
 
     // 3. If item is not an Object, then
     if (!item.is_object()) {
@@ -206,11 +206,11 @@ JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::to_plain_date)
         return vm.throw_completion<TypeError>(ErrorType::NotAnObject, item);
     }
 
-    // 4. Let calendar be monthDay.[[Calendar]].
-    auto const& calendar = month_day->calendar();
+    // 4. Let calendar be plainMonthDay.[[Calendar]].
+    auto const& calendar = plain_month_day->calendar();
 
-    // 5. Let fields be ISODateToFields(calendar, monthDay.[[ISODate]], MONTH-DAY).
-    auto fields = iso_date_to_fields(calendar, month_day->iso_date(), DateType::MonthDay);
+    // 5. Let fields be ISODateToFields(calendar, plainMonthDay.[[ISODate]], MONTH-DAY).
+    auto fields = iso_date_to_fields(calendar, plain_month_day->iso_date(), DateType::MonthDay);
 
     // 6. Let inputFields be ? PrepareCalendarFields(calendar, item, « YEAR », « », « »).
     auto input_fields = TRY(prepare_calendar_fields(vm, calendar, item.as_object(), { { CalendarField::Year } }, {}, CalendarFieldList {}));
