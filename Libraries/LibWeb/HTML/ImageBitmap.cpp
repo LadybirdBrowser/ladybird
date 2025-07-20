@@ -20,19 +20,26 @@ GC_DEFINE_ALLOCATOR(ImageBitmap);
     return Gfx::Bitmap::create_wrapper(format, alpha_type, Gfx::IntSize(width, height), pitch, data.data());
 }
 
-static void serialize_bitmap(HTML::TransferDataEncoder& encoder, Gfx::Bitmap& bitmap)
+static void serialize_bitmap(HTML::TransferDataEncoder& encoder, RefPtr<Gfx::Bitmap> const& bitmap)
 {
-    encoder.encode(bitmap.width());
-    encoder.encode(bitmap.height());
-    encoder.encode(bitmap.pitch());
-    encoder.encode(bitmap.format());
-    encoder.encode(bitmap.alpha_type());
-    encoder.encode(ReadonlyBytes { bitmap.scanline_u8(0), bitmap.data_size() });
+    if (!bitmap) {
+        encoder.encode(0);
+        return;
+    }
+
+    encoder.encode(bitmap->width());
+    encoder.encode(bitmap->height());
+    encoder.encode(bitmap->pitch());
+    encoder.encode(bitmap->format());
+    encoder.encode(bitmap->alpha_type());
+    encoder.encode(ReadonlyBytes { bitmap->scanline_u8(0), bitmap->data_size() });
 }
 
-[[nodiscard]] static WebIDL::ExceptionOr<NonnullRefPtr<Gfx::Bitmap>> deserialize_bitmap(JS::Realm& realm, HTML::TransferDataDecoder& decoder)
+[[nodiscard]] static WebIDL::ExceptionOr<RefPtr<Gfx::Bitmap>> deserialize_bitmap(JS::Realm& realm, HTML::TransferDataDecoder& decoder)
 {
     auto const width = decoder.decode<int>();
+    if (width == 0)
+        return nullptr;
     auto const height = decoder.decode<int>();
     auto const pitch = decoder.decode<size_t>();
     auto const format = decoder.decode<Gfx::BitmapFormat>();
@@ -68,7 +75,7 @@ WebIDL::ExceptionOr<void> ImageBitmap::serialization_steps(HTML::TransferDataEnc
     // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
 
     // 2. Set serialized.[[BitmapData]] to a copy of value's bitmap data.
-    serialize_bitmap(serialized, *m_bitmap);
+    serialize_bitmap(serialized, m_bitmap);
 
     return {};
 }
@@ -88,7 +95,7 @@ WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataEncoder&
     // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
 
     // 2. Set dataHolder.[[BitmapData]] to value's bitmap data.
-    serialize_bitmap(data_holder, *m_bitmap);
+    serialize_bitmap(data_holder, m_bitmap);
 
     // 3. Unset value's bitmap data.
     m_bitmap = nullptr;
