@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibURL/Origin.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -23,7 +24,7 @@ struct NetworkPartitionKey {
 
 NetworkPartitionKey determine_the_network_partition_key(HTML::Environment const& environment);
 
-Optional<NetworkPartitionKey> determine_the_network_partition_key(Infrastructure::Request const& request);
+WEB_API Optional<NetworkPartitionKey> determine_the_network_partition_key(Infrastructure::Request const& request);
 
 }
 

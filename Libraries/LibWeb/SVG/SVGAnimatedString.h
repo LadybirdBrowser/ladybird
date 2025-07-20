@@ -8,11 +8,12 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 
 namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedString
-class SVGAnimatedString final : public Bindings::PlatformObject {
+class WEB_API SVGAnimatedString final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SVGAnimatedString, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(SVGAnimatedString);
 

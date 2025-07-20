@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::Platform {
 
-class EventLoopPluginSerenity final : public Web::Platform::EventLoopPlugin {
+class WEB_API EventLoopPluginSerenity final : public Web::Platform::EventLoopPlugin {
 public:
     EventLoopPluginSerenity();
     virtual ~EventLoopPluginSerenity() override;

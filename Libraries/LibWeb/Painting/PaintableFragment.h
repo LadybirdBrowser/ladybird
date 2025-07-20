@@ -8,13 +8,14 @@
 
 #include <AK/Utf16View.h>
 #include <LibGfx/TextLayout.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
 
-class PaintableFragment {
+class WEB_API PaintableFragment {
     friend class PaintableWithLines;
 
 public:

@@ -9,12 +9,13 @@
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
 #include <LibJS/Console.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
 // NOTE: Temporary class to handle console messages from inside Workers
 
-class WorkerDebugConsoleClient final : public JS::ConsoleClient {
+class WEB_API WorkerDebugConsoleClient final : public JS::ConsoleClient {
     GC_CELL(WorkerDebugConsoleClient, JS::ConsoleClient);
     GC_DECLARE_ALLOCATOR(WorkerDebugConsoleClient);
 

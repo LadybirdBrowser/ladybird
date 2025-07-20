@@ -12,11 +12,12 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::CSS {
 
-class CSSRule : public Bindings::PlatformObject {
+class WEB_API CSSRule : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(CSSRule, Bindings::PlatformObject);
 
 public:

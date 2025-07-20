@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -14,8 +15,8 @@ namespace Web::Fetch::Infrastructure {
 // A status is an integer in the range 0 to 999, inclusive.
 using Status = u16;
 
-[[nodiscard]] bool is_null_body_status(Status);
-[[nodiscard]] bool is_ok_status(Status);
-[[nodiscard]] bool is_redirect_status(Status);
+[[nodiscard]] WEB_API bool is_null_body_status(Status);
+[[nodiscard]] WEB_API bool is_ok_status(Status);
+[[nodiscard]] WEB_API bool is_redirect_status(Status);
 
 }

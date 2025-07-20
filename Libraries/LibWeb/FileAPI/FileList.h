@@ -10,12 +10,13 @@
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::FileAPI {
 
-class FileList
+class WEB_API FileList
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(FileList, Bindings::PlatformObject);

@@ -59,6 +59,7 @@ ErrorOr<void> generate_header_file(JsonObject& pseudo_elements_data, Core::File&
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
@@ -83,7 +84,7 @@ enum class PseudoElement : @pseudo_element_underlying_type@ {
 
 Optional<PseudoElement> pseudo_element_from_string(StringView);
 Optional<PseudoElement> aliased_pseudo_element_from_string(StringView);
-StringView pseudo_element_name(PseudoElement);
+WEB_API StringView pseudo_element_name(PseudoElement);
 
 bool is_has_allowed_pseudo_element(PseudoElement);
 bool is_pseudo_element_root(PseudoElement);

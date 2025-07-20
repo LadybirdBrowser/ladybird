@@ -10,6 +10,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
@@ -54,9 +55,9 @@ template<>
 ErrorOr<Web::HTML::FileFilter::Extension> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::FileFilter const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::FileFilter const&);
 
 template<>
-ErrorOr<Web::HTML::FileFilter> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::FileFilter> decode(Decoder&);
 
 }

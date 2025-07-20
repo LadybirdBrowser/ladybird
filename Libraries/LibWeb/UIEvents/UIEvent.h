@@ -8,6 +8,7 @@
 
 #include <AK/RefPtr.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::UIEvents {
@@ -17,7 +18,7 @@ struct UIEventInit : public DOM::EventInit {
     int detail { 0 };
 };
 
-class UIEvent : public DOM::Event {
+class WEB_API UIEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(UIEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(UIEvent);
 

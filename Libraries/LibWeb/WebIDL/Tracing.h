@@ -7,11 +7,12 @@
 #pragma once
 
 #include <LibJS/Forward.h>
+#include <LibWeb/Export.h>
 
 namespace Web::WebIDL {
 
 void log_trace(JS::VM& vm, char const* function);
 
-void set_enable_idl_tracing(bool enabled);
+WEB_API void set_enable_idl_tracing(bool enabled);
 
 }

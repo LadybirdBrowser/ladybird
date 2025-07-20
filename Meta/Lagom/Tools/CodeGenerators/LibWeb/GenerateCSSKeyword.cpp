@@ -56,6 +56,7 @@ ErrorOr<void> generate_header_file(JsonArray& keyword_data, Core::File& file)
 
 #include <AK/StringView.h>
 #include <AK/Traits.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
@@ -75,7 +76,7 @@ enum class Keyword : @keyword_underlying_type@ {
     generator.append(R"~~~(
 };
 
-Optional<Keyword> keyword_from_string(StringView);
+WEB_API Optional<Keyword> keyword_from_string(StringView);
 StringView string_from_keyword(Keyword);
 
 // https://www.w3.org/TR/css-values-4/#common-keywords

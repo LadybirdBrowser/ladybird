@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
@@ -42,7 +43,7 @@ private:
 };
 
 // https://drafts.csswg.org/css-values-4/#urls
-class URL {
+class WEB_API URL {
 public:
     enum class Type : u8 {
         Url,

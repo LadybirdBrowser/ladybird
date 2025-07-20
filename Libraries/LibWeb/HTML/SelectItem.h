@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 
 namespace Web::HTML {
@@ -35,21 +36,21 @@ using SelectItem = Variant<SelectItemOption, SelectItemOptionGroup, SelectItemSe
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::SelectItemOption const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SelectItemOption const&);
 
 template<>
-ErrorOr<Web::HTML::SelectItemOption> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::SelectItemOption> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::SelectItemOptionGroup const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SelectItemOptionGroup const&);
 
 template<>
-ErrorOr<Web::HTML::SelectItemOptionGroup> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::SelectItemOptionGroup> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::SelectItemSeparator const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SelectItemSeparator const&);
 
 template<>
-ErrorOr<Web::HTML::SelectItemSeparator> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::SelectItemSeparator> decode(Decoder&);
 
 }

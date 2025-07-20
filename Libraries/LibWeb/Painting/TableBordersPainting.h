@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
+
 namespace Web::Painting {
 
-void paint_table_borders(DisplayListRecordingContext&, PaintableBox const& table_paintable);
+WEB_API void paint_table_borders(DisplayListRecordingContext&, PaintableBox const& table_paintable);
 
 }

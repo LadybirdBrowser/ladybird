@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -13,7 +14,7 @@
 
 namespace Web::Internals {
 
-class Internals final : public InternalsBase {
+class WEB_API Internals final : public InternalsBase {
     WEB_PLATFORM_OBJECT(Internals, InternalsBase);
     GC_DECLARE_ALLOCATOR(Internals);
 

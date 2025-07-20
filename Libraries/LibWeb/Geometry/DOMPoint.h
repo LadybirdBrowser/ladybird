@@ -7,12 +7,13 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
 
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#DOMPoint
-class DOMPoint final : public DOMPointReadOnly {
+class WEB_API DOMPoint final : public DOMPointReadOnly {
     WEB_PLATFORM_OBJECT(DOMPoint, DOMPointReadOnly);
     GC_DECLARE_ALLOCATOR(DOMPoint);
 

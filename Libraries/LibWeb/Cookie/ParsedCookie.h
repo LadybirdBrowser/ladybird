@@ -12,6 +12,7 @@
 #include <LibIPC/Forward.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/Cookie/Cookie.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Cookie {
 
@@ -28,18 +29,18 @@ struct ParsedCookie {
 };
 
 Optional<ParsedCookie> parse_cookie(URL::URL const&, StringView cookie_string);
-bool cookie_contains_invalid_control_character(StringView);
-bool domain_matches(StringView string, StringView domain_string);
-String default_path(URL::URL const&);
+WEB_API bool cookie_contains_invalid_control_character(StringView);
+WEB_API bool domain_matches(StringView string, StringView domain_string);
+WEB_API String default_path(URL::URL const&);
 
 }
 
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::Cookie::ParsedCookie const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::Cookie::ParsedCookie const&);
 
 template<>
-ErrorOr<Web::Cookie::ParsedCookie> decode(Decoder&);
+WEB_API ErrorOr<Web::Cookie::ParsedCookie> decode(Decoder&);
 
 }

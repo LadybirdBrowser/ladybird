@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#concept-fetch-record
-class FetchRecord final : public JS::Cell {
+class WEB_API FetchRecord final : public JS::Cell {
     GC_CELL(FetchRecord, JS::Cell);
     GC_DECLARE_ALLOCATOR(FetchRecord);
 

@@ -8,11 +8,12 @@
 
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-class WorkerEnvironmentSettingsObject final
+class WEB_API WorkerEnvironmentSettingsObject final
     : public EnvironmentSettingsObject {
     GC_CELL(WorkerEnvironmentSettingsObject, EnvironmentSettingsObject);
     GC_DECLARE_ALLOCATOR(WorkerEnvironmentSettingsObject);

@@ -7,10 +7,11 @@
 #pragma once
 
 #include <LibSyntax/Highlighter.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class SyntaxHighlighter : public Syntax::Highlighter {
+class WEB_API SyntaxHighlighter : public Syntax::Highlighter {
 public:
     SyntaxHighlighter() = default;
     virtual ~SyntaxHighlighter() override = default;
