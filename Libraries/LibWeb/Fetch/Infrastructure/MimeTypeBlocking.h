@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/RequestOrResponseBlocking.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Infrastructure {
 
-[[nodiscard]] RequestOrResponseBlocking should_response_to_request_be_blocked_due_to_its_mime_type(Response const&, Request const&);
+[[nodiscard]] WEB_API RequestOrResponseBlocking should_response_to_request_be_blocked_due_to_its_mime_type(Response const&, Request const&);
 
 }

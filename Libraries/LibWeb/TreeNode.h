@@ -47,7 +47,7 @@ TraversalDecision traverse_preorder(T root, Callback callback)
 }
 
 template<typename T>
-class TreeNode {
+class WEB_API TreeNode {
 public:
     T* parent() { return m_parent; }
     T const* parent() const { return m_parent; }

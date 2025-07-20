@@ -7,11 +7,12 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/workers.html#worker-locations
-class WorkerLocation : public Bindings::PlatformObject {
+class WEB_API WorkerLocation : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(WorkerLocation, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(WorkerLocation);
 

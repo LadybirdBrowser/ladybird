@@ -8,12 +8,13 @@
 
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#dictdef-underlyingsink
-struct UnderlyingSink {
+struct WEB_API UnderlyingSink {
     GC::Root<WebIDL::CallbackType> start;
     GC::Root<WebIDL::CallbackType> write;
     GC::Root<WebIDL::CallbackType> close;

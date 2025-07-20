@@ -9,13 +9,14 @@
 #include <LibGC/Function.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/VisibilityState.h>
 
 namespace Web::DOM {
 
-class DocumentObserver final : public Bindings::PlatformObject {
+class WEB_API DocumentObserver final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DocumentObserver, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(DocumentObserver);
 

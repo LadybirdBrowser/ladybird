@@ -16,6 +16,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
@@ -24,7 +25,7 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#concept-response
-class Response : public JS::Cell {
+class WEB_API Response : public JS::Cell {
     GC_CELL(Response, JS::Cell);
     GC_DECLARE_ALLOCATOR(Response);
 
@@ -267,7 +268,7 @@ private:
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response-basic
-class BasicFilteredResponse final : public FilteredResponse {
+class WEB_API BasicFilteredResponse final : public FilteredResponse {
     GC_CELL(BasicFilteredResponse, FilteredResponse);
     GC_DECLARE_ALLOCATOR(BasicFilteredResponse);
 
@@ -286,7 +287,7 @@ private:
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response-cors
-class CORSFilteredResponse final : public FilteredResponse {
+class WEB_API CORSFilteredResponse final : public FilteredResponse {
     GC_CELL(CORSFilteredResponse, FilteredResponse);
     GC_DECLARE_ALLOCATOR(CORSFilteredResponse);
 
@@ -305,7 +306,7 @@ private:
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response-opaque
-class OpaqueFilteredResponse final : public FilteredResponse {
+class WEB_API OpaqueFilteredResponse final : public FilteredResponse {
     GC_CELL(OpaqueFilteredResponse, FilteredResponse);
     GC_DECLARE_ALLOCATOR(OpaqueFilteredResponse);
 
@@ -330,7 +331,7 @@ private:
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response-opaque-redirect
-class OpaqueRedirectFilteredResponse final : public FilteredResponse {
+class WEB_API OpaqueRedirectFilteredResponse final : public FilteredResponse {
     GC_CELL(OpaqueRedirectFilteredResponse, FilteredResponse);
     GC_DECLARE_ALLOCATOR(OpaqueRedirectFilteredResponse);
 

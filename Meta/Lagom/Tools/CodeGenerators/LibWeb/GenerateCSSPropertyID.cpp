@@ -166,6 +166,7 @@ ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_p
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/ValueType.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -250,10 +251,10 @@ AnimationType animation_type_from_longhand_property(PropertyID);
 bool is_animatable_property(PropertyID);
 
 Optional<PropertyID> property_id_from_camel_case_string(StringView);
-Optional<PropertyID> property_id_from_string(StringView);
-[[nodiscard]] FlyString const& string_from_property_id(PropertyID);
+WEB_API Optional<PropertyID> property_id_from_string(StringView);
+[[nodiscard]] WEB_API FlyString const& string_from_property_id(PropertyID);
 [[nodiscard]] FlyString const& camel_case_string_from_property_id(PropertyID);
-bool is_inherited_property(PropertyID);
+WEB_API bool is_inherited_property(PropertyID);
 NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);

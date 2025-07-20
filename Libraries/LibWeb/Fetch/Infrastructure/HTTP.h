@@ -9,6 +9,7 @@
 
 #include <AK/Forward.h>
 #include <AK/StringView.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -53,6 +54,6 @@ enum class RedirectTaint {
     CrossSite,
 };
 
-[[nodiscard]] String collect_an_http_quoted_string(GenericLexer& lexer, HttpQuotedStringExtractValue extract_value = HttpQuotedStringExtractValue::No);
+[[nodiscard]] WEB_API String collect_an_http_quoted_string(GenericLexer& lexer, HttpQuotedStringExtractValue extract_value = HttpQuotedStringExtractValue::No);
 
 }

@@ -11,6 +11,7 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -18,23 +19,23 @@
 namespace Web::Streams {
 
 // 7.4. Abstract operations, https://streams.spec.whatwg.org/#qs-abstract-ops
-WebIDL::ExceptionOr<double> extract_high_water_mark(QueuingStrategy const&, double default_hwm);
-GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, QueuingStrategy const&);
+WEB_API WebIDL::ExceptionOr<double> extract_high_water_mark(QueuingStrategy const&, double default_hwm);
+WEB_API GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, QueuingStrategy const&);
 
 // 8.2. Transferable streams, https://streams.spec.whatwg.org/#transferrable-streams
 void cross_realm_transform_send_error(JS::Realm&, HTML::MessagePort&, JS::Value error);
 WebIDL::ExceptionOr<void> pack_and_post_message(JS::Realm&, HTML::MessagePort&, StringView type, JS::Value value);
 WebIDL::ExceptionOr<void> pack_and_post_message_handling_error(JS::Realm&, HTML::MessagePort&, StringView type, JS::Value value);
-void set_up_cross_realm_transform_readable(JS::Realm&, ReadableStream&, HTML::MessagePort&);
-void set_up_cross_realm_transform_writable(JS::Realm&, WritableStream&, HTML::MessagePort&);
+WEB_API void set_up_cross_realm_transform_readable(JS::Realm&, ReadableStream&, HTML::MessagePort&);
+WEB_API void set_up_cross_realm_transform_writable(JS::Realm&, WritableStream&, HTML::MessagePort&);
 
 // 8.3. Miscellaneous, https://streams.spec.whatwg.org/#misc-abstract-ops
-bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer);
-bool is_non_negative_number(JS::Value);
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& realm, JS::ArrayBuffer& buffer);
-WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm&, WebIDL::ArrayBufferView&);
-WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm&, JS::Value value);
-bool can_copy_data_block_bytes_buffer(JS::ArrayBuffer const& to_buffer, u64 to_index, JS::ArrayBuffer const& from_buffer, u64 from_index, u64 count);
+WEB_API bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer);
+WEB_API bool is_non_negative_number(JS::Value);
+WEB_API WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& realm, JS::ArrayBuffer& buffer);
+WEB_API WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm&, WebIDL::ArrayBufferView&);
+WEB_API WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm&, JS::Value value);
+WEB_API bool can_copy_data_block_bytes_buffer(JS::ArrayBuffer const& to_buffer, u64 to_index, JS::ArrayBuffer const& from_buffer, u64 from_index, u64 count);
 
 // 8.1. Queue-with-sizes, https://streams.spec.whatwg.org/#queue-with-sizes
 

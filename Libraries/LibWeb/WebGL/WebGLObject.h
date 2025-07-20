@@ -9,12 +9,13 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::WebGL {
 
-class WebGLObject : public Bindings::PlatformObject {
+class WEB_API WebGLObject : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(WebGLObject, Bindings::PlatformObject);
 
 public:

@@ -10,6 +10,7 @@
 #include <AK/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Fetching {
@@ -38,7 +39,7 @@ constexpr auto keepalive_maximum_size = 64 * KiB;
 ENUMERATE_BOOL_PARAMS
 #undef __ENUMERATE_BOOL_PARAM
 
-WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm&, Infrastructure::Request&, Infrastructure::FetchAlgorithms const&, UseParallelQueue use_parallel_queue = UseParallelQueue::No);
+WEB_API WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm&, Infrastructure::Request&, Infrastructure::FetchAlgorithms const&, UseParallelQueue use_parallel_queue = UseParallelQueue::No);
 WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm&, Infrastructure::FetchParams const&, Recursive recursive = Recursive::No);
 void populate_request_from_client(JS::Realm const&, Infrastructure::Request&);
 void fetch_response_handover(JS::Realm&, Infrastructure::FetchParams const&, Infrastructure::Response&);
@@ -54,6 +55,6 @@ void set_sec_fetch_site_header(Infrastructure::Request&);
 void set_sec_fetch_user_header(Infrastructure::Request&);
 void append_fetch_metadata_headers_for_request(Infrastructure::Request&);
 
-void set_http_cache_enabled(bool enabled);
+WEB_API void set_http_cache_enabled(bool enabled);
 
 }

@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/Layout/BlockContainer.h>
 
 namespace Web::Layout {
 
-class Label final : public BlockContainer {
+class WEB_API Label final : public BlockContainer {
     GC_CELL(Label, BlockContainer);
     GC_DECLARE_ALLOCATOR(Label);
 

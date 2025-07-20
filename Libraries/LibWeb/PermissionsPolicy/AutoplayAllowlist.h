@@ -10,12 +10,13 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibURL/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PermissionsPolicy/Decision.h>
 
 namespace Web::PermissionsPolicy {
 
-class AutoplayAllowlist {
+class WEB_API AutoplayAllowlist {
 public:
     static AutoplayAllowlist& the();
 

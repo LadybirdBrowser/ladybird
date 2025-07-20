@@ -13,6 +13,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibURL/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -44,9 +45,9 @@ struct DataURL {
     ByteBuffer body;
 };
 
-[[nodiscard]] bool is_local_url(URL::URL const&);
+[[nodiscard]] WEB_API bool is_local_url(URL::URL const&);
 [[nodiscard]] bool is_fetch_scheme(StringView);
-[[nodiscard]] bool is_http_or_https_scheme(StringView);
-ErrorOr<DataURL> process_data_url(URL::URL const&);
+[[nodiscard]] WEB_API bool is_http_or_https_scheme(StringView);
+WEB_API ErrorOr<DataURL> process_data_url(URL::URL const&);
 
 }

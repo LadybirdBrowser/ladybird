@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibJS/SourceTextModule.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/Script.h>
 
 namespace Web::HTML {
@@ -25,7 +26,7 @@ private:
     virtual bool is_module_script() const final { return true; }
 };
 
-class JavaScriptModuleScript final : public ModuleScript {
+class WEB_API JavaScriptModuleScript final : public ModuleScript {
     GC_CELL(JavaScriptModuleScript, ModuleScript);
     GC_DECLARE_ALLOCATOR(JavaScriptModuleScript);
 

@@ -12,6 +12,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/Point.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/SVG/Path.h>
 
 namespace Web::SVG {
@@ -86,7 +87,7 @@ enum class SpreadMethod {
     Reflect
 };
 
-class NumberPercentage {
+class WEB_API NumberPercentage {
 public:
     NumberPercentage(float value, bool is_percentage)
         : m_value(is_percentage ? value / 100 : value)
@@ -126,7 +127,7 @@ enum class TextAnchor {
     End
 };
 
-class AttributeParser final {
+class WEB_API AttributeParser final {
 public:
     ~AttributeParser() = default;
 

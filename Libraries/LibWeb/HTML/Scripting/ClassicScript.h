@@ -7,13 +7,14 @@
 #pragma once
 
 #include <LibJS/Script.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Script.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#classic-script
-class ClassicScript final : public Script {
+class WEB_API ClassicScript final : public Script {
     GC_CELL(ClassicScript, Script);
     GC_DECLARE_ALLOCATOR(ClassicScript);
 

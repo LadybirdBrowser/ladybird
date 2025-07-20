@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/Navigable.h>
 
 namespace Web::Painting {
 
-class BackingStoreManager : public JS::Cell {
+class WEB_API BackingStoreManager : public JS::Cell {
     GC_CELL(BackingStoreManager, JS::Cell);
     GC_DECLARE_ALLOCATOR(BackingStoreManager);
 

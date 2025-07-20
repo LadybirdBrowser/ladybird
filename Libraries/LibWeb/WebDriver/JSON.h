@@ -8,12 +8,13 @@
 #pragma once
 
 #include <LibJS/Runtime/Value.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebDriver/Response.h>
 
 namespace Web::WebDriver {
 
-Response json_clone(HTML::BrowsingContext const&, JS::Value);
-ErrorOr<JS::Value, WebDriver::Error> json_deserialize(HTML::BrowsingContext const&, JsonValue const&);
+WEB_API Response json_clone(HTML::BrowsingContext const&, JS::Value);
+WEB_API ErrorOr<JS::Value, WebDriver::Error> json_deserialize(HTML::BrowsingContext const&, JsonValue const&);
 
 }

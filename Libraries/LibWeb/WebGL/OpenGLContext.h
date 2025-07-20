@@ -8,10 +8,11 @@
 
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
+#include <LibWeb/Export.h>
 
 namespace Web::WebGL {
 
-class OpenGLContext {
+class WEB_API OpenGLContext {
 public:
     enum class WebGLVersion {
         WebGL1,

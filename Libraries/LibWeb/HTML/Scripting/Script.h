@@ -9,13 +9,14 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Script.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script
 // https://whatpr.org/html/9893/webappapis.html#concept-script
-class Script
+class WEB_API Script
     : public JS::Cell
     , public JS::Script::HostDefined {
     GC_CELL(Script, JS::Cell);

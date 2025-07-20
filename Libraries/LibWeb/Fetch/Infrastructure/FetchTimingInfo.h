@@ -13,6 +13,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibRequests/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/ConnectionTimingInfo.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
@@ -20,7 +21,7 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#fetch-timing-info
-class FetchTimingInfo : public JS::Cell {
+class WEB_API FetchTimingInfo : public JS::Cell {
     GC_CELL(FetchTimingInfo, JS::Cell);
     GC_DECLARE_ALLOCATOR(FetchTimingInfo);
 
@@ -132,6 +133,6 @@ private:
     bool m_render_blocking { false };
 };
 
-GC::Ref<FetchTimingInfo> create_opaque_timing_info(JS::VM&, FetchTimingInfo const& timing_info);
+WEB_API GC::Ref<FetchTimingInfo> create_opaque_timing_info(JS::VM&, FetchTimingInfo const& timing_info);
 
 }

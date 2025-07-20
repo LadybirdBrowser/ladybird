@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/NodeType.h>
 #include <LibWeb/DOM/Slottable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/TraversalDecision.h>
 #include <LibWeb/TreeNode.h>
@@ -138,7 +139,7 @@ enum class SetNeedsLayoutTreeUpdateReason {
 
 [[nodiscard]] StringView to_string(SetNeedsLayoutTreeUpdateReason);
 
-class Node : public EventTarget
+class WEB_API Node : public EventTarget
     , public TreeNode<Node> {
     WEB_PLATFORM_OBJECT(Node, EventTarget);
 

@@ -9,11 +9,12 @@
 #include <LibWeb/Bindings/ShadowRootPrototype.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/ElementByIdMap.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 
 namespace Web::DOM {
 
-class ShadowRoot final : public DocumentFragment {
+class WEB_API ShadowRoot final : public DocumentFragment {
     WEB_PLATFORM_OBJECT(ShadowRoot, DocumentFragment);
     GC_DECLARE_ALLOCATOR(ShadowRoot);
 

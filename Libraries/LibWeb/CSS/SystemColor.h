@@ -8,6 +8,7 @@
 
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/Export.h>
 
 // https://www.w3.org/TR/css-color-4/#css-system-colors
 namespace Web::CSS::SystemColor {
@@ -23,8 +24,8 @@ Color canvas_text(PreferredColorScheme);
 Color field(PreferredColorScheme);
 Color field_text(PreferredColorScheme);
 Color gray_text(PreferredColorScheme);
-Color highlight(PreferredColorScheme);
-Color highlight_text(PreferredColorScheme);
+WEB_API Color highlight(PreferredColorScheme);
+WEB_API Color highlight_text(PreferredColorScheme);
 Color link_text(PreferredColorScheme);
 Color mark(PreferredColorScheme);
 Color mark_text(PreferredColorScheme);

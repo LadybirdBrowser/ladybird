@@ -10,6 +10,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
@@ -22,9 +23,9 @@
 
 namespace Web::Painting {
 
-extern bool g_paint_viewport_scrollbars;
+WEB_API void set_paint_viewport_scrollbars(bool enabled);
 
-class PaintableBox : public Paintable
+class WEB_API PaintableBox : public Paintable
     , public Weakable<PaintableBox> {
     GC_CELL(PaintableBox, Paintable);
 

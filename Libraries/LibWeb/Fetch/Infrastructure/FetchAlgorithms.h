@@ -10,12 +10,13 @@
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#fetch-elsewhere-fetch
-class FetchAlgorithms : public JS::Cell {
+class WEB_API FetchAlgorithms : public JS::Cell {
     GC_CELL(FetchAlgorithms, JS::Cell);
     GC_DECLARE_ALLOCATOR(FetchAlgorithms);
 

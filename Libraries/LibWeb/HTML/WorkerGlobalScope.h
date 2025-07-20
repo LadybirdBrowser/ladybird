@@ -12,6 +12,7 @@
 #include <LibCore/Socket.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
@@ -33,7 +34,7 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/workers.html#the-workerglobalscope-common-interface
 // WorkerGlobalScope is the base class of each real WorkerGlobalScope that will be created when the
 // user agent runs the run a worker algorithm.
-class WorkerGlobalScope
+class WEB_API WorkerGlobalScope
     : public DOM::EventTarget
     , public WindowOrWorkerGlobalScopeMixin
     , public UniversalGlobalScopeMixin {

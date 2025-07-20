@@ -10,11 +10,12 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-class WindowProxy final : public JS::Object {
+class WEB_API WindowProxy final : public JS::Object {
     JS_OBJECT(WindowProxy, JS::Object);
     GC_DECLARE_ALLOCATOR(WindowProxy);
 

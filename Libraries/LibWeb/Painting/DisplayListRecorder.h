@@ -18,6 +18,7 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
@@ -34,7 +35,7 @@ struct StackingContextTransform {
     Gfx::FloatMatrix4x4 matrix;
 };
 
-class DisplayListRecorder {
+class WEB_API DisplayListRecorder {
     AK_MAKE_NONCOPYABLE(DisplayListRecorder);
     AK_MAKE_NONMOVABLE(DisplayListRecorder);
 

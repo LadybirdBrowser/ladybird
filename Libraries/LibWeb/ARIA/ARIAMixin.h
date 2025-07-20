@@ -11,6 +11,7 @@
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/AttributeNames.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::ARIA {
@@ -27,7 +28,7 @@ namespace Web::ARIA {
     __ENUMERATE_ARIA_ATTRIBUTE(aria_labelled_by_elements, aria_labelled_by)     \
     __ENUMERATE_ARIA_ATTRIBUTE(aria_owns_elements, aria_owns)
 
-class ARIAMixin {
+class WEB_API ARIAMixin {
 public:
     virtual ~ARIAMixin();
 

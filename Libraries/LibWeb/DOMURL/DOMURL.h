@@ -12,6 +12,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -93,6 +94,6 @@ private:
 };
 
 // https://url.spec.whatwg.org/#concept-url-parser
-Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url = {}, Optional<StringView> encoding = {});
+WEB_API Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url = {}, Optional<StringView> encoding = {});
 
 }

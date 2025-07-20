@@ -8,6 +8,7 @@
 
 #include <LibGC/Root.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/PixelUnits.h>
@@ -48,7 +49,7 @@ enum class HitTestType {
     TextCursor, // Clicking past the right/bottom edge of text will still hit the text
 };
 
-class Paintable
+class WEB_API Paintable
     : public JS::Cell
     , public TreeNode<Paintable> {
     GC_CELL(Paintable, JS::Cell);
@@ -190,6 +191,6 @@ inline bool Paintable::fast_is<PaintableWithLines>() const { return is_paintable
 template<>
 inline bool Paintable::fast_is<TextPaintable>() const { return is_text_paintable(); }
 
-Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, CSSPixelRect const& rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius);
+WEB_API Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, CSSPixelRect const& rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius);
 
 }

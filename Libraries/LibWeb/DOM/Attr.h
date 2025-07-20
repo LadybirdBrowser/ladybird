@@ -9,11 +9,12 @@
 #include <AK/WeakPtr.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/QualifiedName.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#attr
-class Attr final : public Node {
+class WEB_API Attr final : public Node {
     WEB_PLATFORM_OBJECT(Attr, Node);
     GC_DECLARE_ALLOCATOR(Attr);
 

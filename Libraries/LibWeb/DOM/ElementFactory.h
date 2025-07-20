@@ -8,13 +8,14 @@
 
 #include <AK/FixedArray.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
-ErrorOr<FixedArray<FlyString>> valid_local_names_for_given_html_element_interface(StringView html_element_interface_name);
+WEB_API ErrorOr<FixedArray<FlyString>> valid_local_names_for_given_html_element_interface(StringView html_element_interface_name);
 bool is_unknown_html_element(FlyString const& tag_name);
 
 // FIXME: The spec doesn't say what the default value of synchronous_custom_elements_flag should be.
-WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document&, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix = {}, Optional<String> is = Optional<String> {}, bool synchronous_custom_elements_flag = false);
+WEB_API WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document&, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix = {}, Optional<String> is = Optional<String> {}, bool synchronous_custom_elements_flag = false);
 
 }

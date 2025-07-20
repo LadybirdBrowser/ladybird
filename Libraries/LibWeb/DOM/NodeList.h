@@ -8,11 +8,12 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#nodelist
-class NodeList : public Bindings::PlatformObject {
+class WEB_API NodeList : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(NodeList, Bindings::PlatformObject);
 
 public:

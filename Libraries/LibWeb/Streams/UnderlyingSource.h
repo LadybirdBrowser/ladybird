@@ -9,6 +9,7 @@
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -18,7 +19,7 @@ enum class ReadableStreamType {
     Bytes
 };
 
-struct UnderlyingSource {
+struct WEB_API UnderlyingSource {
     GC::Root<WebIDL::CallbackType> start;
     GC::Root<WebIDL::CallbackType> pull;
     GC::Root<WebIDL::CallbackType> cancel;

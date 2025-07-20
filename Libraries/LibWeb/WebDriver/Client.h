@@ -17,6 +17,7 @@
 #include <LibCore/Socket.h>
 #include <LibHTTP/Forward.h>
 #include <LibHTTP/HttpRequest.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/Response.h>
 
@@ -24,7 +25,7 @@ namespace Web::WebDriver {
 
 using Parameters = Vector<String>;
 
-class Client : public Core::EventReceiver {
+class WEB_API Client : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(Client);
 
 public:

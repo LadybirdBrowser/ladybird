@@ -9,11 +9,12 @@
 #include <AK/Forward.h>
 #include <AK/Utf16String.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
-u32 week_number_of_the_last_day(u64 year);
+WEB_API u32 week_number_of_the_last_day(u64 year);
 bool is_valid_week_string(Utf16View const& value);
 bool is_valid_month_string(Utf16View const& value);
 bool is_valid_date_string(Utf16View const& value);

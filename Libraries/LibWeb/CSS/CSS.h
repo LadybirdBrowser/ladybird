@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -23,12 +24,12 @@ struct PropertyDefinition {
     Optional<String> initial_value;
 };
 
-WebIDL::ExceptionOr<String> escape(JS::VM&, StringView identifier);
+WEB_API WebIDL::ExceptionOr<String> escape(JS::VM&, StringView identifier);
 
-bool supports(JS::VM&, StringView property, StringView value);
-WebIDL::ExceptionOr<bool> supports(JS::VM&, StringView condition_text);
+WEB_API bool supports(JS::VM&, StringView property, StringView value);
+WEB_API WebIDL::ExceptionOr<bool> supports(JS::VM&, StringView condition_text);
 
-WebIDL::ExceptionOr<void> register_property(JS::VM&, PropertyDefinition definition);
+WEB_API WebIDL::ExceptionOr<void> register_property(JS::VM&, PropertyDefinition definition);
 
 GC::Ref<CSSUnitValue> number(JS::VM&, WebIDL::Double value);
 GC::Ref<CSSUnitValue> percent(JS::VM&, WebIDL::Double value);

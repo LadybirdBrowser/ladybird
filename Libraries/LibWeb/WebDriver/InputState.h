@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebDriver/InputSource.h>
 
@@ -29,7 +30,7 @@ struct InputState {
     Vector<String> actions_queue;
 };
 
-InputState& get_input_state(HTML::BrowsingContext&);
-void reset_input_state(HTML::BrowsingContext&);
+WEB_API InputState& get_input_state(HTML::BrowsingContext&);
+WEB_API void reset_input_state(HTML::BrowsingContext&);
 
 }

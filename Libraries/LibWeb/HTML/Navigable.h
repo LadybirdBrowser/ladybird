@@ -12,6 +12,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Bindings/NavigationPrototype.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
@@ -49,7 +50,7 @@ struct PaintConfig {
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#navigable
-class Navigable : public JS::Cell
+class WEB_API Navigable : public JS::Cell
     , public Weakable<Navigable> {
     GC_CELL(Navigable, JS::Cell);
     GC_DECLARE_ALLOCATOR(Navigable);
@@ -292,7 +293,7 @@ private:
     RenderingThread m_rendering_thread;
 };
 
-HashTable<GC::RawRef<Navigable>>& all_navigables();
+WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
 void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<SessionHistoryEntry>);

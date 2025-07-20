@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <LibWeb/Bindings/CookieStorePrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::CookieStore {
@@ -46,7 +47,7 @@ struct CookieStoreDeleteOptions {
 };
 
 // https://cookiestore.spec.whatwg.org/#cookiestore
-class CookieStore final : public DOM::EventTarget {
+class WEB_API CookieStore final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(CookieStore, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(CookieStore);
 

@@ -7,12 +7,13 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
 
-class ViewportPaintable final : public PaintableWithLines {
+class WEB_API ViewportPaintable final : public PaintableWithLines {
     GC_CELL(ViewportPaintable, PaintableWithLines);
     GC_DECLARE_ALLOCATOR(ViewportPaintable);
 

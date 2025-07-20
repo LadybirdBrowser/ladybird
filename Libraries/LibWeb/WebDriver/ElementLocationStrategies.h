@@ -9,6 +9,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibWeb/DOM/NodeList.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebDriver/Error.h>
 
@@ -23,7 +24,7 @@ enum class LocationStrategy {
     XPath,
 };
 
-Optional<LocationStrategy> location_strategy_from_string(StringView type);
-ErrorOr<GC::Ref<DOM::NodeList>, Error> invoke_location_strategy(LocationStrategy type, DOM::ParentNode& start_node, StringView selector);
+WEB_API Optional<LocationStrategy> location_strategy_from_string(StringView type);
+WEB_API ErrorOr<GC::Ref<DOM::NodeList>, Error> invoke_location_strategy(LocationStrategy type, DOM::ParentNode& start_node, StringView selector);
 
 }

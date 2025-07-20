@@ -11,10 +11,11 @@
 
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/Length.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-struct EdgeRect {
+struct WEB_API EdgeRect {
     Length top_edge;
     Length right_edge;
     Length bottom_edge;

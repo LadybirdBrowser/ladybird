@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
@@ -22,7 +23,7 @@ struct BrowserInputData {
     virtual ~BrowserInputData() = default;
 };
 
-struct KeyEvent {
+struct WEB_API KeyEvent {
     enum class Type {
         KeyDown,
         KeyUp,
@@ -39,7 +40,7 @@ struct KeyEvent {
     OwnPtr<BrowserInputData> browser_data;
 };
 
-struct MouseEvent {
+struct WEB_API MouseEvent {
     enum class Type {
         MouseDown,
         MouseUp,
@@ -63,7 +64,7 @@ struct MouseEvent {
     OwnPtr<BrowserInputData> browser_data;
 };
 
-struct DragEvent {
+struct WEB_API DragEvent {
     enum class Type {
         DragStart,
         DragMove,
@@ -97,21 +98,21 @@ struct QueuedInputEvent {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::KeyEvent const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::KeyEvent const&);
 
 template<>
-ErrorOr<Web::KeyEvent> decode(Decoder&);
+WEB_API ErrorOr<Web::KeyEvent> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::MouseEvent const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::MouseEvent const&);
 
 template<>
-ErrorOr<Web::MouseEvent> decode(Decoder&);
+WEB_API ErrorOr<Web::MouseEvent> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::DragEvent const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::DragEvent const&);
 
 template<>
-ErrorOr<Web::DragEvent> decode(Decoder&);
+WEB_API ErrorOr<Web::DragEvent> decode(Decoder&);
 
 }

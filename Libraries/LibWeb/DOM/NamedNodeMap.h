@@ -10,13 +10,14 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#interface-namednodemap
-class NamedNodeMap : public Bindings::PlatformObject {
+class WEB_API NamedNodeMap : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(NamedNodeMap, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(NamedNodeMap);
 

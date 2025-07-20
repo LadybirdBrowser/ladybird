@@ -11,11 +11,12 @@
 #include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <LibWeb/CSS/BooleanExpression.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
 // https://www.w3.org/TR/css-conditional-3/#at-supports
-class Supports final : public RefCounted<Supports> {
+class WEB_API Supports final : public RefCounted<Supports> {
 public:
     class Declaration final : public BooleanExpression {
     public:

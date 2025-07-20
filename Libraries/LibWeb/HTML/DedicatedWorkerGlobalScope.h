@@ -8,11 +8,12 @@
 
 #include <LibWeb/Bindings/DedicatedWorkerGlobalScopeGlobalMixin.h>
 #include <LibWeb/Bindings/WorkerGlobalScopePrototype.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 
 namespace Web::HTML {
 
-class DedicatedWorkerGlobalScope
+class WEB_API DedicatedWorkerGlobalScope
     : public WorkerGlobalScope
     , public Bindings::DedicatedWorkerGlobalScopeGlobalMixin {
     WEB_PLATFORM_OBJECT(DedicatedWorkerGlobalScope, WorkerGlobalScope);

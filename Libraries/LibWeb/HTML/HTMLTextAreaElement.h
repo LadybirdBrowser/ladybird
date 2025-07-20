@@ -12,6 +12,7 @@
 #include <LibCore/Timer.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/AutocompleteElement.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -19,7 +20,7 @@
 
 namespace Web::HTML {
 
-class HTMLTextAreaElement final
+class WEB_API HTMLTextAreaElement final
     : public HTMLElement
     , public FormAssociatedTextControlElement
     , public AutocompleteElement {

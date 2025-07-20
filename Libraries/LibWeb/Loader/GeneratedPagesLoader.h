@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Loader/Resource.h>
 
 namespace Web {
 
-void set_browser_process_command_line(StringView command_line);
-void set_browser_process_executable_path(StringView executable_path);
+WEB_API void set_browser_process_command_line(StringView command_line);
+WEB_API void set_browser_process_executable_path(StringView executable_path);
 
 ErrorOr<String> load_error_page(URL::URL const&, StringView error_message);
 

@@ -7,12 +7,13 @@
 #pragma once
 
 #include <LibGfx/Path.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 
 namespace Web::Painting {
 
-class SVGPathPaintable final : public SVGGraphicsPaintable {
+class WEB_API SVGPathPaintable final : public SVGGraphicsPaintable {
     GC_CELL(SVGPathPaintable, SVGGraphicsPaintable);
     GC_DECLARE_ALLOCATOR(SVGPathPaintable);
 

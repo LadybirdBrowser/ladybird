@@ -156,7 +156,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Web::Fetch::Fetching::set_http_cache_enabled(true);
     }
 
-    Web::Painting::g_paint_viewport_scrollbars = !disable_scrollbar_painting;
+    Web::Painting::set_paint_viewport_scrollbars(!disable_scrollbar_painting);
 
     if (!echo_server_port_string_view.is_empty()) {
         if (auto maybe_echo_server_port = echo_server_port_string_view.to_number<u16>(); maybe_echo_server_port.has_value())

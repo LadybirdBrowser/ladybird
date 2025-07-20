@@ -7,11 +7,12 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
 namespace Web::HTML {
 
-class HTMLOptionElement final : public HTMLElement {
+class WEB_API HTMLOptionElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLOptionElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLOptionElement);
 

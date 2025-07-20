@@ -77,6 +77,7 @@ static ErrorOr<void> generate_intrinsic_definitions(StringView output_path, Inte
 #include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/SharedWorkerGlobalScope.h>
@@ -211,7 +212,7 @@ bool Intrinsics::is_interface_exposed<@prototype_class@>(JS::Realm& realm) const
 
         gen.append(R"~~~(
 template<>
-void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>(JS::Realm& realm)
+WEB_API void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>(JS::Realm& realm)
 {
     auto& vm = realm.vm();
 

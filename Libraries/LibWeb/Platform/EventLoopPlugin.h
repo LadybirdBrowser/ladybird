@@ -9,11 +9,12 @@
 #include <AK/Forward.h>
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Platform {
 
-class EventLoopPlugin {
+class WEB_API EventLoopPlugin {
 public:
     static EventLoopPlugin& the();
     static void install(EventLoopPlugin&);

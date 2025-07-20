@@ -12,6 +12,7 @@
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Export.h>
 
 namespace Web {
 
@@ -1220,10 +1221,10 @@ struct FormDataEntry;
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::UniqueNodeID const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::UniqueNodeID const&);
 
 template<>
-ErrorOr<Web::UniqueNodeID> decode(Decoder&);
+WEB_API ErrorOr<Web::UniqueNodeID> decode(Decoder&);
 
 }
 

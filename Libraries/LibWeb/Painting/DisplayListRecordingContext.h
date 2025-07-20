@@ -10,13 +10,14 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Rect.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web {
 
-class DisplayListRecordingContext {
+class WEB_API DisplayListRecordingContext {
 public:
     DisplayListRecordingContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel);
 

@@ -10,6 +10,7 @@
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
@@ -54,7 +55,7 @@ struct BordersDataDevicePixels {
     }
 };
 
-struct BordersData {
+struct WEB_API BordersData {
     CSS::BorderData top;
     CSS::BorderData right;
     CSS::BorderData bottom;

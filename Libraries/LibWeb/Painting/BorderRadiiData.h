@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Painting {
 
@@ -21,7 +22,7 @@ struct CornerRadius {
     }
 };
 
-struct BorderRadiusData {
+struct WEB_API BorderRadiusData {
     CSSPixels horizontal_radius { 0 };
     CSSPixels vertical_radius { 0 };
 

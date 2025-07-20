@@ -10,6 +10,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
@@ -19,7 +20,7 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#fetch-params
-class FetchParams : public JS::Cell {
+class WEB_API FetchParams : public JS::Cell {
     GC_CELL(FetchParams, JS::Cell);
     GC_DECLARE_ALLOCATOR(FetchParams);
 

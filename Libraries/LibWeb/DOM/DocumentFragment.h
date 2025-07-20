@@ -8,10 +8,11 @@
 
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
-class DocumentFragment
+class WEB_API DocumentFragment
     : public ParentNode {
     WEB_PLATFORM_OBJECT(DocumentFragment, ParentNode);
     GC_DECLARE_ALLOCATOR(DocumentFragment);

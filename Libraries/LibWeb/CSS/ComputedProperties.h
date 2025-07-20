@@ -21,10 +21,11 @@
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/PseudoClassBitmap.h>
 #include <LibWeb/CSS/StyleProperty.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class ComputedProperties final : public JS::Cell {
+class WEB_API ComputedProperties final : public JS::Cell {
     GC_CELL(ComputedProperties, JS::Cell);
     GC_DECLARE_ALLOCATOR(ComputedProperties);
 

@@ -9,11 +9,12 @@
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-class NavigationObserver final : public Bindings::PlatformObject {
+class WEB_API NavigationObserver final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(NavigationObserver, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(NavigationObserver);
 

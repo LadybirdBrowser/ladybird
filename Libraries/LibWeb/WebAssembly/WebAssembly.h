@@ -15,21 +15,22 @@
 #include <LibJS/Runtime/PrototypeObject.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebAssembly {
 
-void visit_edges(JS::Object&, JS::Cell::Visitor&);
-void finalize(JS::Object&);
-void initialize(JS::Object&, JS::Realm&);
+WEB_API void visit_edges(JS::Object&, JS::Cell::Visitor&);
+WEB_API void finalize(JS::Object&);
+WEB_API void initialize(JS::Object&, JS::Realm&);
 
-bool validate(JS::VM&, GC::Root<WebIDL::BufferSource>& bytes);
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM&, GC::Root<WebIDL::BufferSource>& bytes);
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM&, GC::Root<WebIDL::Promise> source);
+WEB_API bool validate(JS::VM&, GC::Root<WebIDL::BufferSource>& bytes);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM&, GC::Root<WebIDL::BufferSource>& bytes);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM&, GC::Root<WebIDL::Promise> source);
 
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, GC::Root<WebIDL::BufferSource>& bytes, Optional<GC::Root<JS::Object>>& import_object);
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, Module const& module_object, Optional<GC::Root<JS::Object>>& import_object);
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM&, GC::Root<WebIDL::Promise> source, Optional<GC::Root<JS::Object>>& import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, GC::Root<WebIDL::BufferSource>& bytes, Optional<GC::Root<JS::Object>>& import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, Module const& module_object, Optional<GC::Root<JS::Object>>& import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM&, GC::Root<WebIDL::Promise> source, Optional<GC::Root<JS::Object>>& import_object);
 
 namespace Detail {
 
@@ -122,7 +123,7 @@ extern HashMap<GC::Ptr<JS::Object>, WebAssemblyCache> s_caches;
 //       our implementation uses this fact in places, but for the purposes of wasm returning
 //       *some* kind of error, named e.g. 'WebAssembly.RuntimeError', this is sufficient.
 #define DECLARE_WASM_NATIVE_ERROR(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \
-    class ClassName final : public JS::Error {                                                          \
+    class WEB_API ClassName final : public JS::Error {                                                  \
         JS_OBJECT(ClassName, Error);                                                                    \
         GC_DECLARE_ALLOCATOR(ClassName);                                                                \
                                                                                                         \

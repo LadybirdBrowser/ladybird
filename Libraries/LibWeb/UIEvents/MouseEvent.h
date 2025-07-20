@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/TypeCasts.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/EventModifier.h>
 #include <LibWeb/UIEvents/UIEvent.h>
@@ -25,7 +26,7 @@ struct MouseEventInit : public EventModifierInit {
     GC::Ptr<DOM::EventTarget> related_target = nullptr;
 };
 
-class MouseEvent : public UIEvent {
+class WEB_API MouseEvent : public UIEvent {
     WEB_PLATFORM_OBJECT(MouseEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(MouseEvent);
 
