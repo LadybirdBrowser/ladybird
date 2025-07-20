@@ -1178,17 +1178,22 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
                 }
             }
 
-            // 3. If goal is TemporalMonthDayString or TemporalYearMonthString, calendar is not EMPTY, and the
-            //    ASCII-lowercase of calendar is not "iso8601", throw a RangeError exception.
-            if (goal == Production::TemporalMonthDayString || goal == Production::TemporalYearMonthString) {
+            // 3. If goal is TemporalYearMonthString and parseResult does not contain a DateDay Parse Node, then
+            if (goal == Production::TemporalYearMonthString && !parse_result->date_day.has_value()) {
+                // a. If calendar is not empty and the ASCII-lowercase of calendar is not "iso8601", throw a RangeError exception.
                 if (calendar.has_value() && !calendar->equals_ignoring_ascii_case("iso8601"sv))
                     return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarIdentifier, *calendar);
             }
 
-            // 4. If goal is TemporalMonthDayString and parseResult does not contain a DateYear Parse Node, set
-            //    yearAbsent to true.
-            if (goal == Production::TemporalMonthDayString && !parse_result->date_year.has_value())
+            // 4. If goal is TemporalMonthDayString and parseResult does not contain a DateYear Parse Node, then
+            if (goal == Production::TemporalMonthDayString && !parse_result->date_year.has_value()) {
+                // a. If calendar is not empty and the ASCII-lowercase of calendar is not "iso8601", throw a RangeError exception.
+                if (calendar.has_value() && !calendar->equals_ignoring_ascii_case("iso8601"sv))
+                    return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarIdentifier, *calendar);
+
+                // b. Set yearAbsent to true.
                 year_absent = true;
+            }
         }
     }
 
