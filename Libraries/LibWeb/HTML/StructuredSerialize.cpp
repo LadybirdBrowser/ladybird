@@ -1115,6 +1115,8 @@ static bool is_transferable_interface_exposed_on_target_realm(TransferType name,
         return intrinsics.is_interface_exposed<Bindings::WritableStreamPrototype>(realm);
     case TransferType::TransformStream:
         return intrinsics.is_interface_exposed<Bindings::TransformStreamPrototype>(realm);
+    case TransferType::ImageBitmap:
+        return intrinsics.is_interface_exposed<Bindings::ImageBitmapPrototype>(realm);
     case TransferType::Unknown:
         dbgln("Unknown interface type for transfer: {}", to_underlying(name));
         break;
