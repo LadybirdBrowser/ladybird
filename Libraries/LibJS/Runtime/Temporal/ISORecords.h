@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -50,14 +50,14 @@ struct ISOYearMonth {
     u8 month { 0 };
 };
 
-// 13.31 ISO String Time Zone Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-string-time-zone-parse-records
+// 13.32 ISO String Time Zone Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-string-time-zone-parse-records
 struct ParsedISOTimeZone {
     bool z_designator { false };
     Optional<String> offset_string;
     Optional<String> time_zone_annotation;
 };
 
-// 13.32 ISO Date-Time Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-time-parse-records
+// 13.33 ISO Date-Time Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-time-parse-records
 struct ParsedISODateTime {
     struct StartOfDay { };
 

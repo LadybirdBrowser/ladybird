@@ -38,7 +38,7 @@ enum class Zoned {
     Yes,
 };
 
-// 13.30.1 Static Semantics: IsValidMonthDay, https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar-static-semantics-isvalidmonthday
+// 13.31.1 Static Semantics: IsValidMonthDay, https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar-static-semantics-isvalidmonthday
 static bool is_valid_month_day(ParseResult const& result)
 {
     // 1. If DateDay is "31" and DateMonth is "02", "04", "06", "09", "11", return false.
@@ -53,7 +53,7 @@ static bool is_valid_month_day(ParseResult const& result)
     return true;
 }
 
-// 13.30.2 Static Semantics: IsValidDate, https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar-static-semantics-isvaliddate
+// 13.31.2 Static Semantics: IsValidDate, https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar-static-semantics-isvaliddate
 static bool is_valid_date(ParseResult const& result)
 {
     // 1. If IsValidMonthDay of DateSpec is false, return false.
@@ -71,7 +71,7 @@ static bool is_valid_date(ParseResult const& result)
     return true;
 }
 
-// 13.30 RFC 9557 / ISO 8601 grammar, https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar
+// 13.31 RFC 9557 / ISO 8601 grammar, https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar
 class ISO8601Parser {
 public:
     explicit ISO8601Parser(StringView input)

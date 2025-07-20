@@ -400,120 +400,92 @@ SecondsStringPrecision to_seconds_string_precision_record(UnitValue smallest_uni
     return { .precision = fractional_digits, .unit = Unit::Nanosecond, .increment = static_cast<u8>(pow(10, 9 - fractional_digits)) };
 }
 
-// 13.17 GetTemporalUnitValuedOption ( options, key, unitGroup, default [ , extraValues ] ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalunitvaluedoption
-ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object const& options, PropertyKey const& key, UnitGroup unit_group, UnitDefault const& default_, ReadonlySpan<UnitValue> extra_values)
+// 13.17 GetTemporalUnitValuedOption ( options, key, default ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalunitvaluedoption
+ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object const& options, PropertyKey const& key, UnitDefault const& default_)
 {
-    // 1. Let allowedValues be a new empty List.
-    Vector<UnitValue> allowed_values;
+    // 1. Let allowedStrings be a List containing all values in the "Singular property name" and "Plural property name"
+    //    columns of Table 21, except the header row.
+    // 2. Append "auto" to allowedStrings.
+    // 3. NOTE: For each singular Temporal unit name that is contained within allowedStrings, the corresponding plural
+    //    name is also contained within it.
+    static auto allowed_strings = [&]() {
+        Vector<StringView> allowed_strings;
+        allowed_strings.ensure_capacity((temporal_units.size() * 2) + 1);
 
-    // 2. For each row of Table 21, except the header row, in table order, do
-    for (auto const& row : temporal_units) {
-        // a. Let unit be the value in the "Value" column of the row.
-        auto unit = row.value;
+        for (auto const& temporal_unit : temporal_units) {
+            allowed_strings.unchecked_append(temporal_unit.singular_property_name);
+            allowed_strings.unchecked_append(temporal_unit.plural_property_name);
+        }
 
-        // b. If the "Category" column of the row is DATE and unitGroup is DATE or DATETIME, append unit to allowedValues.
-        if (row.category == UnitCategory::Date && (unit_group == UnitGroup::Date || unit_group == UnitGroup::DateTime))
-            allowed_values.append(unit);
-
-        // c. Else if the "Category" column of the row is TIME and unitGroup is TIME or DATETIME, append unit to allowedValues.
-        if (row.category == UnitCategory::Time && (unit_group == UnitGroup::Time || unit_group == UnitGroup::DateTime))
-            allowed_values.append(unit);
-    }
-
-    // 3. If extraValues is present, then
-    if (!extra_values.is_empty()) {
-        // a. Set allowedValues to the list-concatenation of allowedValues and extraValues.
-        for (auto value : extra_values)
-            allowed_values.append(value);
-    }
-
-    OptionDefault default_value;
+        allowed_strings.unchecked_append("auto"sv);
+        return allowed_strings;
+    }();
 
     // 4. If default is UNSET, then
-    if (default_.has<Unset>()) {
-        // a. Let defaultValue be undefined.
-        default_value = {};
-    }
-    // 5. Else if default is REQUIRED, then
-    else if (default_.has<Required>()) {
-        // a. Let defaultValue be REQUIRED.
-        default_value = Required {};
-    }
-    // 6. Else if default is AUTO, then
-    else if (default_.has<Auto>()) {
-        // a. Append default to allowedValues.
-        allowed_values.append(Auto {});
+    //     a. Let defaultValue be undefined.
+    // 5. Else,
+    //     a. Let defaultValue be default.
+    auto default_value = default_.visit(
+        [](Unset) -> OptionDefault { return Empty {}; },
+        [](Required) -> OptionDefault { return Required {}; },
+        [](Auto) -> OptionDefault { return "auto"sv; },
+        [](Unit unit) -> OptionDefault { return temporal_unit_to_string(unit); });
 
-        // b. Let defaultValue be "auto".
-        default_value = "auto"sv;
-    }
-    // 7. Else,
-    else {
-        auto unit = default_.get<Unit>();
-
-        // a. Assert: allowedValues contains default.
-
-        // b. Let defaultValue be the value in the "Singular property name" column of Table 21 corresponding to the row
-        //    with default in the "Value" column.
-        default_value = temporal_units[to_underlying(unit)].singular_property_name;
-    }
-
-    // 8. Let allowedStrings be a new empty List.
-    Vector<StringView> allowed_strings;
-
-    // 9. For each element value of allowedValues, do
-    for (auto value : allowed_values) {
-        // a. If value is auto, then
-        if (value.has<Auto>()) {
-            // i. Append "auto" to allowedStrings.
-            allowed_strings.append("auto"sv);
-        }
-        // b. Else,
-        else {
-            auto unit = value.get<Unit>();
-
-            // i. Let singularName be the value in the "Singular property name" column of Table 21 corresponding to the
-            //    row with value in the "Value" column.
-            auto singular_name = temporal_units[to_underlying(unit)].singular_property_name;
-
-            // ii. Append singularName to allowedStrings.
-            allowed_strings.append(singular_name);
-
-            // iii. Let pluralName be the value in the "Plural property name" column of the corresponding row.
-            auto plural_name = temporal_units[to_underlying(unit)].plural_property_name;
-
-            // iv. Append pluralName to allowedStrings.
-            allowed_strings.append(plural_name);
-        }
-    }
-
-    // 10. NOTE: For each singular Temporal unit name that is contained within allowedStrings, the corresponding plural
-    //     name is also contained within it.
-
-    // 11. Let value be ? GetOption(options, key, STRING, allowedStrings, defaultValue).
+    // 6. Let value be ? GetOption(options, key, STRING, allowedStrings, defaultValue).
     auto value = TRY(get_option(vm, options, key, OptionType::String, allowed_strings, default_value));
 
-    // 12. If value is undefined, return UNSET.
+    // 7. If value is undefined, return UNSET.
     if (value.is_undefined())
         return UnitValue { Unset {} };
 
     auto value_string = value.as_string().utf8_string_view();
 
-    // 13. If value is "auto", return AUTO.
+    // 8. If value is "auto", return AUTO.
     if (value_string == "auto"sv)
         return UnitValue { Auto {} };
 
-    // 14. Return the value in the "Value" column of Table 21 corresponding to the row with value in its "Singular
-    //     property name" or "Plural property name" column.
-    for (auto const& row : temporal_units) {
-        if (value_string.is_one_of(row.singular_property_name, row.plural_property_name))
-            return UnitValue { row.value };
-    }
+    // 9. Return the value in the "Value" column of Table 21 corresponding to the row with value in its "Singular
+    //    property name" or "Plural property name" column.
+    auto temporal_unit = find_value(temporal_units, [&](auto const& temporal_unit) {
+        return value_string.is_one_of(temporal_unit.singular_property_name, temporal_unit.plural_property_name);
+    });
 
-    VERIFY_NOT_REACHED();
+    return UnitValue { temporal_unit->value };
 }
 
-// 13.18 GetTemporalRelativeToOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalrelativetooption
+// 13.18 ValidateTemporalUnitValue ( value, unitGroup [ , extraValues ] ), https://tc39.es/proposal-temporal/#sec-temporal-validatetemporalunitvaluedoption
+// AD-HOC: We require a PropertyKey parameter as well to form sensible exception messages.
+ThrowCompletionOr<void> validate_temporal_unit_value(VM& vm, PropertyKey const& key, UnitValue const& value, UnitGroup unit_group, ReadonlySpan<UnitValue> extra_values)
+{
+    // 1. If value is UNSET, return UNUSED.
+    if (value.has<Unset>())
+        return {};
+
+    // 2. If extraValues is present and extraValues contains value, return UNUSED.
+    if (extra_values.contains_slow(value))
+        return {};
+
+    // 3. Let category be the value in the “Category” column of the row of Table 21 whose “Value” column contains value.
+    //    If there is no such row, throw a RangeError exception.
+    if (value.has<Auto>())
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, "auto"sv, key.as_string());
+
+    auto unit_value = value.get<Unit>();
+    auto category = temporal_unit_category(unit_value);
+
+    // 4. If category is DATE and unitGroup is DATE or DATETIME, return unused.
+    if (category == UnitCategory::Date && (unit_group == UnitGroup::Date || unit_group == UnitGroup::DateTime))
+        return {};
+
+    // 5. If category is TIME and unitGroup is TIME or DATETIME, return unused.
+    if (category == UnitCategory::Time && (unit_group == UnitGroup::Time || unit_group == UnitGroup::DateTime))
+        return {};
+
+    // 6. Throw a RangeError exception.
+    return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(unit_value), key.as_string());
+}
+
+// 13.19 GetTemporalRelativeToOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalrelativetooption
 ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object const& options)
 {
     // 1. Let value be ? Get(options, "relativeTo").
@@ -691,7 +663,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
     return RelativeTo { .plain_relative_to = {}, .zoned_relative_to = zoned_relative_to };
 }
 
-// 13.19 LargerOfTwoTemporalUnits ( u1, u2 ), https://tc39.es/proposal-temporal/#sec-temporal-largeroftwotemporalunits
+// 13.20 LargerOfTwoTemporalUnits ( u1, u2 ), https://tc39.es/proposal-temporal/#sec-temporal-largeroftwotemporalunits
 Unit larger_of_two_temporal_units(Unit unit1, Unit unit2)
 {
     // 1. For each row of Table 21, except the header row, in table order, do
@@ -711,7 +683,7 @@ Unit larger_of_two_temporal_units(Unit unit1, Unit unit2)
     VERIFY_NOT_REACHED();
 }
 
-// 13.20 IsCalendarUnit ( unit ), https://tc39.es/proposal-temporal/#sec-temporal-iscalendarunit
+// 13.21 IsCalendarUnit ( unit ), https://tc39.es/proposal-temporal/#sec-temporal-iscalendarunit
 bool is_calendar_unit(Unit unit)
 {
     // 1. If unit is year, return true.
@@ -730,14 +702,14 @@ bool is_calendar_unit(Unit unit)
     return false;
 }
 
-// 13.21 TemporalUnitCategory ( unit ), https://tc39.es/proposal-temporal/#sec-temporal-temporalunitcategory
+// 13.22 TemporalUnitCategory ( unit ), https://tc39.es/proposal-temporal/#sec-temporal-temporalunitcategory
 UnitCategory temporal_unit_category(Unit unit)
 {
     // 1. Return the value from the "Category" column of the row of Table 21 in which unit is in the "Value" column.
     return temporal_units[to_underlying(unit)].category;
 }
 
-// 13.22 MaximumTemporalDurationRoundingIncrement ( unit ), https://tc39.es/proposal-temporal/#sec-temporal-maximumtemporaldurationroundingincrement
+// 13.23 MaximumTemporalDurationRoundingIncrement ( unit ), https://tc39.es/proposal-temporal/#sec-temporal-maximumtemporaldurationroundingincrement
 RoundingIncrement maximum_temporal_duration_rounding_increment(Unit unit)
 {
     // 1. Return the value from the "Maximum duration rounding increment" column of the row of Table 21 in which unit is
@@ -768,7 +740,7 @@ Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit unit)
     }
 }
 
-// 13.23 IsPartialTemporalObject ( value ), https://tc39.es/proposal-temporal/#sec-temporal-ispartialtemporalobject
+// 13.24 IsPartialTemporalObject ( value ), https://tc39.es/proposal-temporal/#sec-temporal-ispartialtemporalobject
 ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
 {
     // 1. If value is not an Object, return false.
@@ -811,7 +783,7 @@ ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
     return true;
 }
 
-// 13.24 FormatFractionalSeconds ( subSecondNanoseconds, precision ), https://tc39.es/proposal-temporal/#sec-temporal-formatfractionalseconds
+// 13.25 FormatFractionalSeconds ( subSecondNanoseconds, precision ), https://tc39.es/proposal-temporal/#sec-temporal-formatfractionalseconds
 String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision)
 {
     String fraction_string;
@@ -845,7 +817,7 @@ String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision
     return MUST(String::formatted(".{}", fraction_string));
 }
 
-// 13.25 FormatTimeString ( hour, minute, second, subSecondNanoseconds, precision [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formattimestring
+// 13.26 FormatTimeString ( hour, minute, second, subSecondNanoseconds, precision [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formattimestring
 String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseconds, SecondsStringPrecision::Precision precision, Optional<TimeStyle> style)
 {
     // 1. If style is present and style is UNSEPARATED, let separator be the empty String; otherwise, let separator be ":".
@@ -866,7 +838,7 @@ String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseco
     return MUST(String::formatted("{:02}{}{:02}{}{:02}{}", hour, separator, minute, separator, second, sub_seconds_part));
 }
 
-// 13.26 GetUnsignedRoundingMode ( roundingMode, sign ), https://tc39.es/proposal-temporal/#sec-getunsignedroundingmode
+// 13.27 GetUnsignedRoundingMode ( roundingMode, sign ), https://tc39.es/proposal-temporal/#sec-getunsignedroundingmode
 UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode rounding_mode, Sign sign)
 {
     // 1. Return the specification type in the "Unsigned Rounding Mode" column of Table 22 for the row where the value
@@ -895,7 +867,7 @@ UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode rounding_mode, Sign
     VERIFY_NOT_REACHED();
 }
 
-// 13.27 ApplyUnsignedRoundingMode ( x, r1, r2, unsignedRoundingMode ), https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
+// 13.28 ApplyUnsignedRoundingMode ( x, r1, r2, unsignedRoundingMode ), https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
 double apply_unsigned_rounding_mode(double x, double r1, double r2, UnsignedRoundingMode unsigned_rounding_mode)
 {
     // 1. If x = r1, return r1.
@@ -954,7 +926,7 @@ double apply_unsigned_rounding_mode(double x, double r1, double r2, UnsignedRoun
     return r2;
 }
 
-// 13.27 ApplyUnsignedRoundingMode ( x, r1, r2, unsignedRoundingMode ), https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
+// 13.28 ApplyUnsignedRoundingMode ( x, r1, r2, unsignedRoundingMode ), https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
 Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResult const& x, Crypto::SignedBigInteger r1, Crypto::SignedBigInteger r2, UnsignedRoundingMode unsigned_rounding_mode, Crypto::UnsignedBigInteger const& increment)
 {
     // 1. If x = r1, return r1.
@@ -1013,7 +985,7 @@ Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResu
     return r2;
 }
 
-// 13.28 RoundNumberToIncrement ( x, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement
+// 13.29 RoundNumberToIncrement ( x, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement
 double round_number_to_increment(double x, u64 increment, RoundingMode rounding_mode)
 {
     // 1. Let quotient be x / increment.
@@ -1057,7 +1029,7 @@ double round_number_to_increment(double x, u64 increment, RoundingMode rounding_
     return rounded * static_cast<double>(increment);
 }
 
-// 13.28 RoundNumberToIncrement ( x, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement
+// 13.29 RoundNumberToIncrement ( x, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement
 Crypto::SignedBigInteger round_number_to_increment(Crypto::SignedBigInteger const& x, Crypto::UnsignedBigInteger const& increment, RoundingMode rounding_mode)
 {
     // OPTIMIZATION: If the increment is 1 the number is always rounded.
@@ -1108,7 +1080,7 @@ Crypto::SignedBigInteger round_number_to_increment(Crypto::SignedBigInteger cons
     return rounded.multiplied_by(increment);
 }
 
-// 13.29 RoundNumberToIncrementAsIfPositive ( x, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrementasifpositive
+// 13.30 RoundNumberToIncrementAsIfPositive ( x, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrementasifpositive
 Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::SignedBigInteger const& x, Crypto::UnsignedBigInteger const& increment, RoundingMode rounding_mode)
 {
     // OPTIMIZATION: If the increment is 1 the number is always rounded.
@@ -1145,7 +1117,7 @@ Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::Signed
     return rounded.multiplied_by(increment);
 }
 
-// 13.33 ParseISODateTime ( isoString, allowedFormats ), https://tc39.es/proposal-temporal/#sec-temporal-parseisodatetime
+// 13.34 ParseISODateTime ( isoString, allowedFormats ), https://tc39.es/proposal-temporal/#sec-temporal-parseisodatetime
 ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_string, ReadonlySpan<Production> allowed_formats)
 {
     // 1. Let parseResult be EMPTY.
@@ -1356,7 +1328,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
     return ParsedISODateTime { .year = year_return, .month = static_cast<u8>(month_value), .day = static_cast<u8>(day_value), .time = move(time), .time_zone = move(time_zone_result), .calendar = move(calendar) };
 }
 
-// 13.34 ParseTemporalCalendarString ( string ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporalcalendarstring
+// 13.35 ParseTemporalCalendarString ( string ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporalcalendarstring
 ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, String const& string)
 {
     // 1. Let parseResult be Completion(ParseISODateTime(string, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned],
@@ -1393,7 +1365,7 @@ ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, String const& s
     return string;
 }
 
-// 13.35 ParseTemporalDurationString ( isoString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaldurationstring
+// 13.36 ParseTemporalDurationString ( isoString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaldurationstring
 ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, StringView iso_string)
 {
     // 1. Let duration be ParseText(StringToCodePoints(isoString), TemporalDurationString).
@@ -1613,7 +1585,7 @@ ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, Stri
     return TRY(create_temporal_duration(vm, years_value, months_value, weeks_value, days_value, hours_value, factored_minutes_value, factored_seconds_value, factored_milliseconds_value, factored_microseconds_value, factored_nanoseconds_value));
 }
 
-// 13.36 ParseTemporalTimeZoneString ( timeZoneString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaltimezonestring
+// 13.37 ParseTemporalTimeZoneString ( timeZoneString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaltimezonestring
 ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM& vm, StringView time_zone_string)
 {
     // 1. Let parseResult be ParseText(StringToCodePoints(timeZoneString), TimeZoneIdentifier).
@@ -1761,53 +1733,66 @@ ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM& vm, DurationOp
 {
     // 1. NOTE: The following steps read options and perform independent validation in alphabetical order.
 
-    // 2. Let largestUnit be ? GetTemporalUnitValuedOption(options, "largestUnit", unitGroup, AUTO).
-    auto largest_unit = TRY(get_temporal_unit_valued_option(vm, options, vm.names.largestUnit, unit_group, Auto {}));
+    // 2. Let largestUnit be ? GetTemporalUnitValuedOption(options, "largestUnit", UNSET).
+    auto largest_unit = TRY(get_temporal_unit_valued_option(vm, options, vm.names.largestUnit, Unset {}));
 
-    // 3. If disallowedUnits contains largestUnit, throw a RangeError exception.
+    // 3. Perform ? ValidateTemporalUnitValue(largestUnit, unitGroup, « AUTO »).
+    TRY(validate_temporal_unit_value(vm, vm.names.largestUnit, largest_unit, unit_group, { { Auto {} } }));
+
+    // 4. If largestUnit is UNSET, then
+    if (largest_unit.has<Unset>()) {
+        // a. Set largestUnit to AUTO.
+        largest_unit = Auto {};
+    }
+
+    // 5. If disallowedUnits contains largestUnit, throw a RangeError exception.
     if (auto* unit = largest_unit.get_pointer<Unit>(); unit && disallowed_units.contains_slow(*unit))
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.largestUnit);
 
-    // 4. Let roundingIncrement be ? GetRoundingIncrementOption(options).
+    // 6. Let roundingIncrement be ? GetRoundingIncrementOption(options).
     auto rounding_increment = TRY(get_rounding_increment_option(vm, options));
 
-    // 5. Let roundingMode be ? GetRoundingModeOption(options, TRUNC).
+    // 7. Let roundingMode be ? GetRoundingModeOption(options, TRUNC).
     auto rounding_mode = TRY(get_rounding_mode_option(vm, options, RoundingMode::Trunc));
 
-    // 6. If operation is SINCE, then
+    // 8. If operation is SINCE, then
     if (operation == DurationOperation::Since) {
         // a. Set roundingMode to NegateRoundingMode(roundingMode).
         rounding_mode = negate_rounding_mode(rounding_mode);
     }
 
-    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(options, "smallestUnit", unitGroup, fallbackSmallestUnit).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, options, vm.names.smallestUnit, unit_group, fallback_smallest_unit));
-    auto smallest_unit_value = smallest_unit.get<Unit>();
+    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(options, "smallestUnit", UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, options, vm.names.smallestUnit, Unset {}));
 
-    // 8. If disallowedUnits contains smallestUnit, throw a RangeError exception.
+    // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, unitGroup).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, unit_group));
+
+    // 11. If smallestUnit is UNSET, then
+    //     a. Set smallestUnit to fallbackSmallestUnit.
+    auto smallest_unit_value = smallest_unit.has<Unset>() ? fallback_smallest_unit : smallest_unit.get<Unit>();
+
+    // 12. If disallowedUnits contains smallestUnit, throw a RangeError exception.
     if (disallowed_units.contains_slow(smallest_unit_value))
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(smallest_unit_value), vm.names.smallestUnit);
 
-    // 9. Let defaultLargestUnit be LargerOfTwoTemporalUnits(smallestLargestDefaultUnit, smallestUnit).
-    auto default_largest_unit = larger_of_two_temporal_units(smallest_largest_default_unit, smallest_unit.get<Unit>());
+    // 13. Let defaultLargestUnit be LargerOfTwoTemporalUnits(smallestLargestDefaultUnit, smallestUnit).
+    auto default_largest_unit = larger_of_two_temporal_units(smallest_largest_default_unit, smallest_unit_value);
 
-    // 10. If largestUnit is AUTO, set largestUnit to defaultLargestUnit.
-    if (largest_unit.has<Auto>())
-        largest_unit = default_largest_unit;
-    auto largest_unit_value = largest_unit.get<Unit>();
+    // 14. If largestUnit is AUTO, set largestUnit to defaultLargestUnit.
+    auto largest_unit_value = largest_unit.has<Auto>() ? default_largest_unit : largest_unit.get<Unit>();
 
-    // 11. If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
+    // 15. If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
     if (larger_of_two_temporal_units(largest_unit_value, smallest_unit_value) != largest_unit_value)
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidUnitRange, temporal_unit_to_string(smallest_unit_value), temporal_unit_to_string(largest_unit_value));
 
-    // 12. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    // 16. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
     auto maximum = maximum_temporal_duration_rounding_increment(smallest_unit_value);
 
-    // 13. If maximum is not UNSET, perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
+    // 17. If maximum is not UNSET, perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
     if (!maximum.has<Unset>())
         TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum.get<u64>(), false));
 
-    // 14. Return the Record { [[SmallestUnit]]: smallestUnit, [[LargestUnit]]: largestUnit, [[RoundingMode]]: roundingMode, [[RoundingIncrement]]: roundingIncrement,  }.
+    // 18. Return the Record { [[SmallestUnit]]: smallestUnit, [[LargestUnit]]: largestUnit, [[RoundingMode]]: roundingMode, [[RoundingIncrement]]: roundingIncrement,  }.
     return DifferenceSettings { .smallest_unit = smallest_unit_value, .largest_unit = largest_unit_value, .rounding_mode = rounding_mode, .rounding_increment = rounding_increment };
 }
 

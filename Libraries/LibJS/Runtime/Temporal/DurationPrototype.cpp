@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -274,24 +274,30 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
     //    (GetTemporalRelativeToOption reads "relativeTo", GetRoundingIncrementOption reads "roundingIncrement" and
     //    GetRoundingModeOption reads "roundingMode").
 
-    // 9. Let largestUnit be ? GetTemporalUnitValuedOption(roundTo, "largestUnit", DATETIME, UNSET, « auto »).
-    auto largest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.largestUnit, UnitGroup::DateTime, Unset {}, { { Auto {} } }));
+    // 9. Let largestUnit be ? GetTemporalUnitValuedOption(roundTo, "largestUnit", UNSET).
+    auto largest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.largestUnit, Unset {}));
 
-    // 10. Let relativeToRecord be ? GetTemporalRelativeToOption(roundTo).
-    // 11. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
-    // 12. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
+    // 10. Perform ? ValidateTemporalUnitValue(largestUnit, DATETIME, « AUTO »).
+    TRY(validate_temporal_unit_value(vm, vm.names.largestUnit, largest_unit, UnitGroup::DateTime, { { Auto {} } }));
+
+    // 11. Let relativeToRecord be ? GetTemporalRelativeToOption(roundTo).
+    // 12. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
+    // 13. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
     auto [plain_relative_to, zoned_relative_to] = TRY(get_temporal_relative_to_option(vm, *round_to));
 
-    // 13. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+    // 14. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
     auto rounding_increment = TRY(get_rounding_increment_option(vm, *round_to));
 
-    // 14. Let roundingMode be ? GetRoundingModeOption(roundTo, HALF-EXPAND).
+    // 15. Let roundingMode be ? GetRoundingModeOption(roundTo, HALF-EXPAND).
     auto rounding_mode = TRY(get_rounding_mode_option(vm, *round_to, RoundingMode::HalfExpand));
 
-    // 15. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", DATETIME, UNSET).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, UnitGroup::DateTime, Unset {}));
+    // 16. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, Unset {}));
 
-    // 16. If smallestUnit is UNSET, then
+    // 17. Perform ? ValidateTemporalUnitValue(smallestUnit, DATETIME).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::DateTime));
+
+    // 18. If smallestUnit is UNSET, then
     if (smallest_unit.has<Unset>()) {
         // a. Set smallestUnitPresent to false.
         smallest_unit_present = false;
@@ -302,13 +308,13 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
 
     auto smallest_unit_value = smallest_unit.get<Unit>();
 
-    // 17. Let existingLargestUnit be DefaultTemporalLargestUnit(duration).
+    // 19. Let existingLargestUnit be DefaultTemporalLargestUnit(duration).
     auto existing_largest_unit = default_temporal_largest_unit(duration);
 
-    // 18. Let defaultLargestUnit be LargerOfTwoTemporalUnits(existingLargestUnit, smallestUnit).
+    // 20. Let defaultLargestUnit be LargerOfTwoTemporalUnits(existingLargestUnit, smallestUnit).
     auto default_largest_unit = larger_of_two_temporal_units(existing_largest_unit, smallest_unit_value);
 
-    // 19. If largestUnit is UNSET, then
+    // 21. If largestUnit is UNSET, then
     if (largest_unit.has<Unset>()) {
         // a. Set largestUnitPresent to false.
         largest_unit_present = false;
@@ -316,13 +322,13 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         // b. Set largestUnit to defaultLargestUnit.
         largest_unit = default_largest_unit;
     }
-    // 20. Else if largestUnit is AUTO, then
+    // 22. Else if largestUnit is AUTO, then
     else if (largest_unit.has<Auto>()) {
         // a. Set largestUnit to defaultLargestUnit.
         largest_unit = default_largest_unit;
     }
 
-    // 21. If smallestUnitPresent is false and largestUnitPresent is false, then
+    // 23. If smallestUnitPresent is false and largestUnitPresent is false, then
     if (!smallest_unit_present && !largest_unit_present) {
         // a. Throw a RangeError exception.
         return vm.throw_completion<RangeError>(ErrorType::TemporalMissingUnits);
@@ -330,23 +336,23 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
 
     auto largest_unit_value = largest_unit.get<Unit>();
 
-    // 22. If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
+    // 24. If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
     if (larger_of_two_temporal_units(largest_unit_value, smallest_unit_value) != largest_unit_value)
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidUnitRange, temporal_unit_to_string(smallest_unit_value), temporal_unit_to_string(largest_unit_value));
 
-    // 23. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    // 25. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
     auto maximum = maximum_temporal_duration_rounding_increment(smallest_unit_value);
 
-    // 24. If maximum is not UNSET, perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
+    // 26. If maximum is not UNSET, perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
     if (!maximum.has<Unset>())
         TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum.get<u64>(), false));
 
-    // 25. If roundingIncrement > 1, and largestUnit is not smallestUnit, and TemporalUnitCategory(smallestUnit) is DATE,
+    // 27. If roundingIncrement > 1, and largestUnit is not smallestUnit, and TemporalUnitCategory(smallestUnit) is DATE,
     //     throw a RangeError exception.
     if (rounding_increment > 1 && largest_unit_value != smallest_unit_value && temporal_unit_category(smallest_unit_value) == UnitCategory::Date)
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, rounding_increment, "roundingIncrement");
 
-    // 26. If zonedRelativeTo is not undefined, then
+    // 28. If zonedRelativeTo is not undefined, then
     if (zoned_relative_to) {
         // a. Let internalDuration be ToInternalDurationRecord(duration).
         auto internal_duration = to_internal_duration_record(vm, duration);
@@ -374,7 +380,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         return TRY(temporal_duration_from_internal(vm, internal_duration, largest_unit_value));
     }
 
-    // 27. If plainRelativeTo is not undefined, then
+    // 29. If plainRelativeTo is not undefined, then
     if (plain_relative_to) {
         // a. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
         auto internal_duration = to_internal_duration_record_with_24_hour_days(vm, duration);
@@ -404,19 +410,19 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         return TRY(temporal_duration_from_internal(vm, internal_duration, largest_unit_value));
     }
 
-    // 28. If IsCalendarUnit(existingLargestUnit) is true, or IsCalendarUnit(largestUnit) is true, throw a RangeError exception.
+    // 30. If IsCalendarUnit(existingLargestUnit) is true, or IsCalendarUnit(largestUnit) is true, throw a RangeError exception.
     if (is_calendar_unit(existing_largest_unit))
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(existing_largest_unit));
     if (is_calendar_unit(largest_unit_value))
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(largest_unit_value));
 
-    // 29. Assert: IsCalendarUnit(smallestUnit) is false.
+    // 31. Assert: IsCalendarUnit(smallestUnit) is false.
     VERIFY(!is_calendar_unit(smallest_unit_value));
 
-    // 30. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+    // 32. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
     auto internal_duration = to_internal_duration_record_with_24_hour_days(vm, duration);
 
-    // 31. If smallestUnit is DAY, then
+    // 33. If smallestUnit is DAY, then
     if (smallest_unit_value == Unit::Day) {
         // a. Let fractionalDays be TotalTimeDuration(internalDuration.[[Time]], DAY).
         auto fractional_days = total_time_duration(internal_duration.time, Unit::Day);
@@ -430,7 +436,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         // d. Set internalDuration to CombineDateAndTimeDuration(dateDuration, 0).
         internal_duration = combine_date_and_time_duration(date_duration, TimeDuration { 0 });
     }
-    // 32. Else,
+    // 34. Else,
     else {
         // a. Let timeDuration be ? RoundTimeDuration(internalDuration.[[Time]], roundingIncrement, smallestUnit, roundingMode).
         auto time_duration = TRY(round_time_duration(vm, internal_duration.time, Crypto::UnsignedBigInteger { rounding_increment }, smallest_unit_value, rounding_mode));
@@ -439,7 +445,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         internal_duration = combine_date_and_time_duration(zero_date_duration(vm), move(time_duration));
     }
 
-    // 33. Return ? TemporalDurationFromInternal(internalDuration, largestUnit).
+    // 35. Return ? TemporalDurationFromInternal(internalDuration, largestUnit).
     return TRY(temporal_duration_from_internal(vm, internal_duration, largest_unit_value));
 }
 
@@ -485,12 +491,16 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::total)
     // 9. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
     auto [plain_relative_to, zoned_relative_to] = TRY(get_temporal_relative_to_option(vm, *total_of));
 
-    // 10. Let unit be ? GetTemporalUnitValuedOption(totalOf, "unit", DATETIME, REQUIRED).
-    auto unit = TRY(get_temporal_unit_valued_option(vm, *total_of, vm.names.unit, UnitGroup::DateTime, Required {})).get<Unit>();
+    // 10. Let unit be ? GetTemporalUnitValuedOption(totalOf, "unit", REQUIRED).
+    auto unit = TRY(get_temporal_unit_valued_option(vm, *total_of, vm.names.unit, Required {}));
+
+    // 11. Perform ? ValidateTemporalUnitValue(unit, DATETIME).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, unit, UnitGroup::DateTime));
+    auto unit_value = unit.get<Unit>();
 
     Crypto::BigFraction total;
 
-    // 11. If zonedRelativeTo is not undefined, then
+    // 12. If zonedRelativeTo is not undefined, then
     if (zoned_relative_to) {
         // a. Let internalDuration be ToInternalDurationRecord(duration).
         auto internal_duration = to_internal_duration_record(vm, duration);
@@ -508,9 +518,9 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::total)
         auto target_epoch_nanoseconds = TRY(add_zoned_date_time(vm, relative_epoch_nanoseconds, time_zone, calendar, internal_duration, Overflow::Constrain));
 
         // f. Let total be ? DifferenceZonedDateTimeWithTotal(relativeEpochNs, targetEpochNs, timeZone, calendar, unit).
-        total = TRY(difference_zoned_date_time_with_total(vm, relative_epoch_nanoseconds, target_epoch_nanoseconds, time_zone, calendar, unit));
+        total = TRY(difference_zoned_date_time_with_total(vm, relative_epoch_nanoseconds, target_epoch_nanoseconds, time_zone, calendar, unit_value));
     }
-    // 12. Else if plainRelativeTo is not undefined, then
+    // 13. Else if plainRelativeTo is not undefined, then
     else if (plain_relative_to) {
         // a. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
         auto internal_duration = to_internal_duration_record_with_24_hour_days(vm, duration);
@@ -534,9 +544,9 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::total)
         auto target_date_time = combine_iso_date_and_time_record(target_date, target_time);
 
         // h. Let total be ? DifferencePlainDateTimeWithTotal(isoDateTime, targetDateTime, calendar, unit).
-        total = TRY(difference_plain_date_time_with_total(vm, iso_date_time, target_date_time, calendar, unit));
+        total = TRY(difference_plain_date_time_with_total(vm, iso_date_time, target_date_time, calendar, unit_value));
     }
-    // 13. Else,
+    // 14. Else,
     else {
         // a. Let largestUnit be DefaultTemporalLargestUnit(duration).
         auto largest_unit = default_temporal_largest_unit(duration);
@@ -544,17 +554,17 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::total)
         // b. If IsCalendarUnit(largestUnit) is true, or IsCalendarUnit(unit) is true, throw a RangeError exception.
         if (is_calendar_unit(largest_unit))
             return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(largest_unit));
-        if (is_calendar_unit(unit))
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(unit));
+        if (is_calendar_unit(unit_value))
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(unit_value));
 
         // c. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
         auto internal_duration = to_internal_duration_record_with_24_hour_days(vm, duration);
 
         // d. Let total be TotalTimeDuration(internalDuration.[[Time]], unit).
-        total = total_time_duration(internal_duration.time, unit);
+        total = total_time_duration(internal_duration.time, unit_value);
     }
 
-    // 14. Return 𝔽(total).
+    // 15. Return 𝔽(total).
     return total.to_double();
 }
 
@@ -578,41 +588,44 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::to_string)
     // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, TRUNC).
     auto rounding_mode = TRY(get_rounding_mode_option(vm, resolved_options, RoundingMode::Trunc));
 
-    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", TIME, UNSET).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, UnitGroup::Time, Unset {}));
+    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, Unset {}));
 
-    // 8. If smallestUnit is HOUR or MINUTE, throw a RangeError exception.
+    // 8. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time));
+
+    // 9. If smallestUnit is HOUR or MINUTE, throw a RangeError exception.
     if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && (*unit == Unit::Hour || *unit == Unit::Minute))
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
 
-    // 9. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
+    // 10. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
     auto precision = to_seconds_string_precision_record(smallest_unit, digits);
 
-    // 10. If precision.[[Unit]] is NANOSECOND and precision.[[Increment]] = 1, then
+    // 11. If precision.[[Unit]] is NANOSECOND and precision.[[Increment]] = 1, then
     if (precision.unit == Unit::Nanosecond && precision.increment == 1) {
         // a. Return TemporalDurationToString(duration, precision.[[Precision]]).
         return PrimitiveString::create(vm, temporal_duration_to_string(duration, precision.precision.downcast<Auto, u8>()));
     }
 
-    // 11. Let largestUnit be DefaultTemporalLargestUnit(duration).
+    // 12. Let largestUnit be DefaultTemporalLargestUnit(duration).
     auto largest_unit = default_temporal_largest_unit(duration);
 
-    // 12. Let internalDuration be ToInternalDurationRecord(duration).
+    // 13. Let internalDuration be ToInternalDurationRecord(duration).
     auto internal_duration = to_internal_duration_record(vm, duration);
 
-    // 13. Let timeDuration be ? RoundTimeDuration(internalDuration.[[Time]], precision.[[Increment]], precision.[[Unit]], roundingMode).
+    // 14. Let timeDuration be ? RoundTimeDuration(internalDuration.[[Time]], precision.[[Increment]], precision.[[Unit]], roundingMode).
     auto time_duration = TRY(round_time_duration(vm, internal_duration.time, precision.increment, precision.unit, rounding_mode));
 
-    // 14. Set internalDuration to CombineDateAndTimeDuration(internalDuration.[[Date]], timeDuration).
+    // 15. Set internalDuration to CombineDateAndTimeDuration(internalDuration.[[Date]], timeDuration).
     internal_duration = combine_date_and_time_duration(internal_duration.date, move(time_duration));
 
-    // 15. Let roundedLargestUnit be LargerOfTwoTemporalUnits(largestUnit, SECOND).
+    // 16. Let roundedLargestUnit be LargerOfTwoTemporalUnits(largestUnit, SECOND).
     auto rounded_largest_unit = larger_of_two_temporal_units(largest_unit, Unit::Second);
 
-    // 16. Let roundedDuration be ? TemporalDurationFromInternal(internalDuration, roundedLargestUnit).
+    // 17. Let roundedDuration be ? TemporalDurationFromInternal(internalDuration, roundedLargestUnit).
     auto rounded_duration = TRY(temporal_duration_from_internal(vm, internal_duration, rounded_largest_unit));
 
-    // 17. Return TemporalDurationToString(roundedDuration, precision.[[Precision]]).
+    // 18. Return TemporalDurationToString(roundedDuration, precision.[[Precision]]).
     return PrimitiveString::create(vm, temporal_duration_to_string(rounded_duration, precision.precision.downcast<Auto, u8>()));
 }
 
