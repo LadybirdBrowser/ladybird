@@ -131,6 +131,9 @@ enum class Sign {
 
 struct Auto { };
 struct Unset { };
+constexpr bool operator==(Auto, Auto) { return true; }
+constexpr bool operator==(Unset, Unset) { return true; }
+
 using Precision = Variant<Auto, u8>;
 using RoundingIncrement = Variant<Unset, u64>;
 using UnitDefault = Variant<Required, Unset, Auto, Unit>;
@@ -171,7 +174,8 @@ ThrowCompletionOr<Direction> get_direction_option(VM&, Object const& options);
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
 ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
 SecondsStringPrecision to_seconds_string_precision_record(UnitValue, Precision);
-ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM&, Object const& options, PropertyKey const&, UnitGroup, UnitDefault const&, ReadonlySpan<UnitValue> extra_values = {});
+ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM&, Object const& options, PropertyKey const&, UnitDefault const&);
+ThrowCompletionOr<void> validate_temporal_unit_value(VM&, PropertyKey const&, UnitValue const&, UnitGroup, ReadonlySpan<UnitValue> extra_values = {});
 ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM&, Object const& options);
 Unit larger_of_two_temporal_units(Unit, Unit);
 bool is_calendar_unit(Unit);
@@ -196,7 +200,7 @@ ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
 CalendarFields iso_date_to_fields(StringView calendar, ISODate, DateType);
 ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOperation, Object const& options, UnitGroup, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit);
 
-// 13.38 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
+// 13.39 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
 template<typename... Args>
 ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Value argument, ErrorType error_type, Args&&... args)
 {
@@ -211,7 +215,7 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Value argument, Err
     return trunc(number.as_double());
 }
 
-// 13.38 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
+// 13.39 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
 // AD-HOC: We often need to use this AO when we have a parsed StringView. This overload allows callers to avoid creating
 //         a PrimitiveString for the primary definition.
 template<typename... Args>
@@ -228,7 +232,7 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, StringView argument
     return trunc(number);
 }
 
-// 13.37 ToPositiveIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-topositiveintegerwithtruncation
+// 13.38 ToPositiveIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-topositiveintegerwithtruncation
 template<typename... Args>
 ThrowCompletionOr<double> to_positive_integer_with_truncation(VM& vm, Value argument, ErrorType error_type, Args&&... args)
 {

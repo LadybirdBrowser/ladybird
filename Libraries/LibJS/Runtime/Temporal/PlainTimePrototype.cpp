@@ -243,23 +243,26 @@ JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::round)
     // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, HALF-EXPAND).
     auto rounding_mode = TRY(get_rounding_mode_option(vm, *round_to, RoundingMode::HalfExpand));
 
-    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", TIME, REQUIRED).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, UnitGroup::Time, Required {}));
+    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", REQUIRED).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, Required {}));
+
+    // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time));
     auto smallest_unit_value = smallest_unit.get<Unit>();
 
-    // 10. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    // 11. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
     auto maximum = maximum_temporal_duration_rounding_increment(smallest_unit_value);
 
-    // 11. Assert: maximum is not UNSET.
+    // 12. Assert: maximum is not UNSET.
     VERIFY(!maximum.has<Unset>());
 
-    // 12. Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
+    // 13. Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
     TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum.get<u64>(), false));
 
-    // 13. Let result be RoundTime(plainTime.[[Time]], roundingIncrement, smallestUnit, roundingMode).
+    // 14. Let result be RoundTime(plainTime.[[Time]], roundingIncrement, smallestUnit, roundingMode).
     auto result = round_time(plain_time->time(), rounding_increment, smallest_unit_value, rounding_mode);
 
-    // 14. Return ! CreateTemporalTime(result).
+    // 15. Return ! CreateTemporalTime(result).
     return MUST(create_temporal_time(vm, result));
 }
 
@@ -300,20 +303,23 @@ JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::to_string)
     // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, TRUNC).
     auto rounding_mode = TRY(get_rounding_mode_option(vm, resolved_options, RoundingMode::Trunc));
 
-    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", TIME, UNSET).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, UnitGroup::Time, Unset {}));
+    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, Unset {}));
 
-    // 8. If smallestUnit is HOUR, throw a RangeError exception.
+    // 8. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time));
+
+    // 9. If smallestUnit is HOUR, throw a RangeError exception.
     if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && *unit == Unit::Hour)
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
 
-    // 9. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
+    // 10. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
     auto precision = to_seconds_string_precision_record(smallest_unit, digits);
 
-    // 10. Let roundResult be RoundTime(plainTime.[[Time]], precision.[[Increment]], precision.[[Unit]], roundingMode).
+    // 11. Let roundResult be RoundTime(plainTime.[[Time]], precision.[[Increment]], precision.[[Unit]], roundingMode).
     auto round_result = round_time(plain_time->time(), precision.increment, precision.unit, rounding_mode);
 
-    // 11. Return TimeRecordToString(roundResult, precision.[[Precision]]).
+    // 12. Return TimeRecordToString(roundResult, precision.[[Precision]]).
     return PrimitiveString::create(vm, time_record_to_string(round_result, precision.precision));
 }
 

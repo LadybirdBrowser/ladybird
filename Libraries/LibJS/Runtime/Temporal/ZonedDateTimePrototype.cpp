@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -624,14 +624,17 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
     // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, HALF-EXPAND).
     auto rounding_mode = TRY(get_rounding_mode_option(vm, *round_to, RoundingMode::HalfExpand));
 
-    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", TIME, REQUIRED, « DAY »).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, UnitGroup::Time, Required {}, { { Unit::Day } }));
+    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", REQUIRED).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, Required {}));
+
+    // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME, « DAY »).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time, { { Unit::Day } }));
     auto smallest_unit_value = smallest_unit.get<Unit>();
 
     RoundingIncrement maximum { 0 };
     auto inclusive = false;
 
-    // 10. If smallestUnit is DAY, then
+    // 11. If smallestUnit is DAY, then
     if (smallest_unit_value == Unit::Day) {
         // a. Let maximum be 1.
         maximum = 1;
@@ -639,7 +642,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
         // b. Let inclusive be true.
         inclusive = true;
     }
-    // 11. Else,
+    // 12. Else,
     else {
         // a. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
         maximum = maximum_temporal_duration_rounding_increment(smallest_unit_value);
@@ -651,30 +654,30 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
         inclusive = false;
     }
 
-    // 12. Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, inclusive).
+    // 13. Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, inclusive).
     TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum.get<u64>(), inclusive));
 
-    // 13. If smallestUnit is NANOSECOND and roundingIncrement = 1, then
+    // 14. If smallestUnit is NANOSECOND and roundingIncrement = 1, then
     if (smallest_unit_value == Unit::Nanosecond && rounding_increment == 1) {
         // a. Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]], zonedDateTime.[[TimeZone]], zonedDateTime.[[Calendar]]).
         return MUST(create_temporal_zoned_date_time(vm, zoned_date_time->epoch_nanoseconds(), zoned_date_time->time_zone(), zoned_date_time->calendar()));
     }
 
-    // 14. Let thisNs be zonedDateTime.[[EpochNanoseconds]].
+    // 15. Let thisNs be zonedDateTime.[[EpochNanoseconds]].
     auto const& this_nanoseconds = zoned_date_time->epoch_nanoseconds()->big_integer();
 
-    // 15. Let timeZone be zonedDateTime.[[TimeZone]].
+    // 16. Let timeZone be zonedDateTime.[[TimeZone]].
     auto const& time_zone = zoned_date_time->time_zone();
 
-    // 16. Let calendar be zonedDateTime.[[Calendar]].
+    // 17. Let calendar be zonedDateTime.[[Calendar]].
     auto const& calendar = zoned_date_time->calendar();
 
-    // 17. Let isoDateTime be GetISODateTimeFor(timeZone, thisNs).
+    // 18. Let isoDateTime be GetISODateTimeFor(timeZone, thisNs).
     auto iso_date_time = get_iso_date_time_for(time_zone, this_nanoseconds);
 
     Crypto::SignedBigInteger epoch_nanoseconds;
 
-    // 18. If smallestUnit is day, then
+    // 19. If smallestUnit is day, then
     if (smallest_unit_value == Unit::Day) {
         // a. Let dateStart be isoDateTime.[[ISODate]].
         auto date_start = iso_date_time.iso_date;
@@ -706,7 +709,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
         // j. Let epochNanoseconds be AddTimeDurationToEpochNanoseconds(roundedDayNs, startNs).
         epoch_nanoseconds = add_time_duration_to_epoch_nanoseconds(rounded_day_nanoseconds, start_nanoseconds);
     }
-    // 19. Else,
+    // 20. Else,
     else {
         // a. Let roundResult be RoundISODateTime(isoDateTime, roundingIncrement, smallestUnit, roundingMode).
         auto round_result = round_iso_date_time(iso_date_time, rounding_increment, smallest_unit_value, rounding_mode);
@@ -718,7 +721,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
         epoch_nanoseconds = TRY(interpret_iso_date_time_offset(vm, round_result.iso_date, round_result.time, OffsetBehavior::Option, offset_nanoseconds, time_zone, Disambiguation::Compatible, OffsetOption::Prefer, MatchBehavior::MatchExactly));
     }
 
-    // 20. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    // 21. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
     return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(epoch_nanoseconds)), time_zone, calendar));
 }
 
@@ -770,20 +773,23 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_string)
     // 8. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, TRUNC).
     auto rounding_mode = TRY(get_rounding_mode_option(vm, resolved_options, RoundingMode::Trunc));
 
-    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", TIME, UNSET).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, UnitGroup::Time, Unset {}));
+    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, Unset {}));
 
-    // 10. If smallestUnit is hour, throw a RangeError exception.
+    // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time));
+
+    // 11. If smallestUnit is HOUR, throw a RangeError exception.
     if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && *unit == Unit::Hour)
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
 
-    // 11. Let showTimeZone be ? GetTemporalShowTimeZoneNameOption(resolvedOptions).
+    // 12. Let showTimeZone be ? GetTemporalShowTimeZoneNameOption(resolvedOptions).
     auto show_time_zone = TRY(get_temporal_show_time_zone_name_option(vm, resolved_options));
 
-    // 12. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
+    // 13. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
     auto precision = to_seconds_string_precision_record(smallest_unit, digits);
 
-    // 13. Return TemporalZonedDateTimeToString(zonedDateTime, precision.[[Precision]], showCalendar, showTimeZone, showOffset, precision.[[Increment]], precision.[[Unit]], roundingMode).
+    // 14. Return TemporalZonedDateTimeToString(zonedDateTime, precision.[[Precision]], showCalendar, showTimeZone, showOffset, precision.[[Increment]], precision.[[Unit]], roundingMode).
     return PrimitiveString::create(vm, temporal_zoned_date_time_to_string(zoned_date_time, precision.precision, show_calendar, show_time_zone, show_offset, precision.increment, precision.unit, rounding_mode));
 }
 

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -177,33 +177,36 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::round)
     // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, HALF-EXPAND).
     auto rounding_mode = TRY(get_rounding_mode_option(vm, *round_to, RoundingMode::HalfExpand));
 
-    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", TIME, REQUIRED).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, UnitGroup::Time, Required {}));
+    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", REQUIRED).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, Required {}));
+
+    // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time));
     auto smallest_unit_value = smallest_unit.get<Unit>();
 
     auto maximum = [&]() {
         switch (smallest_unit_value) {
-        // 10. If smallestUnit is hour, then
+        // 11. If smallestUnit is hour, then
         case Unit::Hour:
             // a. Let maximum be HoursPerDay.
             return hours_per_day;
-        // 11. Else if smallestUnit is minute, then
+        // 12. Else if smallestUnit is minute, then
         case Unit::Minute:
             // a. Let maximum be MinutesPerHour × HoursPerDay.
             return minutes_per_hour * hours_per_day;
-        // 12. Else if smallestUnit is second, then
+        // 13. Else if smallestUnit is second, then
         case Unit::Second:
             // a. Let maximum be SecondsPerMinute × MinutesPerHour × HoursPerDay.
             return seconds_per_minute * minutes_per_hour * hours_per_day;
-        // 13. Else if smallestUnit is millisecond, then
+        // 14. Else if smallestUnit is millisecond, then
         case Unit::Millisecond:
             // a. Let maximum be ℝ(msPerDay).
             return ms_per_day;
-        // 14. Else if smallestUnit is microsecond, then
+        // 15. Else if smallestUnit is microsecond, then
         case Unit::Microsecond:
             // a. Let maximum be 10**3 × ℝ(msPerDay).
             return 1000 * ms_per_day;
-        // 15. Else,
+        // 16. Else,
         case Unit::Nanosecond:
             // a. Assert: smallestUnit is nanosecond.
             // b. Let maximum be nsPerDay.
@@ -215,13 +218,13 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::round)
         VERIFY_NOT_REACHED();
     }();
 
-    // 16. Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, true).
+    // 17. Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, true).
     TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum, true));
 
-    // 17. Let roundedNs be RoundTemporalInstant(instant.[[EpochNanoseconds]], roundingIncrement, smallestUnit, roundingMode).
+    // 18. Let roundedNs be RoundTemporalInstant(instant.[[EpochNanoseconds]], roundingIncrement, smallestUnit, roundingMode).
     auto rounded_nanoseconds = round_temporal_instant(instant->epoch_nanoseconds()->big_integer(), rounding_increment, smallest_unit_value, rounding_mode);
 
-    // 18. Return ! CreateTemporalInstant(roundedNs).
+    // 19. Return ! CreateTemporalInstant(roundedNs).
     return MUST(create_temporal_instant(vm, BigInt::create(vm, move(rounded_nanoseconds))));
 }
 
@@ -262,36 +265,39 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::to_string)
     // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
     auto rounding_mode = TRY(get_rounding_mode_option(vm, resolved_options, RoundingMode::Trunc));
 
-    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", time, unset).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, UnitGroup::Time, Unset {}));
+    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, Unset {}));
 
-    // 8. If smallestUnit is HOUR, throw a RangeError exception.
+    // 8. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time));
+
+    // 9. If smallestUnit is HOUR, throw a RangeError exception.
     if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && *unit == Unit::Hour)
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
 
-    // 9. Let timeZone be ? Get(resolvedOptions, "timeZone").
+    // 10. Let timeZone be ? Get(resolvedOptions, "timeZone").
     auto time_zone_value = TRY(resolved_options->get(vm.names.timeZone));
 
     String time_zone_buffer;
     Optional<StringView> time_zone;
 
-    // 10. If timeZone is not undefined, then
+    // 11. If timeZone is not undefined, then
     if (!time_zone_value.is_undefined()) {
         // a. Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
         time_zone_buffer = TRY(to_temporal_time_zone_identifier(vm, time_zone_value));
         time_zone = time_zone_buffer;
     }
 
-    // 11. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
+    // 12. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
     auto precision = to_seconds_string_precision_record(smallest_unit, digits);
 
-    // 12. Let roundedNs be RoundTemporalInstant(instant.[[EpochNanoseconds]], precision.[[Increment]], precision.[[Unit]], roundingMode).
+    // 13. Let roundedNs be RoundTemporalInstant(instant.[[EpochNanoseconds]], precision.[[Increment]], precision.[[Unit]], roundingMode).
     auto rounded_nanoseconds = round_temporal_instant(instant->epoch_nanoseconds()->big_integer(), precision.increment, precision.unit, rounding_mode);
 
-    // 13. Let roundedInstant be ! CreateTemporalInstant(roundedNs).
+    // 14. Let roundedInstant be ! CreateTemporalInstant(roundedNs).
     auto rounded_instant = MUST(create_temporal_instant(vm, BigInt::create(vm, move(rounded_nanoseconds))));
 
-    // 14. Return TemporalInstantToString(roundedInstant, timeZone, precision.[[Precision]]).
+    // 15. Return TemporalInstantToString(roundedInstant, timeZone, precision.[[Precision]]).
     return PrimitiveString::create(vm, temporal_instant_to_string(rounded_instant, time_zone, precision.precision));
 }
 
