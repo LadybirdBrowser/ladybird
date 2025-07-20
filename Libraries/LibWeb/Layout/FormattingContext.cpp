@@ -583,10 +583,9 @@ CSSPixels FormattingContext::compute_width_for_replaced_element(Box const& box, 
         CSSPixels w = used_width;
         CSSPixels h = tentative_height_for_replaced_element(box, computed_height, available_space);
         used_width = solve_replaced_size_constraint(w, h, box, available_space).width();
-        return used_width;
     }
 
-    // 2. The tentative used width is greater than 'max-width', the rules above are applied again,
+    // 2. If the tentative used width is greater than 'max-width', the rules above are applied again,
     //    but this time using the computed value of 'max-width' as the computed value for 'width'.
     if (!should_treat_max_width_as_none(box, available_space.width)) {
         auto const& computed_max_width = box.computed_values().max_width();
@@ -661,7 +660,6 @@ CSSPixels FormattingContext::compute_height_for_replaced_element(Box const& box,
         CSSPixels w = tentative_width_for_replaced_element(box, computed_width, available_space);
         CSSPixels h = used_height;
         used_height = solve_replaced_size_constraint(w, h, box, available_space).height();
-        return used_height;
     }
 
     // 2. If this tentative height is greater than 'max-height', the rules above are applied again,
