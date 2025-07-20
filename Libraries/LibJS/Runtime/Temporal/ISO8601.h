@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -60,6 +60,7 @@ struct ParseResult {
 };
 
 enum class Production {
+    AmbiguousTemporalTimeString,
     AnnotationValue,
     DateMonth,
     TemporalDateTimeString,
