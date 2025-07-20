@@ -605,6 +605,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             "*/wpt-import/*/support/*"sv,
             "*/wpt-import/*/resources/*"sv,
             "*/wpt-import/common/*"sv,
+            "*/wpt-import/images/*"sv,
         };
         bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test.input_path.matches(pattern); });
         bool match_glob = any_of(app.test_globs, [&](auto const& glob) { return test.relative_path.matches(glob, CaseSensitivity::CaseSensitive); });
