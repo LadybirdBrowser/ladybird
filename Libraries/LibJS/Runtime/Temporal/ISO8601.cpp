@@ -285,6 +285,8 @@ public:
         if (!parse_date_day())
             return false;
 
+        // Note the prohibition on invalid combinations of month and day in 13.31.3.
+        // https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar-static-semantics-early-errors
         // It is a Syntax Error if IsValidDate of DateSpec is false.
         if (!is_valid_date(m_state.parse_result))
             return false;
@@ -310,6 +312,8 @@ public:
         if (!parse_date_day())
             return false;
 
+        // Note the prohibition on invalid combinations of month and day in 13.31.3.
+        // https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar-static-semantics-early-errors
         // It is a Syntax Error if IsValidMonthDay of DateSpecMonthDay is false.
         if (!is_valid_month_day(m_state.parse_result))
             return false;
@@ -352,6 +356,8 @@ public:
                 return false;
         }
 
+        // Note the prohibition on negative zero in 13.31.3.
+        // https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar-static-semantics-early-errors
         // It is a Syntax Error if DateYear is "-000000".
         if (transaction.parsed_string_view() == "-000000"sv)
             return false;
