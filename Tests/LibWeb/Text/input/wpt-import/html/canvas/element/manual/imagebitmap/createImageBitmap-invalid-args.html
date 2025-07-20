@@ -1,0 +1,239 @@
+<!doctype html>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../common/media.js"></script>
+<script src="common.sub.js"></script>
+<script>
+
+function makeOversizedCanvas() {
+
+  return new Promise(resolve => {
+    let canvas = document.createElement('canvas');
+    canvas.setAttribute('width', '100000000');
+    canvas.setAttribute('height', '100000000');
+    resolve(canvas);
+  });
+}
+
+function makeOversizedOffscreenCanvas() {
+  return new Promise(resolve =>{
+    let canvas = new OffscreenCanvas(100000000, 100000000);
+    resolve(canvas);
+  });
+}
+
+function makeInvalidBlob() {
+  return new Promise(resolve => {
+    resolve(new Blob()); // Blob with no data cannot be decoded.
+  });
+}
+
+function makeBrokenImage() {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.src = "data:,x";
+    image.onload = reject;
+    image.onerror = () => resolve(image);
+  });
+}
+
+function makeAvailableButBrokenImage(path) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.src = path;
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+  });
+}
+
+testCases = [
+  {
+    description: 'createImageBitmap with <sourceType> source and sw set to 0',
+    promiseTestFunction:
+      (source, t) => {
+        return promise_rejects_js(t, RangeError,
+            createImageBitmap(source, 0, 0, 0, 10));
+      }
+  },
+  {
+    description: 'createImageBitmap with <sourceType> source and sh set to 0',
+    promiseTestFunction:
+      (source, t) => {
+        return promise_rejects_js(t, RangeError,
+            createImageBitmap(source, 0, 0, 10, 0));
+      }
+  },
+  {
+    description: 'createImageBitmap with <sourceType> source and oversized ' +
+        '(unallocatable) crop region',
+    promiseTestFunction:
+      (source, t) => {
+        return createImageBitmap(source, 0, 0, 100000000, 100000000)
+          .then(i => {
+            assert_equals(i.width, 100000000);
+            assert_equals(i.height, 100000000);
+          })
+          .catch(e => {
+            // This case is not explicitly documented in the specification for
+            // createImageBitmap, but it is expected that internal failures
+            // cause InvalidStateError.
+            //
+            // Note: https://bugs.chromium.org/p/chromium/issues/detail?id=799025
+            assert_throws_dom("InvalidStateError", () => { throw e });
+          });
+      }
+  },
+  {
+    description: 'createImageBitmap with <sourceType> source and ' +
+        'a value of 0 int resizeWidth',
+    promiseTestFunction:
+      (source, t) => {
+        return createImageBitmap(source, {resizeWidth:0, resizeHeight:10})
+          .catch(e => {
+            assert_throws_dom("InvalidStateError", () => { throw e });
+          });
+      }
+  },
+  {
+    description: 'createImageBitmap with <sourceType> source and ' +
+        'a value of 0 in resizeHeight',
+    promiseTestFunction:
+      (source, t) => {
+        return createImageBitmap(source, {resizeWidth:10, resizeHeight:0})
+          .catch(e => {
+            assert_throws_dom("InvalidStateError", () => { throw e });
+          });
+      }
+  },
+  {
+    description: 'createImageBitmap with <sourceType> source and ' +
+        'a value between 0 and 1 in resizeWidth',
+    promiseTestFunction:
+      (source, t) => {
+        return createImageBitmap(source, {resizeWidth:0.5, resizeHeight:10})
+          .catch(e => {
+            assert_throws_dom("InvalidStateError", () => { throw e });
+          });
+      }
+  },
+  {
+    description: 'createImageBitmap with <sourceType> source and ' +
+        'a value between 0 and 1 in resizeHeight',
+    promiseTestFunction:
+      (source, t) => {
+        return createImageBitmap(source, {resizeWidth:10, resizeHeight:0.5})
+          .catch(e => {
+            assert_throws_dom("InvalidStateError", () => { throw e });
+          });
+      }
+  },
+];
+
+// Generate the test matrix for each sourceType + testCase combo.
+imageSourceTypes.forEach(imageSourceType => {
+  testCases.forEach(testCase => {
+    let description = testCase.description.replace('<sourceType>',
+        imageSourceType.name);
+    promise_test( t => {
+      return imageSourceType.factory().then(source => {
+        return testCase.promiseTestFunction(source, t);
+      });
+    }, description);
+  });
+});
+
+promise_test( t => {
+  return promise_rejects_js(t, TypeError, createImageBitmap(undefined));
+}, "createImageBitmap with undefined image source.");
+
+promise_test( t => {
+  return promise_rejects_js(t, TypeError, createImageBitmap(null));
+}, "createImageBitmap with null image source.");
+
+promise_test( t => {
+  var context = document.createElement("canvas").getContext("2d");
+  return promise_rejects_js(t, TypeError, createImageBitmap(context));
+}, "createImageBitmap with CanvasRenderingContext2D image source.");
+
+promise_test( t => {
+  var context = document.createElement("canvas").getContext("webgl");
+  return promise_rejects_js(t, TypeError, createImageBitmap(context));
+}, "createImageBitmap with WebGLRenderingContext image source.");
+
+promise_test( t => {
+  var buffer = new Uint8Array();
+  return promise_rejects_js(t, TypeError, createImageBitmap(buffer));
+}, "createImageBitmap with Uint8Array image source.");
+
+promise_test( t => {
+  var buffer = new ArrayBuffer(8);
+  return promise_rejects_js(t, TypeError, createImageBitmap(buffer));
+}, "createImageBitmap with ArrayBuffer image source.");
+
+promise_test( t => {
+  return promise_rejects_dom(t, "InvalidStateError",
+    createImageBitmap(new Image()));
+}, "createImageBitmap with empty image source.");
+
+promise_test( t => {
+  return promise_rejects_dom(t, "InvalidStateError",
+    createImageBitmap(document.createElement('video')));
+}, "createImageBitmap with empty video source.");
+
+promise_test( t => {
+  return makeOversizedCanvas().then(canvas => {
+    return promise_rejects_dom(t, "InvalidStateError",
+        createImageBitmap(canvas));
+  });
+}, "createImageBitmap with an oversized canvas source.");
+
+promise_test( t => {
+  return makeOversizedOffscreenCanvas().then(offscreenCanvas => {
+    return promise_rejects_dom(t, "InvalidStateError",
+        createImageBitmap(offscreenCanvas));
+  });
+}, "createImageBitmap with an invalid OffscreenCanvas source.");
+
+promise_test( t => {
+  return makeInvalidBlob().then(blob => {
+    return promise_rejects_dom(t, "InvalidStateError",
+        createImageBitmap(blob));
+  });
+}, "createImageBitmap with an undecodable blob source.");
+
+promise_test( t => {
+  return makeBrokenImage().then(image => {
+    return promise_rejects_dom(t, "InvalidStateError",
+        createImageBitmap(image));
+  });
+}, "createImageBitmap with a broken image source.");
+
+promise_test( t => {
+  return makeAvailableButBrokenImage("../../../../../images/undecodable.png").then(image => {
+    return promise_rejects_dom(t, "InvalidStateError",
+        createImageBitmap(image));
+  });
+}, "createImageBitmap with an available but undecodable image source.");
+
+promise_test( t => {
+  return makeAvailableButBrokenImage("../../../../../images/red-zeroheight.svg").then(image => {
+    return promise_rejects_dom(t, "InvalidStateError",
+        createImageBitmap(image));
+  });
+}, "createImageBitmap with an available but zero height image source.");
+
+promise_test( t => {
+  return makeAvailableButBrokenImage("../../../../../images/red-zerowidth.svg").then(image => {
+    return promise_rejects_dom(t, "InvalidStateError",
+        createImageBitmap(image));
+  });
+}, "createImageBitmap with an available but zero width image source.");
+
+promise_test( t => {
+  return makeImageBitmap().then(bitmap => {
+    bitmap.close()
+    return promise_rejects_dom(t, "InvalidStateError",
+        createImageBitmap(bitmap));
+  });
+}, "createImageBitmap with a closed ImageBitmap.");
+</script>
