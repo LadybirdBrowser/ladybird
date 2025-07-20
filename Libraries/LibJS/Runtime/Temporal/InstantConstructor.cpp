@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -44,8 +44,7 @@ ThrowCompletionOr<Value> InstantConstructor::call()
 {
     auto& vm = this->vm();
 
-    // 1. If NewTarget is undefined, then
-    //     a. Throw a TypeError exception.
+    // 1. If NewTarget is undefined, throw a TypeError exception.
     return vm.throw_completion<TypeError>(ErrorType::ConstructorWithoutNew, "Temporal.Instant");
 }
 
