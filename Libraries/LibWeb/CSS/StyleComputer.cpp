@@ -1537,18 +1537,15 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
     }
 }
 
-// https://www.w3.org/TR/css-cascade/#cascading
-// https://drafts.csswg.org/css-cascade-5/#layering
-GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, bool& did_match_any_pseudo_element_rules, PseudoClassBitmap& attempted_pseudo_class_matches, ComputeStyleMode mode, Optional<LogicalAliasMappingContext> logical_alias_mapping_context) const
+StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Element const& element, Optional<PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
 {
-    auto cascaded_properties = m_document->heap().allocate<CascadedProperties>();
-
     // First, we collect all the CSS rules whose selectors match `element`:
     MatchingRuleSet matching_rule_set;
     matching_rule_set.user_agent_rules = collect_matching_rules(element, CascadeOrigin::UserAgent, pseudo_element, attempted_pseudo_class_matches);
     sort_matching_rules(matching_rule_set.user_agent_rules);
     matching_rule_set.user_rules = collect_matching_rules(element, CascadeOrigin::User, pseudo_element, attempted_pseudo_class_matches);
     sort_matching_rules(matching_rule_set.user_rules);
+
     // @layer-ed author rules
     for (auto const& layer_name : m_qualified_layer_names_in_order) {
         auto layer_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, attempted_pseudo_class_matches, layer_name);
@@ -1562,25 +1559,22 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         VERIFY(pseudo_element.has_value());
-        if (matching_rule_set.author_rules.is_empty() && matching_rule_set.user_rules.is_empty() && matching_rule_set.user_agent_rules.is_empty()) {
-            did_match_any_pseudo_element_rules = false;
+        did_match_any_pseudo_element_rules = !matching_rule_set.author_rules.is_empty()
+            || !matching_rule_set.user_rules.is_empty()
+            || !matching_rule_set.user_agent_rules.is_empty();
+    }
+    return matching_rule_set;
+}
+
+// https://www.w3.org/TR/css-cascade/#cascading
+// https://drafts.csswg.org/css-cascade-5/#layering
+GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, bool did_match_any_pseudo_element_rules, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set, Optional<LogicalAliasMappingContext> logical_alias_mapping_context) const
+{
+    auto cascaded_properties = m_document->heap().allocate<CascadedProperties>();
+    if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
+        if (!did_match_any_pseudo_element_rules)
             return cascaded_properties;
-        }
-        did_match_any_pseudo_element_rules = true;
     }
-
-    // Then we resolve all the CSS custom properties ("variables") for this element:
-    // FIXME: Also resolve !important custom properties, in a second cascade.
-
-    if (!pseudo_element.has_value() || pseudo_element_supports_property(*pseudo_element, PropertyID::Custom)) {
-        HashMap<FlyString, CSS::StyleProperty> custom_properties;
-        for (auto& layer : matching_rule_set.author_rules) {
-            cascade_custom_properties(element, pseudo_element, layer.rules, custom_properties);
-        }
-        element.set_custom_properties(pseudo_element, move(custom_properties));
-    }
-
-    // Then we apply the declarations from the matched rules in cascade order:
 
     // Normal user agent declarations
     cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {}, logical_alias_mapping_context);
@@ -2141,7 +2135,7 @@ void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* 
     }
 }
 
-LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(DOM::Element& element, Optional<PseudoElement> pseudo_element, ComputeStyleMode mode) const
+LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(DOM::Element& element, Optional<PseudoElement> pseudo_element, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set) const
 {
     auto normalize_value = [&](auto property_id, auto value) {
         if (!value || value->is_inherit() || value->is_unset()) {
@@ -2159,10 +2153,9 @@ LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(
     };
 
     bool did_match_any_pseudo_element_rules = false;
-    PseudoClassBitmap attempted_pseudo_class_matches;
 
     // FIXME: Ideally we wouldn't run the whole cascade just for these few properties.
-    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, attempted_pseudo_class_matches, mode, {});
+    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, {});
 
     auto writing_mode = normalize_value(PropertyID::WritingMode, cascaded_properties->property(PropertyID::WritingMode));
     auto direction = normalize_value(PropertyID::Direction, cascaded_properties->property(PropertyID::Direction));
@@ -2459,8 +2452,20 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
     PseudoClassBitmap attempted_pseudo_class_matches;
-    auto logical_alias_mapping_context = compute_logical_alias_mapping_context(element, pseudo_element, mode);
-    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, attempted_pseudo_class_matches, mode, logical_alias_mapping_context);
+    auto matching_rule_set = build_matching_rule_set(element, pseudo_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
+
+    // Resolve all the CSS custom properties ("variables") for this element:
+    // FIXME: Also resolve !important custom properties, in a second cascade.
+    if (!pseudo_element.has_value() || pseudo_element_supports_property(*pseudo_element, PropertyID::Custom)) {
+        HashMap<FlyString, CSS::StyleProperty> custom_properties;
+        for (auto& layer : matching_rule_set.author_rules) {
+            cascade_custom_properties(element, pseudo_element, layer.rules, custom_properties);
+        }
+        element.set_custom_properties(pseudo_element, move(custom_properties));
+    }
+
+    auto logical_alias_mapping_context = compute_logical_alias_mapping_context(element, pseudo_element, mode, matching_rule_set);
+    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, logical_alias_mapping_context);
     element.set_cascaded_properties(pseudo_element, cascaded_properties);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {

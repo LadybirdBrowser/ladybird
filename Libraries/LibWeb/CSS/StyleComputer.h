@@ -203,9 +203,22 @@ private:
 
     struct MatchingFontCandidate;
 
-    LogicalAliasMappingContext compute_logical_alias_mapping_context(DOM::Element&, Optional<CSS::PseudoElement>, ComputeStyleMode) const;
+    struct LayerMatchingRules {
+        FlyString qualified_layer_name;
+        Vector<MatchingRule const*> rules;
+    };
+
+    struct MatchingRuleSet {
+        Vector<MatchingRule const*> user_agent_rules;
+        Vector<MatchingRule const*> user_rules;
+        Vector<LayerMatchingRules> author_rules;
+    };
+
+    [[nodiscard]] MatchingRuleSet build_matching_rule_set(DOM::Element const&, Optional<PseudoElement>, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
+
+    LogicalAliasMappingContext compute_logical_alias_mapping_context(DOM::Element&, Optional<CSS::PseudoElement>, ComputeStyleMode, MatchingRuleSet const&) const;
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_style_impl(DOM::Element&, Optional<CSS::PseudoElement>, ComputeStyleMode) const;
-    [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::Element&, Optional<CSS::PseudoElement>, bool& did_match_any_pseudo_element_rules, PseudoClassBitmap& attempted_pseudo_class_matches, ComputeStyleMode, Optional<LogicalAliasMappingContext>) const;
+    [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::Element&, Optional<CSS::PseudoElement>, bool did_match_any_pseudo_element_rules, ComputeStyleMode, MatchingRuleSet const&, Optional<LogicalAliasMappingContext>) const;
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
@@ -227,17 +240,6 @@ private:
 
     Vector<FlyString> m_qualified_layer_names_in_order;
     void build_qualified_layer_names_cache();
-
-    struct LayerMatchingRules {
-        FlyString qualified_layer_name;
-        Vector<MatchingRule const*> rules;
-    };
-
-    struct MatchingRuleSet {
-        Vector<MatchingRule const*> user_agent_rules;
-        Vector<MatchingRule const*> user_rules;
-        Vector<LayerMatchingRules> author_rules;
-    };
 
     void cascade_declarations(
         CascadedProperties&,
