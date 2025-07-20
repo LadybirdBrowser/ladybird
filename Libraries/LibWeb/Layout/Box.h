@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::Layout {
@@ -24,7 +25,7 @@ struct IntrinsicSizes {
     HashMap<CSSPixels, Optional<CSSPixels>> max_content_height;
 };
 
-class Box : public NodeWithStyleAndBoxModelMetrics {
+class WEB_API Box : public NodeWithStyleAndBoxModelMetrics {
     GC_CELL(Box, NodeWithStyleAndBoxModelMetrics);
 
 public:

@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::CSS {
@@ -29,7 +30,7 @@ struct CSSStyleSheetInit {
 };
 
 // https://drafts.csswg.org/cssom-1/#cssstylesheet
-class CSSStyleSheet final : public StyleSheet {
+class WEB_API CSSStyleSheet final : public StyleSheet {
     WEB_PLATFORM_OBJECT(CSSStyleSheet, StyleSheet);
     GC_DECLARE_ALLOCATOR(CSSStyleSheet);
 

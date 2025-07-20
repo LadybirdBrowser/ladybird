@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HighResolutionTime {
@@ -18,8 +19,8 @@ DOMHighResTimeStamp coarsen_time(DOMHighResTimeStamp timestamp, bool cross_origi
 DOMHighResTimeStamp current_high_resolution_time(JS::Object const&);
 DOMHighResTimeStamp relative_high_resolution_time(DOMHighResTimeStamp, JS::Object const&);
 DOMHighResTimeStamp relative_high_resolution_coarsen_time(DOMHighResTimeStamp, JS::Object const&);
-DOMHighResTimeStamp coarsened_shared_current_time(bool cross_origin_isolated_capability = false);
+WEB_API DOMHighResTimeStamp coarsened_shared_current_time(bool cross_origin_isolated_capability = false);
 DOMHighResTimeStamp wall_clock_unsafe_current_time();
-DOMHighResTimeStamp unsafe_shared_current_time();
+WEB_API DOMHighResTimeStamp unsafe_shared_current_time();
 
 }

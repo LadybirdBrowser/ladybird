@@ -12,11 +12,12 @@
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
-class AnimationFrameCallbackDriver final : public JS::Cell {
+class WEB_API AnimationFrameCallbackDriver final : public JS::Cell {
     GC_CELL(AnimationFrameCallbackDriver, JS::Cell);
     GC_DECLARE_ALLOCATOR(AnimationFrameCallbackDriver);
 

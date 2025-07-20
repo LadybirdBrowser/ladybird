@@ -12,6 +12,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibWeb/DOM/MutationObserver.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionsStack.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
@@ -50,6 +51,6 @@ private:
     }
 };
 
-SimilarOriginWindowAgent& relevant_similar_origin_window_agent(JS::Object const&);
+WEB_API SimilarOriginWindowAgent& relevant_similar_origin_window_agent(JS::Object const&);
 
 }

@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
 namespace Web::HTML {
 
-class EnvironmentSettingsSnapshot final
+class WEB_API EnvironmentSettingsSnapshot final
     : public EnvironmentSettingsObject {
     GC_CELL(EnvironmentSettingsSnapshot, EnvironmentSettingsObject);
     GC_DECLARE_ALLOCATOR(EnvironmentSettingsSnapshot);

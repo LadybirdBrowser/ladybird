@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/Painting/BorderPainting.h>
 
 namespace Web::Painting {
@@ -15,7 +16,7 @@ enum class CornerClip {
     Inside
 };
 
-struct ScopedCornerRadiusClip {
+struct WEB_API ScopedCornerRadiusClip {
     ScopedCornerRadiusClip(DisplayListRecordingContext& context, DevicePixelRect const& border_rect, BorderRadiiData const& border_radii, CornerClip corner_clip = CornerClip::Outside, bool do_apply = true);
 
     ~ScopedCornerRadiusClip();

@@ -8,11 +8,12 @@
 
 #include <LibCore/Timer.h>
 #include <LibMedia/Audio/PlaybackStream.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Platform/AudioCodecPlugin.h>
 
 namespace Web::Platform {
 
-class AudioCodecPluginAgnostic final : public AudioCodecPlugin {
+class WEB_API AudioCodecPluginAgnostic final : public AudioCodecPlugin {
 public:
     static ErrorOr<NonnullOwnPtr<AudioCodecPluginAgnostic>> create(NonnullRefPtr<Audio::Loader> const&);
 

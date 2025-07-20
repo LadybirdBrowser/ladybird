@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::MimeSniff {
@@ -30,7 +31,7 @@ struct SniffingConfiguration {
 };
 
 // https://mimesniff.spec.whatwg.org/#resource
-class Resource {
+class WEB_API Resource {
 public:
     static Resource create(ReadonlyBytes data, SniffingConfiguration configuration = {});
     static MimeType sniff(ReadonlyBytes data, SniffingConfiguration configuration = {});

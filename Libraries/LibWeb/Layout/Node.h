@@ -12,6 +12,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -30,7 +31,7 @@ enum class LayoutMode {
     IntrinsicSizing,
 };
 
-class Node
+class WEB_API Node
     : public JS::Cell
     , public TreeNode<Node> {
     GC_CELL(Node, JS::Cell);
@@ -231,7 +232,7 @@ private:
     u32 m_initial_quote_nesting_level { 0 };
 };
 
-class NodeWithStyle : public Node {
+class WEB_API NodeWithStyle : public Node {
     GC_CELL(NodeWithStyle, Node);
 
 public:

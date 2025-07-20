@@ -13,6 +13,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
@@ -41,7 +42,7 @@ private:
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-traversal-queue
-class SessionHistoryTraversalQueue : public JS::Cell {
+class WEB_API SessionHistoryTraversalQueue : public JS::Cell {
     GC_CELL(SessionHistoryTraversalQueue, JS::Cell);
     GC_DECLARE_ALLOCATOR(SessionHistoryTraversalQueue);
 

@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/HTMLOrSVGElement.h>
@@ -70,7 +71,7 @@ enum class IsPopover {
     No,
 };
 
-class HTMLElement
+class WEB_API HTMLElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGElement<HTMLElement> {

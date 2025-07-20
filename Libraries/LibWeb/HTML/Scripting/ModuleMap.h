@@ -9,6 +9,7 @@
 #include <LibGC/Function.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
 
 namespace Web::HTML {
@@ -35,7 +36,7 @@ private:
 };
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-map
-class ModuleMap final : public JS::Cell {
+class WEB_API ModuleMap final : public JS::Cell {
     GC_CELL(ModuleMap, JS::Cell);
     GC_DECLARE_ALLOCATOR(ModuleMap);
 

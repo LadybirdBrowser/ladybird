@@ -9,6 +9,7 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
@@ -17,7 +18,7 @@ struct CustomEventInit : public EventInit {
 };
 
 // https://dom.spec.whatwg.org/#customevent
-class CustomEvent : public Event {
+class WEB_API CustomEvent : public Event {
     WEB_PLATFORM_OBJECT(CustomEvent, Event);
     GC_DECLARE_ALLOCATOR(CustomEvent);
 

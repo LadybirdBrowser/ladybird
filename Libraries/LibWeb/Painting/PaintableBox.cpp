@@ -38,6 +38,11 @@ GC_DEFINE_ALLOCATOR(PaintableWithLines);
 
 bool g_paint_viewport_scrollbars = true;
 
+void set_paint_viewport_scrollbars(bool const enabled)
+{
+    g_paint_viewport_scrollbars = enabled;
+}
+
 GC::Ref<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
 {
     return block_container.heap().allocate<PaintableWithLines>(block_container);

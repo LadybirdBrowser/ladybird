@@ -16,6 +16,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 #include <math.h>
 
 namespace Web {
@@ -56,7 +57,7 @@ class CSSPixelFraction;
 
 /// CSSPixels: A position or length in CSS "reference pixels", independent of zoom or screen DPI.
 /// See https://www.w3.org/TR/css-values-3/#reference-pixel
-class CSSPixels {
+class WEB_API CSSPixels {
 public:
     static constexpr i32 fractional_bits = 6;
     static constexpr i32 fixed_point_denominator = 1 << fractional_bits;
@@ -529,23 +530,23 @@ struct Formatter<Web::DevicePixels> : Formatter<Web::DevicePixels::Type> {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::DevicePixels const& value);
+WEB_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixels const& value);
 template<>
-ErrorOr<Web::DevicePixels> decode(Decoder& decoder);
+WEB_API ErrorOr<Web::DevicePixels> decode(Decoder& decoder);
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelPoint const& value);
+WEB_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelPoint const& value);
 template<>
-ErrorOr<Web::DevicePixelPoint> decode(Decoder& decoder);
+WEB_API ErrorOr<Web::DevicePixelPoint> decode(Decoder& decoder);
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelSize const& value);
+WEB_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelSize const& value);
 template<>
-ErrorOr<Web::DevicePixelSize> decode(Decoder& decoder);
+WEB_API ErrorOr<Web::DevicePixelSize> decode(Decoder& decoder);
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelRect const& value);
+WEB_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelRect const& value);
 template<>
-ErrorOr<Web::DevicePixelRect> decode(Decoder& decoder);
+WEB_API ErrorOr<Web::DevicePixelRect> decode(Decoder& decoder);
 
 }

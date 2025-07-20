@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <LibGfx/Forward.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Platform {
 
@@ -24,7 +25,7 @@ enum class GenericFont {
     __Count,
 };
 
-class FontPlugin {
+class WEB_API FontPlugin {
 public:
     static FontPlugin& the();
     static void install(FontPlugin&);

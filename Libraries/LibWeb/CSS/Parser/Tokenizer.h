@@ -12,6 +12,7 @@
 #include <AK/Types.h>
 #include <AK/Utf8View.h>
 #include <LibWeb/CSS/Parser/Token.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
@@ -57,7 +58,7 @@ public:
     u32 third {};
 };
 
-class Tokenizer {
+class WEB_API Tokenizer {
 public:
     static Vector<Token> tokenize(StringView input, StringView encoding);
 

@@ -9,6 +9,7 @@
 
 #include <AK/JsonValue.h>
 #include <AK/String.h>
+#include <LibWeb/Export.h>
 
 namespace Web::WebDriver {
 
@@ -48,7 +49,7 @@ enum class ErrorCode {
 };
 
 // https://w3c.github.io/webdriver/#errors
-struct Error {
+struct WEB_API Error {
     unsigned http_status;
     String error;
     String message;

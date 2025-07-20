@@ -10,6 +10,7 @@
 #include <AK/Variant.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -18,7 +19,7 @@ namespace Web::DOM {
 using Slottable = Variant<GC::Ref<Element>, GC::Ref<Text>>;
 
 // https://dom.spec.whatwg.org/#mixin-slotable
-class SlottableMixin {
+class WEB_API SlottableMixin {
 public:
     virtual ~SlottableMixin();
 

@@ -9,6 +9,7 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
@@ -23,7 +24,7 @@ struct MessageEventInit : public DOM::EventInit {
     Vector<GC::Root<MessagePort>> ports;
 };
 
-class MessageEvent : public DOM::Event {
+class WEB_API MessageEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(MessageEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(MessageEvent);
 

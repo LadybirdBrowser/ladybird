@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
@@ -17,7 +18,7 @@ struct PixelBox {
     CSSPixels left { 0 };
 };
 
-struct BoxModelMetrics {
+struct WEB_API BoxModelMetrics {
 public:
     PixelBox margin;
     PixelBox padding;

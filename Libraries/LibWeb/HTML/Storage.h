@@ -9,13 +9,14 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storage-2
-class Storage : public Bindings::PlatformObject {
+class WEB_API Storage : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Storage, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(Storage);
 

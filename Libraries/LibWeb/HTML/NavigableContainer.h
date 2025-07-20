@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
 
 namespace Web::HTML {
 
-class NavigableContainer : public HTMLElement {
+class WEB_API NavigableContainer : public HTMLElement {
     WEB_PLATFORM_OBJECT(NavigableContainer, HTMLElement);
 
 public:

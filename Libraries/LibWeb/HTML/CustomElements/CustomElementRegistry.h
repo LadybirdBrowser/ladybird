@@ -8,6 +8,7 @@
 
 #include <AK/RefCounted.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 
 namespace Web::HTML {
@@ -17,7 +18,7 @@ struct ElementDefinitionOptions {
 };
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#customelementregistry
-class CustomElementRegistry : public Bindings::PlatformObject {
+class WEB_API CustomElementRegistry : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(CustomElementRegistry, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(CustomElementRegistry);
 

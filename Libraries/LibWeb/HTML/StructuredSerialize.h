@@ -14,13 +14,14 @@
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
-class TransferDataEncoder {
+class WEB_API TransferDataEncoder {
 public:
     explicit TransferDataEncoder();
     explicit TransferDataEncoder(IPC::MessageBuffer&&);
@@ -42,7 +43,7 @@ private:
     IPC::Encoder m_encoder;
 };
 
-class TransferDataDecoder {
+class WEB_API TransferDataDecoder {
 public:
     explicit TransferDataDecoder(SerializationRecord const&);
     explicit TransferDataDecoder(TransferDataEncoder&&);
@@ -82,19 +83,19 @@ WebIDL::ExceptionOr<SerializationRecord> structured_serialize_internal(JS::VM&, 
 WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, SerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
 WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, TransferDataDecoder&, JS::Realm&, DeserializationMemory&);
 
-WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::VM&, JS::Value, Vector<GC::Root<JS::Object>> const& transfer_list);
+WEB_API WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::VM&, JS::Value, Vector<GC::Root<JS::Object>> const& transfer_list);
 WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(SerializedTransferRecord&, JS::Realm&);
-WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(TransferDataDecoder&, JS::Realm&);
+WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(TransferDataDecoder&, JS::Realm&);
 
 }
 
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::TransferDataEncoder const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::TransferDataEncoder const&);
 
 template<>
-ErrorOr<Web::HTML::TransferDataEncoder> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::TransferDataEncoder> decode(Decoder&);
 
 template<>
 ErrorOr<void> encode(Encoder&, Web::HTML::SerializedTransferRecord const&);

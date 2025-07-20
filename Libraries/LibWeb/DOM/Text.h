@@ -10,10 +10,11 @@
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Slottable.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
-class Text
+class WEB_API Text
     : public CharacterData
     , public SlottableMixin {
     WEB_PLATFORM_OBJECT(Text, CharacterData);

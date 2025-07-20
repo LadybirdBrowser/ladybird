@@ -52,33 +52,6 @@ endif()
 target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
 if(WIN32)
-    # FIXME: This is a hack to get around lld-link error undefined symbols in LibWeb
-    target_link_libraries(WebContent PRIVATE
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,AbortSignal>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,AttributeNames>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,Buffers>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,CallbackType>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,DocumentObserver>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,EventNames>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,Fetching>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,HeapTimer>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,MutationType>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,Namespace>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,NavigationObserver>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,PaintableBox>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,Policy>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,PolicyContainer>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,PullIntoDescriptor>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,ReadableByteStreamController>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,ReadableStream>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,ShadowRoot>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,TagNames>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,Text>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,Tracing>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,TransformStream>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,WebUI>
-            $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,WritableStream>
-    )
     find_package(unofficial-angle REQUIRED CONFIG)
     target_link_libraries(WebContent PRIVATE LibTextCodec unofficial::angle::libGLESv2)
 endif()

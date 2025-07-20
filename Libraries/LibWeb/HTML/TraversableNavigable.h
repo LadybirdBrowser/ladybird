@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationType.h>
@@ -28,7 +29,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#traversable-navigable
-class TraversableNavigable final : public Navigable {
+class WEB_API TraversableNavigable final : public Navigable {
     GC_CELL(TraversableNavigable, Navigable);
     GC_DECLARE_ALLOCATOR(TraversableNavigable);
 

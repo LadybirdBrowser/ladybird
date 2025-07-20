@@ -13,6 +13,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebDriver {
@@ -24,7 +25,7 @@ struct ExecutionResult {
 
 using OnScriptComplete = GC::Function<void(ExecutionResult)>;
 
-void execute_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
-void execute_async_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
+WEB_API void execute_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
+WEB_API void execute_async_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
 
 }

@@ -13,6 +13,7 @@
 #include <AK/Variant.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -21,7 +22,7 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#concept-body
-class Body final : public JS::Cell {
+class WEB_API Body final : public JS::Cell {
     GC_CELL(Body, JS::Cell);
     GC_DECLARE_ALLOCATOR(Body);
 
@@ -76,6 +77,6 @@ struct BodyWithType {
     Optional<ByteBuffer> type;
 };
 
-GC::Ref<Body> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);
+WEB_API GC::Ref<Body> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);
 
 }

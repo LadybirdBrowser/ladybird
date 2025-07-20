@@ -12,11 +12,12 @@
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NonDocumentTypeChildNode.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#characterdata
-class CharacterData
+class WEB_API CharacterData
     : public Node
     , public ChildNode<CharacterData>
     , public NonDocumentTypeChildNode<CharacterData> {

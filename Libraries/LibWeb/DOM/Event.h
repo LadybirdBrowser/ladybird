@@ -9,6 +9,7 @@
 #include <AK/FlyString.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::DOM {
@@ -19,7 +20,7 @@ struct EventInit {
     bool composed { false };
 };
 
-class Event : public Bindings::PlatformObject {
+class WEB_API Event : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Event, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(Event);
 

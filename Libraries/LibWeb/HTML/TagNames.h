@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML::TagNames {
 
@@ -157,7 +158,7 @@ namespace Web::HTML::TagNames {
     __ENUMERATE_HTML_TAG(wbr, "wbr")               \
     __ENUMERATE_HTML_TAG(xmp, "xmp")
 
-#define __ENUMERATE_HTML_TAG(name, tag) extern FlyString name;
+#define __ENUMERATE_HTML_TAG(name, tag) extern WEB_API FlyString name;
 ENUMERATE_HTML_TAGS
 #undef __ENUMERATE_HTML_TAG
 

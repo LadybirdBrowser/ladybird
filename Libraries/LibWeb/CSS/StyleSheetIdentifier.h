@@ -8,6 +8,7 @@
 
 #include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -35,9 +36,9 @@ Optional<StyleSheetIdentifier::Type> style_sheet_identifier_type_from_string(Str
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::CSS::StyleSheetIdentifier const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::CSS::StyleSheetIdentifier const&);
 
 template<>
-ErrorOr<Web::CSS::StyleSheetIdentifier> decode(Decoder&);
+WEB_API ErrorOr<Web::CSS::StyleSheetIdentifier> decode(Decoder&);
 
 }

@@ -13,12 +13,13 @@
 #include <LibCore/EventReceiver.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Loader/Resource.h>
 #include <LibWeb/Loader/UserAgent.h>
 
 namespace Web {
 
-class ResourceLoader : public Core::EventReceiver {
+class WEB_API ResourceLoader : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ResourceLoader)
 public:
     static void initialize(GC::Heap&, NonnullRefPtr<Requests::RequestClient>);

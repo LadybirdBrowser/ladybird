@@ -12,10 +12,11 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class CSSImportRule final
+class WEB_API CSSImportRule final
     : public CSSRule {
     WEB_PLATFORM_OBJECT(CSSImportRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSImportRule);

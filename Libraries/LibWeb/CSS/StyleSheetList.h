@@ -10,10 +10,11 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class StyleSheetList final : public Bindings::PlatformObject {
+class WEB_API StyleSheetList final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(StyleSheetList, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(StyleSheetList);
 

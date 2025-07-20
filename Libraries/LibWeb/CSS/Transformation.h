@@ -12,12 +12,13 @@
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/TransformFunctions.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
 using TransformValue = Variant<AngleOrCalculated, LengthPercentage, NumberPercentage>;
 
-class Transformation {
+class WEB_API Transformation {
 public:
     Transformation(TransformFunction function, Vector<TransformValue>&& values);
 

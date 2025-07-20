@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Clipboard {
 
@@ -29,15 +30,15 @@ struct SystemClipboardItem {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::Clipboard::SystemClipboardRepresentation const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::Clipboard::SystemClipboardRepresentation const&);
 
 template<>
-ErrorOr<Web::Clipboard::SystemClipboardRepresentation> decode(Decoder&);
+WEB_API ErrorOr<Web::Clipboard::SystemClipboardRepresentation> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::Clipboard::SystemClipboardItem const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::Clipboard::SystemClipboardItem const&);
 
 template<>
-ErrorOr<Web::Clipboard::SystemClipboardItem> decode(Decoder&);
+WEB_API ErrorOr<Web::Clipboard::SystemClipboardItem> decode(Decoder&);
 
 }

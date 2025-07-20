@@ -8,19 +8,20 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web {
 
-void dump_tree(HTML::TraversableNavigable&);
+WEB_API void dump_tree(HTML::TraversableNavigable&);
 void dump_tree(StringBuilder&, DOM::Node const&);
-void dump_tree(DOM::Node const&);
-void dump_tree(StringBuilder&, Layout::Node const&, bool show_box_model = false, bool show_cascaded_properties = false, bool colorize = false);
-void dump_tree(Layout::Node const&, bool show_box_model = true, bool show_cascaded_properties = false);
-void dump_tree(StringBuilder&, Painting::Paintable const&, bool colorize = false, int indent = 0);
-void dump_tree(Painting::Paintable const&);
+WEB_API void dump_tree(DOM::Node const&);
+WEB_API void dump_tree(StringBuilder&, Layout::Node const&, bool show_box_model = false, bool show_cascaded_properties = false, bool colorize = false);
+WEB_API void dump_tree(Layout::Node const&, bool show_box_model = true, bool show_cascaded_properties = false);
+WEB_API void dump_tree(StringBuilder&, Painting::Paintable const&, bool colorize = false, int indent = 0);
+WEB_API void dump_tree(Painting::Paintable const&);
 void dump_sheet(StringBuilder&, CSS::StyleSheet const&);
-void dump_sheet(CSS::StyleSheet const&);
+WEB_API void dump_sheet(CSS::StyleSheet const&);
 void dump_rule(StringBuilder&, CSS::CSSRule const&, int indent_levels = 0);
 void dump_rule(CSS::CSSRule const&);
 void dump_style_properties(StringBuilder&, CSS::CSSStyleProperties const&, int indent_levels = 0);

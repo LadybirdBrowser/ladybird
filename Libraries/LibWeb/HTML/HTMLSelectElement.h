@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/AutocompleteElement.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -18,7 +19,7 @@
 
 namespace Web::HTML {
 
-class HTMLSelectElement final
+class WEB_API HTMLSelectElement final
     : public HTMLElement
     , public FormAssociatedElement
     , public AutocompleteElement {

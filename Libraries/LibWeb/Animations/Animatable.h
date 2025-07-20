@@ -11,6 +11,7 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
@@ -33,7 +34,7 @@ struct GetAnimationsOptions {
 };
 
 // https://drafts.csswg.org/web-animations-1/#animatable
-class Animatable {
+class WEB_API Animatable {
 public:
     struct TransitionAttributes {
         double delay;
