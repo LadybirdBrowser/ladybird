@@ -68,7 +68,7 @@ describe("errors", () => {
         for (const value of values) {
             expect(() => {
                 Temporal.PlainTime.from(value);
-            }).toThrowWithMessage(RangeError, "Invalid ISO date time");
+            }).toThrowWithMessage(RangeError, "Invalid plain time");
 
             expect(() => {
                 Temporal.PlainTime.from(`T${value}`);
