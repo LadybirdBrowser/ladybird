@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 
 namespace Web::HTML {
@@ -19,7 +20,7 @@ private:                                                                 \
         return *this;                                                    \
     }
 
-class AutocompleteElement {
+class WEB_API AutocompleteElement {
 public:
     enum class AutofillMantle {
         Anchor,

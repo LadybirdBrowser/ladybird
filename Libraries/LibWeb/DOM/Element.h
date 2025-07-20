@@ -25,6 +25,7 @@
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/DOM/QualifiedName.h>
 #include <LibWeb/DOM/Slottable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/LazyLoadingElement.h>
@@ -99,7 +100,7 @@ enum class ProximityToTheViewport {
     NotDetermined,
 };
 
-class Element
+class WEB_API Element
     : public ParentNode
     , public ChildNode<Element>
     , public NonDocumentTypeChildNode<Element>

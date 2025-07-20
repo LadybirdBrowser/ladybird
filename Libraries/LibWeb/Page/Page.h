@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/Cookie/Cookie.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
@@ -45,7 +46,7 @@ namespace Web {
 
 class PageClient;
 
-class Page final : public JS::Cell {
+class WEB_API Page final : public JS::Cell {
     GC_CELL(Page, JS::Cell);
     GC_DECLARE_ALLOCATOR(Page);
 
@@ -419,9 +420,9 @@ protected:
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::Page::MediaContextMenu const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::Page::MediaContextMenu const&);
 
 template<>
-ErrorOr<Web::Page::MediaContextMenu> decode(Decoder&);
+WEB_API ErrorOr<Web::Page::MediaContextMenu> decode(Decoder&);
 
 }

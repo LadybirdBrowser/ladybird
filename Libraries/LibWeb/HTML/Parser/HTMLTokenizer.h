@@ -12,6 +12,7 @@
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Parser/Entities.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
@@ -100,7 +101,7 @@ namespace Web::HTML {
     __ENUMERATE_TOKENIZER_STATE(DecimalCharacterReference)                \
     __ENUMERATE_TOKENIZER_STATE(NumericCharacterReferenceEnd)
 
-class HTMLTokenizer {
+class WEB_API HTMLTokenizer {
 public:
     explicit HTMLTokenizer();
     explicit HTMLTokenizer(StringView input, ByteString const& encoding);

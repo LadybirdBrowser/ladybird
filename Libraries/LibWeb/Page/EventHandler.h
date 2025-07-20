@@ -13,6 +13,7 @@
 #include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibUnicode/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -21,7 +22,7 @@
 
 namespace Web {
 
-class EventHandler {
+class WEB_API EventHandler {
 public:
     explicit EventHandler(Badge<HTML::Navigable>, HTML::Navigable&);
     ~EventHandler();

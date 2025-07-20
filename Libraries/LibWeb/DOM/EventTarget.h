@@ -11,13 +11,14 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/DOMEventListener.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOM {
 
-class EventTarget : public Bindings::PlatformObject {
+class WEB_API EventTarget : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(EventTarget, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(EventTarget);
 

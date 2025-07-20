@@ -7,12 +7,13 @@
 #pragma once
 
 #include <LibJS/Runtime/Array.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::WebIDL {
 
 // https://webidl.spec.whatwg.org/#idl-observable-array
-class ObservableArray final : public JS::Array {
+class WEB_API ObservableArray final : public JS::Array {
     JS_OBJECT(ObservableArray, JS::Array);
     GC_DECLARE_ALLOCATOR(ObservableArray);
 

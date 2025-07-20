@@ -8,10 +8,11 @@
 
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class DisplayStyleValue : public StyleValueWithDefaultOperators<DisplayStyleValue> {
+class WEB_API DisplayStyleValue : public StyleValueWithDefaultOperators<DisplayStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<DisplayStyleValue const> create(Display const&);
     virtual ~DisplayStyleValue() override = default;

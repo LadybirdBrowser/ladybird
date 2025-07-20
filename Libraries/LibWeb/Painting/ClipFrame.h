@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/PixelUnits.h>
@@ -19,7 +20,7 @@ struct ClipRectWithScrollFrame {
     Optional<size_t> enclosing_scroll_frame_id;
 };
 
-struct ClipFrame : public AtomicRefCounted<ClipFrame> {
+struct WEB_API ClipFrame : public AtomicRefCounted<ClipFrame> {
     Vector<ClipRectWithScrollFrame> const& clip_rects() const { return m_clip_rects; }
     void add_clip_rect(CSSPixelRect rect, BorderRadiiData radii, RefPtr<ScrollFrame const> enclosing_scroll_frame);
 

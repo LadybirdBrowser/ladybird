@@ -9,6 +9,7 @@
 #include <LibGfx/Color.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTML/Parser/ListOfActiveFormattingElements.h>
 #include <LibWeb/HTML/Parser/StackOfOpenElements.h>
@@ -51,7 +52,7 @@ namespace Web::HTML {
     __ENUMERATE_INSERTION_MODE(AfterAfterBody)  \
     __ENUMERATE_INSERTION_MODE(AfterAfterFrameset)
 
-class HTMLParser final : public JS::Cell {
+class WEB_API HTMLParser final : public JS::Cell {
     GC_CELL(HTMLParser, JS::Cell);
     GC_DECLARE_ALLOCATOR(HTMLParser);
 

@@ -11,10 +11,11 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS::Parser {
 
-class SyntaxNode {
+class WEB_API SyntaxNode {
 public:
     enum class NodeType : u8 {
         Universal,

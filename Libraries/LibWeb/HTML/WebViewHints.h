@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/Types.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/PixelUnits.h>
@@ -30,9 +31,9 @@ struct WebViewHints {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::WebViewHints const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::WebViewHints const&);
 
 template<>
-ErrorOr<Web::HTML::WebViewHints> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::WebViewHints> decode(Decoder&);
 
 }

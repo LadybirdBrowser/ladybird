@@ -10,6 +10,7 @@
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/SerializedPolicyContainer.h>
 
 namespace Web::HTML {
@@ -39,9 +40,9 @@ struct SerializedEnvironmentSettingsObject {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::SerializedEnvironmentSettingsObject const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SerializedEnvironmentSettingsObject const&);
 
 template<>
-ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder&);
+WEB_API ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder&);
 
 }
