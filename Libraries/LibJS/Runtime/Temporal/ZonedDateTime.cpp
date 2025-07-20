@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021-2023, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -134,8 +134,8 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
 {
     // 1. If options is not present, set options to undefined.
 
-    // 2. Let offsetBehaviour be OPTION.
-    auto offset_behavior = OffsetBehavior::Option;
+    // 2. Let hasUTCDesignator be false.
+    auto has_utc_designator = false;
 
     // 3. Let matchBehaviour be MATCH-EXACTLY.
     auto match_behavior = MatchBehavior::MatchExactly;
@@ -193,31 +193,25 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         // e. Let offsetString be fields.[[OffsetString]].
         offset_string = move(fields.offset_string);
 
-        // f. If offsetString is UNSET, then
-        if (!offset_string.has_value()) {
-            // i. Set offsetBehaviour to WALL.
-            offset_behavior = OffsetBehavior::Wall;
-        }
-
-        // g. Let resolvedOptions be ? GetOptionsObject(options).
+        // f. Let resolvedOptions be ? GetOptionsObject(options).
         auto resolved_options = TRY(get_options_object(vm, options));
 
-        // h. Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
+        // g. Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
         disambiguation = TRY(get_temporal_disambiguation_option(vm, resolved_options));
 
-        // i. Let offsetOption be ? GetTemporalOffsetOption(resolvedOptions, REJECT).
+        // h. Let offsetOption be ? GetTemporalOffsetOption(resolvedOptions, REJECT).
         offset_option = TRY(get_temporal_offset_option(vm, resolved_options, OffsetOption::Reject));
 
-        // j. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+        // i. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
         auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
 
-        // k. Let result be ? InterpretTemporalDateTimeFields(calendar, fields, overflow).
+        // j. Let result be ? InterpretTemporalDateTimeFields(calendar, fields, overflow).
         auto result = TRY(interpret_temporal_date_time_fields(vm, calendar, fields, overflow));
 
-        // l. Let isoDate be result.[[ISODate]].
+        // k. Let isoDate be result.[[ISODate]].
         iso_date = result.iso_date;
 
-        // m. Let time be result.[[Time]].
+        // l. Let time be result.[[Time]].
         time = result.time;
     }
     // 5. Else,
@@ -232,7 +226,7 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         // c. Let annotation be result.[[TimeZone]].[[TimeZoneAnnotation]].
         auto annotation = move(result.time_zone.time_zone_annotation);
 
-        // d. Assert: annotation is not empty.
+        // d. Assert: annotation is not EMPTY.
         VERIFY(annotation.has_value());
 
         // e. Let timeZone be ? ToTemporalTimeZoneIdentifier(annotation).
@@ -243,26 +237,21 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
 
         // g. If result.[[TimeZone]].[[Z]] is true, then
         if (result.time_zone.z_designator) {
-            // i. Set offsetBehaviour to EXACT.
-            offset_behavior = OffsetBehavior::Exact;
-        }
-        // h. Else if offsetString is EMPTY, then
-        else if (!offset_string.has_value()) {
-            // i. Set offsetBehaviour to WALL.
-            offset_behavior = OffsetBehavior::Wall;
+            // i. Set hasUTCDesignator to true.
+            has_utc_designator = true;
         }
 
-        // i. Let calendar be result.[[Calendar]].
-        // j. If calendar is empty, set calendar to "iso8601".
+        // h. Let calendar be result.[[Calendar]].
+        // i. If calendar is EMPTY, set calendar to "iso8601".
         calendar = result.calendar.value_or("iso8601"_string);
 
-        // k. Set calendar to ? CanonicalizeCalendar(calendar).
+        // j. Set calendar to ? CanonicalizeCalendar(calendar).
         calendar = TRY(canonicalize_calendar(vm, calendar));
 
-        // l. Set matchBehaviour to MATCH-MINUTES.
+        // k. Set matchBehaviour to MATCH-MINUTES.
         match_behavior = MatchBehavior::MatchMinutes;
 
-        // m. If offsetString is not EMPTY, then
+        // l. If offsetString is not EMPTY, then
         if (offset_string.has_value()) {
             // i. Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
             auto offset_parse_result = parse_utc_offset(*offset_string, SubMinutePrecision::Yes);
@@ -275,38 +264,56 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
                 match_behavior = MatchBehavior::MatchExactly;
         }
 
-        // n. Let resolvedOptions be ? GetOptionsObject(options).
+        // m. Let resolvedOptions be ? GetOptionsObject(options).
         auto resolved_options = TRY(get_options_object(vm, options));
 
-        // o. Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
+        // n. Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
         disambiguation = TRY(get_temporal_disambiguation_option(vm, resolved_options));
 
-        // p. Let offsetOption be ? GetTemporalOffsetOption(resolvedOptions, REJECT).
+        // o. Let offsetOption be ? GetTemporalOffsetOption(resolvedOptions, REJECT).
         offset_option = TRY(get_temporal_offset_option(vm, resolved_options, OffsetOption::Reject));
 
-        // q. Perform ? GetTemporalOverflowOption(resolvedOptions).
+        // p. Perform ? GetTemporalOverflowOption(resolvedOptions).
         TRY(get_temporal_overflow_option(vm, resolved_options));
 
-        // r. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
+        // q. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
         iso_date = create_iso_date_record(*result.year, result.month, result.day);
 
-        // s. Let time be result.[[Time]].
+        // r. Let time be result.[[Time]].
         time = result.time;
     }
 
-    // 6. Let offsetNanoseconds be 0.
+    OffsetBehavior offset_behavior;
+
+    // 6. If hasUTCDesignator is true, then
+    if (has_utc_designator) {
+        // a. Let offsetBehaviour be EXACT.
+        offset_behavior = OffsetBehavior::Exact;
+    }
+    // 7. Else if offsetString is EMPTY or offsetString is UNSET, then
+    else if (!offset_string.has_value()) {
+        // a. Let offsetBehaviour be WALL.
+        offset_behavior = OffsetBehavior::Wall;
+    }
+    // 8. Else,
+    else {
+        // a. Let offsetBehaviour be OPTION.
+        offset_behavior = OffsetBehavior::Option;
+    }
+
+    // 9. Let offsetNanoseconds be 0.
     double offset_nanoseconds = 0;
 
-    // 7. If offsetBehaviour is OPTION, then
+    // 10. If offsetBehaviour is OPTION, then
     if (offset_behavior == OffsetBehavior::Option) {
         // a. Set offsetNanoseconds to ! ParseDateTimeUTCOffset(offsetString).
         offset_nanoseconds = parse_date_time_utc_offset(*offset_string);
     }
 
-    // 8. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time, offsetBehaviour, offsetNanoseconds, timeZone, disambiguation, offsetOption, matchBehaviour).
+    // 11. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time, offsetBehaviour, offsetNanoseconds, timeZone, disambiguation, offsetOption, matchBehaviour).
     auto epoch_nanoseconds = TRY(interpret_iso_date_time_offset(vm, iso_date, time, offset_behavior, offset_nanoseconds, time_zone, disambiguation, offset_option, match_behavior));
 
-    // 9. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    // 12. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
     return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(epoch_nanoseconds)), move(time_zone), move(calendar)));
 }
 
