@@ -143,8 +143,8 @@ void ImageBitmap::close()
 void ImageBitmap::set_bitmap(RefPtr<Gfx::Bitmap> bitmap)
 {
     m_bitmap = move(bitmap);
-    m_width = m_bitmap->width();
-    m_height = m_bitmap->height();
+    m_width = m_bitmap ? m_bitmap->width() : 0;
+    m_height = m_bitmap ? m_bitmap->height() : 0;
 }
 
 Gfx::Bitmap* ImageBitmap::bitmap() const
