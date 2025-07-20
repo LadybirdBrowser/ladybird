@@ -96,12 +96,12 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Real
         context->set_rendering_state(Bindings::AudioContextState::Running);
 
         // 3. Queue a media element task to execute the following steps:
-        context->queue_a_media_element_task(GC::create_function(context->heap(), [&realm, context]() {
+        context->queue_a_media_element_task(GC::create_function(context->heap(), [context]() {
             // 1. Set the state attribute of the AudioContext to "running".
             context->set_control_state(Bindings::AudioContextState::Running);
 
             // 2. Fire an event named statechange at the AudioContext.
-            context->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
+            context->dispatch_event(DOM::Event::create(context->realm(), HTML::EventNames::statechange));
         }));
     }
 
@@ -163,7 +163,6 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
 
     // 7. Queue a control message to resume the AudioContext.
     // FIXME: Implement control message queue to run following steps on the rendering thread
-
     // FIXME: 7.1: Attempt to acquire system resources.
 
     // 7.2: Set the [[rendering thread state]] on the AudioContext to running.
@@ -172,7 +171,8 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
     // 7.3: Start rendering the audio graph.
     if (!start_rendering_audio_graph()) {
         // 7.4: In case of failure, queue a media element task to execute the following steps:
-        queue_a_media_element_task(GC::create_function(heap(), [&realm, this]() {
+        queue_a_media_element_task(GC::create_function(heap(), [this]() {
+            auto& realm = this->realm();
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
             // 7.4.1: Reject all promises from [[pending resume promises]] in order, then clear [[pending resume promises]].
@@ -189,7 +189,8 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
     }
 
     // 7.5: queue a media element task to execute the following steps:
-    queue_a_media_element_task(GC::create_function(heap(), [&realm, promise, this]() {
+    queue_a_media_element_task(GC::create_function(heap(), [promise, this]() {
+        auto& realm = this->realm();
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 7.5.1: Resolve all promises from [[pending resume promises]] in order.
@@ -212,8 +213,8 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
             set_control_state(Bindings::AudioContextState::Running);
 
             // 7.5.4.2: queue a media element task to fire an event named statechange at the AudioContext.
-            queue_a_media_element_task(GC::create_function(heap(), [&realm, this]() {
-                this->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
+            queue_a_media_element_task(GC::create_function(heap(), [this]() {
+                this->dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::statechange));
             }));
         }
     }));
@@ -252,14 +253,14 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
 
     // 7. Queue a control message to suspend the AudioContext.
     // FIXME: Implement control message queue to run following steps on the rendering thread
-
     // FIXME: 7.1: Attempt to release system resources.
 
     // 7.2: Set the [[rendering thread state]] on the AudioContext to suspended.
     set_rendering_state(Bindings::AudioContextState::Suspended);
 
     // 7.3: queue a media element task to execute the following steps:
-    queue_a_media_element_task(GC::create_function(heap(), [&realm, promise, this]() {
+    queue_a_media_element_task(GC::create_function(heap(), [promise, this]() {
+        auto& realm = this->realm();
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 7.3.1: Resolve promise.
@@ -271,8 +272,8 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
             set_control_state(Bindings::AudioContextState::Suspended);
 
             // 7.3.2.2: queue a media element task to fire an event named statechange at the AudioContext.
-            queue_a_media_element_task(GC::create_function(heap(), [&realm, this]() {
-                this->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
+            queue_a_media_element_task(GC::create_function(heap(), [this]() {
+                this->dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::statechange));
             }));
         }
     }));
@@ -305,7 +306,6 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::close()
 
     // 5. Queue a control message to close the AudioContext.
     // FIXME: Implement control message queue to run following steps on the rendering thread
-
     // FIXME: 5.1: Attempt to release system resources.
 
     // 5.2: Set the [[rendering thread state]] to "suspended".
@@ -314,7 +314,8 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::close()
     // FIXME: 5.3: If this control message is being run in a reaction to the document being unloaded, abort this algorithm.
 
     // 5.4: queue a media element task to execute the following steps:
-    queue_a_media_element_task(GC::create_function(heap(), [&realm, promise, this]() {
+    queue_a_media_element_task(GC::create_function(heap(), [promise, this]() {
+        auto& realm = this->realm();
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 5.4.1: Resolve promise.

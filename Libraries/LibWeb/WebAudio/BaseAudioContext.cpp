@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/BaseAudioContextPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Window.h>
@@ -18,6 +19,7 @@
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebAudio/ChannelMergerNode.h>
+#include <LibWeb/WebAudio/ControlMessageQueue.h>
 #include <LibWeb/WebAudio/DynamicsCompressorNode.h>
 #include <LibWeb/WebAudio/GainNode.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>
@@ -31,6 +33,7 @@ BaseAudioContext::BaseAudioContext(JS::Realm& realm, float sample_rate)
     : DOM::EventTarget(realm)
     , m_sample_rate(sample_rate)
     , m_listener(AudioListener::create(realm, *this))
+    , m_control_message_queue(ControlMessageQueue::create(realm))
 {
 }
 
@@ -48,6 +51,7 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_destination);
     visitor.visit(m_pending_promises);
     visitor.visit(m_listener);
+    visitor.visit(m_control_message_queue);
 }
 
 void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)
@@ -198,6 +202,12 @@ void BaseAudioContext::queue_a_media_element_task(GC::Ref<GC::Function<void()>> 
 {
     auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_principal_settings_object().responsible_document(), steps);
     HTML::main_thread_event_loop().task_queue().add(task);
+}
+
+void BaseAudioContext::queue_control_message(GC::Ref<GC::Function<void()>> message) const
+{
+    m_control_message_queue->enqueue(move(message));
+    // FIXME: Should signal the rendering thread when implemented
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata

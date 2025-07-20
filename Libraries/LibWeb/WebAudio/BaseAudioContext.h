@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <LibWeb/Bindings/BaseAudioContextPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
@@ -24,6 +25,7 @@
 namespace Web::WebAudio {
 
 class AudioDestinationNode;
+class ControlMessageQueue;
 
 // https://webaudio.github.io/web-audio-api/#BaseAudioContext
 class BaseAudioContext : public DOM::EventTarget {
@@ -79,6 +81,8 @@ public:
 
     GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
+    void queue_control_message(GC::Ref<GC::Function<void()>>) const;
+
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
@@ -102,6 +106,8 @@ private:
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;
 
     HTML::UniqueTaskSource m_media_element_event_task_source {};
+
+    mutable GC::Ref<ControlMessageQueue> m_control_message_queue;
 };
 
 }
