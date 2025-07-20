@@ -20,6 +20,9 @@ fi
 
 files=()
 for file in "$@"; do
+    if [[ "${file}" == *"/wpt-import/"* ]]; then
+        continue
+    fi
     if [[ "${file}" == *".png" ]]; then
         files+=("${file}")
     fi
