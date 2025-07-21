@@ -264,9 +264,10 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& 
 
             WebIDL::wait_for_all(
                 realm, promises,
-                [&realm, promise](auto const&) {
+                [&realm, promise](auto const& fonts) {
                     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::resolve_promise(realm, promise);
+                    auto fonts_array = JS::Array::create_from(realm, fonts);
+                    WebIDL::resolve_promise(realm, promise, fonts_array);
                 },
                 [&realm, promise](auto error) {
                     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };

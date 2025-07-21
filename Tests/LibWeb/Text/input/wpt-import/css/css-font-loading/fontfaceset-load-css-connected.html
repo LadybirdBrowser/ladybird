@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head id="head">
+<meta charset="utf-8">
+<link rel="author" title="Myles C. Maxfield" href="mmaxfield@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-font-loading-3/#document-font-face-set">
+<meta name="assert" content="Ensure that calling FontFaceSet.load() operates on the up-to-date @font-face blocks." />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style id="style">
+@font-face {
+    font-family: "WebFont";
+    src: url("resources/Rochester.otf") format("opentype");
+}
+</style>
+</head>
+<body>
+<script>
+promise_test(async function(t) {
+    let fonts = document.fonts;
+    document.getElementById("head").removeChild(document.getElementById("style"));
+    let result = await fonts.load("12px 'WebFont'");
+    assert_equals(result.length, 0);
+});
+</script>
+</body>
+</html>
