@@ -149,9 +149,8 @@ public:
 private:
     Parser(ParsingParams const&, Vector<Token>);
 
-    enum class ParseError {
+    enum class ParseError : u8 {
         IncludesIgnoredVendorPrefix,
-        InternalError,
         SyntaxError,
     };
     template<typename T>
