@@ -1,0 +1,96 @@
+<!DOCTYPE HTML>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api/#dom-propertydescriptor-inherits" />
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api/#register-a-custom-property" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#outer {
+    --inherited-length-1: 10px;
+    --inherited-length-2: var(--non-inherited-length-1);
+    --inherited-length-3: 30px;
+    --non-inherited-length-1: 22px;
+    --non-inherited-length-3: calc(var(--non-inherited-length-2) * 10);
+}
+
+#inner {
+    --inherited-length-3: 15px;
+    --non-inherited-length-1: 40px;
+    --non-inherited-length-2: 90px;
+}
+</style>
+<div id=outer><div id=inner></div></div>
+<script>
+test(function() {
+    CSS.registerProperty({name: '--inherited-length-1', syntax: '<length>', initialValue: '1px', inherits: true});
+    CSS.registerProperty({name: '--inherited-length-2', syntax: '<length>', initialValue: '2px', inherits: true});
+    CSS.registerProperty({name: '--inherited-length-3', syntax: '<length>', initialValue: '3px', inherits: true});
+    CSS.registerProperty({name: '--non-inherited-length-1', syntax: '<length>', initialValue: '4px', inherits: false});
+    CSS.registerProperty({name: '--non-inherited-length-2', syntax: '<length>', initialValue: '5px', inherits: false});
+    CSS.registerProperty({name: '--non-inherited-length-3', syntax: '<length>', initialValue: '6px', inherits: false});
+
+    outerComputedStyle = getComputedStyle(outer);
+    assert_equals(outerComputedStyle.getPropertyValue('--inherited-length-1'), '10px');
+    assert_equals(outerComputedStyle.getPropertyValue('--inherited-length-2'), '22px');
+    assert_equals(outerComputedStyle.getPropertyValue('--inherited-length-3'), '30px');
+    assert_equals(outerComputedStyle.getPropertyValue('--non-inherited-length-1'), '22px');
+    assert_equals(outerComputedStyle.getPropertyValue('--non-inherited-length-2'), '5px');
+    assert_equals(outerComputedStyle.getPropertyValue('--non-inherited-length-3'), '50px');
+
+    innerComputedStyle = getComputedStyle(inner);
+    assert_equals(innerComputedStyle.getPropertyValue('--inherited-length-1'), '10px');
+    assert_equals(innerComputedStyle.getPropertyValue('--inherited-length-2'), '22px');
+    assert_equals(innerComputedStyle.getPropertyValue('--inherited-length-3'), '15px');
+    assert_equals(innerComputedStyle.getPropertyValue('--non-inherited-length-1'), '40px');
+    assert_equals(innerComputedStyle.getPropertyValue('--non-inherited-length-2'), '90px');
+    assert_equals(innerComputedStyle.getPropertyValue('--non-inherited-length-3'), '6px');
+}, "Registered properties are correctly inherited (or not) depending on the inherits flag.");
+
+test(function(){
+    CSS.registerProperty({name: '--initial-length-1', syntax: '<length>', initialValue: '0px', inherits: false});
+    outer.style = '--initial-length-1: notalength';
+    inner.style = '--initial-length-1: inherit';
+    assert_equals(getComputedStyle(inner).getPropertyValue('--initial-length-1'), '0px');
+}, "Explicitly inheriting from a parent with an invalid value results in initial value.");
+
+test(function(){
+    CSS.registerProperty({name: '--initial-length-2', syntax: '<length>', initialValue: '0px', inherits: false});
+    inner.style = '--initial-length-2: inherit';
+    assert_equals(getComputedStyle(inner).getPropertyValue('--initial-length-2'), '0px');
+}, "Explicitly inheriting from a parent with no value results in initial value.");
+
+test(function(){
+    CSS.registerProperty({name: '--initial-length-3', syntax: '<length>', initialValue: '0px', inherits: false});
+    outer.style = '--initial-length-3: 100px';
+    inner.style = '--initial-length-3: inherit';
+    assert_equals(getComputedStyle(inner).getPropertyValue('--initial-length-3'), '100px');
+}, "Explicitly inheriting from a parent with a value results in that value.");
+
+test(function(){
+    CSS.registerProperty({name: '--inherited-length-4', syntax: '<length>', initialValue: '0px', inherits: true});
+    outer.style = '--inherited-length-4: 42px';
+    inner.style = '--inherited-length-4: var(--undefined)';
+    assert_equals(getComputedStyle(inner).getPropertyValue('--inherited-length-4'), '42px');
+}, "Reference to undefined variable results in inherited value");
+
+test(function(){
+    CSS.registerProperty({name: '--inherited-length-5', syntax: '<length>', initialValue: '0px', inherits: true});
+    outer.style = '--inherited-length-5: 42px';
+    inner.style = '--incompatible: nolength; --inherited-length-5: var(--incompatible)';
+    assert_equals(getComputedStyle(inner).getPropertyValue('--inherited-length-5'), '42px');
+}, "Reference to syntax-incompatible variable results in inherited value");
+
+test(function(){
+    CSS.registerProperty({name: '--inherited-em', syntax: '<length>', initialValue: '0px', inherits: true});
+    outer.style = 'font-size: 11px; --inherited-em: 10em;';
+    inner.style = 'font-size: 22px; --unregistered:var(--inherited-em);';
+    assert_equals(getComputedStyle(inner).getPropertyValue('--unregistered'), '110px');
+}, "Font-relative units are absolutized before before inheritance");
+
+test(function(){
+    CSS.registerProperty({name: '--calc-length', syntax: '<length>', initialValue: '0px', inherits: true});
+    outer.style = '--calc-length: calc(10px + 10px);';
+    inner.style = '--unregistered:var(--calc-length);';
+    assert_equals(getComputedStyle(inner).getPropertyValue('--unregistered'), '20px');
+}, "Calc expressions are resolved before inheritance");
+
+</script>

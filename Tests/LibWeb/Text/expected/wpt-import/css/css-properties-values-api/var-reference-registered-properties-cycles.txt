@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+2 Pass
+3 Fail
+Fail	A var() cycle between two registered properties is handled correctly.
+Fail	A var() cycle between a registered properties and an unregistered property is handled correctly.
+Fail	A var() cycle between a two unregistered properties is handled correctly.
+Pass	A var() cycle between a syntax:'*' property and an unregistered property is handled correctly.
+Pass	Custom properties with universal syntax become guaranteed-invalid when invalid at computed-value time

@@ -1,0 +1,207 @@
+<!DOCTYPE HTML>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api/#dom-css-registerproperty" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./resources/utils.js"></script>
+<style>
+div {
+    --registered-length-1: 10px;
+    --registered-length-2: var(--registered-length-1);
+    --registered-length-3: var(--length-1);
+    --registered-length-4: calc(var(--length-1) + 40px);
+    --registered-length-5: var(--invalid, 70px);
+    --registered-length-6: calc(var(--registered-length-3)*4);
+    --registered-length-7: var(--123px, 6px);
+
+    --length-1: 20px;
+    --length-2: var(--registered-length-1);
+    --length-3: calc(var(--123px, 6px) + var(--123px));
+
+    --percentage: 10%;
+    --registered-length-invalid: var(--percentage);
+
+    --registered-token-stream-1:var(--invalid);
+    --registered-token-stream-2:var(--invalid,fallback);
+    --token-stream-1:var(--registered-token-stream-1,moo);
+
+    --registered-length-list-1: 1px, var(--registered-length-1), 2px;
+    --registered-length-list-2: 1px, var(--length-1), var(--registered-length-1), 2px;
+    --registered-length-list-3: var(--registered-length-list-1), var(--registered-length-list-2);
+}
+</style>
+<div id=element></div>
+<script>
+test(function() {
+    CSS.registerProperty({name: '--123px', syntax: '<length>', initialValue: '123px', inherits: false});
+
+    CSS.registerProperty({name: '--registered-length-1', syntax: '<length>', initialValue: '0px', inherits: false});
+    CSS.registerProperty({name: '--registered-length-2', syntax: '<length>', initialValue: '0px', inherits: false});
+    CSS.registerProperty({name: '--registered-length-3', syntax: '<length>', initialValue: '0px', inherits: false});
+    CSS.registerProperty({name: '--registered-length-4', syntax: '<length>', initialValue: '0px', inherits: false});
+    CSS.registerProperty({name: '--registered-length-5', syntax: '<length>', initialValue: '0px', inherits: false});
+    CSS.registerProperty({name: '--registered-length-6', syntax: '<length>', initialValue: '0px', inherits: false});
+    CSS.registerProperty({name: '--registered-length-7', syntax: '<length>', initialValue: '0px', inherits: false});
+    CSS.registerProperty({name: '--registered-length-invalid', syntax: '<length>', initialValue: '15px', inherits: false});
+
+    CSS.registerProperty({name: '--registered-token-stream-1', syntax: '*', inherits: false});
+    CSS.registerProperty({name: '--registered-token-stream-2', syntax: '*', inherits: false});
+
+    computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue('--registered-length-1'), '10px');
+    assert_equals(computedStyle.getPropertyValue('--registered-length-2'), '10px');
+    assert_equals(computedStyle.getPropertyValue('--registered-length-3'), '20px');
+    assert_equals(computedStyle.getPropertyValue('--registered-length-4'), '60px');
+    assert_equals(computedStyle.getPropertyValue('--registered-length-5'), '70px');
+    assert_equals(computedStyle.getPropertyValue('--registered-length-6'), '80px');
+    assert_equals(computedStyle.getPropertyValue('--registered-length-7'), '123px');
+    assert_equals(computedStyle.getPropertyValue('--length-1'), '20px');
+    assert_equals(computedStyle.getPropertyValue('--length-2'), '10px');
+    assert_equals(computedStyle.getPropertyValue('--length-3'), 'calc(123px + 123px)');
+    assert_equals(computedStyle.getPropertyValue('--registered-length-invalid'), '15px');
+
+    assert_equals(computedStyle.getPropertyValue('--registered-token-stream-1'), '');
+    assert_equals(computedStyle.getPropertyValue('--registered-token-stream-2'), 'fallback');
+    assert_equals(computedStyle.getPropertyValue('--token-stream-1'), 'moo');
+}, "var() references work with registered properties");
+
+test(function(){
+    CSS.registerProperty({
+        name: '--registered-length-list-1',
+        syntax: '<length>#',
+        initialValue: '0px',
+        inherits: false
+    });
+    let computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue('--registered-length-list-1'), '1px, 10px, 2px');
+}, 'References to registered var()-properties work in registered lists');
+
+test(function(){
+    CSS.registerProperty({
+        name: '--registered-length-list-2',
+        syntax: '<length>#',
+        initialValue: '0px',
+        inherits: false
+    });
+    let computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue('--registered-length-list-2'), '1px, 20px, 10px, 2px');
+}, 'References to mixed registered and unregistered var()-properties work in registered lists');
+
+test(function(){
+    CSS.registerProperty({
+        name: '--registered-length-list-3',
+        syntax: '<length>#',
+        initialValue: '0px',
+        inherits: false
+    });
+    let computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue('--registered-length-list-3'), '1px, 10px, 2px, 1px, 20px, 10px, 2px');
+}, 'Registered lists may be concatenated');
+
+test(function(){
+    CSS.registerProperty({
+        name: '--length-em',
+        syntax: '<length>',
+        initialValue: '0px',
+        inherits: false
+    });
+    element.style = 'font-size: 11px; --length-em: 10em; --unregistered:var(--length-em);';
+    let computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue('--unregistered'), '110px');
+    element.style = '';
+}, 'Font-relative units are absolutized when substituting');
+
+test(function(){
+    CSS.registerProperty({
+        name: '--length-calc',
+        syntax: '<length>',
+        initialValue: '0px',
+        inherits: false
+    });
+    element.style = 'font-size: 11px; --length-calc: calc(10em + 10px); --unregistered:var(--length-calc);';
+    let computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue('--unregistered'), '120px');
+    element.style = '';
+}, 'Calc expressions are resolved when substituting');
+
+test(function(){
+    CSS.registerProperty({
+        name: '--length-calc-list',
+        syntax: '<length>#',
+        initialValue: '0px',
+        inherits: false
+    });
+    element.style = 'font-size: 11px; --length-calc-list: 10em, calc(10em + 10px); --unregistered:var(--length-calc-list);';
+    let computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue('--unregistered'), '110px, 120px');
+    element.style = '';
+}, 'Lists with relative units are absolutized when substituting');
+
+test(function(){
+    let length = generate_property('none | <length>');
+    let universal = generate_property('*');
+    element.style = `font-size: 10px; ${length}: 10em; ${universal}: var(${length})`;
+    let computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue(universal), '100px');
+    element.style = '';
+}, 'Values are absolutized when substituting into properties with universal syntax');
+
+test(function(){
+    let name = generate_property('<length>');
+    let unregistered = '--unregistered'
+    element.style = `${name}: red; ${unregistered}: var(${name})`
+    let computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue(unregistered), '');
+}, 'Invalid values for registered properties are serialized as the empty string')
+
+function test_valid_fallback(syntax, value, fallback) {
+    test(function(){
+        let name = generate_property(syntax);
+        try {
+            element.style = `${name}: ${value}; --x:var(${name},${fallback})`;
+            let computedStyle = getComputedStyle(element);
+            assert_equals(computedStyle.getPropertyValue('--x'), value);
+        } finally {
+            element.style = '';
+        }
+    }, `Valid fallback does not invalidate var()-reference [${syntax}, ${fallback}]`);
+}
+
+function test_invalid_fallback(syntax, value, fallback) {
+    test(function(){
+        let name = generate_property(syntax);
+        try {
+            element.style = `${name}: ${value}; --x:var(${name},${fallback})`;
+            let computedStyle = getComputedStyle(element);
+            assert_equals(computedStyle.getPropertyValue('--x'), value);
+        } finally {
+            element.style = '';
+        }
+    }, `Invalid fallback doesn't invalidate var()-reference [${syntax}, ${fallback}]`);
+}
+
+test_valid_fallback('<length>', '40px', '10px');
+test_valid_fallback('<length> | <color>', '40px', 'red');
+test_valid_fallback('<length> | none', '40px', 'none');
+
+test_invalid_fallback('<length>', '40px', 'red');
+test_invalid_fallback('<length> | none', '40px', 'nolength');
+test_invalid_fallback('<length>', '40px', 'var(--novar)');
+
+test(function(t){
+    CSS.registerProperty({
+        name: '--registered-universal-no-initial',
+        syntax: '*',
+        inherits: false
+    });
+    t.add_cleanup(() => {
+        element.style = '';
+    });
+    element.style = [
+        '--registered-universal-no-initial:;',
+        'background-color: var(--registered-universal-no-initial) green',
+    ].join(';');
+    let computedStyle = getComputedStyle(element);
+    assert_equals(computedStyle.getPropertyValue('background-color'), 'rgb(0, 128, 0)');
+}, 'Empty universal custom property can be substituted with var()');
+
+</script>
