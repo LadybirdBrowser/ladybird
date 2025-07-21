@@ -258,6 +258,7 @@ NonnullRefPtr<CSSStyleValue const> property_initial_value(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);
 bool property_accepts_keyword(PropertyID, Keyword);
+Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
 Vector<StringView> property_custom_ident_blacklist(PropertyID);
 
@@ -904,7 +905,7 @@ bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
 {
     switch (property_id) {
 )~~~");
-    properties.for_each_member([&](auto& name, auto& value) {
+    properties.for_each_member([&](auto& name, JsonValue const& value) {
         VERIFY(value.is_object());
         auto& object = value.as_object();
         if (is_legacy_alias(object))
@@ -917,9 +918,15 @@ bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
         if (auto maybe_valid_identifiers = object.get_array("valid-identifiers"sv); maybe_valid_identifiers.has_value() && !maybe_valid_identifiers->is_empty()) {
             property_generator.appendln("        switch (keyword) {");
             auto& valid_identifiers = maybe_valid_identifiers.value();
-            for (auto& keyword : valid_identifiers.values()) {
+            for (auto& keyword_value : valid_identifiers.values()) {
                 auto keyword_generator = generator.fork();
-                keyword_generator.set("keyword:titlecase", title_casify(keyword.as_string()));
+                auto const& keyword_string = keyword_value.as_string();
+                if (keyword_string.contains('>')) {
+                    auto parts = MUST(keyword_string.split_limit('>', 2));
+                    keyword_generator.set("keyword:titlecase", title_casify(parts[0]));
+                } else {
+                    keyword_generator.set("keyword:titlecase", title_casify(keyword_string));
+                }
                 keyword_generator.appendln("        case Keyword::@keyword:titlecase@:");
             }
             property_generator.append(R"~~~(
@@ -954,6 +961,62 @@ bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
     default:
         return false;
     }
+}
+
+Optional<Keyword> resolve_legacy_value_alias(PropertyID property_id, Keyword keyword)
+{
+    switch (property_id) {
+)~~~");
+    properties.for_each_member([&](auto& name, JsonValue const& value) {
+        VERIFY(value.is_object());
+        auto& object = value.as_object();
+        if (is_legacy_alias(object))
+            return;
+        if (auto maybe_valid_identifiers = object.get_array("valid-identifiers"sv); maybe_valid_identifiers.has_value() && !maybe_valid_identifiers->is_empty()) {
+            auto& valid_identifiers = maybe_valid_identifiers.value();
+
+            bool has_any_legacy_value_aliases = false;
+            for (auto& keyword_value : valid_identifiers.values()) {
+                if (keyword_value.as_string().contains('>')) {
+                    has_any_legacy_value_aliases = true;
+                    break;
+                }
+            }
+            if (!has_any_legacy_value_aliases)
+                return;
+
+            auto property_generator = generator.fork();
+            property_generator.set("name:titlecase", title_casify(name));
+            property_generator.append(R"~~~(
+    case PropertyID::@name:titlecase@:
+        switch (keyword) {)~~~");
+            for (auto& keyword_value : valid_identifiers.values()) {
+                auto const& keyword_string = keyword_value.as_string();
+                if (!keyword_string.contains('>'))
+                    continue;
+
+                auto keyword_generator = generator.fork();
+                auto parts = MUST(keyword_string.split_limit('>', 2));
+                keyword_generator.set("from_keyword:titlecase", title_casify(parts[0]));
+                keyword_generator.set("to_keyword:titlecase", title_casify(parts[1]));
+                keyword_generator.append(R"~~~(
+        case Keyword::@from_keyword:titlecase@:
+            return Keyword::@to_keyword:titlecase@;)~~~");
+            }
+            property_generator.append(R"~~~(
+        default:
+            break;
+        }
+        break;
+)~~~");
+        }
+    });
+
+    generator.append(R"~~~(
+    default:
+        break;
+    }
+    return {};
 }
 
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID property_id)
