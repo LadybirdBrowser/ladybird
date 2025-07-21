@@ -41,6 +41,8 @@ public:
 
     Task const* last_added_task() const;
 
+    Vector<GC::Ref<HTML::Task>> tasks() { return m_tasks; }
+
 private:
     virtual void visit_edges(Visitor&) override;
 
