@@ -852,36 +852,36 @@ progress {
 input[type=checkbox][switch] {
     /* FIXME: Workaround until we can properly style dark switches */
     color-scheme: light;
-	appearance: none;
-	height: 1em;
-	width: 1.8em;
-	vertical-align: middle;
-	border-radius: 1em;
-	position: relative;
-	overflow: hidden;
-	border-color: transparent;
-	background-color: ButtonFace;
+    appearance: none;
+    height: 1em;
+    width: 1.8em;
+    vertical-align: middle;
+    border-radius: 1em;
+    position: relative;
+    overflow: hidden;
+    border-color: transparent;
+    background-color: ButtonFace;
 }
 
 input[type=checkbox][switch]::before {
-	content: '';
-	position: absolute;
-	height: 0;
-	width: 0;
-	border: .46em solid Field;
-	border-radius: 100%;
-	top: 0;
-	bottom: 0;
-	left: 0;
-	margin: auto;
+    content: '';
+    position: absolute;
+    height: 0;
+    width: 0;
+    border: .46em solid Field;
+    border-radius: 100%;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    margin: auto;
 }
 
 input[type=checkbox][switch]:checked::before {
-	left: calc(100% - .87em);
+    left: calc(100% - .87em);
 }
 
 input[type=checkbox][switch]:checked {
-	background-color: AccentColor;
+    background-color: AccentColor;
 }
 
 /* https://drafts.csswg.org/css-ui/#propdef-user-select */
@@ -891,54 +891,58 @@ button, meter, progress, select {
 
 /* https://drafts.csswg.org/css-view-transitions-1/#ua-styles */
 :root {
-  view-transition-name: root;
+    view-transition-name: root;
 }
 
 :root::view-transition {
-  position: fixed;
-  inset: 0;
+    position: fixed;
+    inset: 0;
 }
 
 :root::view-transition-group(*) {
-  position: absolute;
-  top: 0;
-  left: 0;
-
-  animation-duration: 0.25s;
-  animation-fill-mode: both;
+    position: absolute;
+    top: 0;
+    left: 0;
+    
+    animation-duration: 0.25s;
+    animation-fill-mode: both;
 }
 
 :root::view-transition-image-pair(*) {
-  position: absolute;
-  inset: 0;
-
-  animation-duration: inherit;
-  animation-fill-mode: inherit;
-  animation-delay: inherit;
+    position: absolute;
+    inset: 0;
 }
 
 :root::view-transition-old(*),
 :root::view-transition-new(*) {
-  position: absolute;
-  inset-block-start: 0;
-  inline-size: 100%;
-  block-size: auto;
+    position: absolute;
+    inset-block-start: 0;
+    inline-size: 100%;
+    block-size: auto;
+}
 
-  animation-duration: inherit;
-  animation-fill-mode: inherit;
-  animation-delay: inherit;
+:root::view-transition-image-pair(*),
+:root::view-transition-old(*),
+:root::view-transition-new(*) {
+    animation-duration: inherit;
+    animation-fill-mode: inherit;
+    animation-delay: inherit;
+    animation-timing-function: inherit;
+    animation-iteration-count: inherit;
+    animation-direction: inherit;
+    animation-play-state: inherit;
 }
 
 /* Default cross-fade transition */
 @keyframes -ua-view-transition-fade-out {
-  to { opacity: 0; }
+    to { opacity: 0; }
 }
 @keyframes -ua-view-transition-fade-in {
-  from { opacity: 0; }
+    from { opacity: 0; }
 }
 
 /* Keyframes for blending when there are 2 images */
 @keyframes -ua-mix-blend-mode-plus-lighter {
-  from { mix-blend-mode: plus-lighter }
-  to { mix-blend-mode: plus-lighter }
+    from { mix-blend-mode: plus-lighter }
+    to { mix-blend-mode: plus-lighter }
 }
