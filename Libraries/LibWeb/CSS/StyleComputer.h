@@ -150,7 +150,7 @@ public:
 
     [[nodiscard]] RuleCache const& get_pseudo_class_rule_cache(PseudoClass) const;
 
-    [[nodiscard]] Vector<MatchingRule const*> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::PseudoElement>, PseudoClassBitmap& attempted_psuedo_class_matches, FlyString const& qualified_layer_name = {}) const;
+    [[nodiscard]] Vector<MatchingRule const*> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::PseudoElement>, PseudoClassBitmap& attempted_psuedo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;
 
     InvalidationSet invalidation_set_for_properties(Vector<InvalidationSet::Property> const&) const;
     bool invalidation_property_used_in_has_selector(InvalidationSet::Property const&) const;
@@ -272,7 +272,7 @@ private:
 
     void make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&);
 
-    [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, FlyString const& qualified_layer_name, GC::Ptr<DOM::ShadowRoot const>) const;
+    [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, Optional<FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const>) const;
 
     static void collect_selector_insights(Selector const&, SelectorInsights&);
 
