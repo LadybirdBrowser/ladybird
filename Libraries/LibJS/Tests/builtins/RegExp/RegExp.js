@@ -81,3 +81,19 @@ test("v flag should enable unicode mode", () => {
 test("parsing a large bytestring shouldn't crash", () => {
     RegExp(new Uint8Array(0x40000));
 });
+
+test("Unicode non-ASCII matching", () => {
+    const cases = [
+        { pattern: /é/u, match: "é", expected: ["é"] },
+        { pattern: /é/, match: "é", expected: ["é"] },
+        { pattern: /\u{61}/u, match: "a", expected: ["a"] },
+        { pattern: /\u{61}/, match: "a", expected: null },
+        { pattern: /😄/u, match: "😄", expected: ["😄"] },
+        { pattern: /😄/u, match: "\ud83d", expected: null },
+        { pattern: /😄/, match: "\ud83d", expected: null },
+    ];
+    for (const test of cases) {
+        const result = test.match.match(test.pattern);
+        expect(result).toEqual(test.expected);
+    }
+});

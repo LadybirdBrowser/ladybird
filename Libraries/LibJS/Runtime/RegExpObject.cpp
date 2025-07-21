@@ -96,19 +96,10 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, 
     auto utf16_pattern = Utf16String::from_utf8(pattern);
     StringBuilder builder;
 
-    // If the Unicode flag is set, append each code point to the pattern. Otherwise, append each
-    // code unit. But unlike the spec, multi-byte code units must be escaped for LibRegex to parse.
+    // FIXME: We need to escape multi-byte code units for LibRegex to parse since the lexer there doesn't handle unicode.
     auto previous_code_unit_was_backslash = false;
-    for (size_t i = 0; i < utf16_pattern.length_in_code_units();) {
-        if (unicode || unicode_sets) {
-            auto code_point = code_point_at(utf16_pattern, i);
-            builder.append_code_point(code_point.code_point);
-            i += code_point.code_unit_count;
-            continue;
-        }
-
+    for (size_t i = 0; i < utf16_pattern.length_in_code_units(); ++i) {
         u16 code_unit = utf16_pattern.code_unit_at(i);
-        ++i;
 
         if (code_unit > 0x7f) {
             // Incorrectly escaping this code unit will result in a wildly different regex than intended
