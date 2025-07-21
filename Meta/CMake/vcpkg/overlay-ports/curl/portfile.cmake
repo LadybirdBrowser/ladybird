@@ -4,12 +4,11 @@ vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO curl/curl
     REF ${curl_version}
-    SHA512 c7dfb38fe317243b4b556c5f851042c8bd48ad8a062df73b75077df24328801c34b4e336bc1b76683e678e82cbc48b95571357f49a2385b5e4f93daadc428a0c
+    SHA512 d4a560e225d0110133f44ed57cf5394c1710530c5fec395d02baafaac9ea2186dd543047ae27fd7542894b8744070760516ae611602105b1b40605abbf84e684
     HEAD_REF master
     PATCHES
         dependencies.patch
         pkgconfig-curl-config.patch
-        curl-issue-17917.patch # FIXME: This is an upstream patch that can be removed when it lands in a stable version. See: https://github.com/curl/curl/issues/17917
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
@@ -25,7 +24,6 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         sspi        CURL_WINDOWS_SSPI
         brotli      CURL_BROTLI
         schannel    CURL_USE_SCHANNEL
-        sectransp   CURL_USE_SECTRANSP
         idn2        USE_LIBIDN2
         winidn      USE_WIN32_IDN
         zstd        CURL_ZSTD
@@ -137,7 +135,7 @@ string(REGEX REPLACE "#i.*" "" krb5_c "${krb5_c}")
 set(krb5_copyright "${CURRENT_BUILDTREES_DIR}/krb5.c Notice")
 file(WRITE "${krb5_copyright}" "${krb5_c}")
 
-file(READ "${SOURCE_PATH}/lib/inet_ntop.c" inet_ntop_c)
+file(READ "${SOURCE_PATH}/lib/curlx/inet_ntop.c" inet_ntop_c)
 string(REGEX REPLACE "#i.*" "" inet_ntop_c "${inet_ntop_c}")
 set(inet_ntop_copyright "${CURRENT_BUILDTREES_DIR}/inet_ntop.c and inet_pton.c Notice")
 file(WRITE "${inet_ntop_copyright}" "${inet_ntop_c}")
