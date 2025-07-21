@@ -2649,7 +2649,7 @@
       "overflow"
     ],
     "valid-identifiers": [
-      "overlay"
+      "overlay>auto"
     ]
   },
   "overflow-y": {
@@ -2660,7 +2660,7 @@
       "overflow"
     ],
     "valid-identifiers": [
-      "overlay"
+      "overlay>auto"
     ]
   },
   "padding": {
@@ -3163,7 +3163,7 @@
       "text-justify"
     ],
     "valid-identifiers": [
-      "distribute"
+      "distribute>inter-character"
     ]
   },
   "text-overflow": {
