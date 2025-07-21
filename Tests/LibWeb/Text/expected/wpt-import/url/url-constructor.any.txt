@@ -334,7 +334,7 @@ Pass	Parsing: <http://[::1.]> against <http://other.com/>
 Pass	Parsing: <http://[::.1]> against <http://other.com/>
 Pass	Parsing: <http://[::%31]> against <http://other.com/>
 Pass	Parsing: <http://%5B::1]> against <http://other.com/>
-Pass	Parsing: <http://foo:í ½U+dca9@example.com/bar> against <http://other.com/>
+Pass	Parsing: <http://foo:ğŸ’©@example.com/bar> against <http://other.com/>
 Pass	Parsing: <#> against <test:test>
 Pass	Parsing: <#x> against <mailto:x@x.com>
 Pass	Parsing: <#x> against <data:,>
@@ -731,7 +731,7 @@ Pass	Parsing: <a!@$*=/foo.html> against <file:///some/dir/bar.html>
 Pass	Parsing: <a1234567890-+.:foo/bar> against <http://example.com/dir/file>
 Pass	Parsing: <file://aÂ­b/p> without base
 Pass	Parsing: <file://a%C2%ADb/p> without base
-Pass	Parsing: <file://loCí µU+dc00í µU+dc0bí µU+dc07í µU+dc28í µU+dc2cí µU+dc2d/usr/bin> without base
+Pass	Parsing: <file://loCğ€ğ‹ğ‡ğ¨ğ¬ğ­/usr/bin> without base
 Pass	Parsing: <file://Â­/p> without base
 Pass	Parsing: <file://%C2%AD/p> without base
 Pass	Parsing: <file://xn--/p> without base
@@ -787,7 +787,7 @@ Pass	Parsing: <http://foo.09..> without base
 Pass	Parsing: <http://0999999999999999999/> without base
 Pass	Parsing: <http://foo.0x> without base
 Pass	Parsing: <http://foo.0XFfFfFfFfFfFfFfFfFfAcE123> without base
-Pass	Parsing: <http://í ½U+dca9.123/> without base
+Pass	Parsing: <http://ğŸ’©.123/> without base
 Pass	Parsing: <https:// y> without base
 Pass	Parsing: <https://x/ y> without base
 Pass	Parsing: <https://x/? y> without base
@@ -885,4 +885,4 @@ Pass	Parsing: <non-special:\/opaque> without base
 Pass	Parsing: <non-special:/\path> without base
 Pass	Parsing: <non-special://host\a> without base
 Pass	Parsing: <non-special://host/a\b> without base
-Pass	Parsing: <http://example.com//U+d800í U+dffeU+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿??U+d800í U+dffeU+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> without base
+Pass	Parsing: <http://example.com//U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿??U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> without base

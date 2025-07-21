@@ -28,30 +28,30 @@ Pass	encodeInto() into ArrayBuffer with A and destination length 10, offset 0, f
 Pass	encodeInto() into SharedArrayBuffer with A and destination length 10, offset 0, filler random
 Pass	encodeInto() into ArrayBuffer with A and destination length 10, offset 4, filler random
 Pass	encodeInto() into SharedArrayBuffer with A and destination length 10, offset 4, filler random
-Pass	encodeInto() into ArrayBuffer with í ´U+df06 and destination length 4, offset 0, filler 0
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06 and destination length 4, offset 0, filler 0
-Pass	encodeInto() into ArrayBuffer with í ´U+df06 and destination length 4, offset 4, filler 0
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06 and destination length 4, offset 4, filler 0
-Pass	encodeInto() into ArrayBuffer with í ´U+df06 and destination length 4, offset 0, filler 128
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06 and destination length 4, offset 0, filler 128
-Pass	encodeInto() into ArrayBuffer with í ´U+df06 and destination length 4, offset 4, filler 128
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06 and destination length 4, offset 4, filler 128
-Pass	encodeInto() into ArrayBuffer with í ´U+df06 and destination length 4, offset 0, filler random
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06 and destination length 4, offset 0, filler random
-Pass	encodeInto() into ArrayBuffer with í ´U+df06 and destination length 4, offset 4, filler random
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06 and destination length 4, offset 4, filler random
-Pass	encodeInto() into ArrayBuffer with í ´U+df06A and destination length 3, offset 0, filler 0
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06A and destination length 3, offset 0, filler 0
-Pass	encodeInto() into ArrayBuffer with í ´U+df06A and destination length 3, offset 4, filler 0
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06A and destination length 3, offset 4, filler 0
-Pass	encodeInto() into ArrayBuffer with í ´U+df06A and destination length 3, offset 0, filler 128
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06A and destination length 3, offset 0, filler 128
-Pass	encodeInto() into ArrayBuffer with í ´U+df06A and destination length 3, offset 4, filler 128
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06A and destination length 3, offset 4, filler 128
-Pass	encodeInto() into ArrayBuffer with í ´U+df06A and destination length 3, offset 0, filler random
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06A and destination length 3, offset 0, filler random
-Pass	encodeInto() into ArrayBuffer with í ´U+df06A and destination length 3, offset 4, filler random
-Pass	encodeInto() into SharedArrayBuffer with í ´U+df06A and destination length 3, offset 4, filler random
+Pass	encodeInto() into ArrayBuffer with ğŒ† and destination length 4, offset 0, filler 0
+Pass	encodeInto() into SharedArrayBuffer with ğŒ† and destination length 4, offset 0, filler 0
+Pass	encodeInto() into ArrayBuffer with ğŒ† and destination length 4, offset 4, filler 0
+Pass	encodeInto() into SharedArrayBuffer with ğŒ† and destination length 4, offset 4, filler 0
+Pass	encodeInto() into ArrayBuffer with ğŒ† and destination length 4, offset 0, filler 128
+Pass	encodeInto() into SharedArrayBuffer with ğŒ† and destination length 4, offset 0, filler 128
+Pass	encodeInto() into ArrayBuffer with ğŒ† and destination length 4, offset 4, filler 128
+Pass	encodeInto() into SharedArrayBuffer with ğŒ† and destination length 4, offset 4, filler 128
+Pass	encodeInto() into ArrayBuffer with ğŒ† and destination length 4, offset 0, filler random
+Pass	encodeInto() into SharedArrayBuffer with ğŒ† and destination length 4, offset 0, filler random
+Pass	encodeInto() into ArrayBuffer with ğŒ† and destination length 4, offset 4, filler random
+Pass	encodeInto() into SharedArrayBuffer with ğŒ† and destination length 4, offset 4, filler random
+Pass	encodeInto() into ArrayBuffer with ğŒ†A and destination length 3, offset 0, filler 0
+Pass	encodeInto() into SharedArrayBuffer with ğŒ†A and destination length 3, offset 0, filler 0
+Pass	encodeInto() into ArrayBuffer with ğŒ†A and destination length 3, offset 4, filler 0
+Pass	encodeInto() into SharedArrayBuffer with ğŒ†A and destination length 3, offset 4, filler 0
+Pass	encodeInto() into ArrayBuffer with ğŒ†A and destination length 3, offset 0, filler 128
+Pass	encodeInto() into SharedArrayBuffer with ğŒ†A and destination length 3, offset 0, filler 128
+Pass	encodeInto() into ArrayBuffer with ğŒ†A and destination length 3, offset 4, filler 128
+Pass	encodeInto() into SharedArrayBuffer with ğŒ†A and destination length 3, offset 4, filler 128
+Pass	encodeInto() into ArrayBuffer with ğŒ†A and destination length 3, offset 0, filler random
+Pass	encodeInto() into SharedArrayBuffer with ğŒ†A and destination length 3, offset 0, filler random
+Pass	encodeInto() into ArrayBuffer with ğŒ†A and destination length 3, offset 4, filler random
+Pass	encodeInto() into SharedArrayBuffer with ğŒ†A and destination length 3, offset 4, filler random
 Pass	encodeInto() into ArrayBuffer with  U+d834AU+df06AÂ¥Hi and destination length 10, offset 0, filler 0
 Pass	encodeInto() into SharedArrayBuffer with  U+d834AU+df06AÂ¥Hi and destination length 10, offset 0, filler 0
 Pass	encodeInto() into ArrayBuffer with  U+d834AU+df06AÂ¥Hi and destination length 10, offset 4, filler 0

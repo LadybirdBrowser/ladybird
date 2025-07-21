@@ -236,7 +236,7 @@ Pass	Parsing origin: <http://ï¼ï¼¸ï½ƒï¼ï¼ï¼ï¼’ï¼•ï¼ï¼ï¼ï¼‘> against <http
 Pass	Parsing origin: <http://./> against <about:blank>
 Pass	Parsing origin: <http://../> against <about:blank>
 Pass	Parsing origin: <h://.> against <about:blank>
-Pass	Parsing origin: <http://foo:í ½U+dca9@example.com/bar> against <http://other.com/>
+Pass	Parsing origin: <http://foo:ğŸ’©@example.com/bar> against <http://other.com/>
 Pass	Parsing origin: <#> against <test:test>
 Pass	Parsing origin: <#x> against <mailto:x@x.com>
 Pass	Parsing origin: <#x> against <about:blank>
@@ -405,4 +405,4 @@ Pass	Parsing origin: <non-special:\\opaque\path> against <about:blank>
 Pass	Parsing origin: <non-special:\/opaque> against <about:blank>
 Pass	Parsing origin: <non-special:/\path> against <about:blank>
 Pass	Parsing origin: <non-special://host/a\b> against <about:blank>
-Pass	Parsing origin: <http://example.com//U+d800í U+dffeU+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿??U+d800í U+dffeU+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> against <about:blank>
+Pass	Parsing origin: <http://example.com//U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿??U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> against <about:blank>

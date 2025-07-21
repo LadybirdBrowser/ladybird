@@ -531,7 +531,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
             auto character_class = (CharClass)m_bytecode->at(offset++);
-            auto ch = input.view[state.string_position_in_code_units];
+            auto ch = input.view.code_unit_at(state.string_position_in_code_units);
 
             compare_character_class(input, state, character_class, ch, current_inversion_state(), inverse_matched);
             break;
@@ -548,8 +548,8 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             offset += count_insensitive;
 
             bool const insensitive = input.regex_options & AllFlags::Insensitive;
+            auto ch = input.view.code_unit_at(state.string_position_in_code_units);
 
-            auto ch = input.view[state.string_position_in_code_units];
             if (insensitive)
                 ch = to_ascii_lowercase(ch);
 
@@ -578,7 +578,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
 
             auto from = value.from;
             auto to = value.to;
-            auto ch = input.view[state.string_position_in_code_units];
+            auto ch = input.view.code_unit_at(state.string_position_in_code_units);
 
             compare_character_range(input, state, from, to, ch, current_inversion_state(), inverse_matched);
             break;
