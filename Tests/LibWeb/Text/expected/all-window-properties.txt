@@ -333,6 +333,7 @@ SVGAnimatedNumber
 SVGAnimatedRect
 SVGAnimatedString
 SVGAnimatedTransformList
+SVGAnimationElement
 SVGCircleElement
 SVGClipPathElement
 SVGDefsElement
@@ -420,6 +421,7 @@ TransformStream
 TransformStreamDefaultController
 TransitionEvent
 TreeWalker
+TrustedTypePolicyFactory
 TypeError
 UIEvent
 URIError
