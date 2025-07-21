@@ -50,6 +50,7 @@ UnsignedBigInteger::UnsignedBigInteger(u64 value)
 }
 
 UnsignedBigInteger::UnsignedBigInteger(UnsignedBigInteger const& other)
+    : m_hash(other.m_hash)
 {
     MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
 }
@@ -58,8 +59,11 @@ UnsignedBigInteger& UnsignedBigInteger::operator=(UnsignedBigInteger const& othe
 {
     if (this == &other)
         return *this;
+
     mp_clear(&m_mp);
     MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
+    m_hash = other.m_hash;
+
     return *this;
 }
 

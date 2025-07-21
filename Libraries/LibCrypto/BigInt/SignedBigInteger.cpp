@@ -47,6 +47,7 @@ SignedBigInteger::SignedBigInteger(i64 value)
 }
 
 SignedBigInteger::SignedBigInteger(SignedBigInteger const& other)
+    : m_hash(other.m_hash)
 {
     MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
 }
@@ -55,8 +56,11 @@ SignedBigInteger& SignedBigInteger::operator=(SignedBigInteger const& other)
 {
     if (this == &other)
         return *this;
+
     mp_clear(&m_mp);
     MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
+    m_hash = other.m_hash;
+
     return *this;
 }
 
