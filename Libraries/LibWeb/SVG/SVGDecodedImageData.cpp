@@ -172,10 +172,7 @@ Optional<CSSPixelFraction> SVGDecodedImageData::intrinsic_aspect_ratio() const
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
     auto width = intrinsic_width();
     auto height = intrinsic_height();
-    if (height.has_value() && *height == 0)
-        return {};
-
-    if (width.has_value() && height.has_value())
+    if (width.has_value() && height.has_value() && *width > 0 && *height > 0)
         return *width / *height;
 
     if (auto const& viewbox = m_root_element->view_box(); viewbox.has_value()) {
