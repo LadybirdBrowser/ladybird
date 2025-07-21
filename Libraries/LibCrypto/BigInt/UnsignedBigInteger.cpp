@@ -55,6 +55,14 @@ UnsignedBigInteger::UnsignedBigInteger(UnsignedBigInteger const& other)
     MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
 }
 
+UnsignedBigInteger::UnsignedBigInteger(UnsignedBigInteger&& other)
+    : m_mp(other.m_mp)
+    , m_hash(other.m_hash)
+{
+    other.m_mp = {};
+    other.m_hash.clear();
+}
+
 UnsignedBigInteger& UnsignedBigInteger::operator=(UnsignedBigInteger const& other)
 {
     if (this == &other)
@@ -63,6 +71,21 @@ UnsignedBigInteger& UnsignedBigInteger::operator=(UnsignedBigInteger const& othe
     mp_clear(&m_mp);
     MP_MUST(mp_init_copy(&m_mp, &other.m_mp));
     m_hash = other.m_hash;
+
+    return *this;
+}
+
+UnsignedBigInteger& UnsignedBigInteger::operator=(UnsignedBigInteger&& other)
+{
+    if (this == &other)
+        return *this;
+
+    mp_clear(&m_mp);
+    m_mp = other.m_mp;
+    m_hash = other.m_hash;
+
+    other.m_mp = {};
+    other.m_hash.clear();
 
     return *this;
 }
