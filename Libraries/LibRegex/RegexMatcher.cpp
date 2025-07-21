@@ -237,7 +237,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
         input.view = view;
         dbgln_if(REGEX_DEBUG, "[match] Starting match with view ({}): _{}_", view.length(), view);
 
-        auto view_length = view.length();
+        auto view_length = view.length_in_code_units();
         size_t view_index = m_pattern->start_offset;
         state.string_position = view_index;
         state.string_position_in_code_units = view_index;
