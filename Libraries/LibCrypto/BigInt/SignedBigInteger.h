@@ -29,7 +29,10 @@ public:
     explicit SignedBigInteger(i64 value);
 
     SignedBigInteger(SignedBigInteger const&);
+    SignedBigInteger(SignedBigInteger&&);
+
     SignedBigInteger& operator=(SignedBigInteger const&);
+    SignedBigInteger& operator=(SignedBigInteger&&);
 
     SignedBigInteger();
     ~SignedBigInteger();

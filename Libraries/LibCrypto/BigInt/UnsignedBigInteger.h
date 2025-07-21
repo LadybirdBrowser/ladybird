@@ -31,7 +31,10 @@ public:
     explicit UnsignedBigInteger(u64 value);
 
     UnsignedBigInteger(UnsignedBigInteger const&);
+    UnsignedBigInteger(UnsignedBigInteger&&);
+
     UnsignedBigInteger& operator=(UnsignedBigInteger const&);
+    UnsignedBigInteger& operator=(UnsignedBigInteger&&);
 
     UnsignedBigInteger();
     ~UnsignedBigInteger();
