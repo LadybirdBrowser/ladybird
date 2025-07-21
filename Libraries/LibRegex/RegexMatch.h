@@ -201,25 +201,25 @@ public:
             });
     }
 
-    // Note: index must always be the code unit offset to return.
-    u32 operator[](size_t index) const
+    u32 code_point_at(size_t code_unit_index) const
     {
         return m_view.visit(
             [&](StringView view) -> u32 {
-                auto ch = view[index];
+                auto ch = view[code_unit_index];
                 if constexpr (IsSigned<char>) {
                     if (ch < 0)
                         return 256u + ch;
                     return ch;
                 }
             },
-            [&](Utf16View const& view) -> u32 { return view.code_point_at(index); });
+            [&](Utf16View const& view) -> u32 { return view.code_point_at(code_unit_index); });
     }
 
-    u32 code_unit_at(size_t code_unit_index) const
+    // Returns the code point at the code unit offset if the Unicode flag is set. Otherwise, returns the code unit.
+    u32 unicode_aware_code_point_at(size_t code_unit_index) const
     {
         if (unicode())
-            return operator[](code_unit_index);
+            return code_point_at(code_unit_index);
 
         return m_view.visit(
             [&](StringView view) -> u32 {

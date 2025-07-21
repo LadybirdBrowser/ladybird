@@ -116,7 +116,7 @@ static void advance_string_position(MatchState& state, RegexStringView view, Opt
 
     if (view.unicode()) {
         if (!code_point.has_value() && (state.string_position_in_code_units < view.length_in_code_units()))
-            code_point = view[state.string_position_in_code_units];
+            code_point = view.code_point_at(state.string_position_in_code_units);
         if (code_point.has_value())
             state.string_position_in_code_units += view.length_of_code_point(*code_point);
     } else {
@@ -282,7 +282,7 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBegin::execute(MatchInput const& input
             return true;
 
         if (input.regex_options.has_flag_set(AllFlags::Multiline) && input.regex_options.has_flag_set(AllFlags::Internal_ConsiderNewline)) {
-            auto input_view = input.view.substring_view(state.string_position - 1, 1)[0];
+            auto input_view = input.view.substring_view(state.string_position - 1, 1).code_point_at(0);
             return input_view == '\r' || input_view == '\n' || input_view == LineSeparator || input_view == ParagraphSeparator;
         }
 
@@ -304,14 +304,14 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBoundary::execute(MatchInput const& in
     auto isword = [](auto ch) { return is_ascii_alphanumeric(ch) || ch == '_'; };
     auto is_word_boundary = [&] {
         if (state.string_position == input.view.length()) {
-            return (state.string_position > 0 && isword(input.view[state.string_position_in_code_units - 1]));
+            return (state.string_position > 0 && isword(input.view.code_point_at(state.string_position_in_code_units - 1)));
         }
 
         if (state.string_position == 0) {
-            return (isword(input.view[0]));
+            return (isword(input.view.code_point_at(0)));
         }
 
-        return !!(isword(input.view[state.string_position_in_code_units]) ^ isword(input.view[state.string_position_in_code_units - 1]));
+        return !!(isword(input.view.code_point_at(state.string_position_in_code_units)) ^ isword(input.view.code_point_at(state.string_position_in_code_units - 1)));
     };
     switch (type()) {
     case BoundaryCheckType::Word: {
@@ -335,7 +335,7 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckEnd::execute(MatchInput const& input, 
             return true;
 
         if (input.regex_options.has_flag_set(AllFlags::Multiline) && input.regex_options.has_flag_set(AllFlags::Internal_ConsiderNewline)) {
-            auto input_view = input.view.substring_view(state.string_position, 1)[0];
+            auto input_view = input.view.substring_view(state.string_position, 1).code_point_at(0);
             return input_view == '\r' || input_view == '\n' || input_view == LineSeparator || input_view == ParagraphSeparator;
         }
 
@@ -488,7 +488,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             if (input.view.length() <= state.string_position)
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
-            auto input_view = input.view.substring_view(state.string_position, 1)[0];
+            auto input_view = input.view.substring_view(state.string_position, 1).code_point_at(0);
             auto is_equivalent_to_newline = input_view == '\n'
                 || (input.regex_options.has_flag_set(AllFlags::Internal_ECMA262DotSemantics)
                         ? (input_view == '\r' || input_view == LineSeparator || input_view == ParagraphSeparator)
@@ -531,7 +531,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
             auto character_class = (CharClass)m_bytecode->at(offset++);
-            auto ch = input.view.code_unit_at(state.string_position_in_code_units);
+            auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
 
             compare_character_class(input, state, character_class, ch, current_inversion_state(), inverse_matched);
             break;
@@ -548,7 +548,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             offset += count_insensitive;
 
             bool const insensitive = input.regex_options & AllFlags::Insensitive;
-            auto ch = input.view.code_unit_at(state.string_position_in_code_units);
+            auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
 
             if (insensitive)
                 ch = to_ascii_lowercase(ch);
@@ -578,7 +578,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
 
             auto from = value.from;
             auto to = value.to;
-            auto ch = input.view.code_unit_at(state.string_position_in_code_units);
+            auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
 
             compare_character_range(input, state, from, to, ch, current_inversion_state(), inverse_matched);
             break;
@@ -711,8 +711,8 @@ ALWAYS_INLINE void OpCode_Compare::compare_char(MatchInput const& input, MatchSt
 
     // FIXME: Figure out how to do this if unicode() without performing a substring split first.
     auto input_view = input.view.unicode()
-        ? input.view.substring_view(state.string_position, 1)[0]
-        : input.view.code_unit_at(state.string_position_in_code_units);
+        ? input.view.substring_view(state.string_position, 1).code_point_at(0)
+        : input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
 
     bool equal;
     if (input.regex_options & AllFlags::Insensitive) {
@@ -753,7 +753,7 @@ ALWAYS_INLINE bool OpCode_Compare::compare_string(MatchInput const& input, Match
 
     if (str.length() == 1) {
         auto inverse_matched = false;
-        compare_char(input, state, str[0], false, inverse_matched);
+        compare_char(input, state, str.code_point_at(0), false, inverse_matched);
         return !inverse_matched;
     }
 
@@ -843,7 +843,7 @@ ALWAYS_INLINE void OpCode_Compare::compare_property(MatchInput const& input, Mat
     if (state.string_position == input.view.length())
         return;
 
-    u32 code_point = input.view[state.string_position_in_code_units];
+    u32 code_point = input.view.code_point_at(state.string_position_in_code_units);
     bool equal = Unicode::code_point_has_property(code_point, property);
 
     if (equal) {
@@ -859,7 +859,7 @@ ALWAYS_INLINE void OpCode_Compare::compare_general_category(MatchInput const& in
     if (state.string_position == input.view.length())
         return;
 
-    u32 code_point = input.view[state.string_position_in_code_units];
+    u32 code_point = input.view.code_point_at(state.string_position_in_code_units);
     bool equal = Unicode::code_point_has_general_category(code_point, general_category);
 
     if (equal) {
@@ -875,7 +875,7 @@ ALWAYS_INLINE void OpCode_Compare::compare_script(MatchInput const& input, Match
     if (state.string_position == input.view.length())
         return;
 
-    u32 code_point = input.view[state.string_position_in_code_units];
+    u32 code_point = input.view.code_point_at(state.string_position_in_code_units);
     bool equal = Unicode::code_point_has_script(code_point, script);
 
     if (equal) {
@@ -891,7 +891,7 @@ ALWAYS_INLINE void OpCode_Compare::compare_script_extension(MatchInput const& in
     if (state.string_position == input.view.length())
         return;
 
-    u32 code_point = input.view[state.string_position_in_code_units];
+    u32 code_point = input.view.code_point_at(state.string_position_in_code_units);
     bool equal = Unicode::code_point_has_script_extension(code_point, script);
 
     if (equal) {
