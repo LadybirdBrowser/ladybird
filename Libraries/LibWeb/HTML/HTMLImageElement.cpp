@@ -134,7 +134,7 @@ void HTMLImageElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
     });
 }
 
-void HTMLImageElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const&)
+void HTMLImageElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const&)
 {
     if (name == HTML::AttributeNames::crossorigin) {
         m_cors_setting = cors_setting_attribute_from_keyword(value);

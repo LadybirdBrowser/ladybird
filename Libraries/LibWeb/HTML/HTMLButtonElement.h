@@ -42,7 +42,7 @@ public:
     String type_for_bindings() const;
     WebIDL::ExceptionOr<void> set_type_for_bindings(String const&);
 
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     bool will_validate();
 

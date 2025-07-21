@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 85 tests
 
-69 Pass
-16 Fail
+71 Pass
+14 Fail
 Pass	[INPUT in TEXT status] The pattern attribute is not set
 Pass	[INPUT in TEXT status] The value attibute is empty string
 Pass	[INPUT in TEXT status] The value attribute matches the pattern attribute
@@ -80,12 +80,12 @@ Pass	[INPUT in EMAIL status] The pattern attribute is not set, if multiple is pr
 Pass	[INPUT in EMAIL status] The value attibute is empty string, if multiple is present
 Pass	[INPUT in EMAIL status] The value attribute matches the pattern attribute, if multiple is present
 Pass	[INPUT in EMAIL status] The value(ABC) in unicode attribute matches the pattern attribute, if multiple is present
-Fail	[INPUT in EMAIL status] The value attribute mismatches the pattern attribute, if multiple is present
-Fail	[INPUT in EMAIL status] The value attribute mismatches the pattern attribute even when a subset matches, if multiple is present
+Pass	[INPUT in EMAIL status] The value attribute mismatches the pattern attribute, if multiple is present
+Pass	[INPUT in EMAIL status] The value attribute mismatches the pattern attribute even when a subset matches, if multiple is present
 Pass	[INPUT in EMAIL status] Invalid regular expression gets ignored, if multiple is present
 Pass	[INPUT in EMAIL status] Invalid `v` regular expression gets ignored, if multiple is present
 Pass	[INPUT in EMAIL status] The pattern attribute tries to escape a group, if multiple is present
-Pass	[INPUT in EMAIL status] The pattern attribute uses Unicode features, if multiple is present
+Fail	[INPUT in EMAIL status] The pattern attribute uses Unicode features, if multiple is present
 Pass	[INPUT in EMAIL status] The value attribute matches JavaScript-specific regular expression, if multiple is present
 Fail	[INPUT in EMAIL status] The value attribute mismatches JavaScript-specific regular expression, if multiple is present
-Fail	[INPUT in EMAIL status] Commas should be stripped from regex input, if multiple is present
+Pass	[INPUT in EMAIL status] Commas should be stripped from regex input, if multiple is present

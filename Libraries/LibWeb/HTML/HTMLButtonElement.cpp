@@ -80,7 +80,7 @@ WebIDL::ExceptionOr<void> HTMLButtonElement::set_type_for_bindings(String const&
     return set_attribute(HTML::AttributeNames::type, type);
 }
 
-void HTMLButtonElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLButtonElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     PopoverInvokerElement::associated_attribute_changed(name, value, namespace_);
 }
