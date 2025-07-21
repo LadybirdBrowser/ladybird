@@ -48,9 +48,17 @@ public:
 private:
     SVGMaskElement(DOM::Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
+    virtual bool is_svg_mask_element() const override { return true; }
 
     Optional<MaskContentUnits> m_mask_content_units = {};
     Optional<MaskUnits> m_mask_units = {};
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGMaskElement>() const { return is_svg_mask_element(); }
 
 }

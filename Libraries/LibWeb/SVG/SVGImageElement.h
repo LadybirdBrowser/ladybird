@@ -49,6 +49,7 @@ protected:
 
 private:
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
+    virtual bool is_svg_image_element() const override { return true; }
     void animate();
 
     GC::Ptr<SVG::SVGAnimatedLength> m_x;
@@ -65,5 +66,12 @@ private:
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGImageElement>() const { return is_svg_image_element(); }
 
 }

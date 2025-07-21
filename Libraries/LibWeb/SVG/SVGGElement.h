@@ -23,6 +23,14 @@ private:
     SVGGElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+    virtual bool is_svg_g_element() const override { return true; }
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGGElement>() const { return is_svg_g_element(); }
 
 }

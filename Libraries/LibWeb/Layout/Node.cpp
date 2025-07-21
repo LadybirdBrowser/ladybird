@@ -28,6 +28,7 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -174,8 +175,57 @@ bool Node::establishes_stacking_context() const
     if (!has_style())
         return false;
 
-    if (is_svg_box())
+    // https://www.w3.org/TR/SVG2/render.html#EstablishingStackingContex
+    if (is_svg_box() || is_svg_svg_box()) {
+        auto& svg_element = as<SVG::SVGElement>(*dom_node());
+
+        // A new stacking context must be established at an SVG element for its descendants if:
+        // - it is the root element
+        if (is_root_element())
+            return true;
+
+        // - the element is an outermost svg element, or a ‘foreignObject’, ‘image’, ‘marker’, ‘mask’, ‘pattern’, ‘symbol’ or ‘use’ element
+        // - the element is an inner ‘svg’ element and the computed value of its overflow property is a value other than visible
+        if (is_svg_svg_box()
+            && (computed_values().overflow_x() != CSS::Overflow::Visible
+                || computed_values().overflow_y() != CSS::Overflow::Visible
+                || first_ancestor_of_type<SVGSVGBox>() == nullptr)) {
+            return true;
+        }
+        if (svg_element.is_svg_foreign_object_element()
+            || svg_element.is_svg_image_element()
+            || svg_element.is_svg_marker_element()
+            || svg_element.is_svg_mask_element()
+            || svg_element.is_svg_pattern_element()
+            || svg_element.is_svg_symbol_element()
+            || svg_element.is_svg_use_element()) {
+            return true;
+        }
+
+        // - the element is subject to explicit clipping:
+        //     - the clip property applies to the element and it has a computed value other than auto
+        //     - the clip-path property applies to the element and it has a computed value other than none
+        if ((svg_element.property_applies_to(CSS::PropertyID::Clip) && !computed_values().clip().is_auto())
+            || (svg_element.property_applies_to(CSS::PropertyID::ClipPath) && computed_values().clip_path().has_value())) {
+            return true;
+        }
+
+        // - the opacity property applies to the element and it has a computed value other than 1
+        if (svg_element.property_applies_to(CSS::PropertyID::Opacity) && computed_values().opacity() < 1.0f)
+            return true;
+
+        // - the mask property applies to the element and it has a computed value other than none
+        if (svg_element.property_applies_to(CSS::PropertyID::Mask) && computed_values().mask().has_value())
+            return true;
+
+        // - the filter property applies to the element and it has a computed value other than none
+        if (svg_element.property_applies_to(CSS::PropertyID::Filter) && computed_values().filter().has_value())
+            return true;
+
+        // - a property defined in another specification is applied and that property is defined to establish a stacking context in SVG
+
         return false;
+    }
 
     // We make a stacking context for the viewport. Painting and hit testing starts from here.
     if (is_viewport())

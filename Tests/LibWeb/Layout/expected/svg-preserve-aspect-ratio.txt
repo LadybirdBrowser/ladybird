@@ -144,4 +144,17 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         SVGPathPaintable (SVGGeometryBox<circle>) [249,201 160x60]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x274] [children: 0] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x274] [children: 13] (z-index: auto)
+  SC for SVGSVGBox<svg> [9,84 100x50] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [119,84 100x50] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [229,84 100x50] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [339,84 100x50] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [449,84 100x50] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [559,84 100x50] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [669,9 50x125] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [729,9 50x125] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [9,136 50x125] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [69,136 50x125] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [129,136 50x125] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [189,136 50x125] [children: 0] (z-index: auto)
+  SC for SVGSVGBox<svg> [249,201 160x60] [children: 0] (z-index: auto)

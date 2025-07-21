@@ -29,4 +29,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         SVGPathPaintable (SVGTextBox<text>.Rrrrr) [226.96875,92.46875 514.125x106.03125]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x277.328125] [children: 0] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x277.328125] [children: 1] (z-index: auto)
+  SC for SVGSVGBox<svg> [8,8 784x261.328125] [children: 0] (z-index: auto)

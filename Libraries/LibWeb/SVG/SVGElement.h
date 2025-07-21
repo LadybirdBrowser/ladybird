@@ -34,6 +34,9 @@ public:
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
+    bool property_applies_to(CSS::PropertyID) const;
+    bool establishes_a_new_viewport() const;
+
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
 
@@ -54,6 +57,7 @@ private:
     virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
 
     virtual bool is_svg_element() const final { return true; }
+    virtual bool is_svg_container_element() const override;
 
     GC::Ptr<SVGAnimatedString> m_class_name_animated_string;
 };
