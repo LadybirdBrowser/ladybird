@@ -876,12 +876,20 @@ void StyleComputer::cascade_declarations(
     CascadeOrigin cascade_origin,
     Important important,
     Optional<FlyString> layer_name,
-    Optional<LogicalAliasMappingContext> logical_alias_mapping_context) const
+    Optional<LogicalAliasMappingContext> logical_alias_mapping_context,
+    ReadonlySpan<PropertyID> properties_to_cascade) const
 {
     auto seen_properties = MUST(Bitmap::create(to_underlying(last_property_id) + 1, false));
     auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
         seen_properties.fill(false);
         for (auto const& property : declaration.properties()) {
+
+            // OPTIMIZATION: If we've been asked to only cascade a specific set of properties, skip the rest.
+            if (!properties_to_cascade.is_empty()) {
+                if (!properties_to_cascade.contains_slow(property.property_id))
+                    continue;
+            }
+
             if (important != property.important)
                 continue;
 
@@ -1568,7 +1576,7 @@ StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Eleme
 
 // https://www.w3.org/TR/css-cascade/#cascading
 // https://drafts.csswg.org/css-cascade-5/#layering
-GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, bool did_match_any_pseudo_element_rules, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set, Optional<LogicalAliasMappingContext> logical_alias_mapping_context) const
+GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, bool did_match_any_pseudo_element_rules, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set, Optional<LogicalAliasMappingContext> logical_alias_mapping_context, ReadonlySpan<PropertyID> properties_to_cascade) const
 {
     auto cascaded_properties = m_document->heap().allocate<CascadedProperties>();
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
@@ -1577,10 +1585,10 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
     }
 
     // Normal user agent declarations
-    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {}, logical_alias_mapping_context);
+    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {}, logical_alias_mapping_context, properties_to_cascade);
 
     // Normal user declarations
-    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {}, logical_alias_mapping_context);
+    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {}, logical_alias_mapping_context, properties_to_cascade);
 
     // Author presentational hints
     // The spec calls this a special "Author presentational hint origin":
@@ -1603,19 +1611,19 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
     for (auto const& layer : matching_rule_set.author_rules) {
-        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, logical_alias_mapping_context);
+        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, logical_alias_mapping_context, properties_to_cascade);
     }
 
     // Important author declarations, with un-@layer-ed rules first, followed by each @layer in reverse order.
     for (auto const& layer : matching_rule_set.author_rules.in_reverse()) {
-        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes, {}, logical_alias_mapping_context);
+        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
     }
 
     // Important user declarations
-    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {}, logical_alias_mapping_context);
+    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
 
     // Important user agent declarations
-    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {}, logical_alias_mapping_context);
+    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
@@ -2154,8 +2162,17 @@ LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(
 
     bool did_match_any_pseudo_element_rules = false;
 
-    // FIXME: Ideally we wouldn't run the whole cascade just for these few properties.
-    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, {});
+    static Array<PropertyID, 2> properties_to_cascade {
+        PropertyID::WritingMode,
+        PropertyID::Direction,
+    };
+    auto cascaded_properties = compute_cascaded_values(
+        element,
+        pseudo_element,
+        did_match_any_pseudo_element_rules,
+        mode, matching_rule_set,
+        {},
+        properties_to_cascade);
 
     auto writing_mode = normalize_value(PropertyID::WritingMode, cascaded_properties->property(PropertyID::WritingMode));
     auto direction = normalize_value(PropertyID::Direction, cascaded_properties->property(PropertyID::Direction));
@@ -2465,7 +2482,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
     }
 
     auto logical_alias_mapping_context = compute_logical_alias_mapping_context(element, pseudo_element, mode, matching_rule_set);
-    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, logical_alias_mapping_context);
+    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, logical_alias_mapping_context, {});
     element.set_cascaded_properties(pseudo_element, cascaded_properties);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
