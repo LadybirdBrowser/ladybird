@@ -162,6 +162,21 @@ static RefPtr<CSSStyleValue const> interpolate_translate(DOM::Element& element, 
         move(new_values));
 }
 
+// https://drafts.csswg.org/css-transforms-2/#interpolation-of-decomposed-3d-matrix-values
+static FloatVector4 slerp(FloatVector4 const& from, FloatVector4 const& to, float delta)
+{
+    auto product = from.dot(to);
+
+    product = clamp(product, -1.0f, 1.0f);
+    if (fabsf(product) >= 1.0f)
+        return from;
+
+    auto theta = acosf(product);
+    auto w = sinf(delta * theta) / sqrtf(1 - (product * product));
+
+    return from * (cosf(delta * theta) - (product * w)) + to * w;
+}
+
 ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, CSSStyleValue const& a_from, CSSStyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
 {
     auto from = with_keyword_values_resolved(element, property_id, a_from);
@@ -555,21 +570,7 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
 
     // https://drafts.csswg.org/css-transforms-2/#interpolation-of-decomposed-3d-matrix-values
     static constexpr auto interpolate = [](DecomposedValues& from, DecomposedValues& to, float delta) -> DecomposedValues {
-        auto product = clamp(from.rotation.dot(to.rotation), -1.0f, 1.0f);
-        FloatVector4 interpolated_rotation;
-        if (fabsf(product) == 1.0f) {
-            interpolated_rotation = from.rotation;
-        } else {
-            auto theta = acos(product);
-            auto w = sin(delta * theta) / sqrtf(1.0f - product * product);
-
-            for (int i = 0; i < 4; i++) {
-                from.rotation[i] *= cos(delta * theta) - product * w;
-                to.rotation[i] *= w;
-                interpolated_rotation[i] = from.rotation[i] + to.rotation[i];
-            }
-        }
-
+        auto interpolated_rotation = slerp(from.rotation, to.rotation, delta);
         return {
             interpolate_raw(from.translation, to.translation, delta),
             interpolate_raw(from.scale, to.scale, delta),
