@@ -1380,7 +1380,7 @@ void HTMLInputElement::did_lose_focus()
     commit_pending_changes();
 }
 
-void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     PopoverInvokerElement::associated_attribute_changed(name, value, namespace_);
 
@@ -1434,6 +1434,9 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
     } else if (name == HTML::AttributeNames::maxlength) {
         handle_maxlength_attribute();
     } else if (name == HTML::AttributeNames::multiple) {
+        if (type_state() == TypeAttributeState::Email && old_value.has_value() != value.has_value()) {
+            m_value = value_sanitization_algorithm(m_value);
+        }
         update_shadow_tree();
     }
 }
@@ -1657,18 +1660,34 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
         }
         return MUST(value.trim(Infra::ASCII_WHITESPACE));
     } else if (type_state() == HTMLInputElement::TypeAttributeState::Email) {
-        // https://html.spec.whatwg.org/multipage/input.html#email-state-(type=email):value-sanitization-algorithm
-        // FIXME: handle the `multiple` attribute
-        // Strip newlines from the value, then strip leading and trailing ASCII whitespace from the value.
-        if (value.bytes_as_string_view().contains('\r') || value.bytes_as_string_view().contains('\n')) {
-            StringBuilder builder;
-            for (auto c : value.bytes_as_string_view()) {
-                if (c != '\r' && c != '\n')
-                    builder.append(c);
+        if (!has_attribute(AttributeNames::multiple)) {
+            // https://html.spec.whatwg.org/multipage/input.html#email-state-(type=email):value-sanitization-algorithm
+            // Strip newlines from the value, then strip leading and trailing ASCII whitespace from the value.
+            if (value.bytes_as_string_view().contains('\r') || value.bytes_as_string_view().contains('\n')) {
+                StringBuilder builder;
+                for (auto c : value.bytes_as_string_view()) {
+                    if (c != '\r' && c != '\n')
+                        builder.append(c);
+                }
+                return MUST(String::from_utf8(builder.string_view().trim_whitespace()));
             }
-            return MUST(String::from_utf8(builder.string_view().trim(Infra::ASCII_WHITESPACE)));
+            return MUST(value.trim_ascii_whitespace());
         }
-        return MUST(value.trim(Infra::ASCII_WHITESPACE));
+
+        // https://html.spec.whatwg.org/multipage/input.html#email-state-(type=email):value-sanitization-algorithm-2
+        // 1. Split on commas the element's value, strip leading and trailing ASCII whitespace from each resulting token, if any,
+        //    and let the element's values be the (possibly empty) resulting list of (possibly empty) tokens, maintaining the original order.
+        Vector<String> values {};
+        for (auto const& token : MUST(value.split(',', SplitBehavior::KeepEmpty))) {
+            values.append(MUST(token.trim_ascii_whitespace()));
+        }
+
+        // 2. Set the element's value to the result of concatenating the element's values, separating each value
+        //    from the next by a single U+002C COMMA character (,), maintaining the list's order.
+        StringBuilder builder;
+        builder.join(',', values);
+        return MUST(builder.to_string());
+
     } else if (type_state() == HTMLInputElement::TypeAttributeState::Number) {
         // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number):value-sanitization-algorithm
         // If the value of the element is not a valid floating-point number, then set it
@@ -3320,9 +3339,9 @@ bool HTMLInputElement::suffering_from_a_pattern_mismatch() const
     // type attribute's current state, and the element has a compiled pattern regular expression but that regular expression does not match the element's value, then the element is
     // suffering from a pattern mismatch.
 
-    // FIXME: If the element's value is not the empty string, and the element's multiple attribute is specified and applies to the input element,
-    //        and the element has a compiled pattern regular expression but that regular expression does not match each of the element's values,
-    //        then the element is suffering from a pattern mismatch.
+    // If the element's value is not the empty string, and the element's multiple attribute is specified and applies to the input element,
+    // and the element has a compiled pattern regular expression but that regular expression does not match each of the element's values,
+    // then the element is suffering from a pattern mismatch.
 
     if (!pattern_applies())
         return false;
@@ -3331,12 +3350,17 @@ bool HTMLInputElement::suffering_from_a_pattern_mismatch() const
     if (value.is_empty())
         return false;
 
-    if (has_attribute(HTML::AttributeNames::multiple) && multiple_applies())
-        return false;
-
     auto regexp_object = compiled_pattern_regular_expression();
     if (!regexp_object.has_value())
         return false;
+
+    if (has_attribute(HTML::AttributeNames::multiple) && multiple_applies()) {
+        VERIFY(type_state() == HTMLInputElement::TypeAttributeState::Email);
+
+        return AK::any_of(MUST(value.split(',')), [&regexp_object](auto const& value) {
+            return !regexp_object->match(value).success;
+        });
+    }
 
     return !regexp_object->match(value).success;
 }

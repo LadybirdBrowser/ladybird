@@ -56,7 +56,7 @@ private:                                                                        
     {                                                                                                                                                                       \
         ElementBaseClass::attribute_changed(name, old_value, value, namespace_);                                                                                            \
         form_node_attribute_changed(name, value);                                                                                                                           \
-        form_associated_element_attribute_changed(name, value, namespace_);                                                                                                 \
+        form_associated_element_attribute_changed(name, old_value, value, namespace_);                                                                                      \
     }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selection-direction
@@ -152,7 +152,7 @@ protected:
     virtual void form_associated_element_was_inserted() { }
     virtual void form_associated_element_was_removed(DOM::Node*) { }
     virtual void form_associated_element_was_moved(GC::Ptr<DOM::Node>) { }
-    virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&, Optional<FlyString> const&) { }
+    virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&, Optional<String> const&, Optional<FlyString> const&) { }
 
     void form_node_was_inserted();
     void form_node_was_removed();
