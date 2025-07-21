@@ -228,15 +228,8 @@ Optional<Descriptor> Parser::convert_to_descriptor(AtRuleID at_rule_id, Declarat
 
     auto value_token_stream = TokenStream(declaration.value);
     auto value = parse_descriptor_value(at_rule_id, descriptor_id.value(), value_token_stream);
-    if (value.is_error()) {
-        if (value.error() == ParseError::SyntaxError) {
-            if constexpr (CSS_PARSER_DEBUG) {
-                dbgln("Unable to parse value for CSS @{} descriptor '{}'.", to_string(at_rule_id), declaration.name);
-                value_token_stream.dump_all_tokens();
-            }
-        }
+    if (value.is_error())
         return {};
-    }
 
     return Descriptor { *descriptor_id, value.release_value() };
 }
