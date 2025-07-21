@@ -177,6 +177,89 @@ static FloatVector4 slerp(FloatVector4 const& from, FloatVector4 const& to, floa
     return from * (cosf(delta * theta) - (product * w)) + to * w;
 }
 
+static RefPtr<CSSStyleValue const> interpolate_rotate(DOM::Element& element, CalculationContext calculation_context, CSSStyleValue const& a_from, CSSStyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
+{
+    if (a_from.to_keyword() == Keyword::None && a_to.to_keyword() == Keyword::None)
+        return a_from;
+
+    static auto zero_degrees_value = AngleStyleValue::create(Angle::make_degrees(0));
+    static auto zero = TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate, { zero_degrees_value });
+
+    auto const& from = a_from.to_keyword() == Keyword::None ? *zero : a_from;
+    auto const& to = a_to.to_keyword() == Keyword::None ? *zero : a_to;
+
+    auto const& from_transform = from.as_transformation();
+    auto const& to_transform = to.as_transformation();
+
+    auto from_transform_type = from_transform.transform_function();
+    auto to_transform_type = to_transform.transform_function();
+
+    if (from_transform_type == to_transform_type && from_transform.values().size() == 1) {
+        auto interpolated_angle = interpolate_value(element, calculation_context, from_transform.values()[0], to_transform.values()[0], delta, allow_discrete);
+        if (!interpolated_angle)
+            return {};
+        return TransformationStyleValue::create(PropertyID::Rotate, from_transform_type, { *interpolated_angle.release_nonnull() });
+    }
+
+    FloatVector3 from_axis { 0, 0, 1 };
+    auto from_angle_value = from_transform.values()[0];
+    if (from_transform.values().size() == 4) {
+        from_axis.set_x(from_transform.values()[0]->as_number().number());
+        from_axis.set_y(from_transform.values()[1]->as_number().number());
+        from_axis.set_z(from_transform.values()[2]->as_number().number());
+        from_angle_value = from_transform.values()[3];
+    }
+    float from_angle = from_angle_value->as_angle().angle().to_radians();
+
+    FloatVector3 to_axis { 0, 0, 1 };
+    auto to_angle_value = to_transform.values()[0];
+    if (to_transform.values().size() == 4) {
+        to_axis.set_x(to_transform.values()[0]->as_number().number());
+        to_axis.set_y(to_transform.values()[1]->as_number().number());
+        to_axis.set_z(to_transform.values()[2]->as_number().number());
+        to_angle_value = to_transform.values()[3];
+    }
+    float to_angle = to_angle_value->as_angle().angle().to_radians();
+
+    auto from_axis_angle = [](FloatVector3 const& axis, float angle) -> FloatVector4 {
+        auto normalized = axis.normalized();
+        auto half_angle = angle / 2.0f;
+        auto sin_half_angle = sin(half_angle);
+        FloatVector4 result { normalized.x() * sin_half_angle, normalized.y() * sin_half_angle, normalized.z() * sin_half_angle, cosf(half_angle) };
+        return result;
+    };
+
+    struct AxisAngle {
+        FloatVector3 axis;
+        float angle;
+    };
+    auto quaternion_to_axis_angle = [](FloatVector4 const& quaternion) {
+        FloatVector3 axis { quaternion[0], quaternion[1], quaternion[2] };
+        auto epsilon = 1e-5f;
+        auto sin_half_angle = sqrtf(max(0.0f, 1.0f - quaternion[3] * quaternion[3]));
+        if (sin_half_angle < epsilon)
+            return AxisAngle { axis, quaternion[3] };
+        auto angle = 2.0f * acosf(quaternion[3]);
+        axis = axis * (1.0f / sin_half_angle);
+        return AxisAngle { axis, angle };
+    };
+
+    auto from_quaternion = from_axis_angle(from_axis, from_angle);
+    auto to_quaternion = from_axis_angle(to_axis, to_angle);
+
+    auto interpolated_quaternion = slerp(from_quaternion, to_quaternion, delta);
+    auto interpolated_axis_angle = quaternion_to_axis_angle(interpolated_quaternion);
+    auto interpolated_x_axis = NumberStyleValue::create(interpolated_axis_angle.axis.x());
+    auto interpolated_y_axis = NumberStyleValue::create(interpolated_axis_angle.axis.y());
+    auto interpolated_z_axis = NumberStyleValue::create(interpolated_axis_angle.axis.z());
+    auto interpolated_angle = AngleStyleValue::create(Angle::make_degrees(AK::to_degrees(interpolated_axis_angle.angle)));
+
+    return TransformationStyleValue::create(
+        PropertyID::Rotate,
+        TransformFunction::Rotate3d,
+        { interpolated_x_axis, interpolated_y_axis, interpolated_z_axis, interpolated_angle });
+}
+
 ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, CSSStyleValue const& a_from, CSSStyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
 {
     auto from = with_keyword_values_resolved(element, property_id, a_from);
@@ -269,6 +352,12 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
 
         if (property_id == PropertyID::Translate) {
             if (auto result = interpolate_translate(element, calculation_context, from, to, delta, allow_discrete))
+                return result;
+            return interpolate_discrete(from, to, delta, allow_discrete);
+        }
+
+        if (property_id == PropertyID::Rotate) {
+            if (auto result = interpolate_rotate(element, calculation_context, from, to, delta, allow_discrete))
                 return result;
             return interpolate_discrete(from, to, delta, allow_discrete);
         }

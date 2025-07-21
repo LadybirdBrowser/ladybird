@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>rotate interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-rotate">
+<meta name="assert" content="rotate supports animation.">
+<meta name="timeout" content="long">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+</head>
+
+<style>
+.parent {
+  rotate: 90deg;
+}
+
+.target {
+  width: 40px;
+  height: 20px;
+  background-color: grey;
+  rotate: 10deg;
+}
+
+.expected {
+  background-color: green;
+}
+</style>
+
+<template id="target-template">
+<div class="parent">
+    <div class="target">Text</div>
+</div>
+</template>
+
+<body>
+<script>
+test_interpolation({
+  property: 'rotate',
+  from: '100deg',
+  to: '180deg',
+}, [
+  {at: -1, expect: '20deg'},
+  {at: 0, expect: '100deg'},
+  {at: 0.125, expect: '110deg'},
+  {at: 0.875, expect: '170deg'},
+  {at: 1, expect: '180deg'},
+  {at: 2, expect: '260deg'}
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: '45deg',
+  to: '-1 1 0 60deg',
+}, [
+  {at: -1, expect: '0.447214 -0.447214 0.774597 104.478deg'},
+  {at: 0, expect: '45deg'},
+  {at: 0.125, expect: '-0.136456 0.136456 0.981203 40.6037deg'},
+  {at: 0.875, expect: '-0.70246 0.70246 0.114452 53.1994deg'},
+  {at: 1, expect: '-0.71 0.71 0 60deg'},
+  {at: 2, expect: '-0.637897 0.637897 -0.431479 124.975deg'}
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: 'none',
+  to: '7 -8 9 400grad',
+}, [
+  {at: -1, expect: '0.5 -0.57 0.65 -400grad'},
+  {at: 0, expect: '0.5 -0.57 0.65 0deg'},
+  {at: 0.125, expect: '0.5 -0.57 0.65 50grad'},
+  {at: 0.875, expect: '0.5 -0.57 0.65 350grad'},
+  {at: 1, expect: '0.5 -0.57 0.65 400grad'},
+  {at: 2, expect: '0.5 -0.57 0.65 800grad'}
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: 'none',
+  to: 'none',
+}, [
+  {at: -1, expect: 'none'},
+  {at: 0, expect: 'none'},
+  {at: 0.125, expect: 'none'},
+  {at: 0.875, expect: 'none'},
+  {at: 1, expect: 'none'},
+  {at: 2, expect: 'none'}
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: 'none',
+  to: '30deg',
+}, [
+  {at: -1, expect: '-30deg'},
+  {at: 0, expect: '0deg'},
+  {at: 0.25, expect: '7.5deg'},
+  {at: 0.75, expect: '22.5deg'},
+  {at: 1, expect: '30deg'},
+  {at: 2, expect: '60deg'},
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: neutralKeyframe,
+  to: '30deg',
+}, [
+  {at: -1, expect: '-10deg'},
+  {at: 0, expect: '10deg'},
+  {at: 0.25, expect: '15deg'},
+  {at: 0.75, expect: '25deg'},
+  {at: 1, expect: '30deg'},
+  {at: 2, expect: '50deg'},
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: 'inherit',
+  to: '270deg',
+}, [
+  {at: -1, expect: '-90deg'},
+  {at: 0, expect: '90deg'},
+  {at: 0.25, expect: '135deg'},
+  {at: 0.75, expect: '225deg'},
+  {at: 1, expect: '270deg'},
+  {at: 2, expect: '450deg'},
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: 'unset',
+  to: '30deg',
+}, [
+  {at: -1, expect: '-30deg'},
+  {at: 0, expect: '0deg'},
+  {at: 0.25, expect: '7.5deg'},
+  {at: 0.75, expect: '22.5deg'},
+  {at: 1, expect: '30deg'},
+  {at: 2, expect: '60deg'},
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: '100deg',
+  to: '-100deg',
+}, [
+  {at: -1, expect: '300deg'},
+  {at: 0, expect: '100deg'},
+  {at: 0.25, expect: '50deg'},
+  {at: 0.75, expect: '-50deg'},
+  {at: 1, expect: '-100deg'},
+  {at: 2, expect: '-300deg'},
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: '0 1 0 100deg',
+  to: '0 1 0 -100deg',
+}, [
+  {at: -1, expect: '0 1 0 300deg'},
+  {at: 0, expect: '0 1 0 100deg'},
+  {at: 0.25, expect: '0 1 0 50deg'},
+  {at: 0.75, expect: '0 1 0 -50deg'},
+  {at: 1, expect: '0 1 0 -100deg'},
+  {at: 2, expect: '0 1 0 -300deg'},
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: '1 -2.5 3.64 100deg',
+  to: '1 -2.5 3.64 -100deg',
+}, [
+  {at: -1, expect: '0.22 -0.55 0.8 300deg'},
+  {at: 0, expect: '0.22 -0.55 0.8 100deg'},
+  {at: 0.25, expect: '0.22 -0.55 0.8 50deg'},
+  {at: 0.75, expect: '0.22 -0.55 0.8 -50deg'},
+  {at: 1, expect: '0.22 -0.55 0.8 -100deg'},
+  {at: 2, expect: '0.22 -0.55 0.8 -300deg'},
+]);
+
+// The rotation angle gets interpolated numerically and the rotation vector
+// of the non-zero angle is used or (0, 0, 1) if both angles are zero.
+// So, we have to convert "1 0 0 0deg" into "0 1 0 0deg", and apply the same
+// concept for other test cases.
+// https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
+test_interpolation({
+  property: 'rotate',
+  from: '1 0 0 0deg',
+  to: '0 1 0 10deg',
+}, [
+  {at: -1, expect: '0 1 0 -10deg'},
+  {at: 0, expect: '0 1 0 0deg'},
+  {at: 0.25, expect: '0 1 0 2.5deg'},
+  {at: 0.75, expect: '0 1 0 7.5deg'},
+  {at: 1, expect: '0 1 0 10deg'},
+  {at: 2, expect: '0 1 0 20deg'},
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: '1 1 0 90deg',
+  to: '0 1 1 135deg',
+}, [
+  {at: -1, expect: '0.67 -0.06 -0.74 124.97deg'},
+  {at: 0, expect: '0.71 0.71 0 90deg'},
+  {at: 0.25, expect: '0.54 0.8 0.26 94.83deg'},
+  {at: 0.75, expect: '0.17 0.78 0.61 118.68deg'},
+  {at: 1, expect: '0 0.71 0.71 135deg'},
+  // The result in Blink is '0.52 -0.29 -0.81 151.04deg', and the result in
+  // Gecko is `-0.52 0.29 0.8 208.96deg`. Both of them can be represented as the
+  // same 3d rotation (but by an opposite direction vector and angle).
+  // The spec only mentions we should use Slerp to do interpolation for rotate
+  // property, but it seems the implementation detail for extrapolation are
+  // different (because this is not in the range of [0, 1]).
+  // For now, we make both results pass because their rendering results are the
+  // same.
+  {at: 2, expect: '0.52 -0.29 -0.81 151.04deg',
+          option: '-0.52 0.29 0.81 208.96deg'},
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: '0 1 0 0deg',
+  to: '1 0 0 450deg',
+}, [
+  {at: -1, expect: '1 0 0 -450deg'},
+  {at: 0, expect: '1 0 0 0deg'},
+  {at: 0.25, expect: '1 0 0 112.5deg'},
+  {at: 0.75, expect: '1 0 0 337.5deg'},
+  {at: 1, expect: '1 0 0 450deg'},
+  {at: 2, expect: '1 0 0 900deg'},
+]);
+
+test_interpolation({
+  property: 'rotate',
+  from: '1 0 0 450deg',
+  to: '0 1 0 0deg',
+}, [
+  {at: -1, expect: '1 0 0 900deg'},
+  {at: 0, expect: '1 0 0 450deg'},
+  {at: 0.25, expect: '1 0 0 337.5deg'},
+  {at: 0.75, expect: '1 0 0 112.5deg'},
+  {at: 1, expect: '1 0 0 0deg'},
+  {at: 2, expect: '1 0 0 -450deg'},
+]);
+</script>
+</body>
+</html>
