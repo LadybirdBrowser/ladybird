@@ -3842,6 +3842,12 @@ RefPtr<CSSStyleValue const> Parser::parse_calculated_value(ComponentValue const&
                     //       caller to handle the resolved value being a percentage.
                     return CalculationContext {};
                 }
+                if (function.name.is_one_of_ignoring_ascii_case(
+                        "rgb"sv, "rgba"sv, "hsl"sv, "hsla"sv,
+                        "hwb"sv, "lab"sv, "lch"sv, "oklab"sv, "oklch"sv,
+                        "color"sv)) {
+                    return CalculationContext {};
+                }
                 // FIXME: Add other functions that provide a context for resolving values
                 return {};
             },
