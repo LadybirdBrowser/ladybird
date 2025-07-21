@@ -159,14 +159,14 @@ Pass	Pattern: [{"password":"cafÃ©"}] Inputs: [{"password":"cafÃ©"}]
 Pass	Pattern: [{"password":"caf%c3%a9"}] Inputs: [{"password":"cafÃ©"}]
 Pass	Pattern: [{"hostname":"xn--caf-dma.com"}] Inputs: [{"hostname":"cafÃ©.com"}]
 Pass	Pattern: [{"hostname":"cafÃ©.com"}] Inputs: [{"hostname":"cafÃ©.com"}]
-Pass	Pattern: ["http://í ½U+deb2.com/"] Inputs: ["http://í ½U+deb2.com/"]
+Pass	Pattern: ["http://ğŸš².com/"] Inputs: ["http://ğŸš².com/"]
 Pass	Pattern: ["http://\ud83d \udeb2"] Inputs: undefined
 Pass	Pattern: [{"hostname":"\ud83d \udeb2"}] Inputs: undefined
 Pass	Pattern: [{"pathname":"\ud83d \udeb2"}] Inputs: []
 Pass	Pattern: [{"pathname":":\ud83d \udeb2"}] Inputs: undefined
-Pass	Pattern: [{"pathname":":aí­€U+dd00b"}] Inputs: []
-Pass	Pattern: [{"pathname":"test/:aí U+dc50b"}] Inputs: [{"pathname":"test/foo"}]
-Pass	Pattern: [{"pathname":":í ½U+deb2"}] Inputs: undefined
+Pass	Pattern: [{"pathname":":aó „€b"}] Inputs: []
+Pass	Pattern: [{"pathname":"test/:ağ‘b"}] Inputs: [{"pathname":"test/foo"}]
+Pass	Pattern: [{"pathname":":ğŸš²"}] Inputs: undefined
 Pass	Pattern: [{"port":""}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http","port":"80"}] Inputs: [{"protocol":"http","port":"80"}]
 Pass	Pattern: [{"protocol":"http","port":"80{20}?"}] Inputs: [{"protocol":"http","port":"80"}]

@@ -189,16 +189,16 @@ Pass	ToASCII("å¤™")
 Pass	ToASCII("xn--xn--bss-7z6ccid") C1; C2
 Pass	ToASCII("â€ŒXâ€nâ€Œ-â€-BÃŸ") C1; C2
 Pass	ToASCII("xn--xn--b-pqa5796ccahd") C1; C2
-Pass	ToASCII("Ë£Íâ„•â€‹ï¹£Â­ï¼á Œâ„¬ï¸€Å¿â¤í µU+dd30í­€U+ddefï¬„")
-Pass	ToASCII("xÍNâ€‹-Â­-á ŒBï¸€sâ¤sí­€U+ddefffl")
-Pass	ToASCII("xÍnâ€‹-Â­-á Œbï¸€sâ¤sí­€U+ddefffl")
-Pass	ToASCII("XÍNâ€‹-Â­-á ŒBï¸€Sâ¤Sí­€U+ddefFFL")
-Pass	ToASCII("XÍnâ€‹-Â­-á ŒBï¸€sâ¤sí­€U+ddefffl")
+Pass	ToASCII("Ë£Íâ„•â€‹ï¹£Â­ï¼á Œâ„¬ï¸€Å¿â¤ğ”°ó ‡¯ï¬„")
+Pass	ToASCII("xÍNâ€‹-Â­-á ŒBï¸€sâ¤só ‡¯ffl")
+Pass	ToASCII("xÍnâ€‹-Â­-á Œbï¸€sâ¤só ‡¯ffl")
+Pass	ToASCII("XÍNâ€‹-Â­-á ŒBï¸€Sâ¤Só ‡¯FFL")
+Pass	ToASCII("XÍnâ€‹-Â­-á ŒBï¸€sâ¤só ‡¯ffl")
 Pass	ToASCII("xn--bssffl")
 Pass	ToASCII("å¤¡å¤å¤œå¤™")
-Pass	ToASCII("Ë£Íâ„•â€‹ï¹£Â­ï¼á Œâ„¬ï¸€Sâ¤í µU+dd30í­€U+ddefFFL")
-Pass	ToASCII("xÍNâ€‹-Â­-á ŒBï¸€Sâ¤sí­€U+ddefFFL")
-Pass	ToASCII("Ë£Íâ„•â€‹ï¹£Â­ï¼á Œâ„¬ï¸€sâ¤í µU+dd30í­€U+ddefffl")
+Pass	ToASCII("Ë£Íâ„•â€‹ï¹£Â­ï¼á Œâ„¬ï¸€Sâ¤ğ”°ó ‡¯FFL")
+Pass	ToASCII("xÍNâ€‹-Â­-á ŒBï¸€Sâ¤só ‡¯FFL")
+Pass	ToASCII("Ë£Íâ„•â€‹ï¹£Â­ï¼á Œâ„¬ï¸€sâ¤ğ”°ó ‡¯ffl")
 Pass	ToASCII("123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890b")
 Pass	ToASCII("123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890b.") A4_2 (ignored)
 Pass	ToASCII("123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.1234567890123456789012345678901234567890123456789012345678901c") A4_1 (ignored)
@@ -358,10 +358,10 @@ Pass	ToASCII("xn--ASCII-") P4
 Pass	ToASCII("ascii")
 Pass	ToASCII("xn--unicode-.org") P4
 Pass	ToASCII("unicode.org")
-Pass	ToASCII("ï¥‘í¡¾U+dc68í¡¾U+dc74í¡¾U+dd1fí¡¾U+dd5fí¡¾U+ddbf")
-Pass	ToASCII("é™‹ã›¼å½“í¡U+dfabç«®ä——")
+Pass	ToASCII("ï¥‘ğ¯¡¨ğ¯¡´ğ¯¤Ÿğ¯¥Ÿğ¯¦¿")
+Pass	ToASCII("é™‹ã›¼å½“ğ¤«ç«®ä——")
 Pass	ToASCII("xn--snl253bgitxhzwu2arn60c")
-Pass	ToASCII("é›»í¡„U+df6aå¼³ä«çª®äµ—")
+Pass	ToASCII("é›»ğ¡ªå¼³ä«çª®äµ—")
 Pass	ToASCII("xn--kbo60w31ob3z6t3av9z5b")
 Pass	ToASCII("xn--A-1ga")
 Pass	ToASCII("aÃ¶")
@@ -386,8 +386,8 @@ Pass	ToASCII("123456789012345678901234567890123456789012345678901234567890123.12
 Pass	ToASCII("123456789012345678901234567890123456789012345678901234567890123.1234567890Ã„1234567890123456789012345678901234567890123456.123456789012345678901234567890123456789012345678901234567890123.12345678901234567890123456789012345678901234567890123456789a.") A4_2 (ignored)
 Pass	ToASCII("123456789012345678901234567890123456789012345678901234567890123.1234567890AÌˆ1234567890123456789012345678901234567890123456.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890b") A4_1 (ignored); A4_2 (ignored)
 Pass	ToASCII("123456789012345678901234567890123456789012345678901234567890123.1234567890Ã„1234567890123456789012345678901234567890123456.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890b") A4_1 (ignored); A4_2 (ignored)
-Pass	ToASCII("â’•âˆÙŸí¨U+dd26ï¼-í­€U+dd2f") V7; V3 (ignored)
-Pass	ToASCII("14.âˆÙŸí¨U+dd26.-í­€U+dd2f") V7; V3 (ignored)
+Pass	ToASCII("â’•âˆÙŸò“¤¦ï¼-ó „¯") V7; V3 (ignored)
+Pass	ToASCII("14.âˆÙŸò“¤¦.-ó „¯") V7; V3 (ignored)
 Pass	ToASCII("14.xn--7hb713l3v90n.-") V7; V3 (ignored)
 Pass	ToASCII("xn--7hb713lfwbi1311b.-") V7; V3 (ignored)
 Pass	ToASCII("ê¡£.ß")
@@ -404,29 +404,29 @@ Pass	ToASCII("â‰ á¢™â‰¯.ì†£-á¡´á‚ ")
 Pass	ToASCII("xn--jbf929a90b0b.xn----p9j493ivi4l") C2
 Pass	ToASCII("xn--jbf911clb.xn----6zg521d196p") V7
 Pass	ToASCII("xn--jbf929a90b0b.xn----6zg521d196p") C2; V7
-Pass	ToASCII("í¥½U+df9cï¼í ƒU+dfc7à¾¢İ½Ø€") V7
-Pass	ToASCII("í¥½U+df9cï¼í ƒU+dfc7à¾¡à¾·İ½Ø€") V7
-Pass	ToASCII("í¥½U+df9c.í ƒU+dfc7à¾¡à¾·İ½Ø€") V7
+Pass	ToASCII("ñ¯œï¼ğ¿‡à¾¢İ½Ø€") V7
+Pass	ToASCII("ñ¯œï¼ğ¿‡à¾¡à¾·İ½Ø€") V7
+Pass	ToASCII("ñ¯œ.ğ¿‡à¾¡à¾·İ½Ø€") V7
 Pass	ToASCII("xn--gw68a.xn--ifb57ev2psc6027m") V7
-Pass	ToASCII("í¡U+dcd4Ìƒ.í …U+dcc2") V6
+Pass	ToASCII("ğ£³”Ìƒ.ğ‘“‚") V6
 Pass	ToASCII("xn--nsa95820a.xn--wz1d") V6
-Pass	ToASCII("â€Œí§”U+dfad.á‚²í „U+ddc0") C1; V7
-Pass	ToASCII("â€Œí§”U+dfad.â´’í „U+ddc0") C1; V7
+Pass	ToASCII("â€Œò…­.á‚²ğ‘‡€") C1; V7
+Pass	ToASCII("â€Œò…­.â´’ğ‘‡€") C1; V7
 Pass	ToASCII("xn--bn95b.xn--9kj2034e") V7
 Pass	ToASCII("xn--0ug15083f.xn--9kj2034e") C1; V7
 Pass	ToASCII("xn--bn95b.xn--qnd6272k") V7
 Pass	ToASCII("xn--0ug15083f.xn--qnd6272k") C1; V7
-Pass	ToASCII("ç¹±í …U+ddbfâ€.ï¼˜ï¸’") V7
+Pass	ToASCII("ç¹±ğ‘–¿â€.ï¼˜ï¸’") V7
 Pass	ToASCII("xn--gl0as212a.i.") A4_2 (ignored)
-Pass	ToASCII("ç¹±í …U+ddbf.i.") A4_2 (ignored)
-Pass	ToASCII("ç¹±í …U+ddbf.I.") A4_2 (ignored)
+Pass	ToASCII("ç¹±ğ‘–¿.i.") A4_2 (ignored)
+Pass	ToASCII("ç¹±ğ‘–¿.I.") A4_2 (ignored)
 Pass	ToASCII("xn--1ug6928ac48e.i.") A4_2 (ignored)
-Pass	ToASCII("ç¹±í …U+ddbfâ€.i.") A4_2 (ignored)
-Pass	ToASCII("ç¹±í …U+ddbfâ€.I.") A4_2 (ignored)
+Pass	ToASCII("ç¹±ğ‘–¿â€.i.") A4_2 (ignored)
+Pass	ToASCII("ç¹±ğ‘–¿â€.I.") A4_2 (ignored)
 Pass	ToASCII("xn--gl0as212a.xn--8-o89h") V7
 Pass	ToASCII("xn--1ug6928ac48e.xn--8-o89h") V7
-Pass	ToASCII("í­€U+ddbeï¼í ¸U+dc08") V6; A4_2 (ignored)
-Pass	ToASCII("í­€U+ddbe.í ¸U+dc08") V6; A4_2 (ignored)
+Pass	ToASCII("ó †¾ï¼ğ€ˆ") V6; A4_2 (ignored)
+Pass	ToASCII("ó †¾.ğ€ˆ") V6; A4_2 (ignored)
 Pass	ToASCII(".xn--ph4h") V6; A4_2 (ignored)
 Pass	ToASCII("ÃŸÛ«ã€‚â€") C2
 Pass	ToASCII("SSÛ«ã€‚â€") C2
@@ -438,20 +438,20 @@ Pass	ToASCII("SSÛ«.") A4_2 (ignored)
 Pass	ToASCII("SsÛ«.") A4_2 (ignored)
 Pass	ToASCII("xn--ss-59d.xn--1ug") C2
 Pass	ToASCII("xn--zca012a.xn--1ug") C2
-Pass	ToASCII("í­U+dc35â€Œâ’ˆï¼í­€U+df87") C1; V7
-Pass	ToASCII("í­U+dc35â€Œ1..í­€U+df87") C1; V7; A4_2 (ignored)
+Pass	ToASCII("ó µâ€Œâ’ˆï¼ó ‡") C1; V7
+Pass	ToASCII("ó µâ€Œ1..ó ‡") C1; V7; A4_2 (ignored)
 Pass	ToASCII("xn--1-bs31m..xn--tv36e") V7; A4_2 (ignored)
 Pass	ToASCII("xn--1-rgn37671n..xn--tv36e") C1; V7; A4_2 (ignored)
 Pass	ToASCII("xn--tshz2001k.xn--tv36e") V7
 Pass	ToASCII("xn--0ug88o47900b.xn--tv36e") C1; V7
-Pass	ToASCII("í¬¼U+de23ÙŸêª²ÃŸã€‚í«±U+dce7") V7
-Pass	ToASCII("í¬¼U+de23ÙŸêª²SSã€‚í«±U+dce7") V7
-Pass	ToASCII("í¬¼U+de23ÙŸêª²ssã€‚í«±U+dce7") V7
-Pass	ToASCII("í¬¼U+de23ÙŸêª²Ssã€‚í«±U+dce7") V7
+Pass	ToASCII("óŸˆ£ÙŸêª²ÃŸã€‚óŒ“§") V7
+Pass	ToASCII("óŸˆ£ÙŸêª²SSã€‚óŒ“§") V7
+Pass	ToASCII("óŸˆ£ÙŸêª²ssã€‚óŒ“§") V7
+Pass	ToASCII("óŸˆ£ÙŸêª²Ssã€‚óŒ“§") V7
 Pass	ToASCII("xn--ss-3xd2839nncy1m.xn--bb79d") V7
 Pass	ToASCII("xn--zca92z0t7n5w96j.xn--bb79d") V7
-Pass	ToASCII("İ´â€Œí ºU+dd3fã€‚í¢µU+de10ä‰œâ€í¦¾U+dd3c") C1; C2; V7
-Pass	ToASCII("İ´â€Œí ºU+dd1dã€‚í¢µU+de10ä‰œâ€í¦¾U+dd3c") C1; C2; V7
+Pass	ToASCII("İ´â€Œğ¤¿ã€‚ğ½˜ä‰œâ€ñ¿¤¼") C1; C2; V7
+Pass	ToASCII("İ´â€Œğ¤ã€‚ğ½˜ä‰œâ€ñ¿¤¼") C1; C2; V7
 Pass	ToASCII("xn--4pb2977v.xn--z0nt555ukbnv") V7
 Pass	ToASCII("xn--4pb607jjt73a.xn--1ug236ke314donv1a") C1; C2; V7
 Pass	ToASCII("ã…¤à¥á‚ áŸ.á ‹") V6; A4_2 (ignored)
@@ -463,103 +463,103 @@ Pass	ToASCII("xn--n3b742bkqf4ty.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--n3b468aoqa89r.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--n3b445e53po6d.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--n3b468azngju2a.") V7; A4_2 (ignored)
-Pass	ToASCII("â£â€ï¼à§í ‡U+dc3dØ’ê¤©") C2; V6
-Pass	ToASCII("â£â€.à§í ‡U+dc3dØ’ê¤©") C2; V6
+Pass	ToASCII("â£â€ï¼à§ğ‘°½Ø’ê¤©") C2; V6
+Pass	ToASCII("â£â€.à§ğ‘°½Ø’ê¤©") C2; V6
 Pass	ToASCII("xn--pei.xn--0fb32q3w7q2g4d") V6
 Pass	ToASCII("xn--1ugy10a.xn--0fb32q3w7q2g4d") C2; V6
-Pass	ToASCII("Í‰ã€‚í¡U+dc6b") V6
+Pass	ToASCII("Í‰ã€‚ğ§¡«") V6
 Pass	ToASCII("xn--nua.xn--bc6k") V6
-Pass	ToASCII("í ‡U+dc3fí­€U+dd66ï¼á… ") V6; A4_2 (ignored)
-Pass	ToASCII("í ‡U+dc3fí­€U+dd66.á… ") V6; A4_2 (ignored)
+Pass	ToASCII("ğ‘°¿ó …¦ï¼á… ") V6; A4_2 (ignored)
+Pass	ToASCII("ğ‘°¿ó …¦.á… ") V6; A4_2 (ignored)
 Pass	ToASCII("xn--ok3d.") V6; A4_2 (ignored)
 Pass	ToASCII("xn--ok3d.xn--psd") V6; V7
-Pass	ToASCII("è”ï½¡í ‡U+dc3a") V6
-Pass	ToASCII("è”ã€‚í ‡U+dc3a") V6
+Pass	ToASCII("è”ï½¡ğ‘°º") V6
+Pass	ToASCII("è”ã€‚ğ‘°º") V6
 Pass	ToASCII("xn--uy1a.xn--jk3d") V6
 Pass	ToASCII("xn--8g1d12120a.xn--5l6h") V7
-Pass	ToASCII("í „U+dee7ê§€2ï½¡ã§‰í¨‰U+dd84") V6; V7
-Pass	ToASCII("í „U+dee7ê§€2ã€‚ã§‰í¨‰U+dd84") V6; V7
+Pass	ToASCII("ğ‘‹§ê§€2ï½¡ã§‰ò’–„") V6; V7
+Pass	ToASCII("ğ‘‹§ê§€2ã€‚ã§‰ò’–„") V6; V7
 Pass	ToASCII("xn--2-5z4eu89y.xn--97l02706d") V6; V7
-Pass	ToASCII("â¤¸Ï‚í¢«U+dc40ï½¡ï¾ ") V7; A4_2 (ignored)
-Pass	ToASCII("â¤¸Ï‚í¢«U+dc40ã€‚á… ") V7; A4_2 (ignored)
-Pass	ToASCII("â¤¸Î£í¢«U+dc40ã€‚á… ") V7; A4_2 (ignored)
-Pass	ToASCII("â¤¸Ïƒí¢«U+dc40ã€‚á… ") V7; A4_2 (ignored)
+Pass	ToASCII("â¤¸Ï‚ğº±€ï½¡ï¾ ") V7; A4_2 (ignored)
+Pass	ToASCII("â¤¸Ï‚ğº±€ã€‚á… ") V7; A4_2 (ignored)
+Pass	ToASCII("â¤¸Î£ğº±€ã€‚á… ") V7; A4_2 (ignored)
+Pass	ToASCII("â¤¸Ïƒğº±€ã€‚á… ") V7; A4_2 (ignored)
 Pass	ToASCII("xn--4xa192qmp03d.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--3xa392qmp03d.") V7; A4_2 (ignored)
-Pass	ToASCII("â¤¸Î£í¢«U+dc40ï½¡ï¾ ") V7; A4_2 (ignored)
-Pass	ToASCII("â¤¸Ïƒí¢«U+dc40ï½¡ï¾ ") V7; A4_2 (ignored)
+Pass	ToASCII("â¤¸Î£ğº±€ï½¡ï¾ ") V7; A4_2 (ignored)
+Pass	ToASCII("â¤¸Ïƒğº±€ï½¡ï¾ ") V7; A4_2 (ignored)
 Pass	ToASCII("xn--4xa192qmp03d.xn--psd") V7
 Pass	ToASCII("xn--3xa392qmp03d.xn--psd") V7
 Pass	ToASCII("xn--4xa192qmp03d.xn--cl7c") V7
 Pass	ToASCII("xn--3xa392qmp03d.xn--cl7c") V7
-Pass	ToASCII("â€í­½U+dc56í­€U+dc50ï¼Ö½í ¦U+dfb0ê¡í €U+dee1") C2; V6; V7
-Pass	ToASCII("â€í­½U+dc56í­€U+dc50.Ö½í ¦U+dfb0ê¡í €U+dee1") C2; V6; V7
+Pass	ToASCII("â€ó¯‘–ó ï¼Ö½ğ™®°ê¡ğ‹¡") C2; V6; V7
+Pass	ToASCII("â€ó¯‘–ó .Ö½ğ™®°ê¡ğ‹¡") C2; V6; V7
 Pass	ToASCII("xn--b726ey18m.xn--ldb8734fg0qcyzzg") V6; V7
 Pass	ToASCII("xn--1ug66101lt8me.xn--ldb8734fg0qcyzzg") C2; V6; V7
-Pass	ToASCII("ã€‚í¯ŒU+de35Ï‚í£‚U+dc07ã€‚í ‚U+df88") V7; A4_2 (ignored)
-Pass	ToASCII("ã€‚í¯ŒU+de35Î£í£‚U+dc07ã€‚í ‚U+df88") V7; A4_2 (ignored)
-Pass	ToASCII("ã€‚í¯ŒU+de35Ïƒí£‚U+dc07ã€‚í ‚U+df88") V7; A4_2 (ignored)
+Pass	ToASCII("ã€‚ôƒˆµÏ‚ñ€ ‡ã€‚ğ®ˆ") V7; A4_2 (ignored)
+Pass	ToASCII("ã€‚ôƒˆµÎ£ñ€ ‡ã€‚ğ®ˆ") V7; A4_2 (ignored)
+Pass	ToASCII("ã€‚ôƒˆµÏƒñ€ ‡ã€‚ğ®ˆ") V7; A4_2 (ignored)
 Pass	ToASCII(".xn--4xa68573c7n64d.xn--f29c") V7; A4_2 (ignored)
 Pass	ToASCII(".xn--3xa88573c7n64d.xn--f29c") V7; A4_2 (ignored)
-Pass	ToASCII("â’‰í­€U+de93â‰ ï½¡á‚¿â¬£á‚¨") V7
-Pass	ToASCII("â’‰í­€U+de93=Ì¸ï½¡á‚¿â¬£á‚¨") V7
-Pass	ToASCII("2.í­€U+de93â‰ ã€‚á‚¿â¬£á‚¨") V7
-Pass	ToASCII("2.í­€U+de93=Ì¸ã€‚á‚¿â¬£á‚¨") V7
-Pass	ToASCII("2.í­€U+de93=Ì¸ã€‚â´Ÿâ¬£â´ˆ") V7
-Pass	ToASCII("2.í­€U+de93â‰ ã€‚â´Ÿâ¬£â´ˆ") V7
+Pass	ToASCII("â’‰ó Š“â‰ ï½¡á‚¿â¬£á‚¨") V7
+Pass	ToASCII("â’‰ó Š“=Ì¸ï½¡á‚¿â¬£á‚¨") V7
+Pass	ToASCII("2.ó Š“â‰ ã€‚á‚¿â¬£á‚¨") V7
+Pass	ToASCII("2.ó Š“=Ì¸ã€‚á‚¿â¬£á‚¨") V7
+Pass	ToASCII("2.ó Š“=Ì¸ã€‚â´Ÿâ¬£â´ˆ") V7
+Pass	ToASCII("2.ó Š“â‰ ã€‚â´Ÿâ¬£â´ˆ") V7
 Pass	ToASCII("2.xn--1chz4101l.xn--45iz7d6b") V7
-Pass	ToASCII("â’‰í­€U+de93=Ì¸ï½¡â´Ÿâ¬£â´ˆ") V7
-Pass	ToASCII("â’‰í­€U+de93â‰ ï½¡â´Ÿâ¬£â´ˆ") V7
+Pass	ToASCII("â’‰ó Š“=Ì¸ï½¡â´Ÿâ¬£â´ˆ") V7
+Pass	ToASCII("â’‰ó Š“â‰ ï½¡â´Ÿâ¬£â´ˆ") V7
 Pass	ToASCII("xn--1ch07f91401d.xn--45iz7d6b") V7
 Pass	ToASCII("2.xn--1chz4101l.xn--gnd9b297j") V7
 Pass	ToASCII("xn--1ch07f91401d.xn--gnd9b297j") V7
-Pass	ToASCII("í ºU+dd37.í ‚U+df90í ºU+dc81í ƒU+de60Ø¤")
-Pass	ToASCII("í ºU+dd37.í ‚U+df90í ºU+dc81í ƒU+de60ÙˆÙ”")
-Pass	ToASCII("í ºU+dd15.í ‚U+df90í ºU+dc81í ƒU+de60ÙˆÙ”")
-Pass	ToASCII("í ºU+dd15.í ‚U+df90í ºU+dc81í ƒU+de60Ø¤")
+Pass	ToASCII("ğ¤·.ğ®ğ¢ğ¹ Ø¤")
+Pass	ToASCII("ğ¤·.ğ®ğ¢ğ¹ ÙˆÙ”")
+Pass	ToASCII("ğ¤•.ğ®ğ¢ğ¹ ÙˆÙ”")
+Pass	ToASCII("ğ¤•.ğ®ğ¢ğ¹ Ø¤")
 Pass	ToASCII("xn--ve6h.xn--jgb1694kz0b2176a")
-Pass	ToASCII("-í­€U+de56ê¡§ï¼í­€U+de82í£œU+dd83í ¼U+dd09") V7; V3 (ignored); U1 (ignored)
-Pass	ToASCII("-í­€U+de56ê¡§.í­€U+de82í£œU+dd838,") V7; V3 (ignored); U1 (ignored)
+Pass	ToASCII("-ó ‰–ê¡§ï¼ó Š‚ñ‡†ƒğŸ„‰") V7; V3 (ignored); U1 (ignored)
+Pass	ToASCII("-ó ‰–ê¡§.ó Š‚ñ‡†ƒ8,") V7; V3 (ignored); U1 (ignored)
 Pass	ToASCII("xn----hg4ei0361g.xn--8,-k362evu488a") V7; V3 (ignored); U1 (ignored)
 Pass	ToASCII("xn----hg4ei0361g.xn--207ht163h7m94c") V7; V3 (ignored)
 Pass	ToASCII("â€Œï½¡Í”") C1; V6
 Pass	ToASCII("â€Œã€‚Í”") C1; V6
 Pass	ToASCII(".xn--yua") V6; A4_2 (ignored)
 Pass	ToASCII("xn--0ug.xn--yua") C1; V6
-Pass	ToASCII("í ºU+dd25í­€U+dd6eï¼á¡„á‚®")
-Pass	ToASCII("í ºU+dd25í­€U+dd6e.á¡„á‚®")
-Pass	ToASCII("í ºU+dd25í­€U+dd6e.á¡„â´")
-Pass	ToASCII("í ºU+dd03í­€U+dd6e.á¡„á‚®")
-Pass	ToASCII("í ºU+dd03í­€U+dd6e.á¡„â´")
+Pass	ToASCII("ğ¤¥ó …®ï¼á¡„á‚®")
+Pass	ToASCII("ğ¤¥ó …®.á¡„á‚®")
+Pass	ToASCII("ğ¤¥ó …®.á¡„â´")
+Pass	ToASCII("ğ¤ƒó …®.á¡„á‚®")
+Pass	ToASCII("ğ¤ƒó …®.á¡„â´")
 Pass	ToASCII("xn--de6h.xn--37e857h")
-Pass	ToASCII("í ºU+dd25.á¡„â´")
-Pass	ToASCII("í ºU+dd03.á¡„á‚®")
-Pass	ToASCII("í ºU+dd03.á¡„â´")
-Pass	ToASCII("í ºU+dd25í­€U+dd6eï¼á¡„â´")
-Pass	ToASCII("í ºU+dd03í­€U+dd6eï¼á¡„á‚®")
-Pass	ToASCII("í ºU+dd03í­€U+dd6eï¼á¡„â´")
+Pass	ToASCII("ğ¤¥.á¡„â´")
+Pass	ToASCII("ğ¤ƒ.á¡„á‚®")
+Pass	ToASCII("ğ¤ƒ.á¡„â´")
+Pass	ToASCII("ğ¤¥ó …®ï¼á¡„â´")
+Pass	ToASCII("ğ¤ƒó …®ï¼á¡„á‚®")
+Pass	ToASCII("ğ¤ƒó …®ï¼á¡„â´")
 Pass	ToASCII("xn--de6h.xn--mnd799a") V7
-Pass	ToASCII("í ºU+dd25.á¡„á‚®")
-Pass	ToASCII("à¾¤í¦†U+dd2fï¼í µU+dfedá‚»") V6; V7
-Pass	ToASCII("à¾¤í¦†U+dd2f.1á‚»") V6; V7
-Pass	ToASCII("à¾¤í¦†U+dd2f.1â´›") V6; V7
+Pass	ToASCII("ğ¤¥.á¡„á‚®")
+Pass	ToASCII("à¾¤ñ±¤¯ï¼ğŸ­á‚»") V6; V7
+Pass	ToASCII("à¾¤ñ±¤¯.1á‚»") V6; V7
+Pass	ToASCII("à¾¤ñ±¤¯.1â´›") V6; V7
 Pass	ToASCII("xn--0fd40533g.xn--1-tws") V6; V7
-Pass	ToASCII("à¾¤í¦†U+dd2fï¼í µU+dfedâ´›") V6; V7
+Pass	ToASCII("à¾¤ñ±¤¯ï¼ğŸ­â´›") V6; V7
 Pass	ToASCII("xn--0fd40533g.xn--1-q1g") V6; V7
-Pass	ToASCII("Ï‚í§•U+df0cï¼˜.í ºU+df64") V7
-Pass	ToASCII("Ï‚í§•U+df0c8.í ºU+df64") V7
-Pass	ToASCII("Î£í§•U+df0c8.í ºU+df64") V7
-Pass	ToASCII("Ïƒí§•U+df0c8.í ºU+df64") V7
+Pass	ToASCII("Ï‚ò…œŒï¼˜.ğ­¤") V7
+Pass	ToASCII("Ï‚ò…œŒ8.ğ­¤") V7
+Pass	ToASCII("Î£ò…œŒ8.ğ­¤") V7
+Pass	ToASCII("Ïƒò…œŒ8.ğ­¤") V7
 Pass	ToASCII("xn--8-zmb14974n.xn--su6h") V7
 Pass	ToASCII("xn--8-xmb44974n.xn--su6h") V7
-Pass	ToASCII("Î£í§•U+df0cï¼˜.í ºU+df64") V7
-Pass	ToASCII("Ïƒí§•U+df0cï¼˜.í ºU+df64") V7
+Pass	ToASCII("Î£ò…œŒï¼˜.ğ­¤") V7
+Pass	ToASCII("Ïƒò…œŒï¼˜.ğ­¤") V7
 Pass	ToASCII("â€Œê¸ƒ.æ¦¶-") C1; V3 (ignored)
 Pass	ToASCII("â€Œá„€á…³á†².æ¦¶-") C1; V3 (ignored)
 Pass	ToASCII("xn--ej0b.xn----d87b") V3 (ignored)
 Pass	ToASCII("xn--0ug3307c.xn----d87b") C1; V3 (ignored)
-Pass	ToASCII("ë‰“æ³“í ³U+dd7d.à§â€") V6
-Pass	ToASCII("á„‚á…°á†¾æ³“í ³U+dd7d.à§â€") V6
+Pass	ToASCII("ë‰“æ³“ğœµ½.à§â€") V6
+Pass	ToASCII("á„‚á…°á†¾æ³“ğœµ½.à§â€") V6
 Pass	ToASCII("xn--lwwp69lqs7m.xn--b7b") V6
 Pass	ToASCII("xn--lwwp69lqs7m.xn--b7b605i") V6
 Pass	ToASCII("á­„ï¼á®ª-â‰®â‰ ") V6
@@ -567,25 +567,25 @@ Pass	ToASCII("á­„ï¼á®ª-<Ì¸=Ì¸") V6
 Pass	ToASCII("á­„.á®ª-â‰®â‰ ") V6
 Pass	ToASCII("á­„.á®ª-<Ì¸=Ì¸") V6
 Pass	ToASCII("xn--1uf.xn----nmlz65aub") V6
-Pass	ToASCII("á¯³á‚±á…Ÿï¼í „U+dd34â„²") V6
-Pass	ToASCII("á¯³á‚±á…Ÿ.í „U+dd34â„²") V6
-Pass	ToASCII("á¯³â´‘á…Ÿ.í „U+dd34â…") V6
-Pass	ToASCII("á¯³á‚±á…Ÿ.í „U+dd34â…") V6
+Pass	ToASCII("á¯³á‚±á…Ÿï¼ğ‘„´â„²") V6
+Pass	ToASCII("á¯³á‚±á…Ÿ.ğ‘„´â„²") V6
+Pass	ToASCII("á¯³â´‘á…Ÿ.ğ‘„´â…") V6
+Pass	ToASCII("á¯³á‚±á…Ÿ.ğ‘„´â…") V6
 Pass	ToASCII("xn--1zf224e.xn--73g3065g") V6
-Pass	ToASCII("á¯³â´‘á…Ÿï¼í „U+dd34â…") V6
-Pass	ToASCII("á¯³á‚±á…Ÿï¼í „U+dd34â…") V6
+Pass	ToASCII("á¯³â´‘á…Ÿï¼ğ‘„´â…") V6
+Pass	ToASCII("á¯³á‚±á…Ÿï¼ğ‘„´â…") V6
 Pass	ToASCII("xn--pnd26a55x.xn--73g3065g") V6; V7
 Pass	ToASCII("xn--osd925cvyn.xn--73g3065g") V6; V7
 Pass	ToASCII("xn--pnd26a55x.xn--f3g7465g") V6; V7
-Pass	ToASCII("á‚©çŒ•í®¥U+deebâ‰®ï¼ï¸’") V7
-Pass	ToASCII("á‚©çŒ•í®¥U+deeb<Ì¸ï¼ï¸’") V7
-Pass	ToASCII("á‚©çŒ•í®¥U+deebâ‰®.ã€‚") V7; A4_2 (ignored)
-Pass	ToASCII("á‚©çŒ•í®¥U+deeb<Ì¸.ã€‚") V7; A4_2 (ignored)
-Pass	ToASCII("â´‰çŒ•í®¥U+deeb<Ì¸.ã€‚") V7; A4_2 (ignored)
-Pass	ToASCII("â´‰çŒ•í®¥U+deebâ‰®.ã€‚") V7; A4_2 (ignored)
+Pass	ToASCII("á‚©çŒ•ó¹›«â‰®ï¼ï¸’") V7
+Pass	ToASCII("á‚©çŒ•ó¹›«<Ì¸ï¼ï¸’") V7
+Pass	ToASCII("á‚©çŒ•ó¹›«â‰®.ã€‚") V7; A4_2 (ignored)
+Pass	ToASCII("á‚©çŒ•ó¹›«<Ì¸.ã€‚") V7; A4_2 (ignored)
+Pass	ToASCII("â´‰çŒ•ó¹›«<Ì¸.ã€‚") V7; A4_2 (ignored)
+Pass	ToASCII("â´‰çŒ•ó¹›«â‰®.ã€‚") V7; A4_2 (ignored)
 Pass	ToASCII("xn--gdh892bbz0d5438s..") V7; A4_2 (ignored)
-Pass	ToASCII("â´‰çŒ•í®¥U+deeb<Ì¸ï¼ï¸’") V7
-Pass	ToASCII("â´‰çŒ•í®¥U+deebâ‰®ï¼ï¸’") V7
+Pass	ToASCII("â´‰çŒ•ó¹›«<Ì¸ï¼ï¸’") V7
+Pass	ToASCII("â´‰çŒ•ó¹›«â‰®ï¼ï¸’") V7
 Pass	ToASCII("xn--gdh892bbz0d5438s.xn--y86c") V7
 Pass	ToASCII("xn--hnd212gz32d54x5r..") V7; A4_2 (ignored)
 Pass	ToASCII("xn--hnd212gz32d54x5r.xn--y86c") V7
@@ -599,24 +599,24 @@ Pass	ToASCII("xn----1fa1788k.") V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----1fa1788k.xn--0ug") C1; V3 (ignored)
 Pass	ToASCII("aÌŠá„ƒá…­á†·-ï¼â€Œ") C1; V3 (ignored)
 Pass	ToASCII("Ã¥ë‘„-ï¼â€Œ") C1; V3 (ignored)
-Pass	ToASCII("ë£±â€í¢€U+df68â€Œã€‚í ¶U+de16ï¸’") C1; C2; V6; V7
-Pass	ToASCII("á„…á…®á†°â€í¢€U+df68â€Œã€‚í ¶U+de16ï¸’") C1; C2; V6; V7
-Pass	ToASCII("ë£±â€í¢€U+df68â€Œã€‚í ¶U+de16ã€‚") C1; C2; V6; A4_2 (ignored)
-Pass	ToASCII("á„…á…®á†°â€í¢€U+df68â€Œã€‚í ¶U+de16ã€‚") C1; C2; V6; A4_2 (ignored)
+Pass	ToASCII("ë£±â€ğ°¨â€Œã€‚ğ¨–ï¸’") C1; C2; V6; V7
+Pass	ToASCII("á„…á…®á†°â€ğ°¨â€Œã€‚ğ¨–ï¸’") C1; C2; V6; V7
+Pass	ToASCII("ë£±â€ğ°¨â€Œã€‚ğ¨–ã€‚") C1; C2; V6; A4_2 (ignored)
+Pass	ToASCII("á„…á…®á†°â€ğ°¨â€Œã€‚ğ¨–ã€‚") C1; C2; V6; A4_2 (ignored)
 Pass	ToASCII("xn--ct2b0738h.xn--772h.") V6; A4_2 (ignored)
 Pass	ToASCII("xn--0ugb3358ili2v.xn--772h.") C1; C2; V6; A4_2 (ignored)
 Pass	ToASCII("xn--ct2b0738h.xn--y86cl899a") V6; V7
 Pass	ToASCII("xn--0ugb3358ili2v.xn--y86cl899a") C1; C2; V6; V7
-Pass	ToASCII("í ¼U+dd04ï¼á³œâ’ˆÃŸ") V6; V7; U1 (ignored)
+Pass	ToASCII("ğŸ„„ï¼á³œâ’ˆÃŸ") V6; V7; U1 (ignored)
 Pass	ToASCII("3,.á³œ1.ÃŸ") V6; U1 (ignored)
 Pass	ToASCII("3,.á³œ1.SS") V6; U1 (ignored)
 Pass	ToASCII("3,.á³œ1.ss") V6; U1 (ignored)
 Pass	ToASCII("3,.á³œ1.Ss") V6; U1 (ignored)
 Pass	ToASCII("3,.xn--1-43l.ss") V6; U1 (ignored)
 Pass	ToASCII("3,.xn--1-43l.xn--zca") V6; U1 (ignored)
-Pass	ToASCII("í ¼U+dd04ï¼á³œâ’ˆSS") V6; V7; U1 (ignored)
-Pass	ToASCII("í ¼U+dd04ï¼á³œâ’ˆss") V6; V7; U1 (ignored)
-Pass	ToASCII("í ¼U+dd04ï¼á³œâ’ˆSs") V6; V7; U1 (ignored)
+Pass	ToASCII("ğŸ„„ï¼á³œâ’ˆSS") V6; V7; U1 (ignored)
+Pass	ToASCII("ğŸ„„ï¼á³œâ’ˆss") V6; V7; U1 (ignored)
+Pass	ToASCII("ğŸ„„ï¼á³œâ’ˆSs") V6; V7; U1 (ignored)
 Pass	ToASCII("3,.xn--ss-k1r094b") V6; V7; U1 (ignored)
 Pass	ToASCII("3,.xn--zca344lmif") V6; V7; U1 (ignored)
 Pass	ToASCII("xn--x07h.xn--ss-k1r094b") V6; V7
@@ -628,7 +628,7 @@ Pass	ToASCII("á€ºà¥á·½.â‰ â€ã‡›") C2; V6
 Pass	ToASCII("á€ºà¥á·½.=Ì¸â€ã‡›") C2; V6
 Pass	ToASCII("xn--n3b956a9zm.xn--1ch912d") V6
 Pass	ToASCII("xn--n3b956a9zm.xn--1ug63gz5w") C2; V6
-Pass	ToASCII("á¯³.-é€‹í¦U+ddadí¬¥U+de6e") V6; V7; V3 (ignored)
+Pass	ToASCII("á¯³.-é€‹ñ³¦­ó™™®") V6; V7; V3 (ignored)
 Pass	ToASCII("xn--1zf.xn----483d46987byr50b") V6; V7; V3 (ignored)
 Pass	ToASCII("xn--9ob.xn--4xa")
 Pass	ToASCII("İ–.Ïƒ")
@@ -639,180 +639,180 @@ Pass	ToASCII("xn--9ob.xn--3xa580ebol") C2; V7
 Pass	ToASCII("xn--9ob.xn--4xa574u") V7
 Pass	ToASCII("xn--9ob.xn--4xa795lq2l") C2; V7
 Pass	ToASCII("xn--9ob.xn--3xa995lq2l") C2; V7
-Pass	ToASCII("á¡†á‚£ï½¡í¬ºU+dca7Ì•â€â€") C2; V7
-Pass	ToASCII("á¡†á‚£ã€‚í¬ºU+dca7Ì•â€â€") C2; V7
-Pass	ToASCII("á¡†â´ƒã€‚í¬ºU+dca7Ì•â€â€") C2; V7
+Pass	ToASCII("á¡†á‚£ï½¡ó¢§Ì•â€â€") C2; V7
+Pass	ToASCII("á¡†á‚£ã€‚ó¢§Ì•â€â€") C2; V7
+Pass	ToASCII("á¡†â´ƒã€‚ó¢§Ì•â€â€") C2; V7
 Pass	ToASCII("xn--57e237h.xn--5sa98523p") V7
 Pass	ToASCII("xn--57e237h.xn--5sa649la993427a") C2; V7
-Pass	ToASCII("á¡†â´ƒï½¡í¬ºU+dca7Ì•â€â€") C2; V7
+Pass	ToASCII("á¡†â´ƒï½¡ó¢§Ì•â€â€") C2; V7
 Pass	ToASCII("xn--bnd320b.xn--5sa98523p") V7
 Pass	ToASCII("xn--bnd320b.xn--5sa649la993427a") C2; V7
-Pass	ToASCII("í ¸U+dc28ï½¡á­„í©…U+dee8í ¸U+df87") V6; V7
-Pass	ToASCII("í ¸U+dc28ã€‚á­„í©…U+dee8í ¸U+df87") V6; V7
+Pass	ToASCII("ğ€¨ï½¡á­„ò¡›¨ğ‡") V6; V7
+Pass	ToASCII("ğ€¨ã€‚á­„ò¡›¨ğ‡") V6; V7
 Pass	ToASCII("xn--mi4h.xn--1uf6843smg20c") V6; V7
-Pass	ToASCII("á¢›í­ U+dd5fÃŸ.áŒ§") V7
-Pass	ToASCII("á¢›í­ U+dd5fSS.áŒ§") V7
-Pass	ToASCII("á¢›í­ U+dd5fss.áŒ§") V7
-Pass	ToASCII("á¢›í­ U+dd5fSs.áŒ§") V7
+Pass	ToASCII("á¢›ó¨…ŸÃŸ.áŒ§") V7
+Pass	ToASCII("á¢›ó¨…ŸSS.áŒ§") V7
+Pass	ToASCII("á¢›ó¨…Ÿss.áŒ§") V7
+Pass	ToASCII("á¢›ó¨…ŸSs.áŒ§") V7
 Pass	ToASCII("xn--ss-7dp66033t.xn--p5d") V7
 Pass	ToASCII("xn--zca562jc642x.xn--p5d") V7
-Pass	ToASCII("â®’â€Œ.í¤‰U+de97â€Œ") C1; V7
+Pass	ToASCII("â®’â€Œ.ñ’š—â€Œ") C1; V7
 Pass	ToASCII("xn--b9i.xn--5p9y") V7
 Pass	ToASCII("xn--0ugx66b.xn--0ugz2871c") C1; V7
-Pass	ToASCII("â‰¯í …U+df2bí­‚U+df47.áœ´í¤‰U+dfa4í „U+df6cá¢§") V6; V7
-Pass	ToASCII(">Ì¸í …U+df2bí­‚U+df47.áœ´í¤‰U+dfa4í „U+df6cá¢§") V6; V7
+Pass	ToASCII("â‰¯ğ‘œ«ó ­‡.áœ´ñ’¤ğ‘¬á¢§") V6; V7
+Pass	ToASCII(">Ì¸ğ‘œ«ó ­‡.áœ´ñ’¤ğ‘¬á¢§") V6; V7
 Pass	ToASCII("xn--hdhx157g68o0g.xn--c0e65eu616c34o7a") V6; V7
-Pass	ToASCII("ÃŸï½¡í €U+def3á‚¬à¾¸")
-Pass	ToASCII("ÃŸã€‚í €U+def3á‚¬à¾¸")
-Pass	ToASCII("ÃŸã€‚í €U+def3â´Œà¾¸")
-Pass	ToASCII("SSã€‚í €U+def3á‚¬à¾¸")
-Pass	ToASCII("ssã€‚í €U+def3â´Œà¾¸")
-Pass	ToASCII("Ssã€‚í €U+def3á‚¬à¾¸")
+Pass	ToASCII("ÃŸï½¡ğ‹³á‚¬à¾¸")
+Pass	ToASCII("ÃŸã€‚ğ‹³á‚¬à¾¸")
+Pass	ToASCII("ÃŸã€‚ğ‹³â´Œà¾¸")
+Pass	ToASCII("SSã€‚ğ‹³á‚¬à¾¸")
+Pass	ToASCII("ssã€‚ğ‹³â´Œà¾¸")
+Pass	ToASCII("Ssã€‚ğ‹³á‚¬à¾¸")
 Pass	ToASCII("ss.xn--lgd921mvv0m")
-Pass	ToASCII("ss.í €U+def3â´Œà¾¸")
-Pass	ToASCII("SS.í €U+def3á‚¬à¾¸")
-Pass	ToASCII("Ss.í €U+def3á‚¬à¾¸")
+Pass	ToASCII("ss.ğ‹³â´Œà¾¸")
+Pass	ToASCII("SS.ğ‹³á‚¬à¾¸")
+Pass	ToASCII("Ss.ğ‹³á‚¬à¾¸")
 Pass	ToASCII("xn--zca.xn--lgd921mvv0m")
-Pass	ToASCII("ÃŸ.í €U+def3â´Œà¾¸")
-Pass	ToASCII("ÃŸï½¡í €U+def3â´Œà¾¸")
-Pass	ToASCII("SSï½¡í €U+def3á‚¬à¾¸")
-Pass	ToASCII("ssï½¡í €U+def3â´Œà¾¸")
-Pass	ToASCII("Ssï½¡í €U+def3á‚¬à¾¸")
+Pass	ToASCII("ÃŸ.ğ‹³â´Œà¾¸")
+Pass	ToASCII("ÃŸï½¡ğ‹³â´Œà¾¸")
+Pass	ToASCII("SSï½¡ğ‹³á‚¬à¾¸")
+Pass	ToASCII("ssï½¡ğ‹³â´Œà¾¸")
+Pass	ToASCII("Ssï½¡ğ‹³á‚¬à¾¸")
 Pass	ToASCII("ss.xn--lgd10cu829c") V7
 Pass	ToASCII("xn--zca.xn--lgd10cu829c") V7
-Pass	ToASCII("á©ší ®U+dd9dà±ã€‚í ©U+df6cí µU+dff5") V6; V7
-Pass	ToASCII("á©ší ®U+dd9dà±ã€‚í ©U+df6c9") V6; V7
+Pass	ToASCII("á©šğ›¦à±ã€‚ğš¬ğŸµ") V6; V7
+Pass	ToASCII("á©šğ›¦à±ã€‚ğš¬9") V6; V7
 Pass	ToASCII("xn--lqc703ebm93a.xn--9-000p") V6; V7
-Pass	ToASCII("á¡–ï½¡ÌŸí¤U+dee8à®‚-") V6; V7; V3 (ignored)
-Pass	ToASCII("á¡–ã€‚ÌŸí¤U+dee8à®‚-") V6; V7; V3 (ignored)
+Pass	ToASCII("á¡–ï½¡ÌŸñ—›¨à®‚-") V6; V7; V3 (ignored)
+Pass	ToASCII("á¡–ã€‚ÌŸñ—›¨à®‚-") V6; V7; V3 (ignored)
 Pass	ToASCII("xn--m8e.xn----mdb555dkk71m") V6; V7; V3 (ignored)
-Pass	ToASCII("Ö–á‚«ï¼í µU+dff3â‰¯ï¸’ï¸Š") V6; V7
-Pass	ToASCII("Ö–á‚«ï¼í µU+dff3>Ì¸ï¸’ï¸Š") V6; V7
+Pass	ToASCII("Ö–á‚«ï¼ğŸ³â‰¯ï¸’ï¸Š") V6; V7
+Pass	ToASCII("Ö–á‚«ï¼ğŸ³>Ì¸ï¸’ï¸Š") V6; V7
 Pass	ToASCII("Ö–á‚«.7â‰¯ã€‚ï¸Š") V6; A4_2 (ignored)
 Pass	ToASCII("Ö–á‚«.7>Ì¸ã€‚ï¸Š") V6; A4_2 (ignored)
 Pass	ToASCII("Ö–â´‹.7>Ì¸ã€‚ï¸Š") V6; A4_2 (ignored)
 Pass	ToASCII("Ö–â´‹.7â‰¯ã€‚ï¸Š") V6; A4_2 (ignored)
 Pass	ToASCII("xn--hcb613r.xn--7-pgo.") V6; A4_2 (ignored)
-Pass	ToASCII("Ö–â´‹ï¼í µU+dff3>Ì¸ï¸’ï¸Š") V6; V7
-Pass	ToASCII("Ö–â´‹ï¼í µU+dff3â‰¯ï¸’ï¸Š") V6; V7
+Pass	ToASCII("Ö–â´‹ï¼ğŸ³>Ì¸ï¸’ï¸Š") V6; V7
+Pass	ToASCII("Ö–â´‹ï¼ğŸ³â‰¯ï¸’ï¸Š") V6; V7
 Pass	ToASCII("xn--hcb613r.xn--7-pgoy530h") V6; V7
 Pass	ToASCII("xn--hcb887c.xn--7-pgo.") V6; V7; A4_2 (ignored)
 Pass	ToASCII("xn--hcb887c.xn--7-pgoy530h") V6; V7
-Pass	ToASCII("í ¼U+dd07ä¼ï¸’.í ±U+de5aê£„") V7; U1 (ignored)
-Pass	ToASCII("6,ä¼ã€‚.í ±U+de5aê£„") V7; U1 (ignored); A4_2 (ignored)
+Pass	ToASCII("ğŸ„‡ä¼ï¸’.ğœ™šê£„") V7; U1 (ignored)
+Pass	ToASCII("6,ä¼ã€‚.ğœ™šê£„") V7; U1 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--6,-7i3c..xn--0f9ao925c") V7; U1 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--6,-7i3cj157d.xn--0f9ao925c") V7; U1 (ignored)
 Pass	ToASCII("xn--woqs083bel0g.xn--0f9ao925c") V7
-Pass	ToASCII("í­€U+dda0ï¼í¦U+dc34í«±U+dfc8") V7; A4_2 (ignored)
-Pass	ToASCII("í­€U+dda0.í¦U+dc34í«±U+dfc8") V7; A4_2 (ignored)
+Pass	ToASCII("ó † ï¼ñ·´óŒŸˆ") V7; A4_2 (ignored)
+Pass	ToASCII("ó † .ñ·´óŒŸˆ") V7; A4_2 (ignored)
 Pass	ToASCII(".xn--rx21bhv12i") V7; A4_2 (ignored)
-Pass	ToASCII("-.á¢†í­‡U+dca3-") V6; V7; V3 (ignored)
+Pass	ToASCII("-.á¢†ó¡²£-") V6; V7; V3 (ignored)
 Pass	ToASCII("-.xn----pbkx6497q") V6; V7; V3 (ignored)
-Pass	ToASCII("í«½U+dcb0ï¼-í µU+dffbÃŸ") V7; V3 (ignored)
-Pass	ToASCII("í«½U+dcb0.-5ÃŸ") V7; V3 (ignored)
-Pass	ToASCII("í«½U+dcb0.-5SS") V7; V3 (ignored)
-Pass	ToASCII("í«½U+dcb0.-5ss") V7; V3 (ignored)
+Pass	ToASCII("ó’°ï¼-ğŸ»ÃŸ") V7; V3 (ignored)
+Pass	ToASCII("ó’°.-5ÃŸ") V7; V3 (ignored)
+Pass	ToASCII("ó’°.-5SS") V7; V3 (ignored)
+Pass	ToASCII("ó’°.-5ss") V7; V3 (ignored)
 Pass	ToASCII("xn--t960e.-5ss") V7; V3 (ignored)
 Pass	ToASCII("xn--t960e.xn---5-hia") V7; V3 (ignored)
-Pass	ToASCII("í«½U+dcb0ï¼-í µU+dffbSS") V7; V3 (ignored)
-Pass	ToASCII("í«½U+dcb0ï¼-í µU+dffbss") V7; V3 (ignored)
-Pass	ToASCII("í«½U+dcb0ï¼-í µU+dffbSs") V7; V3 (ignored)
-Pass	ToASCII("í«½U+dcb0.-5Ss") V7; V3 (ignored)
-Pass	ToASCII("â€í ‚U+de3f.í ¾U+dd12áƒ…í¨†U+dfb6") C2; V7
-Pass	ToASCII("â€í ‚U+de3f.í ¾U+dd12â´¥í¨†U+dfb6") C2; V7
+Pass	ToASCII("ó’°ï¼-ğŸ»SS") V7; V3 (ignored)
+Pass	ToASCII("ó’°ï¼-ğŸ»ss") V7; V3 (ignored)
+Pass	ToASCII("ó’°ï¼-ğŸ»Ss") V7; V3 (ignored)
+Pass	ToASCII("ó’°.-5Ss") V7; V3 (ignored)
+Pass	ToASCII("â€ğ¨¿.ğŸ¤’áƒ…ò‘®¶") C2; V7
+Pass	ToASCII("â€ğ¨¿.ğŸ¤’â´¥ò‘®¶") C2; V7
 Pass	ToASCII("xn--0s9c.xn--tljz038l0gz4b") V6; V7
 Pass	ToASCII("xn--1ug9533g.xn--tljz038l0gz4b") C2; V7
 Pass	ToASCII("xn--0s9c.xn--9nd3211w0gz4b") V6; V7
 Pass	ToASCII("xn--1ug9533g.xn--9nd3211w0gz4b") C2; V7
-Pass	ToASCII("í¢”U+dec5ã€‚ÃŸí¡³U+dd69â€") C2; V7
-Pass	ToASCII("í¢”U+dec5ã€‚SSí¡³U+dd69â€") C2; V7
-Pass	ToASCII("í¢”U+dec5ã€‚ssí¡³U+dd69â€") C2; V7
-Pass	ToASCII("í¢”U+dec5ã€‚Ssí¡³U+dd69â€") C2; V7
+Pass	ToASCII("ğµ‹…ã€‚ÃŸğ¬µ©â€") C2; V7
+Pass	ToASCII("ğµ‹…ã€‚SSğ¬µ©â€") C2; V7
+Pass	ToASCII("ğµ‹…ã€‚ssğ¬µ©â€") C2; V7
+Pass	ToASCII("ğµ‹…ã€‚Ssğ¬µ©â€") C2; V7
 Pass	ToASCII("xn--ey1p.xn--ss-eq36b") V7
 Pass	ToASCII("xn--ey1p.xn--ss-n1tx0508a") C2; V7
 Pass	ToASCII("xn--ey1p.xn--zca870nz438b") C2; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dï½¡í …U+ddbfáª»Ï‚â‰ ") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dï½¡í …U+ddbfáª»Ï‚=Ì¸") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dã€‚í …U+ddbfáª»Ï‚â‰ ") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dã€‚í …U+ddbfáª»Ï‚=Ì¸") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dã€‚í …U+ddbfáª»Î£=Ì¸") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dã€‚í …U+ddbfáª»Î£â‰ ") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dã€‚í …U+ddbfáª»Ïƒâ‰ ") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dã€‚í …U+ddbfáª»Ïƒ=Ì¸") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ï½¡ğ‘–¿áª»Ï‚â‰ ") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ï½¡ğ‘–¿áª»Ï‚=Ì¸") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ã€‚ğ‘–¿áª»Ï‚â‰ ") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ã€‚ğ‘–¿áª»Ï‚=Ì¸") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ã€‚ğ‘–¿áª»Î£=Ì¸") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ã€‚ğ‘–¿áª»Î£â‰ ") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ã€‚ğ‘–¿áª»Ïƒâ‰ ") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ã€‚ğ‘–¿áª»Ïƒ=Ì¸") C1; V6; V7
 Pass	ToASCII("xn--zb9h5968x.xn--4xa378i1mfjw7y") V6; V7
 Pass	ToASCII("xn--0ug3766p5nm1b.xn--4xa378i1mfjw7y") C1; V6; V7
 Pass	ToASCII("xn--0ug3766p5nm1b.xn--3xa578i1mfjw7y") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dï½¡í …U+ddbfáª»Î£=Ì¸") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dï½¡í …U+ddbfáª»Î£â‰ ") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dï½¡í …U+ddbfáª»Ïƒâ‰ ") C1; V6; V7
-Pass	ToASCII("í­€U+dd6fí§ŸU+df6dâ€Œí ½U+df2dï½¡í …U+ddbfáª»Ïƒ=Ì¸") C1; V6; V7
-Pass	ToASCII("â’‹ï½¡â’ˆâ€íªU+dd22") C2; V7
-Pass	ToASCII("4.ã€‚1.â€íªU+dd22") C2; V7; A4_2 (ignored)
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ï½¡ğ‘–¿áª»Î£=Ì¸") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ï½¡ğ‘–¿áª»Î£â‰ ") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ï½¡ğ‘–¿áª»Ïƒâ‰ ") C1; V6; V7
+Pass	ToASCII("ó …¯ò‡½­â€ŒğŸœ­ï½¡ğ‘–¿áª»Ïƒ=Ì¸") C1; V6; V7
+Pass	ToASCII("â’‹ï½¡â’ˆâ€ò³´¢") C2; V7
+Pass	ToASCII("4.ã€‚1.â€ò³´¢") C2; V7; A4_2 (ignored)
 Pass	ToASCII("4..1.xn--sf51d") V7; A4_2 (ignored)
 Pass	ToASCII("4..1.xn--1ug64613i") C2; V7; A4_2 (ignored)
 Pass	ToASCII("xn--wsh.xn--tsh07994h") V7
 Pass	ToASCII("xn--wsh.xn--1ug58o74922a") C2; V7
-Pass	ToASCII("á‚³í …U+df2bâ€í¨U+df53ï¼Ú§í ‡U+dc36") V7
-Pass	ToASCII("á‚³í …U+df2bâ€í¨U+df53.Ú§í ‡U+dc36") V7
-Pass	ToASCII("â´“í …U+df2bâ€í¨U+df53.Ú§í ‡U+dc36") V7
+Pass	ToASCII("á‚³ğ‘œ«â€ò—­“ï¼Ú§ğ‘°¶") V7
+Pass	ToASCII("á‚³ğ‘œ«â€ò—­“.Ú§ğ‘°¶") V7
+Pass	ToASCII("â´“ğ‘œ«â€ò—­“.Ú§ğ‘°¶") V7
 Pass	ToASCII("xn--blj6306ey091d.xn--9jb4223l") V7
 Pass	ToASCII("xn--1ugy52cym7p7xu5e.xn--9jb4223l") V7
-Pass	ToASCII("â´“í …U+df2bâ€í¨U+df53ï¼Ú§í ‡U+dc36") V7
+Pass	ToASCII("â´“ğ‘œ«â€ò—­“ï¼Ú§ğ‘°¶") V7
 Pass	ToASCII("xn--rnd8945ky009c.xn--9jb4223l") V7
 Pass	ToASCII("xn--rnd479ep20q7x12e.xn--9jb4223l") V7
-Pass	ToASCII("í ‚U+de3f.í ¼U+dd06â€”") V6; U1 (ignored)
-Pass	ToASCII("í ‚U+de3f.5,â€”") V6; U1 (ignored)
+Pass	ToASCII("ğ¨¿.ğŸ„†â€”") V6; U1 (ignored)
+Pass	ToASCII("ğ¨¿.5,â€”") V6; U1 (ignored)
 Pass	ToASCII("xn--0s9c.xn--5,-81t") V6; U1 (ignored)
 Pass	ToASCII("xn--0s9c.xn--8ug8324p") V6; V7
-Pass	ToASCII("í¨U+deb1í£†U+ddaeÛ¸ã€‚í­ƒU+dfad-") V7; V3 (ignored)
+Pass	ToASCII("ò”Š±ñ¦®Û¸ã€‚ó ¾­-") V7; V3 (ignored)
 Pass	ToASCII("xn--lmb18944c0g2z.xn----2k81m") V7; V3 (ignored)
-Pass	ToASCII("í ½U+df85í­ƒU+dce1í¬°U+df59.í¦‰U+ddb7") V7
+Pass	ToASCII("ğŸ…ó ³¡óœ™.ñ²–·") V7
 Pass	ToASCII("xn--ie9hi1349bqdlb.xn--oj69a") V7
-Pass	ToASCII("âƒ§í¥¾U+dc4e-í©®U+dcdd.4á‚¤â€Œ") C1; V6; V7
-Pass	ToASCII("âƒ§í¥¾U+dc4e-í©®U+dcdd.4â´„â€Œ") C1; V6; V7
+Pass	ToASCII("âƒ§ñ¯¡-ò«£.4á‚¤â€Œ") C1; V6; V7
+Pass	ToASCII("âƒ§ñ¯¡-ò«£.4â´„â€Œ") C1; V6; V7
 Pass	ToASCII("xn----9snu5320fi76w.xn--4-ivs") V6; V7
 Pass	ToASCII("xn----9snu5320fi76w.xn--4-sgn589c") C1; V6; V7
 Pass	ToASCII("xn----9snu5320fi76w.xn--4-f0g") V6; V7
 Pass	ToASCII("xn----9snu5320fi76w.xn--4-f0g649i") C1; V6; V7
-Pass	ToASCII("áš­ï½¡í ´U+df20ÃŸí šU+def1")
-Pass	ToASCII("áš­ã€‚í ´U+df20ÃŸí šU+def1")
-Pass	ToASCII("áš­ã€‚í ´U+df20SSí šU+def1")
-Pass	ToASCII("áš­ã€‚í ´U+df20ssí šU+def1")
-Pass	ToASCII("áš­ã€‚í ´U+df20Ssí šU+def1")
+Pass	ToASCII("áš­ï½¡ğŒ ÃŸğ–«±")
+Pass	ToASCII("áš­ã€‚ğŒ ÃŸğ–«±")
+Pass	ToASCII("áš­ã€‚ğŒ SSğ–«±")
+Pass	ToASCII("áš­ã€‚ğŒ ssğ–«±")
+Pass	ToASCII("áš­ã€‚ğŒ Ssğ–«±")
 Pass	ToASCII("xn--hwe.xn--ss-ci1ub261a")
-Pass	ToASCII("áš­.í ´U+df20ssí šU+def1")
-Pass	ToASCII("áš­.í ´U+df20SSí šU+def1")
-Pass	ToASCII("áš­.í ´U+df20Ssí šU+def1")
+Pass	ToASCII("áš­.ğŒ ssğ–«±")
+Pass	ToASCII("áš­.ğŒ SSğ–«±")
+Pass	ToASCII("áš­.ğŒ Ssğ–«±")
 Pass	ToASCII("xn--hwe.xn--zca4946pblnc")
-Pass	ToASCII("áš­.í ´U+df20ÃŸí šU+def1")
-Pass	ToASCII("áš­ï½¡í ´U+df20SSí šU+def1")
-Pass	ToASCII("áš­ï½¡í ´U+df20ssí šU+def1")
-Pass	ToASCII("áš­ï½¡í ´U+df20Ssí šU+def1")
-Pass	ToASCII("í …U+dc44â‰¯ï½¡í …U+df24") V6
-Pass	ToASCII("í …U+dc44>Ì¸ï½¡í …U+df24") V6
-Pass	ToASCII("í …U+dc44â‰¯ã€‚í …U+df24") V6
-Pass	ToASCII("í …U+dc44>Ì¸ã€‚í …U+df24") V6
+Pass	ToASCII("áš­.ğŒ ÃŸğ–«±")
+Pass	ToASCII("áš­ï½¡ğŒ SSğ–«±")
+Pass	ToASCII("áš­ï½¡ğŒ ssğ–«±")
+Pass	ToASCII("áš­ï½¡ğŒ Ssğ–«±")
+Pass	ToASCII("ğ‘‘„â‰¯ï½¡ğ‘œ¤") V6
+Pass	ToASCII("ğ‘‘„>Ì¸ï½¡ğ‘œ¤") V6
+Pass	ToASCII("ğ‘‘„â‰¯ã€‚ğ‘œ¤") V6
+Pass	ToASCII("ğ‘‘„>Ì¸ã€‚ğ‘œ¤") V6
 Pass	ToASCII("xn--hdh5636g.xn--ci2d") V6
-Pass	ToASCII("á‚«â‰®í¢‡U+dc86ã€‚â€Ş§í €U+dee3") C2
-Pass	ToASCII("á‚«<Ì¸í¢‡U+dc86ã€‚â€Ş§í €U+dee3") C2
-Pass	ToASCII("â´‹<Ì¸í¢‡U+dc86ã€‚â€Ş§í €U+dee3") C2
-Pass	ToASCII("â´‹â‰®í¢‡U+dc86ã€‚â€Ş§í €U+dee3") C2
+Pass	ToASCII("á‚«â‰®ğ±²†ã€‚â€Ş§ğ‹£") C2
+Pass	ToASCII("á‚«<Ì¸ğ±²†ã€‚â€Ş§ğ‹£") C2
+Pass	ToASCII("â´‹<Ì¸ğ±²†ã€‚â€Ş§ğ‹£") C2
+Pass	ToASCII("â´‹â‰®ğ±²†ã€‚â€Ş§ğ‹£") C2
 Pass	ToASCII("xn--gdhz03bxt42d.xn--lrb6479j") V6
 Pass	ToASCII("xn--gdhz03bxt42d.xn--lrb506jqr4n") C2
 Pass	ToASCII("xn--jnd802gsm17c.xn--lrb6479j") V6; V7
 Pass	ToASCII("xn--jnd802gsm17c.xn--lrb506jqr4n") C2; V7
-Pass	ToASCII("áŸ’.í§›U+df52â‰¯") V6; V7
-Pass	ToASCII("áŸ’.í§›U+df52>Ì¸") V6; V7
+Pass	ToASCII("áŸ’.ò†½’â‰¯") V6; V7
+Pass	ToASCII("áŸ’.ò†½’>Ì¸") V6; V7
 Pass	ToASCII("xn--u4e.xn--hdhx0084f") V6; V7
-Pass	ToASCII("í£¼U+dc47áœ´ï¼í ‚U+de3aÃ‰â¬“í „U+dd34") V6; V7
-Pass	ToASCII("í£¼U+dc47áœ´ï¼í ‚U+de3aEÌâ¬“í „U+dd34") V6; V7
-Pass	ToASCII("í£¼U+dc47áœ´.í ‚U+de3aÃ‰â¬“í „U+dd34") V6; V7
-Pass	ToASCII("í£¼U+dc47áœ´.í ‚U+de3aEÌâ¬“í „U+dd34") V6; V7
-Pass	ToASCII("í£¼U+dc47áœ´.í ‚U+de3aeÌâ¬“í „U+dd34") V6; V7
-Pass	ToASCII("í£¼U+dc47áœ´.í ‚U+de3aÃ©â¬“í „U+dd34") V6; V7
+Pass	ToASCII("ñ‡áœ´ï¼ğ¨ºÃ‰â¬“ğ‘„´") V6; V7
+Pass	ToASCII("ñ‡áœ´ï¼ğ¨ºEÌâ¬“ğ‘„´") V6; V7
+Pass	ToASCII("ñ‡áœ´.ğ¨ºÃ‰â¬“ğ‘„´") V6; V7
+Pass	ToASCII("ñ‡áœ´.ğ¨ºEÌâ¬“ğ‘„´") V6; V7
+Pass	ToASCII("ñ‡áœ´.ğ¨ºeÌâ¬“ğ‘„´") V6; V7
+Pass	ToASCII("ñ‡áœ´.ğ¨ºÃ©â¬“ğ‘„´") V6; V7
 Pass	ToASCII("xn--c0e34564d.xn--9ca207st53lg3f") V6; V7
-Pass	ToASCII("í£¼U+dc47áœ´ï¼í ‚U+de3aeÌâ¬“í „U+dd34") V6; V7
-Pass	ToASCII("í£¼U+dc47áœ´ï¼í ‚U+de3aÃ©â¬“í „U+dd34") V6; V7
+Pass	ToASCII("ñ‡áœ´ï¼ğ¨ºeÌâ¬“ğ‘„´") V6; V7
+Pass	ToASCII("ñ‡áœ´ï¼ğ¨ºÃ©â¬“ğ‘„´") V6; V7
 Pass	ToASCII("xn--09e4694e..xn--ye6h") A4_2 (ignored)
 Pass	ToASCII("áƒƒï¼Ù“á¢¤") V6
 Pass	ToASCII("áƒƒ.Ù“á¢¤") V6
@@ -820,25 +820,25 @@ Pass	ToASCII("â´£.Ù“á¢¤") V6
 Pass	ToASCII("xn--rlj.xn--vhb294g") V6
 Pass	ToASCII("â´£ï¼Ù“á¢¤") V6
 Pass	ToASCII("xn--7nd.xn--vhb294g") V6; V7
-Pass	ToASCII("í­€U+dd08à “ï¼ì‹‰í§U+ddbbáƒ„í§ŠU+dc50") V7
-Pass	ToASCII("í­€U+dd08à “ï¼á„‰á…´á†°í§U+ddbbáƒ„í§ŠU+dc50") V7
-Pass	ToASCII("í­€U+dd08à “.ì‹‰í§U+ddbbáƒ„í§ŠU+dc50") V7
-Pass	ToASCII("í­€U+dd08à “.á„‰á…´á†°í§U+ddbbáƒ„í§ŠU+dc50") V7
-Pass	ToASCII("í­€U+dd08à “.á„‰á…´á†°í§U+ddbbâ´¤í§ŠU+dc50") V7
-Pass	ToASCII("í­€U+dd08à “.ì‹‰í§U+ddbbâ´¤í§ŠU+dc50") V7
+Pass	ToASCII("ó „ˆà “ï¼ì‹‰ò„†»áƒ„ò‚¡") V7
+Pass	ToASCII("ó „ˆà “ï¼á„‰á…´á†°ò„†»áƒ„ò‚¡") V7
+Pass	ToASCII("ó „ˆà “.ì‹‰ò„†»áƒ„ò‚¡") V7
+Pass	ToASCII("ó „ˆà “.á„‰á…´á†°ò„†»áƒ„ò‚¡") V7
+Pass	ToASCII("ó „ˆà “.á„‰á…´á†°ò„†»â´¤ò‚¡") V7
+Pass	ToASCII("ó „ˆà “.ì‹‰ò„†»â´¤ò‚¡") V7
 Pass	ToASCII("xn--oub.xn--sljz109bpe25dviva") V7
-Pass	ToASCII("í­€U+dd08à “ï¼á„‰á…´á†°í§U+ddbbâ´¤í§ŠU+dc50") V7
-Pass	ToASCII("í­€U+dd08à “ï¼ì‹‰í§U+ddbbâ´¤í§ŠU+dc50") V7
+Pass	ToASCII("ó „ˆà “ï¼á„‰á…´á†°ò„†»â´¤ò‚¡") V7
+Pass	ToASCII("ó „ˆà “ï¼ì‹‰ò„†»â´¤ò‚¡") V7
 Pass	ToASCII("xn--oub.xn--8nd9522gpe69cviva") V7
-Pass	ToASCII("ê¨¬í ‡U+dcabâ‰®ï¼â¤‚") V6
-Pass	ToASCII("ê¨¬í ‡U+dcab<Ì¸ï¼â¤‚") V6
-Pass	ToASCII("ê¨¬í ‡U+dcabâ‰®.â¤‚") V6
-Pass	ToASCII("ê¨¬í ‡U+dcab<Ì¸.â¤‚") V6
+Pass	ToASCII("ê¨¬ğ‘²«â‰®ï¼â¤‚") V6
+Pass	ToASCII("ê¨¬ğ‘²«<Ì¸ï¼â¤‚") V6
+Pass	ToASCII("ê¨¬ğ‘²«â‰®.â¤‚") V6
+Pass	ToASCII("ê¨¬ğ‘²«<Ì¸.â¤‚") V6
 Pass	ToASCII("xn--gdh1854cn19c.xn--kqi") V6
-Pass	ToASCII("í „U+dc45ã€‚-") V6; V3 (ignored)
+Pass	ToASCII("ğ‘…ã€‚-") V6; V3 (ignored)
 Pass	ToASCII("xn--210d.-") V6; V3 (ignored)
-Pass	ToASCII("ê¡¦á¡‘â€â’ˆã€‚í €U+dee3-") C2; V7; V3 (ignored)
-Pass	ToASCII("ê¡¦á¡‘â€1.ã€‚í €U+dee3-") C2; V3 (ignored); A4_2 (ignored)
+Pass	ToASCII("ê¡¦á¡‘â€â’ˆã€‚ğ‹£-") C2; V7; V3 (ignored)
+Pass	ToASCII("ê¡¦á¡‘â€1.ã€‚ğ‹£-") C2; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--1-o7j0610f..xn----381i") V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--1-o7j663bdl7m..xn----381i") C2; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--h8e863drj7h.xn----381i") V7; V3 (ignored)
@@ -851,7 +851,7 @@ Pass	ToASCII("1.xn----zw5a.xn--kp5b") V3 (ignored)
 Pass	ToASCII("1.xn----tgnz80r.xn--kp5b") C2; V3 (ignored)
 Pass	ToASCII("xn----dcp160o.xn--kp5b") V7; V3 (ignored)
 Pass	ToASCII("xn----tgnx5rjr6c.xn--kp5b") C2; V7; V3 (ignored)
-Pass	ToASCII("ã¦ã€‚â€Œí­ƒU+dcfdß³") C1; V7
+Pass	ToASCII("ã¦ã€‚â€Œó ³½ß³") C1; V7
 Pass	ToASCII("xn--m9j.xn--rtb10784p") V7
 Pass	ToASCII("xn--m9j.xn--rtb154j9l73w") C1; V7
 Pass	ToASCII("Ï‚ï½¡ê§€Û§") V6
@@ -862,103 +862,103 @@ Pass	ToASCII("xn--4xa.xn--3lb1944f") V6
 Pass	ToASCII("xn--3xa.xn--3lb1944f") V6
 Pass	ToASCII("Î£ï½¡ê§€Û§") V6
 Pass	ToASCII("Ïƒï½¡ê§€Û§") V6
-Pass	ToASCII("à¯í­–U+dec5í§°U+de51.á‚¢á‚µ") V6; V7
-Pass	ToASCII("à¯í­–U+dec5í§°U+de51.â´‚â´•") V6; V7
-Pass	ToASCII("à¯í­–U+dec5í§°U+de51.á‚¢â´•") V6; V7
+Pass	ToASCII("à¯ó¥«…òŒ‰‘.á‚¢á‚µ") V6; V7
+Pass	ToASCII("à¯ó¥«…òŒ‰‘.â´‚â´•") V6; V7
+Pass	ToASCII("à¯ó¥«…òŒ‰‘.á‚¢â´•") V6; V7
 Pass	ToASCII("xn--xmc83135idcxza.xn--tkjwb") V6; V7
 Pass	ToASCII("xn--xmc83135idcxza.xn--9md086l") V6; V7
 Pass	ToASCII("xn--xmc83135idcxza.xn--9md2b") V6; V7
-Pass	ToASCII("á°²í ¼U+dd08â¾›Ö¦ï¼â€í©¾U+dd64ß½") C2; V6; V7; U1 (ignored)
-Pass	ToASCII("á°²7,èµ°Ö¦.â€í©¾U+dd64ß½") C2; V6; V7; U1 (ignored)
+Pass	ToASCII("á°²ğŸ„ˆâ¾›Ö¦ï¼â€ò¯¥¤ß½") C2; V6; V7; U1 (ignored)
+Pass	ToASCII("á°²7,èµ°Ö¦.â€ò¯¥¤ß½") C2; V6; V7; U1 (ignored)
 Pass	ToASCII("xn--7,-bid991urn3k.xn--1tb13454l") V6; V7; U1 (ignored)
 Pass	ToASCII("xn--7,-bid991urn3k.xn--1tb334j1197q") C2; V6; V7; U1 (ignored)
 Pass	ToASCII("xn--xcb756i493fwi5o.xn--1tb13454l") V6; V7
 Pass	ToASCII("xn--xcb756i493fwi5o.xn--1tb334j1197q") C2; V6; V7
-Pass	ToASCII("á¢—ï½¡Ó€í¤´U+dd3b") V7
-Pass	ToASCII("á¢—ã€‚Ó€í¤´U+dd3b") V7
-Pass	ToASCII("á¢—ã€‚Óí¤´U+dd3b") V7
+Pass	ToASCII("á¢—ï½¡Ó€ñ„»") V7
+Pass	ToASCII("á¢—ã€‚Ó€ñ„»") V7
+Pass	ToASCII("á¢—ã€‚Óñ„»") V7
 Pass	ToASCII("xn--hbf.xn--s5a83117e") V7
-Pass	ToASCII("á¢—ï½¡Óí¤´U+dd3b") V7
+Pass	ToASCII("á¢—ï½¡Óñ„»") V7
 Pass	ToASCII("xn--hbf.xn--d5a86117e") V7
-Pass	ToASCII("-í €U+def7í ›U+df91ã€‚í­€U+ddac") V3 (ignored); A4_2 (ignored)
+Pass	ToASCII("-ğ‹·ğ–¾‘ã€‚ó †¬") V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----991iq40y.") V3 (ignored); A4_2 (ignored)
-Pass	ToASCII("í ‡U+dc98í­€U+dd12í U+dc61ï½¡í µU+dfeaá‚¼") V6
-Pass	ToASCII("í ‡U+dc98í­€U+dd12í U+dc61ã€‚8á‚¼") V6
-Pass	ToASCII("í ‡U+dc98í­€U+dd12í U+dc61ã€‚8â´œ") V6
+Pass	ToASCII("ğ‘²˜ó „’ğ“‘¡ï½¡ğŸªá‚¼") V6
+Pass	ToASCII("ğ‘²˜ó „’ğ“‘¡ã€‚8á‚¼") V6
+Pass	ToASCII("ğ‘²˜ó „’ğ“‘¡ã€‚8â´œ") V6
 Pass	ToASCII("xn--7m3d291b.xn--8-vws") V6
-Pass	ToASCII("í ‡U+dc98í­€U+dd12í U+dc61ï½¡í µU+dfeaâ´œ") V6
+Pass	ToASCII("ğ‘²˜ó „’ğ“‘¡ï½¡ğŸªâ´œ") V6
 Pass	ToASCII("xn--7m3d291b.xn--8-s1g") V6; V7
-Pass	ToASCII("á®«ï½¡í ¼U+dc89í­€U+dc70") V6; V7
-Pass	ToASCII("á®«ã€‚í ¼U+dc89í­€U+dc70") V6; V7
+Pass	ToASCII("á®«ï½¡ğŸ‚‰ó °") V6; V7
+Pass	ToASCII("á®«ã€‚ğŸ‚‰ó °") V6; V7
 Pass	ToASCII("xn--zxf.xn--fx7ho0250c") V6; V7
-Pass	ToASCII("í­±U+deb6í® U+ded6í¨šU+de70-ã€‚â€Œ") C1; V7; V3 (ignored)
+Pass	ToASCII("ó¬š¶ó¸‹–ò–©°-ã€‚â€Œ") C1; V7; V3 (ignored)
 Pass	ToASCII("xn----7i12hu122k9ire.") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----7i12hu122k9ire.xn--0ug") C1; V7; V3 (ignored)
-Pass	ToASCII("ï¸’ï¼ï¸¯í …U+dc42") V6; V7
-Pass	ToASCII("ï¸’ï¼í …U+dc42ï¸¯") V6; V7
-Pass	ToASCII("ã€‚.í …U+dc42ï¸¯") V6; A4_2 (ignored)
+Pass	ToASCII("ï¸’ï¼ï¸¯ğ‘‘‚") V6; V7
+Pass	ToASCII("ï¸’ï¼ğ‘‘‚ï¸¯") V6; V7
+Pass	ToASCII("ã€‚.ğ‘‘‚ï¸¯") V6; A4_2 (ignored)
 Pass	ToASCII("..xn--s96cu30b") V6; A4_2 (ignored)
 Pass	ToASCII("xn--y86c.xn--s96cu30b") V6; V7
 Pass	ToASCII("ê¤¬ã€‚â€") C2; V6
 Pass	ToASCII("xn--zi9a.") V6; A4_2 (ignored)
 Pass	ToASCII("xn--zi9a.xn--1ug") C2; V6
-Pass	ToASCII("í­˜U+de04ã€‚-") V7; V3 (ignored)
+Pass	ToASCII("ó¦ˆ„ã€‚-") V7; V3 (ignored)
 Pass	ToASCII("xn--xm38e.-") V7; V3 (ignored)
-Pass	ToASCII("â‹ í €U+deeeï¼íª˜U+de2eà¼˜ÃŸâ‰¯") V7
-Pass	ToASCII("â‰¼Ì¸í €U+deeeï¼íª˜U+de2eà¼˜ÃŸ>Ì¸") V7
-Pass	ToASCII("â‹ í €U+deee.íª˜U+de2eà¼˜ÃŸâ‰¯") V7
-Pass	ToASCII("â‰¼Ì¸í €U+deee.íª˜U+de2eà¼˜ÃŸ>Ì¸") V7
-Pass	ToASCII("â‰¼Ì¸í €U+deee.íª˜U+de2eà¼˜SS>Ì¸") V7
-Pass	ToASCII("â‹ í €U+deee.íª˜U+de2eà¼˜SSâ‰¯") V7
-Pass	ToASCII("â‹ í €U+deee.íª˜U+de2eà¼˜ssâ‰¯") V7
-Pass	ToASCII("â‰¼Ì¸í €U+deee.íª˜U+de2eà¼˜ss>Ì¸") V7
-Pass	ToASCII("â‰¼Ì¸í €U+deee.íª˜U+de2eà¼˜Ss>Ì¸") V7
-Pass	ToASCII("â‹ í €U+deee.íª˜U+de2eà¼˜Ssâ‰¯") V7
+Pass	ToASCII("â‹ ğ‹®ï¼ò¶ˆ®à¼˜ÃŸâ‰¯") V7
+Pass	ToASCII("â‰¼Ì¸ğ‹®ï¼ò¶ˆ®à¼˜ÃŸ>Ì¸") V7
+Pass	ToASCII("â‹ ğ‹®.ò¶ˆ®à¼˜ÃŸâ‰¯") V7
+Pass	ToASCII("â‰¼Ì¸ğ‹®.ò¶ˆ®à¼˜ÃŸ>Ì¸") V7
+Pass	ToASCII("â‰¼Ì¸ğ‹®.ò¶ˆ®à¼˜SS>Ì¸") V7
+Pass	ToASCII("â‹ ğ‹®.ò¶ˆ®à¼˜SSâ‰¯") V7
+Pass	ToASCII("â‹ ğ‹®.ò¶ˆ®à¼˜ssâ‰¯") V7
+Pass	ToASCII("â‰¼Ì¸ğ‹®.ò¶ˆ®à¼˜ss>Ì¸") V7
+Pass	ToASCII("â‰¼Ì¸ğ‹®.ò¶ˆ®à¼˜Ss>Ì¸") V7
+Pass	ToASCII("â‹ ğ‹®.ò¶ˆ®à¼˜Ssâ‰¯") V7
 Pass	ToASCII("xn--pgh4639f.xn--ss-ifj426nle504a") V7
 Pass	ToASCII("xn--pgh4639f.xn--zca593eo6oc013y") V7
-Pass	ToASCII("â‰¼Ì¸í €U+deeeï¼íª˜U+de2eà¼˜SS>Ì¸") V7
-Pass	ToASCII("â‹ í €U+deeeï¼íª˜U+de2eà¼˜SSâ‰¯") V7
-Pass	ToASCII("â‹ í €U+deeeï¼íª˜U+de2eà¼˜ssâ‰¯") V7
-Pass	ToASCII("â‰¼Ì¸í €U+deeeï¼íª˜U+de2eà¼˜ss>Ì¸") V7
-Pass	ToASCII("â‰¼Ì¸í €U+deeeï¼íª˜U+de2eà¼˜Ss>Ì¸") V7
-Pass	ToASCII("â‹ í €U+deeeï¼íª˜U+de2eà¼˜Ssâ‰¯") V7
-Pass	ToASCII("Ì°ï¼í®U+df31èš€") V6; V7
-Pass	ToASCII("Ì°.í®U+df31èš€") V6; V7
+Pass	ToASCII("â‰¼Ì¸ğ‹®ï¼ò¶ˆ®à¼˜SS>Ì¸") V7
+Pass	ToASCII("â‹ ğ‹®ï¼ò¶ˆ®à¼˜SSâ‰¯") V7
+Pass	ToASCII("â‹ ğ‹®ï¼ò¶ˆ®à¼˜ssâ‰¯") V7
+Pass	ToASCII("â‰¼Ì¸ğ‹®ï¼ò¶ˆ®à¼˜ss>Ì¸") V7
+Pass	ToASCII("â‰¼Ì¸ğ‹®ï¼ò¶ˆ®à¼˜Ss>Ì¸") V7
+Pass	ToASCII("â‹ ğ‹®ï¼ò¶ˆ®à¼˜Ssâ‰¯") V7
+Pass	ToASCII("Ì°ï¼ó°œ±èš€") V6; V7
+Pass	ToASCII("Ì°.ó°œ±èš€") V6; V7
 Pass	ToASCII("xn--xta.xn--e91aw9417e") V6; V7
-Pass	ToASCII("í ¾U+dc9fí ¼U+dd08â€ê¡ï½¡à¾„") C2; V6; U1 (ignored)
-Pass	ToASCII("í ¾U+dc9f7,â€ê¡ã€‚à¾„") C2; V6; U1 (ignored)
+Pass	ToASCII("ğŸ¢ŸğŸ„ˆâ€ê¡ï½¡à¾„") C2; V6; U1 (ignored)
+Pass	ToASCII("ğŸ¢Ÿ7,â€ê¡ã€‚à¾„") C2; V6; U1 (ignored)
 Pass	ToASCII("xn--7,-gh9hg322i.xn--3ed") V6; U1 (ignored)
 Pass	ToASCII("xn--7,-n1t0654eqo3o.xn--3ed") C2; V6; U1 (ignored)
 Pass	ToASCII("xn--nc9aq743ds0e.xn--3ed") V6; V7
 Pass	ToASCII("xn--1ug4874cfd0kbmg.xn--3ed") C2; V6; V7
 Pass	ToASCII("ê¡”ã€‚á€¹á¢‡") V6
 Pass	ToASCII("xn--tc9a.xn--9jd663b") V6
-Pass	ToASCII("âƒ«â‰®.í ¶U+de16") V6
-Pass	ToASCII("âƒ«<Ì¸.í ¶U+de16") V6
+Pass	ToASCII("âƒ«â‰®.ğ¨–") V6
+Pass	ToASCII("âƒ«<Ì¸.ğ¨–") V6
 Pass	ToASCII("xn--e1g71d.xn--772h") V6
 Pass	ToASCII("â€Œ.â‰¯") C1
 Pass	ToASCII("â€Œ.>Ì¸") C1
 Pass	ToASCII(".xn--hdh") A4_2 (ignored)
 Pass	ToASCII("xn--0ug.xn--hdh") C1
-Pass	ToASCII("í¢€U+dd67í¥U+de60-ï¼ê¯­-æ‚œ") V6; V7; V3 (ignored)
-Pass	ToASCII("í¢€U+dd67í¥U+de60-.ê¯­-æ‚œ") V6; V7; V3 (ignored)
+Pass	ToASCII("ğ°…§ñ£© -ï¼ê¯­-æ‚œ") V6; V7; V3 (ignored)
+Pass	ToASCII("ğ°…§ñ£© -.ê¯­-æ‚œ") V6; V7; V3 (ignored)
 Pass	ToASCII("xn----7m53aj640l.xn----8f4br83t") V6; V7; V3 (ignored)
-Pass	ToASCII("á¡‰í¢™U+dce7â¬á¢œ.-â€í ºU+dcd1â€®") C2; V7; V3 (ignored)
+Pass	ToASCII("á¡‰ğ¶“§â¬á¢œ.-â€ğ£‘â€®") C2; V7; V3 (ignored)
 Pass	ToASCII("xn--87e0ol04cdl39e.xn----qinu247r") V7; V3 (ignored)
 Pass	ToASCII("xn--87e0ol04cdl39e.xn----ugn5e3763s") C2; V7; V3 (ignored)
-Pass	ToASCII("í ºU+dd53ï¼Ü˜")
-Pass	ToASCII("í ºU+dd53.Ü˜")
+Pass	ToASCII("ğ¥“ï¼Ü˜")
+Pass	ToASCII("ğ¥“.Ü˜")
 Pass	ToASCII("xn--of6h.xn--inb")
-Pass	ToASCII("í­€U+dd3d-ï¼-à·Š") V3 (ignored)
-Pass	ToASCII("í­€U+dd3d-.-à·Š") V3 (ignored)
+Pass	ToASCII("ó „½-ï¼-à·Š") V3 (ignored)
+Pass	ToASCII("ó „½-.-à·Š") V3 (ignored)
 Pass	ToASCII("-.xn----ptf") V3 (ignored)
-Pass	ToASCII("á‚ºí €U+def8í­€U+dd04ã€‚í µU+dfddíŸ¶á€º")
-Pass	ToASCII("á‚ºí €U+def8í­€U+dd04ã€‚5íŸ¶á€º")
-Pass	ToASCII("â´ší €U+def8í­€U+dd04ã€‚5íŸ¶á€º")
+Pass	ToASCII("á‚ºğ‹¸ó „„ã€‚ğŸíŸ¶á€º")
+Pass	ToASCII("á‚ºğ‹¸ó „„ã€‚5íŸ¶á€º")
+Pass	ToASCII("â´šğ‹¸ó „„ã€‚5íŸ¶á€º")
 Pass	ToASCII("xn--ilj2659d.xn--5-dug9054m")
-Pass	ToASCII("â´ší €U+def8.5íŸ¶á€º")
-Pass	ToASCII("á‚ºí €U+def8.5íŸ¶á€º")
-Pass	ToASCII("â´ší €U+def8í­€U+dd04ã€‚í µU+dfddíŸ¶á€º")
+Pass	ToASCII("â´šğ‹¸.5íŸ¶á€º")
+Pass	ToASCII("á‚ºğ‹¸.5íŸ¶á€º")
+Pass	ToASCII("â´šğ‹¸ó „„ã€‚ğŸíŸ¶á€º")
 Pass	ToASCII("xn--ynd2415j.xn--5-dug9054m") V7
 Pass	ToASCII("â€-á ¹ï¹ª.á·¡á¤¢") C2; V6; U1 (ignored)
 Pass	ToASCII("â€-á ¹%.á·¡á¤¢") C2; V6; U1 (ignored)
@@ -973,27 +973,27 @@ Pass	ToASCII("Ü£Ö£ï½¡ãŒª")
 Pass	ToASCII("Ü£Ö£ã€‚ãƒã‚¤ãƒ„")
 Pass	ToASCII("xn--ucb18e.xn--eck4c5a")
 Pass	ToASCII("Ü£Ö£.ãƒã‚¤ãƒ„")
-Pass	ToASCII("í¡U+de6bï¼í§±U+dc72") V7
-Pass	ToASCII("í¡U+de6b.í§±U+dc72") V7
+Pass	ToASCII("ğ£©«ï¼òŒ‘²") V7
+Pass	ToASCII("ğ£©«.òŒ‘²") V7
 Pass	ToASCII("xn--td3j.xn--4628b") V7
 Pass	ToASCII("xn--skb")
 Pass	ToASCII("Ú¹")
-Pass	ToASCII("à±í ¶U+de3eÖ©í µU+dfedã€‚-í …U+df28") V6; V3 (ignored)
-Pass	ToASCII("à±í ¶U+de3eÖ©1ã€‚-í …U+df28") V6; V3 (ignored)
+Pass	ToASCII("à±ğ¨¾Ö©ğŸ­ã€‚-ğ‘œ¨") V6; V3 (ignored)
+Pass	ToASCII("à±ğ¨¾Ö©1ã€‚-ğ‘œ¨") V6; V3 (ignored)
 Pass	ToASCII("xn--1-rfc312cdp45c.xn----nq0j") V6; V3 (ignored)
-Pass	ToASCII("í©U+dfc8ã€‚ë™") V7
-Pass	ToASCII("í©U+dfc8ã€‚á„„á…«á†®") V7
+Pass	ToASCII("ò£¿ˆã€‚ë™") V7
+Pass	ToASCII("ò£¿ˆã€‚á„„á…«á†®") V7
 Pass	ToASCII("xn--ph26c.xn--281b") V7
-Pass	ToASCII("í¤–U+de1aí­€U+dd0cí¬‡U+df40á¡€.à¢¶") V7
+Pass	ToASCII("ñ•¨šó „Œó‘½€á¡€.à¢¶") V7
 Pass	ToASCII("xn--z7e98100evc01b.xn--czb") V7
-Pass	ToASCII("â€ï½¡í£”U+dc5b") C2; V7
-Pass	ToASCII("â€ã€‚í£”U+dc5b") C2; V7
+Pass	ToASCII("â€ï½¡ñ…›") C2; V7
+Pass	ToASCII("â€ã€‚ñ…›") C2; V7
 Pass	ToASCII(".xn--6x4u") V7; A4_2 (ignored)
 Pass	ToASCII("xn--1ug.xn--6x4u") C2; V7
-Pass	ToASCII("ï¿¹â€Œï½¡æ›³â¾‘í €U+def0â‰¯") C1; V7
-Pass	ToASCII("ï¿¹â€Œï½¡æ›³â¾‘í €U+def0>Ì¸") C1; V7
-Pass	ToASCII("ï¿¹â€Œã€‚æ›³è¥¾í €U+def0â‰¯") C1; V7
-Pass	ToASCII("ï¿¹â€Œã€‚æ›³è¥¾í €U+def0>Ì¸") C1; V7
+Pass	ToASCII("ï¿¹â€Œï½¡æ›³â¾‘ğ‹°â‰¯") C1; V7
+Pass	ToASCII("ï¿¹â€Œï½¡æ›³â¾‘ğ‹°>Ì¸") C1; V7
+Pass	ToASCII("ï¿¹â€Œã€‚æ›³è¥¾ğ‹°â‰¯") C1; V7
+Pass	ToASCII("ï¿¹â€Œã€‚æ›³è¥¾ğ‹°>Ì¸") C1; V7
 Pass	ToASCII("xn--vn7c.xn--hdh501y8wvfs5h") V7
 Pass	ToASCII("xn--0ug2139f.xn--hdh501y8wvfs5h") C1; V7
 Pass	ToASCII("â‰¯â’ˆã€‚ÃŸ") V7
@@ -1022,51 +1022,51 @@ Pass	ToASCII("â€Œã€‚â‰ ") C1
 Pass	ToASCII("â€Œã€‚=Ì¸") C1
 Pass	ToASCII(".xn--1ch") A4_2 (ignored)
 Pass	ToASCII("xn--0ug.xn--1ch") C1
-Pass	ToASCII("í …U+ddbfí ¶U+de14.á¡Ÿí …U+ddbfá­‚â€Œ") C1; V6
+Pass	ToASCII("ğ‘–¿ğ¨”.á¡Ÿğ‘–¿á­‚â€Œ") C1; V6
 Pass	ToASCII("xn--461dw464a.xn--v8e29loy65a") V6
 Pass	ToASCII("xn--461dw464a.xn--v8e29ldzfo952a") C1; V6
-Pass	ToASCII("í¨’U+dcf3â€í¨…U+df71.í šU+df34â†ƒâ‰ -") C2; V6; V7; V3 (ignored)
-Pass	ToASCII("í¨’U+dcf3â€í¨…U+df71.í šU+df34â†ƒ=Ì¸-") C2; V6; V7; V3 (ignored)
-Pass	ToASCII("í¨’U+dcf3â€í¨…U+df71.í šU+df34â†„=Ì¸-") C2; V6; V7; V3 (ignored)
-Pass	ToASCII("í¨’U+dcf3â€í¨…U+df71.í šU+df34â†„â‰ -") C2; V6; V7; V3 (ignored)
+Pass	ToASCII("ò”£³â€ò‘±.ğ–¬´â†ƒâ‰ -") C2; V6; V7; V3 (ignored)
+Pass	ToASCII("ò”£³â€ò‘±.ğ–¬´â†ƒ=Ì¸-") C2; V6; V7; V3 (ignored)
+Pass	ToASCII("ò”£³â€ò‘±.ğ–¬´â†„=Ì¸-") C2; V6; V7; V3 (ignored)
+Pass	ToASCII("ò”£³â€ò‘±.ğ–¬´â†„â‰ -") C2; V6; V7; V3 (ignored)
 Pass	ToASCII("xn--6j00chy9a.xn----81n51bt713h") V6; V7; V3 (ignored)
 Pass	ToASCII("xn--1ug15151gkb5a.xn----81n51bt713h") C2; V6; V7; V3 (ignored)
 Pass	ToASCII("xn--6j00chy9a.xn----61n81bt713h") V6; V7; V3 (ignored)
 Pass	ToASCII("xn--1ug15151gkb5a.xn----61n81bt713h") C2; V6; V7; V3 (ignored)
-Pass	ToASCII("â€â”®í­€U+ddd0ï¼à°€à±áœ´â€") C2; V6
-Pass	ToASCII("â€â”®í­€U+ddd0.à°€à±áœ´â€") C2; V6
+Pass	ToASCII("â€â”®ó ‡ï¼à°€à±áœ´â€") C2; V6
+Pass	ToASCII("â€â”®ó ‡.à°€à±áœ´â€") C2; V6
 Pass	ToASCII("xn--kxh.xn--eoc8m432a") V6
 Pass	ToASCII("xn--1ug04r.xn--eoc8m432a40i") C2; V6
-Pass	ToASCII("íª¥U+deaaï½¡í ¼U+dd02") V7; U1 (ignored)
-Pass	ToASCII("íª¥U+deaaã€‚1,") V7; U1 (ignored)
+Pass	ToASCII("ò¹šªï½¡ğŸ„‚") V7; U1 (ignored)
+Pass	ToASCII("ò¹šªã€‚1,") V7; U1 (ignored)
 Pass	ToASCII("xn--n433d.1,") V7; U1 (ignored)
 Pass	ToASCII("xn--n433d.xn--v07h") V7
-Pass	ToASCII("í „U+df68åˆ.í ½U+dee6") V6
+Pass	ToASCII("ğ‘¨åˆ.ğŸ›¦") V6
 Pass	ToASCII("xn--rbry728b.xn--y88h") V6
-Pass	ToASCII("í­€U+df0f3ï½¡á¯±í µU+dfd2") V6; V7
-Pass	ToASCII("í­€U+df0f3ã€‚á¯±4") V6; V7
+Pass	ToASCII("ó Œ3ï½¡á¯±ğŸ’") V6; V7
+Pass	ToASCII("ó Œ3ã€‚á¯±4") V6; V7
 Pass	ToASCII("xn--3-ib31m.xn--4-pql") V6; V7
-Pass	ToASCII("ê¡½â‰¯ï¼íª¯U+dc80í¨‹U+dcc4") V7
-Pass	ToASCII("ê¡½>Ì¸ï¼íª¯U+dc80í¨‹U+dcc4") V7
-Pass	ToASCII("ê¡½â‰¯.íª¯U+dc80í¨‹U+dcc4") V7
-Pass	ToASCII("ê¡½>Ì¸.íª¯U+dc80í¨‹U+dcc4") V7
+Pass	ToASCII("ê¡½â‰¯ï¼ò»²€ò’³„") V7
+Pass	ToASCII("ê¡½>Ì¸ï¼ò»²€ò’³„") V7
+Pass	ToASCII("ê¡½â‰¯.ò»²€ò’³„") V7
+Pass	ToASCII("ê¡½>Ì¸.ò»²€ò’³„") V7
 Pass	ToASCII("xn--hdh8193c.xn--5z40cp629b") V7
-Pass	ToASCII("í­ƒU+dcdbï¼â€ä¤«â‰ á‚¾") C2; V7
-Pass	ToASCII("í­ƒU+dcdbï¼â€ä¤«=Ì¸á‚¾") C2; V7
-Pass	ToASCII("í­ƒU+dcdb.â€ä¤«â‰ á‚¾") C2; V7
-Pass	ToASCII("í­ƒU+dcdb.â€ä¤«=Ì¸á‚¾") C2; V7
-Pass	ToASCII("í­ƒU+dcdb.â€ä¤«=Ì¸â´") C2; V7
-Pass	ToASCII("í­ƒU+dcdb.â€ä¤«â‰ â´") C2; V7
+Pass	ToASCII("ó ³›ï¼â€ä¤«â‰ á‚¾") C2; V7
+Pass	ToASCII("ó ³›ï¼â€ä¤«=Ì¸á‚¾") C2; V7
+Pass	ToASCII("ó ³›.â€ä¤«â‰ á‚¾") C2; V7
+Pass	ToASCII("ó ³›.â€ä¤«=Ì¸á‚¾") C2; V7
+Pass	ToASCII("ó ³›.â€ä¤«=Ì¸â´") C2; V7
+Pass	ToASCII("ó ³›.â€ä¤«â‰ â´") C2; V7
 Pass	ToASCII("xn--1t56e.xn--1ch153bqvw") V7
 Pass	ToASCII("xn--1t56e.xn--1ug73gzzpwi3a") C2; V7
-Pass	ToASCII("í­ƒU+dcdbï¼â€ä¤«=Ì¸â´") C2; V7
-Pass	ToASCII("í­ƒU+dcdbï¼â€ä¤«â‰ â´") C2; V7
+Pass	ToASCII("ó ³›ï¼â€ä¤«=Ì¸â´") C2; V7
+Pass	ToASCII("ó ³›ï¼â€ä¤«â‰ â´") C2; V7
 Pass	ToASCII("xn--1t56e.xn--2nd141ghl2a") V7
 Pass	ToASCII("xn--1t56e.xn--2nd159e9vb743e") C2; V7
 Pass	ToASCII("3.1.xn--110d.j") V6
 Pass	ToASCII("xn--tshd3512p.j") V7
-Pass	ToASCII("ÍŠï¼í ‚U+de0e") V6
-Pass	ToASCII("ÍŠ.í ‚U+de0e") V6
+Pass	ToASCII("ÍŠï¼ğ¨") V6
+Pass	ToASCII("ÍŠ.ğ¨") V6
 Pass	ToASCII("xn--oua.xn--mr9c") V6
 Pass	ToASCII("í›‰â‰®ï½¡à¸´") V6
 Pass	ToASCII("á„’á…®á†¬<Ì¸ï½¡à¸´") V6
@@ -1079,14 +1079,14 @@ Pass	ToASCII("ê¡†ã€‚â†„à¾µá„‚á…ªá‡-") V3 (ignored)
 Pass	ToASCII("ê¡†ã€‚â†„à¾µë†®-") V3 (ignored)
 Pass	ToASCII("xn--fc9a.xn----qmg097k469k") V3 (ignored)
 Pass	ToASCII("xn--fc9a.xn----qmg787k869k") V7; V3 (ignored)
-Pass	ToASCII("â‰®í ´U+dd76ï¼í¦‡U+dc81ê«¬â¹ˆí®‚U+dd6d") V7
-Pass	ToASCII("<Ì¸í ´U+dd76ï¼í¦‡U+dc81ê«¬â¹ˆí®‚U+dd6d") V7
-Pass	ToASCII("â‰®í ´U+dd76.í¦‡U+dc81ê«¬â¹ˆí®‚U+dd6d") V7
-Pass	ToASCII("<Ì¸í ´U+dd76.í¦‡U+dc81ê«¬â¹ˆí®‚U+dd6d") V7
+Pass	ToASCII("â‰®ğ…¶ï¼ñ±²ê«¬â¹ˆó°¥­") V7
+Pass	ToASCII("<Ì¸ğ…¶ï¼ñ±²ê«¬â¹ˆó°¥­") V7
+Pass	ToASCII("â‰®ğ…¶.ñ±²ê«¬â¹ˆó°¥­") V7
+Pass	ToASCII("<Ì¸ğ…¶.ñ±²ê«¬â¹ˆó°¥­") V7
 Pass	ToASCII("xn--gdh.xn--4tjx101bsg00ds9pyc") V7
 Pass	ToASCII("xn--gdh0880o.xn--4tjx101bsg00ds9pyc") V7
-Pass	ToASCII("í …U+dc42ï½¡â€í­•U+df80í ½U+df95í©”U+dc54") C2; V6; V7
-Pass	ToASCII("í …U+dc42ã€‚â€í­•U+df80í ½U+df95í©”U+dc54") C2; V6; V7
+Pass	ToASCII("ğ‘‘‚ï½¡â€ó¥€ğŸ•ò¥”") C2; V6; V7
+Pass	ToASCII("ğ‘‘‚ã€‚â€ó¥€ğŸ•ò¥”") C2; V6; V7
 Pass	ToASCII("xn--8v1d.xn--ye9h41035a2qqs") V6; V7
 Pass	ToASCII("xn--8v1d.xn--1ug1386plvx1cd8vya") C2; V6; V7
 Pass	ToASCII("ÃŸà§á·­ã€‚Ø 8â‚…")
@@ -1106,60 +1106,60 @@ Pass	ToASCII("Ssà§á·­ã€‚Ø 8â‚…")
 Pass	ToASCII("ï¸àª›ã€‚åµ¨")
 Pass	ToASCII("xn--6dc.xn--tot")
 Pass	ToASCII("àª›.åµ¨")
-Pass	ToASCII("-â€Œâ’™í ‚U+dee5ï½¡í ¶U+de35") C1; V6; V7; V3 (ignored)
-Pass	ToASCII("-â€Œ18.í ‚U+dee5ã€‚í ¶U+de35") C1; V6; V3 (ignored)
+Pass	ToASCII("-â€Œâ’™ğ«¥ï½¡ğ¨µ") C1; V6; V7; V3 (ignored)
+Pass	ToASCII("-â€Œ18.ğ«¥ã€‚ğ¨µ") C1; V6; V3 (ignored)
 Pass	ToASCII("-18.xn--rx9c.xn--382h") V6; V3 (ignored)
 Pass	ToASCII("xn---18-9m0a.xn--rx9c.xn--382h") C1; V6; V3 (ignored)
 Pass	ToASCII("xn----ddps939g.xn--382h") V6; V7; V3 (ignored)
 Pass	ToASCII("xn----sgn18r3191a.xn--382h") C1; V6; V7; V3 (ignored)
-Pass	ToASCII("ï¸…ï¸’ã€‚í¡˜U+dc3eá³ ") V7
-Pass	ToASCII("ï¸…ã€‚ã€‚í¡˜U+dc3eá³ ") A4_2 (ignored)
+Pass	ToASCII("ï¸…ï¸’ã€‚ğ¦€¾á³ ") V7
+Pass	ToASCII("ï¸…ã€‚ã€‚ğ¦€¾á³ ") A4_2 (ignored)
 Pass	ToASCII("..xn--t6f5138v") A4_2 (ignored)
 Pass	ToASCII("xn--y86c.xn--t6f5138v") V7
 Pass	ToASCII("xn--t6f5138v")
-Pass	ToASCII("í¡˜U+dc3eá³ ")
-Pass	ToASCII("í­U+dd4fï¼-ÃŸâ€Œâ‰ ") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4fï¼-ÃŸâ€Œ=Ì¸") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4f.-ÃŸâ€Œâ‰ ") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4f.-ÃŸâ€Œ=Ì¸") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4f.-SSâ€Œ=Ì¸") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4f.-SSâ€Œâ‰ ") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4f.-ssâ€Œâ‰ ") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4f.-ssâ€Œ=Ì¸") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4f.-Ssâ€Œ=Ì¸") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4f.-Ssâ€Œâ‰ ") C1; V7; V3 (ignored)
+Pass	ToASCII("ğ¦€¾á³ ")
+Pass	ToASCII("ó •ï¼-ÃŸâ€Œâ‰ ") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •ï¼-ÃŸâ€Œ=Ì¸") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •.-ÃŸâ€Œâ‰ ") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •.-ÃŸâ€Œ=Ì¸") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •.-SSâ€Œ=Ì¸") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •.-SSâ€Œâ‰ ") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •.-ssâ€Œâ‰ ") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •.-ssâ€Œ=Ì¸") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •.-Ssâ€Œ=Ì¸") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •.-Ssâ€Œâ‰ ") C1; V7; V3 (ignored)
 Pass	ToASCII("xn--u836e.xn---ss-gl2a") V7; V3 (ignored)
 Pass	ToASCII("xn--u836e.xn---ss-cn0at5l") C1; V7; V3 (ignored)
 Pass	ToASCII("xn--u836e.xn----qfa750ve7b") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4fï¼-SSâ€Œ=Ì¸") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4fï¼-SSâ€Œâ‰ ") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4fï¼-ssâ€Œâ‰ ") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4fï¼-ssâ€Œ=Ì¸") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4fï¼-Ssâ€Œ=Ì¸") C1; V7; V3 (ignored)
-Pass	ToASCII("í­U+dd4fï¼-Ssâ€Œâ‰ ") C1; V7; V3 (ignored)
-Pass	ToASCII("á¡™â€Œï½¡â‰¯í €U+def2â‰ ") C1
-Pass	ToASCII("á¡™â€Œï½¡>Ì¸í €U+def2=Ì¸") C1
-Pass	ToASCII("á¡™â€Œã€‚â‰¯í €U+def2â‰ ") C1
-Pass	ToASCII("á¡™â€Œã€‚>Ì¸í €U+def2=Ì¸") C1
+Pass	ToASCII("ó •ï¼-SSâ€Œ=Ì¸") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •ï¼-SSâ€Œâ‰ ") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •ï¼-ssâ€Œâ‰ ") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •ï¼-ssâ€Œ=Ì¸") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •ï¼-Ssâ€Œ=Ì¸") C1; V7; V3 (ignored)
+Pass	ToASCII("ó •ï¼-Ssâ€Œâ‰ ") C1; V7; V3 (ignored)
+Pass	ToASCII("á¡™â€Œï½¡â‰¯ğ‹²â‰ ") C1
+Pass	ToASCII("á¡™â€Œï½¡>Ì¸ğ‹²=Ì¸") C1
+Pass	ToASCII("á¡™â€Œã€‚â‰¯ğ‹²â‰ ") C1
+Pass	ToASCII("á¡™â€Œã€‚>Ì¸ğ‹²=Ì¸") C1
 Pass	ToASCII("xn--p8e.xn--1ch3a7084l")
-Pass	ToASCII("á¡™.â‰¯í €U+def2â‰ ")
-Pass	ToASCII("á¡™.>Ì¸í €U+def2=Ì¸")
+Pass	ToASCII("á¡™.â‰¯ğ‹²â‰ ")
+Pass	ToASCII("á¡™.>Ì¸ğ‹²=Ì¸")
 Pass	ToASCII("xn--p8e650b.xn--1ch3a7084l") C1
-Pass	ToASCII("í©»U+dd5bØ“.á‚µ") V7
-Pass	ToASCII("í©»U+dd5bØ“.â´•") V7
+Pass	ToASCII("ò®µ›Ø“.á‚µ") V7
+Pass	ToASCII("ò®µ›Ø“.â´•") V7
 Pass	ToASCII("xn--1fb94204l.xn--dlj") V7
 Pass	ToASCII("xn--1fb94204l.xn--tnd") V7
-Pass	ToASCII("â€Œí­€U+dd37ï½¡í¨‰U+dc41") C1; V7
-Pass	ToASCII("â€Œí­€U+dd37ã€‚í¨‰U+dc41") C1; V7
+Pass	ToASCII("â€Œó „·ï½¡ò’‘") C1; V7
+Pass	ToASCII("â€Œó „·ã€‚ò’‘") C1; V7
 Pass	ToASCII(".xn--w720c") V7; A4_2 (ignored)
 Pass	ToASCII("xn--0ug.xn--w720c") C1; V7
-Pass	ToASCII("â’ˆà·–ç„….í¬U+dc59â€ê¡Ÿ") C2; V7
-Pass	ToASCII("1.à·–ç„….í¬U+dc59â€ê¡Ÿ") C2; V6; V7
+Pass	ToASCII("â’ˆà·–ç„….ó—¡™â€ê¡Ÿ") C2; V7
+Pass	ToASCII("1.à·–ç„….ó—¡™â€ê¡Ÿ") C2; V6; V7
 Pass	ToASCII("1.xn--t1c6981c.xn--4c9a21133d") V6; V7
 Pass	ToASCII("1.xn--t1c6981c.xn--1ugz184c9lw7i") C2; V6; V7
 Pass	ToASCII("xn--t1c337io97c.xn--4c9a21133d") V7
 Pass	ToASCII("xn--t1c337io97c.xn--1ugz184c9lw7i") C2; V7
-Pass	ToASCII("í „U+ddc0â–.âá °") V6
+Pass	ToASCII("ğ‘‡€â–.âá °") V6
 Pass	ToASCII("xn--9zh3057f.xn--j7e103b") V6
 Pass	ToASCII("-3.â€ãƒŒá¢•") C2; V3 (ignored)
 Pass	ToASCII("-3.xn--fbf115j") V3 (ignored)
@@ -1180,93 +1180,93 @@ Pass	ToASCII("â…áŸ’â€ï½¡=Ì¸â€â€Œ") C1; C2
 Pass	ToASCII("â…áŸ’â€ï½¡â‰ â€â€Œ") C1; C2
 Pass	ToASCII("xn--u4e319b.xn--1ch") V7
 Pass	ToASCII("xn--u4e823bcza.xn--0ugb89o") C1; C2; V7
-Pass	ToASCII("í¦©U+dd2fà¾¨ï¼â‰¯") V7
-Pass	ToASCII("í¦©U+dd2fà¾¨ï¼>Ì¸") V7
-Pass	ToASCII("í¦©U+dd2fà¾¨.â‰¯") V7
-Pass	ToASCII("í¦©U+dd2fà¾¨.>Ì¸") V7
+Pass	ToASCII("ñº”¯à¾¨ï¼â‰¯") V7
+Pass	ToASCII("ñº”¯à¾¨ï¼>Ì¸") V7
+Pass	ToASCII("ñº”¯à¾¨.â‰¯") V7
+Pass	ToASCII("ñº”¯à¾¨.>Ì¸") V7
 Pass	ToASCII("xn--4fd57150h.xn--hdh") V7
-Pass	ToASCII("í ‚U+de3fí­€U+dd8cé¸®í …U+deb6.Ï‚") V6
-Pass	ToASCII("í ‚U+de3fí­€U+dd8cé¸®í …U+deb6.Î£") V6
-Pass	ToASCII("í ‚U+de3fí­€U+dd8cé¸®í …U+deb6.Ïƒ") V6
+Pass	ToASCII("ğ¨¿ó †Œé¸®ğ‘š¶.Ï‚") V6
+Pass	ToASCII("ğ¨¿ó †Œé¸®ğ‘š¶.Î£") V6
+Pass	ToASCII("ğ¨¿ó †Œé¸®ğ‘š¶.Ïƒ") V6
 Pass	ToASCII("xn--l76a726rt2h.xn--4xa") V6
 Pass	ToASCII("xn--l76a726rt2h.xn--3xa") V6
-Pass	ToASCII("Ï‚-ã€‚â€Œí µU+dfed-") C1; V3 (ignored)
+Pass	ToASCII("Ï‚-ã€‚â€ŒğŸ­-") C1; V3 (ignored)
 Pass	ToASCII("Ï‚-ã€‚â€Œ1-") C1; V3 (ignored)
 Pass	ToASCII("Î£-ã€‚â€Œ1-") C1; V3 (ignored)
 Pass	ToASCII("Ïƒ-ã€‚â€Œ1-") C1; V3 (ignored)
 Pass	ToASCII("xn----zmb.1-") V3 (ignored)
 Pass	ToASCII("xn----zmb.xn--1--i1t") C1; V3 (ignored)
 Pass	ToASCII("xn----xmb.xn--1--i1t") C1; V3 (ignored)
-Pass	ToASCII("Î£-ã€‚â€Œí µU+dfed-") C1; V3 (ignored)
-Pass	ToASCII("Ïƒ-ã€‚â€Œí µU+dfed-") C1; V3 (ignored)
-Pass	ToASCII("áœ´-à³¢ï¼í­€U+dd29á‚¤") V6
-Pass	ToASCII("áœ´-à³¢.í­€U+dd29á‚¤") V6
-Pass	ToASCII("áœ´-à³¢.í­€U+dd29â´„") V6
+Pass	ToASCII("Î£-ã€‚â€ŒğŸ­-") C1; V3 (ignored)
+Pass	ToASCII("Ïƒ-ã€‚â€ŒğŸ­-") C1; V3 (ignored)
+Pass	ToASCII("áœ´-à³¢ï¼ó „©á‚¤") V6
+Pass	ToASCII("áœ´-à³¢.ó „©á‚¤") V6
+Pass	ToASCII("áœ´-à³¢.ó „©â´„") V6
 Pass	ToASCII("xn----ggf830f.xn--vkj") V6
-Pass	ToASCII("áœ´-à³¢ï¼í­€U+dd29â´„") V6
+Pass	ToASCII("áœ´-à³¢ï¼ó „©â´„") V6
 Pass	ToASCII("xn----ggf830f.xn--cnd") V6; V7
-Pass	ToASCII("â€ã€‚í ¸U+dc18â’ˆê¡æ“‰") C2; V6; V7
-Pass	ToASCII("â€ã€‚í ¸U+dc181.ê¡æ“‰") C2; V6
+Pass	ToASCII("â€ã€‚ğ€˜â’ˆê¡æ“‰") C2; V6; V7
+Pass	ToASCII("â€ã€‚ğ€˜1.ê¡æ“‰") C2; V6
 Pass	ToASCII(".xn--1-1p4r.xn--s7uv61m") V6; A4_2 (ignored)
 Pass	ToASCII("xn--1ug.xn--1-1p4r.xn--s7uv61m") C2; V6
 Pass	ToASCII(".xn--tsh026uql4bew9p") V6; V7; A4_2 (ignored)
 Pass	ToASCII("xn--1ug.xn--tsh026uql4bew9p") C2; V6; V7
-Pass	ToASCII("â«ï½¡áƒ€-í«U+dc22") V7
-Pass	ToASCII("â«ã€‚áƒ€-í«U+dc22") V7
-Pass	ToASCII("â«ã€‚â´ -í«U+dc22") V7
+Pass	ToASCII("â«ï½¡áƒ€-óƒ¢") V7
+Pass	ToASCII("â«ã€‚áƒ€-óƒ¢") V7
+Pass	ToASCII("â«ã€‚â´ -óƒ¢") V7
 Pass	ToASCII("xn--r3i.xn----2wst7439i") V7
-Pass	ToASCII("â«ï½¡â´ -í«U+dc22") V7
+Pass	ToASCII("â«ï½¡â´ -óƒ¢") V7
 Pass	ToASCII("xn--r3i.xn----z1g58579u") V7
-Pass	ToASCII("í …U+dc42â—Šï¼â¦Ÿâˆ ") V6
-Pass	ToASCII("í …U+dc42â—Š.â¦Ÿâˆ ") V6
+Pass	ToASCII("ğ‘‘‚â—Šï¼â¦Ÿâˆ ") V6
+Pass	ToASCII("ğ‘‘‚â—Š.â¦Ÿâˆ ") V6
 Pass	ToASCII("xn--01h3338f.xn--79g270a") V6
-Pass	ToASCII("í—í¬¡U+dd99à¸ºí¬¨U+df5aã€‚Úºí µU+dfdc") V7
-Pass	ToASCII("á„’á…¤á†¼í¬¡U+dd99à¸ºí¬¨U+df5aã€‚Úºí µU+dfdc") V7
-Pass	ToASCII("í—í¬¡U+dd99à¸ºí¬¨U+df5aã€‚Úº4") V7
-Pass	ToASCII("á„’á…¤á†¼í¬¡U+dd99à¸ºí¬¨U+df5aã€‚Úº4") V7
+Pass	ToASCII("í—ó˜–™à¸ºóššã€‚ÚºğŸœ") V7
+Pass	ToASCII("á„’á…¤á†¼ó˜–™à¸ºóššã€‚ÚºğŸœ") V7
+Pass	ToASCII("í—ó˜–™à¸ºóššã€‚Úº4") V7
+Pass	ToASCII("á„’á…¤á†¼ó˜–™à¸ºóššã€‚Úº4") V7
 Pass	ToASCII("xn--o4c1723h8g85gt4ya.xn--4-dvc") V7
-Pass	ToASCII("ê¥“.Ì½í „U+dcbdé¦‹") V6; V7
+Pass	ToASCII("ê¥“.Ì½ğ‘‚½é¦‹") V6; V7
 Pass	ToASCII("xn--3j9a.xn--bua0708eqzrd") V6; V7
-Pass	ToASCII("í«¢U+deddí©©U+def8â€ï½¡äœ–") C2; V7
-Pass	ToASCII("í«¢U+deddí©©U+def8â€ã€‚äœ–") C2; V7
+Pass	ToASCII("óˆ«òª›¸â€ï½¡äœ–") C2; V7
+Pass	ToASCII("óˆ«òª›¸â€ã€‚äœ–") C2; V7
 Pass	ToASCII("xn--g138cxw05a.xn--k0o") V7
 Pass	ToASCII("xn--1ug30527h9mxi.xn--k0o") C2; V7
-Pass	ToASCII("á¡¯âš‰å§¶í ¼U+dd09ï¼Û·â€í ¼U+dfaaâ€") C2; U1 (ignored)
-Pass	ToASCII("á¡¯âš‰å§¶8,.Û·â€í ¼U+dfaaâ€") C2; U1 (ignored)
+Pass	ToASCII("á¡¯âš‰å§¶ğŸ„‰ï¼Û·â€ğŸªâ€") C2; U1 (ignored)
+Pass	ToASCII("á¡¯âš‰å§¶8,.Û·â€ğŸªâ€") C2; U1 (ignored)
 Pass	ToASCII("xn--8,-g9oy26fzu4d.xn--kmb6733w") U1 (ignored)
 Pass	ToASCII("xn--8,-g9oy26fzu4d.xn--kmb859ja94998b") C2; U1 (ignored)
 Pass	ToASCII("xn--c9e433epi4b3j20a.xn--kmb6733w") V7
 Pass	ToASCII("xn--c9e433epi4b3j20a.xn--kmb859ja94998b") C2; V7
-Pass	ToASCII("áŸá¡ˆâ€Œï¼ï¸’-í ›U+df90-") C1; V6; V7; V3 (ignored)
-Pass	ToASCII("áŸá¡ˆâ€Œ.ã€‚-í ›U+df90-") C1; V6; V3 (ignored); A4_2 (ignored)
+Pass	ToASCII("áŸá¡ˆâ€Œï¼ï¸’-ğ–¾-") C1; V6; V7; V3 (ignored)
+Pass	ToASCII("áŸá¡ˆâ€Œ.ã€‚-ğ–¾-") C1; V6; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--b7d82w..xn-----pe4u") V6; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--b7d82wo4h..xn-----pe4u") C1; V6; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--b7d82w.xn-----c82nz547a") V6; V7; V3 (ignored)
 Pass	ToASCII("xn--b7d82wo4h.xn-----c82nz547a") C1; V6; V7; V3 (ignored)
-Pass	ToASCII("í ¶U+de5cã€‚-à­á‚«") V6; V3 (ignored)
-Pass	ToASCII("í ¶U+de5cã€‚-à­â´‹") V6; V3 (ignored)
+Pass	ToASCII("ğ©œã€‚-à­á‚«") V6; V3 (ignored)
+Pass	ToASCII("ğ©œã€‚-à­â´‹") V6; V3 (ignored)
 Pass	ToASCII("xn--792h.xn----bse820x") V6; V3 (ignored)
 Pass	ToASCII("xn--792h.xn----bse632b") V6; V7; V3 (ignored)
-Pass	ToASCII("í µU+dff5éšâ¯®ï¼á â€Œ") C1
+Pass	ToASCII("ğŸµéšâ¯®ï¼á â€Œ") C1
 Pass	ToASCII("9éšâ¯®.á â€Œ") C1
 Pass	ToASCII("xn--9-mfs8024b.") A4_2 (ignored)
 Pass	ToASCII("9éšâ¯®.") A4_2 (ignored)
 Pass	ToASCII("xn--9-mfs8024b.xn--0ug") C1
-Pass	ToASCII("á®¬á‚¬â€ŒÌ¥ã€‚í µU+dff8") C1; V6
+Pass	ToASCII("á®¬á‚¬â€ŒÌ¥ã€‚ğŸ¸") C1; V6
 Pass	ToASCII("xn--mta176jjjm.c") V6
 Pass	ToASCII("xn--mta176j97cl2q.c") C1; V6
-Pass	ToASCII("á®¬â´Œâ€ŒÌ¥ã€‚í µU+dff8") C1; V6
+Pass	ToASCII("á®¬â´Œâ€ŒÌ¥ã€‚ğŸ¸") C1; V6
 Pass	ToASCII("xn--mta930emri.c") V6; V7
 Pass	ToASCII("xn--mta930emribme.c") C1; V6; V7
-Pass	ToASCII("í­€U+dd01ÍŸâ¾¶ï½¡â‚‡ï¸’ëˆ‡â‰®") V6; V7
-Pass	ToASCII("í­€U+dd01ÍŸâ¾¶ï½¡â‚‡ï¸’á„‚á…®á†ª<Ì¸") V6; V7
-Pass	ToASCII("í­€U+dd01ÍŸé£›ã€‚7ã€‚ëˆ‡â‰®") V6
-Pass	ToASCII("í­€U+dd01ÍŸé£›ã€‚7ã€‚á„‚á…®á†ª<Ì¸") V6
+Pass	ToASCII("ó „ÍŸâ¾¶ï½¡â‚‡ï¸’ëˆ‡â‰®") V6; V7
+Pass	ToASCII("ó „ÍŸâ¾¶ï½¡â‚‡ï¸’á„‚á…®á†ª<Ì¸") V6; V7
+Pass	ToASCII("ó „ÍŸé£›ã€‚7ã€‚ëˆ‡â‰®") V6
+Pass	ToASCII("ó „ÍŸé£›ã€‚7ã€‚á„‚á…®á†ª<Ì¸") V6
 Pass	ToASCII("xn--9ua0567e.7.xn--gdh6767c") V6
 Pass	ToASCII("xn--9ua0567e.xn--7-ngou006d1ttc") V6; V7
 Pass	ToASCII("xn--2ib43l.xn--te6h")
-Pass	ToASCII("Ù½à¥ƒ.í ºU+dd35")
-Pass	ToASCII("Ù½à¥ƒ.í ºU+dd13")
+Pass	ToASCII("Ù½à¥ƒ.ğ¤µ")
+Pass	ToASCII("Ù½à¥ƒ.ğ¤“")
 Pass	ToASCII("â€Œã€‚ï¾ à¾„à¾–") C1; V6
 Pass	ToASCII("â€Œã€‚á… à¾„à¾–") C1; V6
 Pass	ToASCII(".xn--3ed0b") V6; A4_2 (ignored)
@@ -1275,10 +1275,10 @@ Pass	ToASCII(".xn--3ed0b20h") V7; A4_2 (ignored)
 Pass	ToASCII("xn--0ug.xn--3ed0b20h") C1; V7
 Pass	ToASCII(".xn--3ed0by082k") V7; A4_2 (ignored)
 Pass	ToASCII("xn--0ug.xn--3ed0by082k") C1; V7
-Pass	ToASCII("â‰¯í§µU+de05ï¼â€í €U+dd7cíªˆU+dddb") C2; V7
-Pass	ToASCII(">Ì¸í§µU+de05ï¼â€í €U+dd7cíªˆU+dddb") C2; V7
-Pass	ToASCII("â‰¯í§µU+de05.â€í €U+dd7cíªˆU+dddb") C2; V7
-Pass	ToASCII(">Ì¸í§µU+de05.â€í €U+dd7cíªˆU+dddb") C2; V7
+Pass	ToASCII("â‰¯ò˜…ï¼â€ğ…¼ò²‡›") C2; V7
+Pass	ToASCII(">Ì¸ò˜…ï¼â€ğ…¼ò²‡›") C2; V7
+Pass	ToASCII("â‰¯ò˜….â€ğ…¼ò²‡›") C2; V7
+Pass	ToASCII(">Ì¸ò˜….â€ğ…¼ò²‡›") C2; V7
 Pass	ToASCII("xn--hdh84488f.xn--xy7cw2886b") V7
 Pass	ToASCII("xn--hdh84488f.xn--1ug8099fbjp4e") C2; V7
 Pass	ToASCII("ê§Ó€á®ªà£¶ï¼ëˆµ")
@@ -1291,30 +1291,30 @@ Pass	ToASCII("xn--s5a04sn4u297k.xn--2e1b")
 Pass	ToASCII("ê§Óá®ªà£¶ï¼á„‚á…¯á†¼")
 Pass	ToASCII("ê§Óá®ªà£¶ï¼ëˆµ")
 Pass	ToASCII("xn--d5a07sn4u297k.xn--2e1b") V7
-Pass	ToASCII("ê£ªï½¡í ˜U+dd3fí „U+ddbeí­€U+ddd7") V6; V7
-Pass	ToASCII("ê£ªã€‚í ˜U+dd3fí „U+ddbeí­€U+ddd7") V6; V7
+Pass	ToASCII("ê£ªï½¡ğ–„¿ğ‘†¾ó ‡—") V6; V7
+Pass	ToASCII("ê£ªã€‚ğ–„¿ğ‘†¾ó ‡—") V6; V7
 Pass	ToASCII("xn--3g9a.xn--ud1dz07k") V6; V7
-Pass	ToASCII("í«U+dcd3í …U+deb3ã€‚í¤ƒU+ddffâ‰¯â¾‡") V7
-Pass	ToASCII("í«U+dcd3í …U+deb3ã€‚í¤ƒU+ddff>Ì¸â¾‡") V7
-Pass	ToASCII("í«U+dcd3í …U+deb3ã€‚í¤ƒU+ddffâ‰¯èˆ›") V7
-Pass	ToASCII("í«U+dcd3í …U+deb3ã€‚í¤ƒU+ddff>Ì¸èˆ›") V7
+Pass	ToASCII("ó‡““ğ‘š³ã€‚ñ·¿â‰¯â¾‡") V7
+Pass	ToASCII("ó‡““ğ‘š³ã€‚ñ·¿>Ì¸â¾‡") V7
+Pass	ToASCII("ó‡““ğ‘š³ã€‚ñ·¿â‰¯èˆ›") V7
+Pass	ToASCII("ó‡““ğ‘š³ã€‚ñ·¿>Ì¸èˆ›") V7
 Pass	ToASCII("xn--3e2d79770c.xn--hdh0088abyy1c") V7
 Pass	ToASCII("xn--9hb7344k.") A4_2 (ignored)
-Pass	ToASCII("í ‚U+dec7Ù¡.") A4_2 (ignored)
-Pass	ToASCII("í¥„U+dd48ç ªâ‰¯á¢‘ï½¡â‰¯í ¶U+de5aí¨U+dd14â€Œ") C1; V7
-Pass	ToASCII("í¥„U+dd48ç ª>Ì¸á¢‘ï½¡>Ì¸í ¶U+de5aí¨U+dd14â€Œ") C1; V7
-Pass	ToASCII("í¥„U+dd48ç ªâ‰¯á¢‘ã€‚â‰¯í ¶U+de5aí¨U+dd14â€Œ") C1; V7
-Pass	ToASCII("í¥„U+dd48ç ª>Ì¸á¢‘ã€‚>Ì¸í ¶U+de5aí¨U+dd14â€Œ") C1; V7
+Pass	ToASCII("ğ«‡Ù¡.") A4_2 (ignored)
+Pass	ToASCII("ñ¡…ˆç ªâ‰¯á¢‘ï½¡â‰¯ğ©šò“´”â€Œ") C1; V7
+Pass	ToASCII("ñ¡…ˆç ª>Ì¸á¢‘ï½¡>Ì¸ğ©šò“´”â€Œ") C1; V7
+Pass	ToASCII("ñ¡…ˆç ªâ‰¯á¢‘ã€‚â‰¯ğ©šò“´”â€Œ") C1; V7
+Pass	ToASCII("ñ¡…ˆç ª>Ì¸á¢‘ã€‚>Ì¸ğ©šò“´”â€Œ") C1; V7
 Pass	ToASCII("xn--bbf561cf95e57y3e.xn--hdh0834o7mj6b") V7
 Pass	ToASCII("xn--bbf561cf95e57y3e.xn--0ugz6gc910ejro8c") C1; V7
-Pass	ToASCII("áƒ….í „U+dd33ãŠ¸") V6
-Pass	ToASCII("áƒ….í „U+dd3343") V6
-Pass	ToASCII("â´¥.í „U+dd3343") V6
+Pass	ToASCII("áƒ….ğ‘„³ãŠ¸") V6
+Pass	ToASCII("áƒ….ğ‘„³43") V6
+Pass	ToASCII("â´¥.ğ‘„³43") V6
 Pass	ToASCII("xn--tlj.xn--43-274o") V6
-Pass	ToASCII("â´¥.í „U+dd33ãŠ¸") V6
+Pass	ToASCII("â´¥.ğ‘„³ãŠ¸") V6
 Pass	ToASCII("xn--9nd.xn--43-274o") V6; V7
-Pass	ToASCII("í¤U+dea8í­€U+dd09ï¾ à¾·.í¦¡U+dfb0ê¥“") V7
-Pass	ToASCII("í¤U+dea8í­€U+dd09á… à¾·.í¦¡U+dfb0ê¥“") V7
+Pass	ToASCII("ñ—ª¨ó „‰ï¾ à¾·.ñ¸°ê¥“") V7
+Pass	ToASCII("ñ—ª¨ó „‰á… à¾·.ñ¸°ê¥“") V7
 Pass	ToASCII("xn--kgd72212e.xn--3j9au7544a") V7
 Pass	ToASCII("xn--kgd36f9z57y.xn--3j9au7544a") V7
 Pass	ToASCII("xn--kgd7493jee34a.xn--3j9au7544a") V7
@@ -1325,16 +1325,16 @@ Pass	ToASCII("á¡Œï¼ï¸’á¢‘") V7
 Pass	ToASCII("á¡Œ.ã€‚á¢‘") A4_2 (ignored)
 Pass	ToASCII("xn--c8e..xn--bbf") A4_2 (ignored)
 Pass	ToASCII("xn--c8e.xn--bbf9168i") V7
-Pass	ToASCII("í »U+ddcfã€‚á ¢í¨U+de06") V7
+Pass	ToASCII("ğ·ã€‚á ¢ò“˜†") V7
 Pass	ToASCII("xn--hd7h.xn--46e66060j") V7
-Pass	ToASCII("í§°U+ded4í­€U+dd8eí­€U+dd97í ‡U+dc95ã€‚â‰®") V7
-Pass	ToASCII("í§°U+ded4í­€U+dd8eí­€U+dd97í ‡U+dc95ã€‚<Ì¸") V7
+Pass	ToASCII("òŒ‹”ó †ó †—ğ‘²•ã€‚â‰®") V7
+Pass	ToASCII("òŒ‹”ó †ó †—ğ‘²•ã€‚<Ì¸") V7
 Pass	ToASCII("xn--4m3dv4354a.xn--gdh") V7
-Pass	ToASCII("í­€U+dda6.à££æš€â‰ ") V6; A4_2 (ignored)
-Pass	ToASCII("í­€U+dda6.à££æš€=Ì¸") V6; A4_2 (ignored)
+Pass	ToASCII("ó †¦.à££æš€â‰ ") V6; A4_2 (ignored)
+Pass	ToASCII("ó †¦.à££æš€=Ì¸") V6; A4_2 (ignored)
 Pass	ToASCII(".xn--m0b461k3g2c") V6; A4_2 (ignored)
-Pass	ToASCII("ä‚¹í®¹U+dd85í €U+dee6ï¼â€") C2; V7
-Pass	ToASCII("ä‚¹í®¹U+dd85í €U+dee6.â€") C2; V7
+Pass	ToASCII("ä‚¹ó¾–…ğ‹¦ï¼â€") C2; V7
+Pass	ToASCII("ä‚¹ó¾–…ğ‹¦.â€") C2; V7
 Pass	ToASCII("xn--0on3543c5981i.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--0on3543c5981i.xn--1ug") C2; V7
 Pass	ToASCII("ï¸’ï½¡á‚£â‰¯") V7
@@ -1349,22 +1349,22 @@ Pass	ToASCII("ï¸’ï½¡â´ƒâ‰¯") V7
 Pass	ToASCII("xn--y86c.xn--hdh782b") V7
 Pass	ToASCII("..xn--bnd622g") V7; A4_2 (ignored)
 Pass	ToASCII("xn--y86c.xn--bnd622g") V7
-Pass	ToASCII("ç®ƒáƒ-í­€U+dc5dï½¡â‰ -í ¾U+dd16") V7
-Pass	ToASCII("ç®ƒáƒ-í­€U+dc5dï½¡=Ì¸-í ¾U+dd16") V7
-Pass	ToASCII("ç®ƒáƒ-í­€U+dc5dã€‚â‰ -í ¾U+dd16") V7
-Pass	ToASCII("ç®ƒáƒ-í­€U+dc5dã€‚=Ì¸-í ¾U+dd16") V7
-Pass	ToASCII("ç®ƒâ´¡-í­€U+dc5dã€‚=Ì¸-í ¾U+dd16") V7
-Pass	ToASCII("ç®ƒâ´¡-í­€U+dc5dã€‚â‰ -í ¾U+dd16") V7
+Pass	ToASCII("ç®ƒáƒ-ó ï½¡â‰ -ğŸ¤–") V7
+Pass	ToASCII("ç®ƒáƒ-ó ï½¡=Ì¸-ğŸ¤–") V7
+Pass	ToASCII("ç®ƒáƒ-ó ã€‚â‰ -ğŸ¤–") V7
+Pass	ToASCII("ç®ƒáƒ-ó ã€‚=Ì¸-ğŸ¤–") V7
+Pass	ToASCII("ç®ƒâ´¡-ó ã€‚=Ì¸-ğŸ¤–") V7
+Pass	ToASCII("ç®ƒâ´¡-ó ã€‚â‰ -ğŸ¤–") V7
 Pass	ToASCII("xn----4wsr321ay823p.xn----tfot873s") V7
-Pass	ToASCII("ç®ƒâ´¡-í­€U+dc5dï½¡=Ì¸-í ¾U+dd16") V7
-Pass	ToASCII("ç®ƒâ´¡-í­€U+dc5dï½¡â‰ -í ¾U+dd16") V7
+Pass	ToASCII("ç®ƒâ´¡-ó ï½¡=Ì¸-ğŸ¤–") V7
+Pass	ToASCII("ç®ƒâ´¡-ó ï½¡â‰ -ğŸ¤–") V7
 Pass	ToASCII("xn----11g3013fy8x5m.xn----tfot873s") V7
 Pass	ToASCII("ß¥.Úµ")
 Pass	ToASCII("xn--dtb.xn--okb")
 Pass	ToASCII(".xn--3e6h") A4_2 (ignored)
 Pass	ToASCII("xn--3e6h")
-Pass	ToASCII("í ºU+dd3f")
-Pass	ToASCII("í ºU+dd1d")
+Pass	ToASCII("ğ¤¿")
+Pass	ToASCII("ğ¤")
 Pass	ToASCII("á€ºâ€â€Œã€‚-â€Œ") C1; V6; V3 (ignored)
 Pass	ToASCII("xn--bkd.-") V6; V3 (ignored)
 Pass	ToASCII("xn--bkd412fca.xn----sgn") C1; V6; V3 (ignored)
@@ -1372,22 +1372,22 @@ Pass	ToASCII("ï¸’ï½¡á­„á¡‰") V6; V7
 Pass	ToASCII("ã€‚ã€‚á­„á¡‰") V6; A4_2 (ignored)
 Pass	ToASCII("..xn--87e93m") V6; A4_2 (ignored)
 Pass	ToASCII("xn--y86c.xn--87e93m") V6; V7
-Pass	ToASCII("-á®«ï¸’â€.í¤‹U+dd88í¥—U+de53") C2; V7; V3 (ignored)
-Pass	ToASCII("-á®«ã€‚â€.í¤‹U+dd88í¥—U+de53") C2; V7; V3 (ignored)
+Pass	ToASCII("-á®«ï¸’â€.ñ’¶ˆñ¥¹“") C2; V7; V3 (ignored)
+Pass	ToASCII("-á®«ã€‚â€.ñ’¶ˆñ¥¹“") C2; V7; V3 (ignored)
 Pass	ToASCII("xn----qml..xn--x50zy803a") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----qml.xn--1ug.xn--x50zy803a") C2; V7; V3 (ignored)
 Pass	ToASCII("xn----qml1407i.xn--x50zy803a") V7; V3 (ignored)
 Pass	ToASCII("xn----qmlv7tw180a.xn--x50zy803a") C2; V7; V3 (ignored)
-Pass	ToASCII("í­‚U+ddae.â‰¯í ¸U+dc06") V7
-Pass	ToASCII("í­‚U+ddae.>Ì¸í ¸U+dc06") V7
+Pass	ToASCII("ó ¦®.â‰¯ğ€†") V7
+Pass	ToASCII("ó ¦®.>Ì¸ğ€†") V7
 Pass	ToASCII("xn--t546e.xn--hdh5166o") V7
 Pass	ToASCII("Ú¹ï¼á¡³á…Ÿ")
 Pass	ToASCII("Ú¹.á¡³á…Ÿ")
 Pass	ToASCII("xn--skb.xn--g9e")
 Pass	ToASCII("Ú¹.á¡³")
 Pass	ToASCII("xn--skb.xn--osd737a") V7
-Pass	ToASCII("ã¨›í £U+dc4e.ï¸’í µU+dfd5à´") V7
-Pass	ToASCII("ã¨›í £U+dc4e.ã€‚7à´") A4_2 (ignored)
+Pass	ToASCII("ã¨›ğ˜±.ï¸’ğŸ•à´") V7
+Pass	ToASCII("ã¨›ğ˜±.ã€‚7à´") A4_2 (ignored)
 Pass	ToASCII("xn--mbm8237g..xn--7-7hf") A4_2 (ignored)
 Pass	ToASCII("xn--mbm8237g.xn--7-7hf1526p") V7
 Pass	ToASCII("ÃŸâ€Œê«¶á¢¥ï¼âŠ¶áƒá‚¶") C1
@@ -1411,41 +1411,41 @@ Pass	ToASCII("xn--ss-4ep585bkm5p.xn--5nd703gyrh") C1; V7
 Pass	ToASCII("xn--ss-4epx629f.xn--undv409k") V7
 Pass	ToASCII("xn--ss-4ep585bkm5p.xn--undv409k") C1; V7
 Pass	ToASCII("xn--zca682johfi89m.xn--undv409k") C1; V7
-Pass	ToASCII("â€ã€‚Ï‚í­€U+dc49") C2; V7
-Pass	ToASCII("â€ã€‚Î£í­€U+dc49") C2; V7
-Pass	ToASCII("â€ã€‚Ïƒí­€U+dc49") C2; V7
+Pass	ToASCII("â€ã€‚Ï‚ó ‰") C2; V7
+Pass	ToASCII("â€ã€‚Î£ó ‰") C2; V7
+Pass	ToASCII("â€ã€‚Ïƒó ‰") C2; V7
 Pass	ToASCII(".xn--4xa24344p") V7; A4_2 (ignored)
 Pass	ToASCII("xn--1ug.xn--4xa24344p") C2; V7
 Pass	ToASCII("xn--1ug.xn--3xa44344p") C2; V7
-Pass	ToASCII("â’’í©¡U+de19íªU+dce0í …U+dcc0.-í¬ºU+dc4a") V7; V3 (ignored)
-Pass	ToASCII("11.í©¡U+de19íªU+dce0í …U+dcc0.-í¬ºU+dc4a") V7; V3 (ignored)
+Pass	ToASCII("â’’ò¨˜™ò³³ ğ‘“€.-ó¡Š") V7; V3 (ignored)
+Pass	ToASCII("11.ò¨˜™ò³³ ğ‘“€.-ó¡Š") V7; V3 (ignored)
 Pass	ToASCII("11.xn--uz1d59632bxujd.xn----x310m") V7; V3 (ignored)
 Pass	ToASCII("xn--3shy698frsu9dt1me.xn----x310m") V7; V3 (ignored)
 Pass	ToASCII("-ï½¡â€") C2; V3 (ignored)
 Pass	ToASCII("-ã€‚â€") C2; V3 (ignored)
 Pass	ToASCII("-.") V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("-.xn--1ug") C2; V3 (ignored)
-Pass	ToASCII("á‰¬í¨’U+dc3cí£…U+ddf6ï½¡í ‚U+de2cí µU+dfe0") V7
-Pass	ToASCII("á‰¬í¨’U+dc3cí£…U+ddf6ã€‚í ‚U+de2c8") V7
+Pass	ToASCII("á‰¬ò” ¼ñ—¶ï½¡ğ¨¬ğŸ ") V7
+Pass	ToASCII("á‰¬ò” ¼ñ—¶ã€‚ğ¨¬8") V7
 Pass	ToASCII("xn--d0d41273c887z.xn--8-ob5i") V7
-Pass	ToASCII("Ï‚â€-.áƒƒí¡™U+dfd9") C2; V3 (ignored)
-Pass	ToASCII("Ï‚â€-.â´£í¡™U+dfd9") C2; V3 (ignored)
-Pass	ToASCII("Î£â€-.áƒƒí¡™U+dfd9") C2; V3 (ignored)
-Pass	ToASCII("Ïƒâ€-.â´£í¡™U+dfd9") C2; V3 (ignored)
+Pass	ToASCII("Ï‚â€-.áƒƒğ¦Ÿ™") C2; V3 (ignored)
+Pass	ToASCII("Ï‚â€-.â´£ğ¦Ÿ™") C2; V3 (ignored)
+Pass	ToASCII("Î£â€-.áƒƒğ¦Ÿ™") C2; V3 (ignored)
+Pass	ToASCII("Ïƒâ€-.â´£ğ¦Ÿ™") C2; V3 (ignored)
 Pass	ToASCII("xn----zmb.xn--rlj2573p") V3 (ignored)
 Pass	ToASCII("xn----zmb048s.xn--rlj2573p") C2; V3 (ignored)
 Pass	ToASCII("xn----xmb348s.xn--rlj2573p") C2; V3 (ignored)
 Pass	ToASCII("xn----zmb.xn--7nd64871a") V7; V3 (ignored)
 Pass	ToASCII("xn----zmb048s.xn--7nd64871a") C2; V7; V3 (ignored)
 Pass	ToASCII("xn----xmb348s.xn--7nd64871a") C2; V7; V3 (ignored)
-Pass	ToASCII("â‰ ã€‚í ½U+dfb3í µU+dff2")
-Pass	ToASCII("=Ì¸ã€‚í ½U+dfb3í µU+dff2")
-Pass	ToASCII("â‰ ã€‚í ½U+dfb36")
-Pass	ToASCII("=Ì¸ã€‚í ½U+dfb36")
+Pass	ToASCII("â‰ ã€‚ğŸ³ğŸ²")
+Pass	ToASCII("=Ì¸ã€‚ğŸ³ğŸ²")
+Pass	ToASCII("â‰ ã€‚ğŸ³6")
+Pass	ToASCII("=Ì¸ã€‚ğŸ³6")
 Pass	ToASCII("xn--1ch.xn--6-dl4s")
-Pass	ToASCII("â‰ .í ½U+dfb36")
-Pass	ToASCII("=Ì¸.í ½U+dfb36")
-Pass	ToASCII("í«–U+df3d.è ”") V7
+Pass	ToASCII("â‰ .ğŸ³6")
+Pass	ToASCII("=Ì¸.ğŸ³6")
+Pass	ToASCII("ó…¬½.è ”") V7
 Pass	ToASCII("xn--g747d.xn--xl2a") V7
 Pass	ToASCII("à£¦â€ï¼ë¼½") C2; V6
 Pass	ToASCII("à£¦â€ï¼á„ˆá…¨á‡€") C2; V6
@@ -1453,79 +1453,79 @@ Pass	ToASCII("à£¦â€.ë¼½") C2; V6
 Pass	ToASCII("à£¦â€.á„ˆá…¨á‡€") C2; V6
 Pass	ToASCII("xn--p0b.xn--e43b") V6
 Pass	ToASCII("xn--p0b869i.xn--e43b") C2; V6
-Pass	ToASCII("í£¶U+de3dï¼í£¯U+de15") V7
-Pass	ToASCII("í£¶U+de3d.í£¯U+de15") V7
+Pass	ToASCII("ñ¨½ï¼ñ‹¸•") V7
+Pass	ToASCII("ñ¨½.ñ‹¸•") V7
 Pass	ToASCII("xn--pr3x.xn--rv7w") V7
-Pass	ToASCII("í ‚U+dfc0í ƒU+de09í ºU+ddcfã€‚í¥‰U+dea7â‚„á‚«í£‹U+de6b") V7
-Pass	ToASCII("í ‚U+dfc0í ƒU+de09í ºU+ddcfã€‚í¥‰U+dea74á‚«í£‹U+de6b") V7
-Pass	ToASCII("í ‚U+dfc0í ƒU+de09í ºU+ddcfã€‚í¥‰U+dea74â´‹í£‹U+de6b") V7
+Pass	ToASCII("ğ¯€ğ¸‰ğ§ã€‚ñ¢š§â‚„á‚«ñ‚¹«") V7
+Pass	ToASCII("ğ¯€ğ¸‰ğ§ã€‚ñ¢š§4á‚«ñ‚¹«") V7
+Pass	ToASCII("ğ¯€ğ¸‰ğ§ã€‚ñ¢š§4â´‹ñ‚¹«") V7
 Pass	ToASCII("xn--039c42bq865a.xn--4-wvs27840bnrzm") V7
-Pass	ToASCII("í ‚U+dfc0í ƒU+de09í ºU+ddcfã€‚í¥‰U+dea7â‚„â´‹í£‹U+de6b") V7
+Pass	ToASCII("ğ¯€ğ¸‰ğ§ã€‚ñ¢š§â‚„â´‹ñ‚¹«") V7
 Pass	ToASCII("xn--039c42bq865a.xn--4-t0g49302fnrzm") V7
-Pass	ToASCII("í µU+dfd3ã€‚Û—") V6
+Pass	ToASCII("ğŸ“ã€‚Û—") V6
 Pass	ToASCII("5ã€‚Û—") V6
 Pass	ToASCII("5.xn--nlb") V6
-Pass	ToASCII("â€Œíª«U+de29.â¾•") C1; V7
-Pass	ToASCII("â€Œíª«U+de29.è°·") C1; V7
+Pass	ToASCII("â€Œòº¸©.â¾•") C1; V7
+Pass	ToASCII("â€Œòº¸©.è°·") C1; V7
 Pass	ToASCII("xn--i183d.xn--6g3a") V7
 Pass	ToASCII("xn--0ug26167i.xn--6g3a") C1; V7
-Pass	ToASCII("ï¸’í«»U+dc07â€.-Ü¼â€Œ") C1; C2; V7; V3 (ignored)
-Pass	ToASCII("ã€‚í«»U+dc07â€.-Ü¼â€Œ") C1; C2; V7; V3 (ignored); A4_2 (ignored)
+Pass	ToASCII("ï¸’ó°‡â€.-Ü¼â€Œ") C1; C2; V7; V3 (ignored)
+Pass	ToASCII("ã€‚ó°‡â€.-Ü¼â€Œ") C1; C2; V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII(".xn--hh50e.xn----t2c") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII(".xn--1ug05310k.xn----t2c071q") C1; C2; V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--y86c71305c.xn----t2c") V7; V3 (ignored)
 Pass	ToASCII("xn--1ug1658ftw26f.xn----t2c071q") C1; C2; V7; V3 (ignored)
-Pass	ToASCII("â€ï¼í µU+dfd7") C2
+Pass	ToASCII("â€ï¼ğŸ—") C2
 Pass	ToASCII("â€.j") C2
 Pass	ToASCII("â€.J") C2
 Pass	ToASCII(".j") A4_2 (ignored)
 Pass	ToASCII("xn--1ug.j") C2
 Pass	ToASCII("j")
-Pass	ToASCII("á‚­í¢¾U+dccdê¡¨Ö®ã€‚á‚¾â€Œâ€Œ") C1; V7
-Pass	ToASCII("â´í¢¾U+dccdê¡¨Ö®ã€‚â´â€Œâ€Œ") C1; V7
+Pass	ToASCII("á‚­ğ¿£ê¡¨Ö®ã€‚á‚¾â€Œâ€Œ") C1; V7
+Pass	ToASCII("â´ğ¿£ê¡¨Ö®ã€‚â´â€Œâ€Œ") C1; V7
 Pass	ToASCII("xn--5cb172r175fug38a.xn--mlj") V7
 Pass	ToASCII("xn--5cb172r175fug38a.xn--0uga051h") C1; V7
 Pass	ToASCII("xn--5cb347co96jug15a.xn--2nd") V7
 Pass	ToASCII("xn--5cb347co96jug15a.xn--2nd059ea") C1; V7
-Pass	ToASCII("í €U+def0ã€‚í¬…U+dcf1") V7
+Pass	ToASCII("ğ‹°ã€‚ó‘“±") V7
 Pass	ToASCII("xn--k97c.xn--q031e") V7
-Pass	ToASCII("à£Ÿá‚«í¢›U+dff8ê·¤ï¼í©€U+dd7cí µU+dfe2íœªà«£") V6; V7
-Pass	ToASCII("à£Ÿá‚«í¢›U+dff8á„€á…²á†¯ï¼í©€U+dd7cí µU+dfe2á„’á…±á†¹à«£") V6; V7
-Pass	ToASCII("à£Ÿá‚«í¢›U+dff8ê·¤.í©€U+dd7c0íœªà«£") V6; V7
-Pass	ToASCII("à£Ÿá‚«í¢›U+dff8á„€á…²á†¯.í©€U+dd7c0á„’á…±á†¹à«£") V6; V7
-Pass	ToASCII("à£Ÿâ´‹í¢›U+dff8á„€á…²á†¯.í©€U+dd7c0á„’á…±á†¹à«£") V6; V7
-Pass	ToASCII("à£Ÿâ´‹í¢›U+dff8ê·¤.í©€U+dd7c0íœªà«£") V6; V7
+Pass	ToASCII("à£Ÿá‚«ğ¶¿¸ê·¤ï¼ò …¼ğŸ¢íœªà«£") V6; V7
+Pass	ToASCII("à£Ÿá‚«ğ¶¿¸á„€á…²á†¯ï¼ò …¼ğŸ¢á„’á…±á†¹à«£") V6; V7
+Pass	ToASCII("à£Ÿá‚«ğ¶¿¸ê·¤.ò …¼0íœªà«£") V6; V7
+Pass	ToASCII("à£Ÿá‚«ğ¶¿¸á„€á…²á†¯.ò …¼0á„’á…±á†¹à«£") V6; V7
+Pass	ToASCII("à£Ÿâ´‹ğ¶¿¸á„€á…²á†¯.ò …¼0á„’á…±á†¹à«£") V6; V7
+Pass	ToASCII("à£Ÿâ´‹ğ¶¿¸ê·¤.ò …¼0íœªà«£") V6; V7
 Pass	ToASCII("xn--i0b436pkl2g2h42a.xn--0-8le8997mulr5f") V6; V7
-Pass	ToASCII("à£Ÿâ´‹í¢›U+dff8á„€á…²á†¯ï¼í©€U+dd7cí µU+dfe2á„’á…±á†¹à«£") V6; V7
-Pass	ToASCII("à£Ÿâ´‹í¢›U+dff8ê·¤ï¼í©€U+dd7cí µU+dfe2íœªà«£") V6; V7
+Pass	ToASCII("à£Ÿâ´‹ğ¶¿¸á„€á…²á†¯ï¼ò …¼ğŸ¢á„’á…±á†¹à«£") V6; V7
+Pass	ToASCII("à£Ÿâ´‹ğ¶¿¸ê·¤ï¼ò …¼ğŸ¢íœªà«£") V6; V7
 Pass	ToASCII("xn--i0b601b6r7l2hs0a.xn--0-8le8997mulr5f") V6; V7
-Pass	ToASCII("Ş„ï¼í ºU+dc5dØ") V7
-Pass	ToASCII("Ş„.í ºU+dc5dØ") V7
+Pass	ToASCII("Ş„ï¼ğ¡Ø") V7
+Pass	ToASCII("Ş„.ğ¡Ø") V7
 Pass	ToASCII("xn--lqb.xn--jfb1808v") V7
-Pass	ToASCII("à«â‚ƒ.8ê£„â€í ¼U+dce4") V6
-Pass	ToASCII("à«3.8ê£„â€í ¼U+dce4") V6
+Pass	ToASCII("à«â‚ƒ.8ê£„â€ğŸƒ¤") V6
+Pass	ToASCII("à«3.8ê£„â€ğŸƒ¤") V6
 Pass	ToASCII("xn--3-yke.xn--8-sl4et308f") V6
 Pass	ToASCII("xn--3-yke.xn--8-ugnv982dbkwm") V6
-Pass	ToASCII("ê¡•â‰ áí­»U+dff1ï½¡í ƒU+dd67í­€U+dd2bï¾ ") V7
-Pass	ToASCII("ê¡•=Ì¸áí­»U+dff1ï½¡í ƒU+dd67í­€U+dd2bï¾ ") V7
-Pass	ToASCII("ê¡•â‰ áí­»U+dff1ã€‚í ƒU+dd67í­€U+dd2bá… ") V7
-Pass	ToASCII("ê¡•=Ì¸áí­»U+dff1ã€‚í ƒU+dd67í­€U+dd2bá… ") V7
+Pass	ToASCII("ê¡•â‰ áó®¿±ï½¡ğµ§ó „«ï¾ ") V7
+Pass	ToASCII("ê¡•=Ì¸áó®¿±ï½¡ğµ§ó „«ï¾ ") V7
+Pass	ToASCII("ê¡•â‰ áó®¿±ã€‚ğµ§ó „«á… ") V7
+Pass	ToASCII("ê¡•=Ì¸áó®¿±ã€‚ğµ§ó „«á… ") V7
 Pass	ToASCII("xn--cld333gn31h0158l.xn--3g0d") V7
 Pass	ToASCII("é±Šã€‚â€Œ") C1
 Pass	ToASCII("xn--rt6a.") A4_2 (ignored)
 Pass	ToASCII("é±Š.") A4_2 (ignored)
 Pass	ToASCII("xn--rt6a.xn--0ug") C1
 Pass	ToASCII("xn--4-0bd15808a.") A4_2 (ignored)
-Pass	ToASCII("í ºU+dd3aßŒ4.") A4_2 (ignored)
-Pass	ToASCII("í ºU+dd18ßŒ4.") A4_2 (ignored)
+Pass	ToASCII("ğ¤ºßŒ4.") A4_2 (ignored)
+Pass	ToASCII("ğ¤˜ßŒ4.") A4_2 (ignored)
 Pass	ToASCII("-ï½¡ä›") V3 (ignored)
 Pass	ToASCII("-ã€‚ä›") V3 (ignored)
 Pass	ToASCII("-.xn--xco") V3 (ignored)
-Pass	ToASCII("â€Œí¤ˆU+dce0ï¼â€") C1; C2; V7
-Pass	ToASCII("â€Œí¤ˆU+dce0.â€") C1; C2; V7
+Pass	ToASCII("â€Œñ’ƒ ï¼â€") C1; C2; V7
+Pass	ToASCII("â€Œñ’ƒ .â€") C1; C2; V7
 Pass	ToASCII("xn--dj8y.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--0ugz7551c.xn--1ug") C1; C2; V7
-Pass	ToASCII("í „U+ddc0.í­‚U+de31") V6; V7
+Pass	ToASCII("ğ‘‡€.ó ¨±") V6; V7
 Pass	ToASCII("xn--wd1d.xn--k946e") V6; V7
 Pass	ToASCII("â¾†ï¼ê¡ˆï¼•â‰¯ÃŸ")
 Pass	ToASCII("â¾†ï¼ê¡ˆï¼•>Ì¸ÃŸ")
@@ -1545,14 +1545,14 @@ Pass	ToASCII("â¾†ï¼ê¡ˆï¼•â‰¯ss")
 Pass	ToASCII("â¾†ï¼ê¡ˆï¼•>Ì¸ss")
 Pass	ToASCII("â¾†ï¼ê¡ˆï¼•>Ì¸Ss")
 Pass	ToASCII("â¾†ï¼ê¡ˆï¼•â‰¯Ss")
-Pass	ToASCII("í ºU+dd2a.Ï‚")
-Pass	ToASCII("í ºU+dd08.Î£")
-Pass	ToASCII("í ºU+dd2a.Ïƒ")
-Pass	ToASCII("í ºU+dd08.Ïƒ")
+Pass	ToASCII("ğ¤ª.Ï‚")
+Pass	ToASCII("ğ¤ˆ.Î£")
+Pass	ToASCII("ğ¤ª.Ïƒ")
+Pass	ToASCII("ğ¤ˆ.Ïƒ")
 Pass	ToASCII("xn--ie6h.xn--4xa")
-Pass	ToASCII("í ºU+dd08.Ï‚")
+Pass	ToASCII("ğ¤ˆ.Ï‚")
 Pass	ToASCII("xn--ie6h.xn--3xa")
-Pass	ToASCII("í ºU+dd2a.Î£")
+Pass	ToASCII("ğ¤ª.Î£")
 Pass	ToASCII("â€Œá‚ºï½¡Ï‚") C1
 Pass	ToASCII("â€Œá‚ºã€‚Ï‚") C1
 Pass	ToASCII("â€Œâ´šã€‚Ï‚") C1
@@ -1582,38 +1582,38 @@ Pass	ToASCII("xn--1ug0273b.xn--0sa359l6n7g13a") C1; C2
 Pass	ToASCII("æ·½ã€‚á ¾")
 Pass	ToASCII("xn--34w.xn--x7e")
 Pass	ToASCII("æ·½.á ¾")
-Pass	ToASCII("í©²U+de29á‚³â“ï½¡í „U+dd28") V6; V7
-Pass	ToASCII("í©²U+de29á‚³â“ã€‚í „U+dd28") V6; V7
-Pass	ToASCII("í©²U+de29â´“â“ã€‚í „U+dd28") V6; V7
+Pass	ToASCII("ò¬¨©á‚³â“ï½¡ğ‘„¨") V6; V7
+Pass	ToASCII("ò¬¨©á‚³â“ã€‚ğ‘„¨") V6; V7
+Pass	ToASCII("ò¬¨©â´“â“ã€‚ğ‘„¨") V6; V7
 Pass	ToASCII("xn--8di78qvw32y.xn--k80d") V6; V7
-Pass	ToASCII("í©²U+de29â´“â“ï½¡í „U+dd28") V6; V7
+Pass	ToASCII("ò¬¨©â´“â“ï½¡ğ‘„¨") V6; V7
 Pass	ToASCII("xn--rnd896i0j14q.xn--k80d") V6; V7
-Pass	ToASCII("áŸ¿ï½¡í ºU+df33") V7
-Pass	ToASCII("áŸ¿ã€‚í ºU+df33") V7
+Pass	ToASCII("áŸ¿ï½¡ğ¬³") V7
+Pass	ToASCII("áŸ¿ã€‚ğ¬³") V7
 Pass	ToASCII("xn--45e.xn--et6h") V7
-Pass	ToASCII("Ù’â€ï½¡à³í …U+deb3") C2; V6
-Pass	ToASCII("Ù’â€ã€‚à³í …U+deb3") C2; V6
+Pass	ToASCII("Ù’â€ï½¡à³ğ‘š³") C2; V6
+Pass	ToASCII("Ù’â€ã€‚à³ğ‘š³") C2; V6
 Pass	ToASCII("xn--uhb.xn--8tc4527k") V6
 Pass	ToASCII("xn--uhb882k.xn--8tc4527k") C2; V6
-Pass	ToASCII("ÃŸí¢€U+dc3bí£šU+df17ï½¡í ¶U+de68í ½U+dd6eÃŸ") V6; V7
-Pass	ToASCII("ÃŸí¢€U+dc3bí£šU+df17ã€‚í ¶U+de68í ½U+dd6eÃŸ") V6; V7
-Pass	ToASCII("SSí¢€U+dc3bí£šU+df17ã€‚í ¶U+de68í ½U+dd6eSS") V6; V7
-Pass	ToASCII("ssí¢€U+dc3bí£šU+df17ã€‚í ¶U+de68í ½U+dd6ess") V6; V7
-Pass	ToASCII("Ssí¢€U+dc3bí£šU+df17ã€‚í ¶U+de68í ½U+dd6eSs") V6; V7
+Pass	ToASCII("ÃŸğ°€»ñ†¬—ï½¡ğ©¨ğŸ•®ÃŸ") V6; V7
+Pass	ToASCII("ÃŸğ°€»ñ†¬—ã€‚ğ©¨ğŸ•®ÃŸ") V6; V7
+Pass	ToASCII("SSğ°€»ñ†¬—ã€‚ğ©¨ğŸ•®SS") V6; V7
+Pass	ToASCII("ssğ°€»ñ†¬—ã€‚ğ©¨ğŸ•®ss") V6; V7
+Pass	ToASCII("Ssğ°€»ñ†¬—ã€‚ğ©¨ğŸ•®Ss") V6; V7
 Pass	ToASCII("xn--ss-jl59biy67d.xn--ss-4d11aw87d") V6; V7
 Pass	ToASCII("xn--zca20040bgrkh.xn--zca3653v86qa") V6; V7
-Pass	ToASCII("SSí¢€U+dc3bí£šU+df17ï½¡í ¶U+de68í ½U+dd6eSS") V6; V7
-Pass	ToASCII("ssí¢€U+dc3bí£šU+df17ï½¡í ¶U+de68í ½U+dd6ess") V6; V7
-Pass	ToASCII("Ssí¢€U+dc3bí£šU+df17ï½¡í ¶U+de68í ½U+dd6eSs") V6; V7
+Pass	ToASCII("SSğ°€»ñ†¬—ï½¡ğ©¨ğŸ•®SS") V6; V7
+Pass	ToASCII("ssğ°€»ñ†¬—ï½¡ğ©¨ğŸ•®ss") V6; V7
+Pass	ToASCII("Ssğ°€»ñ†¬—ï½¡ğ©¨ğŸ•®Ss") V6; V7
 Pass	ToASCII("â€ã€‚â€Œ") C1; C2
 Pass	ToASCII("xn--1ug.xn--0ug") C1; C2
-Pass	ToASCII("í­U+dc58ï¼í­€U+dd2e") V7; A4_2 (ignored)
-Pass	ToASCII("í­U+dc58.í­€U+dd2e") V7; A4_2 (ignored)
+Pass	ToASCII("ó ‘˜ï¼ó „®") V7; A4_2 (ignored)
+Pass	ToASCII("ó ‘˜.ó „®") V7; A4_2 (ignored)
 Pass	ToASCII("xn--s136e.") V7; A4_2 (ignored)
-Pass	ToASCII("ê¦·í¬·U+dd59ë©¹ã€‚â’›í­‚U+de07") V6; V7
-Pass	ToASCII("ê¦·í¬·U+dd59á„†á…§á†°ã€‚â’›í­‚U+de07") V6; V7
-Pass	ToASCII("ê¦·í¬·U+dd59ë©¹ã€‚20.í­‚U+de07") V6; V7
-Pass	ToASCII("ê¦·í¬·U+dd59á„†á…§á†°ã€‚20.í­‚U+de07") V6; V7
+Pass	ToASCII("ê¦·óµ™ë©¹ã€‚â’›ó ¨‡") V6; V7
+Pass	ToASCII("ê¦·óµ™á„†á…§á†°ã€‚â’›ó ¨‡") V6; V7
+Pass	ToASCII("ê¦·óµ™ë©¹ã€‚20.ó ¨‡") V6; V7
+Pass	ToASCII("ê¦·óµ™á„†á…§á†°ã€‚20.ó ¨‡") V6; V7
 Pass	ToASCII("xn--ym9av13acp85w.20.xn--d846e") V6; V7
 Pass	ToASCII("xn--ym9av13acp85w.xn--dth22121k") V6; V7
 Pass	ToASCII("â€Œï½¡ï¸’") C1; V7
@@ -1622,7 +1622,7 @@ Pass	ToASCII("..") A4_2 (ignored)
 Pass	ToASCII("xn--0ug..") C1; A4_2 (ignored)
 Pass	ToASCII(".xn--y86c") V7; A4_2 (ignored)
 Pass	ToASCII("xn--0ug.xn--y86c") C1; V7
-Pass	ToASCII("á¡²-í µU+dff9.ÃŸ-â€Œ-") C1; V3 (ignored)
+Pass	ToASCII("á¡²-ğŸ¹.ÃŸ-â€Œ-") C1; V3 (ignored)
 Pass	ToASCII("á¡²-3.ÃŸ-â€Œ-") C1; V3 (ignored)
 Pass	ToASCII("á¡²-3.SS-â€Œ-") C1; V3 (ignored)
 Pass	ToASCII("á¡²-3.ss-â€Œ-") C1; V3 (ignored)
@@ -1630,80 +1630,80 @@ Pass	ToASCII("á¡²-3.Ss-â€Œ-") C1; V3 (ignored)
 Pass	ToASCII("xn---3-p9o.ss--") V2 (ignored); V3 (ignored)
 Pass	ToASCII("xn---3-p9o.xn--ss---276a") C1; V3 (ignored)
 Pass	ToASCII("xn---3-p9o.xn-----fia9303a") C1; V3 (ignored)
-Pass	ToASCII("á¡²-í µU+dff9.SS-â€Œ-") C1; V3 (ignored)
-Pass	ToASCII("á¡²-í µU+dff9.ss-â€Œ-") C1; V3 (ignored)
-Pass	ToASCII("á¡²-í µU+dff9.Ss-â€Œ-") C1; V3 (ignored)
-Pass	ToASCII("í¬§U+dd9cá¢˜ã€‚á©¿âº¢") V6; V7
+Pass	ToASCII("á¡²-ğŸ¹.SS-â€Œ-") C1; V3 (ignored)
+Pass	ToASCII("á¡²-ğŸ¹.ss-â€Œ-") C1; V3 (ignored)
+Pass	ToASCII("á¡²-ğŸ¹.Ss-â€Œ-") C1; V3 (ignored)
+Pass	ToASCII("ó™¶œá¢˜ã€‚á©¿âº¢") V6; V7
 Pass	ToASCII("xn--ibf35138o.xn--fpfz94g") V6; V7
-Pass	ToASCII("í¨œU+dda7í µU+dfefã€‚â’ˆá©¶í µU+dfdaí©U+de0c") V7
-Pass	ToASCII("í¨œU+dda73ã€‚1.á©¶2í©U+de0c") V6; V7
+Pass	ToASCII("ò—†§ğŸ¯ã€‚â’ˆá©¶ğŸšò ˜Œ") V7
+Pass	ToASCII("ò—†§3ã€‚1.á©¶2ò ˜Œ") V6; V7
 Pass	ToASCII("xn--3-rj42h.1.xn--2-13k96240l") V6; V7
 Pass	ToASCII("xn--3-rj42h.xn--2-13k746cq465x") V7
-Pass	ToASCII("â€â‚…â’ˆã€‚â‰¯í µU+dff4â€") C2; V7
-Pass	ToASCII("â€â‚…â’ˆã€‚>Ì¸í µU+dff4â€") C2; V7
+Pass	ToASCII("â€â‚…â’ˆã€‚â‰¯ğŸ´â€") C2; V7
+Pass	ToASCII("â€â‚…â’ˆã€‚>Ì¸ğŸ´â€") C2; V7
 Pass	ToASCII("â€51.ã€‚â‰¯8â€") C2; A4_2 (ignored)
 Pass	ToASCII("â€51.ã€‚>Ì¸8â€") C2; A4_2 (ignored)
 Pass	ToASCII("51..xn--8-ogo") A4_2 (ignored)
 Pass	ToASCII("xn--51-l1t..xn--8-ugn00i") C2; A4_2 (ignored)
 Pass	ToASCII("xn--5-ecp.xn--8-ogo") V7
 Pass	ToASCII("xn--5-tgnz5r.xn--8-ugn00i") C2; V7
-Pass	ToASCII("í¢»U+ddc2à©‚á‚ªí£ˆU+dc9f.â‰®") V7
-Pass	ToASCII("í¢»U+ddc2à©‚á‚ªí£ˆU+dc9f.<Ì¸") V7
-Pass	ToASCII("í¢»U+ddc2à©‚â´Ší£ˆU+dc9f.<Ì¸") V7
-Pass	ToASCII("í¢»U+ddc2à©‚â´Ší£ˆU+dc9f.â‰®") V7
+Pass	ToASCII("ğ¾·‚à©‚á‚ªñ‚‚Ÿ.â‰®") V7
+Pass	ToASCII("ğ¾·‚à©‚á‚ªñ‚‚Ÿ.<Ì¸") V7
+Pass	ToASCII("ğ¾·‚à©‚â´Šñ‚‚Ÿ.<Ì¸") V7
+Pass	ToASCII("ğ¾·‚à©‚â´Šñ‚‚Ÿ.â‰®") V7
 Pass	ToASCII("xn--nbc229o4y27dgskb.xn--gdh") V7
 Pass	ToASCII("xn--nbc493aro75ggskb.xn--gdh") V7
 Pass	ToASCII("ê¡ ï¼Û²")
 Pass	ToASCII("ê¡ .Û²")
 Pass	ToASCII("xn--5c9a.xn--fmb")
-Pass	ToASCII("ê™½â€Œí¡¾U+ddf5í ¼U+dd06ï½¡â€Œí „U+dc42á¬") C1; V6; U1 (ignored)
-Pass	ToASCII("ê™½â€Œéœ£í ¼U+dd06ï½¡â€Œí „U+dc42á¬") C1; V6; U1 (ignored)
-Pass	ToASCII("ê™½â€Œéœ£5,ã€‚â€Œí „U+dc42á¬") C1; V6; U1 (ignored)
+Pass	ToASCII("ê™½â€Œğ¯§µğŸ„†ï½¡â€Œğ‘‚á¬") C1; V6; U1 (ignored)
+Pass	ToASCII("ê™½â€Œéœ£ğŸ„†ï½¡â€Œğ‘‚á¬") C1; V6; U1 (ignored)
+Pass	ToASCII("ê™½â€Œéœ£5,ã€‚â€Œğ‘‚á¬") C1; V6; U1 (ignored)
 Pass	ToASCII("xn--5,-op8g373c.xn--4sf0725i") V6; U1 (ignored)
 Pass	ToASCII("xn--5,-i1tz135dnbqa.xn--4sf36u6u4w") C1; V6; U1 (ignored)
 Pass	ToASCII("xn--2q5a751a653w.xn--4sf0725i") V6; V7
 Pass	ToASCII("xn--0ug4208b2vjuk63a.xn--4sf36u6u4w") C1; V6; V7
-Pass	ToASCII("å…ï½¡á ¼í­ƒU+dd1cí …U+deb6í ‡U+dc3f") V7
-Pass	ToASCII("å…ã€‚á ¼í­ƒU+dd1cí …U+deb6í ‡U+dc3f") V7
+Pass	ToASCII("å…ï½¡á ¼ó ´œğ‘š¶ğ‘°¿") V7
+Pass	ToASCII("å…ã€‚á ¼ó ´œğ‘š¶ğ‘°¿") V7
 Pass	ToASCII("xn--b5q.xn--v7e6041kqqd4m251b") V7
-Pass	ToASCII("í µU+dfd9ï½¡â€í µU+dff8â€â·") C2
+Pass	ToASCII("ğŸ™ï½¡â€ğŸ¸â€â·") C2
 Pass	ToASCII("1ã€‚â€2â€7") C2
 Pass	ToASCII("1.2h")
 Pass	ToASCII("1.xn--27-l1tb") C2
-Pass	ToASCII("á¡¨-ï½¡í­ƒU+decbí µU+dff7") V7; V3 (ignored)
-Pass	ToASCII("á¡¨-ã€‚í­ƒU+decb1") V7; V3 (ignored)
+Pass	ToASCII("á¡¨-ï½¡ó »‹ğŸ·") V7; V3 (ignored)
+Pass	ToASCII("á¡¨-ã€‚ó »‹1") V7; V3 (ignored)
 Pass	ToASCII("xn----z8j.xn--1-5671m") V7; V3 (ignored)
-Pass	ToASCII("á‚¼í§£U+ddedà¾€â¾‡ã€‚á‚¯â™€â€Œâ€Œ") C1; V7
-Pass	ToASCII("á‚¼í§£U+ddedà¾€èˆ›ã€‚á‚¯â™€â€Œâ€Œ") C1; V7
-Pass	ToASCII("â´œí§£U+ddedà¾€èˆ›ã€‚â´â™€â€Œâ€Œ") C1; V7
+Pass	ToASCII("á‚¼òˆ·­à¾€â¾‡ã€‚á‚¯â™€â€Œâ€Œ") C1; V7
+Pass	ToASCII("á‚¼òˆ·­à¾€èˆ›ã€‚á‚¯â™€â€Œâ€Œ") C1; V7
+Pass	ToASCII("â´œòˆ·­à¾€èˆ›ã€‚â´â™€â€Œâ€Œ") C1; V7
 Pass	ToASCII("xn--zed372mdj2do3v4h.xn--e5h11w") V7
 Pass	ToASCII("xn--zed372mdj2do3v4h.xn--0uga678bgyh") C1; V7
-Pass	ToASCII("â´œí§£U+ddedà¾€â¾‡ã€‚â´â™€â€Œâ€Œ") C1; V7
+Pass	ToASCII("â´œòˆ·­à¾€â¾‡ã€‚â´â™€â€Œâ€Œ") C1; V7
 Pass	ToASCII("xn--zed54dz10wo343g.xn--nnd651i") V7
 Pass	ToASCII("xn--zed54dz10wo343g.xn--nnd089ea464d") C1; V7
-Pass	ToASCII("í „U+dc46í µU+dff0.â€") C2; V6
-Pass	ToASCII("í „U+dc464.â€") C2; V6
+Pass	ToASCII("ğ‘†ğŸ°.â€") C2; V6
+Pass	ToASCII("ğ‘†4.â€") C2; V6
 Pass	ToASCII("xn--4-xu7i.") V6; A4_2 (ignored)
 Pass	ToASCII("xn--4-xu7i.xn--1ug") C2; V6
-Pass	ToASCII("í¥»U+dd18á‚¾ç™€ï½¡í …U+de3fâ€â€Œë¶¼") C1; V6; V7
-Pass	ToASCII("í¥»U+dd18á‚¾ç™€ï½¡í …U+de3fâ€â€Œá„‡á…°á†«") C1; V6; V7
-Pass	ToASCII("í¥»U+dd18á‚¾ç™€ã€‚í …U+de3fâ€â€Œë¶¼") C1; V6; V7
-Pass	ToASCII("í¥»U+dd18á‚¾ç™€ã€‚í …U+de3fâ€â€Œá„‡á…°á†«") C1; V6; V7
-Pass	ToASCII("í¥»U+dd18â´ç™€ã€‚í …U+de3fâ€â€Œá„‡á…°á†«") C1; V6; V7
-Pass	ToASCII("í¥»U+dd18â´ç™€ã€‚í …U+de3fâ€â€Œë¶¼") C1; V6; V7
+Pass	ToASCII("ñ®´˜á‚¾ç™€ï½¡ğ‘˜¿â€â€Œë¶¼") C1; V6; V7
+Pass	ToASCII("ñ®´˜á‚¾ç™€ï½¡ğ‘˜¿â€â€Œá„‡á…°á†«") C1; V6; V7
+Pass	ToASCII("ñ®´˜á‚¾ç™€ã€‚ğ‘˜¿â€â€Œë¶¼") C1; V6; V7
+Pass	ToASCII("ñ®´˜á‚¾ç™€ã€‚ğ‘˜¿â€â€Œá„‡á…°á†«") C1; V6; V7
+Pass	ToASCII("ñ®´˜â´ç™€ã€‚ğ‘˜¿â€â€Œá„‡á…°á†«") C1; V6; V7
+Pass	ToASCII("ñ®´˜â´ç™€ã€‚ğ‘˜¿â€â€Œë¶¼") C1; V6; V7
 Pass	ToASCII("xn--mlju35u7qx2f.xn--et3bn23n") V6; V7
 Pass	ToASCII("xn--mlju35u7qx2f.xn--0ugb6122js83c") C1; V6; V7
-Pass	ToASCII("í¥»U+dd18â´ç™€ï½¡í …U+de3fâ€â€Œá„‡á…°á†«") C1; V6; V7
-Pass	ToASCII("í¥»U+dd18â´ç™€ï½¡í …U+de3fâ€â€Œë¶¼") C1; V6; V7
+Pass	ToASCII("ñ®´˜â´ç™€ï½¡ğ‘˜¿â€â€Œá„‡á…°á†«") C1; V6; V7
+Pass	ToASCII("ñ®´˜â´ç™€ï½¡ğ‘˜¿â€â€Œë¶¼") C1; V6; V7
 Pass	ToASCII("xn--2nd6803c7q37d.xn--et3bn23n") V6; V7
 Pass	ToASCII("xn--2nd6803c7q37d.xn--0ugb6122js83c") C1; V6; V7
-Pass	ToASCII("á¡ƒí µU+dfe7â‰¯á £ï¼æ°í¥ U+dff1ê«") V7
-Pass	ToASCII("á¡ƒí µU+dfe7>Ì¸á £ï¼æ°í¥ U+dff1ê«") V7
-Pass	ToASCII("á¡ƒ5â‰¯á £.æ°í¥ U+dff1ê«") V7
-Pass	ToASCII("á¡ƒ5>Ì¸á £.æ°í¥ U+dff1ê«") V7
+Pass	ToASCII("á¡ƒğŸ§â‰¯á £ï¼æ°ñ¨±ê«") V7
+Pass	ToASCII("á¡ƒğŸ§>Ì¸á £ï¼æ°ñ¨±ê«") V7
+Pass	ToASCII("á¡ƒ5â‰¯á £.æ°ñ¨±ê«") V7
+Pass	ToASCII("á¡ƒ5>Ì¸á £.æ°ñ¨±ê«") V7
 Pass	ToASCII("xn--5-24jyf768b.xn--lqw213ime95g") V7
-Pass	ToASCII("-í „U+de36â’ï¼â’í¢U+dee2í­€U+dfad") V7; V3 (ignored)
-Pass	ToASCII("-í „U+de368..7.í¢U+dee2í­€U+dfad") V7; V3 (ignored); A4_2 (ignored)
+Pass	ToASCII("-ğ‘ˆ¶â’ï¼â’ğ°›¢ó ­") V7; V3 (ignored)
+Pass	ToASCII("-ğ‘ˆ¶8..7.ğ°›¢ó ­") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn---8-bv5o..7.xn--c35nf1622b") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----scp6252h.xn--zshy411yzpx2d") V7; V3 (ignored)
 Pass	ToASCII("â€Œá‚¡ç•â€ï¼â‰®") C1; C2
@@ -1722,25 +1722,25 @@ Pass	ToASCII("â€Œâ´ç•â€ï¼<Ì¸") C1; C2
 Pass	ToASCII("â€Œâ´ç•â€ï¼â‰®") C1; C2
 Pass	ToASCII("xn--8md0962c.xn--gdh") V7
 Pass	ToASCII("xn--8md700fea3748f.xn--gdh") C1; C2; V7
-Pass	ToASCII("à»‹â€ï¼éí­ƒU+dc11") C2; V6; V7
-Pass	ToASCII("à»‹â€.éí­ƒU+dc11") C2; V6; V7
+Pass	ToASCII("à»‹â€ï¼éó °‘") C2; V6; V7
+Pass	ToASCII("à»‹â€.éó °‘") C2; V6; V7
 Pass	ToASCII("xn--t8c.xn--iz4a43209d") V6; V7
 Pass	ToASCII("xn--t8c059f.xn--iz4a43209d") C2; V6; V7
-Pass	ToASCII("í§¥U+def4.-á¡¢Ö’í ¶U+de20") V7; V3 (ignored)
+Pass	ToASCII("ò‰›´.-á¡¢Ö’ğ¨ ") V7; V3 (ignored)
 Pass	ToASCII("xn--ep37b.xn----hec165lho83b") V7; V3 (ignored)
-Pass	ToASCII("í¢¼U+dc2bï¼á®ªÏ‚á‚¦â€") C2; V6; V7
-Pass	ToASCII("í¢¼U+dc2b.á®ªÏ‚á‚¦â€") C2; V6; V7
-Pass	ToASCII("í¢¼U+dc2b.á®ªÏ‚â´†â€") C2; V6; V7
-Pass	ToASCII("í¢¼U+dc2b.á®ªÎ£á‚¦â€") C2; V6; V7
-Pass	ToASCII("í¢¼U+dc2b.á®ªÏƒâ´†â€") C2; V6; V7
-Pass	ToASCII("í¢¼U+dc2b.á®ªÎ£â´†â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«ï¼á®ªÏ‚á‚¦â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«.á®ªÏ‚á‚¦â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«.á®ªÏ‚â´†â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«.á®ªÎ£á‚¦â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«.á®ªÏƒâ´†â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«.á®ªÎ£â´†â€") C2; V6; V7
 Pass	ToASCII("xn--nu4s.xn--4xa153j7im") V6; V7
 Pass	ToASCII("xn--nu4s.xn--4xa153jk8cs1q") C2; V6; V7
 Pass	ToASCII("xn--nu4s.xn--3xa353jk8cs1q") C2; V6; V7
-Pass	ToASCII("í¢¼U+dc2bï¼á®ªÏ‚â´†â€") C2; V6; V7
-Pass	ToASCII("í¢¼U+dc2bï¼á®ªÎ£á‚¦â€") C2; V6; V7
-Pass	ToASCII("í¢¼U+dc2bï¼á®ªÏƒâ´†â€") C2; V6; V7
-Pass	ToASCII("í¢¼U+dc2bï¼á®ªÎ£â´†â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«ï¼á®ªÏ‚â´†â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«ï¼á®ªÎ£á‚¦â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«ï¼á®ªÏƒâ´†â€") C2; V6; V7
+Pass	ToASCII("ğ¿€«ï¼á®ªÎ£â´†â€") C2; V6; V7
 Pass	ToASCII("xn--nu4s.xn--4xa217dxri") V6; V7
 Pass	ToASCII("xn--nu4s.xn--4xa217dxriome") C2; V6; V7
 Pass	ToASCII("xn--nu4s.xn--3xa417dxriome") C2; V6; V7
@@ -1750,29 +1750,29 @@ Pass	ToASCII("1.xn--sv9a..xn--mfc") V6; A4_2 (ignored)
 Pass	ToASCII("1.xn--0ug7185c..xn--mfc") C1; V6; A4_2 (ignored)
 Pass	ToASCII("xn--tsh0720cse8b.xn--mfc") V6; V7
 Pass	ToASCII("xn--0ug78o720myr1c.xn--mfc") C1; V6; V7
-Pass	ToASCII("ÃŸâ€.á¯²í£“U+dfbc") C2; V6; V7
-Pass	ToASCII("SSâ€.á¯²í£“U+dfbc") C2; V6; V7
-Pass	ToASCII("ssâ€.á¯²í£“U+dfbc") C2; V6; V7
-Pass	ToASCII("Ssâ€.á¯²í£“U+dfbc") C2; V6; V7
+Pass	ToASCII("ÃŸâ€.á¯²ñ„¾¼") C2; V6; V7
+Pass	ToASCII("SSâ€.á¯²ñ„¾¼") C2; V6; V7
+Pass	ToASCII("ssâ€.á¯²ñ„¾¼") C2; V6; V7
+Pass	ToASCII("Ssâ€.á¯²ñ„¾¼") C2; V6; V7
 Pass	ToASCII("ss.xn--0zf22107b") V6; V7
 Pass	ToASCII("xn--ss-n1t.xn--0zf22107b") C2; V6; V7
 Pass	ToASCII("xn--zca870n.xn--0zf22107b") C2; V6; V7
-Pass	ToASCII("í …U+dcc2â€Œâ‰®.â‰®") V6
-Pass	ToASCII("í …U+dcc2â€Œ<Ì¸.<Ì¸") V6
+Pass	ToASCII("ğ‘“‚â€Œâ‰®.â‰®") V6
+Pass	ToASCII("ğ‘“‚â€Œ<Ì¸.<Ì¸") V6
 Pass	ToASCII("xn--gdhz656g.xn--gdh") V6
 Pass	ToASCII("xn--0ugy6glz29a.xn--gdh") V6
-Pass	ToASCII("í ½U+dd7cï¼ï¾ ") A4_2 (ignored)
-Pass	ToASCII("í ½U+dd7c.á… ") A4_2 (ignored)
+Pass	ToASCII("ğŸ•¼ï¼ï¾ ") A4_2 (ignored)
+Pass	ToASCII("ğŸ•¼.á… ") A4_2 (ignored)
 Pass	ToASCII("xn--my8h.") A4_2 (ignored)
-Pass	ToASCII("í ½U+dd7c.") A4_2 (ignored)
+Pass	ToASCII("ğŸ•¼.") A4_2 (ignored)
 Pass	ToASCII("xn--my8h.xn--psd") V7
 Pass	ToASCII("xn--my8h.xn--cl7c") V7
-Pass	ToASCII("çˆ•íªU+de51ï¼í µU+dff0æ°—") V7
-Pass	ToASCII("çˆ•íªU+de51.4æ°—") V7
+Pass	ToASCII("çˆ•ò³™‘ï¼ğŸ°æ°—") V7
+Pass	ToASCII("çˆ•ò³™‘.4æ°—") V7
 Pass	ToASCII("xn--1zxq3199c.xn--4-678b") V7
-Pass	ToASCII("í¬¹U+df43ã€‚í¨„U+dd83í£¦U+dc97--") V7; V2 (ignored); V3 (ignored)
+Pass	ToASCII("óƒã€‚ò‘†ƒñ‰¢—--") V7; V2 (ignored); V3 (ignored)
 Pass	ToASCII("xn--2y75e.xn-----1l15eer88n") V7; V2 (ignored); V3 (ignored)
-Pass	ToASCII("è”°ã€‚í­€U+dc79à£-í „U+de35") V7
+Pass	ToASCII("è”°ã€‚ó ¹à£-ğ‘ˆµ") V7
 Pass	ToASCII("xn--sz1a.xn----mrd9984r3dl0i") V7
 Pass	ToASCII("Ï‚áƒ…ã€‚İš")
 Pass	ToASCII("Ï‚â´¥ã€‚İš")
@@ -1793,40 +1793,40 @@ Pass	ToASCII("Ú¼.yÌ‡á¡¤")
 Pass	ToASCII("Ú¼.YÌ‡á¡¤")
 Pass	ToASCII("Ú¼.áºá¡¤")
 Pass	ToASCII("xn--pt9c.xn--0kjya")
-Pass	ToASCII("í ‚U+de57.â´‰â´•")
-Pass	ToASCII("í ‚U+de57.á‚©á‚µ")
-Pass	ToASCII("í ‚U+de57.á‚©â´•")
+Pass	ToASCII("ğ©—.â´‰â´•")
+Pass	ToASCII("ğ©—.á‚©á‚µ")
+Pass	ToASCII("ğ©—.á‚©â´•")
 Pass	ToASCII("xn--pt9c.xn--hnd666l") V7
 Pass	ToASCII("xn--pt9c.xn--hndy") V7
-Pass	ToASCII("â€Œâ€Œã„¤ï¼Ì®í¬–U+de11à§‚") C1; V6; V7
-Pass	ToASCII("â€Œâ€Œã„¤.Ì®í¬–U+de11à§‚") C1; V6; V7
+Pass	ToASCII("â€Œâ€Œã„¤ï¼Ì®ó•¨‘à§‚") C1; V6; V7
+Pass	ToASCII("â€Œâ€Œã„¤.Ì®ó•¨‘à§‚") C1; V6; V7
 Pass	ToASCII("xn--1fk.xn--vta284a9o563a") V6; V7
 Pass	ToASCII("xn--0uga242k.xn--vta284a9o563a") C1; V6; V7
-Pass	ToASCII("á‚´í ¶U+de28â‚ƒí­€U+dc66ï¼í µU+dff3í „U+dcb9à®‚") V7
-Pass	ToASCII("á‚´í ¶U+de283í­€U+dc66.7í „U+dcb9à®‚") V7
-Pass	ToASCII("â´”í ¶U+de283í­€U+dc66.7í „U+dcb9à®‚") V7
+Pass	ToASCII("á‚´ğ¨¨â‚ƒó ¦ï¼ğŸ³ğ‘‚¹à®‚") V7
+Pass	ToASCII("á‚´ğ¨¨3ó ¦.7ğ‘‚¹à®‚") V7
+Pass	ToASCII("â´”ğ¨¨3ó ¦.7ğ‘‚¹à®‚") V7
 Pass	ToASCII("xn--3-ews6985n35s3g.xn--7-cve6271r") V7
-Pass	ToASCII("â´”í ¶U+de28â‚ƒí­€U+dc66ï¼í µU+dff3í „U+dcb9à®‚") V7
+Pass	ToASCII("â´”ğ¨¨â‚ƒó ¦ï¼ğŸ³ğ‘‚¹à®‚") V7
 Pass	ToASCII("xn--3-b1g83426a35t0g.xn--7-cve6271r") V7
-Pass	ToASCII("äˆâ€Œã€‚â€Œâ’ˆí¦†U+dc95") C1; V7
-Pass	ToASCII("äˆâ€Œã€‚â€Œ1.í¦†U+dc95") C1; V7
+Pass	ToASCII("äˆâ€Œã€‚â€Œâ’ˆñ±¢•") C1; V7
+Pass	ToASCII("äˆâ€Œã€‚â€Œ1.ñ±¢•") C1; V7
 Pass	ToASCII("xn--eco.1.xn--ms39a") V7
 Pass	ToASCII("xn--0ug491l.xn--1-rgn.xn--ms39a") C1; V7
 Pass	ToASCII("xn--eco.xn--tsh21126d") V7
 Pass	ToASCII("xn--0ug491l.xn--0ug88oot66q") C1; V7
-Pass	ToASCII("ï¼‘ê«¶ÃŸí ‡U+dca5ï½¡á·˜") V6
-Pass	ToASCII("1ê«¶ÃŸí ‡U+dca5ã€‚á·˜") V6
-Pass	ToASCII("1ê«¶SSí ‡U+dca5ã€‚á·˜") V6
-Pass	ToASCII("1ê«¶ssí ‡U+dca5ã€‚á·˜") V6
+Pass	ToASCII("ï¼‘ê«¶ÃŸğ‘²¥ï½¡á·˜") V6
+Pass	ToASCII("1ê«¶ÃŸğ‘²¥ã€‚á·˜") V6
+Pass	ToASCII("1ê«¶SSğ‘²¥ã€‚á·˜") V6
+Pass	ToASCII("1ê«¶ssğ‘²¥ã€‚á·˜") V6
 Pass	ToASCII("xn--1ss-ir6ln166b.xn--weg") V6
 Pass	ToASCII("xn--1-qfa2471kdb0d.xn--weg") V6
-Pass	ToASCII("ï¼‘ê«¶SSí ‡U+dca5ï½¡á·˜") V6
-Pass	ToASCII("ï¼‘ê«¶ssí ‡U+dca5ï½¡á·˜") V6
-Pass	ToASCII("1ê«¶Ssí ‡U+dca5ã€‚á·˜") V6
-Pass	ToASCII("ï¼‘ê«¶Ssí ‡U+dca5ï½¡á·˜") V6
+Pass	ToASCII("ï¼‘ê«¶SSğ‘²¥ï½¡á·˜") V6
+Pass	ToASCII("ï¼‘ê«¶ssğ‘²¥ï½¡á·˜") V6
+Pass	ToASCII("1ê«¶Ssğ‘²¥ã€‚á·˜") V6
+Pass	ToASCII("ï¼‘ê«¶Ssğ‘²¥ï½¡á·˜") V6
 Pass	ToASCII("xn--3j78f.xn--mkb20b") V7
-Pass	ToASCII("í¢ŠU+dd31â’›â¾³ï¼ê¡¦â’ˆ") V7
-Pass	ToASCII("í¢ŠU+dd3120.éŸ³.ê¡¦1.") V7; A4_2 (ignored)
+Pass	ToASCII("ğ²¤±â’›â¾³ï¼ê¡¦â’ˆ") V7
+Pass	ToASCII("ğ²¤±20.éŸ³.ê¡¦1.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--20-9802c.xn--0w5a.xn--1-eg4e.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--dth6033bzbvx.xn--tsh9439b") V7
 Pass	ToASCII("á‚µã€‚Û°â‰®ÃŸİ…")
@@ -1852,17 +1852,17 @@ Pass	ToASCII("â´•.Û°<Ì¸ÃŸİ…")
 Pass	ToASCII("xn--tnd.xn--ss-jbe65aw27i") V7
 Pass	ToASCII("xn--tnd.xn--zca912alh227g") V7
 Pass	ToASCII("xn--ge6h.xn--oc9a")
-Pass	ToASCII("í ºU+dd28.ê¡")
-Pass	ToASCII("í ºU+dd06.ê¡")
-Pass	ToASCII("â„²í­€U+dd7aí¤·U+dd52ã€‚â‰¯â¾‘") V7
-Pass	ToASCII("â„²í­€U+dd7aí¤·U+dd52ã€‚>Ì¸â¾‘") V7
-Pass	ToASCII("â„²í­€U+dd7aí¤·U+dd52ã€‚â‰¯è¥¾") V7
-Pass	ToASCII("â„²í­€U+dd7aí¤·U+dd52ã€‚>Ì¸è¥¾") V7
-Pass	ToASCII("â…í­€U+dd7aí¤·U+dd52ã€‚>Ì¸è¥¾") V7
-Pass	ToASCII("â…í­€U+dd7aí¤·U+dd52ã€‚â‰¯è¥¾") V7
+Pass	ToASCII("ğ¤¨.ê¡")
+Pass	ToASCII("ğ¤†.ê¡")
+Pass	ToASCII("â„²ó …ºñµ’ã€‚â‰¯â¾‘") V7
+Pass	ToASCII("â„²ó …ºñµ’ã€‚>Ì¸â¾‘") V7
+Pass	ToASCII("â„²ó …ºñµ’ã€‚â‰¯è¥¾") V7
+Pass	ToASCII("â„²ó …ºñµ’ã€‚>Ì¸è¥¾") V7
+Pass	ToASCII("â…ó …ºñµ’ã€‚>Ì¸è¥¾") V7
+Pass	ToASCII("â…ó …ºñµ’ã€‚â‰¯è¥¾") V7
 Pass	ToASCII("xn--73g39298c.xn--hdhz171b") V7
-Pass	ToASCII("â…í­€U+dd7aí¤·U+dd52ã€‚>Ì¸â¾‘") V7
-Pass	ToASCII("â…í­€U+dd7aí¤·U+dd52ã€‚â‰¯â¾‘") V7
+Pass	ToASCII("â…ó …ºñµ’ã€‚>Ì¸â¾‘") V7
+Pass	ToASCII("â…ó …ºñµ’ã€‚â‰¯â¾‘") V7
 Pass	ToASCII("xn--f3g73398c.xn--hdhz171b") V7
 Pass	ToASCII("â€Œ.ÃŸá‚©-") C1; V3 (ignored)
 Pass	ToASCII("â€Œ.ÃŸâ´‰-") C1; V3 (ignored)
@@ -1875,104 +1875,104 @@ Pass	ToASCII("xn--0ug.xn----pfa2305a") C1; V3 (ignored)
 Pass	ToASCII(".xn--ss--4rn") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--0ug.xn--ss--4rn") C1; V7; V3 (ignored)
 Pass	ToASCII("xn--0ug.xn----pfa042j") C1; V7; V3 (ignored)
-Pass	ToASCII("é½™--í µU+dff0.ÃŸ")
+Pass	ToASCII("é½™--ğŸ°.ÃŸ")
 Pass	ToASCII("é½™--4.ÃŸ")
 Pass	ToASCII("é½™--4.SS")
 Pass	ToASCII("é½™--4.ss")
 Pass	ToASCII("é½™--4.Ss")
 Pass	ToASCII("xn----4-p16k.ss")
 Pass	ToASCII("xn----4-p16k.xn--zca")
-Pass	ToASCII("é½™--í µU+dff0.SS")
-Pass	ToASCII("é½™--í µU+dff0.ss")
-Pass	ToASCII("é½™--í µU+dff0.Ss")
-Pass	ToASCII("í­‚U+dea2-ã€‚í¨¬U+dc8fâ‰®í …U+df2b") V7; V3 (ignored)
-Pass	ToASCII("í­‚U+dea2-ã€‚í¨¬U+dc8f<Ì¸í …U+df2b") V7; V3 (ignored)
+Pass	ToASCII("é½™--ğŸ°.SS")
+Pass	ToASCII("é½™--ğŸ°.ss")
+Pass	ToASCII("é½™--ğŸ°.Ss")
+Pass	ToASCII("ó ª¢-ã€‚ò›‚â‰®ğ‘œ«") V7; V3 (ignored)
+Pass	ToASCII("ó ª¢-ã€‚ò›‚<Ì¸ğ‘œ«") V7; V3 (ignored)
 Pass	ToASCII("xn----bh61m.xn--gdhz157g0em1d") V7; V3 (ignored)
-Pass	ToASCII("â€Œí­€U+de79â€ã€‚í§³U+dfe7â‰®á‚©") C1; C2; V7
-Pass	ToASCII("â€Œí­€U+de79â€ã€‚í§³U+dfe7<Ì¸á‚©") C1; C2; V7
-Pass	ToASCII("â€Œí­€U+de79â€ã€‚í§³U+dfe7<Ì¸â´‰") C1; C2; V7
-Pass	ToASCII("â€Œí­€U+de79â€ã€‚í§³U+dfe7â‰®â´‰") C1; C2; V7
+Pass	ToASCII("â€Œó ‰¹â€ã€‚òŒ¿§â‰®á‚©") C1; C2; V7
+Pass	ToASCII("â€Œó ‰¹â€ã€‚òŒ¿§<Ì¸á‚©") C1; C2; V7
+Pass	ToASCII("â€Œó ‰¹â€ã€‚òŒ¿§<Ì¸â´‰") C1; C2; V7
+Pass	ToASCII("â€Œó ‰¹â€ã€‚òŒ¿§â‰®â´‰") C1; C2; V7
 Pass	ToASCII("xn--3n36e.xn--gdh992byu01p") V7
 Pass	ToASCII("xn--0ugc90904y.xn--gdh992byu01p") C1; C2; V7
 Pass	ToASCII("xn--3n36e.xn--hnd112gpz83n") V7
 Pass	ToASCII("xn--0ugc90904y.xn--hnd112gpz83n") C1; C2; V7
-Pass	ToASCII("í ¶U+de9eá‚°ï½¡ìª¡") V6
-Pass	ToASCII("í ¶U+de9eá‚°ï½¡á„á…¨á†¨") V6
-Pass	ToASCII("í ¶U+de9eá‚°ã€‚ìª¡") V6
-Pass	ToASCII("í ¶U+de9eá‚°ã€‚á„á…¨á†¨") V6
-Pass	ToASCII("í ¶U+de9eâ´ã€‚á„á…¨á†¨") V6
-Pass	ToASCII("í ¶U+de9eâ´ã€‚ìª¡") V6
+Pass	ToASCII("ğªá‚°ï½¡ìª¡") V6
+Pass	ToASCII("ğªá‚°ï½¡á„á…¨á†¨") V6
+Pass	ToASCII("ğªá‚°ã€‚ìª¡") V6
+Pass	ToASCII("ğªá‚°ã€‚á„á…¨á†¨") V6
+Pass	ToASCII("ğªâ´ã€‚á„á…¨á†¨") V6
+Pass	ToASCII("ğªâ´ã€‚ìª¡") V6
 Pass	ToASCII("xn--7kj1858k.xn--pi6b") V6
-Pass	ToASCII("í ¶U+de9eâ´ï½¡á„á…¨á†¨") V6
-Pass	ToASCII("í ¶U+de9eâ´ï½¡ìª¡") V6
+Pass	ToASCII("ğªâ´ï½¡á„á…¨á†¨") V6
+Pass	ToASCII("ğªâ´ï½¡ìª¡") V6
 Pass	ToASCII("xn--ond3755u.xn--pi6b") V6; V7
-Pass	ToASCII("á¡…ï¼â€Œï½¡â¢í­’U+de04") C1; V7
-Pass	ToASCII("á¡…0â€Œã€‚â¢í­’U+de04") C1; V7
+Pass	ToASCII("á¡…ï¼â€Œï½¡â¢ó¤¨„") C1; V7
+Pass	ToASCII("á¡…0â€Œã€‚â¢ó¤¨„") C1; V7
 Pass	ToASCII("xn--0-z6j.xn--8lh28773l") V7
 Pass	ToASCII("xn--0-z6jy93b.xn--8lh28773l") C1; V7
-Pass	ToASCII("í¢ŠU+df9aï¼™ê©áŸ“ï¼â€ÃŸ") C2; V7
-Pass	ToASCII("í¢ŠU+df9a9ê©áŸ“.â€ÃŸ") C2; V7
-Pass	ToASCII("í¢ŠU+df9a9ê©áŸ“.â€SS") C2; V7
-Pass	ToASCII("í¢ŠU+df9a9ê©áŸ“.â€ss") C2; V7
+Pass	ToASCII("ğ²®šï¼™ê©áŸ“ï¼â€ÃŸ") C2; V7
+Pass	ToASCII("ğ²®š9ê©áŸ“.â€ÃŸ") C2; V7
+Pass	ToASCII("ğ²®š9ê©áŸ“.â€SS") C2; V7
+Pass	ToASCII("ğ²®š9ê©áŸ“.â€ss") C2; V7
 Pass	ToASCII("xn--9-i0j5967eg3qz.ss") V7
 Pass	ToASCII("xn--9-i0j5967eg3qz.xn--ss-l1t") C2; V7
 Pass	ToASCII("xn--9-i0j5967eg3qz.xn--zca770n") C2; V7
-Pass	ToASCII("í¢ŠU+df9aï¼™ê©áŸ“ï¼â€SS") C2; V7
-Pass	ToASCII("í¢ŠU+df9aï¼™ê©áŸ“ï¼â€ss") C2; V7
-Pass	ToASCII("í¢ŠU+df9a9ê©áŸ“.â€Ss") C2; V7
-Pass	ToASCII("í¢ŠU+df9aï¼™ê©áŸ“ï¼â€Ss") C2; V7
-Pass	ToASCII("ê—·í „U+dd80.İí ‚U+de52")
+Pass	ToASCII("ğ²®šï¼™ê©áŸ“ï¼â€SS") C2; V7
+Pass	ToASCII("ğ²®šï¼™ê©áŸ“ï¼â€ss") C2; V7
+Pass	ToASCII("ğ²®š9ê©áŸ“.â€Ss") C2; V7
+Pass	ToASCII("ğ²®šï¼™ê©áŸ“ï¼â€Ss") C2; V7
+Pass	ToASCII("ê—·ğ‘†€.İğ©’")
 Pass	ToASCII("xn--ju8a625r.xn--hpb0073k")
-Pass	ToASCII("â’â‰¯-ã€‚ï¸’í©¥U+dc63-í¤¹U+dee0") V7; V3 (ignored)
-Pass	ToASCII("â’>Ì¸-ã€‚ï¸’í©¥U+dc63-í¤¹U+dee0") V7; V3 (ignored)
-Pass	ToASCII("9.â‰¯-ã€‚ã€‚í©¥U+dc63-í¤¹U+dee0") V7; V3 (ignored); A4_2 (ignored)
-Pass	ToASCII("9.>Ì¸-ã€‚ã€‚í©¥U+dc63-í¤¹U+dee0") V7; V3 (ignored); A4_2 (ignored)
+Pass	ToASCII("â’â‰¯-ã€‚ï¸’ò©‘£-ñ› ") V7; V3 (ignored)
+Pass	ToASCII("â’>Ì¸-ã€‚ï¸’ò©‘£-ñ› ") V7; V3 (ignored)
+Pass	ToASCII("9.â‰¯-ã€‚ã€‚ò©‘£-ñ› ") V7; V3 (ignored); A4_2 (ignored)
+Pass	ToASCII("9.>Ì¸-ã€‚ã€‚ò©‘£-ñ› ") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("9.xn----ogo..xn----xj54d1s69k") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----ogot9g.xn----n89hl0522az9u2a") V7; V3 (ignored)
-Pass	ToASCII("á‚¯í­€U+dd4b-ï¼â€á‚©") C2; V3 (ignored)
-Pass	ToASCII("á‚¯í­€U+dd4b-.â€á‚©") C2; V3 (ignored)
-Pass	ToASCII("â´í­€U+dd4b-.â€â´‰") C2; V3 (ignored)
+Pass	ToASCII("á‚¯ó …‹-ï¼â€á‚©") C2; V3 (ignored)
+Pass	ToASCII("á‚¯ó …‹-.â€á‚©") C2; V3 (ignored)
+Pass	ToASCII("â´ó …‹-.â€â´‰") C2; V3 (ignored)
 Pass	ToASCII("xn----3vs.xn--0kj") V3 (ignored)
 Pass	ToASCII("xn----3vs.xn--1ug532c") C2; V3 (ignored)
-Pass	ToASCII("â´í­€U+dd4b-ï¼â€â´‰") C2; V3 (ignored)
+Pass	ToASCII("â´ó …‹-ï¼â€â´‰") C2; V3 (ignored)
 Pass	ToASCII("xn----00g.xn--hnd") V7; V3 (ignored)
 Pass	ToASCII("xn----00g.xn--hnd399e") C2; V7; V3 (ignored)
-Pass	ToASCII("áœ”ã€‚í­€U+dda3-í „U+deea") V6; V3 (ignored)
+Pass	ToASCII("áœ”ã€‚ó †£-ğ‘‹ª") V6; V3 (ignored)
 Pass	ToASCII("xn--fze.xn----ly8i") V6; V3 (ignored)
-Pass	ToASCII("ê¯¨-ï¼í© U+dfdcÖ½ÃŸ") V6; V7; V3 (ignored)
-Pass	ToASCII("ê¯¨-.í© U+dfdcÖ½ÃŸ") V6; V7; V3 (ignored)
-Pass	ToASCII("ê¯¨-.í© U+dfdcÖ½SS") V6; V7; V3 (ignored)
-Pass	ToASCII("ê¯¨-.í© U+dfdcÖ½ss") V6; V7; V3 (ignored)
-Pass	ToASCII("ê¯¨-.í© U+dfdcÖ½Ss") V6; V7; V3 (ignored)
+Pass	ToASCII("ê¯¨-ï¼ò¨œÖ½ÃŸ") V6; V7; V3 (ignored)
+Pass	ToASCII("ê¯¨-.ò¨œÖ½ÃŸ") V6; V7; V3 (ignored)
+Pass	ToASCII("ê¯¨-.ò¨œÖ½SS") V6; V7; V3 (ignored)
+Pass	ToASCII("ê¯¨-.ò¨œÖ½ss") V6; V7; V3 (ignored)
+Pass	ToASCII("ê¯¨-.ò¨œÖ½Ss") V6; V7; V3 (ignored)
 Pass	ToASCII("xn----pw5e.xn--ss-7jd10716y") V6; V7; V3 (ignored)
 Pass	ToASCII("xn----pw5e.xn--zca50wfv060a") V6; V7; V3 (ignored)
-Pass	ToASCII("ê¯¨-ï¼í© U+dfdcÖ½SS") V6; V7; V3 (ignored)
-Pass	ToASCII("ê¯¨-ï¼í© U+dfdcÖ½ss") V6; V7; V3 (ignored)
-Pass	ToASCII("ê¯¨-ï¼í© U+dfdcÖ½Ss") V6; V7; V3 (ignored)
-Pass	ToASCII("í µU+dfe5â™®í …U+df2bà£­ï¼áŸ’í …U+df2b8í­€U+dd8f") V6
-Pass	ToASCII("3â™®í …U+df2bà£­.áŸ’í …U+df2b8í­€U+dd8f") V6
+Pass	ToASCII("ê¯¨-ï¼ò¨œÖ½SS") V6; V7; V3 (ignored)
+Pass	ToASCII("ê¯¨-ï¼ò¨œÖ½ss") V6; V7; V3 (ignored)
+Pass	ToASCII("ê¯¨-ï¼ò¨œÖ½Ss") V6; V7; V3 (ignored)
+Pass	ToASCII("ğŸ¥â™®ğ‘œ«à£­ï¼áŸ’ğ‘œ«8ó †") V6
+Pass	ToASCII("3â™®ğ‘œ«à£­.áŸ’ğ‘œ«8ó †") V6
 Pass	ToASCII("xn--3-ksd277tlo7s.xn--8-f0jx021l") V6
-Pass	ToASCII("-ï½¡í¨”U+df00â€â¡") C2; V7; V3 (ignored)
-Pass	ToASCII("-ã€‚í¨”U+df00â€â¡") C2; V7; V3 (ignored)
+Pass	ToASCII("-ï½¡ò•Œ€â€â¡") C2; V7; V3 (ignored)
+Pass	ToASCII("-ã€‚ò•Œ€â€â¡") C2; V7; V3 (ignored)
 Pass	ToASCII("-.xn--nei54421f") V7; V3 (ignored)
 Pass	ToASCII("-.xn--1ug800aq795s") C2; V7; V3 (ignored)
-Pass	ToASCII("í µU+dfd3â˜±í µU+dfd0í©—U+dc35ï½¡í ¶U+deaeí¤‚U+dc73") V6; V7
-Pass	ToASCII("5â˜±2í©—U+dc35ã€‚í ¶U+deaeí¤‚U+dc73") V6; V7
+Pass	ToASCII("ğŸ“â˜±ğŸò¥°µï½¡ğª®ñ¡³") V6; V7
+Pass	ToASCII("5â˜±2ò¥°µã€‚ğª®ñ¡³") V6; V7
 Pass	ToASCII("xn--52-dwx47758j.xn--kd3hk431k") V6; V7
-Pass	ToASCII("-.-â”œí¨šU+dda3") V7; V3 (ignored)
+Pass	ToASCII("-.-â”œò–¦£") V7; V3 (ignored)
 Pass	ToASCII("-.xn----ukp70432h") V7; V3 (ignored)
-Pass	ToASCII("Ï‚ï¼ï·í ½U+df9bâ’ˆ") V7
-Pass	ToASCII("Ï‚.ÙÙ…ÙŠí ½U+df9b1.") A4_2 (ignored)
-Pass	ToASCII("Î£.ÙÙ…ÙŠí ½U+df9b1.") A4_2 (ignored)
-Pass	ToASCII("Ïƒ.ÙÙ…ÙŠí ½U+df9b1.") A4_2 (ignored)
+Pass	ToASCII("Ï‚ï¼ï·ğŸ›â’ˆ") V7
+Pass	ToASCII("Ï‚.ÙÙ…ÙŠğŸ›1.") A4_2 (ignored)
+Pass	ToASCII("Î£.ÙÙ…ÙŠğŸ›1.") A4_2 (ignored)
+Pass	ToASCII("Ïƒ.ÙÙ…ÙŠğŸ›1.") A4_2 (ignored)
 Pass	ToASCII("xn--4xa.xn--1-gocmu97674d.") A4_2 (ignored)
 Pass	ToASCII("xn--3xa.xn--1-gocmu97674d.") A4_2 (ignored)
-Pass	ToASCII("Î£ï¼ï·í ½U+df9bâ’ˆ") V7
-Pass	ToASCII("Ïƒï¼ï·í ½U+df9bâ’ˆ") V7
+Pass	ToASCII("Î£ï¼ï·ğŸ›â’ˆ") V7
+Pass	ToASCII("Ïƒï¼ï·ğŸ›â’ˆ") V7
 Pass	ToASCII("xn--4xa.xn--dhbip2802atb20c") V7
 Pass	ToASCII("xn--3xa.xn--dhbip2802atb20c") V7
-Pass	ToASCII("9í­€U+dde5ï¼í­«U+dd34á¢“") V7
-Pass	ToASCII("9í­€U+dde5.í­«U+dd34á¢“") V7
+Pass	ToASCII("9ó ‡¥ï¼óª´´á¢“") V7
+Pass	ToASCII("9ó ‡¥.óª´´á¢“") V7
 Pass	ToASCII("9.xn--dbf91222q") V7
 Pass	ToASCII("ï¸’á‚¶Í¦ï¼â€Œ") C1; V7
 Pass	ToASCII("ã€‚á‚¶Í¦.â€Œ") C1; A4_2 (ignored)
@@ -1991,40 +1991,40 @@ Pass	ToASCII("â´–Í¦.") A4_2 (ignored)
 Pass	ToASCII("á‚¶Í¦.") A4_2 (ignored)
 Pass	ToASCII("xn--hva929d.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--hzb.xn--ukj4430l")
-Pass	ToASCII("à¢».â´ƒí ¸U+dc12")
-Pass	ToASCII("à¢».á‚£í ¸U+dc12")
+Pass	ToASCII("à¢».â´ƒğ€’")
+Pass	ToASCII("à¢».á‚£ğ€’")
 Pass	ToASCII("xn--hzb.xn--bnd2938u") V7
-Pass	ToASCII("â€â€Œã€‚ï¼’ä«·í­‚U+ddf7") C1; C2; V7
-Pass	ToASCII("â€â€Œã€‚2ä«·í­‚U+ddf7") C1; C2; V7
+Pass	ToASCII("â€â€Œã€‚ï¼’ä«·ó §·") C1; C2; V7
+Pass	ToASCII("â€â€Œã€‚2ä«·ó §·") C1; C2; V7
 Pass	ToASCII(".xn--2-me5ay1273i") V7; A4_2 (ignored)
 Pass	ToASCII("xn--0ugb.xn--2-me5ay1273i") C1; C2; V7
-Pass	ToASCII("-í ¸U+dc24í¬²U+dc10ã€‚í§¢U+df16") V7; V3 (ignored)
+Pass	ToASCII("-ğ€¤óœ ã€‚òˆ¬–") V7; V3 (ignored)
 Pass	ToASCII("xn----rq4re4997d.xn--l707b") V7; V3 (ignored)
-Pass	ToASCII("í®U+dec2ï¸’â€ŒãŸ€ï¼Ø¤â’ˆ") C1; V7
-Pass	ToASCII("í®U+dec2ï¸’â€ŒãŸ€ï¼ÙˆÙ”â’ˆ") C1; V7
+Pass	ToASCII("ó³›‚ï¸’â€ŒãŸ€ï¼Ø¤â’ˆ") C1; V7
+Pass	ToASCII("ó³›‚ï¸’â€ŒãŸ€ï¼ÙˆÙ”â’ˆ") C1; V7
 Pass	ToASCII("xn--z272f.xn--etl.xn--1-smc.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--etlt457ccrq7h.xn--jgb476m") V7
 Pass	ToASCII("xn--0ug754gxl4ldlt0k.xn--jgb476m") C1; V7
-Pass	ToASCII("ß¼í ƒU+de06.í U+dd8fï¸’í£ªU+de29á‚°") V7
-Pass	ToASCII("ß¼í ƒU+de06.í U+dd8fã€‚í£ªU+de29á‚°") V7
-Pass	ToASCII("ß¼í ƒU+de06.í U+dd8fã€‚í£ªU+de29â´") V7
+Pass	ToASCII("ß¼ğ¸†.ğ“–ï¸’ñŠ¨©á‚°") V7
+Pass	ToASCII("ß¼ğ¸†.ğ“–ã€‚ñŠ¨©á‚°") V7
+Pass	ToASCII("ß¼ğ¸†.ğ“–ã€‚ñŠ¨©â´") V7
 Pass	ToASCII("xn--0tb8725k.xn--tu8d.xn--7kj73887a") V7
-Pass	ToASCII("ß¼í ƒU+de06.í U+dd8fï¸’í£ªU+de29â´") V7
+Pass	ToASCII("ß¼ğ¸†.ğ“–ï¸’ñŠ¨©â´") V7
 Pass	ToASCII("xn--0tb8725k.xn--7kj9008dt18a7py9c") V7
 Pass	ToASCII("xn--0tb8725k.xn--tu8d.xn--ond97931d") V7
 Pass	ToASCII("xn--0tb8725k.xn--ond3562jt18a7py9c") V7
-Pass	ToASCII("áƒ…âš­í­U+ddabâ‹ƒï½¡í „U+df3c") V6; V7
-Pass	ToASCII("áƒ…âš­í­U+ddabâ‹ƒã€‚í „U+df3c") V6; V7
-Pass	ToASCII("â´¥âš­í­U+ddabâ‹ƒã€‚í „U+df3c") V6; V7
+Pass	ToASCII("áƒ…âš­ó –«â‹ƒï½¡ğ‘Œ¼") V6; V7
+Pass	ToASCII("áƒ…âš­ó –«â‹ƒã€‚ğ‘Œ¼") V6; V7
+Pass	ToASCII("â´¥âš­ó –«â‹ƒã€‚ğ‘Œ¼") V6; V7
 Pass	ToASCII("xn--vfh16m67gx1162b.xn--ro1d") V6; V7
-Pass	ToASCII("â´¥âš­í­U+ddabâ‹ƒï½¡í „U+df3c") V6; V7
+Pass	ToASCII("â´¥âš­ó –«â‹ƒï½¡ğ‘Œ¼") V6; V7
 Pass	ToASCII("xn--9nd623g4zc5z060c.xn--ro1d") V6; V7
-Pass	ToASCII("í­€U+dd93â›-ã€‚ê¡’") V3 (ignored)
+Pass	ToASCII("ó †“â›-ã€‚ê¡’") V3 (ignored)
 Pass	ToASCII("xn----o9p.xn--rc9a") V3 (ignored)
-Pass	ToASCII("í£ˆU+de26å¸·ï½¡â‰¯èºá·ˆ-") V7; V3 (ignored)
-Pass	ToASCII("í£ˆU+de26å¸·ï½¡>Ì¸èºá·ˆ-") V7; V3 (ignored)
-Pass	ToASCII("í£ˆU+de26å¸·ã€‚â‰¯èºá·ˆ-") V7; V3 (ignored)
-Pass	ToASCII("í£ˆU+de26å¸·ã€‚>Ì¸èºá·ˆ-") V7; V3 (ignored)
+Pass	ToASCII("ñ‚ˆ¦å¸·ï½¡â‰¯èºá·ˆ-") V7; V3 (ignored)
+Pass	ToASCII("ñ‚ˆ¦å¸·ï½¡>Ì¸èºá·ˆ-") V7; V3 (ignored)
+Pass	ToASCII("ñ‚ˆ¦å¸·ã€‚â‰¯èºá·ˆ-") V7; V3 (ignored)
+Pass	ToASCII("ñ‚ˆ¦å¸·ã€‚>Ì¸èºá·ˆ-") V7; V3 (ignored)
 Pass	ToASCII("xn--qutw175s.xn----mimu6tf67j") V7; V3 (ignored)
 Pass	ToASCII("â€æ”Œê¯­ã€‚á¢–-á‚¸") C2
 Pass	ToASCII("â€æ”Œê¯­ã€‚á¢–-â´˜") C2
@@ -2044,56 +2044,56 @@ Pass	ToASCII("ê–¨.16.3á„á…­á†©Û³")
 Pass	ToASCII("xn--0ug2473c.16.xn--3-nyc0117m") C1
 Pass	ToASCII("xn--9r8a.xn--3-nyc678tu07m") V7
 Pass	ToASCII("xn--0ug2473c.xn--3-nyc678tu07m") C1; V7
-Pass	ToASCII("í µU+dfcfí ¶U+de19â¸–.â€") C2
-Pass	ToASCII("1í ¶U+de19â¸–.â€") C2
+Pass	ToASCII("ğŸğ¨™â¸–.â€") C2
+Pass	ToASCII("1ğ¨™â¸–.â€") C2
 Pass	ToASCII("xn--1-5bt6845n.") A4_2 (ignored)
-Pass	ToASCII("1í ¶U+de19â¸–.") A4_2 (ignored)
+Pass	ToASCII("1ğ¨™â¸–.") A4_2 (ignored)
 Pass	ToASCII("xn--1-5bt6845n.xn--1ug") C2
-Pass	ToASCII("Fí­€U+dd5fï½¡í§½U+ddc5â™š") V7
-Pass	ToASCII("Fí­€U+dd5fã€‚í§½U+ddc5â™š") V7
-Pass	ToASCII("fí­€U+dd5fã€‚í§½U+ddc5â™š") V7
+Pass	ToASCII("Fó …Ÿï½¡ò—…â™š") V7
+Pass	ToASCII("Fó …Ÿã€‚ò—…â™š") V7
+Pass	ToASCII("fó …Ÿã€‚ò—…â™š") V7
 Pass	ToASCII("f.xn--45hz6953f") V7
-Pass	ToASCII("fí­€U+dd5fï½¡í§½U+ddc5â™š") V7
-Pass	ToASCII("à­í „U+dd34á·©ã€‚í µU+dfeeá‚¸í ¸U+dc28í£U+dd47") V6; V7
-Pass	ToASCII("à­í „U+dd34á·©ã€‚2á‚¸í ¸U+dc28í£U+dd47") V6; V7
-Pass	ToASCII("à­í „U+dd34á·©ã€‚2â´˜í ¸U+dc28í£U+dd47") V6; V7
+Pass	ToASCII("fó …Ÿï½¡ò—…â™š") V7
+Pass	ToASCII("à­ğ‘„´á·©ã€‚ğŸ®á‚¸ğ€¨ñƒ¥‡") V6; V7
+Pass	ToASCII("à­ğ‘„´á·©ã€‚2á‚¸ğ€¨ñƒ¥‡") V6; V7
+Pass	ToASCII("à­ğ‘„´á·©ã€‚2â´˜ğ€¨ñƒ¥‡") V6; V7
 Pass	ToASCII("xn--9ic246gs21p.xn--2-nws2918ndrjr") V6; V7
-Pass	ToASCII("à­í „U+dd34á·©ã€‚í µU+dfeeâ´˜í ¸U+dc28í£U+dd47") V6; V7
+Pass	ToASCII("à­ğ‘„´á·©ã€‚ğŸ®â´˜ğ€¨ñƒ¥‡") V6; V7
 Pass	ToASCII("xn--9ic246gs21p.xn--2-k1g43076adrwq") V6; V7
-Pass	ToASCII("í¨U+dc2dâ€Œâ€Œâ’ˆã€‚å‹‰í „U+dc45") C1; V7
-Pass	ToASCII("í¨U+dc2dâ€Œâ€Œ1.ã€‚å‹‰í „U+dc45") C1; V7; A4_2 (ignored)
+Pass	ToASCII("ò“ ­â€Œâ€Œâ’ˆã€‚å‹‰ğ‘…") C1; V7
+Pass	ToASCII("ò“ ­â€Œâ€Œ1.ã€‚å‹‰ğ‘…") C1; V7; A4_2 (ignored)
 Pass	ToASCII("xn--1-yi00h..xn--4grs325b") V7; A4_2 (ignored)
 Pass	ToASCII("xn--1-rgna61159u..xn--4grs325b") C1; V7; A4_2 (ignored)
 Pass	ToASCII("xn--tsh11906f.xn--4grs325b") V7
 Pass	ToASCII("xn--0uga855aez302a.xn--4grs325b") C1; V7
-Pass	ToASCII("á¡ƒ.ç¿í¥¬U+de1cí¬•U+df90") V7
+Pass	ToASCII("á¡ƒ.ç¿ñ«ˆœó•") V7
 Pass	ToASCII("xn--27e.xn--7cy81125a0yq4a") V7
-Pass	ToASCII("â€Œâ€Œï½¡â’ˆâ‰¯í µU+dff5") C1; V7
-Pass	ToASCII("â€Œâ€Œï½¡â’ˆ>Ì¸í µU+dff5") C1; V7
+Pass	ToASCII("â€Œâ€Œï½¡â’ˆâ‰¯ğŸµ") C1; V7
+Pass	ToASCII("â€Œâ€Œï½¡â’ˆ>Ì¸ğŸµ") C1; V7
 Pass	ToASCII("â€Œâ€Œã€‚1.â‰¯9") C1
 Pass	ToASCII("â€Œâ€Œã€‚1.>Ì¸9") C1
 Pass	ToASCII(".1.xn--9-ogo") A4_2 (ignored)
 Pass	ToASCII("xn--0uga.1.xn--9-ogo") C1
 Pass	ToASCII(".xn--9-ogo37g") V7; A4_2 (ignored)
 Pass	ToASCII("xn--0uga.xn--9-ogo37g") C1; V7
-Pass	ToASCII("âƒšï¼í …U+de3f-") V6; V3 (ignored)
-Pass	ToASCII("âƒš.í …U+de3f-") V6; V3 (ignored)
+Pass	ToASCII("âƒšï¼ğ‘˜¿-") V6; V3 (ignored)
+Pass	ToASCII("âƒš.ğ‘˜¿-") V6; V3 (ignored)
 Pass	ToASCII("xn--w0g.xn----bd0j") V6; V3 (ignored)
-Pass	ToASCII("á‚‚-â€ê£ªï¼ê¡Šâ€í¦³U+de33") C2; V6; V7
-Pass	ToASCII("á‚‚-â€ê£ª.ê¡Šâ€í¦³U+de33") C2; V6; V7
+Pass	ToASCII("á‚‚-â€ê£ªï¼ê¡Šâ€ñ¼¸³") C2; V6; V7
+Pass	ToASCII("á‚‚-â€ê£ª.ê¡Šâ€ñ¼¸³") C2; V6; V7
 Pass	ToASCII("xn----gyg3618i.xn--jc9ao4185a") V6; V7
 Pass	ToASCII("xn----gyg250jio7k.xn--1ug8774cri56d") C2; V6; V7
-Pass	ToASCII("í „U+de35å»Š.í ‚U+dc0d") V6
+Pass	ToASCII("ğ‘ˆµå»Š.ğ ") V6
 Pass	ToASCII("xn--xytw701b.xn--yc9c") V6
-Pass	ToASCII("á‚¾í¢™U+dec0í ­U+ddfbï¼á¢—ë¦«") V7
-Pass	ToASCII("á‚¾í¢™U+dec0í ­U+ddfbï¼á¢—á„…á…´á‡‚") V7
-Pass	ToASCII("á‚¾í¢™U+dec0í ­U+ddfb.á¢—ë¦«") V7
-Pass	ToASCII("á‚¾í¢™U+dec0í ­U+ddfb.á¢—á„…á…´á‡‚") V7
-Pass	ToASCII("â´í¢™U+dec0í ­U+ddfb.á¢—á„…á…´á‡‚") V7
-Pass	ToASCII("â´í¢™U+dec0í ­U+ddfb.á¢—ë¦«") V7
+Pass	ToASCII("á‚¾ğ¶›€ğ›—»ï¼á¢—ë¦«") V7
+Pass	ToASCII("á‚¾ğ¶›€ğ›—»ï¼á¢—á„…á…´á‡‚") V7
+Pass	ToASCII("á‚¾ğ¶›€ğ›—».á¢—ë¦«") V7
+Pass	ToASCII("á‚¾ğ¶›€ğ›—».á¢—á„…á…´á‡‚") V7
+Pass	ToASCII("â´ğ¶›€ğ›—».á¢—á„…á…´á‡‚") V7
+Pass	ToASCII("â´ğ¶›€ğ›—».á¢—ë¦«") V7
 Pass	ToASCII("xn--mlj0486jgl2j.xn--hbf6853f") V7
-Pass	ToASCII("â´í¢™U+dec0í ­U+ddfbï¼á¢—á„…á…´á‡‚") V7
-Pass	ToASCII("â´í¢™U+dec0í ­U+ddfbï¼á¢—ë¦«") V7
+Pass	ToASCII("â´ğ¶›€ğ›—»ï¼á¢—á„…á…´á‡‚") V7
+Pass	ToASCII("â´ğ¶›€ğ›—»ï¼á¢—ë¦«") V7
 Pass	ToASCII("xn--2nd8876sgl2j.xn--hbf6853f") V7
 Pass	ToASCII("ÃŸâ€á€ºï½¡â’ˆ") C2; V7
 Pass	ToASCII("xn--ss-f4j.b.") A4_2 (ignored)
@@ -2109,49 +2109,49 @@ Pass	ToASCII("xn--ss-f4j.xn--tsh") V7
 Pass	ToASCII("xn--ss-f4j585j.xn--tsh") C2; V7
 Pass	ToASCII("xn--zca679eh2l.xn--tsh") C2; V7
 Pass	ToASCII("SSá€º.b.") A4_2 (ignored)
-Pass	ToASCII("ÛŒí ‚U+de3fï¼ÃŸà¾„í „U+df6c")
-Pass	ToASCII("ÛŒí ‚U+de3f.ÃŸà¾„í „U+df6c")
-Pass	ToASCII("ÛŒí ‚U+de3f.SSà¾„í „U+df6c")
-Pass	ToASCII("ÛŒí ‚U+de3f.ssà¾„í „U+df6c")
+Pass	ToASCII("ÛŒğ¨¿ï¼ÃŸà¾„ğ‘¬")
+Pass	ToASCII("ÛŒğ¨¿.ÃŸà¾„ğ‘¬")
+Pass	ToASCII("ÛŒğ¨¿.SSà¾„ğ‘¬")
+Pass	ToASCII("ÛŒğ¨¿.ssà¾„ğ‘¬")
 Pass	ToASCII("xn--clb2593k.xn--ss-toj6092t")
 Pass	ToASCII("xn--clb2593k.xn--zca216edt0r")
-Pass	ToASCII("ÛŒí ‚U+de3fï¼SSà¾„í „U+df6c")
-Pass	ToASCII("ÛŒí ‚U+de3fï¼ssà¾„í „U+df6c")
-Pass	ToASCII("ÛŒí ‚U+de3f.Ssà¾„í „U+df6c")
-Pass	ToASCII("ÛŒí ‚U+de3fï¼Ssà¾„í „U+df6c")
-Pass	ToASCII("í µU+dfe0â‰®â€Œï½¡í­€U+dd71á´") C1; A4_2 (ignored)
-Pass	ToASCII("í µU+dfe0<Ì¸â€Œï½¡í­€U+dd71á´") C1; A4_2 (ignored)
-Pass	ToASCII("8â‰®â€Œã€‚í­€U+dd71á´") C1; A4_2 (ignored)
-Pass	ToASCII("8<Ì¸â€Œã€‚í­€U+dd71á´") C1; A4_2 (ignored)
+Pass	ToASCII("ÛŒğ¨¿ï¼SSà¾„ğ‘¬")
+Pass	ToASCII("ÛŒğ¨¿ï¼ssà¾„ğ‘¬")
+Pass	ToASCII("ÛŒğ¨¿.Ssà¾„ğ‘¬")
+Pass	ToASCII("ÛŒğ¨¿ï¼Ssà¾„ğ‘¬")
+Pass	ToASCII("ğŸ â‰®â€Œï½¡ó …±á´") C1; A4_2 (ignored)
+Pass	ToASCII("ğŸ <Ì¸â€Œï½¡ó …±á´") C1; A4_2 (ignored)
+Pass	ToASCII("8â‰®â€Œã€‚ó …±á´") C1; A4_2 (ignored)
+Pass	ToASCII("8<Ì¸â€Œã€‚ó …±á´") C1; A4_2 (ignored)
 Pass	ToASCII("xn--8-ngo.") A4_2 (ignored)
 Pass	ToASCII("8â‰®.") A4_2 (ignored)
 Pass	ToASCII("8<Ì¸.") A4_2 (ignored)
 Pass	ToASCII("xn--8-sgn10i.") C1; A4_2 (ignored)
 Pass	ToASCII("xn--8-ngo.xn--z3e") V6; V7
 Pass	ToASCII("xn--8-sgn10i.xn--z3e") C1; V6; V7
-Pass	ToASCII("á¢•â‰¯ï¸’í£U+dcafï¼á‚ ") V7
-Pass	ToASCII("á¢•>Ì¸ï¸’í£U+dcafï¼á‚ ") V7
-Pass	ToASCII("á¢•â‰¯ã€‚í£U+dcaf.á‚ ") V7
-Pass	ToASCII("á¢•>Ì¸ã€‚í£U+dcaf.á‚ ") V7
-Pass	ToASCII("á¢•>Ì¸ã€‚í£U+dcaf.â´€") V7
-Pass	ToASCII("á¢•â‰¯ã€‚í£U+dcaf.â´€") V7
+Pass	ToASCII("á¢•â‰¯ï¸’ñ„‚¯ï¼á‚ ") V7
+Pass	ToASCII("á¢•>Ì¸ï¸’ñ„‚¯ï¼á‚ ") V7
+Pass	ToASCII("á¢•â‰¯ã€‚ñ„‚¯.á‚ ") V7
+Pass	ToASCII("á¢•>Ì¸ã€‚ñ„‚¯.á‚ ") V7
+Pass	ToASCII("á¢•>Ì¸ã€‚ñ„‚¯.â´€") V7
+Pass	ToASCII("á¢•â‰¯ã€‚ñ„‚¯.â´€") V7
 Pass	ToASCII("xn--fbf851c.xn--ko1u.xn--rkj") V7
-Pass	ToASCII("á¢•>Ì¸ï¸’í£U+dcafï¼â´€") V7
-Pass	ToASCII("á¢•â‰¯ï¸’í£U+dcafï¼â´€") V7
+Pass	ToASCII("á¢•>Ì¸ï¸’ñ„‚¯ï¼â´€") V7
+Pass	ToASCII("á¢•â‰¯ï¸’ñ„‚¯ï¼â´€") V7
 Pass	ToASCII("xn--fbf851cq98poxw1a.xn--rkj") V7
 Pass	ToASCII("xn--fbf851c.xn--ko1u.xn--7md") V7
 Pass	ToASCII("xn--fbf851cq98poxw1a.xn--7md") V7
 Pass	ToASCII("à¾Ÿï¼-à ª") V6; V3 (ignored)
 Pass	ToASCII("à¾Ÿ.-à ª") V6; V3 (ignored)
 Pass	ToASCII("xn--vfd.xn----fhd") V6; V3 (ignored)
-Pass	ToASCII("áµ¬í­€U+dda0ï¼í•’â’’â’ˆí¯ U+dd26") V7
-Pass	ToASCII("áµ¬í­€U+dda0ï¼á„‘á…µá†½â’’â’ˆí¯ U+dd26") V7
-Pass	ToASCII("áµ¬í­€U+dda0.í•’11.1.í¯ U+dd26") V7
-Pass	ToASCII("áµ¬í­€U+dda0.á„‘á…µá†½11.1.í¯ U+dd26") V7
+Pass	ToASCII("áµ¬ó † ï¼í•’â’’â’ˆôˆ„¦") V7
+Pass	ToASCII("áµ¬ó † ï¼á„‘á…µá†½â’’â’ˆôˆ„¦") V7
+Pass	ToASCII("áµ¬ó † .í•’11.1.ôˆ„¦") V7
+Pass	ToASCII("áµ¬ó † .á„‘á…µá†½11.1.ôˆ„¦") V7
 Pass	ToASCII("xn--tbg.xn--11-5o7k.1.xn--k469f") V7
 Pass	ToASCII("xn--tbg.xn--tsht7586kyts9l") V7
-Pass	ToASCII("â’ˆâœŒí¨¾U+df1fï¼í µU+dfe1í¥ƒU+dc63") V7
-Pass	ToASCII("1.âœŒí¨¾U+df1f.9í¥ƒU+dc63") V7
+Pass	ToASCII("â’ˆâœŒòŸ¬Ÿï¼ğŸ¡ñ ±£") V7
+Pass	ToASCII("1.âœŒòŸ¬Ÿ.9ñ ±£") V7
 Pass	ToASCII("1.xn--7bi44996f.xn--9-o706d") V7
 Pass	ToASCII("xn--tsh24g49550b.xn--9-o706d") V7
 Pass	ToASCII("Ï‚ï¼ê§€ê£„") V6
@@ -2169,54 +2169,54 @@ Pass	ToASCII("ç¾šã€‚>Ì¸")
 Pass	ToASCII("xn--xt0a.xn--hdh")
 Pass	ToASCII("ç¾š.â‰¯")
 Pass	ToASCII("ç¾š.>Ì¸")
-Pass	ToASCII("â†í¦U+ddd5á»—â’ˆï¼í¨†U+df12í¥…U+de2eà¡›í µU+dfeb") V7
-Pass	ToASCII("â†í¦U+ddd5oÌ‚Ìƒâ’ˆï¼í¨†U+df12í¥…U+de2eà¡›í µU+dfeb") V7
-Pass	ToASCII("â†í¦U+ddd5á»—1..í¨†U+df12í¥…U+de2eà¡›9") V7; A4_2 (ignored)
-Pass	ToASCII("â†í¦U+ddd5oÌ‚Ìƒ1..í¨†U+df12í¥…U+de2eà¡›9") V7; A4_2 (ignored)
-Pass	ToASCII("â†í¦U+ddd5OÌ‚Ìƒ1..í¨†U+df12í¥…U+de2eà¡›9") V7; A4_2 (ignored)
-Pass	ToASCII("â†í¦U+ddd5á»–1..í¨†U+df12í¥…U+de2eà¡›9") V7; A4_2 (ignored)
+Pass	ToASCII("â†ñ·§•á»—â’ˆï¼ò‘¬’ñ¡˜®à¡›ğŸ«") V7
+Pass	ToASCII("â†ñ·§•oÌ‚Ìƒâ’ˆï¼ò‘¬’ñ¡˜®à¡›ğŸ«") V7
+Pass	ToASCII("â†ñ·§•á»—1..ò‘¬’ñ¡˜®à¡›9") V7; A4_2 (ignored)
+Pass	ToASCII("â†ñ·§•oÌ‚Ìƒ1..ò‘¬’ñ¡˜®à¡›9") V7; A4_2 (ignored)
+Pass	ToASCII("â†ñ·§•OÌ‚Ìƒ1..ò‘¬’ñ¡˜®à¡›9") V7; A4_2 (ignored)
+Pass	ToASCII("â†ñ·§•á»–1..ò‘¬’ñ¡˜®à¡›9") V7; A4_2 (ignored)
 Pass	ToASCII("xn--1-3xm292b6044r..xn--9-6jd87310jtcqs") V7; A4_2 (ignored)
-Pass	ToASCII("â†í¦U+ddd5OÌ‚Ìƒâ’ˆï¼í¨†U+df12í¥…U+de2eà¡›í µU+dfeb") V7
-Pass	ToASCII("â†í¦U+ddd5á»–â’ˆï¼í¨†U+df12í¥…U+de2eà¡›í µU+dfeb") V7
+Pass	ToASCII("â†ñ·§•OÌ‚Ìƒâ’ˆï¼ò‘¬’ñ¡˜®à¡›ğŸ«") V7
+Pass	ToASCII("â†ñ·§•á»–â’ˆï¼ò‘¬’ñ¡˜®à¡›ğŸ«") V7
 Pass	ToASCII("xn--6lg26tvvc6v99z.xn--9-6jd87310jtcqs") V7
 Pass	ToASCII(".xn--ye6h") A4_2 (ignored)
 Pass	ToASCII("xn--ye6h")
-Pass	ToASCII("í ºU+dd3a")
-Pass	ToASCII("í ºU+dd18")
-Pass	ToASCII("Ü¼â€Œ-ã€‚í U+dc3eÃŸ") C1; V6; V7; V3 (ignored)
-Pass	ToASCII("Ü¼â€Œ-ã€‚í U+dc3eSS") C1; V6; V7; V3 (ignored)
-Pass	ToASCII("Ü¼â€Œ-ã€‚í U+dc3ess") C1; V6; V7; V3 (ignored)
-Pass	ToASCII("Ü¼â€Œ-ã€‚í U+dc3eSs") C1; V6; V7; V3 (ignored)
+Pass	ToASCII("ğ¤º")
+Pass	ToASCII("ğ¤˜")
+Pass	ToASCII("Ü¼â€Œ-ã€‚ğ“¾ÃŸ") C1; V6; V7; V3 (ignored)
+Pass	ToASCII("Ü¼â€Œ-ã€‚ğ“¾SS") C1; V6; V7; V3 (ignored)
+Pass	ToASCII("Ü¼â€Œ-ã€‚ğ“¾ss") C1; V6; V7; V3 (ignored)
+Pass	ToASCII("Ü¼â€Œ-ã€‚ğ“¾Ss") C1; V6; V7; V3 (ignored)
 Pass	ToASCII("xn----s2c.xn--ss-066q") V6; V7; V3 (ignored)
 Pass	ToASCII("xn----s2c071q.xn--ss-066q") C1; V6; V7; V3 (ignored)
 Pass	ToASCII("xn----s2c071q.xn--zca7848m") C1; V6; V7; V3 (ignored)
-Pass	ToASCII("-íªU+df6cáí …U+df27.á·«-ï¸’") V6; V7; V3 (ignored)
-Pass	ToASCII("-íªU+df6cáí …U+df27.á·«-ã€‚") V6; V7; V3 (ignored); A4_2 (ignored)
+Pass	ToASCII("-ò·¬áğ‘œ§.á·«-ï¸’") V6; V7; V3 (ignored)
+Pass	ToASCII("-ò·¬áğ‘œ§.á·«-ã€‚") V6; V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----b5h1837n2ok9f.xn----mkm.") V6; V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----b5h1837n2ok9f.xn----mkmw278h") V6; V7; V3 (ignored)
-Pass	ToASCII("ï¸’.í¨ªU+dc21á©™") V7
-Pass	ToASCII("ã€‚.í¨ªU+dc21á©™") V7; A4_2 (ignored)
+Pass	ToASCII("ï¸’.òš ¡á©™") V7
+Pass	ToASCII("ã€‚.òš ¡á©™") V7; A4_2 (ignored)
 Pass	ToASCII("..xn--cof61594i") V7; A4_2 (ignored)
 Pass	ToASCII("xn--y86c.xn--cof61594i") V7
-Pass	ToASCII("í ‡U+dc3a.-í¨…U+dfcf") V6; V7; V3 (ignored)
+Pass	ToASCII("ğ‘°º.-ò‘Ÿ") V6; V7; V3 (ignored)
 Pass	ToASCII("xn--jk3d.xn----iz68g") V6; V7; V3 (ignored)
-Pass	ToASCII("í­ƒU+dee9ï¼èµ") V7
-Pass	ToASCII("í­ƒU+dee9.èµ") V7
+Pass	ToASCII("ó »©ï¼èµ") V7
+Pass	ToASCII("ó »©.èµ") V7
 Pass	ToASCII("xn--2856e.xn--6o3a") V7
-Pass	ToASCII("á‚­ï¼í£´U+dde6â€Œ") C1; V7
-Pass	ToASCII("á‚­.í£´U+dde6â€Œ") C1; V7
-Pass	ToASCII("â´.í£´U+dde6â€Œ") C1; V7
+Pass	ToASCII("á‚­ï¼ñ‡¦â€Œ") C1; V7
+Pass	ToASCII("á‚­.ñ‡¦â€Œ") C1; V7
+Pass	ToASCII("â´.ñ‡¦â€Œ") C1; V7
 Pass	ToASCII("xn--4kj.xn--p01x") V7
 Pass	ToASCII("xn--4kj.xn--0ug56448b") C1; V7
-Pass	ToASCII("â´ï¼í£´U+dde6â€Œ") C1; V7
+Pass	ToASCII("â´ï¼ñ‡¦â€Œ") C1; V7
 Pass	ToASCII("xn--lnd.xn--p01x") V7
 Pass	ToASCII("xn--lnd.xn--0ug56448b") C1; V7
-Pass	ToASCII("í µU+dfdbï¼ï§¸")
-Pass	ToASCII("í µU+dfdbï¼ç¬ ")
+Pass	ToASCII("ğŸ›ï¼ï§¸")
+Pass	ToASCII("ğŸ›ï¼ç¬ ")
 Pass	ToASCII("3.ç¬ ")
 Pass	ToASCII("3.xn--6vz")
-Pass	ToASCII("-â€.á‚¾í €U+def7") C2; V3 (ignored)
-Pass	ToASCII("-â€.â´í €U+def7") C2; V3 (ignored)
+Pass	ToASCII("-â€.á‚¾ğ‹·") C2; V3 (ignored)
+Pass	ToASCII("-â€.â´ğ‹·") C2; V3 (ignored)
 Pass	ToASCII("-.xn--mlj8559d") V3 (ignored)
 Pass	ToASCII("xn----ugn.xn--mlj8559d") C2; V3 (ignored)
 Pass	ToASCII("-.xn--2nd2315j") V7; V3 (ignored)
@@ -2245,44 +2245,44 @@ Pass	ToASCII("xn--1ch.") A4_2 (ignored)
 Pass	ToASCII("â‰ .") A4_2 (ignored)
 Pass	ToASCII("=Ì¸.") A4_2 (ignored)
 Pass	ToASCII("xn--1ch.xn--1ug") C2
-Pass	ToASCII("í­œU+def5à§Ï‚ï¼Ï‚í ‚U+de3f") V7
-Pass	ToASCII("í­œU+def5à§Ï‚.Ï‚í ‚U+de3f") V7
-Pass	ToASCII("í­œU+def5à§Î£.Î£í ‚U+de3f") V7
-Pass	ToASCII("í­œU+def5à§Ïƒ.Ï‚í ‚U+de3f") V7
-Pass	ToASCII("í­œU+def5à§Ïƒ.Ïƒí ‚U+de3f") V7
-Pass	ToASCII("í­œU+def5à§Î£.Ïƒí ‚U+de3f") V7
+Pass	ToASCII("ó§‹µà§Ï‚ï¼Ï‚ğ¨¿") V7
+Pass	ToASCII("ó§‹µà§Ï‚.Ï‚ğ¨¿") V7
+Pass	ToASCII("ó§‹µà§Î£.Î£ğ¨¿") V7
+Pass	ToASCII("ó§‹µà§Ïƒ.Ï‚ğ¨¿") V7
+Pass	ToASCII("ó§‹µà§Ïƒ.Ïƒğ¨¿") V7
+Pass	ToASCII("ó§‹µà§Î£.Ïƒğ¨¿") V7
 Pass	ToASCII("xn--4xa502av8297a.xn--4xa6055k") V7
-Pass	ToASCII("í­œU+def5à§Î£.Ï‚í ‚U+de3f") V7
+Pass	ToASCII("ó§‹µà§Î£.Ï‚ğ¨¿") V7
 Pass	ToASCII("xn--4xa502av8297a.xn--3xa8055k") V7
 Pass	ToASCII("xn--3xa702av8297a.xn--3xa8055k") V7
-Pass	ToASCII("í­œU+def5à§Î£ï¼Î£í ‚U+de3f") V7
-Pass	ToASCII("í­œU+def5à§Ïƒï¼Ï‚í ‚U+de3f") V7
-Pass	ToASCII("í­œU+def5à§Ïƒï¼Ïƒí ‚U+de3f") V7
-Pass	ToASCII("í­œU+def5à§Î£ï¼Ïƒí ‚U+de3f") V7
-Pass	ToASCII("í­œU+def5à§Î£ï¼Ï‚í ‚U+de3f") V7
-Pass	ToASCII("í¥U+dd12ï½¡ë¥§") V7
-Pass	ToASCII("í¥U+dd12ï½¡á„…á…²á†¶") V7
-Pass	ToASCII("í¥U+dd12ã€‚ë¥§") V7
-Pass	ToASCII("í¥U+dd12ã€‚á„…á…²á†¶") V7
+Pass	ToASCII("ó§‹µà§Î£ï¼Î£ğ¨¿") V7
+Pass	ToASCII("ó§‹µà§Ïƒï¼Ï‚ğ¨¿") V7
+Pass	ToASCII("ó§‹µà§Ïƒï¼Ïƒğ¨¿") V7
+Pass	ToASCII("ó§‹µà§Î£ï¼Ïƒğ¨¿") V7
+Pass	ToASCII("ó§‹µà§Î£ï¼Ï‚ğ¨¿") V7
+Pass	ToASCII("ñ£¤’ï½¡ë¥§") V7
+Pass	ToASCII("ñ£¤’ï½¡á„…á…²á†¶") V7
+Pass	ToASCII("ñ£¤’ã€‚ë¥§") V7
+Pass	ToASCII("ñ£¤’ã€‚á„…á…²á†¶") V7
 Pass	ToASCII("xn--s264a.xn--pw2b") V7
-Pass	ToASCII("á¡†í …U+dcddï¼í »U+dd46") V7
-Pass	ToASCII("á¡†í …U+dcdd.í »U+dd46") V7
+Pass	ToASCII("á¡†ğ‘“ï¼ğµ†") V7
+Pass	ToASCII("á¡†ğ‘“.ğµ†") V7
 Pass	ToASCII("xn--57e0440k.xn--k86h") V7
-Pass	ToASCII("í¯¯U+dfe6ï½¡á ½") V7
-Pass	ToASCII("í¯¯U+dfe6ã€‚á ½") V7
+Pass	ToASCII("ô‹¿¦ï½¡á ½") V7
+Pass	ToASCII("ô‹¿¦ã€‚á ½") V7
 Pass	ToASCII("xn--j890g.xn--w7e") V7
-Pass	ToASCII("å¬ƒí ´U+df4cï¼â€à­„") C2
-Pass	ToASCII("å¬ƒí ´U+df4c.â€à­„") C2
+Pass	ToASCII("å¬ƒğŒï¼â€à­„") C2
+Pass	ToASCII("å¬ƒğŒ.â€à­„") C2
 Pass	ToASCII("xn--b6s0078f.xn--0ic") V6
 Pass	ToASCII("xn--b6s0078f.xn--0ic557h") C2
-Pass	ToASCII("â€Œ.í¤½U+dee4") C1; V7
+Pass	ToASCII("â€Œ.ñŸ›¤") C1; V7
 Pass	ToASCII(".xn--q823a") V7; A4_2 (ignored)
 Pass	ToASCII("xn--0ug.xn--q823a") C1; V7
-Pass	ToASCII("íª©U+ded5á‚£ä …ï¼í ƒU+de11") V7
-Pass	ToASCII("íª©U+ded5á‚£ä ….í ƒU+de11") V7
-Pass	ToASCII("íª©U+ded5â´ƒä ….í ƒU+de11") V7
+Pass	ToASCII("òº›•á‚£ä …ï¼ğ¸‘") V7
+Pass	ToASCII("òº›•á‚£ä ….ğ¸‘") V7
+Pass	ToASCII("òº›•â´ƒä ….ğ¸‘") V7
 Pass	ToASCII("xn--ukju77frl47r.xn--yl0d") V7
-Pass	ToASCII("íª©U+ded5â´ƒä …ï¼í ƒU+de11") V7
+Pass	ToASCII("òº›•â´ƒä …ï¼ğ¸‘") V7
 Pass	ToASCII("xn--bnd074zr557n.xn--yl0d") V7
 Pass	ToASCII("-ï½¡ï¸’") V7; V3 (ignored)
 Pass	ToASCII("-ã€‚ã€‚") V3 (ignored); A4_2 (ignored)
@@ -2307,26 +2307,26 @@ Pass	ToASCII("xn--1ug914h.xn--zca") C2
 Pass	ToASCII("â€ã¨²ï½¡SS") C2
 Pass	ToASCII("â€ã¨²ï½¡ss") C2
 Pass	ToASCII("â€ã¨²ï½¡Ss") C2
-Pass	ToASCII("â€ï¼í¯ƒU+de28") C2; V7
-Pass	ToASCII("â€.í¯ƒU+de28") C2; V7
+Pass	ToASCII("â€ï¼ô€¸¨") C2; V7
+Pass	ToASCII("â€.ô€¸¨") C2; V7
 Pass	ToASCII(".xn--h327f") V7; A4_2 (ignored)
 Pass	ToASCII("xn--1ug.xn--h327f") C2; V7
-Pass	ToASCII("í¥U+df7bí£²U+dd41ï½¡â‰ í µU+dff2") V7
-Pass	ToASCII("í¥U+df7bí£²U+dd41ï½¡=Ì¸í µU+dff2") V7
-Pass	ToASCII("í¥U+df7bí£²U+dd41ã€‚â‰ 6") V7
-Pass	ToASCII("í¥U+df7bí£²U+dd41ã€‚=Ì¸6") V7
+Pass	ToASCII("ñ£­»ñŒ¥ï½¡â‰ ğŸ²") V7
+Pass	ToASCII("ñ£­»ñŒ¥ï½¡=Ì¸ğŸ²") V7
+Pass	ToASCII("ñ£­»ñŒ¥ã€‚â‰ 6") V7
+Pass	ToASCII("ñ£­»ñŒ¥ã€‚=Ì¸6") V7
 Pass	ToASCII("xn--h79w4z99a.xn--6-tfo") V7
 Pass	ToASCII("xn--98e.xn--om9c") V7
-Pass	ToASCII("ê«¶á¢à¸ºï¼’.í €U+dee2İ…à¾Ÿï¸’") V6; V7
-Pass	ToASCII("ê«¶á¢à¸º2.í €U+dee2İ…à¾Ÿã€‚") V6; A4_2 (ignored)
+Pass	ToASCII("ê«¶á¢à¸ºï¼’.ğ‹¢İ…à¾Ÿï¸’") V6; V7
+Pass	ToASCII("ê«¶á¢à¸º2.ğ‹¢İ…à¾Ÿã€‚") V6; A4_2 (ignored)
 Pass	ToASCII("xn--2-2zf840fk16m.xn--sob093b2m7s.") V6; A4_2 (ignored)
 Pass	ToASCII("xn--2-2zf840fk16m.xn--sob093bj62sz9d") V6; V7
-Pass	ToASCII("í«—U+dd27ï½¡â‰ -í­U+de44â¾›") V7
-Pass	ToASCII("í«—U+dd27ï½¡=Ì¸-í­U+de44â¾›") V7
-Pass	ToASCII("í«—U+dd27ã€‚â‰ -í­U+de44èµ°") V7
-Pass	ToASCII("í«—U+dd27ã€‚=Ì¸-í­U+de44èµ°") V7
+Pass	ToASCII("ó…´§ï½¡â‰ -ó ™„â¾›") V7
+Pass	ToASCII("ó…´§ï½¡=Ì¸-ó ™„â¾›") V7
+Pass	ToASCII("ó…´§ã€‚â‰ -ó ™„èµ°") V7
+Pass	ToASCII("ó…´§ã€‚=Ì¸-ó ™„èµ°") V7
 Pass	ToASCII("xn--gm57d.xn----tfo4949b3664m") V7
-Pass	ToASCII("í µU+dfceã€‚ç”¯")
+Pass	ToASCII("ğŸã€‚ç”¯")
 Pass	ToASCII("0ã€‚ç”¯")
 Pass	ToASCII("0.xn--qny")
 Pass	ToASCII("0.ç”¯")
@@ -2336,29 +2336,29 @@ Pass	ToASCII("xn----ef8c.xn--2v9a") V6; V3 (ignored)
 Pass	ToASCII("-ï½¡á¢˜") V3 (ignored)
 Pass	ToASCII("-ã€‚á¢˜") V3 (ignored)
 Pass	ToASCII("-.xn--ibf") V3 (ignored)
-Pass	ToASCII("í ¼U+dcb4á‚«.â‰®")
-Pass	ToASCII("í ¼U+dcb4á‚«.<Ì¸")
-Pass	ToASCII("í ¼U+dcb4â´‹.<Ì¸")
-Pass	ToASCII("í ¼U+dcb4â´‹.â‰®")
+Pass	ToASCII("ğŸ‚´á‚«.â‰®")
+Pass	ToASCII("ğŸ‚´á‚«.<Ì¸")
+Pass	ToASCII("ğŸ‚´â´‹.<Ì¸")
+Pass	ToASCII("ğŸ‚´â´‹.â‰®")
 Pass	ToASCII("xn--2kj7565l.xn--gdh")
 Pass	ToASCII("xn--jnd1986v.xn--gdh") V7
-Pass	ToASCII("ç’¼í ¶U+de2dï½¡â€Œí­€U+dddf") C1
-Pass	ToASCII("ç’¼í ¶U+de2dã€‚â€Œí­€U+dddf") C1
+Pass	ToASCII("ç’¼ğ¨­ï½¡â€Œó ‡Ÿ") C1
+Pass	ToASCII("ç’¼ğ¨­ã€‚â€Œó ‡Ÿ") C1
 Pass	ToASCII("xn--gky8837e.") A4_2 (ignored)
-Pass	ToASCII("ç’¼í ¶U+de2d.") A4_2 (ignored)
+Pass	ToASCII("ç’¼ğ¨­.") A4_2 (ignored)
 Pass	ToASCII("xn--gky8837e.xn--0ug") C1
 Pass	ToASCII("â€Œ.â€Œ") C1
 Pass	ToASCII("xn--0ug.xn--0ug") C1
 Pass	ToASCII("xn--157b.xn--gnb")
 Pass	ToASCII("íŠ›.Ü–")
 Pass	ToASCII("á„á…±á‡‚.Ü–")
-Pass	ToASCII("á‚·ï¼×‚í „U+dd34ê¦·í¤ U+dce8") V6; V7
-Pass	ToASCII("á‚·ï¼í „U+dd34×‚ê¦·í¤ U+dce8") V6; V7
-Pass	ToASCII("á‚·.í „U+dd34×‚ê¦·í¤ U+dce8") V6; V7
-Pass	ToASCII("â´—.í „U+dd34×‚ê¦·í¤ U+dce8") V6; V7
+Pass	ToASCII("á‚·ï¼×‚ğ‘„´ê¦·ñ˜ƒ¨") V6; V7
+Pass	ToASCII("á‚·ï¼ğ‘„´×‚ê¦·ñ˜ƒ¨") V6; V7
+Pass	ToASCII("á‚·.ğ‘„´×‚ê¦·ñ˜ƒ¨") V6; V7
+Pass	ToASCII("â´—.ğ‘„´×‚ê¦·ñ˜ƒ¨") V6; V7
 Pass	ToASCII("xn--flj.xn--qdb0605f14ycrms3c") V6; V7
-Pass	ToASCII("â´—ï¼í „U+dd34×‚ê¦·í¤ U+dce8") V6; V7
-Pass	ToASCII("â´—ï¼×‚í „U+dd34ê¦·í¤ U+dce8") V6; V7
+Pass	ToASCII("â´—ï¼ğ‘„´×‚ê¦·ñ˜ƒ¨") V6; V7
+Pass	ToASCII("â´—ï¼×‚ğ‘„´ê¦·ñ˜ƒ¨") V6; V7
 Pass	ToASCII("xn--vnd.xn--qdb0605f14ycrms3c") V6; V7
 Pass	ToASCII("â’ˆé…«ï¸’ã€‚à£–") V6; V7
 Pass	ToASCII("1.é…«ã€‚ã€‚à£–") V6; A4_2 (ignored)
@@ -2371,17 +2371,17 @@ Pass	ToASCII("xn--uof63xk4bf3s.xn--o4c732g") C1; V6
 Pass	ToASCII("xn--co6h.xn--1-kwssa") V7
 Pass	ToASCII("xn--co6h.xn--1-h1g429s") V7
 Pass	ToASCII("xn--co6h.xn--1-h1gs") V7
-Pass	ToASCII("ê †ã€‚í¢­U+de8fà¾°â’•") V6; V7
-Pass	ToASCII("ê †ã€‚í¢­U+de8fà¾°14.") V6; V7; A4_2 (ignored)
+Pass	ToASCII("ê †ã€‚ğ»šà¾°â’•") V6; V7
+Pass	ToASCII("ê †ã€‚ğ»šà¾°14.") V6; V7; A4_2 (ignored)
 Pass	ToASCII("xn--l98a.xn--14-jsj57880f.") V6; V7; A4_2 (ignored)
 Pass	ToASCII("xn--l98a.xn--dgd218hhp28d") V6; V7
-Pass	ToASCII("í µU+dfe04í­€U+ddd7í ´U+de3bï¼â€í €U+def5â›§â€") C2
-Pass	ToASCII("84í­€U+ddd7í ´U+de3b.â€í €U+def5â›§â€") C2
+Pass	ToASCII("ğŸ 4ó ‡—ğˆ»ï¼â€ğ‹µâ›§â€") C2
+Pass	ToASCII("84ó ‡—ğˆ».â€ğ‹µâ›§â€") C2
 Pass	ToASCII("xn--84-s850a.xn--59h6326e")
-Pass	ToASCII("84í ´U+de3b.í €U+def5â›§")
+Pass	ToASCII("84ğˆ».ğ‹µâ›§")
 Pass	ToASCII("xn--84-s850a.xn--1uga573cfq1w") C2
-Pass	ToASCII("â‰®í µU+dfd5ï¼è¬–ÃŸâ‰¯")
-Pass	ToASCII("<Ì¸í µU+dfd5ï¼è¬–ÃŸ>Ì¸")
+Pass	ToASCII("â‰®ğŸ•ï¼è¬–ÃŸâ‰¯")
+Pass	ToASCII("<Ì¸ğŸ•ï¼è¬–ÃŸ>Ì¸")
 Pass	ToASCII("â‰®7.è¬–ÃŸâ‰¯")
 Pass	ToASCII("<Ì¸7.è¬–ÃŸ>Ì¸")
 Pass	ToASCII("<Ì¸7.è¬–SS>Ì¸")
@@ -2392,33 +2392,33 @@ Pass	ToASCII("<Ì¸7.è¬–Ss>Ì¸")
 Pass	ToASCII("â‰®7.è¬–Ssâ‰¯")
 Pass	ToASCII("xn--7-mgo.xn--ss-xjvv174c")
 Pass	ToASCII("xn--7-mgo.xn--zca892oly5e")
-Pass	ToASCII("<Ì¸í µU+dfd5ï¼è¬–SS>Ì¸")
-Pass	ToASCII("â‰®í µU+dfd5ï¼è¬–SSâ‰¯")
-Pass	ToASCII("â‰®í µU+dfd5ï¼è¬–ssâ‰¯")
-Pass	ToASCII("<Ì¸í µU+dfd5ï¼è¬–ss>Ì¸")
-Pass	ToASCII("<Ì¸í µU+dfd5ï¼è¬–Ss>Ì¸")
-Pass	ToASCII("â‰®í µU+dfd5ï¼è¬–Ssâ‰¯")
-Pass	ToASCII("í¥µU+df0eâ’ˆï½¡â€Œí µU+dfe4") C1; V7
-Pass	ToASCII("í¥µU+df0e1.ã€‚â€Œ2") C1; V7; A4_2 (ignored)
+Pass	ToASCII("<Ì¸ğŸ•ï¼è¬–SS>Ì¸")
+Pass	ToASCII("â‰®ğŸ•ï¼è¬–SSâ‰¯")
+Pass	ToASCII("â‰®ğŸ•ï¼è¬–ssâ‰¯")
+Pass	ToASCII("<Ì¸ğŸ•ï¼è¬–ss>Ì¸")
+Pass	ToASCII("<Ì¸ğŸ•ï¼è¬–Ss>Ì¸")
+Pass	ToASCII("â‰®ğŸ•ï¼è¬–Ssâ‰¯")
+Pass	ToASCII("ñ­œâ’ˆï½¡â€ŒğŸ¤") C1; V7
+Pass	ToASCII("ñ­œ1.ã€‚â€Œ2") C1; V7; A4_2 (ignored)
 Pass	ToASCII("xn--1-ex54e..c") V7; A4_2 (ignored)
 Pass	ToASCII("xn--1-ex54e..xn--2-rgn") C1; V7; A4_2 (ignored)
 Pass	ToASCII("xn--tsh94183d.c") V7
 Pass	ToASCII("xn--tsh94183d.xn--2-rgn") C1; V7
-Pass	ToASCII("â€â€Œí­€U+ddaaï½¡ÃŸí …U+dcc3") C1; C2
-Pass	ToASCII("â€â€Œí­€U+ddaaã€‚ÃŸí …U+dcc3") C1; C2
-Pass	ToASCII("â€â€Œí­€U+ddaaã€‚SSí …U+dcc3") C1; C2
-Pass	ToASCII("â€â€Œí­€U+ddaaã€‚ssí …U+dcc3") C1; C2
-Pass	ToASCII("â€â€Œí­€U+ddaaã€‚Ssí …U+dcc3") C1; C2
+Pass	ToASCII("â€â€Œó †ªï½¡ÃŸğ‘“ƒ") C1; C2
+Pass	ToASCII("â€â€Œó †ªã€‚ÃŸğ‘“ƒ") C1; C2
+Pass	ToASCII("â€â€Œó †ªã€‚SSğ‘“ƒ") C1; C2
+Pass	ToASCII("â€â€Œó †ªã€‚ssğ‘“ƒ") C1; C2
+Pass	ToASCII("â€â€Œó †ªã€‚Ssğ‘“ƒ") C1; C2
 Pass	ToASCII(".xn--ss-bh7o") A4_2 (ignored)
 Pass	ToASCII("xn--0ugb.xn--ss-bh7o") C1; C2
 Pass	ToASCII("xn--0ugb.xn--zca0732l") C1; C2
-Pass	ToASCII("â€â€Œí­€U+ddaaï½¡SSí …U+dcc3") C1; C2
-Pass	ToASCII("â€â€Œí­€U+ddaaï½¡ssí …U+dcc3") C1; C2
-Pass	ToASCII("â€â€Œí­€U+ddaaï½¡Ssí …U+dcc3") C1; C2
+Pass	ToASCII("â€â€Œó †ªï½¡SSğ‘“ƒ") C1; C2
+Pass	ToASCII("â€â€Œó †ªï½¡ssğ‘“ƒ") C1; C2
+Pass	ToASCII("â€â€Œó †ªï½¡Ssğ‘“ƒ") C1; C2
 Pass	ToASCII("xn--ss-bh7o")
-Pass	ToASCII("ssí …U+dcc3")
-Pass	ToASCII("SSí …U+dcc3")
-Pass	ToASCII("Ssí …U+dcc3")
+Pass	ToASCII("ssğ‘“ƒ")
+Pass	ToASCII("SSğ‘“ƒ")
+Pass	ToASCII("Ssğ‘“ƒ")
 Pass	ToASCII("ï¸’â€Œãƒ¶ä’©.ê¡ª") C1; V7
 Pass	ToASCII("ã€‚â€Œãƒ¶ä’©.ê¡ª") C1; A4_2 (ignored)
 Pass	ToASCII(".xn--qekw60d.xn--gd9a") A4_2 (ignored)
@@ -2427,25 +2427,25 @@ Pass	ToASCII("xn--qekw60dns9k.xn--gd9a") V7
 Pass	ToASCII("xn--0ug287dj0or48o.xn--gd9a") C1; V7
 Pass	ToASCII("xn--qekw60d.xn--gd9a")
 Pass	ToASCII("ãƒ¶ä’©.ê¡ª")
-Pass	ToASCII("â€Œâ’ˆí¡’U+df8d.í­‰U+dccbá© ") C1; V7
-Pass	ToASCII("â€Œ1.í¡’U+df8d.í­‰U+dccbá© ") C1; V7
+Pass	ToASCII("â€Œâ’ˆğ¤®.ó¢“‹á© ") C1; V7
+Pass	ToASCII("â€Œ1.ğ¤®.ó¢“‹á© ") C1; V7
 Pass	ToASCII("1.xn--4x6j.xn--jof45148n") V7
 Pass	ToASCII("xn--1-rgn.xn--4x6j.xn--jof45148n") C1; V7
 Pass	ToASCII("xn--tshw462r.xn--jof45148n") V7
 Pass	ToASCII("xn--0ug88o7471d.xn--jof45148n") C1; V7
-Pass	ToASCII("í ´U+dd75ï½¡í µU+dfebí ¸U+dc08ä¬ºâ’ˆ") V7; A4_2 (ignored)
-Pass	ToASCII("í ´U+dd75ã€‚9í ¸U+dc08ä¬º1.") A4_2 (ignored)
+Pass	ToASCII("ğ…µï½¡ğŸ«ğ€ˆä¬ºâ’ˆ") V7; A4_2 (ignored)
+Pass	ToASCII("ğ…µã€‚9ğ€ˆä¬º1.") A4_2 (ignored)
 Pass	ToASCII(".xn--91-030c1650n.") A4_2 (ignored)
 Pass	ToASCII(".xn--9-ecp936non25a") V7; A4_2 (ignored)
 Pass	ToASCII("xn--3f1h.xn--91-030c1650n.") V7; A4_2 (ignored)
 Pass	ToASCII("xn--3f1h.xn--9-ecp936non25a") V7
 Pass	ToASCII("xn--8c1a.xn--2ib8jn539l")
-Pass	ToASCII("èˆ›.Ù½í ºU+dd34Ú»")
-Pass	ToASCII("èˆ›.Ù½í ºU+dd12Ú»")
-Pass	ToASCII("-í­€U+dd710ï½¡áŸá·½í†‡ì‹­") V6; V3 (ignored)
-Pass	ToASCII("-í­€U+dd710ï½¡áŸá·½á„á…¨á†ªá„‰á…µá†¸") V6; V3 (ignored)
-Pass	ToASCII("-í­€U+dd710ã€‚áŸá·½í†‡ì‹­") V6; V3 (ignored)
-Pass	ToASCII("-í­€U+dd710ã€‚áŸá·½á„á…¨á†ªá„‰á…µá†¸") V6; V3 (ignored)
+Pass	ToASCII("èˆ›.Ù½ğ¤´Ú»")
+Pass	ToASCII("èˆ›.Ù½ğ¤’Ú»")
+Pass	ToASCII("-ó …±0ï½¡áŸá·½í†‡ì‹­") V6; V3 (ignored)
+Pass	ToASCII("-ó …±0ï½¡áŸá·½á„á…¨á†ªá„‰á…µá†¸") V6; V3 (ignored)
+Pass	ToASCII("-ó …±0ã€‚áŸá·½í†‡ì‹­") V6; V3 (ignored)
+Pass	ToASCII("-ó …±0ã€‚áŸá·½á„á…¨á†ªá„‰á…µá†¸") V6; V3 (ignored)
 Pass	ToASCII("-0.xn--r4e872ah77nghm") V6; V3 (ignored)
 Pass	ToASCII("á…Ÿá‚¿á‚µáƒ ï½¡à­") V6
 Pass	ToASCII("á…Ÿá‚¿á‚µáƒ ã€‚à­") V6
@@ -2461,43 +2461,43 @@ Pass	ToASCII("xn--3nd0etsm92g.xn--9ic") V6; V7
 Pass	ToASCII("á…Ÿá‚¿â´•áƒ ï½¡à­") V6
 Pass	ToASCII("xn--l96h.xn--o8e4044k") V7
 Pass	ToASCII("xn--l96h.xn--03e93aq365d") V7
-Pass	ToASCII("í µU+dfdbí ´U+ddaaê£„ï½¡ê£ª-") V6; V3 (ignored)
-Pass	ToASCII("í µU+dfdbê£„í ´U+ddaaï½¡ê£ª-") V6; V3 (ignored)
-Pass	ToASCII("3ê£„í ´U+ddaaã€‚ê£ª-") V6; V3 (ignored)
+Pass	ToASCII("ğŸ›ğ†ªê£„ï½¡ê£ª-") V6; V3 (ignored)
+Pass	ToASCII("ğŸ›ê£„ğ†ªï½¡ê£ª-") V6; V3 (ignored)
+Pass	ToASCII("3ê£„ğ†ªã€‚ê£ª-") V6; V3 (ignored)
 Pass	ToASCII("xn--3-sl4eu679e.xn----xn4e") V6; V3 (ignored)
-Pass	ToASCII("á„¹ï½¡à»Ší©‚U+dfe4í­€U+dd1e") V6; V7
-Pass	ToASCII("á„¹ã€‚à»Ší©‚U+dfe4í­€U+dd1e") V6; V7
+Pass	ToASCII("á„¹ï½¡à»Šò ¯¤ó „") V6; V7
+Pass	ToASCII("á„¹ã€‚à»Šò ¯¤ó „") V6; V7
 Pass	ToASCII("xn--lrd.xn--s8c05302k") V6; V7
-Pass	ToASCII("á‚¦íª®U+dca9ï¼í­€U+dda1ï¸‰í ºU+dd0d") V7
-Pass	ToASCII("á‚¦íª®U+dca9.í­€U+dda1ï¸‰í ºU+dd0d") V7
-Pass	ToASCII("â´†íª®U+dca9.í­€U+dda1ï¸‰í ºU+dd2f") V7
+Pass	ToASCII("á‚¦ò»¢©ï¼ó †¡ï¸‰ğ¤") V7
+Pass	ToASCII("á‚¦ò»¢©.ó †¡ï¸‰ğ¤") V7
+Pass	ToASCII("â´†ò»¢©.ó †¡ï¸‰ğ¤¯") V7
 Pass	ToASCII("xn--xkjw3965g.xn--ne6h") V7
-Pass	ToASCII("â´†íª®U+dca9ï¼í­€U+dda1ï¸‰í ºU+dd2f") V7
+Pass	ToASCII("â´†ò»¢©ï¼ó †¡ï¸‰ğ¤¯") V7
 Pass	ToASCII("xn--end82983m.xn--ne6h") V7
-Pass	ToASCII("â´†íª®U+dca9.í­€U+dda1ï¸‰í ºU+dd0d") V7
-Pass	ToASCII("â´†íª®U+dca9ï¼í­€U+dda1ï¸‰í ºU+dd0d") V7
-Pass	ToASCII("í¤U+dee8.í§•U+dfe2í µU+dfe8ê£„") V7
-Pass	ToASCII("í¤U+dee8.í§•U+dfe26ê£„") V7
+Pass	ToASCII("â´†ò»¢©.ó †¡ï¸‰ğ¤") V7
+Pass	ToASCII("â´†ò»¢©ï¼ó †¡ï¸‰ğ¤") V7
+Pass	ToASCII("ñ—›¨.ò…Ÿ¢ğŸ¨ê£„") V7
+Pass	ToASCII("ñ—›¨.ò…Ÿ¢6ê£„") V7
 Pass	ToASCII("xn--mi60a.xn--6-sl4es8023c") V7
-Pass	ToASCII("í €U+def8í­¹U+de0báƒ‚.á‚¡") V7
-Pass	ToASCII("í €U+def8í­¹U+de0bâ´¢.â´") V7
-Pass	ToASCII("í €U+def8í­¹U+de0báƒ‚.â´") V7
+Pass	ToASCII("ğ‹¸ó®˜‹áƒ‚.á‚¡") V7
+Pass	ToASCII("ğ‹¸ó®˜‹â´¢.â´") V7
+Pass	ToASCII("ğ‹¸ó®˜‹áƒ‚.â´") V7
 Pass	ToASCII("xn--qlj1559dr224h.xn--skj") V7
 Pass	ToASCII("xn--6nd5215jr2u0h.xn--skj") V7
 Pass	ToASCII("xn--6nd5215jr2u0h.xn--8md") V7
-Pass	ToASCII("í¤U+dc7fê †â‚„í©¥U+df86ï½¡í¢ŠU+de67í­U+dcb9Ï‚") V7
-Pass	ToASCII("í¤U+dc7fê †4í©¥U+df86ã€‚í¢ŠU+de67í­U+dcb9Ï‚") V7
-Pass	ToASCII("í¤U+dc7fê †4í©¥U+df86ã€‚í¢ŠU+de67í­U+dcb9Î£") V7
-Pass	ToASCII("í¤U+dc7fê †4í©¥U+df86ã€‚í¢ŠU+de67í­U+dcb9Ïƒ") V7
+Pass	ToASCII("ñ—‘¿ê †â‚„ò©†ï½¡ğ²©§ó ’¹Ï‚") V7
+Pass	ToASCII("ñ—‘¿ê †4ò©†ã€‚ğ²©§ó ’¹Ï‚") V7
+Pass	ToASCII("ñ—‘¿ê †4ò©†ã€‚ğ²©§ó ’¹Î£") V7
+Pass	ToASCII("ñ—‘¿ê †4ò©†ã€‚ğ²©§ó ’¹Ïƒ") V7
 Pass	ToASCII("xn--4-w93ej7463a9io5a.xn--4xa31142bk3f0d") V7
 Pass	ToASCII("xn--4-w93ej7463a9io5a.xn--3xa51142bk3f0d") V7
-Pass	ToASCII("í¤U+dc7fê †â‚„í©¥U+df86ï½¡í¢ŠU+de67í­U+dcb9Î£") V7
-Pass	ToASCII("í¤U+dc7fê †â‚„í©¥U+df86ï½¡í¢ŠU+de67í­U+dcb9Ïƒ") V7
-Pass	ToASCII("í¢ºU+dcacã€‚Ü©ã€‚ì¯™5") V7
-Pass	ToASCII("í¢ºU+dcacã€‚Ü©ã€‚á„á…³á†¬5") V7
+Pass	ToASCII("ñ—‘¿ê †â‚„ò©†ï½¡ğ²©§ó ’¹Î£") V7
+Pass	ToASCII("ñ—‘¿ê †â‚„ò©†ï½¡ğ²©§ó ’¹Ïƒ") V7
+Pass	ToASCII("ğ¾¢¬ã€‚Ü©ã€‚ì¯™5") V7
+Pass	ToASCII("ğ¾¢¬ã€‚Ü©ã€‚á„á…³á†¬5") V7
 Pass	ToASCII("xn--t92s.xn--znb.xn--5-y88f") V7
-Pass	ToASCII("áŸŠ.â€í µU+dfeeí „U+dc3f") C2; V6
-Pass	ToASCII("áŸŠ.â€2í „U+dc3f") C2; V6
+Pass	ToASCII("áŸŠ.â€ğŸ®ğ‘€¿") C2; V6
+Pass	ToASCII("áŸŠ.â€2ğ‘€¿") C2; V6
 Pass	ToASCII("xn--m4e.xn--2-ku7i") V6
 Pass	ToASCII("xn--m4e.xn--2-tgnv469h") C2; V6
 Pass	ToASCII("ê«¶ã€‚å¬¶ÃŸè‘½") V6
@@ -2506,23 +2506,23 @@ Pass	ToASCII("ê«¶ã€‚å¬¶ssè‘½") V6
 Pass	ToASCII("ê«¶ã€‚å¬¶Ssè‘½") V6
 Pass	ToASCII("xn--2v9a.xn--ss-q40dp97m") V6
 Pass	ToASCII("xn--2v9a.xn--zca7637b14za") V6
-Pass	ToASCII("Ï‚í …U+dc3dí¢–U+dc88í …U+df2bï½¡í ºU+df29â€Œí ‚U+dec4") C1; V7
-Pass	ToASCII("Ï‚í …U+dc3dí¢–U+dc88í …U+df2bã€‚í ºU+df29â€Œí ‚U+dec4") C1; V7
-Pass	ToASCII("Î£í …U+dc3dí¢–U+dc88í …U+df2bã€‚í ºU+df29â€Œí ‚U+dec4") C1; V7
-Pass	ToASCII("Ïƒí …U+dc3dí¢–U+dc88í …U+df2bã€‚í ºU+df29â€Œí ‚U+dec4") C1; V7
+Pass	ToASCII("Ï‚ğ‘½ğµ¢ˆğ‘œ«ï½¡ğ¬©â€Œğ«„") C1; V7
+Pass	ToASCII("Ï‚ğ‘½ğµ¢ˆğ‘œ«ã€‚ğ¬©â€Œğ«„") C1; V7
+Pass	ToASCII("Î£ğ‘½ğµ¢ˆğ‘œ«ã€‚ğ¬©â€Œğ«„") C1; V7
+Pass	ToASCII("Ïƒğ‘½ğµ¢ˆğ‘œ«ã€‚ğ¬©â€Œğ«„") C1; V7
 Pass	ToASCII("xn--4xa2260lk3b8z15g.xn--tw9ct349a") V7
 Pass	ToASCII("xn--4xa2260lk3b8z15g.xn--0ug4653g2xzf") C1; V7
 Pass	ToASCII("xn--3xa4260lk3b8z15g.xn--0ug4653g2xzf") C1; V7
-Pass	ToASCII("Î£í …U+dc3dí¢–U+dc88í …U+df2bï½¡í ºU+df29â€Œí ‚U+dec4") C1; V7
-Pass	ToASCII("Ïƒí …U+dc3dí¢–U+dc88í …U+df2bï½¡í ºU+df29â€Œí ‚U+dec4") C1; V7
-Pass	ToASCII("âº¢í§ŸU+de85í µU+dfe4ï½¡â€í ½U+deb7") C2; V7
-Pass	ToASCII("âº¢í§ŸU+de852ã€‚â€í ½U+deb7") C2; V7
+Pass	ToASCII("Î£ğ‘½ğµ¢ˆğ‘œ«ï½¡ğ¬©â€Œğ«„") C1; V7
+Pass	ToASCII("Ïƒğ‘½ğµ¢ˆğ‘œ«ï½¡ğ¬©â€Œğ«„") C1; V7
+Pass	ToASCII("âº¢ò‡º…ğŸ¤ï½¡â€ğŸš·") C2; V7
+Pass	ToASCII("âº¢ò‡º…2ã€‚â€ğŸš·") C2; V7
 Pass	ToASCII("xn--2-4jtr4282f.xn--m78h") V7
 Pass	ToASCII("xn--2-4jtr4282f.xn--1ugz946p") C2; V7
-Pass	ToASCII("í ¶U+de25ã€‚â«Ÿí „U+de3e") V6
+Pass	ToASCII("ğ¨¥ã€‚â«Ÿğ‘ˆ¾") V6
 Pass	ToASCII("xn--n82h.xn--63iw010f") V6
-Pass	ToASCII("-á¢—â€Œí ¼U+dd04.í …U+df22") C1; V6; V3 (ignored); U1 (ignored)
-Pass	ToASCII("-á¢—â€Œ3,.í …U+df22") C1; V6; V3 (ignored); U1 (ignored)
+Pass	ToASCII("-á¢—â€ŒğŸ„„.ğ‘œ¢") C1; V6; V3 (ignored); U1 (ignored)
+Pass	ToASCII("-á¢—â€Œ3,.ğ‘œ¢") C1; V6; V3 (ignored); U1 (ignored)
 Pass	ToASCII("xn---3,-3eu.xn--9h2d") V6; V3 (ignored); U1 (ignored)
 Pass	ToASCII("xn---3,-3eu051c.xn--9h2d") C1; V6; V3 (ignored); U1 (ignored)
 Pass	ToASCII("xn----pck1820x.xn--9h2d") V6; V7; V3 (ignored)
@@ -2531,8 +2531,8 @@ Pass	ToASCII("á´.ì®‡-") V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("á´.á„á…°á†®-") V3 (ignored); A4_2 (ignored)
 Pass	ToASCII(".xn----938f") V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn--z3e.xn----938f") V6; V7; V3 (ignored)
-Pass	ToASCII("â€Œí …U+dcc2ã€‚â’ˆ-í¯‚U+de9b") C1; V7
-Pass	ToASCII("â€Œí …U+dcc2ã€‚1.-í¯‚U+de9b") C1; V7; V3 (ignored)
+Pass	ToASCII("â€Œğ‘“‚ã€‚â’ˆ-ô€ª›") C1; V7
+Pass	ToASCII("â€Œğ‘“‚ã€‚1.-ô€ª›") C1; V7; V3 (ignored)
 Pass	ToASCII("xn--wz1d.1.xn----rg03o") V6; V7; V3 (ignored)
 Pass	ToASCII("xn--0ugy057g.1.xn----rg03o") C1; V7; V3 (ignored)
 Pass	ToASCII("xn--wz1d.xn----dcp29674o") V6; V7
@@ -2540,42 +2540,42 @@ Pass	ToASCII("xn--0ugy057g.xn----dcp29674o") C1; V7
 Pass	ToASCII(".xn--hcb32bni") A4_2 (ignored)
 Pass	ToASCII("xn--hcb32bni")
 Pass	ToASCII("Ú½Ù£Ö–")
-Pass	ToASCII("à¾”ê¡‹-ï¼-í šU+df34") V6; V3 (ignored)
-Pass	ToASCII("à¾”ê¡‹-.-í šU+df34") V6; V3 (ignored)
+Pass	ToASCII("à¾”ê¡‹-ï¼-ğ–¬´") V6; V3 (ignored)
+Pass	ToASCII("à¾”ê¡‹-.-ğ–¬´") V6; V3 (ignored)
 Pass	ToASCII("xn----ukg9938i.xn----4u5m") V6; V3 (ignored)
-Pass	ToASCII("í¦½U+dcb3-â‹¢â€Œï¼æ ‡-") C1; V7; V3 (ignored)
-Pass	ToASCII("í¦½U+dcb3-âŠ‘Ì¸â€Œï¼æ ‡-") C1; V7; V3 (ignored)
-Pass	ToASCII("í¦½U+dcb3-â‹¢â€Œ.æ ‡-") C1; V7; V3 (ignored)
-Pass	ToASCII("í¦½U+dcb3-âŠ‘Ì¸â€Œ.æ ‡-") C1; V7; V3 (ignored)
+Pass	ToASCII("ñ¿’³-â‹¢â€Œï¼æ ‡-") C1; V7; V3 (ignored)
+Pass	ToASCII("ñ¿’³-âŠ‘Ì¸â€Œï¼æ ‡-") C1; V7; V3 (ignored)
+Pass	ToASCII("ñ¿’³-â‹¢â€Œ.æ ‡-") C1; V7; V3 (ignored)
+Pass	ToASCII("ñ¿’³-âŠ‘Ì¸â€Œ.æ ‡-") C1; V7; V3 (ignored)
 Pass	ToASCII("xn----9mo67451g.xn----qj7b") V7; V3 (ignored)
 Pass	ToASCII("xn----sgn90kn5663a.xn----qj7b") C1; V7; V3 (ignored)
-Pass	ToASCII("-í¤”U+de74.Û á¢š-") V6; V7; V3 (ignored)
+Pass	ToASCII("-ñ•‰´.Û á¢š-") V6; V7; V3 (ignored)
 Pass	ToASCII("xn----qi38c.xn----jxc827k") V6; V7; V3 (ignored)
-Pass	ToASCII("ã€‚ØµÙ‰à¸·Ù„Ø§ã€‚å²“á¯²í­ƒU+df83á¡‚") V7; A4_2 (ignored)
+Pass	ToASCII("ã€‚ØµÙ‰à¸·Ù„Ø§ã€‚å²“á¯²ó ¾ƒá¡‚") V7; A4_2 (ignored)
 Pass	ToASCII(".xn--mgb1a7bt462h.xn--17e10qe61f9r71s") V7; A4_2 (ignored)
 Pass	ToASCII("á¢Œï¼-à¡š") V3 (ignored)
 Pass	ToASCII("á¢Œ.-à¡š") V3 (ignored)
 Pass	ToASCII("xn--59e.xn----5jd") V3 (ignored)
-Pass	ToASCII("á€¹-í ªU+dfadí ½U+dfa2ï¼ÃŸ") V6; V7
-Pass	ToASCII("á€¹-í ªU+dfadí ½U+dfa2.ÃŸ") V6; V7
-Pass	ToASCII("á€¹-í ªU+dfadí ½U+dfa2.SS") V6; V7
-Pass	ToASCII("á€¹-í ªU+dfadí ½U+dfa2.ss") V6; V7
-Pass	ToASCII("á€¹-í ªU+dfadí ½U+dfa2.Ss") V6; V7
+Pass	ToASCII("á€¹-ğš®­ğŸ¢ï¼ÃŸ") V6; V7
+Pass	ToASCII("á€¹-ğš®­ğŸ¢.ÃŸ") V6; V7
+Pass	ToASCII("á€¹-ğš®­ğŸ¢.SS") V6; V7
+Pass	ToASCII("á€¹-ğš®­ğŸ¢.ss") V6; V7
+Pass	ToASCII("á€¹-ğš®­ğŸ¢.Ss") V6; V7
 Pass	ToASCII("xn----9tg11172akr8b.ss") V6; V7
 Pass	ToASCII("xn----9tg11172akr8b.xn--zca") V6; V7
-Pass	ToASCII("á€¹-í ªU+dfadí ½U+dfa2ï¼SS") V6; V7
-Pass	ToASCII("á€¹-í ªU+dfadí ½U+dfa2ï¼ss") V6; V7
-Pass	ToASCII("á€¹-í ªU+dfadí ½U+dfa2ï¼Ss") V6; V7
-Pass	ToASCII("àµ-â€â€Œï½¡í¥•U+dfa7â‚…â‰ ") C1; C2; V6; V7
-Pass	ToASCII("àµ-â€â€Œï½¡í¥•U+dfa7â‚…=Ì¸") C1; C2; V6; V7
-Pass	ToASCII("àµ-â€â€Œã€‚í¥•U+dfa75â‰ ") C1; C2; V6; V7
-Pass	ToASCII("àµ-â€â€Œã€‚í¥•U+dfa75=Ì¸") C1; C2; V6; V7
+Pass	ToASCII("á€¹-ğš®­ğŸ¢ï¼SS") V6; V7
+Pass	ToASCII("á€¹-ğš®­ğŸ¢ï¼ss") V6; V7
+Pass	ToASCII("á€¹-ğš®­ğŸ¢ï¼Ss") V6; V7
+Pass	ToASCII("àµ-â€â€Œï½¡ñ¥§â‚…â‰ ") C1; C2; V6; V7
+Pass	ToASCII("àµ-â€â€Œï½¡ñ¥§â‚…=Ì¸") C1; C2; V6; V7
+Pass	ToASCII("àµ-â€â€Œã€‚ñ¥§5â‰ ") C1; C2; V6; V7
+Pass	ToASCII("àµ-â€â€Œã€‚ñ¥§5=Ì¸") C1; C2; V6; V7
 Pass	ToASCII("xn----jmf.xn--5-ufo50192e") V6; V7; V3 (ignored)
 Pass	ToASCII("xn----jmf215lda.xn--5-ufo50192e") C1; C2; V6; V7
-Pass	ToASCII("é”£ã€‚à©í­U+de3bí­U+de86") V6; V7
+Pass	ToASCII("é”£ã€‚à©ó ˜»ó š†") V6; V7
 Pass	ToASCII("xn--gc5a.xn--ybc83044ppga") V6; V7
 Pass	ToASCII("xn--8gb2338k.xn--lhb0154f")
-Pass	ToASCII("Ø½í „U+de3e.Ù‰ê¤«")
+Pass	ToASCII("Ø½ğ‘ˆ¾.Ù‰ê¤«")
 Pass	ToASCII("áƒá‚±6Ì˜ã€‚ÃŸá¬ƒ")
 Pass	ToASCII("â´¡â´‘6Ì˜ã€‚ÃŸá¬ƒ")
 Pass	ToASCII("áƒá‚±6Ì˜ã€‚SSá¬ƒ")
@@ -2590,18 +2590,18 @@ Pass	ToASCII("â´¡â´‘6Ì˜.ÃŸá¬ƒ")
 Pass	ToASCII("xn--6-8cb306hms1a.xn--ss-2vq") V7
 Pass	ToASCII("xn--6-8cb555h2b.xn--ss-2vq") V7
 Pass	ToASCII("xn--6-8cb555h2b.xn--zca894k") V7
-Pass	ToASCII("í§®U+dc50ï½¡â‰¯í „U+deea") V7
-Pass	ToASCII("í§®U+dc50ï½¡>Ì¸í „U+deea") V7
-Pass	ToASCII("í§®U+dc50ã€‚â‰¯í „U+deea") V7
-Pass	ToASCII("í§®U+dc50ã€‚>Ì¸í „U+deea") V7
+Pass	ToASCII("ò‹¡ï½¡â‰¯ğ‘‹ª") V7
+Pass	ToASCII("ò‹¡ï½¡>Ì¸ğ‘‹ª") V7
+Pass	ToASCII("ò‹¡ã€‚â‰¯ğ‘‹ª") V7
+Pass	ToASCII("ò‹¡ã€‚>Ì¸ğ‘‹ª") V7
 Pass	ToASCII("xn--eo08b.xn--hdh3385g") V7
-Pass	ToASCII("í­€U+dd0fí šU+df34í­ƒU+dcbdï½¡ï¾ ") V6; V7; A4_2 (ignored)
-Pass	ToASCII("í­€U+dd0fí šU+df34í­ƒU+dcbdã€‚á… ") V6; V7; A4_2 (ignored)
+Pass	ToASCII("ó „ğ–¬´ó ²½ï½¡ï¾ ") V6; V7; A4_2 (ignored)
+Pass	ToASCII("ó „ğ–¬´ó ²½ã€‚á… ") V6; V7; A4_2 (ignored)
 Pass	ToASCII("xn--619ep9154c.") V6; V7; A4_2 (ignored)
 Pass	ToASCII("xn--619ep9154c.xn--psd") V6; V7
 Pass	ToASCII("xn--619ep9154c.xn--cl7c") V6; V7
-Pass	ToASCII("í­‚U+df54.í €U+def1â‚‚") V7
-Pass	ToASCII("í­‚U+df54.í €U+def12") V7
+Pass	ToASCII("ó ­”.ğ‹±â‚‚") V7
+Pass	ToASCII("ó ­”.ğ‹±2") V7
 Pass	ToASCII("xn--vi56e.xn--2-w91i") V7
 Pass	ToASCII("â¶¿.ÃŸâ€") C2; V7
 Pass	ToASCII("â¶¿.SSâ€") C2; V7
@@ -2617,58 +2617,58 @@ Pass	ToASCII("xn--7zv.xn--0ug") C1
 Pass	ToASCII("xn--iwb.ss")
 Pass	ToASCII("à¡“.ss")
 Pass	ToASCII("à¡“.SS")
-Pass	ToASCII("äƒšèŸ¥-ã€‚-í¦µU+dc98â’ˆ") V7; V3 (ignored)
-Pass	ToASCII("äƒšèŸ¥-ã€‚-í¦µU+dc981.") V7; V3 (ignored); A4_2 (ignored)
+Pass	ToASCII("äƒšèŸ¥-ã€‚-ñ½’˜â’ˆ") V7; V3 (ignored)
+Pass	ToASCII("äƒšèŸ¥-ã€‚-ñ½’˜1.") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----n50a258u.xn---1-up07j.") V7; V3 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn----n50a258u.xn----ecp33805f") V7; V3 (ignored)
-Pass	ToASCII("á¢”â‰ í¯¬U+de42.â€í €U+dee2") C2; V7
-Pass	ToASCII("á¢”=Ì¸í¯¬U+de42.â€í €U+dee2") C2; V7
+Pass	ToASCII("á¢”â‰ ô‹‰‚.â€ğ‹¢") C2; V7
+Pass	ToASCII("á¢”=Ì¸ô‹‰‚.â€ğ‹¢") C2; V7
 Pass	ToASCII("xn--ebf031cf7196a.xn--587c") V7
 Pass	ToASCII("xn--ebf031cf7196a.xn--1ug9540g") C2; V7
 Pass	ToASCII("-ï½¡âº") V3 (ignored)
 Pass	ToASCII("-ã€‚âº") V3 (ignored)
 Pass	ToASCII("-.xn--6vj") V3 (ignored)
-Pass	ToASCII("í­ƒU+dc29í ‡U+dcacï¼Ùœ") V6; V7
-Pass	ToASCII("í­ƒU+dc29í ‡U+dcac.Ùœ") V6; V7
+Pass	ToASCII("ó °©ğ‘²¬ï¼Ùœ") V6; V7
+Pass	ToASCII("ó °©ğ‘²¬.Ùœ") V6; V7
 Pass	ToASCII("xn--sn3d59267c.xn--4hb") V6; V7
-Pass	ToASCII("í €U+df7a.í¤¨U+ddc3â€Œ") C1; V6; V7
+Pass	ToASCII("ğº.ñš‡ƒâ€Œ") C1; V6; V7
 Pass	ToASCII("xn--ie8c.xn--2g51a") V6; V7
 Pass	ToASCII("xn--ie8c.xn--0ug03366c") C1; V6; V7
-Pass	ToASCII("â€â‰®ï¼í­U+dfeaí¢¦U+decf-") C2; V7; V3 (ignored)
-Pass	ToASCII("â€<Ì¸ï¼í­U+dfeaí¢¦U+decf-") C2; V7; V3 (ignored)
-Pass	ToASCII("â€â‰®.í­U+dfeaí¢¦U+decf-") C2; V7; V3 (ignored)
-Pass	ToASCII("â€<Ì¸.í­U+dfeaí¢¦U+decf-") C2; V7; V3 (ignored)
+Pass	ToASCII("â€â‰®ï¼ó Ÿªğ¹«-") C2; V7; V3 (ignored)
+Pass	ToASCII("â€<Ì¸ï¼ó Ÿªğ¹«-") C2; V7; V3 (ignored)
+Pass	ToASCII("â€â‰®.ó Ÿªğ¹«-") C2; V7; V3 (ignored)
+Pass	ToASCII("â€<Ì¸.ó Ÿªğ¹«-") C2; V7; V3 (ignored)
 Pass	ToASCII("xn--gdh.xn----cr99a1w710b") V7; V3 (ignored)
 Pass	ToASCII("xn--1ug95g.xn----cr99a1w710b") C2; V7; V3 (ignored)
-Pass	ToASCII("â€â€è¥”ã€‚á‚¼5ê¡®í¦•U+df4f") C2; V7
-Pass	ToASCII("â€â€è¥”ã€‚â´œ5ê¡®í¦•U+df4f") C2; V7
+Pass	ToASCII("â€â€è¥”ã€‚á‚¼5ê¡®ñµ") C2; V7
+Pass	ToASCII("â€â€è¥”ã€‚â´œ5ê¡®ñµ") C2; V7
 Pass	ToASCII("xn--2u2a.xn--5-uws5848bpf44e") V7
 Pass	ToASCII("xn--1uga7691f.xn--5-uws5848bpf44e") C2; V7
 Pass	ToASCII("xn--2u2a.xn--5-r1g7167ipfw8d") V7
 Pass	ToASCII("xn--1uga7691f.xn--5-r1g7167ipfw8d") C2; V7
 Pass	ToASCII("xn--ix9c26l.xn--q0s")
-Pass	ToASCII("í ‚U+dedcí „U+df3c.å©€")
-Pass	ToASCII("ê¦¹â€í·í¢¯U+dda1ï½¡â‚‚") C2; V6; V7
-Pass	ToASCII("ê¦¹â€á„á…³á†²í¢¯U+dda1ï½¡â‚‚") C2; V6; V7
+Pass	ToASCII("ğ«œğ‘Œ¼.å©€")
+Pass	ToASCII("ê¦¹â€í·ğ»¶¡ï½¡â‚‚") C2; V6; V7
+Pass	ToASCII("ê¦¹â€á„á…³á†²ğ»¶¡ï½¡â‚‚") C2; V6; V7
 Pass	ToASCII("xn--0m9as84e2e21c.c") V6; V7
 Pass	ToASCII("xn--1ug1435cfkyaoi04d.c") C2; V6; V7
-Pass	ToASCII("í ‚U+dec0ï¼Ú‰í „U+df00")
-Pass	ToASCII("í ‚U+dec0.Ú‰í „U+df00")
+Pass	ToASCII("ğ«€ï¼Ú‰ğ‘Œ€")
+Pass	ToASCII("ğ«€.Ú‰ğ‘Œ€")
 Pass	ToASCII("xn--pw9c.xn--fjb8658k")
 Pass	ToASCII("â‰ è†£ã€‚à¾ƒ") V6
 Pass	ToASCII("=Ì¸è†£ã€‚à¾ƒ") V6
 Pass	ToASCII("xn--1chy468a.xn--2ed") V6
-Pass	ToASCII("í €U+def7ã€‚â€") C2
+Pass	ToASCII("ğ‹·ã€‚â€") C2
 Pass	ToASCII("xn--r97c.") A4_2 (ignored)
-Pass	ToASCII("í €U+def7.") A4_2 (ignored)
+Pass	ToASCII("ğ‹·.") A4_2 (ignored)
 Pass	ToASCII("xn--r97c.xn--1ug") C2
-Pass	ToASCII("í ‡U+dc33í „U+de2fã€‚â¥ª") V6
+Pass	ToASCII("ğ‘°³ğ‘ˆ¯ã€‚â¥ª") V6
 Pass	ToASCII("xn--2g1d14o.xn--jti") V6
-Pass	ToASCII("í „U+dd80ä´í¥’U+dde3ï¼á‚µí µU+dfdcâ€ŒÍˆ") C1; V6; V7
-Pass	ToASCII("í „U+dd80ä´í¥’U+dde3.á‚µ4â€ŒÍˆ") C1; V6; V7
-Pass	ToASCII("í „U+dd80ä´í¥’U+dde3.â´•4â€ŒÍˆ") C1; V6; V7
+Pass	ToASCII("ğ‘†€ä´ñ¤§£ï¼á‚µğŸœâ€ŒÍˆ") C1; V6; V7
+Pass	ToASCII("ğ‘†€ä´ñ¤§£.á‚µ4â€ŒÍˆ") C1; V6; V7
+Pass	ToASCII("ğ‘†€ä´ñ¤§£.â´•4â€ŒÍˆ") C1; V6; V7
 Pass	ToASCII("xn--1mnx647cg3x1b.xn--4-zfb5123a") V6; V7
 Pass	ToASCII("xn--1mnx647cg3x1b.xn--4-zfb502tlsl") C1; V6; V7
-Pass	ToASCII("í „U+dd80ä´í¥’U+dde3ï¼â´•í µU+dfdcâ€ŒÍˆ") C1; V6; V7
+Pass	ToASCII("ğ‘†€ä´ñ¤§£ï¼â´•ğŸœâ€ŒÍˆ") C1; V6; V7
 Pass	ToASCII("xn--1mnx647cg3x1b.xn--4-zfb324h") V6; V7
 Pass	ToASCII("xn--1mnx647cg3x1b.xn--4-zfb324h32o") C1; V6; V7

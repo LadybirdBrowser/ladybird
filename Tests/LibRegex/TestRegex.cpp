@@ -818,6 +818,17 @@ TEST_CASE(ECMA262_unicode_match)
         { "[\\ufb06]"sv, "\ufb05"sv, false, ECMAScriptFlags::Unicode },
         { "[\\ufb05]"sv, "\ufb06"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
         { "[\\ufb06]"sv, "\ufb05"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
+
+        // https://github.com/LadybirdBrowser/ladybird/issues/5549
+        { "[\\ud800-\\udbff][\\udc00-\\udfff]"sv, "😀"sv, true },
+        { "[\\ud800-\\udbff][\\udc00-\\udfff]"sv, "😀"sv, false, ECMAScriptFlags::Unicode },
+        { "[\\ud800-\\udbff][\\udc00-\\udfff]"sv, "a"sv, false },
+        { "[\\ud800-\\udbff][\\udc00-\\udfff]"sv, "a"sv, false, ECMAScriptFlags::Unicode },
+        {
+            "\\ud83c[\\udffb-\\udfff](?=\\ud83c[\\udffb-\\udfff])|(?:[^\\ud800-\\udfff][\\u0300-\\u036f\\ufe20-\\ufe2f\\u20d0-\\u20ff]?|[\\u0300-\\u036f\\ufe20-\\ufe2f\\u20d0-\\u20ff]|(?:\\ud83c[\\udde6-\\uddff]){2}|[\\ud800-\\udbff][\\udc00-\\udfff]|[\\ud800-\\udfff])[\\ufe0e\\ufe0f]?(?:[\\u0300-\\u036f\\ufe20-\\ufe2f\\u20d0-\\u20ff]|\\ud83c[\\udffb-\\udfff])?(?:\\u200d(?:[^\\ud800-\\udfff]|(?:\\ud83c[\\udde6-\\uddff]){2}|[\\ud800-\\udbff][\\udc00-\\udfff])[\\ufe0e\\ufe0f]?(?:[\\u0300-\\u036f\\ufe20-\\ufe2f\\u20d0-\\u20ff]|\\ud83c[\\udffb-\\udfff])?)*"sv,
+            "😀"sv,
+            true,
+        }
     };
 
     for (auto& test : tests) {
