@@ -957,7 +957,7 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
     Vector<ByteString> result;
 
     size_t offset { state().instruction_position + 3 };
-    RegexStringView const& view = ((input.has_value()) ? input.value().view : StringView {});
+    RegexStringView const& view = input.has_value() ? input.value().view : StringView {};
 
     for (size_t i = 0; i < arguments_count(); ++i) {
         auto compare_type = (CharacterCompareType)m_bytecode->at(offset++);
