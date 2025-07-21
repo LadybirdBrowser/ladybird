@@ -1,6 +1,6 @@
 {
   "name": "curl",
-  "version": "8.14.1",
+  "version": "8.15.0",
   "description": "A library for transferring data with URLs",
   "homepage": "https://curl.se/",
   "license": "curl AND ISC AND BSD-3-Clause",
@@ -177,10 +177,6 @@
         }
       ]
     },
-    "sectransp": {
-      "description": "SSL support (sectransp)",
-      "supports": "osx | ios"
-    },
     "ssh": {
       "description": "SSH support via libssh2",
       "dependencies": [
@@ -208,14 +204,6 @@
           "name": "curl",
           "default-features": false,
           "features": [
-            "sectransp"
-          ],
-          "platform": "osx | ios"
-        },
-        {
-          "name": "curl",
-          "default-features": false,
-          "features": [
             "schannel"
           ],
           "platform": "(windows & !uwp) | mingw"
@@ -226,7 +214,7 @@
           "features": [
             "openssl"
           ],
-          "platform": "(uwp | !windows) & !(osx | ios) & !mingw"
+          "platform": "(uwp | !windows) & !mingw"
         }
       ]
     },
