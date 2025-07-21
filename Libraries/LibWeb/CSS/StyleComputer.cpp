@@ -407,7 +407,7 @@ void StyleComputer::for_each_stylesheet(CascadeOrigin cascade_origin, Callback c
     }
 }
 
-RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, FlyString const& qualified_layer_name, GC::Ptr<DOM::ShadowRoot const> shadow_root) const
+RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, Optional<FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const> shadow_root) const
 {
     auto const* rule_caches_for_document_and_shadow_roots = [&]() -> RuleCachesForDocumentAndShadowRoots const* {
         switch (cascade_origin) {
@@ -428,9 +428,9 @@ RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin casc
     }();
     if (!rule_caches_by_layer)
         return nullptr;
-    if (qualified_layer_name.is_empty())
+    if (!qualified_layer_name.has_value())
         return &rule_caches_by_layer->main;
-    return rule_caches_by_layer->by_layer.get(qualified_layer_name).value_or(nullptr);
+    return rule_caches_by_layer->by_layer.get(*qualified_layer_name).value_or(nullptr);
 }
 
 [[nodiscard]] static bool filter_namespace_rule(Optional<FlyString> const& element_namespace_uri, MatchingRule const& rule)
@@ -491,7 +491,7 @@ bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::
     return false;
 }
 
-Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, FlyString const& qualified_layer_name) const
+Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const
 {
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
