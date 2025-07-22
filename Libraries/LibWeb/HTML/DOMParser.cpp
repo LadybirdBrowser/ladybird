@@ -56,7 +56,7 @@ GC::Ref<DOM::Document> DOMParser::parse_from_string(StringView string, Bindings:
         document->parse_html_from_a_string(string);
     } else {
         // -> Otherwise
-        document = DOM::XMLDocument::create(realm(), associated_document.url());
+        document = DOM::Document::create(realm(), associated_document.url());
         document->set_content_type(Bindings::idl_enum_to_string(type));
         document->set_document_type(DOM::Document::Type::XML);
 
