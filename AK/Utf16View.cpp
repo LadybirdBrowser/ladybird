@@ -208,11 +208,10 @@ size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
 
     size_t code_point_offset = 0;
 
-    for (auto it = begin(); it != end(); ++it) {
-        if (code_unit_offset == 0)
-            return code_point_offset;
-
-        code_unit_offset -= it.length_in_code_units();
+    for (auto it = begin(); it != end();) {
+        // We know the view is using UTF-16 storage because ASCII storage would have returned early above.
+        if ((++it).m_iterator.utf16 > m_string.utf16 + code_unit_offset)
+            break;
         ++code_point_offset;
     }
 

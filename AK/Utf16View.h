@@ -106,6 +106,8 @@ public:
     }
 
 private:
+    friend Utf16View;
+
     constexpr Utf16CodePointIterator(char const* iterator, size_t length)
         : m_iterator { .ascii = iterator }
         , m_remaining_code_units(length)
