@@ -89,7 +89,7 @@ private:
     void send_client_handshake();
     void read_server_handshake();
 
-    void read_frame();
+    ErrorOr<void> read_frame();
     void send_frame(OpCode, ReadonlyBytes, bool is_final);
 
     void notify_open();
