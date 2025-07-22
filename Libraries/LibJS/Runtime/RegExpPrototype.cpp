@@ -76,7 +76,7 @@ static ThrowCompletionOr<void> increment_last_index(VM& vm, Object& regexp_objec
 struct Match {
     static Match create(regex::Match const& match)
     {
-        return { match.global_offset, match.global_offset + match.view.length() };
+        return { match.global_offset, match.global_offset + match.view.length_in_code_units() };
     }
 
     size_t start_index { 0 };
