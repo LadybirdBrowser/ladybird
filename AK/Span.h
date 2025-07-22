@@ -228,6 +228,14 @@ public:
         return TypedTransfer<T>::compare(data(), other.data(), other.size());
     }
 
+    [[nodiscard]] constexpr bool ends_with(ReadonlySpan<T> other) const
+    {
+        if (size() < other.size())
+            return false;
+
+        return TypedTransfer<T>::compare(offset_pointer(size() - other.size()), other.data(), other.size());
+    }
+
     [[nodiscard]] constexpr size_t matching_prefix_length(ReadonlySpan<T> other) const
     {
         auto maximum_length = min(size(), other.size());
