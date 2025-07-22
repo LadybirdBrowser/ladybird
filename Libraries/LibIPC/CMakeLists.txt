@@ -18,3 +18,7 @@ endif()
 
 ladybird_lib(LibIPC ipc)
 target_link_libraries(LibIPC PRIVATE LibCore LibURL LibThreading)
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(LibIPC PROPERTIES UNITY_BUILD ON)
+endif()

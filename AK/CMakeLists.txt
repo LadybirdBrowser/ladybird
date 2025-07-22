@@ -112,3 +112,7 @@ if (ENABLE_INSTALL_HEADERS)
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/AK"
     )
 endif()
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(AK PROPERTIES UNITY_BUILD ON)
+endif()

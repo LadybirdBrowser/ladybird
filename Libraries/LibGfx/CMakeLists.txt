@@ -174,3 +174,8 @@ endif()
 if (HAS_VULKAN)
     target_link_libraries(LibCore PUBLIC Vulkan::Vulkan Vulkan::Headers)
 endif()
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(LibGfx PROPERTIES UNITY_BUILD ON)
+    set_source_files_properties(MetalContext.mm ImageFormats/WebPWriterLossless.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+endif()
