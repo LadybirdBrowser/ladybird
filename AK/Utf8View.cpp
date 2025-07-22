@@ -32,24 +32,25 @@ Utf8CodePointIterator Utf8View::iterator_at_byte_offset_without_validation(size_
 
 size_t Utf8View::code_point_offset_of(size_t byte_offset) const
 {
-    VERIFY(byte_offset < byte_length());
+    VERIFY(byte_offset <= byte_length());
 
     // Fast path: each code point is represented by a single byte.
     if (length() == byte_length())
         return byte_offset;
 
     size_t code_point_offset = 0;
-    for (auto it = begin(); !it.done(); ++it) {
-        if (it.m_ptr > begin_ptr() + byte_offset)
+    auto it = begin();
+    while (!it.done()) {
+        if ((++it).m_ptr > begin_ptr() + byte_offset)
             break;
         ++code_point_offset;
     }
-    return code_point_offset - 1;
+    return code_point_offset;
 }
 
 size_t Utf8View::byte_offset_of(size_t code_point_offset) const
 {
-    VERIFY(code_point_offset < length());
+    VERIFY(code_point_offset <= length());
 
     // Fast path: each code point is represented by a single byte.
     if (length() == byte_length())
