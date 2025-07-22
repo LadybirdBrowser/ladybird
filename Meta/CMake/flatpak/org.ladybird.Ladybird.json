@@ -104,15 +104,45 @@
     {
       "name": "angle",
       "buildsystem": "simple",
-      "build-options": {
-        "build-args": [
-          "--share=network"
-        ]
-      },
       "sources": [
         {
+          "type": "git",
+          "url": "https://chromium.googlesource.com/angle/angle",
+          "commit": "7ab02e1d49a649adaba62b8a7fdfabf8144b313f",
+          "dest": "angle",
+          "disable-submodules": true
+        },
+        "angle/angle-sources.json",
+        {
           "type": "file",
-          "path": "angle/angle-checkout.sh"
+          "url": "https://storage.googleapis.com/angle-glslang-validator/de8679c3e2f15291ba4f5c32eebc954ce78bf39c",
+          "sha256": "48296cebcdc8a57d9c1a0b93a51b3d33ad7c554d8d258d82ad2b9a9808a24a2e",
+          "dest": "angle/tools/glslang",
+          "dest-filename": "glslang_validator"
+        },
+        {
+          "type": "file",
+          "url": "https://storage.googleapis.com/angle-flex-bison/36625019a2442ac8efc92c32e1d61bd3f450b7ab",
+          "sha256": "d786285a7bdbaa8315b3af79ad7134bcc9924ee9bb49555b03a6fc94a103a80b",
+          "dest": "angle/tools/flex-bison/linux",
+          "dest-filename": "bison"
+        },
+        {
+          "type": "file",
+          "url": "https://storage.googleapis.com/angle-flex-bison/3c9694c62a4ad0d1f95b45bb748855c3688c923e",
+          "sha256": "fbfdf6cf32ecb5bf21b41cf7efc8c771d66cdcf5ca1e3ae5762a74ff136f93a3",
+          "dest": "angle/tools/flex-bison/linux",
+          "dest-filename": "flex"
+        },
+        {
+          "type": "file",
+          "path": "angle/gclient_args.gni",
+          "dest": "angle/build/config"
+        },
+        {
+          "type": "patch",
+          "path": "angle/build-arm64.patch",
+          "dest": "angle/build"
         },
         {
           "type": "file",
@@ -128,7 +158,6 @@
         }
       ],
       "build-commands": [
-        "./angle-checkout.sh",
         "./angle-configure.sh",
         "./angle-build.sh",
         "./angle-install.sh"
