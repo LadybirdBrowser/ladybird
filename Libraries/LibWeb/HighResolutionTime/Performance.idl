@@ -1,5 +1,6 @@
 #import <DOM/EventTarget.idl>
 #import <HighResolutionTime/DOMHighResTimeStamp.idl>
+#import <NavigationTiming/PerformanceExtensions.idl>
 #import <NavigationTiming/PerformanceNavigation.idl>
 #import <NavigationTiming/PerformanceTiming.idl>
 #import <PerformanceTimeline/PerformanceEntry.idl>
@@ -34,11 +35,4 @@ interface Performance : EventTarget {
     PerformanceEntryList getEntries();
     PerformanceEntryList getEntriesByType(DOMString type);
     PerformanceEntryList getEntriesByName(DOMString name, optional DOMString type);
-
-    // https://w3c.github.io/navigation-timing/#extensions-to-the-performance-interface
-    // Obsolete "Navigation Timing" extensions to the Performance interface
-    [SameObject]
-    readonly attribute PerformanceTiming timing;
-    [SameObject]
-    readonly attribute PerformanceNavigation navigation;
 };
