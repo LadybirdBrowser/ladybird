@@ -2,7 +2,6 @@
 
 set -e
 
-export PATH=$PWD/depot_tools:$PATH
 cd angle
 
 # Headers
@@ -41,5 +40,3 @@ cat > "$FLATPAK_DEST/lib/pkgconfig/angle.pc" <<EOF
     Libs: -L\${libdir} -lEGL -lGLESv2
     Cflags: -I\${includedir}/angle
 EOF
-
-git reset --hard origin/main
