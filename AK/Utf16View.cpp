@@ -185,6 +185,8 @@ bool Utf16View::validate(size_t& valid_code_units, AllowLonelySurrogates allow_l
 
 size_t Utf16View::code_unit_offset_of(size_t code_point_offset) const
 {
+    VERIFY(code_point_offset <= length_in_code_points());
+
     if (length_in_code_points() == length_in_code_units()) // Fast path: all code points are one code unit.
         return code_point_offset;
 
@@ -203,6 +205,8 @@ size_t Utf16View::code_unit_offset_of(size_t code_point_offset) const
 
 size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
 {
+    VERIFY(code_unit_offset <= length_in_code_units());
+
     if (length_in_code_points() == length_in_code_units()) // Fast path: all code points are one code unit.
         return code_unit_offset;
 
