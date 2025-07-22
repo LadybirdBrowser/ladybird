@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script type="worker">
+    globalThis.onmessage = () => {
+        const result = [];
+        result.push("(worker) navigation: " + typeof performance.navigation);
+        result.push("(worker) timing: " + typeof performance.timing);
+        result.push("(worker) performance JSON: " + JSON.stringify(performance));
+        postMessage(result);
+    }
+</script>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        const replacePotentiallyFlakyTimes = (string) => {
+            return string.replace(/("[a-zA-Z]+":)(\d+(\.\d+)?)/g, "$1[removed-potentially-flaky-time-value]");
+        };
+
+        println("(window) navigation: " + typeof performance.navigation);
+        println("(window) timing: " + typeof performance.timing);
+        println("(window) performance JSON: " + replacePotentiallyFlakyTimes(JSON.stringify(performance)));
+
+        const workerSource = document.querySelector('[type=worker]').innerText;
+        const workerBlob = new Blob([workerSource], { type: "text/javascript" });
+        const workerBlobURL = URL.createObjectURL(workerBlob);
+        const worker = new Worker(workerBlobURL);
+        worker.onmessage = ({ data }) => {
+            for (const string of data) {
+                println(replacePotentiallyFlakyTimes(string));
+            }
+
+            done();
+        };
+
+        worker.postMessage("start");
+    });
+</script>

@@ -3124,6 +3124,19 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
 
         // FIXME: Check if the attributes are exposed.
 
+        // NOTE: Add more specified exposed global interface groups when needed.
+        StringBuilder window_exposed_only_members_builder;
+        SourceGenerator window_exposed_only_members_generator { window_exposed_only_members_builder, function_generator.clone_mapping() };
+        auto generator_for_member = [&](auto const& name, auto& extended_attributes) -> SourceGenerator {
+            if (auto maybe_exposed = extended_attributes.get("Exposed"); maybe_exposed.has_value()) {
+                auto exposed_to = MUST(IDL::parse_exposure_set(name, *maybe_exposed));
+                if (exposed_to == IDL::ExposedTo::Window) {
+                    return window_exposed_only_members_generator.fork();
+                }
+            }
+            return function_generator.fork();
+        };
+
         // 1. Let id be the identifier of attr.
         // 2. Let value be the result of running the getter steps of attr with object as this.
 
@@ -3142,7 +3155,7 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
             if (!attribute.type->is_json(interface_in_chain))
                 continue;
 
-            auto attribute_generator = function_generator.fork();
+            auto attribute_generator = generator_for_member(attribute.name, attribute.extended_attributes);
             auto return_value_name = ByteString::formatted("{}_retval", attribute.name.to_snakecase());
 
             attribute_generator.set("attribute.name", attribute.name);
@@ -3199,6 +3212,16 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
 
             constant_generator.append(R"~~~(
     MUST(result->create_data_property("@constant.name@"_fly_string, constant_@constant.name@_value));
+)~~~");
+        }
+
+        if (!window_exposed_only_members_generator.as_string_view().is_empty()) {
+            auto window_only_property_declarations = function_generator.fork();
+            window_only_property_declarations.set("defines", window_exposed_only_members_generator.as_string_view());
+            window_only_property_declarations.append(R"~~~(
+    if (is<HTML::Window>(realm.global_object())) {
+@defines@
+    }
 )~~~");
         }
     }
