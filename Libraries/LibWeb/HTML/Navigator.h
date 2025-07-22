@@ -22,7 +22,7 @@
 namespace Web::HTML {
 
 class Navigator : public Bindings::PlatformObject
-    , public NavigatorBeaconMixin
+    , public NavigatorBeaconPartial
     , public NavigatorConcurrentHardwareMixin
     , public NavigatorDeviceMemoryMixin
     , public NavigatorIDMixin

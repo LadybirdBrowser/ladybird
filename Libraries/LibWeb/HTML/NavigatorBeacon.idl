@@ -1,7 +1,6 @@
 #import <Fetch/BodyInit.idl>
 
 // https://w3c.github.io/beacon/#sendbeacon-method
-// FIXME: This is a partial interface not an interface mixin
-interface mixin NavigatorBeacon {
+partial interface Navigator {
     boolean sendBeacon(USVString url, optional BodyInit? data = null);
 };
