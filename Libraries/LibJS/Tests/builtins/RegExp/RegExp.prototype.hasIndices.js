@@ -50,4 +50,8 @@ test("basic functionality", () => {
         var result = regex.exec("let foo").indices;
         expect(result.groups).toEqual({ keyword: [0, 3], id: [4, 7] });
     }
+
+    regex = /🍕/du;
+    expect(regex.hasIndices).toBeTrue();
+    expect(regex.exec("🍕").indices[0]).toEqual([0, 2]);
 });
