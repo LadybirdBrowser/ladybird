@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/StringConversions.h>
 #include <AK/Swift.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibIPC/Decoder.h>
@@ -365,6 +366,11 @@ Optional<Color> Color::from_string(StringView string)
         return color;
 
     return {};
+}
+
+Optional<Color> Color::from_utf16_string(Utf16View const& string)
+{
+    return from_string(string.to_utf8_but_should_be_ported_to_utf16());
 }
 
 Vector<Color> Color::shades(u32 steps, float max) const
