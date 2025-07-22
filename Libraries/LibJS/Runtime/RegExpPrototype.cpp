@@ -221,7 +221,10 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     //       ii. Set matchSucceeded to true.
 
     // 13.b and 13.c
-    regex.start_offset = full_unicode ? string->utf16_string_view().code_point_offset_of(last_index) : last_index;
+    regex.start_offset = full_unicode && last_index <= string->length_in_utf16_code_units()
+        ? string->utf16_string_view().code_point_offset_of(last_index)
+        : last_index;
+
     result = regex.match(string->utf16_string_view());
 
     // 13.d and 13.a
