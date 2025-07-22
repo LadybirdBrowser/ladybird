@@ -305,4 +305,13 @@ void EffectiveOverloadSet::remove_all_other_entries()
     m_items = move(new_items);
 }
 
+void Interface::extend_with_partial_interface(Interface const& partial)
+{
+    attributes.extend(partial.attributes);
+    static_attributes.extend(partial.static_attributes);
+    constants.extend(partial.constants);
+    functions.extend(partial.functions);
+    static_functions.extend(partial.static_functions);
+}
+
 }

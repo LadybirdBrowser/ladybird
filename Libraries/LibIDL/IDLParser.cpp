@@ -813,6 +813,17 @@ void Parser::parse_interface(Interface& interface)
     consume_whitespace();
 }
 
+void Parser::parse_partial_interface(Interface& parent)
+{
+    assert_string("partial"sv);
+    consume_whitespace();
+    assert_string("interface"sv);
+
+    auto partial_interface = make<Interface>();
+    parse_interface(*partial_interface);
+    parent.partial_interfaces.append(move(partial_interface));
+}
+
 void Parser::parse_namespace(Interface& interface)
 {
     consume_whitespace();
@@ -1051,6 +1062,8 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
             parse_enumeration(extended_attributes, interface);
         } else if (lexer.next_is("typedef")) {
             parse_typedef(interface);
+        } else if (lexer.next_is("partial interface"sv)) {
+            parse_partial_interface(interface);
         } else if (lexer.next_is("interface mixin")) {
             parse_interface_mixin(interface);
         } else if (lexer.next_is("callback")) {
@@ -1183,6 +1196,11 @@ Interface& Parser::parse()
 
     for (auto& import : imports) {
         // FIXME: Instead of copying every imported entity into the current interface, query imports directly
+        for (auto& partial_interface : import.partial_interfaces) {
+            if (partial_interface->name == interface.name)
+                interface.extend_with_partial_interface(*partial_interface);
+        }
+
         for (auto& dictionary : import.dictionaries)
             interface.dictionaries.set(dictionary.key, dictionary.value);
 
