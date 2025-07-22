@@ -84,7 +84,7 @@ struct Match {
 };
 
 // 22.2.7.7 GetMatchIndexPair ( S, match ), https://tc39.es/ecma262/#sec-getmatchindexpair
-static Value get_match_index_par(VM& vm, Utf16View const& string, Match const& match)
+static Value get_match_index_pair(VM& vm, Utf16View const& string, Match const& match)
 {
     auto& realm = *vm.current_realm();
 
@@ -145,14 +145,14 @@ static Value make_match_indices_index_pair_array(VM& vm, Utf16View const& string
         //     i. Let matchIndicesArray be undefined.
         auto match_indices_array = js_undefined();
         if (match_indices.has_value())
-            match_indices_array = get_match_index_par(vm, string, *match_indices);
+            match_indices_array = get_match_index_pair(vm, string, *match_indices);
 
         // d. Perform ! CreateDataPropertyOrThrow(A, ! ToString(i), matchIndicesArray).
         MUST(array->create_data_property_or_throw(i, match_indices_array));
     }
 
     for (auto const& entry : group_names) {
-        auto match_indices_array = get_match_index_par(vm, string, entry.value);
+        auto match_indices_array = get_match_index_pair(vm, string, entry.value);
 
         // e. If i > 0 and groupNames[i - 1] is not undefined, then
         //     i. Assert: groups is not undefined.
