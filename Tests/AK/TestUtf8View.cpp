@@ -345,4 +345,16 @@ TEST_CASE(code_point_offset_of)
     EXPECT_EQ(1u, view.code_point_offset_of(4));
     EXPECT_EQ(2u, view.code_point_offset_of(5));
     EXPECT_EQ(3u, view.code_point_offset_of(6));
+    EXPECT_EQ(4u, view.code_point_offset_of(7));
+}
+
+TEST_CASE(byte_offset_of)
+{
+    Utf8View view { "😂foo"sv };
+
+    EXPECT_EQ(0u, view.byte_offset_of(0));
+    EXPECT_EQ(4u, view.byte_offset_of(1));
+    EXPECT_EQ(5u, view.byte_offset_of(2));
+    EXPECT_EQ(6u, view.byte_offset_of(3));
+    EXPECT_EQ(7u, view.byte_offset_of(4));
 }
