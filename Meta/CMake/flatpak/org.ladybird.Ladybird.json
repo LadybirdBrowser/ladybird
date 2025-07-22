@@ -493,7 +493,11 @@
         },
         {
           "type": "dir",
-          "path": "../../../"
+          "path": "../../../",
+          "skip": [
+            "Build",
+            "Tests/LibWeb/WPT"
+          ]
         }
       ],
       "build-options": {
