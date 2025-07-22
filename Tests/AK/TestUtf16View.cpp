@@ -384,6 +384,24 @@ TEST_CASE(equals_ignoring_case)
     EXPECT(!Utf16View { string1 }.equals_ignoring_case(Utf16View { string2 }));
 }
 
+TEST_CASE(code_unit_offset_of)
+{
+    Utf16View view { u"😂 foo 😀 bar"sv };
+
+    EXPECT_EQ(view.code_unit_offset_of(0), 0uz);
+    EXPECT_EQ(view.code_unit_offset_of(1), 2uz);
+    EXPECT_EQ(view.code_unit_offset_of(2), 3uz);
+    EXPECT_EQ(view.code_unit_offset_of(3), 4uz);
+    EXPECT_EQ(view.code_unit_offset_of(4), 5uz);
+    EXPECT_EQ(view.code_unit_offset_of(5), 6uz);
+    EXPECT_EQ(view.code_unit_offset_of(6), 7uz);
+    EXPECT_EQ(view.code_unit_offset_of(7), 9uz);
+    EXPECT_EQ(view.code_unit_offset_of(8), 10uz);
+    EXPECT_EQ(view.code_unit_offset_of(9), 11uz);
+    EXPECT_EQ(view.code_unit_offset_of(10), 12uz);
+    EXPECT_EQ(view.code_unit_offset_of(11), 13uz);
+}
+
 TEST_CASE(replace)
 {
     auto result = u""sv.replace({}, {}, ReplaceMode::FirstOnly);
