@@ -120,10 +120,9 @@ ALWAYS_INLINE Optional<u32> Parser::consume_escaped_code_point(bool unicode)
 
 ALWAYS_INLINE bool Parser::try_skip(StringView str)
 {
-    if (str.starts_with(m_parser_state.current_token.value()))
-        str = str.substring_view(m_parser_state.current_token.value().length(), str.length() - m_parser_state.current_token.value().length());
-    else
+    if (!str.starts_with(m_parser_state.current_token.value()))
         return false;
+    str = str.substring_view(m_parser_state.current_token.value().length(), str.length() - m_parser_state.current_token.value().length());
 
     size_t potentially_go_back { 0 };
     for (auto ch : str) {
