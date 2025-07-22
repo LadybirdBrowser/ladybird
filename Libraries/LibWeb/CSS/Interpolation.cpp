@@ -224,7 +224,7 @@ static RefPtr<CSSStyleValue const> interpolate_rotate(DOM::Element& element, Cal
     auto from_axis_angle = [](FloatVector3 const& axis, float angle) -> FloatVector4 {
         auto normalized = axis.normalized();
         auto half_angle = angle / 2.0f;
-        auto sin_half_angle = sin(half_angle);
+        auto sin_half_angle = sinf(half_angle);
         FloatVector4 result { normalized.x() * sin_half_angle, normalized.y() * sin_half_angle, normalized.z() * sin_half_angle, cosf(half_angle) };
         return result;
     };
