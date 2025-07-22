@@ -389,7 +389,21 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup::execute(MatchInput c
 
     VERIFY(start_position + length <= input.view.length());
 
-    state.mutable_capture_group_matches(input.match_index).at(id() - 1) = { input.view.substring_view(start_position, length), input.line, start_position, input.global_offset + start_position };
+    auto captured_text = input.view.substring_view(start_position, length);
+
+    // NOTE: Don't overwrite existing capture with empty match at the same position. The ECMA-262 RepeatMatcher
+    // continuation chain effectively preserves captures when an empty match occurs at the position where the
+    // existing capture ended.
+    // See: https://tc39.es/ecma262/#step-repeatmatcher-done
+    auto& existing_capture = state.mutable_capture_group_matches(input.match_index).at(id() - 1);
+    if (length == 0 && !existing_capture.view.is_null() && existing_capture.view.length() > 0) {
+        auto existing_end_position = existing_capture.global_offset - input.global_offset + existing_capture.view.length();
+        if (existing_end_position == state.string_position) {
+            return ExecutionResult::Continue;
+        }
+    }
+
+    state.mutable_capture_group_matches(input.match_index).at(id() - 1) = { captured_text, input.line, start_position, input.global_offset + start_position };
 
     return ExecutionResult::Continue;
 }
@@ -409,6 +423,16 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup::execute(MatchIn
     VERIFY(start_position + length <= input.view.length());
 
     auto view = input.view.substring_view(start_position, length);
+
+    // Same logic as in SaveRightCaptureGroup above.
+    // https://tc39.es/ecma262/#step-repeatmatcher-done
+    auto& existing_capture = state.mutable_capture_group_matches(input.match_index).at(id() - 1);
+    if (length == 0 && !existing_capture.view.is_null() && existing_capture.view.length() > 0) {
+        auto existing_end_position = existing_capture.global_offset - input.global_offset + existing_capture.view.length();
+        if (existing_end_position == state.string_position) {
+            return ExecutionResult::Continue;
+        }
+    }
 
     state.mutable_capture_group_matches(input.match_index).at(id() - 1) = { view, name_string_table_index(), input.line, start_position, input.global_offset + start_position };
 
