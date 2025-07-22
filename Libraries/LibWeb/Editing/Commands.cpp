@@ -1744,7 +1744,7 @@ bool command_insert_text_action(DOM::Document& document, String const& value)
     if (value.code_points().length() > 1) {
         // 1. For each code unit el in value, take the action for the insertText command, with value equal to el.
         for (auto el : value.code_points())
-            command_insert_text_action(document, String::from_code_point(el));
+            take_the_action_for_command(document, CommandNames::insertText, String::from_code_point(el));
 
         // 2. Return true.
         return true;
@@ -1756,7 +1756,7 @@ bool command_insert_text_action(DOM::Document& document, String const& value)
 
     // 5. If value is a newline (U+000A), take the action for the insertParagraph command and return true.
     if (value == "\n"sv) {
-        command_insert_paragraph_action(document, {});
+        take_the_action_for_command(document, CommandNames::insertParagraph, {});
         return true;
     }
 
