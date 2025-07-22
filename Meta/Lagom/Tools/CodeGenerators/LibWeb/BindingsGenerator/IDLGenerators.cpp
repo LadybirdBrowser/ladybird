@@ -1813,12 +1813,7 @@ void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& ge
 )~~~");
 }
 
-enum class WrappingReference {
-    No,
-    Yes,
-};
-
-static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, IDL::Interface const& interface, StringView result_expression, WrappingReference wrapping_reference = WrappingReference::No, size_t recursion_depth = 0, bool is_optional = false)
+static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, IDL::Interface const& interface, StringView result_expression, size_t recursion_depth = 0, bool is_optional = false)
 {
     auto scoped_generator = generator.fork();
     scoped_generator.set("value", value);
@@ -1909,7 +1904,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
         } else {
             scoped_generator.append("JS::Value wrapped_element@recursion_depth@;\n"sv);
-            generate_wrap_statement(scoped_generator, ByteString::formatted("element{}", recursion_depth), sequence_generic_type.parameters().first(), interface, ByteString::formatted("wrapped_element{} =", recursion_depth), WrappingReference::Yes, recursion_depth + 1);
+            generate_wrap_statement(scoped_generator, ByteString::formatted("element{}", recursion_depth), sequence_generic_type.parameters().first(), interface, ByteString::formatted("wrapped_element{} =", recursion_depth), recursion_depth + 1);
         }
 
         scoped_generator.append(R"~~~(
@@ -1947,7 +1942,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
             // 2. Let jsValue be value converted to a JavaScript value.
 )~~~");
-        generate_wrap_statement(scoped_generator, "value"sv, parameterized_type.parameters()[1], interface, "auto js_value ="sv, WrappingReference::Yes, recursion_depth + 1);
+        generate_wrap_statement(scoped_generator, "value"sv, parameterized_type.parameters()[1], interface, "auto js_value ="sv, recursion_depth + 1);
         scoped_generator.append(R"~~~(
 
             // 3. Let created be ! CreateDataProperty(result, jsKey, jsValue).
@@ -2005,7 +2000,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
 
             // NOTE: While we are using const&, the underlying type for wrappable types in unions is (Nonnull)RefPtr, which are not references.
-            generate_wrap_statement(union_generator, ByteString::formatted("visited_union_value{}", recursion_depth), current_union_type, interface, "return"sv, WrappingReference::No, recursion_depth + 1);
+            generate_wrap_statement(union_generator, ByteString::formatted("visited_union_value{}", recursion_depth), current_union_type, interface, "return"sv, recursion_depth + 1);
 
             // End of current visit lambda.
             // The last lambda cannot have a trailing comma on the closing brace, unless the type is nullable, where an extra lambda will be generated for the Empty case.
@@ -2096,7 +2091,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         JS::Value @wrapped_value_name@;
 )~~~");
                 }
-                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), WrappingReference::No, recursion_depth + 1, is_optional);
+                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), recursion_depth + 1, is_optional);
 
                 if (is_optional) {
                     dictionary_generator.append(R"~~~(
@@ -2125,15 +2120,9 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     @result_expression@ JS::Value(const_cast<JS::Object*>(@value@));
 )~~~");
     } else {
-        if (wrapping_reference == WrappingReference::No) {
-            scoped_generator.append(R"~~~(
+        scoped_generator.append(R"~~~(
     @result_expression@ &const_cast<@type@&>(*@value@);
 )~~~");
-        } else {
-            scoped_generator.append(R"~~~(
-    @result_expression@ &const_cast<@type@&>(static_cast<@type@ const&>(@value@));
-)~~~");
-        }
     }
 
     if (type.is_nullable() && !is<UnionType>(type)) {
