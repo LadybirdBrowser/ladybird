@@ -1269,12 +1269,11 @@ ErrorOr<void> Editor::handle_read_event()
         insert(code_point);
     }
 
-    if (consumed_code_points == valid_bytes) {
+    if (consumed_code_points == input_view.length()) {
         m_incomplete_data.clear();
     } else {
         auto bytes_to_drop = input_view.byte_offset_of(consumed_code_points + 1);
-        for (size_t i = 0; i < bytes_to_drop; ++i)
-            m_incomplete_data.take_first();
+        m_incomplete_data.remove(0, bytes_to_drop);
     }
 
     if (!m_incomplete_data.is_empty() && !m_finish)
