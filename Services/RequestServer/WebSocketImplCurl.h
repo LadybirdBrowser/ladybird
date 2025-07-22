@@ -34,6 +34,8 @@ public:
 private:
     explicit WebSocketImplCurl(CURLM*);
 
+    void read_from_socket();
+
     CURLM* m_multi_handle { nullptr };
     CURL* m_easy_handle { nullptr };
     RefPtr<Core::Notifier> m_read_notifier;
