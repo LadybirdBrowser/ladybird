@@ -1330,6 +1330,29 @@ TEST_CASE(optimizer_repeat_offset)
     }
 }
 
+TEST_CASE(quantified_alternation_capture_groups)
+{
+    {
+        // Ensure that (a|a?)+ captures the last meaningful match, not empty string
+        Regex<ECMA262> re("^(a|a?)+$");
+        auto result = re.match("a"sv);
+
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "a"sv);
+        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), "a"sv);
+    }
+    {
+        Regex<ECMA262> re("^(a|a?)+$");
+        auto result = re.match("aa"sv);
+
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "aa"sv);
+        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), "a"sv);
+    }
+}
+
 TEST_CASE(zero_width_backreference)
 {
     {
