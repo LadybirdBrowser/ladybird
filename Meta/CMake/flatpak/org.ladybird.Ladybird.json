@@ -89,7 +89,7 @@
         {
           "type": "git",
           "url": "https://gn.googlesource.com/gn",
-          "commit": "f792b9756418af8ab8a91a4c15b582431cb86ff9"
+          "commit": "97b68a0bb62b7528bc3491c7949d6804223c2b82"
         },
         {
           "type": "file",

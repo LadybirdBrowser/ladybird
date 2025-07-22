@@ -2,8 +2,8 @@
 
 set -e
 
-REV_SHORT=f792b97 # f792b9756418af8ab8a91a4c15b582431cb86ff9
-REV_NUM=2197 # git describe HEAD --match initial-commit | cut -d- -f3
+REV_SHORT=97b68a0 # 97b68a0bb62b7528bc3491c7949d6804223c2b82
+REV_NUM=2255 # git describe HEAD --match initial-commit | cut -d- -f3
 
 env CC=gcc CXX=g++ python3 build/gen.py --no-last-commit-position
 
