@@ -75,12 +75,17 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device)
     queue_families.resize(queue_family_count);
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.data());
 
-    int graphics_queue_family_index = -1;
-    for (int i = 0; i < static_cast<int>(queue_families.size()); i++) {
-        if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            graphics_queue_family_index = i;
+    bool graphics_queue_family_found = false;
+    uint32_t graphics_queue_family_index = 0;
+    for (; graphics_queue_family_index < queue_families.size(); ++graphics_queue_family_index) {
+        if (queue_families[graphics_queue_family_index].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            graphics_queue_family_found = true;
             break;
         }
+    }
+
+    if (!graphics_queue_family_found) {
+        return Error::from_string_literal("Graphics queue family not found");
     }
 
     VkDeviceQueueCreateInfo queue_create_info {};
