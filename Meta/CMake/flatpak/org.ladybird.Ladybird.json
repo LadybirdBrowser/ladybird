@@ -112,19 +112,19 @@
       "sources": [
         {
           "type": "file",
-          "path": "angle-checkout.sh"
+          "path": "angle/angle-checkout.sh"
         },
         {
           "type": "file",
-          "path": "angle-configure.sh"
+          "path": "angle/angle-configure.sh"
         },
         {
           "type": "file",
-          "path": "angle-build.sh"
+          "path": "angle/angle-build.sh"
         },
         {
           "type": "file",
-          "path": "angle-install.sh"
+          "path": "angle/angle-install.sh"
         }
       ],
       "build-commands": [
@@ -424,15 +424,15 @@
         },
         {
           "type": "file",
-          "path": "skia-configure.sh"
+          "path": "skia/skia-configure.sh"
         },
         {
           "type": "file",
-          "path": "skia-build.sh"
+          "path": "skia/skia-build.sh"
         },
         {
           "type": "file",
-          "path": "skia-install.sh"
+          "path": "skia/skia-install.sh"
         }
       ],
       "build-commands": [
