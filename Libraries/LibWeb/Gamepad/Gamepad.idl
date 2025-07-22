@@ -1,0 +1,19 @@
+// https://w3c.github.io/gamepad/#dom-gamepad
+[Exposed=Window]
+interface Gamepad {
+    [FIXME] readonly attribute DOMString id;
+    [FIXME] readonly attribute long index;
+    [FIXME] readonly attribute boolean connected;
+    [FIXME] readonly attribute DOMHighResTimeStamp timestamp;
+    [FIXME] readonly attribute GamepadMappingType mapping;
+    [FIXME] readonly attribute FrozenArray<double> axes;
+    [FIXME] readonly attribute FrozenArray<GamepadButton> buttons;
+    [FIXME] readonly attribute FrozenArray<GamepadTouch> touches;
+    [FIXME, SameObject] readonly attribute GamepadHapticActuator vibrationActuator;
+};
+
+// https://w3c.github.io/gamepad/#idl-def-navigator-partial-1
+[Exposed=Window]
+partial interface Navigator {
+    sequence<Gamepad?> getGamepads();
+};

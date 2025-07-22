@@ -489,6 +489,12 @@ class FileList;
 
 }
 
+namespace Web::Gamepad {
+
+class Gamepad;
+
+}
+
 namespace Web::Geolocation {
 
 class Geolocation;

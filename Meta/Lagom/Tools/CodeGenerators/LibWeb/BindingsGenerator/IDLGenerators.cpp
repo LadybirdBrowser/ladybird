@@ -4784,6 +4784,7 @@ using namespace Web::EntriesAPI;
 using namespace Web::EventTiming;
 using namespace Web::Fetch;
 using namespace Web::FileAPI;
+using namespace Web::Gamepad;
 using namespace Web::Geolocation;
 using namespace Web::Geometry;
 using namespace Web::HighResolutionTime;
