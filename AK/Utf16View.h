@@ -98,7 +98,7 @@ public:
         return m_iterator.utf16 == other.m_iterator.utf16;
     }
 
-    [[nodiscard]] ALWAYS_INLINE size_t length_in_code_units()
+    [[nodiscard]] constexpr size_t length_in_code_units()
     {
         if (has_ascii_storage())
             return 1;
@@ -165,7 +165,7 @@ public:
     Utf16String to_ascii_uppercase() const;
     Utf16String to_ascii_titlecase() const;
 
-    [[nodiscard]] ALWAYS_INLINE bool has_ascii_storage() const { return m_length_in_code_units >> Detail::UTF16_FLAG == 0; }
+    [[nodiscard]] constexpr bool has_ascii_storage() const { return m_length_in_code_units >> Detail::UTF16_FLAG == 0; }
 
     [[nodiscard]] constexpr ReadonlyBytes bytes() const
     {
