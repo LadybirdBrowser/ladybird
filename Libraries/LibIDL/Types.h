@@ -318,6 +318,7 @@ public:
     HashMap<ByteString, HashTable<ByteString>> included_mixins;
 
     ByteString module_own_path;
+    Vector<NonnullOwnPtr<Interface>> partial_interfaces;
     Vector<Interface&> imported_modules;
 
     HashMap<ByteString, Vector<Function&>> overload_sets;
@@ -337,6 +338,8 @@ public:
     {
         return !name.is_empty() || any_of(enumerations, [](auto& entry) { return entry.value.is_original_definition; });
     }
+
+    void extend_with_partial_interface(Interface const&);
 };
 
 class UnionType : public Type {
