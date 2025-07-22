@@ -1,1 +1,1 @@
-XMLDocument
+Document

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<title>DOMParser</title>
+<link rel="author" title="Ms2ger" href="mailto:ms2ger@gmail.com">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+function checkMetadata(doc, contentType) {
+  assert_true(doc instanceof Document, "Should be Document");
+  assert_equals(doc.URL, document.URL, "URL");
+  assert_equals(doc.documentURI, document.URL, "documentURI");
+  assert_equals(doc.baseURI, document.URL, "baseURI");
+  assert_equals(doc.characterSet, "UTF-8", "characterSet");
+  assert_equals(doc.charset, "UTF-8", "charset");
+  assert_equals(doc.inputEncoding, "UTF-8", "inputEncoding");
+  assert_equals(doc.contentType, contentType, "contentType");
+  assert_equals(doc.location, null, "location");
+}
+
+var allowedTypes = ["text/xml", "application/xml", "application/xhtml+xml", "image/svg+xml"];
+
+allowedTypes.forEach(function(type) {
+  test(function() {
+    var p = new DOMParser();
+    var doc = p.parseFromString("<foo/>", type);
+    assert_true(doc instanceof Document, "Should be Document");
+    checkMetadata(doc, type);
+    assert_equals(doc.documentElement.namespaceURI, null);
+    assert_equals(doc.documentElement.localName, "foo");
+    assert_equals(doc.documentElement.tagName, "foo");
+  }, "Should parse correctly in type " + type);
+
+  test(function() {
+    var p = new DOMParser();
+    var doc = p.parseFromString("<foo/>", type);
+    assert_false(doc instanceof XMLDocument, "Should not be XMLDocument");
+  }, "XMLDocument interface for correctly parsed document with type " + type);
+
+  test(function() {
+    var p = new DOMParser();
+    var doc = p.parseFromString("<foo>", type);
+    checkMetadata(doc, type);
+    assert_equals(doc.documentElement.namespaceURI, "http://www.mozilla.org/newlayout/xml/parsererror.xml");
+    assert_equals(doc.documentElement.localName, "parsererror");
+    assert_equals(doc.documentElement.tagName, "parsererror");
+  }, "Should return an error document for XML wellformedness errors in type " + type);
+
+  test(function() {
+    var p = new DOMParser();
+    var doc = p.parseFromString("<foo>", type);
+    assert_false(doc instanceof XMLDocument, "Should not be XMLDocument");
+  }, "XMLDocument interface for incorrectly parsed document with type " + type);
+
+  test(function() {
+    var p = new DOMParser();
+    var doc = p.parseFromString(`
+      <html>
+        <head></head>
+        <body>
+          <script>document.x = 5;<\/script>
+          <noscript><p>test1</p><p>test2</p></noscript>
+        </body>
+      </html>`
+    , type);
+
+    assert_equals(doc.x, undefined, "script must not be executed on the inner document");
+    assert_equals(document.x, undefined, "script must not be executed on the outer document");
+
+    const body = doc.documentElement.children[1];
+    assert_equals(body.localName, "body");
+    assert_equals(body.children[1].localName, "noscript");
+    assert_equals(body.children[1].children.length, 2);
+    assert_equals(body.children[1].children[0].localName, "p");
+    assert_equals(body.children[1].children[1].localName, "p");
+  }, "scripting must be disabled with type " + type);
+});
+</script>
