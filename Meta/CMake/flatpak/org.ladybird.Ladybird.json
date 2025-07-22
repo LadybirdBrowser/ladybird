@@ -83,6 +83,25 @@
       ]
     },
     {
+      "name": "gn",
+      "buildsystem": "simple",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://gn.googlesource.com/gn",
+          "commit": "f792b9756418af8ab8a91a4c15b582431cb86ff9"
+        },
+        {
+          "type": "file",
+          "path": "gn-whole-enchilada.sh"
+        }
+      ],
+      "build-commands": [
+        "./gn-whole-enchilada.sh"
+      ],
+      "cleanup": [ "*" ]
+    },
+    {
       "name": "angle",
       "buildsystem": "simple",
       "build-options": {
@@ -208,25 +227,6 @@
         "-DCMAKE_PREFIX_PATH=/app",
         "-DCMAKE_INSTALL_LIBDIR=lib"
       ]
-    },
-    {
-      "name": "gn",
-      "buildsystem": "simple",
-      "sources": [
-        {
-          "type": "git",
-          "url": "https://gn.googlesource.com/gn",
-          "commit": "f792b9756418af8ab8a91a4c15b582431cb86ff9"
-        },
-        {
-          "type": "file",
-          "path": "gn-whole-enchilada.sh"
-        }
-      ],
-      "build-commands": [
-        "./gn-whole-enchilada.sh"
-      ],
-      "cleanup": [ "*" ]
     },
     {
       "name": "brotli",
