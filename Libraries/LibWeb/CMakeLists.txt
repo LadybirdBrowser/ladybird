@@ -346,6 +346,8 @@ set(SOURCES
     FileAPI/FileList.cpp
     FileAPI/FileReader.cpp
     FileAPI/FileReaderSync.cpp
+    Gamepad/Gamepad.cpp
+    Gamepad/NavigatorGamepad.cpp
     Geolocation/Geolocation.cpp
     Geolocation/GeolocationCoordinates.cpp
     Geolocation/GeolocationPosition.cpp

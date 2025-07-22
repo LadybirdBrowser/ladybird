@@ -139,6 +139,7 @@ FormData
 FormDataEvent
 Function
 GainNode
+Gamepad
 Geolocation
 GeolocationCoordinates
 GeolocationPosition
