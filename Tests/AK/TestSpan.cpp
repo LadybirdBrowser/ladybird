@@ -152,6 +152,22 @@ TEST_CASE(starts_with)
     EXPECT(bytes.starts_with(hey_bytes_u8));
 }
 
+TEST_CASE(ends_with)
+{
+    char const* str = "HeyFriends!";
+    ReadonlyBytes bytes { str, strlen(str) };
+    char const* str_friends = "Friends!";
+    ReadonlyBytes friends_bytes { str_friends, strlen(str_friends) };
+    EXPECT(bytes.ends_with(friends_bytes));
+    char const* str_nah = "Nah";
+    ReadonlyBytes nah_bytes { str_nah, strlen(str_nah) };
+    EXPECT(!bytes.ends_with(nah_bytes));
+
+    u8 const dse_array[3] = { 'd', 's', '!' };
+    ReadonlyBytes dse_bytes_u8 { dse_array, 3 };
+    EXPECT(bytes.ends_with(dse_bytes_u8));
+}
+
 TEST_CASE(contains_slow)
 {
     Vector<String> list { "abc"_string, "def"_string, "ghi"_string };
