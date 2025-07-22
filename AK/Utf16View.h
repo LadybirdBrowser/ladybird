@@ -169,7 +169,7 @@ public:
 
     [[nodiscard]] constexpr bool has_ascii_storage() const { return m_length_in_code_units >> Detail::UTF16_FLAG == 0; }
 
-    [[nodiscard]] constexpr ReadonlyBytes bytes() const
+    [[nodiscard]] ALWAYS_INLINE ReadonlyBytes bytes() const
     {
         VERIFY(has_ascii_storage());
         return { m_string.ascii, length_in_code_units() };
@@ -216,7 +216,7 @@ public:
     [[nodiscard]] constexpr bool operator==(StringView other) const
     {
         if (has_ascii_storage())
-            return bytes() == other.bytes();
+            return StringView { m_string.ascii, length_in_code_units() } == other;
         return *this == Utf16View { other.characters_without_null_termination(), other.length() };
     }
 
