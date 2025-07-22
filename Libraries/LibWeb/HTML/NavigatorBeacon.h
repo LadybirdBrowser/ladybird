@@ -11,12 +11,12 @@
 
 namespace Web::HTML {
 
-class NavigatorBeaconMixin {
+class NavigatorBeaconPartial {
 public:
     WebIDL::ExceptionOr<bool> send_beacon(String const& url, Optional<Fetch::BodyInit> const& data = {});
 
 private:
-    virtual ~NavigatorBeaconMixin() = default;
+    virtual ~NavigatorBeaconPartial() = default;
 
     friend class Navigator;
 };
