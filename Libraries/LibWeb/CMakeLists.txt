@@ -145,6 +145,7 @@ set(SOURCES
     CSS/Parser/ArbitrarySubstitutionFunctions.cpp
     CSS/Parser/ComponentValue.cpp
     CSS/Parser/DescriptorParsing.cpp
+    CSS/Parser/ErrorReporter.cpp
     CSS/Parser/GradientParsing.cpp
     CSS/Parser/Helpers.cpp
     CSS/Parser/MediaParsing.cpp
