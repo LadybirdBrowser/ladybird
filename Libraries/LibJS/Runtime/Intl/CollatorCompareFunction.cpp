@@ -48,17 +48,17 @@ ThrowCompletionOr<Value> CollatorCompareFunction::call()
     // 4. If y is not provided, let y be undefined.
 
     // 5. Let X be ? ToString(x).
-    auto x = TRY(vm.argument(0).to_string(vm));
+    auto x = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 6. Let Y be ? ToString(y).
-    auto y = TRY(vm.argument(1).to_string(vm));
+    auto y = TRY(vm.argument(1).to_utf16_string(vm));
 
     // 7. Return CompareStrings(collator, X, Y).
     return compare_strings(m_collator, x, y);
 }
 
 // 10.3.3.2 CompareStrings ( collator, x, y ), https://tc39.es/ecma402/#sec-collator-comparestrings
-int compare_strings(Collator const& collator, StringView x, StringView y)
+int compare_strings(Collator const& collator, Utf16View const& x, Utf16View const& y)
 {
     auto result = collator.collator().compare(x, y);
 

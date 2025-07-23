@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -53,7 +53,7 @@ public:
         Equal,
         After,
     };
-    virtual Order compare(StringView, StringView) const = 0;
+    virtual Order compare(Utf16View const&, Utf16View const&) const = 0;
 
     virtual Sensitivity sensitivity() const = 0;
     virtual bool ignore_punctuation() const = 0;

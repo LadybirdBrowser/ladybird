@@ -538,10 +538,10 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::locale_compare)
     auto object = TRY(require_object_coercible(vm, vm.this_value()));
 
     // 2. Let S be ? ToString(O).
-    auto string = TRY(object.to_string(vm));
+    auto string = TRY(object.to_utf16_string(vm));
 
     // 3. Let thatValue be ? ToString(that).
-    auto that_value = TRY(vm.argument(0).to_string(vm));
+    auto that_value = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 4. Let collator be ? Construct(%Collator%, « locales, options »).
     auto locales = vm.argument(1);
