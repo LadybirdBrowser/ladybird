@@ -83,6 +83,9 @@
   "-webkit-box-sizing": {
     "legacy-alias-for": "box-sizing"
   },
+  "-webkit-filter": {
+    "legacy-alias-for": "filter"
+  },
   "-webkit-flex": {
     "legacy-alias-for": "flex"
   },
