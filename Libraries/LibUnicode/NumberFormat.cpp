@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -601,7 +601,7 @@ public:
 
     virtual ~NumberFormatImpl() override = default;
 
-    virtual String format(Value const& value) const override
+    virtual Utf16String format(Value const& value) const override
     {
         UErrorCode status = U_ZERO_ERROR;
 
@@ -613,7 +613,7 @@ public:
         if (icu_failure(status))
             return {};
 
-        return icu_string_to_string(result);
+        return icu_string_to_utf16_string(result);
     }
 
     virtual Vector<Partition> format_to_parts(Value const& value) const override
@@ -625,7 +625,7 @@ public:
         return format_to_parts_impl(formatted, value, value);
     }
 
-    virtual String format_range(Value const& start, Value const& end) const override
+    virtual Utf16String format_range(Value const& start, Value const& end) const override
     {
         UErrorCode status = U_ZERO_ERROR;
 
@@ -637,7 +637,7 @@ public:
         if (icu_failure(status))
             return {};
 
-        return icu_string_to_string(result);
+        return icu_string_to_utf16_string(result);
     }
 
     virtual Vector<Partition> format_range_to_parts(Value const& start, Value const& end) const override
@@ -830,7 +830,7 @@ private:
             auto value = formatted_number.tempSubStringBetween(range.start, range.end);
 
             Partition partition;
-            partition.value = icu_string_to_string(value);
+            partition.value = icu_string_to_utf16_string(value);
             apply_to_partition(partition, range.field, range.start);
 
             result.unchecked_append(move(partition));
