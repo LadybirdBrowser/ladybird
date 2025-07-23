@@ -87,7 +87,7 @@ ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_rela
 }
 
 // 18.5.4 FormatRelativeTime ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-FormatRelativeTime
-ThrowCompletionOr<String> format_relative_time(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
+ThrowCompletionOr<Utf16String> format_relative_time(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
 {
     // 1. Let parts be ? PartitionRelativeTimePattern(relativeTimeFormat, value, unit).
     auto time_unit = TRY([&]() -> ThrowCompletionOr<Unicode::TimeUnit> {

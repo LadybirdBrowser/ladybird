@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Forward.h>
 
@@ -43,11 +44,11 @@ public:
 
     struct Partition {
         StringView type;
-        String value;
+        Utf16String value;
         StringView unit;
     };
 
-    virtual String format(double, TimeUnit, NumericDisplay) const = 0;
+    virtual Utf16String format(double, TimeUnit, NumericDisplay) const = 0;
     virtual Vector<Partition> format_to_parts(double, TimeUnit, NumericDisplay) const = 0;
 
 protected:

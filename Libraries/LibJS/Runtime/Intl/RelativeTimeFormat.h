@@ -56,7 +56,7 @@ private:
 
 ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM&, StringView unit);
 ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_relative_time_pattern(VM&, RelativeTimeFormat&, double value, StringView unit);
-ThrowCompletionOr<String> format_relative_time(VM&, RelativeTimeFormat&, double value, StringView unit);
+ThrowCompletionOr<Utf16String> format_relative_time(VM&, RelativeTimeFormat&, double value, StringView unit);
 ThrowCompletionOr<GC::Ref<Array>> format_relative_time_to_parts(VM&, RelativeTimeFormat&, double value, StringView unit);
 
 }
