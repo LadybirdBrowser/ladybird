@@ -100,6 +100,37 @@ By default, ccache will include the plugins themselves in file hashes. So if a p
 will change, and you will be stuck with an uncached build. This setting will prevent ccache from using plugins in the
 file hashes.
 
+## Building the Flatpak
+
+Ladybird has an in-tree Flatpak manifest that can be used to build a Flatpak package for Ladybird. The recommended way
+to build the Flatpak is to use the `flatpak-builder` tool, which is available in most distributions. See the
+[Flatpak setup documentation](https://flatpak.org/setup/) on how to configure your environment for user Flatpak
+builds, and to configure the Flathub repo. The Ladybird Flatpak manifest at
+`Meta/CMake/flatpak/org.ladybird.Ladybird.json` can be built with the following command:
+
+```bash
+flatpak-builder --user --force-clean --install-deps-from=flathub \
+  --ccache --repo=Build/repo --install Build/flatpak \
+  Meta/CMake/flatpak/org.ladybird.Ladybird.json 
+```
+
+This command will build the Flatpak bundle and install it into the local Flatpak repository at `Build/repo`. Expect this
+to take a long time, as it will download and build all the dependencies of Ladybird as well. `flatpak-builder` will drop
+caches and build files in `.flatpak-builder`, as well as in the two subfolders `Build/repo` and `Build/flatpak`.
+
+The Flatpak can be run with the following command:
+
+```bash
+flatpak run --user org.ladybird.Ladybird
+```
+
+In order to debug the Flatpak, you can pass the `--devel` and `--command=sh` flags to `flatpak run`. This will drop you
+into a shell in the Flatpak sandbox:
+
+```bash
+flatpak run --user --command=sh --devel org.ladybird.Ladybird
+```
+
 ## Debugging without any optimizations
 
 It’s possible that when trying to inspect certain frame variables in your debugger, you’ll get an error similar to the following:
