@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -82,7 +82,7 @@ public:
 
     virtual ~ListFormatImpl() override = default;
 
-    virtual String format(ReadonlySpan<String> list) const override
+    virtual Utf16String format(ReadonlySpan<Utf16String> list) const override
     {
         UErrorCode status = U_ZERO_ERROR;
 
@@ -94,10 +94,10 @@ public:
         if (icu_failure(status))
             return {};
 
-        return icu_string_to_string(formatted_string);
+        return icu_string_to_utf16_string(formatted_string);
     }
 
-    virtual Vector<Partition> format_to_parts(ReadonlySpan<String> list) const override
+    virtual Vector<Partition> format_to_parts(ReadonlySpan<Utf16String> list) const override
     {
         UErrorCode status = U_ZERO_ERROR;
 
@@ -118,14 +118,14 @@ public:
             auto type = icu_list_format_field_to_string(position.getField());
             auto part = formatted_string.tempSubStringBetween(position.getStart(), position.getLimit());
 
-            result.empend(type, icu_string_to_string(part));
+            result.empend(type, icu_string_to_utf16_string(part));
         }
 
         return result;
     }
 
 private:
-    Optional<icu::FormattedList> format_list_impl(ReadonlySpan<String> list) const
+    Optional<icu::FormattedList> format_list_impl(ReadonlySpan<Utf16String> list) const
     {
         UErrorCode status = U_ZERO_ERROR;
 

@@ -57,9 +57,9 @@ private:
     OwnPtr<Unicode::ListFormat> m_formatter;
 };
 
-Vector<Unicode::ListFormat::Partition> create_parts_from_list(ListFormat const&, ReadonlySpan<String> list);
-String format_list(ListFormat const&, ReadonlySpan<String> list);
-GC::Ref<Array> format_list_to_parts(VM&, ListFormat const&, ReadonlySpan<String> list);
-ThrowCompletionOr<Vector<String>> string_list_from_iterable(VM&, Value iterable);
+Vector<Unicode::ListFormat::Partition> create_parts_from_list(ListFormat const&, ReadonlySpan<Utf16String> list);
+Utf16String format_list(ListFormat const&, ReadonlySpan<Utf16String> list);
+GC::Ref<Array> format_list_to_parts(VM&, ListFormat const&, ReadonlySpan<Utf16String> list);
+ThrowCompletionOr<Vector<Utf16String>> string_list_from_iterable(VM&, Value iterable);
 
 }

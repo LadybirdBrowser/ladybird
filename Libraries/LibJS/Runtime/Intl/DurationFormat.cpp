@@ -731,13 +731,13 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
     auto list_format = construct_list_format(vm, duration_format, list_format_options);
 
     // 7. Let strings be a new empty List.
-    Vector<String> strings;
+    Vector<Utf16String> strings;
     strings.ensure_capacity(partitioned_parts_list.size());
 
     // 8. For each element parts of partitionedPartsList, do
     for (auto const& parts : partitioned_parts_list) {
         // a. Let string be the empty String.
-        StringBuilder string;
+        StringBuilder string(StringBuilder::Mode::UTF16);
 
         // b. For each Record { [[Type]], [[Value]], [[Unit]] } part in parts, do
         for (auto const& part : parts) {
@@ -746,7 +746,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
         }
 
         // c. Append string to strings.
-        strings.unchecked_append(MUST(string.to_string()));
+        strings.unchecked_append(string.to_utf16_string());
     }
 
     // 9. Let formattedPartsList be CreatePartsFromList(lf, strings).
@@ -786,7 +786,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
             VERIFY(list_part.type == "literal"sv);
 
             // ii. Append the Record { [[Type]]: "literal", [[Value]]: listPart.[[Value]], [[Unit]]: empty } to flattenedPartsList.
-            flattened_parts_list.append({ .type = "literal"sv, .value = move(list_part.value), .unit = {} });
+            flattened_parts_list.append({ .type = "literal"sv, .value = list_part.value.to_utf8_but_should_be_ported_to_utf16(), .unit = {} });
         }
     }
 

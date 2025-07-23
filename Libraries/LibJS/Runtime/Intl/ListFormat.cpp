@@ -35,13 +35,13 @@ ReadonlySpan<ResolutionOptionDescriptor> ListFormat::resolution_option_descripto
 }
 
 // 14.5.2 CreatePartsFromList ( listFormat, list ), https://tc39.es/ecma402/#sec-createpartsfromlist
-Vector<Unicode::ListFormat::Partition> create_parts_from_list(ListFormat const& list_format, ReadonlySpan<String> list)
+Vector<Unicode::ListFormat::Partition> create_parts_from_list(ListFormat const& list_format, ReadonlySpan<Utf16String> list)
 {
     return list_format.formatter().format_to_parts(list);
 }
 
 // 14.5.3 FormatList ( listFormat, list ), https://tc39.es/ecma402/#sec-formatlist
-String format_list(ListFormat const& list_format, ReadonlySpan<String> list)
+Utf16String format_list(ListFormat const& list_format, ReadonlySpan<Utf16String> list)
 {
     // 1. Let parts be ! CreatePartsFromList(listFormat, list).
     // 2. Let result be the empty String.
@@ -52,7 +52,7 @@ String format_list(ListFormat const& list_format, ReadonlySpan<String> list)
 }
 
 // 14.5.4 FormatListToParts ( listFormat, list ), https://tc39.es/ecma402/#sec-formatlisttoparts
-GC::Ref<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, ReadonlySpan<String> list)
+GC::Ref<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, ReadonlySpan<Utf16String> list)
 {
     auto& realm = *vm.current_realm();
 
@@ -88,19 +88,19 @@ GC::Ref<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, Reado
 }
 
 // 14.5.5 StringListFromIterable ( iterable ), https://tc39.es/ecma402/#sec-createstringlistfromiterable
-ThrowCompletionOr<Vector<String>> string_list_from_iterable(VM& vm, Value iterable)
+ThrowCompletionOr<Vector<Utf16String>> string_list_from_iterable(VM& vm, Value iterable)
 {
     // 1. If iterable is undefined, then
     if (iterable.is_undefined()) {
         // a. Return a new empty List.
-        return Vector<String> {};
+        return Vector<Utf16String> {};
     }
 
     // 2. Let iteratorRecord be ? GetIterator(iterable, sync).
     auto iterator_record = TRY(get_iterator(vm, iterable, IteratorHint::Sync));
 
     // 3. Let list be a new empty List.
-    Vector<String> list;
+    Vector<Utf16String> list;
 
     // 4. Repeat,
     while (true) {
@@ -123,7 +123,7 @@ ThrowCompletionOr<Vector<String>> string_list_from_iterable(VM& vm, Value iterab
         }
 
         // iii. Append next to list.
-        list.append(next->as_string().utf8_string());
+        list.append(next->as_string().utf16_string());
     }
 }
 

@@ -138,16 +138,13 @@ TimeZoneData::TimeZoneData(NonnullOwnPtr<icu::TimeZone> time_zone)
 {
 }
 
-Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings)
+Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<Utf16String> strings)
 {
     Vector<icu::UnicodeString> result;
     result.ensure_capacity(strings.size());
 
-    for (auto const& string : strings) {
-        auto view = string.bytes_as_string_view();
-        icu::UnicodeString icu_string(view.characters_without_null_termination(), static_cast<i32>(view.length()));
-        result.unchecked_append(move(icu_string));
-    }
+    for (auto const& string : strings)
+        result.unchecked_append(icu_string(string));
 
     return result;
 }
