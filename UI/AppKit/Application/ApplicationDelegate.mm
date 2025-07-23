@@ -649,6 +649,9 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump All Resolved Styles"
                                                 action:@selector(dumpAllResolvedStyles:)
                                          keyEquivalent:@""]];
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump CSS Errors"
+                                                action:@selector(dumpCSSErrors:)
+                                         keyEquivalent:@""]];
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump History"
                                                 action:@selector(dumpHistory:)
                                          keyEquivalent:@""]];
