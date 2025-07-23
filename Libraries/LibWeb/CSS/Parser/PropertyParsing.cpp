@@ -17,6 +17,7 @@
 #include <AK/QuickSort.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/CharacterTypes.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
@@ -2412,7 +2413,11 @@ RefPtr<CSSStyleValue const> Parser::parse_display_value(TokenStream<ComponentVal
             }
 
             // Not a display value, abort.
-            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized display value: `{}`", tokens.next_token().to_string());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<display>"_fly_string,
+                .value_string = tokens.next_token().to_string(),
+                .description = "Unrecognized value"_string,
+            });
             return {};
         }
 
@@ -3924,12 +3929,20 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_value(TokenStream<ComponentV
         auto arguments = parse_a_comma_separated_list_of_component_values(function_tokens);
 
         if (arguments.size() > function_metadata.parameters.size()) {
-            dbgln_if(CSS_PARSER_DEBUG, "Too many arguments to {}. max: {}", part.function().name, function_metadata.parameters.size());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<transform-function>"_fly_string,
+                .value_string = part.function().original_source_text(),
+                .description = MUST(String::formatted("Too many arguments to {}. max: {}", part.function().name, function_metadata.parameters.size())),
+            });
             return nullptr;
         }
 
         if (arguments.size() < function_metadata.parameters.size() && function_metadata.parameters[arguments.size()].required) {
-            dbgln_if(CSS_PARSER_DEBUG, "Required parameter at position {} is missing", arguments.size());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<transform-function>"_fly_string,
+                .value_string = part.function().original_source_text(),
+                .description = MUST(String::formatted("Required parameter at position {} is missing", arguments.size())),
+            });
             return nullptr;
         }
 
