@@ -10,6 +10,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibUnicode/DurationFormat.h>
 
@@ -102,6 +103,8 @@ Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings);
 
 String icu_string_to_string(icu::UnicodeString const& string);
 String icu_string_to_string(UChar const*, i32 length);
+
+Utf16String icu_string_to_utf16_string(icu::UnicodeString const& string);
 
 UCharIterator icu_string_iterator(Utf16View const&);
 

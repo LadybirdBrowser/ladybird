@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,10 +8,10 @@
 
 #include <AK/IterationDecision.h>
 #include <AK/Optional.h>
-#include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Forward.h>
 
@@ -151,16 +151,16 @@ public:
 
     struct Partition {
         StringView type;
-        String value;
+        Utf16String value;
         StringView source;
     };
 
     virtual CalendarPattern const& chosen_pattern() const = 0;
 
-    virtual String format(double) const = 0;
+    virtual Utf16String format(double) const = 0;
     virtual Vector<Partition> format_to_parts(double) const = 0;
 
-    virtual String format_range(double, double) const = 0;
+    virtual Utf16String format_range(double, double) const = 0;
     virtual Vector<Partition> format_range_to_parts(double, double) const = 0;
 
 protected:

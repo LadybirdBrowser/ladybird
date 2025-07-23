@@ -119,11 +119,11 @@ ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_tim
 
 // 11.5.7 FormatDateTime ( dateTimeFormat, x ), https://tc39.es/ecma402/#sec-formatdatetime
 // 15.9.6 FormatDateTime ( dateTimeFormat, x ), https://tc39.es/proposal-temporal/#sec-formatdatetime
-ThrowCompletionOr<String> format_date_time(VM& vm, DateTimeFormat& date_time_format, FormattableDateTime const& time)
+ThrowCompletionOr<Utf16String> format_date_time(VM& vm, DateTimeFormat& date_time_format, FormattableDateTime const& time)
 {
     // 1. Let parts be ? PartitionDateTimePattern(dateTimeFormat, x).
     // 2. Let result be the empty String.
-    String result;
+    Utf16String result;
 
     // NOTE: We short-circuit PartitionDateTimePattern as we do not need individual partitions.
     {
@@ -196,11 +196,11 @@ ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_tim
 
 // 11.5.10 FormatDateTimeRange ( dateTimeFormat, x, y ), https://tc39.es/ecma402/#sec-formatdatetimerange
 // 15.9.9 FormatDateTimeRange ( dateTimeFormat, x, y ), https://tc39.es/proposal-temporal/#sec-formatdatetimerange
-ThrowCompletionOr<String> format_date_time_range(VM& vm, DateTimeFormat& date_time_format, FormattableDateTime const& start, FormattableDateTime const& end)
+ThrowCompletionOr<Utf16String> format_date_time_range(VM& vm, DateTimeFormat& date_time_format, FormattableDateTime const& start, FormattableDateTime const& end)
 {
     // 1. Let parts be ? PartitionDateTimeRangePattern(dateTimeFormat, x, y).
     // 2. Let result be the empty String.
-    String result;
+    Utf16String result;
 
     // NOTE: We short-circuit PartitionDateTimeRangePattern as we do not need individual partitions.
     {

@@ -137,10 +137,10 @@ struct ValueFormat {
 
 Vector<Unicode::DateTimeFormat::Partition> format_date_time_pattern(ValueFormat const&);
 ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_pattern(VM&, DateTimeFormat&, FormattableDateTime const&);
-ThrowCompletionOr<String> format_date_time(VM&, DateTimeFormat&, FormattableDateTime const&);
+ThrowCompletionOr<Utf16String> format_date_time(VM&, DateTimeFormat&, FormattableDateTime const&);
 ThrowCompletionOr<GC::Ref<Array>> format_date_time_to_parts(VM&, DateTimeFormat&, FormattableDateTime const&);
 ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
-ThrowCompletionOr<String> format_date_time_range(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
+ThrowCompletionOr<Utf16String> format_date_time_range(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
 ThrowCompletionOr<GC::Ref<Array>> format_date_time_range_to_parts(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
 
 Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern const& options, OptionRequired, OptionDefaults, OptionInherit);

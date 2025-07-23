@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -672,13 +672,13 @@ public:
 
     virtual CalendarPattern const& chosen_pattern() const override { return m_pattern; }
 
-    virtual String format(double time) const override
+    virtual Utf16String format(double time) const override
     {
         auto formatted_time = format_impl(time);
         if (!formatted_time.has_value())
             return {};
 
-        return icu_string_to_string(*formatted_time);
+        return icu_string_to_utf16_string(*formatted_time);
     }
 
     virtual Vector<Partition> format_to_parts(double time) const override
@@ -694,7 +694,7 @@ public:
         auto create_partition = [&](i32 field, i32 begin, i32 end) {
             Partition partition;
             partition.type = icu_date_time_format_field_to_string(field);
-            partition.value = icu_string_to_string(formatted_time->tempSubStringBetween(begin, end));
+            partition.value = icu_string_to_utf16_string(formatted_time->tempSubStringBetween(begin, end));
             partition.source = "shared"sv;
             result.append(move(partition));
         };
@@ -717,7 +717,7 @@ public:
         return result;
     }
 
-    virtual String format_range(double start, double end) const override
+    virtual Utf16String format_range(double start, double end) const override
     {
         UErrorCode status = U_ZERO_ERROR;
 
@@ -733,7 +733,7 @@ public:
             return {};
 
         normalize_spaces(formatted_time);
-        return icu_string_to_string(formatted_time);
+        return icu_string_to_utf16_string(formatted_time);
     }
 
     virtual Vector<Partition> format_range_to_parts(double start, double end) const override
@@ -763,7 +763,7 @@ public:
         auto create_partition = [&](i32 field, i32 begin, i32 end) {
             Partition partition;
             partition.type = icu_date_time_format_field_to_string(field);
-            partition.value = icu_string_to_string(formatted_time.tempSubStringBetween(begin, end));
+            partition.value = icu_string_to_utf16_string(formatted_time.tempSubStringBetween(begin, end));
 
             if (start_range.has_value() && start_range->contains(begin))
                 partition.source = "startRange"sv;
