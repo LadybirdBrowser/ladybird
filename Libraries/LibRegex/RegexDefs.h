@@ -9,25 +9,26 @@
 
 enum __Regex_Error {
     __Regex_NoError,
-    __Regex_InvalidPattern,              // Invalid regular expression.
-    __Regex_InvalidCollationElement,     // Invalid collating element referenced.
-    __Regex_InvalidCharacterClass,       // Invalid character class type referenced.
-    __Regex_InvalidTrailingEscape,       // Trailing \ in pattern.
-    __Regex_InvalidNumber,               // Number in \digit invalid or in error.
-    __Regex_MismatchingBracket,          // [ ] imbalance.
-    __Regex_MismatchingParen,            // ( ) imbalance.
-    __Regex_MismatchingBrace,            // { } imbalance.
-    __Regex_InvalidBraceContent,         // Content of {} invalid: not a number, number too large, more than two numbers, first larger than second.
-    __Regex_InvalidBracketContent,       // Content of [] invalid.
-    __Regex_InvalidRange,                // Invalid endpoint in range expression.
-    __Regex_InvalidRepetitionMarker,     // ?, * or + not preceded by valid regular expression.
-    __Regex_ReachedMaxRecursion,         // MaximumRecursion has been reached.
-    __Regex_EmptySubExpression,          // Sub expression has empty content.
-    __Regex_InvalidCaptureGroup,         // Content of capture group is invalid.
-    __Regex_InvalidNameForCaptureGroup,  // Name of capture group is invalid.
-    __Regex_InvalidNameForProperty,      // Name of property is invalid.
-    __Regex_DuplicateNamedCapture,       // Duplicate named capture group
-    __Regex_InvalidCharacterClassEscape, // Invalid escaped entity in character class.
+    __Regex_InvalidPattern,               // Invalid regular expression.
+    __Regex_InvalidCollationElement,      // Invalid collating element referenced.
+    __Regex_InvalidCharacterClass,        // Invalid character class type referenced.
+    __Regex_InvalidTrailingEscape,        // Trailing \ in pattern.
+    __Regex_InvalidNumber,                // Number in \digit invalid or in error.
+    __Regex_MismatchingBracket,           // [ ] imbalance.
+    __Regex_MismatchingParen,             // ( ) imbalance.
+    __Regex_MismatchingBrace,             // { } imbalance.
+    __Regex_InvalidBraceContent,          // Content of {} invalid: not a number, number too large, more than two numbers, first larger than second.
+    __Regex_InvalidBracketContent,        // Content of [] invalid.
+    __Regex_InvalidRange,                 // Invalid endpoint in range expression.
+    __Regex_InvalidRepetitionMarker,      // ?, * or + not preceded by valid regular expression.
+    __Regex_ReachedMaxRecursion,          // MaximumRecursion has been reached.
+    __Regex_EmptySubExpression,           // Sub expression has empty content.
+    __Regex_InvalidCaptureGroup,          // Content of capture group is invalid.
+    __Regex_InvalidNameForCaptureGroup,   // Name of capture group is invalid.
+    __Regex_InvalidNameForProperty,       // Name of property is invalid.
+    __Regex_DuplicateNamedCapture,        // Duplicate named capture group
+    __Regex_InvalidCharacterClassEscape,  // Invalid escaped entity in character class.
+    __Regex_NegatedCharacterClassStrings, // Negated character class cannot contain strings.
 };
 
 enum __RegexAllFlags {
