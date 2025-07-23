@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/MediaQuery.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 
 namespace Web::CSS::Parser {
@@ -566,7 +567,11 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
     // <rule-list>
     // }
     if (!rule.is_block_rule) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @media rule: Expected a block.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@media"_fly_string,
+            .prelude = MUST(String::join(""sv, rule.prelude)),
+            .description = "Expected a block."_string,
+        });
         return nullptr;
     }
 
