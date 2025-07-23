@@ -1695,7 +1695,11 @@ bool FormattingContext::should_treat_width_as_auto(Box const& box, AvailableSpac
     auto const& computed_width = box.computed_values().width();
     if (computed_width.is_auto())
         return true;
+
+    // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
     if (computed_width.contains_percentage()) {
+        if (!box.is_replaced_box() && available_space.width.is_min_content())
+            return true;
         if (available_space.width.is_max_content())
             return true;
         if (available_space.width.is_indefinite())
@@ -1724,7 +1728,10 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
         return true;
     }
 
+    // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
     if (computed_height.contains_percentage()) {
+        if (!box.is_replaced_box() && available_space.height.is_min_content())
+            return true;
         if (available_space.height.is_max_content())
             return true;
         if (available_space.height.is_indefinite())
