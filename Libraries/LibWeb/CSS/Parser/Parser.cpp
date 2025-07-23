@@ -1624,7 +1624,7 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
         } else if (has_ignored_vendor_prefix(property_name)) {
             return {};
         } else {
-            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS property '{}'", property_name);
+            ErrorReporter::the().report(UnknownPropertyError { .property_name = property_name });
             return {};
         }
     }
@@ -1633,10 +1633,11 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
     auto value = parse_css_value(property_id.value(), value_token_stream, declaration.original_text);
     if (value.is_error()) {
         if (value.error() == ParseError::SyntaxError) {
-            dbgln_if(CSS_PARSER_DEBUG, "Unable to parse value for CSS property '{}'.", property_name);
-            if constexpr (CSS_PARSER_DEBUG) {
-                value_token_stream.dump_all_tokens();
-            }
+            ErrorReporter::the().report(InvalidPropertyError {
+                .property_name = property_name,
+                .value_string = value_token_stream.dump_string(),
+                .description = "Failed to parse."_string,
+            });
         }
         return {};
     }
