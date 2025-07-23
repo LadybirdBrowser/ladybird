@@ -3,7 +3,7 @@
  * Copyright (c) 2022, Matthew Costa <ucosty@gmail.com>
  * Copyright (c) 2022, Filiph Sandström <filiph.sandstrom@filfatstudios.com>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -421,6 +421,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     debug_menu->addAction(dump_styles_action);
     QObject::connect(dump_styles_action, &QAction::triggered, this, [this] {
         debug_request("dump-all-resolved-styles");
+    });
+
+    auto* dump_css_errors_action = new QAction("Dump CSS &Errors", this);
+    dump_css_errors_action->setIcon(load_icon_from_uri("resource://icons/16x16/error.png"sv));
+    debug_menu->addAction(dump_css_errors_action);
+    QObject::connect(dump_css_errors_action, &QAction::triggered, this, [this] {
+        debug_request("dump-all-css-errors");
     });
 
     auto* dump_cookies_action = new QAction("Dump C&ookies", this);
