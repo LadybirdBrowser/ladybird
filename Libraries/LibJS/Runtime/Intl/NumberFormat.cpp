@@ -152,7 +152,7 @@ Vector<Unicode::NumberFormat::Partition> partition_number_pattern(NumberFormat c
 }
 
 // 16.5.6 FormatNumeric ( numberFormat, x ), https://tc39.es/ecma402/#sec-formatnumber
-String format_numeric(NumberFormat const& number_format, MathematicalValue const& number)
+Utf16String format_numeric(NumberFormat const& number_format, MathematicalValue const& number)
 {
     // 1. Let parts be ? PartitionNumberPattern(numberFormat, x).
     // 2. Let result be the empty String.
@@ -258,7 +258,7 @@ ThrowCompletionOr<Vector<Unicode::NumberFormat::Partition>> partition_number_ran
 }
 
 // 16.5.22 FormatNumericRange ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-formatnumericrange
-ThrowCompletionOr<String> format_numeric_range(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
+ThrowCompletionOr<Utf16String> format_numeric_range(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
 {
     // 1. Let parts be ? PartitionNumberRangePattern(numberFormat, x, y).
     {
