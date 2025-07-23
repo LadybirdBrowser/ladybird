@@ -64,4 +64,13 @@ void ErrorReporter::report(ParsingError&& error)
     m_errors.set(move(error), { .occurrences = 1 });
 }
 
+void ErrorReporter::dump() const
+{
+    // TODO: Organise this in some way?
+    dbgln("{} CSS errors reported:", m_errors.size());
+    for (auto const& [error, metadata] : m_errors) {
+        dbgln("- {} ({} occurrences)", serialize_parsing_error(error), metadata.occurrences);
+    }
+}
+
 }

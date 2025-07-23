@@ -130,6 +130,7 @@ public:
     static ErrorReporter& the();
 
     void report(ParsingError&&);
+    void dump() const;
 
 private:
     explicit ErrorReporter() = default;
