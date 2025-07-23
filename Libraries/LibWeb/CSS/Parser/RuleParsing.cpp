@@ -123,7 +123,7 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
                 return convert_to_supports_rule(at_rule, nested);
 
             // FIXME: More at rules!
-            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS at-rule: @{}", at_rule.name);
+            ErrorReporter::the().report(UnknownRuleError { .rule_name = MUST(String::formatted("@{}", at_rule.name)) });
             return {};
         },
         [this, nested](QualifiedRule const& qualified_rule) -> GC::Ptr<CSSRule> {
@@ -140,16 +140,21 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
 
     if (maybe_selectors.is_error()) {
         if (maybe_selectors.error() == ParseError::SyntaxError) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: style rule selectors invalid; discarding.");
-            if constexpr (CSS_PARSER_DEBUG) {
-                prelude_stream.dump_all_tokens();
-            }
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "style"_fly_string,
+                .prelude = prelude_stream.dump_string(),
+                .description = "Selectors invalid."_string,
+            });
         }
         return {};
     }
 
     if (maybe_selectors.value().is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: empty selector; discarding.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "style"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Empty selector."_string,
+        });
         return {};
     }
 
@@ -194,17 +199,26 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     //
     // <import-conditions> = [ supports( [ <supports-condition> | <declaration> ] ) ]?
     //                      <media-query-list>?
+    TokenStream tokens { rule.prelude };
+
     if (rule.is_block_rule) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Block is not allowed.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@import"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Must be a statement, not a block."_string,
+        });
         return {};
     }
 
     if (rule.prelude.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Empty prelude.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@import"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Empty prelude."_string,
+        });
         return {};
     }
 
-    TokenStream tokens { rule.prelude };
     tokens.discard_whitespace();
 
     Optional<URL> url = parse_url_function(tokens);
@@ -212,7 +226,11 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         url = URL { tokens.consume_a_token().token().string().to_string() };
 
     if (!url.has_value()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Unable to parse `{}` as URL.", tokens.next_token().to_debug_string());
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@import"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = MUST(String::formatted("Unable to parse `{}` as URL.", tokens.next_token().to_debug_string())),
+        });
         return {};
     }
 
@@ -238,10 +256,11 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     auto media_query_list = parse_a_media_query_list(tokens);
 
     if (tokens.has_next_token()) {
-        if constexpr (CSS_PARSER_DEBUG) {
-            dbgln("Failed to parse @import rule:");
-            tokens.dump_all_tokens();
-        }
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@import"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Trailing tokens in prelude."_string,
+        });
         return {};
     }
 
@@ -303,13 +322,21 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         if (auto maybe_name = parse_layer_name(prelude_tokens, AllowBlankLayerName::Yes); maybe_name.has_value()) {
             layer_name = maybe_name.release_value();
         } else {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer has invalid prelude, (not a valid layer name) prelude = {}; discarding.", rule.prelude);
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@layer"_fly_string,
+                .prelude = prelude_tokens.dump_string(),
+                .description = "Not a valid layer name."_string,
+            });
             return {};
         }
 
         prelude_tokens.discard_whitespace();
         if (prelude_tokens.has_next_token()) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer has invalid prelude, (tokens after layer name) prelude = {}; discarding.", rule.prelude);
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@layer"_fly_string,
+                .prelude = prelude_tokens.dump_string(),
+                .description = "Trailing tokens after name in prelude."_string,
+            });
             return {};
         }
 
@@ -331,30 +358,42 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
 
     // CSSLayerStatementRule
     // @layer <layer-name>#;
-    auto tokens = TokenStream { rule.prelude };
-    tokens.discard_whitespace();
+    auto prelude_tokens = TokenStream { rule.prelude };
+    prelude_tokens.discard_whitespace();
     Vector<FlyString> layer_names;
-    while (tokens.has_next_token()) {
+    while (prelude_tokens.has_next_token()) {
         // Comma
         if (!layer_names.is_empty()) {
-            if (auto comma = tokens.consume_a_token(); !comma.is(Token::Type::Comma)) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer missing separating comma, ({}) prelude = {}; discarding.", comma.to_debug_string(), rule.prelude);
+            if (auto comma = prelude_tokens.consume_a_token(); !comma.is(Token::Type::Comma)) {
+                ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                    .rule_name = "@layer"_fly_string,
+                    .prelude = prelude_tokens.dump_string(),
+                    .description = "Missing comma between layer names."_string,
+                });
                 return {};
             }
-            tokens.discard_whitespace();
+            prelude_tokens.discard_whitespace();
         }
 
-        if (auto name = parse_layer_name(tokens, AllowBlankLayerName::No); name.has_value()) {
+        if (auto name = parse_layer_name(prelude_tokens, AllowBlankLayerName::No); name.has_value()) {
             layer_names.append(name.release_value());
         } else {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer contains invalid name, prelude = {}; discarding.", rule.prelude);
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@layer"_fly_string,
+                .prelude = prelude_tokens.dump_string(),
+                .description = "Contains invalid layer name."_string,
+            });
             return {};
         }
-        tokens.discard_whitespace();
+        prelude_tokens.discard_whitespace();
     }
 
     if (layer_names.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer statement has no layer names, prelude = {}; discarding.", rule.prelude);
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@layer"_fly_string,
+            .prelude = prelude_tokens.dump_string(),
+            .description = "No layer names provided."_string,
+        });
         return {};
     }
 
@@ -368,21 +407,33 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
     // <keyframes-name> = <custom-ident> | <string>
     // <keyframe-block> = <keyframe-selector># { <declaration-list> }
     // <keyframe-selector> = from | to | <percentage [0,100]>
+    auto prelude_stream = TokenStream { rule.prelude };
     if (!rule.is_block_rule) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @keyframes rule: Expected a block.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@keyframes"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
         return nullptr;
     }
 
     if (rule.prelude.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @keyframes rule: Empty prelude.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@keyframes"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Empty prelude."_string,
+        });
         return {};
     }
 
-    auto prelude_stream = TokenStream { rule.prelude };
     prelude_stream.discard_whitespace();
     auto& token = prelude_stream.consume_a_token();
     if (!token.is_token()) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule.prelude);
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@keyframes"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Name must be a <string> or <ident>."_string,
+        });
         return {};
     }
 
@@ -390,17 +441,29 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
     prelude_stream.discard_whitespace();
 
     if (prelude_stream.has_next_token()) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule.prelude);
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@keyframes"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Trailing tokens after name in prelude."_string,
+        });
         return {};
     }
 
     if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().is_one_of_ignoring_ascii_case("none"sv, "default"sv))) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.ident());
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@keyframes"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Invalid name."_string,
+        });
         return {};
     }
 
     if (!name_token.is(Token::Type::String) && !name_token.is(Token::Type::Ident)) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.to_debug_string());
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@keyframes"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Name must be a <string> or <ident>."_string,
+        });
         return {};
     }
 
@@ -433,7 +496,11 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
                 break;
             auto tok = child_tokens.consume_a_token();
             if (!tok.is_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule has invalid selector: {}; discarding.", tok.to_debug_string());
+                ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                    .rule_name = "keyframe"_fly_string,
+                    .prelude = child_tokens.dump_string(),
+                    .description = "Invalid selector."_string,
+                });
                 child_tokens.reconsume_current_input_token();
                 break;
             }
@@ -482,17 +549,25 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
     // https://drafts.csswg.org/css-namespaces/#syntax
     // @namespace <namespace-prefix>? [ <string> | <url> ] ;
     // <namespace-prefix> = <ident>
+    auto tokens = TokenStream { rule.prelude };
     if (rule.is_block_rule) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Block is not allowed.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@namespace"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Must be a statement, not a block."_string,
+        });
         return {};
     }
 
     if (rule.prelude.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Empty prelude.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@namespace"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Empty prelude."_string,
+        });
         return {};
     }
 
-    auto tokens = TokenStream { rule.prelude };
     tokens.discard_whitespace();
 
     Optional<FlyString> prefix = {};
@@ -510,16 +585,21 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
     } else if (auto& url_token = tokens.consume_a_token(); url_token.is(Token::Type::String)) {
         namespace_uri = url_token.token().string();
     } else {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Unable to parse `{}` as URL.", tokens.next_token().to_debug_string());
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@namespace"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Unable to parse <url>."_string,
+        });
         return {};
     }
 
     tokens.discard_whitespace();
     if (tokens.has_next_token()) {
-        if constexpr (CSS_PARSER_DEBUG) {
-            dbgln("Failed to parse @namespace rule: Trailing tokens after URL.");
-            tokens.dump_all_tokens();
-        }
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@namespace"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Trailing tokens after <url> in prelude."_string,
+        });
         return {};
     }
 
@@ -532,23 +612,32 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
     // @supports <supports-condition> {
     //   <rule-list>
     // }
+    auto supports_tokens = TokenStream { rule.prelude };
     if (!rule.is_block_rule) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @supports rule: Expected a block.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@supports"_fly_string,
+            .prelude = supports_tokens.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
         return {};
     }
 
     if (rule.prelude.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @supports rule: Empty prelude.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@supports"_fly_string,
+            .prelude = supports_tokens.dump_string(),
+            .description = "Empty prelude."_string,
+        });
         return {};
     }
 
-    auto supports_tokens = TokenStream { rule.prelude };
     auto supports = parse_a_supports(supports_tokens);
     if (!supports) {
-        if constexpr (CSS_PARSER_DEBUG) {
-            dbgln("Failed to parse @supports rule: supports clause invalid.");
-            supports_tokens.dump_all_tokens();
-        }
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@supports"_fly_string,
+            .prelude = supports_tokens.dump_string(),
+            .description = "Supports clause invalid."_string,
+        });
         return {};
     }
 
@@ -574,21 +663,33 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     // @property <custom-property-name> {
     // <declaration-list>
     // }
+    auto prelude_stream = TokenStream { rule.prelude };
     if (!rule.is_block_rule) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @property rule: Expected a block.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@property"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
         return {};
     }
 
     if (rule.prelude.is_empty()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @property rule: Empty prelude.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@property"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Empty prelude."_string,
+        });
         return {};
     }
 
-    auto prelude_stream = TokenStream { rule.prelude };
     prelude_stream.discard_whitespace();
     auto const& token = prelude_stream.consume_a_token();
     if (!token.is_token()) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @property has invalid prelude, prelude = {}; discarding.", rule.prelude);
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@property"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Name must be an ident."_string,
+        });
         return {};
     }
 
@@ -596,17 +697,20 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     prelude_stream.discard_whitespace();
 
     if (prelude_stream.has_next_token()) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @property has invalid prelude, prelude = {}; discarding.", rule.prelude);
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@property"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Trailing tokens after name in prelude."_string,
+        });
         return {};
     }
 
-    if (!name_token.is(Token::Type::Ident)) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @property name is invalid: {}; discarding.", name_token.to_debug_string());
-        return {};
-    }
-
-    if (!is_a_custom_property_name_string(name_token.ident())) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @property name doesn't start with '--': {}; discarding.", name_token.ident());
+    if (!name_token.is(Token::Type::Ident) || !is_a_custom_property_name_string(name_token.ident())) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@property"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Name must be an ident starting with '--'."_string,
+        });
         return {};
     }
 
@@ -654,10 +758,16 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-fonts/#font-face-rule
+    TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @font-face rule: Expected a block.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@font-face"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
         return nullptr;
     }
+    // FIXME: Prelude must be empty
 
     DescriptorList descriptors { AtRuleID::FontFace };
     rule.for_each_as_declaration_list([&](auto& declaration) {
@@ -673,12 +783,16 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 {
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // @page = @page <page-selector-list>? { <declaration-rule-list> }
+    TokenStream tokens { page_rule.prelude };
     if (!page_rule.is_block_rule) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @property rule: Expected a block.");
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@page"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
         return nullptr;
     }
 
-    TokenStream tokens { page_rule.prelude };
     auto page_selectors = parse_a_page_selector_list(tokens);
     if (page_selectors.is_error())
         return nullptr;
@@ -710,10 +824,17 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 
 GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
 {
+    TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse margin rule @{}: Expected a block.", rule.name);
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = MUST(String::formatted("@{}", rule.name)),
+            .prelude = prelude_stream.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
         return nullptr;
     }
+
+    // FIXME: Reject if there's a prelude
 
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // There are lots of these, but they're all in the format:
