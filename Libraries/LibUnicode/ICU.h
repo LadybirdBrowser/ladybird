@@ -99,7 +99,16 @@ ALWAYS_INLINE icu::UnicodeString icu_string(StringView string)
     return icu::UnicodeString::fromUTF8(icu_string_piece(string));
 }
 
-Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings);
+// If the Utf16View has ASCII storage, this creates an owned icu::UnicodeString. Otherwise, the icu::UnicodeString is
+// unowned (i.e. it is effectively a view).
+ALWAYS_INLINE icu::UnicodeString icu_string(Utf16View const& string)
+{
+    if (string.has_ascii_storage())
+        return icu::UnicodeString::fromUTF8(icu_string_piece(string.bytes()));
+    return { false, string.utf16_span().data(), static_cast<i32>(string.length_in_code_units()) };
+}
+
+Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<Utf16String> strings);
 
 String icu_string_to_string(icu::UnicodeString const& string);
 String icu_string_to_string(UChar const*, i32 length);

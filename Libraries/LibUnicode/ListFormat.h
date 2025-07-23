@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Locale.h>
 
@@ -27,11 +27,11 @@ public:
 
     struct Partition {
         StringView type;
-        String value;
+        Utf16String value;
     };
 
-    virtual String format(ReadonlySpan<String> list) const = 0;
-    virtual Vector<Partition> format_to_parts(ReadonlySpan<String> list) const = 0;
+    virtual Utf16String format(ReadonlySpan<Utf16String> list) const = 0;
+    virtual Vector<Partition> format_to_parts(ReadonlySpan<Utf16String> list) const = 0;
 
 protected:
     ListFormat() = default;
