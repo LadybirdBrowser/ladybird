@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 30 tests
 
-11 Pass
-19 Fail
+9 Pass
+21 Fail
 Pass	`initial` as a value for an unregistered custom property
 Pass	`inherit` as a value for an unregistered custom property
 Pass	`unset` as a value for an unregistered custom property
 Fail	`revert` as a value for an unregistered custom property
 Pass	`revert-layer` as a value for an unregistered custom property
-Pass	`initial` as a value for a non-inheriting registered custom property
-Pass	`initial` as a value for an inheriting registered custom property
+Fail	`initial` as a value for a non-inheriting registered custom property
+Fail	`initial` as a value for an inheriting registered custom property
 Pass	`inherit` as a value for a non-inheriting registered custom property
 Pass	`inherit` as a value for an inheriting registered custom property
 Fail	`unset` as a value for a non-inheriting registered custom property

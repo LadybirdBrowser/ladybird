@@ -1,0 +1,44 @@
+Harness status: OK
+
+Found 39 tests
+
+39 Pass
+Pass	Rule for --no-descriptors is invalid
+Pass	Rule for --no-syntax is invalid
+Pass	Rule for --no-inherits is invalid
+Pass	Rule for --no-initial-color-value is invalid
+Pass	Rule for --syntax-only is invalid
+Pass	Rule for --inherits-only is invalid
+Pass	Rule for --initial-value-only is invalid
+Pass	Rule for --valid has expected cssText
+Pass	Rule for --valid-reverse has expected cssText
+Pass	Rule for --valid-universal has expected cssText
+Pass	Rule for --valid-whitespace has expected cssText
+Pass	Rule for --vALId has expected cssText
+Pass	Rule for --no-initial-universal-value has expected cssText
+Pass	Rule for --tab	tab has expected cssText
+Pass	CSSRule.type returns 0
+Pass	Rule for --valid returns expected value for CSSPropertyRule.name
+Pass	Rule for --valid-reverse returns expected value for CSSPropertyRule.name
+Pass	Rule for --valid-universal returns expected value for CSSPropertyRule.name
+Pass	Rule for --valid-whitespace returns expected value for CSSPropertyRule.name
+Pass	Rule for --vALId returns expected value for CSSPropertyRule.name
+Pass	Rule for --no-initial-universal-value returns expected value for CSSPropertyRule.name
+Pass	Rule for --valid returns expected value for CSSPropertyRule.syntax
+Pass	Rule for --valid-reverse returns expected value for CSSPropertyRule.syntax
+Pass	Rule for --valid-universal returns expected value for CSSPropertyRule.syntax
+Pass	Rule for --valid-whitespace returns expected value for CSSPropertyRule.syntax
+Pass	Rule for --vALId returns expected value for CSSPropertyRule.syntax
+Pass	Rule for --no-initial-universal-value returns expected value for CSSPropertyRule.syntax
+Pass	Rule for --valid returns expected value for CSSPropertyRule.inherits
+Pass	Rule for --valid-reverse returns expected value for CSSPropertyRule.inherits
+Pass	Rule for --valid-universal returns expected value for CSSPropertyRule.inherits
+Pass	Rule for --valid-whitespace returns expected value for CSSPropertyRule.inherits
+Pass	Rule for --vALId returns expected value for CSSPropertyRule.inherits
+Pass	Rule for --no-initial-universal-value returns expected value for CSSPropertyRule.inherits
+Pass	Rule for --valid returns expected value for CSSPropertyRule.initialValue
+Pass	Rule for --valid-reverse returns expected value for CSSPropertyRule.initialValue
+Pass	Rule for --valid-universal returns expected value for CSSPropertyRule.initialValue
+Pass	Rule for --valid-whitespace returns expected value for CSSPropertyRule.initialValue
+Pass	Rule for --vALId returns expected value for CSSPropertyRule.initialValue
+Pass	Rule for --no-initial-universal-value returns expected value for CSSPropertyRule.initialValue
