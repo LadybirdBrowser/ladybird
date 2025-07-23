@@ -28,6 +28,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
@@ -169,7 +170,10 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                     if (is<CSSGroupingRule>(*converted_rule)) {
                         child_rules.append(*converted_rule);
                     } else {
-                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested {} is not allowed inside style rule; discarding.", converted_rule->class_name());
+                        ErrorReporter::the().report(InvalidRuleLocationError {
+                            .outer_rule_name = "style"_fly_string,
+                            .inner_rule_name = MUST(FlyString::from_utf8(converted_rule->class_name())),
+                        });
                     }
                 }
             },
@@ -405,7 +409,20 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
     GC::RootVector<GC::Ref<CSSRule>> keyframes(realm().heap());
     rule.for_each_as_qualified_rule_list([&](auto& qualified_rule) {
         if (!qualified_rule.child_rules.is_empty()) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes keyframe rule contains at-rules; discarding them.");
+            for (auto const& child_rule : qualified_rule.child_rules) {
+                ErrorReporter::the().report(InvalidRuleLocationError {
+                    .outer_rule_name = "@keyframes"_fly_string,
+                    .inner_rule_name = child_rule.visit(
+                        [](Rule const& rule) {
+                            return rule.visit(
+                                [](AtRule const& at_rule) { return MUST(String::formatted("@{}", at_rule.name)); },
+                                [](QualifiedRule const&) { return "qualified-rule"_string; });
+                        },
+                        [](auto&) {
+                            return "list-of-declarations"_string;
+                        }),
+                });
+            }
         }
 
         auto selectors = Vector<CSS::Percentage> {};
@@ -447,7 +464,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         }
 
         PropertiesAndCustomProperties properties;
-        qualified_rule.for_each_as_declaration_list([&](auto const& declaration) {
+        qualified_rule.for_each_as_declaration_list("keyframe"_fly_string, [&](auto const& declaration) {
             extract_property(declaration, properties);
         });
         auto style = CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
@@ -674,7 +691,10 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
                 if (is<CSSMarginRule>(*converted_rule)) {
                     child_rules.append(*converted_rule);
                 } else {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested {} is not allowed inside @page rule; discarding.", converted_rule->class_name());
+                    ErrorReporter::the().report(InvalidRuleLocationError {
+                        .outer_rule_name = "@page"_fly_string,
+                        .inner_rule_name = MUST(FlyString::from_utf8(converted_rule->class_name())),
+                    });
                 }
             }
         },
