@@ -767,7 +767,16 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
         });
         return nullptr;
     }
-    // FIXME: Prelude must be empty
+
+    prelude_stream.discard_whitespace();
+    if (prelude_stream.has_next_token()) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@font-face"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Prelude is not allowed."_string,
+        });
+        return {};
+    }
 
     DescriptorList descriptors { AtRuleID::FontFace };
     rule.for_each_as_declaration_list([&](auto& declaration) {
@@ -834,7 +843,15 @@ GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
         return nullptr;
     }
 
-    // FIXME: Reject if there's a prelude
+    prelude_stream.discard_whitespace();
+    if (prelude_stream.has_next_token()) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = MUST(String::formatted("@{}", rule.name)),
+            .prelude = prelude_stream.dump_string(),
+            .description = "Prelude is not allowed."_string,
+        });
+        return {};
+    }
 
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // There are lots of these, but they're all in the format:

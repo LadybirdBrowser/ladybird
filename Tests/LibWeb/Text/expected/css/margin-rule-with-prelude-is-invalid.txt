@@ -1,0 +1,2 @@
+`@page {}` should be valid: PASS
+`@top-left foo {}` in `@page` should be invalid: PASS
