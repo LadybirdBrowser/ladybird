@@ -56,7 +56,7 @@ public:
 
     static bool compare(T const* a, T const* b, size_t count)
     {
-        if (count == 0)
+        if (count == 0 || a == b)
             return true;
 
         if constexpr (Traits<T>::is_trivial())

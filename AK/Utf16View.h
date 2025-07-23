@@ -463,17 +463,10 @@ public:
         if (needle.length_in_code_units() > length_in_code_units())
             return false;
 
-        if (has_ascii_storage() && needle.has_ascii_storage()) {
-            if (m_string.ascii == needle.m_string.ascii)
-                return true;
+        if (has_ascii_storage() && needle.has_ascii_storage())
             return ascii_span().starts_with(needle.ascii_span());
-        }
-
-        if (!has_ascii_storage() && !needle.has_ascii_storage()) {
-            if (m_string.utf16 == needle.m_string.utf16)
-                return true;
+        if (!has_ascii_storage() && !needle.has_ascii_storage())
             return utf16_span().starts_with(needle.utf16_span());
-        }
 
         for (auto this_it = begin(), needle_it = needle.begin(); needle_it != needle.end(); ++needle_it, ++this_it) {
             if (*this_it != *needle_it)
