@@ -97,3 +97,62 @@ test("Unicode non-ASCII matching", () => {
         expect(result).toEqual(test.expected);
     }
 });
+
+// Test from https://github.com/tc39/test262/blob/main/test/built-ins/RegExp/unicodeSets/generated/character-property-escape-difference-property-of-strings-escape.js
+test("Unicode properties of strings", () => {
+    const regexes = [
+        /\p{Basic_Emoji}/v,
+        /\p{Emoji_Keycap_Sequence}/v,
+        /\p{RGI_Emoji_Modifier_Sequence}/v,
+        /\p{RGI_Emoji_Flag_Sequence}/v,
+        /\p{RGI_Emoji_Tag_Sequence}/v,
+        /\p{RGI_Emoji_ZWJ_Sequence}/v,
+        /\p{RGI_Emoji}/v,
+    ];
+
+    for (const re of regexes) {
+        expect(() => {
+            re.test("test");
+        }).not.toThrow();
+    }
+
+    const matchStrings = [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "8",
+        "A",
+        "B",
+        "D",
+        "E",
+        "F",
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+    ];
+
+    const nonMatchStrings = [
+        "6\uFE0F\u20E3",
+        "7\uFE0F\u20E3",
+        "9\uFE0F\u20E3",
+        "\u2603",
+        "\u{1D306}",
+        "\u{1F1E7}\u{1F1EA}",
+    ];
+
+    const re = /^[\p{ASCII_Hex_Digit}--\p{Emoji_Keycap_Sequence}]+$/v;
+
+    for (const str of matchStrings) {
+        expect(re.test(str)).toBeTrue();
+    }
+
+    for (const str of nonMatchStrings) {
+        expect(re.test(str)).toBeFalse();
+    }
+});

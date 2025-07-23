@@ -304,6 +304,23 @@ bool is_ecma262_property(Property property)
     }
 }
 
+// https://tc39.es/ecma262/#table-binary-unicode-properties-of-strings
+bool is_ecma262_string_property(Property property)
+{
+    switch (property.value()) {
+    case UCHAR_BASIC_EMOJI:
+    case UCHAR_EMOJI_KEYCAP_SEQUENCE:
+    case UCHAR_RGI_EMOJI:
+    case UCHAR_RGI_EMOJI_FLAG_SEQUENCE:
+    case UCHAR_RGI_EMOJI_TAG_SEQUENCE:
+    case UCHAR_RGI_EMOJI_MODIFIER_SEQUENCE:
+    case UCHAR_RGI_EMOJI_ZWJ_SEQUENCE:
+        return true;
+    default:
+        return false;
+    }
+}
+
 Optional<Script> script_from_string(StringView script)
 {
     static auto script_names = []() {
