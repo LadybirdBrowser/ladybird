@@ -671,7 +671,7 @@ public:
         if (icu_failure(status))
             return PluralCategory::Other;
 
-        return plural_category_from_string(icu_string_to_string(result));
+        return plural_category_from_string(icu_string_to_utf16_view(result));
     }
 
     virtual PluralCategory select_plural_range(double start, double end) const override
@@ -694,7 +694,7 @@ public:
         if (icu_failure(status))
             return PluralCategory::Other;
 
-        return plural_category_from_string(icu_string_to_string(result));
+        return plural_category_from_string(icu_string_to_utf16_view(result));
     }
 
     virtual Vector<PluralCategory> available_plural_categories() const override
@@ -710,7 +710,7 @@ public:
 
         while (true) {
             i32 length = 0;
-            auto const* category = keywords->next(&length, status);
+            auto const* category = keywords->unext(&length, status);
 
             if (icu_failure(status) || category == nullptr)
                 break;

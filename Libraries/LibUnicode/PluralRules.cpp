@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -28,7 +28,7 @@ StringView plural_form_to_string(PluralForm plural_form)
     VERIFY_NOT_REACHED();
 }
 
-PluralCategory plural_category_from_string(StringView category)
+PluralCategory plural_category_from_string(Utf16View const& category)
 {
     if (category == "other"sv)
         return PluralCategory::Other;
@@ -49,7 +49,7 @@ PluralCategory plural_category_from_string(StringView category)
     VERIFY_NOT_REACHED();
 }
 
-StringView plural_category_to_string(PluralCategory category)
+Utf16View plural_category_to_string(PluralCategory category)
 {
     switch (category) {
     case PluralCategory::Other:

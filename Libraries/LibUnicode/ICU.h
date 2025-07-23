@@ -116,6 +116,8 @@ String icu_string_to_string(UChar const*, i32 length);
 Utf16String icu_string_to_utf16_string(icu::UnicodeString const& string);
 Utf16String icu_string_to_utf16_string(UChar const*, i32 length);
 
+Utf16View icu_string_to_utf16_view(icu::UnicodeString const& string);
+
 UCharIterator icu_string_iterator(Utf16View const&);
 
 template<typename Filter>
