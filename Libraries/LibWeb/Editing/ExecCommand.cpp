@@ -101,7 +101,8 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     auto old_character_data_version = character_data_version();
 
     // 5. Take the action for command, passing value to the instructions as an argument.
-    auto command_result = command_definition.action(*this, value);
+    auto utf16_value = Utf16String::from_utf8_without_validation(value);
+    auto command_result = command_definition.action(*this, utf16_value.utf16_view());
 
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
     // After taking the action, if the active range is collapsed, it must restore states and values from the recorded
@@ -249,7 +250,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_indeterm(FlyString const& comm
         // effectively contained in the active range, there are two that have distinct effective command values.
         if (command_definition.command.is_one_of(Editing::CommandNames::backColor, Editing::CommandNames::fontName,
                 Editing::CommandNames::foreColor, Editing::CommandNames::hiliteColor)) {
-            Optional<String> first_node_value;
+            Optional<Utf16String> first_node_value;
             auto range = Editing::active_range(*this);
             bool has_distinct_values = false;
             Editing::for_each_node_effectively_contained_in_range(range, [&](GC::Ref<Node> descendant) {
@@ -390,19 +391,19 @@ WebIDL::ExceptionOr<String> Document::query_command_value(FlyString const& comma
     //    integer number of pixels and return the legacy font size for the result.
     if (command_definition.command == Editing::CommandNames::fontSize && value_override.has_value()) {
         auto pixel_size = Editing::font_size_to_pixel_size(value_override.release_value());
-        return Editing::legacy_font_size(pixel_size.to_int());
+        return Editing::legacy_font_size(pixel_size.to_int()).to_utf8_but_should_be_ported_to_utf16();
     }
 
     // 3. If the value override for command is set, return it.
     if (value_override.has_value())
-        return value_override.release_value();
+        return value_override.release_value().to_utf8_but_should_be_ported_to_utf16();
 
     // 4. Return command's value.
-    return command_definition.value(*this);
+    return command_definition.value(*this).to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#value-override
-void Document::set_command_value_override(FlyString const& command, String const& value)
+void Document::set_command_value_override(FlyString const& command, Utf16String const& value)
 {
     m_command_value_override.set(command, value);
 

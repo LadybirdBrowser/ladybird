@@ -1,2 +1,5 @@
 input triggered
-foobazbar
+#text 6 - #text 6
+input triggered
+#text 8 - #text 8
+foobaz🙂bar
