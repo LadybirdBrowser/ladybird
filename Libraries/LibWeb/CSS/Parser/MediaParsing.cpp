@@ -8,7 +8,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CalculatedOr.h>
@@ -83,13 +82,14 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
         return {};
     };
 
-    auto invalid_media_query = [&]() {
+    auto invalid_media_query = [&](String&& description) {
         // "A media query that does not match the grammar in the previous section must be replaced by `not all`
         // during parsing." - https://www.w3.org/TR/mediaqueries-5/#error-handling
-        if constexpr (CSS_PARSER_DEBUG) {
-            dbgln("Invalid media query:");
-            tokens.dump_all_tokens();
-        }
+        ErrorReporter::the().report(InvalidQueryError {
+            .query_type = "@media"_fly_string,
+            .value_string = tokens.dump_string(),
+            .description = move(description),
+        });
         return MediaQuery::create_not_all();
     };
 
@@ -100,7 +100,7 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
     if (auto media_condition = parse_media_condition(tokens)) {
         tokens.discard_whitespace();
         if (tokens.has_next_token())
-            return invalid_media_query();
+            return invalid_media_query("Trailing tokens after <media-condition>"_string);
         media_query->m_media_condition = media_condition.release_nonnull();
         return media_query;
     }
@@ -118,7 +118,7 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
     } else {
         // https://drafts.csswg.org/mediaqueries-4/#error-handling
         // A media query that does not match the grammar in the previous section must be replaced by not all during parsing.
-        return invalid_media_query();
+        return invalid_media_query("Doesn't match `<media-query>`"_string);
     }
 
     if (!tokens.has_next_token())
@@ -129,18 +129,18 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
         if (auto media_condition = parse_media_condition(tokens)) {
             // "or" is disallowed at the top level
             if (is<BooleanOrExpression>(*media_condition))
-                return invalid_media_query();
+                return invalid_media_query("Contains top-level `or`"_string);
 
             tokens.discard_whitespace();
             if (tokens.has_next_token())
-                return invalid_media_query();
+                return invalid_media_query("Trailing tokens after `<media-condition-without-or>`"_string);
             media_query->m_media_condition = move(media_condition);
             return media_query;
         }
-        return invalid_media_query();
+        return invalid_media_query("Missing `<media-condition>` after `and`"_string);
     }
 
-    return invalid_media_query();
+    return invalid_media_query("Trailing tokens after `<media-query>`"_string);
 }
 
 // `<media-condition>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-condition
@@ -553,7 +553,11 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
 
     if (!unknown_tokens.is_empty()) {
         transaction.commit();
-        dbgln_if(CSS_PARSER_DEBUG, "Creating unknown media value: `{}`", String::join(""sv, unknown_tokens));
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<mf-value>"_fly_string,
+            .value_string = MUST(String::join(""sv, unknown_tokens)),
+            .description = "Unrecognized type"_string,
+        });
         return MediaFeatureValue(move(unknown_tokens));
     }
 
