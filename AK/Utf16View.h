@@ -456,24 +456,24 @@ public:
 
     [[nodiscard]] constexpr bool starts_with(Utf16View const& needle) const
     {
-        if (needle.is_empty())
+        auto needle_length = needle.length_in_code_units();
+        if (needle_length == 0)
             return true;
-        if (is_empty())
-            return false;
-        if (needle.length_in_code_units() > length_in_code_units())
+        if (is_empty() || needle_length > length_in_code_units())
             return false;
 
-        if (has_ascii_storage() && needle.has_ascii_storage())
-            return ascii_span().starts_with(needle.ascii_span());
-        if (!has_ascii_storage() && !needle.has_ascii_storage())
-            return utf16_span().starts_with(needle.utf16_span());
+        return substring_view(0, needle_length) == needle;
+    }
 
-        for (auto this_it = begin(), needle_it = needle.begin(); needle_it != needle.end(); ++needle_it, ++this_it) {
-            if (*this_it != *needle_it)
-                return false;
-        }
+    [[nodiscard]] constexpr bool ends_with(Utf16View const& needle) const
+    {
+        auto needle_length = needle.length_in_code_units();
+        if (needle_length == 0)
+            return true;
+        if (is_empty() || needle_length > length_in_code_units())
+            return false;
 
-        return true;
+        return substring_view(length_in_code_units() - needle_length, needle_length) == needle;
     }
 
     // https://infra.spec.whatwg.org/#code-unit-less-than
