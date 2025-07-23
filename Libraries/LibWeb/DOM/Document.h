@@ -869,8 +869,8 @@ public:
     void reset_command_state_overrides() { m_command_state_override.clear(); }
 
     // https://w3c.github.io/editing/docs/execCommand/#value-override
-    Optional<String const&> command_value_override(FlyString const& command) const { return m_command_value_override.get(command); }
-    void set_command_value_override(FlyString const& command, String const& value);
+    Optional<Utf16String const&> command_value_override(FlyString const& command) const { return m_command_value_override.get(command); }
+    void set_command_value_override(FlyString const& command, Utf16String const& value);
     void clear_command_value_override(FlyString const& command);
     void reset_command_value_overrides() { m_command_value_override.clear(); }
 
@@ -1255,7 +1255,7 @@ private:
     HashMap<FlyString, bool> m_command_state_override;
 
     // https://w3c.github.io/editing/docs/execCommand/#value-override
-    HashMap<FlyString, String> m_command_value_override;
+    HashMap<FlyString, Utf16String> m_command_value_override;
 
     // https://html.spec.whatwg.org/multipage/webstorage.html#session-storage-holder
     // A Document object has an associated session storage holder, which is null or a Storage object. It is initially null.

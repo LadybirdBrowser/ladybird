@@ -121,7 +121,7 @@ void autolink(DOM::BoundaryPoint point)
     //    characters.
 
     // FIXME: 4. If some substring of search is an autolinkable URL:
-    String href;
+    Utf16String href;
     if (false) {
         // FIXME: 1. While there is no substring of node's data ending at end offset that is an autolinkable URL, decrement end
         //    offset.
@@ -267,7 +267,7 @@ GC::Ptr<DOM::Node> block_node_of_node(GC::Ref<DOM::Node> input_node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#canonical-space-sequence
-String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_breaking_end)
+Utf16String canonical_space_sequence(size_t length, bool non_breaking_start, bool non_breaking_end)
 {
     auto n = length;
 
@@ -278,14 +278,14 @@ String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_br
     // 2. If n is one and both non-breaking start and non-breaking end are false, return a single
     //    space (U+0020).
     if (n == 1 && !non_breaking_start && !non_breaking_end)
-        return " "_string;
+        return " "_utf16;
 
     // 3. If n is one, return a single non-breaking space (U+00A0).
     if (n == 1)
-        return "\u00A0"_string;
+        return "\u00A0"_utf16;
 
     // 4. Let buffer be the empty string.
-    StringBuilder buffer;
+    StringBuilder buffer { StringBuilder::Mode::UTF16 };
 
     // 5. If non-breaking start is true, let repeated pair be U+00A0 U+0020. Otherwise, let it be
     //    U+0020 U+00A0.
@@ -338,7 +338,7 @@ String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_br
         buffer.append(non_breaking_end ? "\u00A0"sv : " "sv);
 
     // 9. Return buffer.
-    return MUST(buffer.to_string());
+    return buffer.to_utf16_string();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#canonicalize-whitespace
@@ -530,6 +530,7 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
         length,
         (start_offset == 0 && follows_a_line_break(start_node)) || length > 1,
         end_offset == end_node->length() && precedes_a_line_break(end_node));
+    auto replacement_whitespace_view = replacement_whitespace.utf16_view();
 
     // 10. While (start node, start offset) is before (end node, end offset):
     while (true) {
@@ -555,10 +556,8 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
         else {
             // 1. Remove the first code unit from replacement whitespace, and let element be that
             //    code unit.
-            // FIXME: Find a way to get code points directly from the UTF-8 string
-            auto replacement_whitespace_utf16 = Utf16String::from_utf8(replacement_whitespace);
-            replacement_whitespace = MUST(replacement_whitespace_utf16.substring_view(1).to_utf8());
-            auto element = replacement_whitespace_utf16.code_point_at(0);
+            auto element = replacement_whitespace_view.code_unit_at(0);
+            replacement_whitespace_view = replacement_whitespace_view.substring_view(1);
 
             // 2. If element is not the same as the start offsetth code unit of start node's data:
             auto start_node_data = Utf16String::from_utf8(*start_node->text_content());
@@ -1135,7 +1134,7 @@ GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#effective-command-value
-Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString const& command)
+Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString const& command)
 {
     VERIFY(node);
 
@@ -1159,7 +1158,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
             return {};
 
         // 3. Return the value of node's href attribute.
-        return node_as_element()->get_attribute_value(HTML::AttributeNames::href);
+        return Utf16String::from_utf8_without_validation(node_as_element()->get_attribute_value(HTML::AttributeNames::href));
     }
 
     // 4. If command is "backColor" or "hiliteColor":
@@ -1182,7 +1181,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
         auto resolved_value = resolved_background_color();
         if (!resolved_value.has_value())
             return {};
-        return resolved_value.value()->to_string(CSS::SerializationMode::ResolvedValue);
+        return Utf16String::from_utf8_without_validation(resolved_value.value()->to_string(CSS::SerializationMode::ResolvedValue));
     }
 
     // 5. If command is "subscript" or "superscript":
@@ -1209,15 +1208,15 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
 
         // 3. If affected by subscript and affected by superscript are both true, return the string "mixed".
         if (affected_by_subscript && affected_by_superscript)
-            return "mixed"_string;
+            return "mixed"_utf16;
 
         // 4. If affected by subscript is true, return "subscript".
         if (affected_by_subscript)
-            return "subscript"_string;
+            return "subscript"_utf16;
 
         // 5. If affected by superscript is true, return "superscript".
         if (affected_by_superscript)
-            return "superscript"_string;
+            return "superscript"_utf16;
 
         // 6. Return null.
         return {};
@@ -1230,7 +1229,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
         do {
             auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
             if (text_decoration_line.has_value() && value_contains_keyword(text_decoration_line.value(), CSS::Keyword::LineThrough))
-                return "line-through"_string;
+                return "line-through"_utf16;
             inclusive_ancestor = inclusive_ancestor->parent();
         } while (inclusive_ancestor);
 
@@ -1244,7 +1243,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
         do {
             auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
             if (text_decoration_line.has_value() && value_contains_keyword(text_decoration_line.value(), CSS::Keyword::Underline))
-                return "underline"_string;
+                return "underline"_utf16;
             inclusive_ancestor = inclusive_ancestor->parent();
         } while (inclusive_ancestor);
 
@@ -1258,7 +1257,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
     auto optional_value = resolved_value(*node, command_definition.relevant_css_property.value());
     if (!optional_value.has_value())
         return {};
-    return optional_value.value()->to_string(CSS::SerializationMode::ResolvedValue);
+    return Utf16String::from_utf8_without_validation(optional_value.value()->to_string(CSS::SerializationMode::ResolvedValue));
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#first-equivalent-point
@@ -1390,7 +1389,7 @@ bool follows_a_line_break(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#force-the-value
-void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional<String> new_value)
+void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional<Utf16View const&> new_value)
 {
     // 1. Let command be the current command.
 
@@ -1403,14 +1402,17 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         return;
 
     // 4. If node is an allowed child of "span":
+    auto new_value_string = new_value.map([](Utf16View const& view) {
+        return Utf16String::from_utf16_without_validation(view);
+    });
     if (is_allowed_child_of_node(node, HTML::TagNames::span)) {
         // 1. Reorder modifiable descendants of node's previousSibling.
         if (node->previous_sibling())
-            reorder_modifiable_descendants(*node->previous_sibling(), command, new_value);
+            reorder_modifiable_descendants(*node->previous_sibling(), command, new_value_string);
 
         // 2. Reorder modifiable descendants of node's nextSibling.
         if (node->next_sibling())
-            reorder_modifiable_descendants(*node->next_sibling(), command, new_value);
+            reorder_modifiable_descendants(*node->next_sibling(), command, new_value_string);
 
         // 3. Wrap the one-node list consisting of node, with sibling criteria returning true for a simple modifiable
         //    element whose specified command value is equivalent to new value and whose effective command value is
@@ -1420,7 +1422,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
             [&](GC::Ref<DOM::Node> sibling) {
                 return is_simple_modifiable_element(sibling)
                     && specified_command_value(static_cast<DOM::Element&>(*sibling), command) == new_value
-                    && values_are_loosely_equivalent(command, effective_command_value(sibling, command), new_value);
+                    && values_are_loosely_equivalent(command, effective_command_value(sibling, command), new_value_string);
             },
             [] -> GC::Ptr<DOM::Node> { return {}; });
     }
@@ -1430,7 +1432,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         return;
 
     // 6. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
+    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value_string))
         return;
 
     // 7. If node is not an allowed child of "span":
@@ -1440,8 +1442,8 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         Vector<GC::Ref<DOM::Node>> children;
         node->for_each_child([&](GC::Ref<DOM::Node> child) {
             if (is<DOM::Element>(*child)) {
-                auto const& child_specified_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
-                if (child_specified_value.has_value() && !values_are_equivalent(command, child_specified_value.value(), new_value))
+                auto const child_specified_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
+                if (child_specified_value.has_value() && !values_are_equivalent(command, child_specified_value.value(), new_value_string))
                     return IterationDecision::Continue;
             }
 
@@ -1459,7 +1461,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     }
 
     // 8. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
+    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value_string))
         return;
 
     // 9. Let new parent be null.
@@ -1491,7 +1493,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         // 5.  If command is "foreColor", and new value is fully opaque with red, green, and blue components in the
         //     range 0 to 255:
         if (command == CommandNames::foreColor) {
-            auto new_value_color = Color::from_string(new_value.value());
+            auto new_value_color = Color::from_utf16_string(new_value.value());
             if (new_value_color->alpha() == NumericLimits<u8>::max()) {
                 // 1. Let new parent be the result of calling createElement("font") on the ownerDocument of node.
                 new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
@@ -1506,7 +1508,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         //    ownerDocument of node, then set the face attribute of new parent to new value.
         if (command == CommandNames::fontName) {
             new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
-            MUST(new_parent->set_attribute(HTML::AttributeNames::face, new_value.value()));
+            MUST(new_parent->set_attribute(HTML::AttributeNames::face, new_value.value().to_utf8_but_should_be_ported_to_utf16()));
         }
     }
 
@@ -1516,7 +1518,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         new_parent = MUST(DOM::create_element(document, HTML::TagNames::a, Namespace::HTML));
 
         // 2. Set the href attribute of new parent to new value.
-        MUST(new_parent->set_attribute(HTML::AttributeNames::href, new_value.value()));
+        MUST(new_parent->set_attribute(HTML::AttributeNames::href, new_value.value().to_utf8_but_should_be_ported_to_utf16()));
 
         // 3. Let ancestor be node's parent.
         GC::Ptr<DOM::Node> ancestor = node->parent();
@@ -1573,11 +1575,11 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     // 17. If the effective command value of command for new parent is not loosely equivalent to new value, and the
     //     relevant CSS property for command is not null, set that CSS property of new parent to new value (if the new
     //     value would be valid).
-    if (!values_are_loosely_equivalent(command, effective_command_value(new_parent, command), new_value)) {
+    if (!values_are_loosely_equivalent(command, effective_command_value(new_parent, command), new_value_string)) {
         auto const& command_definition = find_command_definition(command);
         if (command_definition->relevant_css_property.has_value()) {
             auto inline_style = new_parent->style_for_bindings();
-            MUST(inline_style->set_property(command_definition->relevant_css_property.value(), new_value.value()));
+            MUST(inline_style->set_property(command_definition->relevant_css_property.value(), new_value.value().to_utf8_but_should_be_ported_to_utf16()));
         }
     }
 
@@ -1603,7 +1605,8 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
 
     // 21. If node is an Element and the effective command value of command for node is not loosely equivalent to new
     //     value:
-    if (is<DOM::Element>(*node) && !values_are_loosely_equivalent(command, effective_command_value(node, command), new_value)) {
+    if (is<DOM::Element>(*node)
+        && !values_are_loosely_equivalent(command, effective_command_value(node, command), new_value_string)) {
         // 1. Insert node into the parent of new parent before new parent, preserving ranges.
         move_node_preserving_ranges(node, *new_parent->parent(), new_parent->index());
 
@@ -1616,7 +1619,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         node->for_each_child([&](GC::Ref<DOM::Node> child) {
             if (is<DOM::Element>(*child)) {
                 auto child_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
-                if (child_value.has_value() && !values_are_equivalent(command, child_value.value(), new_value))
+                if (child_value.has_value() && !values_are_equivalent(command, child_value.value(), new_value_string))
                     return IterationDecision::Continue;
             }
 
@@ -2769,34 +2772,34 @@ DOM::BoundaryPoint last_equivalent_point(DOM::BoundaryPoint boundary_point)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#legacy-font-size-for
-String legacy_font_size(int pixel_size)
+Utf16String legacy_font_size(int pixel_size)
 {
     // 1. Let returned size be 1.
-    auto returned_size = 1;
+    int returned_size = 1;
 
     // 2. While returned size is less than 7:
     while (returned_size < 7) {
         // 1. Let lower bound be the resolved value of "font-size" in pixels of a font element whose size attribute is
         //    set to returned size.
-        auto lower_bound = font_size_to_pixel_size(MUST(String::formatted("{}", returned_size))).to_float();
+        auto lower_bound = font_size_to_pixel_size(Utf16String::number(returned_size)).to_float();
 
         // 2. Let upper bound be the resolved value of "font-size" in pixels of a font element whose size attribute is
         //    set to one plus returned size.
-        auto upper_bound = font_size_to_pixel_size(MUST(String::formatted("{}", returned_size + 1))).to_float();
+        auto upper_bound = font_size_to_pixel_size(Utf16String::number(returned_size + 1)).to_float();
 
         // 3. Let average be the average of upper bound and lower bound.
         auto average = (lower_bound + upper_bound) / 2;
 
         // 4. If pixel size is less than average, return the one-code unit string consisting of the digit returned size.
         if (pixel_size < average)
-            return MUST(String::formatted("{}", returned_size));
+            return Utf16String::number(returned_size);
 
         // 5. Add one to returned size.
         ++returned_size;
     }
 
     // 3. Return "7".
-    return "7"_string;
+    return "7"_utf16;
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#preserving-ranges
@@ -3153,7 +3156,7 @@ Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint bounda
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#push-down-values
-void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optional<String> new_value)
+void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optional<Utf16String const&> new_value)
 {
     // 1. Let command be the current command.
 
@@ -3237,7 +3240,10 @@ void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optiona
                 continue;
 
             // 4. Force the value of child, with command as in this algorithm and new value equal to propagated value.
-            force_the_value(*child, command, propagated_value);
+            force_the_value(
+                *child,
+                command,
+                propagated_value.map([](Utf16String const& string) { return string.utf16_view(); }));
         }
     }
 }
@@ -3304,7 +3310,7 @@ Vector<RecordedOverride> record_current_states_and_values(DOM::Document const& d
     // 6. For each command in the list "fontName", "foreColor", "hiliteColor", in order: add (command, command's value)
     //    to overrides.
     for (auto const& command : { CommandNames::fontName, CommandNames::foreColor, CommandNames::hiliteColor })
-        overrides.empend(command, MUST(node->document().query_command_value(command)));
+        overrides.empend(command, Utf16String::from_utf8_without_validation(MUST(node->document().query_command_value(command))));
 
     // 7. Add ("fontSize", node's effective command value for "fontSize") to overrides.
     effective_value = effective_command_value(node, CommandNames::fontSize);
@@ -3438,7 +3444,7 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#reorder-modifiable-descendants
-void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, FlyString const& command, Optional<String> new_value)
+void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, FlyString const& command, Optional<Utf16String const&> new_value)
 {
     // 1. Let candidate equal node.
     GC::Ptr<DOM::Node> candidate = node;
@@ -3495,9 +3501,9 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
             // 2. Otherwise, if override is a string, and command is neither "createLink" nor "fontSize", and
             //    queryCommandValue(command) returns something not equivalent to override, take the action for command,
             //    with value equal to override.
-            else if (override.value.has<String>() && !override.command.is_one_of(CommandNames::createLink, CommandNames::fontSize)
-                && MUST(document.query_command_value(override.command)) != override.value.get<String>()) {
-                take_the_action_for_command(document, override.command, override.value.get<String>());
+            else if (override.value.has<Utf16String>() && !override.command.is_one_of(CommandNames::createLink, CommandNames::fontSize)
+                && MUST(document.query_command_value(override.command)) != override.value.get<Utf16String>()) {
+                take_the_action_for_command(document, override.command, override.value.get<Utf16String>());
             }
 
             // 3. Otherwise, if override is a string; and command is "createLink"; and either there is a value override
@@ -3505,31 +3511,31 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
             //    node's effective command value for "createLink" is not equal to override: take the action for
             //    "createLink", with value equal to override.
             else if (auto value_override = document.command_value_override(CommandNames::createLink);
-                override.value.has<String>() && override.command == CommandNames::createLink
-                && ((value_override.has_value() && value_override.value() != override.value.get<String>())
+                override.value.has<Utf16String>() && override.command == CommandNames::createLink
+                && ((value_override.has_value() && value_override.value() != override.value.get<Utf16String>())
                     || (!value_override.has_value()
-                        && effective_command_value(node, CommandNames::createLink) != override.value.get<String>()))) {
-                take_the_action_for_command(document, CommandNames::createLink, override.value.get<String>());
+                        && effective_command_value(node, CommandNames::createLink) != override.value.get<Utf16String>()))) {
+                take_the_action_for_command(document, CommandNames::createLink, override.value.get<Utf16String>());
             }
 
             // 4. Otherwise, if override is a string; and command is "fontSize"; and either there is a value override
             //    for "fontSize" that is not equal to override, or there is no value override for "fontSize" and node's
             //    effective command value for "fontSize" is not loosely equivalent to override:
             else if (auto value_override = document.command_value_override(CommandNames::fontSize);
-                override.value.has<String>() && override.command == CommandNames::fontSize
-                && ((value_override.has_value() && value_override.value() != override.value.get<String>())
+                override.value.has<Utf16String>() && override.command == CommandNames::fontSize
+                && ((value_override.has_value() && value_override.value() != override.value.get<Utf16String>())
                     || (!value_override.has_value()
                         && !values_are_loosely_equivalent(
                             CommandNames::fontSize,
                             effective_command_value(node, CommandNames::fontSize),
-                            override.value.get<String>())))) {
+                            override.value.get<Utf16String>())))) {
                 // 1. Convert override to an integer number of pixels, and set override to the legacy font size for the
                 //    result.
-                auto override_pixel_size = font_size_to_pixel_size(override.value.get<String>());
+                auto override_pixel_size = font_size_to_pixel_size(override.value.get<Utf16String>());
                 override.value = legacy_font_size(override_pixel_size.to_int());
 
                 // 2. Take the action for "fontSize", with value equal to override.
-                take_the_action_for_command(document, CommandNames::fontSize, override.value.get<String>());
+                take_the_action_for_command(document, CommandNames::fontSize, override.value.get<Utf16String>());
             }
 
             // 5. Otherwise, continue this loop from the beginning.
@@ -3550,7 +3556,7 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
             // 2. If override is a string, set the value override for command to override.
             override.value.visit(
                 [&](bool value) { document.set_command_state_override(override.command, value); },
-                [&](String const& value) { document.set_command_value_override(override.command, value); });
+                [&](Utf16String const& value) { document.set_command_value_override(override.command, value); });
         }
     }
 }
@@ -3559,7 +3565,7 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
 void restore_the_values_of_nodes(Vector<RecordedNodeValue> const& values)
 {
     // 1. For each (node, command, value) triple in values:
-    for (auto& recorded_node_value : values) {
+    for (auto const& recorded_node_value : values) {
         auto node = recorded_node_value.node;
         auto const& command = recorded_node_value.command;
         auto value = recorded_node_value.specified_command_value;
@@ -3585,7 +3591,7 @@ void restore_the_values_of_nodes(Vector<RecordedNodeValue> const& values)
         //    node.
         else if ((is<DOM::Element>(ancestor.ptr()) && specified_command_value(static_cast<DOM::Element&>(*ancestor), command) != value)
             || (!is<DOM::Element>(ancestor.ptr()) && value.has_value())) {
-            force_the_value(node, command, value);
+            force_the_value(node, command, value->utf16_view());
         }
     }
 }
@@ -3706,8 +3712,12 @@ SelectionsListState selections_list_state(DOM::Document const& document)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#set-the-selection's-value
-void set_the_selections_value(DOM::Document& document, FlyString const& command, Optional<String> new_value)
+void set_the_selections_value(DOM::Document& document, FlyString const& command, Optional<Utf16View const&> new_value)
 {
+    auto new_value_string = new_value.map([](Utf16View const& view) {
+        return Utf16String::from_utf16_without_validation(view);
+    });
+
     // 1. Let command be the current command.
 
     // 2. If there is no formattable node effectively contained in the active range:
@@ -3743,7 +3753,7 @@ void set_the_selections_value(DOM::Document& document, FlyString const& command,
 
         // 5. Otherwise, if command is "createLink" or it has a value specified, set the value override to new value.
         else if (command == CommandNames::createLink || !MUST(document.query_command_value(CommandNames::createLink)).is_empty()) {
-            document.set_command_value_override(command, new_value.value());
+            document.set_command_value_override(command, *new_value_string);
         }
 
         // 6. Abort these steps.
@@ -3789,7 +3799,7 @@ void set_the_selections_value(DOM::Document& document, FlyString const& command,
     // 8. For each node in node list:
     for (auto node : node_list) {
         // 1. Push down values on node.
-        push_down_values(command, node, new_value);
+        push_down_values(command, node, new_value_string);
 
         // 2. If node is an allowed child of "span", force the value of node.
         if (is_allowed_child_of_node(node, HTML::TagNames::span))
@@ -3831,7 +3841,7 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, FlyString 
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#specified-command-value
-Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyString const& command)
+Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, FlyString const& command)
 {
     // 1. If command is "backColor" or "hiliteColor" and the Element's display property does not have resolved value
     //    "inline", return null.
@@ -3846,7 +3856,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         // 1. If element is an a element and has an href attribute, return the value of that attribute.
         auto href_attribute = element->get_attribute(HTML::AttributeNames::href);
         if (href_attribute.has_value())
-            return href_attribute.release_value();
+            return Utf16String::from_utf8_without_validation(href_attribute.release_value());
 
         // 2. Return null.
         return {};
@@ -3856,11 +3866,11 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     if (command.is_one_of(CommandNames::subscript, CommandNames::superscript)) {
         // 1. If element is a sup, return "superscript".
         if (element->local_name() == HTML::TagNames::sup)
-            return "superscript"_string;
+            return "superscript"_utf16;
 
         // 2. If element is a sub, return "subscript".
         if (element->local_name() == HTML::TagNames::sub)
-            return "subscript"_string;
+            return "subscript"_utf16;
 
         // 3. Return null.
         return {};
@@ -3874,7 +3884,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
             // 1. If element's style attribute sets "text-decoration" to a value containing "line-through", return
             //    "line-through".
             if (value_contains_keyword(text_decoration_style.value(), CSS::Keyword::LineThrough))
-                return "line-through"_string;
+                return "line-through"_utf16;
 
             // 2. Return null.
             return {};
@@ -3883,7 +3893,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
 
     // 5. If command is "strikethrough" and element is an s or strike element, return "line-through".
     if (command == CommandNames::strikethrough && element->local_name().is_one_of(HTML::TagNames::s, HTML::TagNames::strike))
-        return "line-through"_string;
+        return "line-through"_utf16;
 
     // 6. If command is "underline", and element has a style attribute set, and that attribute sets "text-decoration":
     if (command == CommandNames::underline) {
@@ -3891,7 +3901,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         if (text_decoration_style.has_value()) {
             // 1. If element's style attribute sets "text-decoration" to a value containing "underline", return "underline".
             if (value_contains_keyword(text_decoration_style.value(), CSS::Keyword::Underline))
-                return "underline"_string;
+                return "underline"_utf16;
 
             // 2. Return null.
             return {};
@@ -3900,7 +3910,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
 
     // 7. If command is "underline" and element is a u element, return "underline".
     if (command == CommandNames::underline && element->local_name() == HTML::TagNames::u)
-        return "underline"_string;
+        return "underline"_utf16;
 
     // 8. Let property be the relevant CSS property for command.
     auto property = find_command_definition(command)->relevant_css_property;
@@ -3915,7 +3925,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     if (auto inline_style = element->inline_style()) {
         auto value = inline_style->get_property_value(string_from_property_id(property.value()));
         if (!value.is_empty())
-            return value;
+            return Utf16String::from_utf8_without_validation(value);
     }
 
     // 11. If element is a font element that has an attribute whose effect is to create a presentational hint for
@@ -3927,7 +3937,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         font_element.apply_presentational_hints(cascaded_properties);
         auto property_value = cascaded_properties->property(property.value());
         if (property_value)
-            return property_value->to_string(CSS::SerializationMode::Normal);
+            return Utf16String::from_utf8_without_validation(property_value->to_string(CSS::SerializationMode::Normal));
     }
 
     // 12. If element is in the following list, and property is equal to the CSS property name listed for it, return the
@@ -3935,9 +3945,9 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     //     * b, strong: font-weight: "bold"
     //     * i, em: font-style: "italic"
     if (element->local_name().is_one_of(HTML::TagNames::b, HTML::TagNames::strong) && *property == CSS::PropertyID::FontWeight)
-        return "bold"_string;
+        return "bold"_utf16;
     if (element->local_name().is_one_of(HTML::TagNames::i, HTML::TagNames::em) && *property == CSS::PropertyID::FontStyle)
-        return "italic"_string;
+        return "italic"_utf16;
 
     // 13. Return null.
     return {};
@@ -4349,7 +4359,7 @@ void toggle_lists(DOM::Document& document, FlyString const& tag_name)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#equivalent-values
-bool values_are_equivalent(FlyString const& command, Optional<String> a, Optional<String> b)
+bool values_are_equivalent(FlyString const& command, Optional<Utf16String const&> a, Optional<Utf16String const&> b)
 {
     // Two quantities are equivalent values for a command if either both are null,
     if (!a.has_value() && !b.has_value())
@@ -4363,8 +4373,8 @@ bool values_are_equivalent(FlyString const& command, Optional<String> a, Optiona
     if (command.is_one_of(CommandNames::backColor, CommandNames::foreColor, CommandNames::hiliteColor)) {
         // Either both strings are valid CSS colors and have the same red, green, blue, and alpha components, or neither
         // string is a valid CSS color.
-        auto a_color = Color::from_string(a.value());
-        auto b_color = Color::from_string(b.value());
+        auto a_color = Color::from_utf16_string(a.value());
+        auto b_color = Color::from_utf16_string(b.value());
         if (a_color.has_value())
             return a_color == b_color;
         return !a_color.has_value() && !b_color.has_value();
@@ -4388,7 +4398,7 @@ bool values_are_equivalent(FlyString const& command, Optional<String> a, Optiona
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#loosely-equivalent-values
-bool values_are_loosely_equivalent(FlyString const& command, Optional<String> a, Optional<String> b)
+bool values_are_loosely_equivalent(FlyString const& command, Optional<Utf16String const&> a, Optional<Utf16String const&> b)
 {
     // Two quantities are loosely equivalent values for a command if either they are equivalent values for the command,
     if (values_are_equivalent(command, a, b))
@@ -4398,9 +4408,9 @@ bool values_are_loosely_equivalent(FlyString const& command, Optional<String> a,
     // "x-large", "xx-large", or "xxx-large"; and the other quantity is the resolved value of "font-size" on a font
     // element whose size attribute has the corresponding value set ("1" through "7" respectively).
     if (command == CommandNames::fontSize && a.has_value() && b.has_value()) {
-        static constexpr Array named_quantities { "x-small"sv, "small"sv, "medium"sv, "large"sv, "x-large"sv,
-            "xx-large"sv, "xxx-large"sv };
-        static constexpr Array size_quantities { "1"sv, "2"sv, "3"sv, "4"sv, "5"sv, "6"sv, "7"sv };
+        static constexpr Array<Utf16View, 7> named_quantities { "x-small"sv, "small"sv, "medium"sv, "large"sv,
+            "x-large"sv, "xx-large"sv, "xxx-large"sv };
+        static constexpr Array<Utf16View, 7> size_quantities { "1"sv, "2"sv, "3"sv, "4"sv, "5"sv, "6"sv, "7"sv };
         static_assert(named_quantities.size() == size_quantities.size());
 
         auto a_index = named_quantities.first_index_of(a.value())
@@ -4614,21 +4624,21 @@ GC::Ptr<DOM::Node> first_formattable_node_effectively_contained(GC::Ptr<DOM::Ran
     return node;
 }
 
-CSSPixels font_size_to_pixel_size(StringView font_size)
+CSSPixels font_size_to_pixel_size(Utf16View const& font_size)
 {
     // If the font size ends in 'px', interpret the preceding as a number and return it.
-    if (font_size.length() >= 2 && font_size.substring_view(font_size.length() - 2).equals_ignoring_ascii_case("px"sv)) {
-        auto optional_number = font_size.substring_view(0, font_size.length() - 2).to_number<float>();
+    if (font_size.ends_with("px"sv)) {
+        auto optional_number = font_size.substring_view(0, font_size.length_in_code_units() - 2).to_number<float>();
         if (optional_number.has_value())
             return CSSPixels::nearest_value_for(optional_number.value());
     }
 
     // Try to map the font size directly to a keyword (e.g. medium or x-large)
-    auto keyword = CSS::keyword_from_string(font_size);
+    auto keyword = CSS::keyword_from_string(font_size.to_utf8_but_should_be_ported_to_utf16());
 
     // If that failed, try to interpret it as a legacy font size (e.g. 1 through 7)
     if (!keyword.has_value())
-        keyword = HTML::HTMLFontElement::parse_legacy_font_size(font_size);
+        keyword = HTML::HTMLFontElement::parse_legacy_font_size(font_size.to_utf8_but_should_be_ported_to_utf16());
 
     // If that also failed, give up
     auto pixel_size = CSS::StyleComputer::default_user_font_size();
@@ -4680,22 +4690,22 @@ bool is_heading(FlyString const& local_name)
         HTML::TagNames::h6);
 }
 
-String justify_alignment_to_string(JustifyAlignment alignment)
+Utf16String justify_alignment_to_string(JustifyAlignment alignment)
 {
     switch (alignment) {
     case JustifyAlignment::Center:
-        return "center"_string;
+        return "center"_utf16;
     case JustifyAlignment::Justify:
-        return "justify"_string;
+        return "justify"_utf16;
     case JustifyAlignment::Left:
-        return "left"_string;
+        return "left"_utf16;
     case JustifyAlignment::Right:
-        return "right"_string;
+        return "right"_utf16;
     }
     VERIFY_NOT_REACHED();
 }
 
-Array<StringView, 7> named_font_sizes()
+Array<Utf16View, 7> named_font_sizes()
 {
     return { "x-small"sv, "small"sv, "medium"sv, "large"sv, "x-large"sv, "xx-large"sv, "xxx-large"sv };
 }
@@ -4747,7 +4757,7 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::No
     return optional_style_property.value().value;
 }
 
-void take_the_action_for_command(DOM::Document& document, FlyString const& command, String const& value)
+void take_the_action_for_command(DOM::Document& document, FlyString const& command, Utf16View const& value)
 {
     auto const& command_definition = find_command_definition(command);
     command_definition->action(document, value);
