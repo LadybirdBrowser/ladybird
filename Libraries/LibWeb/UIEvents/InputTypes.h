@@ -14,6 +14,7 @@ namespace Web::UIEvents::InputTypes {
 #define ENUMERATE_INPUT_TYPES                     \
     __ENUMERATE_INPUT_TYPE(deleteContentBackward) \
     __ENUMERATE_INPUT_TYPE(deleteContentForward)  \
+    __ENUMERATE_INPUT_TYPE(insertFromPaste)       \
     __ENUMERATE_INPUT_TYPE(insertLineBreak)       \
     __ENUMERATE_INPUT_TYPE(insertParagraph)       \
     __ENUMERATE_INPUT_TYPE(insertText)

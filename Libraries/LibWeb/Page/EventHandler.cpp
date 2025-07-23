@@ -1129,7 +1129,7 @@ static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(D
     return target_ranges;
 }
 
-EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable& navigable, u32 code_point)
+EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable& navigable, Variant<u32, String> code_point_or_string)
 {
     auto document = navigable.active_document();
     if (!document)
@@ -1138,16 +1138,23 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
         return EventResult::Dropped;
 
     UIEvents::InputEventInit input_event_init;
-    if (!is_unicode_control(code_point)) {
-        input_event_init.data = String::from_code_point(code_point);
+
+    if (code_point_or_string.has<u32>()) {
+        auto code_point = code_point_or_string.get<u32>();
+        if (!is_unicode_control(code_point)) {
+            input_event_init.data = String::from_code_point(code_point);
+        }
+    } else {
+        input_event_init.data = code_point_or_string.get<String>();
     }
+
     input_event_init.input_type = input_type;
 
     if (auto* focused_element = document->focused_element()) {
         if (is<HTML::NavigableContainer>(*focused_element)) {
             auto& navigable_container = as<HTML::NavigableContainer>(*focused_element);
             if (navigable_container.content_navigable())
-                return input_event(event_name, input_type, *navigable_container.content_navigable(), code_point);
+                return input_event(event_name, input_type, *navigable_container.content_navigable(), code_point_or_string);
         }
 
         auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init, target_ranges_for_input_event(*document));
@@ -1366,18 +1373,21 @@ EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32
     return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point, false);
 }
 
-void EventHandler::handle_paste(String const& text)
+EventResult EventHandler::handle_paste(String const& text)
 {
     auto active_document = m_navigable->active_document();
     if (!active_document)
-        return;
+        return EventResult::Dropped;
     if (!active_document->is_fully_active())
-        return;
+        return EventResult::Dropped;
 
     auto* target = active_document->active_input_events_target();
     if (!target)
-        return;
+        return EventResult::Dropped;
+
+    FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertFromPaste, m_navigable, text));
     target->handle_insert(text);
+    return EventResult::Handled;
 }
 
 void EventHandler::set_mouse_event_tracking_paintable(Painting::Paintable* paintable)
