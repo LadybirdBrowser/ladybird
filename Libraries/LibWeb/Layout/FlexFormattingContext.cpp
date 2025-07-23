@@ -632,8 +632,10 @@ void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
         }
 
         // AD-HOC: If we're sizing the flex container under a min-content constraint in the main axis,
-        //         flex items resolve percentages in the main axis to 0.
-        if (m_available_space_for_items->main.is_min_content()
+        //         non-replaced flex items resolve percentages in the main axis to 0.
+        // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
+        if (item.box->is_replaced_box()
+            && m_available_space_for_items->main.is_min_content()
             && computed_main_size(item.box).contains_percentage()) {
             return CSSPixels(0);
         }

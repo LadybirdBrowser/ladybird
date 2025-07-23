@@ -1,0 +1,18 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x46 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 140x30 flex-container(row) [FFC] children: not-inline
+      BlockContainer <div.wrapper> at (8,8) content-size 140x30 flex-item [BFC] children: not-inline
+        BlockContainer <div.children> at (8,8) content-size 140x18 children: inline
+          frag 0 from TextNode start: 0, length: 17, rect: [8,8 140x18] baseline: 13.796875
+              "Edit User Profile"
+          TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x46]
+    PaintableBox (Box<BODY>) [8,8 140x30]
+      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 140x30]
+        PaintableWithLines (BlockContainer<DIV>.children) [8,8 140x18]
+          TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x46] [children: 0] (z-index: auto)
