@@ -82,11 +82,11 @@ public:
     void set_numbering_system(String numbering_system) { m_numbering_system = move(numbering_system); }
     String const& numbering_system() const { return m_numbering_system; }
 
-    void set_hour_minute_separator(String hour_minute_separator) { m_hour_minute_separator = move(hour_minute_separator); }
-    String const& hour_minute_separator() const { return m_hour_minute_separator; }
+    void set_hour_minute_separator(Utf16String hour_minute_separator) { m_hour_minute_separator = move(hour_minute_separator); }
+    Utf16String const& hour_minute_separator() const { return m_hour_minute_separator; }
 
-    void set_minute_second_separator(String minute_second_separator) { m_minute_second_separator = move(minute_second_separator); }
-    String const& minute_second_separator() const { return m_minute_second_separator; }
+    void set_minute_second_separator(Utf16String minute_second_separator) { m_minute_second_separator = move(minute_second_separator); }
+    Utf16String const& minute_second_separator() const { return m_minute_second_separator; }
 
     void set_style(StringView style) { m_style = style_from_string(style); }
     Style style() const { return m_style; }
@@ -129,10 +129,10 @@ public:
 private:
     explicit DurationFormat(Object& prototype);
 
-    String m_locale;                  // [[Locale]]
-    String m_numbering_system;        // [[NumberingSystem]]
-    String m_hour_minute_separator;   // [[HourMinutesSeparator]]
-    String m_minute_second_separator; // [[MinutesSecondsSeparator]]
+    String m_locale;                       // [[Locale]]
+    String m_numbering_system;             // [[NumberingSystem]]
+    Utf16String m_hour_minute_separator;   // [[HourMinutesSeparator]]
+    Utf16String m_minute_second_separator; // [[MinutesSecondsSeparator]]
 
     Style m_style { Style::Long };              // [[Style]]
     DurationUnitOptions m_years_options;        // [[YearsOptions]]
@@ -178,7 +178,7 @@ static constexpr auto duration_instances_components = to_array<DurationInstanceC
 
 struct DurationFormatPart {
     StringView type;
-    String value;
+    Utf16String value;
     StringView unit;
 };
 
