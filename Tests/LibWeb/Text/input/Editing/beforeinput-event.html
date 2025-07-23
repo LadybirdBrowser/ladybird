@@ -13,13 +13,19 @@
         const input = document.getElementById("input");
         input.addEventListener("beforeinput", (e) => {
             println(`beforeinput data=(${e.data}) inputType=(${e.inputType})`);
-            if (e.data !== 'r' && e.data !== 'e') {
+            if (e.data !== 'r' && e.data !== 'e' && e.data !== "non-cancelled paste") {
                 e.preventDefault();
                 return;
             }
         });
         internals.sendText(input, "raebece");
         internals.commitText();
-        println(`Text in input: ${input.textContent}`);
+        println(`Text in input before any paste: ${input.textContent}`);
+        internals.paste(input, "non-cancelled paste");
+        internals.commitText();
+        println(`Text in input after non-cancelled paste: ${input.textContent}`);
+        internals.paste(input, "cancelled paste");
+        internals.commitText();
+        println(`Text in input after cancelled paste: ${input.textContent}`);
     });
 </script>

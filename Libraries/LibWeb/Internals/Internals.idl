@@ -23,6 +23,7 @@ interface Internals {
 
     undefined sendText(HTMLElement target, DOMString text, optional unsigned short modifiers = 0);
     undefined sendKey(HTMLElement target, DOMString keyName, optional unsigned short modifiers = 0);
+    undefined paste(HTMLElement target, DOMString text);
     undefined commitText();
 
     undefined click(double x, double y);

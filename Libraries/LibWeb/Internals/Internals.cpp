@@ -155,6 +155,14 @@ void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebI
     page().handle_keydown(key_code, modifiers, 0, false);
 }
 
+void Internals::paste(HTML::HTMLElement& target, String const& text)
+{
+    auto& page = this->page();
+    target.focus();
+
+    page.focused_navigable().paste(text);
+}
+
 void Internals::commit_text()
 {
     page().handle_keydown(UIEvents::Key_Return, 0, 0x0d, false);

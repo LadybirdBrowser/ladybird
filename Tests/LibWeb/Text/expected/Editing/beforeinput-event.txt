@@ -6,4 +6,10 @@ beforeinput data=(e) inputType=(insertText)
 beforeinput data=(c) inputType=(insertText)
 beforeinput data=(e) inputType=(insertText)
 beforeinput data=(null) inputType=(insertParagraph)
-Text in input: reee
+Text in input before any paste: reee
+beforeinput data=(non-cancelled paste) inputType=(insertFromPaste)
+beforeinput data=(null) inputType=(insertParagraph)
+Text in input after non-cancelled paste: reeenon-cancelled paste
+beforeinput data=(cancelled paste) inputType=(insertFromPaste)
+beforeinput data=(null) inputType=(insertParagraph)
+Text in input after cancelled paste: reeenon-cancelled paste

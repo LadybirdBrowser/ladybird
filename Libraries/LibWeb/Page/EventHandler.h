@@ -39,7 +39,7 @@ public:
 
     void set_mouse_event_tracking_paintable(Painting::Paintable*);
 
-    void handle_paste(String const& text);
+    EventResult handle_paste(String const& text);
 
     void visit_edges(JS::Cell::Visitor& visitor) const;
 
@@ -50,7 +50,7 @@ private:
     EventResult focus_previous_element();
 
     EventResult fire_keyboard_event(FlyString const& event_name, HTML::Navigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
-    [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable&, u32 code_point);
+    [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable&, Variant<u32, String> code_point_or_string);
     CSSPixelPoint compute_mouse_event_client_offset(CSSPixelPoint event_page_position) const;
     CSSPixelPoint compute_mouse_event_page_offset(CSSPixelPoint event_client_offset) const;
     CSSPixelPoint compute_mouse_event_movement(CSSPixelPoint event_client_offset) const;
