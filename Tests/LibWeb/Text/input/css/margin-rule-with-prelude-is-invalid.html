@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    @page {
+        @top-left foo {}
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`\`@page {}\` should be valid: ${document.styleSheets[0].cssRules.length === 1 ? "PASS" : "FAIL"}`);
+        const page_rule = document.styleSheets[0].cssRules[0];
+        println(`\`@top-left foo {}\` in \`@page\` should be invalid: ${page_rule.cssRules.length === 0 ? "PASS" : "FAIL"}`);
+    });
+</script>
+
