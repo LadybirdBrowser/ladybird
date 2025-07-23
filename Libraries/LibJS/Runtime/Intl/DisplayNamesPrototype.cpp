@@ -83,7 +83,7 @@ JS_DEFINE_NATIVE_FUNCTION(DisplayNamesPrototype::of)
 
     // 5. Let fields be displayNames.[[Fields]].
     // 6. If fields has a field [[<code>]], return fields.[[<code>]].
-    Optional<String> result;
+    Optional<Utf16String> result;
 
     switch (display_names->type()) {
     case DisplayNames::Type::Language:
