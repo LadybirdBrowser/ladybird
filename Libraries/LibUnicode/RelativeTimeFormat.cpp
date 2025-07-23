@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -142,7 +142,7 @@ public:
 
     virtual ~RelativeTimeFormatImpl() override = default;
 
-    virtual String format(double time, TimeUnit unit, NumericDisplay numeric_display) const override
+    virtual Utf16String format(double time, TimeUnit unit, NumericDisplay numeric_display) const override
     {
         UErrorCode status = U_ZERO_ERROR;
 
@@ -152,7 +152,7 @@ public:
         if (icu_failure(status))
             return {};
 
-        return icu_string_to_string(formatted_time);
+        return icu_string_to_utf16_string(formatted_time);
     }
 
     virtual Vector<Partition> format_to_parts(double time, TimeUnit unit, NumericDisplay numeric_display) const override
@@ -172,7 +172,7 @@ public:
         auto create_partition = [&](i32 field, i32 begin, i32 end, bool is_unit) {
             Partition partition;
             partition.type = icu_relative_time_format_field_to_string(field);
-            partition.value = icu_string_to_string(formatted_time.tempSubStringBetween(begin, end));
+            partition.value = icu_string_to_utf16_string(formatted_time.tempSubStringBetween(begin, end));
             if (is_unit)
                 partition.unit = unit_string;
             result.append(move(partition));
