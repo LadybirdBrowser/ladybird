@@ -7258,6 +7258,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
         if (!usages.is_empty())
             return WebIDL::SyntaxError::create(m_realm, "Usages must be empty"_string);
 
+        // AD-HOC: if the key length is not 32 bytes, then throw a DataError.
+        // See: https://github.com/w3c/webcrypto/issues/409
+        if (32 != key_data.get<ByteBuffer>().size())
+            return WebIDL::DataError::create(m_realm, "X25519 key must be 32 bytes"_string);
+
         // 2. Let algorithm be a new KeyAlgorithm object.
         auto algorithm = KeyAlgorithm::create(m_realm);
 
