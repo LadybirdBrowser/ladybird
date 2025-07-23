@@ -510,7 +510,7 @@ private:
     } m_string { .ascii = nullptr };
 
     // Just like Utf16StringData, we store whether this string has ASCII or UTF-16 storage by setting the most
-    // significant bit of m_code_unit_length for UTF-16 storage.
+    // significant bit of m_length_in_code_units for UTF-16 storage.
     size_t m_length_in_code_units { 0 };
     mutable size_t m_length_in_code_points { NumericLimits<size_t>::max() };
 };
