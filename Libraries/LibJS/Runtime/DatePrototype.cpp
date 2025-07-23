@@ -1134,7 +1134,7 @@ ByteString time_zone_string(double time)
 
     // Most implementations seem to prefer the long-form display name of the time zone. Not super important, but we may as well match that behavior.
     if (auto name = Unicode::time_zone_display_name(Unicode::default_locale(), tz_name, in_dst, time); name.has_value())
-        tz_name = name.release_value();
+        tz_name = name->to_utf8_but_should_be_ported_to_utf16();
 
     // 10. Return the string-concatenation of offsetString and tzName.
     return ByteString::formatted("{} ({})", offset_string, tz_name);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -37,7 +37,7 @@ StringView language_display_to_string(LanguageDisplay language_display)
     }
 }
 
-Optional<String> language_display_name(StringView locale, StringView language, LanguageDisplay display)
+Optional<Utf16String> language_display_name(StringView locale, StringView language, LanguageDisplay display)
 {
     auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
@@ -54,10 +54,10 @@ Optional<String> language_display_name(StringView locale, StringView language, L
     icu::UnicodeString result;
     display_names.localeDisplayName(language_data->locale().getName(), result);
 
-    return icu_string_to_string(result);
+    return icu_string_to_utf16_string(result);
 }
 
-Optional<String> region_display_name(StringView locale, StringView region)
+Optional<Utf16String> region_display_name(StringView locale, StringView region)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -72,10 +72,10 @@ Optional<String> region_display_name(StringView locale, StringView region)
     icu::UnicodeString result;
     locale_data->standard_display_names().regionDisplayName(icu_region.getCountry(), result);
 
-    return icu_string_to_string(result);
+    return icu_string_to_utf16_string(result);
 }
 
-Optional<String> script_display_name(StringView locale, StringView script)
+Optional<Utf16String> script_display_name(StringView locale, StringView script)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -90,10 +90,10 @@ Optional<String> script_display_name(StringView locale, StringView script)
     icu::UnicodeString result;
     locale_data->standard_display_names().scriptDisplayName(icu_script.getScript(), result);
 
-    return icu_string_to_string(result);
+    return icu_string_to_utf16_string(result);
 }
 
-Optional<String> calendar_display_name(StringView locale, StringView calendar)
+Optional<Utf16String> calendar_display_name(StringView locale, StringView calendar)
 {
     auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
@@ -109,7 +109,7 @@ Optional<String> calendar_display_name(StringView locale, StringView calendar)
     icu::UnicodeString result;
     locale_data->standard_display_names().keyValueDisplayName("calendar", ByteString(calendar).characters(), result);
 
-    return icu_string_to_string(result);
+    return icu_string_to_utf16_string(result);
 }
 
 static constexpr UDateTimePatternField icu_date_time_field(StringView field)
@@ -155,7 +155,7 @@ static constexpr UDateTimePGDisplayWidth icu_date_time_style(Style style)
     VERIFY_NOT_REACHED();
 }
 
-Optional<String> date_time_field_display_name(StringView locale, StringView field, Style style)
+Optional<Utf16String> date_time_field_display_name(StringView locale, StringView field, Style style)
 {
     auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
@@ -167,10 +167,10 @@ Optional<String> date_time_field_display_name(StringView locale, StringView fiel
     icu::UnicodeString result;
     result = locale_data->date_time_pattern_generator().getFieldDisplayName(icu_field, icu_style);
 
-    return icu_string_to_string(result);
+    return icu_string_to_utf16_string(result);
 }
 
-Optional<String> time_zone_display_name(StringView locale, StringView time_zone_identifier, TimeZoneOffset::InDST in_dst, double time)
+Optional<Utf16String> time_zone_display_name(StringView locale, StringView time_zone_identifier, TimeZoneOffset::InDST in_dst, double time)
 {
     auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
@@ -183,7 +183,7 @@ Optional<String> time_zone_display_name(StringView locale, StringView time_zone_
     if (static_cast<bool>(time_zone_name.isBogus()))
         return {};
 
-    return icu_string_to_string(time_zone_name);
+    return icu_string_to_utf16_string(time_zone_name);
 }
 
 static constexpr Array<UChar, 4> icu_currency_code(StringView currency)
@@ -212,7 +212,7 @@ static constexpr UCurrNameStyle icu_currency_style(Style style)
     VERIFY_NOT_REACHED();
 }
 
-Optional<String> currency_display_name(StringView locale, StringView currency, Style style)
+Optional<Utf16String> currency_display_name(StringView locale, StringView currency, Style style)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -230,10 +230,10 @@ Optional<String> currency_display_name(StringView locale, StringView currency, S
     if ((status == U_USING_DEFAULT_WARNING) && (result == icu_currency.data()))
         return {};
 
-    return icu_string_to_string(result, length);
+    return icu_string_to_utf16_string(result, length);
 }
 
-Optional<String> currency_numeric_display_name(StringView locale, StringView currency)
+Optional<Utf16String> currency_numeric_display_name(StringView locale, StringView currency)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -251,7 +251,7 @@ Optional<String> currency_numeric_display_name(StringView locale, StringView cur
     if ((status == U_USING_DEFAULT_WARNING) && (result == icu_currency.data()))
         return {};
 
-    return icu_string_to_string(result, length);
+    return icu_string_to_utf16_string(result, length);
 }
 
 }
