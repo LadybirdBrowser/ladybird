@@ -16,6 +16,7 @@
 #include <unicode/locid.h>
 #include <unicode/strenum.h>
 #include <unicode/stringpiece.h>
+#include <unicode/uiter.h>
 #include <unicode/uloc.h>
 #include <unicode/unistr.h>
 #include <unicode/utypes.h>
@@ -101,6 +102,8 @@ Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings);
 
 String icu_string_to_string(icu::UnicodeString const& string);
 String icu_string_to_string(UChar const*, i32 length);
+
+UCharIterator icu_string_iterator(Utf16View const&);
 
 template<typename Filter>
 Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration, char const* bcp47_keyword, Filter&& filter)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -160,6 +160,18 @@ String icu_string_to_string(icu::UnicodeString const& string)
 String icu_string_to_string(UChar const* string, i32 length)
 {
     return MUST(Utf16View { string, static_cast<size_t>(length) }.to_utf8());
+}
+
+UCharIterator icu_string_iterator(Utf16View const& string)
+{
+    UCharIterator iterator;
+
+    if (string.has_ascii_storage())
+        uiter_setUTF8(&iterator, string.ascii_span().data(), static_cast<i32>(string.length_in_code_units()));
+    else
+        uiter_setString(&iterator, string.utf16_span().data(), static_cast<i32>(string.length_in_code_units()));
+
+    return iterator;
 }
 
 }

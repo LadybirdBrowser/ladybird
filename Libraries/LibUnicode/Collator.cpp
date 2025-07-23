@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -168,11 +168,14 @@ public:
     {
     }
 
-    virtual Collator::Order compare(StringView lhs, StringView rhs) const override
+    virtual Collator::Order compare(Utf16View const& lhs, Utf16View const& rhs) const override
     {
         UErrorCode status = U_ZERO_ERROR;
 
-        auto result = m_collator->compareUTF8(icu_string_piece(lhs), icu_string_piece(rhs), status);
+        auto lhs_it = icu_string_iterator(lhs);
+        auto rhs_it = icu_string_iterator(rhs);
+
+        auto result = m_collator->compare(lhs_it, rhs_it, status);
         VERIFY(icu_success(status));
 
         switch (result) {

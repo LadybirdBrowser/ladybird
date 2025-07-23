@@ -30,6 +30,6 @@ private:
     GC::Ref<Collator> m_collator; // [[Collator]]
 };
 
-int compare_strings(Collator const&, StringView x, StringView y);
+int compare_strings(Collator const&, Utf16View const& x, Utf16View const& y);
 
 }
