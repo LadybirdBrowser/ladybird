@@ -187,3 +187,11 @@ private:
 };
 
 }
+
+template<>
+struct AK::Formatter<Web::CSS::Parser::Token> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Parser::Token const& token)
+    {
+        return Formatter<StringView>::format(builder, token.to_string());
+    }
+};
