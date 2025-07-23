@@ -1193,12 +1193,25 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
         } else if (duration_value->is_keyword() && duration_value->as_keyword().keyword() == Keyword::Auto) {
             // We use empty optional to represent "auto".
             duration = {};
+        } else if (duration_value->is_calculated() && duration_value->as_calculated().resolves_to_time()) {
+            auto resolved_time = duration_value->as_calculated().resolve_time({});
+            if (resolved_time.has_value()) {
+                duration = resolved_time.value();
+            }
         }
     }
 
     CSS::Time delay { 0, CSS::Time::Type::S };
-    if (auto delay_value = cascaded_properties.property(PropertyID::AnimationDelay); delay_value && delay_value->is_time())
-        delay = delay_value->as_time().time();
+    if (auto delay_value = cascaded_properties.property(PropertyID::AnimationDelay); delay_value) {
+        if (delay_value->is_time()) {
+            delay = delay_value->as_time().time();
+        } else if (delay_value->is_calculated() && delay_value->as_calculated().resolves_to_time()) {
+            auto resolved_time = delay_value->as_calculated().resolve_time({});
+            if (resolved_time.has_value()) {
+                delay = resolved_time.value();
+            }
+        }
+    }
 
     double iteration_count = 1.0;
     if (auto iteration_count_value = cascaded_properties.property(PropertyID::AnimationIterationCount); iteration_count_value) {
@@ -1206,6 +1219,12 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
             iteration_count = HUGE_VAL;
         else if (iteration_count_value->is_number())
             iteration_count = iteration_count_value->as_number().number();
+        else if (iteration_count_value->is_calculated() && iteration_count_value->as_calculated().resolves_to_number()) {
+            auto resolved_number = iteration_count_value->as_calculated().resolve_number({});
+            if (resolved_number.has_value()) {
+                iteration_count = resolved_number.value();
+            }
+        }
     }
 
     CSS::AnimationFillMode fill_mode { CSS::AnimationFillMode::None };
