@@ -12,6 +12,7 @@ set(16x16_ICONS
     close-tab.png
     download.png
     edit-copy.png
+    error.png
     filetype-css.png
     filetype-folder-open.png
     filetype-html.png
