@@ -69,6 +69,7 @@ enum class OpCodeId : ByteCodeValueType {
     __ENUMERATE_CHARACTER_COMPARE_TYPE(CharClass)            \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(CharRange)            \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(Reference)            \
+    __ENUMERATE_CHARACTER_COMPARE_TYPE(NamedReference)       \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(Property)             \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(GeneralCategory)      \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(Script)               \
@@ -261,6 +262,11 @@ public:
     FlyString get_string(size_t index) const { return m_string_table.get(index); }
     auto const& string_table() const { return m_string_table; }
 
+    Optional<size_t> get_group_name_index(size_t group_index) const
+    {
+        return m_group_name_mappings.get(group_index);
+    }
+
     void last_chunk() const = delete;
     void first_chunk() const = delete;
 
@@ -279,6 +285,10 @@ public:
                 m_string_table.m_table.set(entry.key, entry.value);
             }
             m_string_table.m_inverse_table.update(other.m_string_table.m_inverse_table);
+
+            for (auto const& mapping : other.m_group_name_mappings) {
+                m_group_name_mappings.set(mapping.key, mapping.value);
+            }
         }
     }
 
@@ -326,8 +336,11 @@ public:
     void insert_bytecode_group_capture_right(size_t capture_groups_count, FlyString name)
     {
         empend(static_cast<ByteCodeValueType>(OpCodeId::SaveRightNamedCaptureGroup));
-        empend(m_string_table.set(move(name)));
+        auto name_string_index = m_string_table.set(move(name));
+        empend(name_string_index);
         empend(capture_groups_count);
+
+        m_group_name_mappings.set(capture_groups_count - 1, name_string_index);
     }
 
     enum class LookAroundType {
@@ -618,6 +631,7 @@ private:
     static bool s_opcodes_initialized;
     static size_t s_next_checkpoint_serial_id;
     StringTable m_string_table;
+    HashMap<size_t, size_t> m_group_name_mappings;
 };
 
 #define ENUMERATE_EXECUTION_RESULTS                          \
