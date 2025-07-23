@@ -69,6 +69,7 @@ enum class OpCodeId : ByteCodeValueType {
     __ENUMERATE_CHARACTER_COMPARE_TYPE(CharClass)            \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(CharRange)            \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(Reference)            \
+    __ENUMERATE_CHARACTER_COMPARE_TYPE(NamedReference)       \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(Property)             \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(GeneralCategory)      \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(Script)               \
