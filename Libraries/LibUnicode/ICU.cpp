@@ -169,6 +169,11 @@ Utf16String icu_string_to_utf16_string(UChar const* string, i32 length)
     return Utf16String::from_utf16_without_validation({ string, static_cast<size_t>(length) });
 }
 
+Utf16View icu_string_to_utf16_view(icu::UnicodeString const& string)
+{
+    return { string.getBuffer(), static_cast<size_t>(string.length()) };
+}
+
 UCharIterator icu_string_iterator(Utf16View const& string)
 {
     UCharIterator iterator;

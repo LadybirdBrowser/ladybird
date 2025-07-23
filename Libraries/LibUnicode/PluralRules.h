@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 
 namespace Unicode {
 
@@ -30,7 +31,7 @@ enum class PluralCategory {
     ExactlyZero,
     ExactlyOne,
 };
-PluralCategory plural_category_from_string(StringView);
-StringView plural_category_to_string(PluralCategory);
+PluralCategory plural_category_from_string(Utf16View const&);
+Utf16View plural_category_to_string(PluralCategory);
 
 }
