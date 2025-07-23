@@ -496,7 +496,6 @@ bool PosixBasicParser::parse_nonduplicating_re(ByteCode& bytecode, size_t& match
         if (try_skip({ backref_name, 2 })) {
             if (!m_capture_group_seen[i - 1])
                 return set_error(Error::InvalidNumber);
-            match_length_minimum += m_capture_group_minimum_lengths[i - 1];
             bytecode.insert_bytecode_compare_values({ { CharacterCompareType::Reference, (ByteCodeValueType)i } });
             return true;
         }
@@ -1656,8 +1655,7 @@ bool ECMA262Parser::parse_atom_escape(ByteCode& stack, size_t& match_length_mini
             return false;
         }
 
-        match_length_minimum += maybe_length.value();
-        stack.insert_bytecode_compare_values({ { CharacterCompareType::Reference, (ByteCodeValueType)group_index } });
+        stack.insert_bytecode_compare_values({ { CharacterCompareType::NamedReference, (ByteCodeValueType)group_index } });
         return true;
     }
 

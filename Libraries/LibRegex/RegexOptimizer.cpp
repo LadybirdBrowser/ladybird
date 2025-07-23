@@ -131,6 +131,7 @@ static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, Stati
             // We've transformed this into a series of ranges in flat_compares(), so bail out if we see it.
             return false;
         case CharacterCompareType::Reference:
+        case CharacterCompareType::NamedReference:
             // We've handled this before coming here.
             break;
         case CharacterCompareType::Property:
@@ -512,6 +513,7 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             // We've transformed this into a series of ranges in flat_compares(), so bail out if we see it.
             return true;
         case CharacterCompareType::Reference:
+        case CharacterCompareType::NamedReference:
             // We've handled this before coming here.
             break;
         case CharacterCompareType::Property:
@@ -755,7 +757,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
                 break;
 
             if (any_of(compares, [&](auto& compare) {
-                    return compare.type == CharacterCompareType::AnyChar || compare.type == CharacterCompareType::Reference;
+                    return compare.type == CharacterCompareType::AnyChar || compare.type == CharacterCompareType::Reference || compare.type == CharacterCompareType::NamedReference;
                 }))
                 return AtomicRewritePreconditionResult::NotSatisfied;
 
@@ -1835,6 +1837,7 @@ static LookupTableInsertionOutcome insert_into_lookup_table(RedBlackTree<ByteCod
     case CharacterCompareType::And:
         return LookupTableInsertionOutcome::FlushOnInsertion;
     case CharacterCompareType::Reference:
+    case CharacterCompareType::NamedReference:
     case CharacterCompareType::Property:
     case CharacterCompareType::GeneralCategory:
     case CharacterCompareType::Script:

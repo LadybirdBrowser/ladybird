@@ -1379,3 +1379,93 @@ TEST_CASE(account_for_opcode_size_calculating_incoming_jump_edges)
         EXPECT_EQ(result.matches.first().view.to_byte_string(), "aa"sv);
     }
 }
+
+TEST_CASE(backreference_to_undefined_capture_groups)
+{
+    {
+        // Test duplicate named groups in alternatives where backreference refers to participating group
+        Regex<ECMA262> re("(?:(?<x>a)|(?<x>b))\\k<x>"sv);
+        auto result = re.match("bb"sv);
+
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "bb"sv);
+        EXPECT_EQ(result.capture_group_matches.first().size(), 2u);
+        EXPECT(result.capture_group_matches.first()[0].view.is_null());
+        EXPECT_EQ(result.capture_group_matches.first()[1].view.to_byte_string(), "b"sv);
+    }
+
+    {
+        // Test duplicate named groups with quantifier
+        Regex<ECMA262> re("(?:(?:(?<x>a)|(?<x>b))\\k<x>){2}"sv);
+        auto result = re.match("aabb"sv);
+
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "aabb"sv);
+        EXPECT_EQ(result.capture_group_matches.first().size(), 2u);
+        EXPECT(result.capture_group_matches.first()[0].view.is_null());
+        EXPECT_EQ(result.capture_group_matches.first()[1].view.to_byte_string(), "b"sv);
+    }
+
+    {
+        // Test that first alternative works too
+        Regex<ECMA262> re("(?:(?<x>a)|(?<x>b))\\k<x>"sv);
+        auto result = re.match("aa"sv);
+
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "aa"sv);
+        EXPECT_EQ(result.capture_group_matches.first().size(), 2u);
+        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), "a"sv);
+        EXPECT(result.capture_group_matches.first()[1].view.is_null());
+    }
+
+    {
+        // Test numbered backreference to undefined group
+        Regex<ECMA262> re("(.*?)a(?!(a+)b\\2c)\\2(.*)"sv);
+        auto result = re.match("baaabaac"sv);
+
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "baaabaac"sv);
+        EXPECT_EQ(result.capture_group_matches.first().size(), 3u);
+        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), "ba"sv);
+        EXPECT(result.capture_group_matches.first()[1].view.is_null());
+        EXPECT_EQ(result.capture_group_matches.first()[2].view.to_byte_string(), "abaac"sv);
+    }
+
+    {
+        Regex<ECMA262> re("^(?:(?<a>x)|(?<a>y)|z)\\k<a>$"sv);
+
+        // Third alternative matches and backreference is undefined
+        auto result1 = re.match("z"sv);
+        EXPECT_EQ(result1.success, true);
+        EXPECT_EQ(result1.matches.size(), 1u);
+        EXPECT_EQ(result1.matches.first().view.to_byte_string(), "z"sv);
+        EXPECT_EQ(result1.capture_group_matches.first().size(), 2u);
+        EXPECT(result1.capture_group_matches.first()[0].view.is_null());
+        EXPECT(result1.capture_group_matches.first()[1].view.is_null());
+    }
+
+    {
+        // Quantified version of the above pattern
+        Regex<ECMA262> re("^(?:(?<a>x)|(?<a>y)|z){2}\\k<a>$"sv);
+
+        auto result1 = re.match("xz"sv);
+        EXPECT_EQ(result1.success, true);
+        EXPECT_EQ(result1.matches.size(), 1u);
+        EXPECT_EQ(result1.matches.first().view.to_byte_string(), "xz"sv);
+        EXPECT_EQ(result1.capture_group_matches.first().size(), 2u);
+        EXPECT(result1.capture_group_matches.first()[0].view.is_null());
+        EXPECT(result1.capture_group_matches.first()[1].view.is_null());
+
+        auto result2 = re.match("yz"sv);
+        EXPECT_EQ(result2.success, true);
+        EXPECT_EQ(result2.matches.size(), 1u);
+        EXPECT_EQ(result2.matches.first().view.to_byte_string(), "yz"sv);
+        EXPECT_EQ(result2.capture_group_matches.first().size(), 2u);
+        EXPECT(result2.capture_group_matches.first()[0].view.is_null());
+        EXPECT(result2.capture_group_matches.first()[1].view.is_null());
+    }
+}

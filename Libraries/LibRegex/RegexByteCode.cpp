@@ -609,18 +609,80 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
         }
         case CharacterCompareType::Reference: {
             auto reference_number = ((size_t)m_bytecode->at(offset++)) - 1;
-            if (input.match_index >= state.capture_group_matches_size())
-                return ExecutionResult::Failed_ExecuteLowPrioForks;
+            if (input.match_index >= state.capture_group_matches_size()) {
+                had_zero_length_match = true;
+                if (current_inversion_state())
+                    inverse_matched = true;
+                break;
+            }
 
             auto groups = state.capture_group_matches(input.match_index);
-            if (groups.size() <= reference_number)
-                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            if (groups.size() <= reference_number) {
+                had_zero_length_match = true;
+                if (current_inversion_state())
+                    inverse_matched = true;
+                break;
+            }
 
             auto str = groups.at(reference_number).view;
 
             // We want to compare a string that is definitely longer than the available string
             if (input.view.length() < state.string_position + str.length())
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            if (compare_string(input, state, str, had_zero_length_match)) {
+                if (current_inversion_state())
+                    inverse_matched = true;
+            }
+            break;
+        }
+        case CharacterCompareType::NamedReference: {
+            auto reference_number = ((size_t)m_bytecode->at(offset++)) - 1;
+
+            if (input.match_index >= state.capture_group_matches_size()) {
+                had_zero_length_match = true;
+                if (current_inversion_state())
+                    inverse_matched = true;
+                break;
+            }
+
+            auto groups = state.capture_group_matches(input.match_index);
+
+            if (groups.size() <= reference_number) {
+                had_zero_length_match = true;
+                if (current_inversion_state())
+                    inverse_matched = true;
+                break;
+            }
+
+            RegexStringView str {};
+
+            auto reference_name_index = m_bytecode->get_group_name_index(reference_number);
+
+            if (reference_name_index.has_value()) {
+                auto target_name_string = m_bytecode->get_string(reference_name_index.value());
+
+                for (size_t i = 0; i < groups.size(); ++i) {
+                    if (groups[i].view.is_null())
+                        continue;
+
+                    auto group_name_index = m_bytecode->get_group_name_index(i);
+
+                    if (group_name_index.has_value()) {
+                        auto group_name_string = m_bytecode->get_string(group_name_index.value());
+
+                        if (group_name_string == target_name_string) {
+                            str = groups[i].view;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (input.view.length() < state.string_position + str.length()) {
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+            }
 
             if (compare_string(input, state, str, had_zero_length_match)) {
                 if (current_inversion_state())
@@ -946,6 +1008,9 @@ Vector<CompareTypeAndValuePair> OpCode_Compare::flat_compares() const
         } else if (compare_type == CharacterCompareType::Reference) {
             auto ref = m_bytecode->at(offset++);
             result.append({ compare_type, ref });
+        } else if (compare_type == CharacterCompareType::NamedReference) {
+            auto ref = m_bytecode->at(offset++);
+            result.append({ compare_type, ref });
         } else if (compare_type == CharacterCompareType::String) {
             auto& length = m_bytecode->at(offset++);
             for (size_t k = 0; k < length; ++k)
@@ -1023,6 +1088,24 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
                         result.empend(ByteString::formatted(" contents='{}'", group.view));
                     } else {
                         result.empend(ByteString::formatted(" (invalid ref, max={})", match.size() - 1));
+                    }
+                } else {
+                    result.empend(ByteString::formatted(" (invalid index {}, max={})", input->match_index, state().capture_group_matches_size() - 1));
+                }
+            }
+        } else if (compare_type == CharacterCompareType::NamedReference) {
+            auto ref = m_bytecode->at(offset++);
+            result.empend(ByteString::formatted(" named_number={}", ref));
+            if (input.has_value()) {
+                if (state().capture_group_matches_size() > input->match_index) {
+                    auto match = state().capture_group_matches(input->match_index);
+                    if (match.size() > ref) {
+                        auto& group = match[ref];
+                        result.empend(ByteString::formatted(" left={}", group.left_column));
+                        result.empend(ByteString::formatted(" right={}", group.left_column + group.view.length_in_code_units()));
+                        result.empend(ByteString::formatted(" contents='{}'", group.view));
+                    } else {
+                        result.empend(ByteString::formatted(" (invalid ref {}, max={})", ref, match.size() - 1));
                     }
                 } else {
                     result.empend(ByteString::formatted(" (invalid index {}, max={})", input->match_index, state().capture_group_matches_size() - 1));
