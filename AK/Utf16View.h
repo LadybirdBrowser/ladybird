@@ -381,7 +381,7 @@ public:
         return substring_view(substring_start, substring_length);
     }
 
-    [[nodiscard]] constexpr Utf16View trim_whitespace(TrimMode mode = TrimMode::Both) const
+    [[nodiscard]] constexpr Utf16View trim_ascii_whitespace(TrimMode mode = TrimMode::Both) const
     {
         static constexpr Utf16View white_space { u" \n\t\v\f\r", 6uz };
         return trim(white_space, mode);

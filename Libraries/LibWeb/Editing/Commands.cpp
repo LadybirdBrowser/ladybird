@@ -512,7 +512,7 @@ enum class FontSizeMode : u8 {
 bool command_font_size_action(DOM::Document& document, Utf16View const& value)
 {
     // 1. Strip leading and trailing whitespace from value.
-    auto resulting_value = value.trim_whitespace();
+    auto resulting_value = value.trim_ascii_whitespace();
 
     // 2. If value is not a valid floating point number, and would not be a valid floating point number if a single
     //    leading "+" character were stripped, return false.

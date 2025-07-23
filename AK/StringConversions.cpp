@@ -71,7 +71,7 @@ Optional<ParseFirstNumberResult<T>> parse_first_number(Utf16View const& string, 
     if (string.has_ascii_storage())
         return parse_first_number<T>(string.bytes(), trim_whitespace, base);
 
-    auto trimmed_string = trim_whitespace == TrimWhitespace::Yes ? string.trim_whitespace() : string;
+    auto trimmed_string = trim_whitespace == TrimWhitespace::Yes ? string.trim_ascii_whitespace() : string;
     return from_chars<char16_t, T>(trimmed_string.utf16_span().data(), trimmed_string.length_in_code_units(), base);
 }
 
@@ -107,7 +107,7 @@ Optional<T> parse_number(Utf16View const& string, TrimWhitespace trim_whitespace
     if (string.has_ascii_storage())
         return parse_number<T>(string.bytes(), trim_whitespace, base);
 
-    auto trimmed_string = trim_whitespace == TrimWhitespace::Yes ? string.trim_whitespace() : string;
+    auto trimmed_string = trim_whitespace == TrimWhitespace::Yes ? string.trim_ascii_whitespace() : string;
 
     auto result = parse_first_number<T>(trimmed_string, TrimWhitespace::No, base);
     if (!result.has_value())
