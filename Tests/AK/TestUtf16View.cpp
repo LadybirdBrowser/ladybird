@@ -568,6 +568,32 @@ TEST_CASE(starts_with)
     EXPECT(!emoji.starts_with(u"🙃"sv));
 }
 
+TEST_CASE(ends_with)
+{
+    EXPECT(Utf16View {}.ends_with(u""sv));
+    EXPECT(!Utf16View {}.ends_with(u" "sv));
+
+    EXPECT(u"a"sv.ends_with(u""sv));
+    EXPECT(u"a"sv.ends_with(u"a"sv));
+    EXPECT(!u"a"sv.ends_with(u"b"sv));
+    EXPECT(!u"a"sv.ends_with(u"ab"sv));
+
+    EXPECT(u"abc"sv.ends_with(u""sv));
+    EXPECT(u"abc"sv.ends_with(u"c"sv));
+    EXPECT(u"abc"sv.ends_with(u"bc"sv));
+    EXPECT(u"abc"sv.ends_with(u"abc"sv));
+    EXPECT(!u"abc"sv.ends_with(u"b"sv));
+    EXPECT(!u"abc"sv.ends_with(u"ab"sv));
+
+    auto emoji = u"😀🙃"sv;
+
+    EXPECT(emoji.ends_with(u""sv));
+    EXPECT(emoji.ends_with(u"🙃"sv));
+    EXPECT(emoji.ends_with(u"😀🙃"sv));
+    EXPECT(!emoji.ends_with(u"a"sv));
+    EXPECT(!emoji.ends_with(u"😀"sv));
+}
+
 TEST_CASE(find_code_unit_offset)
 {
     auto conversion_result = Utf16String::from_utf8("😀foo😀bar"sv);
