@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
@@ -19,7 +20,10 @@ namespace Web::CSS::Parser {
 Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descriptor_value(AtRuleID at_rule_id, DescriptorID descriptor_id, TokenStream<ComponentValue>& unprocessed_tokens)
 {
     if (!at_rule_supports_descriptor(at_rule_id, descriptor_id)) {
-        dbgln_if(CSS_PARSER_DEBUG, "Unsupported descriptor '{}' in '{}'", to_string(descriptor_id), to_string(at_rule_id));
+        ErrorReporter::the().report(UnknownPropertyError {
+            .rule_name = to_string(at_rule_id),
+            .property_name = to_string(descriptor_id),
+        });
         return ParseError::SyntaxError;
     }
 
@@ -212,10 +216,12 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
         return parsed_style_value.release_nonnull();
     }
 
-    if constexpr (CSS_PARSER_DEBUG) {
-        dbgln("Failed to parse descriptor '{}' in '{}'", to_string(descriptor_id), to_string(at_rule_id));
-        tokens.dump_all_tokens();
-    }
+    ErrorReporter::the().report(InvalidPropertyError {
+        .rule_name = to_string(at_rule_id),
+        .property_name = to_string(descriptor_id),
+        .value_string = tokens.dump_string(),
+        .description = "Failed to parse."_string,
+    });
 
     return ParseError::SyntaxError;
 }
