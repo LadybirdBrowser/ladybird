@@ -407,7 +407,7 @@ Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& du
 
     for (auto& part : hours_parts) {
         // a. Append the Record { [[Type]]: part.[[Type]], [[Value]]: part.[[Value]], [[Unit]]: "hour" } to result.
-        result.unchecked_append({ .type = part.type, .value = part.value.to_utf8_but_should_be_ported_to_utf16(), .unit = "hour"sv });
+        result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "hour"sv });
     }
 
     // 13. Return result.
@@ -472,7 +472,7 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
 
     for (auto& part : minutes_parts) {
         // a. Append the Record { [[Type]]: part.[[Type]], [[Value]]: part.[[Value]], [[Unit]]: "minute" } to result.
-        result.unchecked_append({ .type = part.type, .value = part.value.to_utf8_but_should_be_ported_to_utf16(), .unit = "minute"sv });
+        result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "minute"sv });
     }
 
     // 14. Return result.
@@ -560,7 +560,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
 
     for (auto& part : seconds_parts) {
         // a. Append the Record { [[Type]]: part.[[Type]], [[Value]]: part.[[Value]], [[Unit]]: "second" } to result.
-        result.unchecked_append({ .type = part.type, .value = part.value.to_utf8_but_should_be_ported_to_utf16(), .unit = "second"sv });
+        result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "second"sv });
     }
 
     // 18. Return result.
@@ -786,7 +786,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
             VERIFY(list_part.type == "literal"sv);
 
             // ii. Append the Record { [[Type]]: "literal", [[Value]]: listPart.[[Value]], [[Unit]]: empty } to flattenedPartsList.
-            flattened_parts_list.append({ .type = "literal"sv, .value = list_part.value.to_utf8_but_should_be_ported_to_utf16(), .unit = {} });
+            flattened_parts_list.append({ .type = "literal"sv, .value = move(list_part.value), .unit = {} });
         }
     }
 
@@ -922,7 +922,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
 
                 for (auto& part : parts) {
                     // a. Append the Record { [[Type]]: part.[[Type]], [[Value]]: part.[[Value]], [[Unit]]: numberFormatUnit } to list.
-                    list.unchecked_append({ .type = part.type, .value = part.value.to_utf8_but_should_be_ported_to_utf16(), .unit = number_format_unit.as_string() });
+                    list.unchecked_append({ .type = part.type, .value = move(part.value), .unit = number_format_unit.as_string() });
                 }
 
                 // 11. Append list to result.
