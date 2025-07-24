@@ -307,11 +307,39 @@ void EffectiveOverloadSet::remove_all_other_entries()
 
 void Interface::extend_with_partial_interface(Interface const& partial)
 {
-    attributes.extend(partial.attributes);
-    static_attributes.extend(partial.static_attributes);
+    for (auto const& attribute : partial.attributes) {
+        auto attribute_copy = attribute;
+        for (auto const& [key, value] : partial.extended_attributes) {
+            attribute_copy.extended_attributes.set(key, value);
+        }
+        attributes.append(move(attribute_copy));
+    }
+
+    for (auto const& static_attribute : partial.static_attributes) {
+        auto static_attribute_copy = static_attribute;
+        for (auto const& [key, value] : partial.extended_attributes) {
+            static_attribute_copy.extended_attributes.set(key, value);
+        }
+        static_attributes.append(move(static_attribute_copy));
+    }
+
     constants.extend(partial.constants);
-    functions.extend(partial.functions);
-    static_functions.extend(partial.static_functions);
+
+    for (auto const& function : partial.functions) {
+        auto function_copy = function;
+        for (auto const& [key, value] : partial.extended_attributes) {
+            function_copy.extended_attributes.set(key, value);
+        }
+        functions.append(move(function_copy));
+    }
+
+    for (auto const& static_function : partial.static_functions) {
+        auto static_function_copy = static_function;
+        for (auto const& [key, value] : partial.extended_attributes) {
+            static_function_copy.extended_attributes.set(key, value);
+        }
+        static_functions.append(move(static_function_copy));
+    }
 }
 
 }

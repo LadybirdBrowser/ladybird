@@ -45,7 +45,7 @@ private:
     HashMap<ByteString, ByteString> parse_extended_attributes();
     void parse_attribute(HashMap<ByteString, ByteString>& extended_attributes, Interface&, IsStatic is_static = IsStatic::No);
     void parse_interface(Interface&);
-    void parse_partial_interface(Interface& parent);
+    void parse_partial_interface(HashMap<ByteString, ByteString> extended_attributes, Interface& parent);
     void parse_namespace(Interface&);
     void parse_non_interface_entities(bool allow_interface, Interface&);
     void parse_enumeration(HashMap<ByteString, ByteString>, Interface&);
