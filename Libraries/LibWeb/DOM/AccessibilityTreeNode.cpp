@@ -51,12 +51,11 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBu
         } else {
             VERIFY_NOT_REACHED();
         }
-
     } else if (value()->is_text()) {
         MUST(object.add("type"sv, "text"sv));
 
         auto const* text_node = static_cast<DOM::Text const*>(value().ptr());
-        MUST(object.add("text"sv, text_node->data()));
+        MUST(object.add("text"sv, text_node->data().to_utf8()));
     }
 
     if (value()->has_child_nodes()) {

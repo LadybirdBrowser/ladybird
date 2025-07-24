@@ -566,7 +566,7 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
             if (element != start_node_code_point) {
                 // 1. Call insertData(start offset, element) on start node.
                 auto& start_node_character_data = static_cast<DOM::CharacterData&>(*start_node);
-                MUST(start_node_character_data.insert_data(start_offset, String::from_code_point(element)));
+                MUST(start_node_character_data.insert_data(start_offset, Utf16String::from_code_point(element)));
 
                 // 2. Call deleteData(start offset + 1, 1) on start node.
                 MUST(start_node_character_data.delete_data(start_offset + 1, 1));
@@ -2615,8 +2615,7 @@ bool is_whitespace_node(GC::Ref<DOM::Node> node)
     auto is_tab_lf_cr_or_space = [](u32 codepoint) {
         return codepoint == '\t' || codepoint == '\n' || codepoint == '\r' || codepoint == ' ';
     };
-    auto code_points = character_data.data().code_points();
-    if (all_of(code_points, is_tab_lf_cr_or_space) && (white_space_collapse == CSS::Keyword::Collapse))
+    if (all_of(character_data.data(), is_tab_lf_cr_or_space) && (white_space_collapse == CSS::Keyword::Collapse))
         return true;
 
     // or a Text node whose data consists only of one or more tabs (0x0009), carriage returns
@@ -2626,7 +2625,7 @@ bool is_whitespace_node(GC::Ref<DOM::Node> node)
     auto is_tab_cr_or_space = [](u32 codepoint) {
         return codepoint == '\t' || codepoint == '\r' || codepoint == ' ';
     };
-    if (all_of(code_points, is_tab_cr_or_space) && white_space_collapse == CSS::Keyword::PreserveBreaks)
+    if (all_of(character_data.data(), is_tab_cr_or_space) && white_space_collapse == CSS::Keyword::PreserveBreaks)
         return true;
 
     return false;

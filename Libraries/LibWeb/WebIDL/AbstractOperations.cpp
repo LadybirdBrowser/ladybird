@@ -234,6 +234,11 @@ JS::ThrowCompletionOr<String> to_string(JS::VM& vm, JS::Value value)
     return value.to_string(vm);
 }
 
+JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM& vm, JS::Value value)
+{
+    return value.to_utf16_string(vm);
+}
+
 JS::ThrowCompletionOr<String> to_usv_string(JS::VM& vm, JS::Value value)
 {
     return value.to_well_formed_string(vm);

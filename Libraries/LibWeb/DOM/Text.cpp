@@ -18,13 +18,13 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Text);
 
-Text::Text(Document& document, String const& data)
-    : CharacterData(document, NodeType::TEXT_NODE, data)
+Text::Text(Document& document, Utf16String data)
+    : CharacterData(document, NodeType::TEXT_NODE, move(data))
 {
 }
 
-Text::Text(Document& document, NodeType type, String const& data)
-    : CharacterData(document, type, data)
+Text::Text(Document& document, NodeType type, Utf16String data)
+    : CharacterData(document, type, move(data))
 {
 }
 
@@ -41,11 +41,11 @@ void Text::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-text-text
-WebIDL::ExceptionOr<GC::Ref<Text>> Text::construct_impl(JS::Realm& realm, String const& data)
+WebIDL::ExceptionOr<GC::Ref<Text>> Text::construct_impl(JS::Realm& realm, Utf16String data)
 {
     // The new Text(data) constructor steps are to set this’s data to data and this’s node document to current global object’s associated Document.
     auto& window = as<HTML::Window>(HTML::current_principal_global_object());
-    return realm.create<Text>(window.associated_document(), data);
+    return realm.create<Text>(window.associated_document(), move(data));
 }
 
 // https://dom.spec.whatwg.org/#dom-text-splittext
@@ -110,14 +110,14 @@ WebIDL::ExceptionOr<GC::Ref<Text>> Text::split_text(size_t offset)
     }
 
     // 8. Replace data with node node, offset offset, count count, and data the empty string.
-    TRY(replace_data(offset, count, String {}));
+    TRY(replace_data(offset, count, {}));
 
     // 9. Return new node.
     return new_node;
 }
 
 // https://dom.spec.whatwg.org/#dom-text-wholetext
-String Text::whole_text()
+Utf16String Text::whole_text()
 {
     // https://dom.spec.whatwg.org/#contiguous-text-nodes
     // The contiguous Text nodes of a node node are node, node’s previous sibling Text node, if any, and its contiguous
@@ -141,11 +141,11 @@ String Text::whole_text()
         current_node = current_node->next_sibling();
     }
 
-    StringBuilder builder;
+    StringBuilder builder(StringBuilder::Mode::UTF16);
     for (auto const& text_node : nodes)
         builder.append(text_node->data());
 
-    return MUST(builder.to_string());
+    return builder.to_utf16_string();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#text-node-directionality
@@ -154,7 +154,7 @@ Optional<Element::Directionality> Text::directionality() const
     // 1. If text's data does not contain a code point whose bidirectional character type is L, AL, or R, then return null.
     // 2. Let codePoint be the first code point in text's data whose bidirectional character type is L, AL, or R.
     Optional<Unicode::BidiClass> found_character_bidi_class;
-    for (auto code_point : Utf8View(data())) {
+    for (auto code_point : data()) {
         auto bidi_class = Unicode::bidirectional_class(code_point);
         if (first_is_one_of(bidi_class, Unicode::BidiClass::LeftToRight, Unicode::BidiClass::RightToLeftArabic, Unicode::BidiClass::RightToLeft)) {
             found_character_bidi_class = bidi_class;

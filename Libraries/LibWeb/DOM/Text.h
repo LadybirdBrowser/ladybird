@@ -22,7 +22,7 @@ class Text
 public:
     virtual ~Text() override = default;
 
-    static WebIDL::ExceptionOr<GC::Ref<Text>> construct_impl(JS::Realm& realm, String const& data);
+    static WebIDL::ExceptionOr<GC::Ref<Text>> construct_impl(JS::Realm& realm, Utf16String data);
 
     // ^Node
     virtual FlyString node_name() const override { return "#text"_fly_string; }
@@ -31,7 +31,7 @@ public:
     void set_max_length(Optional<size_t> max_length) { m_max_length = move(max_length); }
 
     WebIDL::ExceptionOr<GC::Ref<Text>> split_text(size_t offset);
-    String whole_text();
+    Utf16String whole_text();
 
     bool is_password_input() const { return m_is_password_input; }
     void set_is_password_input(Badge<HTML::HTMLInputElement>, bool b) { m_is_password_input = b; }
@@ -39,8 +39,8 @@ public:
     Optional<Element::Directionality> directionality() const;
 
 protected:
-    Text(Document&, String const&);
-    Text(Document&, NodeType, String const&);
+    Text(Document&, Utf16String);
+    Text(Document&, NodeType, Utf16String);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

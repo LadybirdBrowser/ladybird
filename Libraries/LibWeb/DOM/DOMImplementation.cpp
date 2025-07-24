@@ -90,7 +90,7 @@ WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Opt
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createhtmldocument
-GC::Ref<Document> DOMImplementation::create_html_document(Optional<String> const& title) const
+GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> const& title) const
 {
     // 1. Let doc be a new document that is an HTML document.
     auto html_document = HTML::HTMLDocument::create(realm());

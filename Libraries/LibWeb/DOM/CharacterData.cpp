@@ -17,9 +17,9 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(CharacterData);
 
-CharacterData::CharacterData(Document& document, NodeType type, String const& data)
+CharacterData::CharacterData(Document& document, NodeType type, Utf16String data)
     : Node(document, type)
-    , m_data(data)
+    , m_data(move(data))
 {
 }
 
@@ -32,7 +32,7 @@ void CharacterData::initialize(JS::Realm& realm)
 }
 
 // https://dom.spec.whatwg.org/#dom-characterdata-data
-void CharacterData::set_data(String const& data)
+void CharacterData::set_data(Utf16String const& data)
 {
     // [The data] setter must replace data with node this, offset 0, count this’s length, and data new value.
     // NOTE: Since the offset is 0, it can never be above data's length, so this can never throw.
@@ -42,12 +42,10 @@ void CharacterData::set_data(String const& data)
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-substring
-WebIDL::ExceptionOr<String> CharacterData::substring_data(size_t offset, size_t count) const
+WebIDL::ExceptionOr<Utf16String> CharacterData::substring_data(size_t offset, size_t count) const
 {
     // 1. Let length be node’s length.
-    // FIXME: This is very inefficient!
-    auto utf16_string = Utf16String::from_utf8(m_data);
-    auto length = utf16_string.length_in_code_units();
+    auto length = m_data.length_in_code_units();
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
@@ -56,19 +54,17 @@ WebIDL::ExceptionOr<String> CharacterData::substring_data(size_t offset, size_t 
     // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
     //    to the end of node’s data, and then return.
     if (offset + count > length)
-        return MUST(utf16_string.substring_view(offset).to_utf8());
+        return Utf16String::from_utf16_without_validation(m_data.substring_view(offset));
 
     // 4. Return a string whose value is the code units from the offsetth code unit to the offset+countth code unit in node’s data.
-    return MUST(utf16_string.substring_view(offset, count).to_utf8());
+    return Utf16String::from_utf16_without_validation(m_data.substring_view(offset, count));
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-replace
-WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t count, String const& data)
+WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t count, Utf16View const& data)
 {
     // 1. Let length be node’s length.
-    // FIXME: This is very inefficient!
-    auto utf16_string = Utf16String::from_utf8(m_data);
-    auto length = utf16_string.length_in_code_units();
+    auto length = m_data.length_in_code_units();
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
@@ -81,27 +77,20 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 5. Insert data into node’s data after offset code units.
     // 6. Let delete offset be offset + data’s length.
     // 7. Starting from delete offset code units, remove count code units from node’s data.
-    auto before_data = utf16_string.substring_view(0, offset);
-    auto inserted_data = Utf16String::from_utf8(data);
-    auto after_data = utf16_string.substring_view(offset + count);
+    auto before_data = m_data.substring_view(0, offset);
+    auto after_data = m_data.substring_view(offset + count);
 
-    StringBuilder full_data(StringBuilder::Mode::UTF16, before_data.length_in_code_units() + inserted_data.length_in_code_units() + after_data.length_in_code_units());
+    StringBuilder full_data(StringBuilder::Mode::UTF16, before_data.length_in_code_units() + data.length_in_code_units() + after_data.length_in_code_units());
     full_data.append(before_data);
-    full_data.append(inserted_data);
+    full_data.append(data);
     full_data.append(after_data);
 
-    auto full_view = full_data.utf16_string_view();
-    bool characters_are_the_same = utf16_string == full_view;
     auto old_data = m_data;
-
-    // OPTIMIZATION: Skip UTF-8 encoding if the characters are the same.
-    if (!characters_are_the_same) {
-        m_data = MUST(full_view.to_utf8());
-    }
+    m_data = full_data.to_utf16_string();
 
     // 4. Queue a mutation record of "characterData" for node with null, null, node’s data, « », « », null, and null.
     // NOTE: We do this later so that the mutation observer may notify UI clients of this node's new value.
-    queue_mutation_record(MutationType::characterData, {}, {}, old_data, {}, {}, nullptr, nullptr);
+    queue_mutation_record(MutationType::characterData, {}, {}, old_data.to_utf8_but_should_be_ported_to_utf16(), {}, {}, nullptr, nullptr);
 
     // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to
     //    offset plus count, set its start offset to offset.
@@ -121,14 +110,14 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     //     start offset by data’s length and decrease it by count.
     for (auto* range : Range::live_ranges()) {
         if (range->start_container() == this && range->start_offset() > (offset + count))
-            range->set_start_offset(range->start_offset() + inserted_data.length_in_code_units() - count);
+            range->set_start_offset(range->start_offset() + data.length_in_code_units() - count);
     }
 
     // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end
     //     offset by data’s length and decrease it by count.
     for (auto* range : Range::live_ranges()) {
         if (range->end_container() == this && range->end_offset() > (offset + count))
-            range->set_end_offset(range->end_offset() + inserted_data.length_in_code_units() - count);
+            range->set_end_offset(range->end_offset() + data.length_in_code_units() - count);
     }
 
     // 12. If node’s parent is non-null, then run the children changed steps for node’s parent.
@@ -136,7 +125,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         parent()->children_changed(nullptr);
 
     // OPTIMIZATION: If the characters are the same, we can skip the remainder of this function.
-    if (characters_are_the_same)
+    if (m_data == old_data)
         return {};
 
     if (auto* layout_node = this->layout_node(); layout_node && layout_node->is_text_node()) {
@@ -160,14 +149,14 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 }
 
 // https://dom.spec.whatwg.org/#dom-characterdata-appenddata
-WebIDL::ExceptionOr<void> CharacterData::append_data(String const& data)
+WebIDL::ExceptionOr<void> CharacterData::append_data(Utf16View const& data)
 {
     // The appendData(data) method steps are to replace data with node this, offset this’s length, count 0, and data data.
     return replace_data(this->length_in_utf16_code_units(), 0, data);
 }
 
 // https://dom.spec.whatwg.org/#dom-characterdata-insertdata
-WebIDL::ExceptionOr<void> CharacterData::insert_data(size_t offset, String const& data)
+WebIDL::ExceptionOr<void> CharacterData::insert_data(size_t offset, Utf16View const& data)
 {
     // The insertData(offset, data) method steps are to replace data with node this, offset offset, count 0, and data data.
     return replace_data(offset, 0, data);
@@ -177,7 +166,7 @@ WebIDL::ExceptionOr<void> CharacterData::insert_data(size_t offset, String const
 WebIDL::ExceptionOr<void> CharacterData::delete_data(size_t offset, size_t count)
 {
     // The deleteData(offset, count) method steps are to replace data with node this, offset offset, count count, and data the empty string.
-    return replace_data(offset, count, String {});
+    return replace_data(offset, count, {});
 }
 
 Unicode::Segmenter& CharacterData::grapheme_segmenter() const

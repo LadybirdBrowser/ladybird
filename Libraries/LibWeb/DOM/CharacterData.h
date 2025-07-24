@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibUnicode/Forward.h>
 #include <LibWeb/DOM/ChildNode.h>
@@ -26,30 +26,27 @@ class CharacterData
 public:
     virtual ~CharacterData() override;
 
-    String const& data() const { return m_data; }
-    void set_data(String const&);
+    Utf16String const& data() const { return m_data; }
+    void set_data(Utf16String const&);
 
-    unsigned length_in_utf16_code_units() const
-    {
-        return AK::utf16_code_unit_length_from_utf8(m_data);
-    }
+    unsigned length_in_utf16_code_units() const { return m_data.length_in_code_units(); }
 
-    WebIDL::ExceptionOr<String> substring_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units) const;
-    WebIDL::ExceptionOr<void> append_data(String const&);
-    WebIDL::ExceptionOr<void> insert_data(size_t offset_in_utf16_code_units, String const&);
+    WebIDL::ExceptionOr<Utf16String> substring_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units) const;
+    WebIDL::ExceptionOr<void> append_data(Utf16View const&);
+    WebIDL::ExceptionOr<void> insert_data(size_t offset_in_utf16_code_units, Utf16View const&);
     WebIDL::ExceptionOr<void> delete_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units);
-    WebIDL::ExceptionOr<void> replace_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units, String const&);
+    WebIDL::ExceptionOr<void> replace_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units, Utf16View const&);
 
     Unicode::Segmenter& grapheme_segmenter() const;
     Unicode::Segmenter& word_segmenter() const;
 
 protected:
-    CharacterData(Document&, NodeType, String const&);
+    CharacterData(Document&, NodeType, Utf16String);
 
     virtual void initialize(JS::Realm&) override;
 
 private:
-    String m_data;
+    Utf16String m_data;
 
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
     mutable OwnPtr<Unicode::Segmenter> m_word_segmenter;

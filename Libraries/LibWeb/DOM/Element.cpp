@@ -2200,7 +2200,7 @@ WebIDL::ExceptionOr<GC::Ptr<Element>> Element::insert_adjacent_element(String co
 }
 
 // https://dom.spec.whatwg.org/#dom-element-insertadjacenttext
-WebIDL::ExceptionOr<void> Element::insert_adjacent_text(String const& where, String const& data)
+WebIDL::ExceptionOr<void> Element::insert_adjacent_text(String const& where, Utf16String const& data)
 {
     // 1. Let text be a new Text node whose data is data and node document is this’s node document.
     auto text = realm().create<DOM::Text>(document(), data);

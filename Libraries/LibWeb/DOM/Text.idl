@@ -5,10 +5,10 @@
 // https://dom.spec.whatwg.org/#text
 [Exposed=Window]
 interface Text : CharacterData {
-    constructor(optional DOMString data = "");
+    constructor(optional Utf16DOMString data = "");
 
     [NewObject] Text splitText(unsigned long offset);
-    readonly attribute DOMString wholeText;
+    readonly attribute Utf16DOMString wholeText;
 };
 
 Text includes Slottable;

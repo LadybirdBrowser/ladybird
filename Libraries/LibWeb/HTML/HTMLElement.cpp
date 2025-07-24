@@ -240,7 +240,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(String const& value)
 
     // 5. If fragment has no children, then append a new Text node whose data is the empty string and node document is this's node document to fragment.
     if (!fragment->has_children())
-        MUST(fragment->append_child(document().create_text_node(String {})));
+        MUST(fragment->append_child(document().create_text_node({})));
 
     // 6. Replace this with fragment within this's parent.
     MUST(parent()->replace_child(fragment, *this));
@@ -276,7 +276,7 @@ GC::Ref<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(StringView in
 
         // 2. If text is not the empty string, then append a new Text node whose data is text and node document is document to fragment.
         if (!text.is_empty()) {
-            MUST(fragment->append_child(document().create_text_node(MUST(String::from_utf8(text)))));
+            MUST(fragment->append_child(document().create_text_node(Utf16String::from_utf8(text))));
         }
 
         // 3. While position is not past the end of input, and the code point at position is either U+000A LF or U+000D CR:

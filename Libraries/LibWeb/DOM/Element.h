@@ -306,7 +306,7 @@ public:
     bool is_actually_disabled() const;
 
     WebIDL::ExceptionOr<GC::Ptr<Element>> insert_adjacent_element(String const& where, GC::Ref<Element> element);
-    WebIDL::ExceptionOr<void> insert_adjacent_text(String const& where, String const& data);
+    WebIDL::ExceptionOr<void> insert_adjacent_text(String const& where, Utf16String const& data);
 
     // https://w3c.github.io/csswg-drafts/cssom-view-1/#dom-element-scrollintoview
     ErrorOr<void> scroll_into_view(Optional<Variant<bool, ScrollIntoViewOptions>> = {});

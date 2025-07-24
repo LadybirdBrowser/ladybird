@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteString.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
@@ -15,7 +15,7 @@
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#converting-nodes-into-a-node
-WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(Vector<Variant<GC::Root<Node>, String>> const& nodes, DOM::Document& document)
+WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes, DOM::Document& document)
 {
     // 1. Let node be null.
     // 2. Replace each string in nodes with a new Text node whose data is the string and node document is document.
@@ -23,11 +23,11 @@ WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(Vector<Variant<G
     // 4. Otherwise, set node to a new DocumentFragment node whose node document is document, and then append each node in nodes, if any, to it.
     // 5. Return node.
 
-    auto potentially_convert_string_to_text_node = [&document](Variant<GC::Root<Node>, String> const& node) -> GC::Ref<Node> {
+    auto potentially_convert_string_to_text_node = [&document](Variant<GC::Root<Node>, Utf16String> const& node) -> GC::Ref<Node> {
         if (node.has<GC::Root<Node>>())
             return *node.get<GC::Root<Node>>();
 
-        return document.realm().create<DOM::Text>(document, node.get<String>());
+        return document.realm().create<DOM::Text>(document, node.get<Utf16String>());
     };
 
     if (nodes.size() == 1)

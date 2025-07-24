@@ -3,5 +3,5 @@
 // https://dom.spec.whatwg.org/#comment
 [Exposed=Window]
 interface Comment : CharacterData {
-    constructor(optional DOMString data = "");
+    constructor(optional Utf16DOMString data = "");
 };

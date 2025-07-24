@@ -650,7 +650,7 @@ void ConnectionFromClient::get_dom_node_inner_html(u64 page_id, Web::UniqueNodeI
         html = element.inner_html().release_value_but_fixme_should_propagate_errors();
     } else if (dom_node->is_text() || dom_node->is_comment()) {
         auto const& character_data = static_cast<Web::DOM::CharacterData const&>(*dom_node);
-        html = character_data.data();
+        html = character_data.data().to_utf8_but_should_be_ported_to_utf16();
     } else {
         return;
     }
@@ -671,7 +671,7 @@ void ConnectionFromClient::get_dom_node_outer_html(u64 page_id, Web::UniqueNodeI
         html = element.outer_html().release_value_but_fixme_should_propagate_errors();
     } else if (dom_node->is_text() || dom_node->is_comment()) {
         auto const& character_data = static_cast<Web::DOM::CharacterData const&>(*dom_node);
-        html = character_data.data();
+        html = character_data.data().to_utf8_but_should_be_ported_to_utf16();
     } else {
         return;
     }
@@ -692,7 +692,7 @@ void ConnectionFromClient::set_dom_node_outer_html(u64 page_id, Web::UniqueNodeI
         element.set_outer_html(html).release_value_but_fixme_should_propagate_errors();
     } else if (dom_node->is_text() || dom_node->is_comment()) {
         auto& character_data = static_cast<Web::DOM::CharacterData&>(*dom_node);
-        character_data.set_data(html);
+        character_data.set_data(Utf16String::from_utf8(html));
     } else {
         async_did_finish_editing_dom_node(page_id, {});
         return;
@@ -710,7 +710,7 @@ void ConnectionFromClient::set_dom_node_text(u64 page_id, Web::UniqueNodeID node
     }
 
     auto& character_data = static_cast<Web::DOM::CharacterData&>(*dom_node);
-    character_data.set_data(text);
+    character_data.set_data(Utf16String::from_utf8(text));
 
     async_did_finish_editing_dom_node(page_id, character_data.unique_id());
 }
@@ -804,7 +804,7 @@ void ConnectionFromClient::create_child_text_node(u64 page_id, Web::UniqueNodeID
         return;
     }
 
-    auto text_node = dom_node->realm().create<Web::DOM::Text>(dom_node->document(), "text"_string);
+    auto text_node = dom_node->realm().create<Web::DOM::Text>(dom_node->document(), "text"_utf16);
     dom_node->append_child(text_node).release_value_but_fixme_should_propagate_errors();
 
     async_did_finish_editing_dom_node(page_id, text_node->unique_id());

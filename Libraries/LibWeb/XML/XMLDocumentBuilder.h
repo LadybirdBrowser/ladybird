@@ -47,7 +47,7 @@ private:
     GC::Ptr<DOM::Node> m_current_node;
     XMLScriptingSupport m_scripting_support { XMLScriptingSupport::Enabled };
     bool m_has_error { false };
-    StringBuilder text_builder;
+    StringBuilder m_text_builder { StringBuilder::Mode::UTF16 };
 
     struct NamespaceAndPrefix {
         FlyString ns;

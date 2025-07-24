@@ -27,7 +27,7 @@ public:
     static NonnullOwnPtr<Segmenter> create(StringView locale, SegmenterGranularity segmenter_granularity);
     virtual ~Segmenter() = default;
 
-    static bool should_continue_beyond_word(Utf8View const&);
+    static bool should_continue_beyond_word(Utf16View const&);
 
     SegmenterGranularity segmenter_granularity() const { return m_segmenter_granularity; }
 

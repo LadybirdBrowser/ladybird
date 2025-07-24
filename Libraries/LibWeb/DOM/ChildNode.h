@@ -16,7 +16,7 @@ template<typename NodeType>
 class ChildNode {
 public:
     // https://dom.spec.whatwg.org/#dom-childnode-before
-    WebIDL::ExceptionOr<void> before(Vector<Variant<GC::Root<Node>, String>> const& nodes)
+    WebIDL::ExceptionOr<void> before(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes)
     {
         auto* node = static_cast<NodeType*>(this);
 
@@ -46,7 +46,7 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#dom-childnode-after
-    WebIDL::ExceptionOr<void> after(Vector<Variant<GC::Root<Node>, String>> const& nodes)
+    WebIDL::ExceptionOr<void> after(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes)
     {
         auto* node = static_cast<NodeType*>(this);
 
@@ -70,7 +70,7 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#dom-childnode-replacewith
-    WebIDL::ExceptionOr<void> replace_with(Vector<Variant<GC::Root<Node>, String>> const& nodes)
+    WebIDL::ExceptionOr<void> replace_with(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes)
     {
         auto* node = static_cast<NodeType*>(this);
 
@@ -117,7 +117,7 @@ protected:
     ChildNode() = default;
 
 private:
-    GC::Ptr<Node> viable_previous_sibling_for_insertion(Vector<Variant<GC::Root<Node>, String>> const& nodes)
+    GC::Ptr<Node> viable_previous_sibling_for_insertion(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes)
     {
         auto* node = static_cast<NodeType*>(this);
 
@@ -142,7 +142,7 @@ private:
         return nullptr;
     }
 
-    GC::Ptr<Node> viable_next_sibling_for_insertion(Vector<Variant<GC::Root<Node>, String>> const& nodes)
+    GC::Ptr<Node> viable_next_sibling_for_insertion(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes)
     {
         auto* node = static_cast<NodeType*>(this);
 

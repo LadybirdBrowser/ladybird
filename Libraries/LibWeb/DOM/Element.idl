@@ -77,7 +77,7 @@ interface Element : Node {
     HTMLCollection getElementsByClassName(DOMString className);
 
     [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy
-    undefined insertAdjacentText(DOMString where, DOMString data); // legacy
+    undefined insertAdjacentText(DOMString where, Utf16DOMString data); // legacy
 
     // https://dom.spec.whatwg.org/#interface-nondocumenttypechildnode
     readonly attribute Element? nextElementSibling;

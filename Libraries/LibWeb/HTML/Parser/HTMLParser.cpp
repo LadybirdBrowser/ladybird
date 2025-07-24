@@ -576,7 +576,7 @@ void HTMLParser::handle_initial(HTMLToken& token)
     // -> A comment token
     if (token.is_comment()) {
         // Insert a comment as the last child of the Document object.
-        auto comment = realm().create<DOM::Comment>(document(), token.comment());
+        auto comment = realm().create<DOM::Comment>(document(), Utf16String::from_utf8(token.comment()));
         MUST(document().append_child(*comment));
         return;
     }
@@ -632,7 +632,7 @@ void HTMLParser::handle_before_html(HTMLToken& token)
     // -> A comment token
     if (token.is_comment()) {
         // Insert a comment as the last child of the Document object.
-        auto comment = realm().create<DOM::Comment>(document(), token.comment());
+        auto comment = realm().create<DOM::Comment>(document(), Utf16String::from_utf8(token.comment()));
         MUST(document().append_child(*comment));
         return;
     }
@@ -985,7 +985,7 @@ void HTMLParser::handle_before_head(HTMLToken& token)
 void HTMLParser::insert_comment(HTMLToken& token)
 {
     auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
-    adjusted_insertion_location.parent->insert_before(realm().create<DOM::Comment>(document(), token.comment()), adjusted_insertion_location.insert_before_sibling);
+    adjusted_insertion_location.parent->insert_before(realm().create<DOM::Comment>(document(), Utf16String::from_utf8(token.comment())), adjusted_insertion_location.insert_before_sibling);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead
@@ -1392,7 +1392,7 @@ DOM::Text* HTMLParser::find_character_insertion_node()
     if (adjusted_insertion_location.insert_before_sibling) {
         if (is_text_node(adjusted_insertion_location.insert_before_sibling->previous_sibling()))
             return static_cast<DOM::Text*>(adjusted_insertion_location.insert_before_sibling->previous_sibling());
-        auto new_text_node = realm().create<DOM::Text>(document(), String {});
+        auto new_text_node = realm().create<DOM::Text>(document(), Utf16String {});
         adjusted_insertion_location.parent->insert_before(*new_text_node, *adjusted_insertion_location.insert_before_sibling);
         return new_text_node;
     }
@@ -1400,7 +1400,7 @@ DOM::Text* HTMLParser::find_character_insertion_node()
         return nullptr;
     if (is_text_node(adjusted_insertion_location.parent->last_child()))
         return static_cast<DOM::Text*>(adjusted_insertion_location.parent->last_child());
-    auto new_text_node = realm().create<DOM::Text>(document(), String {});
+    auto new_text_node = realm().create<DOM::Text>(document(), Utf16String {});
     MUST(adjusted_insertion_location.parent->append_child(*new_text_node));
     return new_text_node;
 }
@@ -1410,9 +1410,9 @@ void HTMLParser::flush_character_insertions()
     if (m_character_insertion_builder.is_empty())
         return;
     if (m_character_insertion_node->data().is_empty())
-        m_character_insertion_node->set_data(MUST(m_character_insertion_builder.to_string()));
+        m_character_insertion_node->set_data(m_character_insertion_builder.to_utf16_string());
     else
-        (void)m_character_insertion_node->append_data(MUST(m_character_insertion_builder.to_string()));
+        (void)m_character_insertion_node->append_data(m_character_insertion_builder.to_utf16_string());
     m_character_insertion_builder.clear();
 }
 
@@ -1579,7 +1579,7 @@ void HTMLParser::handle_after_body(HTMLToken& token)
     if (token.is_comment()) {
         // Insert a comment as the last child of the first element in the stack of open elements (the html element).
         auto& insertion_location = m_stack_of_open_elements.first();
-        MUST(insertion_location.append_child(realm().create<DOM::Comment>(document(), token.comment())));
+        MUST(insertion_location.append_child(realm().create<DOM::Comment>(document(), Utf16String::from_utf8(token.comment()))));
         return;
     }
 
@@ -1631,7 +1631,7 @@ void HTMLParser::handle_after_after_body(HTMLToken& token)
     // -> A comment token
     if (token.is_comment()) {
         // Insert a comment as the last child of the Document object.
-        auto comment = realm().create<DOM::Comment>(document(), token.comment());
+        auto comment = realm().create<DOM::Comment>(document(), Utf16String::from_utf8(token.comment()));
         MUST(document().append_child(*comment));
         return;
     }
@@ -4626,7 +4626,7 @@ void HTMLParser::handle_after_after_frameset(HTMLToken& token)
     // -> A comment token
     if (token.is_comment()) {
         // Insert a comment as the last child of the Document object.
-        auto comment = document().realm().create<DOM::Comment>(document(), token.comment());
+        auto comment = document().realm().create<DOM::Comment>(document(), Utf16String::from_utf8(token.comment()));
         MUST(document().append_child(comment));
         return;
     }
@@ -5123,11 +5123,12 @@ enum class AttributeMode {
     Yes,
 };
 
-static String escape_string(StringView string, AttributeMode attribute_mode)
+template<OneOf<Utf8View, Utf16View> ViewType>
+static String escape_string(ViewType const& string, AttributeMode attribute_mode)
 {
     // https://html.spec.whatwg.org/multipage/parsing.html#escapingString
     StringBuilder builder;
-    for (auto code_point : Utf8View { string }) {
+    for (auto code_point : string) {
         // 1. Replace any occurrence of the "&" character by the string "&amp;".
         if (code_point == '&')
             builder.append("&amp;"sv);
@@ -5179,7 +5180,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
         // followed by a U+0022 QUOTATION MARK character (").
         if (element.is_value().has_value() && !element.has_attribute(AttributeNames::is)) {
             builder.append(" is=\""sv);
-            builder.append(escape_string(element.is_value().value(), AttributeMode::Yes));
+            builder.append(escape_string(element.is_value().value().code_points(), AttributeMode::Yes));
             builder.append('"');
         }
 
@@ -5212,7 +5213,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             builder.append(attribute.name());
 
             builder.append("=\""sv);
-            builder.append(escape_string(attribute.value(), AttributeMode::Yes));
+            builder.append(escape_string(attribute.value().code_points(), AttributeMode::Yes));
             builder.append('"');
         });
 
@@ -5335,7 +5336,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             }
 
             // Otherwise, append the value of current node's data IDL attribute, escaped as described below.
-            builder.append(escape_string(text_node.data(), AttributeMode::No));
+            builder.append(escape_string(text_node.data().utf16_view(), AttributeMode::No));
         }
 
         if (is<DOM::Comment>(current_node)) {

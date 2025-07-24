@@ -22,7 +22,7 @@ public:
     virtual ~DOMImplementation();
 
     WebIDL::ExceptionOr<GC::Ref<XMLDocument>> create_document(Optional<FlyString> const&, String const&, GC::Ptr<DocumentType>) const;
-    GC::Ref<Document> create_html_document(Optional<String> const& title) const;
+    GC::Ref<Document> create_html_document(Optional<Utf16String> const& title) const;
     WebIDL::ExceptionOr<GC::Ref<DocumentType>> create_document_type(String const& name, String const& public_id, String const& system_id);
 
     // https://dom.spec.whatwg.org/#dom-domimplementation-hasfeature

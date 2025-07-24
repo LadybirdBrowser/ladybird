@@ -6,7 +6,7 @@
 interface DOMImplementation {
     [NewObject] DocumentType createDocumentType(DOMString qualifiedName, DOMString publicId, DOMString systemId);
     [NewObject] XMLDocument createDocument([FlyString] DOMString? namespace, [LegacyNullToEmptyString] DOMString qualifiedName, optional DocumentType? doctype = null);
-    [NewObject] Document createHTMLDocument(optional DOMString title);
+    [NewObject] Document createHTMLDocument(optional Utf16DOMString title);
 
     boolean hasFeature(); // useless; always returns true
 };

@@ -98,10 +98,10 @@ interface Document : Node {
     [CEReactions, NewObject] Element createElement(DOMString tagName, optional (DOMString or ElementCreationOptions) options = {});
     [CEReactions, NewObject] Element createElementNS([FlyString] DOMString? namespace, DOMString qualifiedName, optional (DOMString or ElementCreationOptions) options = {});
     DocumentFragment createDocumentFragment();
-    Text createTextNode(DOMString data);
-    [NewObject] CDATASection createCDATASection(DOMString data);
-    Comment createComment(DOMString data);
-    [NewObject] ProcessingInstruction createProcessingInstruction(DOMString target, DOMString data);
+    Text createTextNode(Utf16DOMString data);
+    [NewObject] CDATASection createCDATASection(Utf16DOMString data);
+    Comment createComment(Utf16DOMString data);
+    [NewObject] ProcessingInstruction createProcessingInstruction(DOMString target, Utf16DOMString data);
 
     [NewObject] Attr createAttribute(DOMString localName);
     [NewObject] Attr createAttributeNS([FlyString] DOMString? namespace, DOMString qualifiedName);

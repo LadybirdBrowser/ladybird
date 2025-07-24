@@ -32,9 +32,9 @@ public:
     GC::Ref<HTMLCollection> get_elements_by_tag_name(FlyString const&);
     GC::Ref<HTMLCollection> get_elements_by_tag_name_ns(Optional<FlyString>, FlyString const&);
 
-    WebIDL::ExceptionOr<void> prepend(Vector<Variant<GC::Root<Node>, String>> const& nodes);
-    WebIDL::ExceptionOr<void> append(Vector<Variant<GC::Root<Node>, String>> const& nodes);
-    WebIDL::ExceptionOr<void> replace_children(Vector<Variant<GC::Root<Node>, String>> const& nodes);
+    WebIDL::ExceptionOr<void> prepend(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes);
+    WebIDL::ExceptionOr<void> append(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes);
+    WebIDL::ExceptionOr<void> replace_children(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes);
     WebIDL::ExceptionOr<void> move_before(GC::Ref<Node> node, GC::Ptr<Node> child);
 
     GC::Ref<HTMLCollection> get_elements_by_class_name(StringView);
