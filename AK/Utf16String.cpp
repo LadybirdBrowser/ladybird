@@ -13,6 +13,28 @@ namespace AK {
 
 static_assert(sizeof(Detail::ShortString) == sizeof(Detail::Utf16StringData*));
 
+Utf16String Utf16String::from_utf8_with_replacement_character(StringView utf8_string, WithBOMHandling with_bom_handling)
+{
+    if (auto bytes = utf8_string.bytes(); with_bom_handling == WithBOMHandling::Yes && bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
+        utf8_string = utf8_string.substring_view(3);
+
+    Utf8View utf8_view { utf8_string };
+
+    if (utf8_view.validate(AllowLonelySurrogates::No))
+        return Utf16String::from_utf8_without_validation(utf8_string);
+
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+
+    for (auto code_point : utf8_view) {
+        if (is_unicode_surrogate(code_point))
+            builder.append_code_point(UnicodeUtils::REPLACEMENT_CODE_POINT);
+        else
+            builder.append_code_point(code_point);
+    }
+
+    return builder.to_utf16_string_without_validation();
+}
+
 Utf16String Utf16String::from_utf8_without_validation(StringView utf8_string)
 {
     if (utf8_string.length() <= Detail::MAX_SHORT_STRING_BYTE_COUNT && utf8_string.is_ascii()) {
