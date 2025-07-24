@@ -224,8 +224,11 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     if (interface.callback_functions.contains(type.name()))
         return { .name = "GC::Root<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::RootVector };
 
-    if (type.is_string())
+    if (type.is_string()) {
+        if (type.name().contains("Utf16"sv))
+            return { .name = "Utf16String", .sequence_storage_type = SequenceStorageType::Vector };
         return { .name = "String", .sequence_storage_type = SequenceStorageType::Vector };
+    }
 
     if ((type.name() == "double" || type.name() == "unrestricted double") && !type.is_nullable())
         return { .name = "double", .sequence_storage_type = SequenceStorageType::Vector };
@@ -412,17 +415,27 @@ static void emit_includes_for_all_imports(auto& interface, auto& generator, bool
 template<typename ParameterType>
 static void generate_to_string(SourceGenerator& scoped_generator, ParameterType const& parameter, bool variadic, bool optional, Optional<ByteString> const& optional_default_value)
 {
-    if (parameter.type->name() == "USVString") {
-        scoped_generator.set("to_string", "to_usv_string"sv);
-    } else if (parameter.type->name() == "ByteString") {
-        scoped_generator.set("to_string", "to_byte_string"sv);
+    auto is_utf16_string = parameter.type->name().contains("Utf16"sv);
+    auto is_fly_string = parameter.extended_attributes.contains("FlyString"sv);
+
+    if (is_utf16_string) {
+        scoped_generator.set("string_type", is_fly_string ? "Utf16FlyString"sv : "Utf16String"sv);
+        scoped_generator.set("string_suffix", "_utf16"sv);
     } else {
-        scoped_generator.set("to_string", "to_string"sv);
+        scoped_generator.set("string_type", is_fly_string ? "FlyString"sv : "String"sv);
+        scoped_generator.set("string_suffix", "_string"sv);
     }
+
+    if (parameter.type->name() == "USVString")
+        scoped_generator.set("to_string", "to_usv_string"sv);
+    else if (parameter.type->name() == "ByteString")
+        scoped_generator.set("to_string", "to_byte_string"sv);
+    else
+        scoped_generator.set("to_string", is_utf16_string ? "to_utf16_string"sv : "to_string"sv);
 
     if (variadic) {
         scoped_generator.append(R"~~~(
-    Vector<String> @cpp_name@;
+    Vector<@string_type@> @cpp_name@;
 
     if (vm.argument_count() > @js_suffix@) {
         @cpp_name@.ensure_capacity(vm.argument_count() - @js_suffix@);
@@ -473,9 +486,10 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
             @cpp_name@ = TRY(WebIDL::@to_string@(vm, @js_name@@js_suffix@));
     })~~~");
         }
+
         if (!may_be_null) {
             scoped_generator.append(R"~~~( else {
-        @cpp_name@ = MUST(@string_type@::from_utf8(@parameter.optional_default_value@sv));
+        @cpp_name@ = @parameter.optional_default_value@@string_suffix@;
     }
 )~~~");
         } else {
@@ -587,7 +601,7 @@ static void generate_to_integral(SourceGenerator& scoped_generator, ParameterTyp
 }
 
 template<typename ParameterType>
-static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string = false, bool optional = false, Optional<ByteString> optional_default_value = {}, bool variadic = false, size_t recursion_depth = 0, bool string_to_fly_string = false)
+static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string = false, bool optional = false, Optional<ByteString> optional_default_value = {}, bool variadic = false, size_t recursion_depth = 0)
 {
     auto scoped_generator = generator.fork();
     auto acceptable_cpp_name = make_input_acceptable_cpp(cpp_name);
@@ -596,7 +610,6 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     scoped_generator.set("js_name", js_name);
     scoped_generator.set("js_suffix", js_suffix);
     scoped_generator.set("legacy_null_to_empty_string", legacy_null_to_empty_string ? "true" : "false");
-    scoped_generator.set("string_type", string_to_fly_string ? "FlyString" : "String");
     scoped_generator.set("parameter.type.name", parameter.type->name());
     scoped_generator.set("parameter.name", parameter.name);
 
@@ -1749,8 +1762,7 @@ static void generate_arguments(SourceGenerator& generator, Vector<IDL::Parameter
         }
 
         bool legacy_null_to_empty_string = parameter.extended_attributes.contains("LegacyNullToEmptyString");
-        bool fly_string = parameter.extended_attributes.contains("FlyString");
-        generate_to_cpp(generator, parameter, "arg", ByteString::number(argument_index), parameter.name.to_snakecase(), interface, legacy_null_to_empty_string, parameter.optional, parameter.optional_default_value, parameter.variadic, 0, fly_string);
+        generate_to_cpp(generator, parameter, "arg", ByteString::number(argument_index), parameter.name.to_snakecase(), interface, legacy_null_to_empty_string, parameter.optional, parameter.optional_default_value, parameter.variadic, 0);
         ++argument_index;
     }
 
