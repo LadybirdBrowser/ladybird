@@ -268,7 +268,15 @@ public:
     }
 
     [[nodiscard]] constexpr bool is_empty() const { return length_in_code_units() == 0; }
+
     [[nodiscard]] bool is_ascii() const;
+
+    [[nodiscard]] constexpr bool is_ascii_whitespace() const
+    {
+        if (has_ascii_storage())
+            return all_of(ascii_span(), AK::is_ascii_space);
+        return all_of(utf16_span(), AK::is_ascii_space);
+    }
 
     [[nodiscard]] ALWAYS_INLINE bool validate(AllowLonelySurrogates allow_lonely_surrogates = AllowLonelySurrogates::Yes) const
     {

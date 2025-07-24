@@ -156,6 +156,7 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE bool is_empty() const { return length_in_code_units() == 0uz; }
     [[nodiscard]] ALWAYS_INLINE bool is_ascii() const { return utf16_view().is_ascii(); }
+    [[nodiscard]] ALWAYS_INLINE bool is_ascii_whitespace() const { return utf16_view().is_ascii_whitespace(); }
 
     [[nodiscard]] ALWAYS_INLINE size_t length_in_code_units() const
     {
