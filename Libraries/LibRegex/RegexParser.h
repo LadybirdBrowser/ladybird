@@ -121,6 +121,7 @@ protected:
         AllOptions regex_options;
         HashMap<size_t, size_t> capture_group_minimum_lengths;
         HashMap<FlyString, Vector<NamedCaptureGroup>> named_capture_groups;
+        Vector<FlyString> named_capture_group_names_in_source_order;
 
         explicit ParserState(Lexer& lexer)
             : lexer(lexer)
