@@ -51,7 +51,7 @@ public:
     delete_from_document();
     bool contains_node(GC::Ref<DOM::Node>, bool allow_partial_containment) const;
 
-    String to_string() const;
+    Utf16String to_string() const;
 
     // Non-standard convenience accessor for the selection's range.
     GC::Ptr<DOM::Range> range() const;

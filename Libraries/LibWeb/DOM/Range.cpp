@@ -549,16 +549,16 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_point(GC::Ref<Node> node, WebI
 }
 
 // https://dom.spec.whatwg.org/#dom-range-stringifier
-String Range::to_string() const
+Utf16String Range::to_string() const
 {
     // 1. Let s be the empty string.
-    StringBuilder builder;
+    StringBuilder builder(StringBuilder::Mode::UTF16);
 
     // 2. If this’s start node is this’s end node and it is a Text node,
     //    then return the substring of that Text node’s data beginning at this’s start offset and ending at this’s end offset.
     if (start_container() == end_container() && is<Text>(*start_container())) {
         auto const& text = static_cast<Text const&>(*start_container());
-        return MUST(text.substring_data(start_offset(), end_offset() - start_offset())).to_utf8_but_should_be_ported_to_utf16();
+        return MUST(text.substring_data(start_offset(), end_offset() - start_offset()));
     }
 
     // 3. If this’s start node is a Text node, then append the substring of that node’s data from this’s start offset until the end to s.
@@ -581,7 +581,7 @@ String Range::to_string() const
     }
 
     // 6. Return s.
-    return MUST(builder.to_string());
+    return builder.to_utf16_string();
 }
 
 // https://dom.spec.whatwg.org/#dom-range-extractcontents

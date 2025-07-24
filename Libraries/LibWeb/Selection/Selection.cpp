@@ -504,12 +504,12 @@ bool Selection::contains_node(GC::Ref<DOM::Node> node, bool allow_partial_contai
         && (end_relative_position == DOM::RelativeBoundaryPointPosition::Equal || end_relative_position == DOM::RelativeBoundaryPointPosition::After);
 }
 
-String Selection::to_string() const
+Utf16String Selection::to_string() const
 {
     // FIXME: This needs more work to be compatible with other engines.
     //        See https://www.w3.org/Bugs/Public/show_bug.cgi?id=10583
     if (!m_range)
-        return String {};
+        return {};
     return m_range->to_string();
 }
 
