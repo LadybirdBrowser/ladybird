@@ -189,10 +189,10 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             entry_list.append(TRY(create_entry(realm, name.to_string(), control_as_form_associated_element->value().to_utf8_but_should_be_ported_to_utf16())));
         }
 
-        // 11. If the element has a dirname attribute, and that attribute's value is not the empty string, then:
-        if (auto attribute = control->get_attribute(HTML::AttributeNames::dirname); attribute.has_value() && !attribute.value().is_empty()) {
+        // 11. If the element has a dirname attribute, that attribute's value is not the empty string, and the element is an auto-directionality form-associated element:
+        if (auto attribute = control->get_attribute(HTML::AttributeNames::dirname); attribute.has_value() && !attribute.value().is_empty() && control->is_auto_directionality_form_associated_element()) {
             // 1. Let dirname be the value of the element's dirname attribute.
-            String dirname = attribute.value();
+            String const& dirname = attribute.value();
 
             // 2. Let dir be the string "ltr" if the directionality of the element is 'ltr', and "rtl" otherwise (i.e., when the directionality of the element is 'rtl').
             String dir = MUST((control->directionality() == DOM::Element::Directionality::Ltr) ? String::from_utf8("ltr"sv) : String::from_utf8("rtl"sv));

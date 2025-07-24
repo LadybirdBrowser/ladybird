@@ -400,6 +400,7 @@ public:
         Rtl,
     };
     Directionality directionality() const;
+    bool is_auto_directionality_form_associated_element() const;
 
     Optional<FlyString> const& id() const { return m_id; }
     Optional<FlyString> const& name() const { return m_name; }
@@ -556,7 +557,6 @@ private:
     Optional<Directionality> auto_directionality() const;
     Optional<Directionality> contained_text_auto_directionality(bool can_exclude_root) const;
     Directionality parent_directionality() const;
-    bool is_auto_directionality_form_associated_element() const;
 
     QualifiedName m_qualified_name;
     mutable Optional<FlyString> m_html_uppercased_qualified_name;

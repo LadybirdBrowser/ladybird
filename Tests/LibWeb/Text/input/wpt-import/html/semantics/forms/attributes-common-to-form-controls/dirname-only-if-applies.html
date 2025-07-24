@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=utf-8>
+    <title>Submitting element directionality: the dirname attribute</title>
+    <link rel="author" title="Vincent Hilla" href="mailto:vhilla@mozilla.com">
+    <link rel=help href="https://html.spec.whatwg.org/multipage/#submitting-element-directionality:-the-dirname-attribute">
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+    <script src="resources/dirname.js"></script>
+  </head>
+  <body>
+    <div id="log"></div>
+    <form action="resources/dirname-iframe.html" method=get target="iframe">
+      <textarea name="textarea" dirname="textarea.dir"></textarea>
+      <p><input id="btn-submit" type=submit name=submit dirname=submit.dir value=Submit></p>
+    </form>
+    <iframe name="iframe"></iframe>
+
+    <script>
+      const types_applies = [
+        "hidden", "text", "search", "tel", "url", "email", "password", "submit"
+      ];
+      const types_not = [
+        "date", "month", "week", "time", "datetime-local", "number", "range", "color", "checkbox",
+        "radio", "file", "image", "reset", "button"
+      ];
+      const types = [...types_applies, ...types_not];
+      let form = document.querySelector("form");
+      for (const type of types) {
+        if (type === "submit") {
+          continue;
+        }
+        let p = document.createElement("p");
+        let lbl = document.createElement("label");
+        let txt = document.createTextNode(type + ": ");
+        let inp = document.createElement("input");
+        inp.type = type;
+        inp.name = type;
+        inp.dirName = type + ".dir";
+        inp.id = "testelement." + type
+        lbl.appendChild(txt);
+        lbl.appendChild(inp);
+        p.appendChild(lbl);
+        form.appendChild(p);
+      }
+      // Avoid continue in https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-form-data-set:attr-fe-dirname
+      document.getElementById("testelement.checkbox").checked = true;
+      document.getElementById("testelement.radio").checked = true;
+
+      function assertInputSubmission(data) {
+        for (const type of types_applies) {
+          assert_equals(data.get(type + ".dir"), "ltr", "Submit ltr for input type=" + type);
+        }
+        for (const type of types_not) {
+          assert_false(data.has(type + ".dir"), "Do not submit dir for input type=" + type);
+        }
+      }
+
+      const submitter = document.getElementById("btn-submit");
+      const data = new FormData(form, submitter);
+      test(function() {
+        assertInputSubmission(data);
+      }, "Submit input element directionality to FormData, if dirname applies.");
+      test(function() {
+        assert_equals(data.get("textarea.dir"), "ltr", "Submit ltr for textarea");
+      }, "Submit textarea element directionality to FormData.");
+
+      submitter.click();
+      const t_inp = async_test("Submit input element directionality, if dirname applies.");
+      onIframeLoadedDone(t_inp, function(params) {
+        assertInputSubmission(params);
+      });
+      const t_ta = async_test("Submit textarea element directionality.");
+      onIframeLoadedDone(t_ta, function(params) {
+        assert_equals(params.get("textarea.dir"), "ltr", "Submit ltr for textarea");
+      });
+    </script>
+  </body>
+</html>
