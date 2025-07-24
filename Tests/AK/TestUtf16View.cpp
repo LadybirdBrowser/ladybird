@@ -341,6 +341,22 @@ TEST_CASE(is_ascii)
     EXPECT(!u"The quick (“brown”) fox can’t jump 32.3 feet, right?"sv.is_ascii());
 }
 
+TEST_CASE(is_ascii_whitespace)
+{
+    EXPECT(Utf16View {}.is_ascii_whitespace());
+    EXPECT(u" "sv.is_ascii_whitespace());
+    EXPECT(u"\t"sv.is_ascii_whitespace());
+    EXPECT(u"\r"sv.is_ascii_whitespace());
+    EXPECT(u"\n"sv.is_ascii_whitespace());
+    EXPECT(u" \t\r\n\v "sv.is_ascii_whitespace());
+
+    EXPECT(!u"a"sv.is_ascii_whitespace());
+    EXPECT(!u"😀"sv.is_ascii_whitespace());
+    EXPECT(!u"\u00a0"sv.is_ascii_whitespace());
+    EXPECT(!u"\ufeff"sv.is_ascii_whitespace());
+    EXPECT(!u"  \t \u00a0 \ufeff  "sv.is_ascii_whitespace());
+}
+
 TEST_CASE(to_ascii_lowercase)
 {
     EXPECT_EQ(u""sv.to_ascii_lowercase(), u""sv);
