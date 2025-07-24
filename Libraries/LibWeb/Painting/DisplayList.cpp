@@ -57,7 +57,7 @@ void DisplayListPlayer::execute(DisplayList& display_list, ScrollStateSnapshot c
     }
 }
 
-void DisplayListPlayer::apply_clip_frame(ClipFrame const& clip_frame, DevicePixelConverter const& device_pixel_converter)
+void DisplayListPlayer::apply_clip_frame(ClipFrame const& clip_frame, ScrollStateSnapshot const& scroll_state, DevicePixelConverter const& device_pixel_converter)
 {
     auto const& clip_rects = clip_frame.clip_rects();
     if (clip_rects.is_empty())
@@ -66,8 +66,9 @@ void DisplayListPlayer::apply_clip_frame(ClipFrame const& clip_frame, DevicePixe
     save({});
     for (auto const& clip_rect : clip_rects) {
         auto css_rect = clip_rect.rect;
-        if (auto scroll_frame = clip_rect.enclosing_scroll_frame) {
-            css_rect.translate_by(scroll_frame->cumulative_offset());
+        if (auto enclosing_scroll_frame_id = clip_rect.enclosing_scroll_frame_id; enclosing_scroll_frame_id.has_value()) {
+            auto cumulative_offset = scroll_state.cumulative_offset_for_frame_with_id(enclosing_scroll_frame_id.value());
+            css_rect.translate_by(cumulative_offset);
         }
         auto device_rect = device_pixel_converter.rounded_device_rect(css_rect).to_type<int>();
         auto corner_radii = clip_rect.corner_radii.as_corners(device_pixel_converter);
@@ -113,7 +114,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             }
             clip_frames_stack.append(clip_frame);
             if (clip_frame) {
-                apply_clip_frame(*clip_frame, device_pixel_converter);
+                apply_clip_frame(*clip_frame, scroll_state, device_pixel_converter);
             }
         }
 

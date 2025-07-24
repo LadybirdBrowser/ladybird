@@ -16,6 +16,7 @@ struct ClipRectWithScrollFrame {
     CSSPixelRect rect;
     BorderRadiiData corner_radii;
     RefPtr<ScrollFrame const> enclosing_scroll_frame;
+    Optional<size_t> enclosing_scroll_frame_id;
 };
 
 struct ClipFrame : public AtomicRefCounted<ClipFrame> {
