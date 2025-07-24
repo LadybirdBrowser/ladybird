@@ -45,6 +45,12 @@ public:
         return from_utf8_without_validation(utf8_string);
     }
 
+    enum class WithBOMHandling {
+        No,
+        Yes,
+    };
+    static Utf16String from_utf8_with_replacement_character(StringView, WithBOMHandling = WithBOMHandling::Yes);
+
     ALWAYS_INLINE static ErrorOr<Utf16String> try_from_utf8(StringView utf8_string)
     {
         if (!Utf8View { utf8_string }.validate())
@@ -80,6 +86,18 @@ public:
     template<typename T>
     requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
     static Utf16String from_utf16_without_validation(T&&) = delete;
+
+    ALWAYS_INLINE static Utf16String from_code_point(u32 code_point)
+    {
+        Array<char16_t, 2> code_units;
+        size_t length_in_code_units = 0;
+
+        (void)UnicodeUtils::code_point_to_utf16(code_point, [&](auto code_unit) {
+            code_units[length_in_code_units++] = code_unit;
+        });
+
+        return from_utf16_without_validation({ code_units.data(), length_in_code_units });
+    }
 
     template<typename... Parameters>
     ALWAYS_INLINE static Utf16String formatted(CheckedFormatString<Parameters...>&& format, Parameters const&... parameters)

@@ -96,6 +96,27 @@ TEST_CASE(from_utf8)
     }
 }
 
+TEST_CASE(from_utf8_with_replacement_character)
+{
+    auto string1 = Utf16String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv, Utf16String::WithBOMHandling::No); // U+110000
+    EXPECT_EQ(string1, u"long string \ufffd\ufffd\ufffd\ufffd"sv);
+
+    auto string3 = Utf16String::from_utf8_with_replacement_character("A valid string!"sv, Utf16String::WithBOMHandling::No);
+    EXPECT_EQ(string3, "A valid string!"sv);
+
+    auto string4 = Utf16String::from_utf8_with_replacement_character(""sv, Utf16String::WithBOMHandling::No);
+    EXPECT_EQ(string4, ""sv);
+
+    auto string5 = Utf16String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, Utf16String::WithBOMHandling::Yes);
+    EXPECT_EQ(string5, "WHF!"sv);
+
+    auto string6 = Utf16String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, Utf16String::WithBOMHandling::No);
+    EXPECT_EQ(string6, u"\ufeffWHF!"sv);
+
+    auto string7 = Utf16String::from_utf8_with_replacement_character("\xED\xA0\x80WHF!"sv); // U+D800
+    EXPECT_EQ(string7, u"\ufffdWHF!"sv);
+}
+
 TEST_CASE(from_utf16)
 {
     {
@@ -232,6 +253,32 @@ TEST_CASE(from_utf32)
         EXPECT_EQ(string.length_in_code_units(), 8uz);
         EXPECT_EQ(string.length_in_code_points(), 8uz);
         EXPECT_EQ(string.utf16_view(), u"hello \xdc00!"sv);
+    }
+}
+
+TEST_CASE(from_code_point)
+{
+    u32 code_point = 0;
+
+    for (; code_point < AK::UnicodeUtils::FIRST_SUPPLEMENTARY_PLANE_CODE_POINT; ++code_point) {
+        auto string = Utf16String::from_code_point(code_point);
+        EXPECT_EQ(string.length_in_code_units(), 1uz);
+        EXPECT_EQ(string.length_in_code_points(), 1uz);
+        EXPECT_EQ(string.code_point_at(0), code_point);
+        EXPECT_EQ(string.code_unit_at(0), code_point);
+    }
+
+    for (; code_point < AK::UnicodeUtils::FIRST_SUPPLEMENTARY_PLANE_CODE_POINT + 10'000; ++code_point) {
+        auto string = Utf16String::from_code_point(code_point);
+        EXPECT_EQ(string.length_in_code_units(), 2uz);
+        EXPECT_EQ(string.length_in_code_points(), 1uz);
+        EXPECT_EQ(string.code_point_at(0), code_point);
+
+        size_t i = 0;
+        (void)AK::UnicodeUtils::code_point_to_utf16(code_point, [&](auto code_unit) {
+            EXPECT_EQ(string.code_unit_at(i++), code_unit);
+        });
+        EXPECT_EQ(i, 2uz);
     }
 }
 
