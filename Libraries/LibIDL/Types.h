@@ -119,7 +119,7 @@ public:
     // https://webidl.spec.whatwg.org/#idl-symbol
     bool is_symbol() const { return is_plain() && m_name == "symbol"; }
 
-    bool is_string() const { return is_plain() && m_name.is_one_of("ByteString", "CSSOMString", "DOMString", "USVString"); }
+    bool is_string() const { return is_plain() && m_name.is_one_of("ByteString", "CSSOMString", "DOMString", "Utf16DOMString", "USVString"); }
 
     // https://webidl.spec.whatwg.org/#dfn-integer-type
     bool is_integer() const { return is_plain() && m_name.is_one_of("byte", "octet", "short", "unsigned short", "long", "unsigned long", "long long", "unsigned long long"); }
