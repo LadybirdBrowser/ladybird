@@ -112,6 +112,7 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
+    [[nodiscard]] virtual bool is_navigable_container_viewport_paintable() const { return false; }
     [[nodiscard]] virtual bool is_paintable_box() const { return false; }
     [[nodiscard]] virtual bool is_paintable_with_lines() const { return false; }
     [[nodiscard]] virtual bool is_svg_paintable() const { return false; }

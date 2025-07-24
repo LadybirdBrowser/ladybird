@@ -831,6 +831,7 @@ public:
     void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
     void set_needs_display(CSSPixelRect const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
 
+    RefPtr<Painting::DisplayList> cached_display_list() const;
     RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig);
 
     void invalidate_display_list();

@@ -40,7 +40,9 @@ class DisplayList;
 class DisplayListPlayerSkia;
 class DisplayListRecorder;
 class SVGGradientPaintStyle;
+class ScrollStateSnapshot;
 using PaintStyle = RefPtr<SVGGradientPaintStyle>;
+using ScrollStateSnapshotByDisplayList = HashMap<NonnullRefPtr<DisplayList>, ScrollStateSnapshot>;
 
 }
 

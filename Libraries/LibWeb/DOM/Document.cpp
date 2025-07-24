@@ -6405,6 +6405,11 @@ void Document::invalidate_display_list()
     }
 }
 
+RefPtr<Painting::DisplayList> Document::cached_display_list() const
+{
+    return m_cached_display_list;
+}
+
 RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config)
 {
     if (m_cached_display_list && m_cached_display_list_paint_config == config) {
