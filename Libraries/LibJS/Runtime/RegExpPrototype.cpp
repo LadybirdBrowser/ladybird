@@ -368,6 +368,19 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         }
     }
 
+    // NOTE: Groups are required to be in the order of their appearance in the source.
+    if (has_groups) {
+        auto ordered_groups_object = Object::create(realm, nullptr);
+
+        for (auto const& group_name : regex.parser_result.capture_groups) {
+            auto existing_value = groups_object->get_without_side_effects(Utf16FlyString::from_utf8(group_name));
+            auto value_to_add = existing_value.is_undefined() ? js_undefined() : existing_value;
+            MUST(ordered_groups_object->create_data_property_or_throw(Utf16FlyString::from_utf8(group_name), value_to_add));
+        }
+
+        groups_object = ordered_groups_object;
+    }
+
     // 32. Perform ! CreateDataPropertyOrThrow(A, "groups", groups).
     // NOTE: This step must be performed after the above loop in order for groups to be populated.
     Value groups = has_groups ? groups_object : js_undefined();
