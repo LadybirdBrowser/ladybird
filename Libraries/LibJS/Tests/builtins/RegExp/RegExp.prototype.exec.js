@@ -284,3 +284,47 @@ test("complex named groups ordering", () => {
     expect(result3.groups.first).toBe(undefined);
     expect(result3.groups.second).toBe(undefined);
 });
+
+test("forward references to named groups", () => {
+    // Self-reference inside group
+    let result1 = /(?<a>\k<a>\w)../.exec("bab");
+    expect(result1).not.toBe(null);
+    expect(result1[0]).toBe("bab");
+    expect(result1[1]).toBe("b");
+    expect(result1.groups.a).toBe("b");
+
+    // Reference before group definition
+    let result2 = /\k<a>(?<a>b)\w\k<a>/.exec("bab");
+    expect(result2).not.toBe(null);
+    expect(result2[0]).toBe("bab");
+    expect(result2[1]).toBe("b");
+    expect(result2.groups.a).toBe("b");
+
+    let result3 = /(?<b>b)\k<a>(?<a>a)\k<b>/.exec("bab");
+    expect(result3).not.toBe(null);
+    expect(result3[0]).toBe("bab");
+    expect(result3[1]).toBe("b");
+    expect(result3[2]).toBe("a");
+    expect(result3.groups.a).toBe("a");
+    expect(result3.groups.b).toBe("b");
+
+    // Backward reference
+    let result4 = /(?<a>a)(?<b>b)\k<a>/.exec("aba");
+    expect(result4).not.toBe(null);
+    expect(result4[0]).toBe("aba");
+    expect(result4.groups.a).toBe("a");
+    expect(result4.groups.b).toBe("b");
+
+    // Mixed forward/backward with alternation
+    let result5 = /(?<a>a)(?<b>b)\k<a>|(?<c>c)/.exec("aba");
+    expect(result5).not.toBe(null);
+    expect(result5.groups.a).toBe("a");
+    expect(result5.groups.b).toBe("b");
+    expect(result5.groups.c).toBe(undefined);
+});
+
+test("invalid named group references", () => {
+    expect(() => {
+        new RegExp("(?<a>x)\\k<nonexistent>");
+    }).toThrow();
+});

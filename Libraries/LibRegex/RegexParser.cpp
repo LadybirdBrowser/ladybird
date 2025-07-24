@@ -173,6 +173,7 @@ ALWAYS_INLINE void Parser::reset()
     m_parser_state.capture_groups_count = 0;
     m_parser_state.named_capture_groups_count = 0;
     m_parser_state.named_capture_groups.clear();
+    m_parser_state.unresolved_named_references.clear();
 }
 
 Parser::Result Parser::parse(Optional<AllOptions> regex_options)
@@ -182,10 +183,13 @@ Parser::Result Parser::parse(Optional<AllOptions> regex_options)
     reset();
     if (regex_options.has_value())
         m_parser_state.regex_options = regex_options.value();
-    if (parse_internal(m_parser_state.bytecode, m_parser_state.match_length_minimum))
+    if (parse_internal(m_parser_state.bytecode, m_parser_state.match_length_minimum)) {
         consume(TokenType::Eof, Error::InvalidPattern);
-    else
+        if (!resolve_forward_named_references())
+            set_error(Error::InvalidNameForCaptureGroup);
+    } else {
         set_error(Error::InvalidPattern);
+    }
 
     auto capture_groups = m_parser_state.named_capture_groups.keys();
 
@@ -1641,23 +1645,32 @@ bool ECMA262Parser::parse_atom_escape(ByteCode& stack, size_t& match_length_mini
         }
 
         auto it = m_parser_state.named_capture_groups.find(name);
-        if (it == m_parser_state.named_capture_groups.end()) {
-            set_error(Error::InvalidNameForCaptureGroup);
-            return false;
+        if (it != m_parser_state.named_capture_groups.end()) {
+
+            // Use the first occurrence of the named group for the backreference
+            // This follows ECMAScript behavior where \k<name> refers to the first
+            // group with that name in left-to-right order, regardless of alternative
+            auto group_index = it->value.first().group_index;
+            auto maybe_length = m_parser_state.capture_group_minimum_lengths.get(group_index);
+            if (maybe_length.has_value()) {
+                // Backward reference
+                stack.insert_bytecode_compare_values({ { CharacterCompareType::NamedReference, static_cast<ByteCodeValueType>(group_index) } });
+            } else {
+                // Self-reference or forward reference
+                auto placeholder_index = 0;
+                auto bytecode_offset = stack.size();
+                stack.insert_bytecode_compare_values({ { CharacterCompareType::NamedReference, static_cast<ByteCodeValueType>(placeholder_index) } });
+
+                m_parser_state.unresolved_named_references.append({ name, bytecode_offset + 1 });
+            }
+        } else {
+            // Forward reference
+            auto placeholder_index = 0;
+            auto bytecode_offset = stack.size();
+            stack.insert_bytecode_compare_values({ { CharacterCompareType::NamedReference, static_cast<ByteCodeValueType>(placeholder_index) } });
+
+            m_parser_state.unresolved_named_references.append({ name, bytecode_offset + 1 });
         }
-
-        // Use the first occurrence of the named group for the backreference
-        // This follows ECMAScript behavior where \k<name> refers to the first
-        // group with that name in left-to-right order, regardless of alternative
-        auto group_index = it->value.first().group_index;
-
-        auto maybe_length = m_parser_state.capture_group_minimum_lengths.get(group_index);
-        if (!maybe_length.has_value()) {
-            set_error(Error::InvalidNameForCaptureGroup);
-            return false;
-        }
-
-        stack.insert_bytecode_compare_values({ { CharacterCompareType::NamedReference, (ByteCodeValueType)group_index } });
         return true;
     }
 
@@ -2815,6 +2828,22 @@ size_t ECMA262Parser::ensure_total_number_of_capturing_parenthesis()
 
     m_total_number_of_capturing_parenthesis = count;
     return count;
+}
+
+bool Parser::resolve_forward_named_references()
+{
+    for (auto const& unresolved_ref : m_parser_state.unresolved_named_references) {
+        auto it = m_parser_state.named_capture_groups.find(unresolved_ref.name);
+        if (it == m_parser_state.named_capture_groups.end()) {
+            return false;
+        }
+
+        auto group_index = it->value.first().group_index;
+
+        m_parser_state.bytecode.at(unresolved_ref.bytecode_offset) = (ByteCodeValueType)group_index;
+    }
+
+    return true;
 }
 
 }
