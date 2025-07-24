@@ -226,3 +226,61 @@ test("cached UTF-16 code point length", () => {
 
     expect(match.codePointAt(0)).toBe(0x1f600);
 });
+
+test("named groups source order", () => {
+    // Test that named groups appear in source order, not match order
+    let re = /(?<y>a)(?<x>a)|(?<x>b)(?<y>b)/;
+
+    let result1 = re.exec("aa");
+    expect(Object.keys(result1.groups)).toEqual(["y", "x"]);
+    expect(result1.groups.y).toBe("a");
+    expect(result1.groups.x).toBe("a");
+
+    let result2 = re.exec("bb");
+    expect(Object.keys(result2.groups)).toEqual(["y", "x"]);
+    expect(result2.groups.y).toBe("b");
+    expect(result2.groups.x).toBe("b");
+});
+
+test("named groups all present in groups object", () => {
+    // Test that all named groups appear in groups object, even unmatched ones
+    let re = /(?<fst>.)|(?<snd>.)/u;
+
+    let result = re.exec("abcd");
+    expect(Object.getOwnPropertyNames(result.groups)).toEqual(["fst", "snd"]);
+    expect(result.groups.fst).toBe("a");
+    expect(result.groups.snd).toBe(undefined);
+});
+
+test("named groups with hasIndices flag", () => {
+    // Test that indices.groups also contains all named groups in source order
+    let re = /(?<fst>.)|(?<snd>.)/du;
+
+    let result = re.exec("abcd");
+    expect(Object.getOwnPropertyNames(result.indices.groups)).toEqual(["fst", "snd"]);
+    expect(result.indices.groups.fst).toEqual([0, 1]);
+    expect(result.indices.groups.snd).toBe(undefined);
+});
+
+test("complex named groups ordering", () => {
+    // Test multiple groups in different order
+    let re = /(?<third>c)|(?<first>a)|(?<second>b)/;
+
+    let result1 = re.exec("a");
+    expect(Object.keys(result1.groups)).toEqual(["third", "first", "second"]);
+    expect(result1.groups.third).toBe(undefined);
+    expect(result1.groups.first).toBe("a");
+    expect(result1.groups.second).toBe(undefined);
+
+    let result2 = re.exec("b");
+    expect(Object.keys(result2.groups)).toEqual(["third", "first", "second"]);
+    expect(result2.groups.third).toBe(undefined);
+    expect(result2.groups.first).toBe(undefined);
+    expect(result2.groups.second).toBe("b");
+
+    let result3 = re.exec("c");
+    expect(Object.keys(result3.groups)).toEqual(["third", "first", "second"]);
+    expect(result3.groups.third).toBe("c");
+    expect(result3.groups.first).toBe(undefined);
+    expect(result3.groups.second).toBe(undefined);
+});
