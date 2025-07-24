@@ -374,9 +374,8 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 
         for (auto const& group_name : regex.parser_result.capture_groups) {
             auto existing_value = groups_object->get_without_side_effects(group_name);
-            if (!existing_value.is_undefined()) {
-                MUST(ordered_groups_object->create_data_property_or_throw(group_name, existing_value));
-            }
+            auto value_to_add = existing_value.is_undefined() ? js_undefined() : existing_value;
+            MUST(ordered_groups_object->create_data_property_or_throw(group_name, value_to_add));
         }
 
         groups_object = ordered_groups_object;
@@ -391,6 +390,21 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     if (has_indices) {
         // a. Let indicesArray be MakeMatchIndicesIndexPairArray(S, indices, groupNames, hasGroups).
         auto indices_array = make_match_indices_index_pair_array(vm, string->utf16_string_view(), indices, group_names, has_groups);
+
+        // NOTE: We do this to add all groups to the indices array, even if they didn't participate in the match.
+        if (has_groups) {
+            auto& indices_groups_object = indices_array.as_object().get_without_side_effects(vm.names.groups).as_object();
+            auto ordered_indices_groups_object = Object::create(realm, nullptr);
+
+            for (auto const& group_name : regex.parser_result.capture_groups) {
+                auto existing_value = indices_groups_object.get_without_side_effects(group_name);
+                auto value_to_add = existing_value.is_undefined() ? js_undefined() : existing_value;
+                MUST(ordered_indices_groups_object->create_data_property_or_throw(group_name, value_to_add));
+            }
+
+            MUST(indices_array.as_object().set(vm.names.groups, ordered_indices_groups_object, Object::ShouldThrowExceptions::Yes));
+        }
+
         // b. Perform ! CreateDataProperty(A, "indices", indicesArray).
         MUST(array->create_data_property(vm.names.indices, indices_array));
     }
