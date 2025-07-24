@@ -89,6 +89,10 @@ class LinkedResourceFinder(HTMLParser):
             attr_dict = dict(attrs)
             if "rel" in attr_dict and attr_dict["rel"] == "stylesheet":
                 self._resources.append(attr_dict["href"])
+        if tag == "form":
+            attr_dict = dict(attrs)
+            if "action" in attr_dict:
+                self._resources.append(attr_dict["action"])
 
     def handle_endtag(self, tag):
         self._tag_stack_.pop()
