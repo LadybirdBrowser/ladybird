@@ -187,6 +187,10 @@ Parser::Result Parser::parse(Optional<AllOptions> regex_options)
     else
         set_error(Error::InvalidPattern);
 
+    Vector<FlyString> capture_groups;
+    for (auto const& [name, _] : m_parser_state.named_capture_groups)
+        capture_groups.append(name);
+
     dbgln_if(REGEX_DEBUG, "[PARSER] Produced bytecode with {} entries (opcodes + arguments)", m_parser_state.bytecode.size());
     return {
         move(m_parser_state.bytecode),
@@ -195,7 +199,7 @@ Parser::Result Parser::parse(Optional<AllOptions> regex_options)
         move(m_parser_state.match_length_minimum),
         move(m_parser_state.error),
         move(m_parser_state.error_token),
-        m_parser_state.named_capture_groups.keys(),
+        move(capture_groups),
         m_parser_state.regex_options,
     };
 }
@@ -2704,7 +2708,8 @@ bool ECMA262Parser::parse_capture_group(ByteCode& stack, size_t& match_length_mi
                 return false;
             }
 
-            m_parser_state.named_capture_groups.ensure(name).append({ group_index, m_current_alternative_id });
+            auto& group_vector = m_parser_state.named_capture_groups.ensure(name);
+            group_vector.append({ group_index, m_current_alternative_id });
 
             ByteCode capture_group_bytecode;
             size_t length = 0;
