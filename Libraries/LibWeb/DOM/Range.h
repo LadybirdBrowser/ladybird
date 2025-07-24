@@ -79,7 +79,7 @@ public:
     WebIDL::ExceptionOr<void> insert_node(GC::Ref<Node>);
     WebIDL::ExceptionOr<void> surround_contents(GC::Ref<Node> new_parent);
 
-    String to_string() const;
+    Utf16String to_string() const;
 
     static HashTable<Range*>& live_ranges();
 
