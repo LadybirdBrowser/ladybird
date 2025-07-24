@@ -16,7 +16,10 @@ void ClipFrame::add_clip_rect(CSSPixelRect rect, BorderRadiiData radii, RefPtr<S
             return;
         }
     }
-    m_clip_rects.append({ rect, radii, move(enclosing_scroll_frame) });
+    Optional<size_t> enclosing_scroll_frame_id;
+    if (enclosing_scroll_frame)
+        enclosing_scroll_frame_id = enclosing_scroll_frame->id();
+    m_clip_rects.append({ rect, radii, move(enclosing_scroll_frame), enclosing_scroll_frame_id });
 }
 
 CSSPixelRect ClipFrame::clip_rect_for_hit_testing() const
