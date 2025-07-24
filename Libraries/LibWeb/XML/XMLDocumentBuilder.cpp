@@ -245,18 +245,16 @@ void XMLDocumentBuilder::text(StringView data)
 {
     if (m_has_error)
         return;
-    auto last = m_current_node->last_child();
-    if (last && last->is_text()) {
+
+    if (auto* last = m_current_node->last_child(); last && last->is_text()) {
         auto& text_node = static_cast<DOM::Text&>(*last);
-        text_builder.append(text_node.data());
-        text_builder.append(data);
-        text_node.set_data(MUST(text_builder.to_string()));
-        text_builder.clear();
-    } else {
-        if (!data.is_empty()) {
-            auto node = m_document->create_text_node(MUST(String::from_utf8(data)));
-            MUST(m_current_node->append_child(node));
-        }
+        m_text_builder.append(text_node.data());
+        m_text_builder.append(data);
+        text_node.set_data(m_text_builder.to_utf16_string());
+        m_text_builder.clear();
+    } else if (!data.is_empty()) {
+        auto node = m_document->create_text_node(Utf16String::from_utf8(data));
+        MUST(m_current_node->append_child(node));
     }
 }
 
@@ -265,7 +263,7 @@ void XMLDocumentBuilder::comment(StringView data)
     if (m_has_error || !m_current_node)
         return;
 
-    MUST(m_current_node->append_child(m_document->create_comment(MUST(String::from_utf8(data)))));
+    MUST(m_current_node->append_child(m_document->create_comment(Utf16String::from_utf8(data))));
 }
 
 void XMLDocumentBuilder::cdata_section(StringView data)
@@ -273,7 +271,7 @@ void XMLDocumentBuilder::cdata_section(StringView data)
     if (m_has_error || !m_current_node)
         return;
 
-    auto section = MUST(m_document->create_cdata_section(MUST(String::from_utf8(data))));
+    auto section = MUST(m_document->create_cdata_section(Utf16String::from_utf8(data)));
     MUST(m_current_node->append_child(section));
 }
 
@@ -282,7 +280,7 @@ void XMLDocumentBuilder::processing_instruction(StringView target, StringView da
     if (m_has_error || !m_current_node)
         return;
 
-    auto processing_instruction = MUST(m_document->create_processing_instruction(MUST(String::from_utf8(target)), MUST(String::from_utf8(data))));
+    auto processing_instruction = MUST(m_document->create_processing_instruction(MUST(String::from_utf8(target)), Utf16String::from_utf8(data)));
     MUST(m_current_node->append_child(processing_instruction));
 }
 

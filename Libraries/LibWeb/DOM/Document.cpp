@@ -2122,13 +2122,13 @@ GC::Ref<DocumentFragment> Document::create_document_fragment()
     return realm().create<DocumentFragment>(*this);
 }
 
-GC::Ref<Text> Document::create_text_node(String const& data)
+GC::Ref<Text> Document::create_text_node(Utf16String data)
 {
-    return realm().create<Text>(*this, data);
+    return realm().create<Text>(*this, move(data));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createcdatasection
-WebIDL::ExceptionOr<GC::Ref<CDATASection>> Document::create_cdata_section(String const& data)
+WebIDL::ExceptionOr<GC::Ref<CDATASection>> Document::create_cdata_section(Utf16String data)
 {
     // 1. If this is an HTML document, then throw a "NotSupportedError" DOMException.
     if (is_html_document())
@@ -2139,16 +2139,16 @@ WebIDL::ExceptionOr<GC::Ref<CDATASection>> Document::create_cdata_section(String
         return WebIDL::InvalidCharacterError::create(realm(), "String may not contain ']]>'"_string);
 
     // 3. Return a new CDATASection node with its data set to data and node document set to this.
-    return realm().create<CDATASection>(*this, data);
+    return realm().create<CDATASection>(*this, move(data));
 }
 
-GC::Ref<Comment> Document::create_comment(String const& data)
+GC::Ref<Comment> Document::create_comment(Utf16String data)
 {
-    return realm().create<Comment>(*this, data);
+    return realm().create<Comment>(*this, move(data));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createprocessinginstruction
-WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_instruction(String const& target, String const& data)
+WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_instruction(String const& target, Utf16String data)
 {
     // 1. If target does not match the Name production, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_name(target))
@@ -2159,7 +2159,7 @@ WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_
         return WebIDL::InvalidCharacterError::create(realm(), "String may not contain '?>'"_string);
 
     // 3. Return a new ProcessingInstruction node, with target set to target, data set to data, and node document set to this.
-    return realm().create<ProcessingInstruction>(*this, data, target);
+    return realm().create<ProcessingInstruction>(*this, move(data), target);
 }
 
 GC::Ref<Range> Document::create_range()

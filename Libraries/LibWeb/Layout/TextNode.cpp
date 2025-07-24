@@ -322,7 +322,7 @@ String const& TextNode::text_for_rendering() const
 void TextNode::compute_text_for_rendering()
 {
     if (dom_node().is_password_input()) {
-        m_text_for_rendering = MUST(String::repeated('*', dom_node().data().code_points().length()));
+        m_text_for_rendering = MUST(String::repeated('*', dom_node().data().length_in_code_points()));
         return;
     }
 
@@ -332,7 +332,7 @@ void TextNode::compute_text_for_rendering()
     auto const maybe_lang = parent_element ? parent_element->lang() : Optional<String> {};
     auto const lang = maybe_lang.has_value() ? maybe_lang.value() : Optional<StringView> {};
 
-    auto data = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang).release_value_but_fixme_should_propagate_errors();
+    auto data = apply_text_transform(dom_node().data().to_utf8_but_should_be_ported_to_utf16(), computed_values().text_transform(), lang).release_value_but_fixme_should_propagate_errors();
 
     auto data_view = data.bytes_as_string_view();
 

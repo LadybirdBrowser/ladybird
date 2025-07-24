@@ -26,12 +26,12 @@
 namespace Web {
 
 // Replaces a document's content with a simple error message.
-static void convert_to_xml_error_document(DOM::Document& document, String error_string)
+static void convert_to_xml_error_document(DOM::Document& document, Utf16String error_string)
 {
     auto html_element = MUST(DOM::create_element(document, HTML::TagNames::html, Namespace::HTML));
     auto body_element = MUST(DOM::create_element(document, HTML::TagNames::body, Namespace::HTML));
     MUST(html_element->append_child(body_element));
-    MUST(body_element->append_child(document.realm().create<DOM::Text>(document, error_string)));
+    MUST(body_element->append_child(document.realm().create<DOM::Text>(document, move(error_string))));
     document.remove_all_children();
     MUST(document.append_child(html_element));
 }
@@ -50,7 +50,7 @@ bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optiona
     VERIFY(decoder.has_value());
     // Well-formed XML documents contain only properly encoded characters
     if (!decoder->validate(data)) {
-        convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_string);
+        convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_utf16);
         return false;
     }
     auto source = decoder->to_utf8(data).release_value_but_fixme_should_propagate_errors();
@@ -162,7 +162,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
         if (!decoder->validate(data)) {
             // FIXME: Insert error message into the document.
             dbgln("XML Document contains improperly-encoded characters");
-            convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_string);
+            convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_utf16);
 
             // NOTE: This ensures that the `load` event gets fired for the frame loading this document.
             document->completely_finish_loading();
@@ -172,7 +172,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
         if (source.is_error()) {
             // FIXME: Insert error message into the document.
             dbgln("Failed to decode XML document: {}", source.error());
-            convert_to_xml_error_document(document, MUST(String::formatted("Failed to decode XML document: {}", source.error())));
+            convert_to_xml_error_document(document, Utf16String::formatted("Failed to decode XML document: {}", source.error()));
 
             // NOTE: This ensures that the `load` event gets fired for the frame loading this document.
             document->completely_finish_loading();
@@ -184,7 +184,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
         if (result.is_error()) {
             // FIXME: Insert error message into the document.
             dbgln("Failed to parse XML document: {}", result.error());
-            convert_to_xml_error_document(document, MUST(String::formatted("Failed to parse XML document: {}", result.error())));
+            convert_to_xml_error_document(document, Utf16String::formatted("Failed to parse XML document: {}", result.error()));
 
             // NOTE: XMLDocumentBuilder ensures that the `load` event gets fired. We don't need to do anything else here.
         }
@@ -246,10 +246,10 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
 
         // 5. User agents may add content to the head element of document, e.g., linking to a style sheet, providing
         //    script, or giving the document a title.
-        auto title = MUST(String::from_byte_string(LexicalPath::basename(url.to_byte_string())));
+        auto title = Utf16String::from_utf8_with_replacement_character(LexicalPath::basename(url.to_byte_string()));
         auto title_element = MUST(DOM::create_element(document, HTML::TagNames::title, Namespace::HTML));
         MUST(document->head()->append_child(title_element));
-        auto title_text = document->realm().create<DOM::Text>(document, title);
+        auto title_text = document->realm().create<DOM::Text>(document, move(title));
         MUST(title_element->append_child(*title_text));
     });
 
@@ -283,11 +283,13 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     //    video, or audio resource.
     // 6. User agents may add content to the head element of document, or attributes to host element, e.g., to link
     //    to a style sheet, to provide a script, to give the document a title, or to make the media autoplay.
-    auto insert_title = [](auto& document, auto title) -> WebIDL::ExceptionOr<void> {
+    auto insert_title = [](auto& document, auto const& document_url) -> WebIDL::ExceptionOr<void> {
+        auto title = Utf16String::from_utf8_with_replacement_character(LexicalPath::basename(document_url.to_byte_string()));
+
         auto title_element = TRY(DOM::create_element(document, HTML::TagNames::title, Namespace::HTML));
         TRY(document->head()->append_child(title_element));
 
-        auto title_text = document->realm().template create<DOM::Text>(document, title);
+        auto title_text = document->realm().template create<DOM::Text>(document, move(title));
         TRY(title_element->append_child(*title_text));
         return {};
     };
@@ -315,7 +317,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         auto img_element = TRY(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
         TRY(img_element->set_attribute(HTML::AttributeNames::src, url_string));
         TRY(document->body()->append_child(img_element));
-        TRY(insert_title(document, MUST(String::from_byte_string(LexicalPath::basename(url_string.to_byte_string())))));
+        TRY(insert_title(document, url_string));
 
     } else if (type.type() == "video"sv) {
         auto video_element = TRY(DOM::create_element(document, HTML::TagNames::video, Namespace::HTML));
@@ -323,7 +325,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         TRY(video_element->set_attribute(HTML::AttributeNames::autoplay, String {}));
         TRY(video_element->set_attribute(HTML::AttributeNames::controls, String {}));
         TRY(document->body()->append_child(video_element));
-        TRY(insert_title(document, MUST(String::from_byte_string(LexicalPath::basename(url_string.to_byte_string())))));
+        TRY(insert_title(document, url_string));
 
     } else if (type.type() == "audio"sv) {
         auto audio_element = TRY(DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML));
@@ -331,7 +333,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         TRY(audio_element->set_attribute(HTML::AttributeNames::autoplay, String {}));
         TRY(audio_element->set_attribute(HTML::AttributeNames::controls, String {}));
         TRY(document->body()->append_child(audio_element));
-        TRY(insert_title(document, MUST(String::from_byte_string(LexicalPath::basename(url_string.to_byte_string())))));
+        TRY(insert_title(document, url_string));
 
     } else {
         // FIXME: According to https://mimesniff.spec.whatwg.org/#audio-or-video-mime-type we might have to deal with

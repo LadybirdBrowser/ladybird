@@ -13,6 +13,6 @@
 
 namespace Web::DOM {
 
-WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(Vector<Variant<GC::Root<Node>, String>> const& nodes, DOM::Document& document);
+WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes, DOM::Document& document);
 
 }

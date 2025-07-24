@@ -242,7 +242,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
 
         // FIXME: Handle images, and multiple values
         if (new_content.type == CSS::ContentData::Type::String) {
-            auto text = document.realm().create<DOM::Text>(document, new_content.data);
+            auto text = document.realm().create<DOM::Text>(document, Utf16String::from_utf8(new_content.data));
             auto text_node = document.heap().allocate<TextNode>(document, *text);
             text_node->set_generated_for(pseudo_element, element);
 

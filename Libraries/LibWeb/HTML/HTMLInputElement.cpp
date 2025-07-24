@@ -530,7 +530,7 @@ void HTMLInputElement::did_edit_text_node()
 {
     // An input element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the value.
     auto old_value = move(m_value);
-    m_value = value_sanitization_algorithm(m_text_node->data());
+    m_value = value_sanitization_algorithm(m_text_node->data().to_utf8_but_should_be_ported_to_utf16());
     m_dirty_value = true;
 
     m_has_uncommitted_changes = true;
@@ -700,7 +700,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(String const& value)
             relevant_value_was_changed();
 
             if (m_text_node) {
-                m_text_node->set_data(m_value);
+                m_text_node->set_data(Utf16String::from_utf8(m_value));
                 update_placeholder_visibility();
 
                 set_the_selection_range(m_text_node->length(), m_text_node->length());
@@ -819,7 +819,7 @@ void HTMLInputElement::update_button_input_shadow_tree()
             }
         }
 
-        m_text_node->set_data(label.value());
+        m_text_node->set_data(Utf16String::from_utf8(label.value()));
         update_placeholder_visibility();
     }
 }
@@ -827,7 +827,7 @@ void HTMLInputElement::update_button_input_shadow_tree()
 void HTMLInputElement::update_text_input_shadow_tree()
 {
     if (m_text_node) {
-        m_text_node->set_data(m_value);
+        m_text_node->set_data(Utf16String::from_utf8(m_value));
         update_placeholder_visibility();
     }
 }
@@ -1018,7 +1018,7 @@ void HTMLInputElement::create_button_input_shadow_tree()
             label = value();
         }
     }
-    m_text_node = realm().create<DOM::Text>(document(), label.value());
+    m_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(label.value()));
     MUST(text_container->append_child(*m_text_node));
     MUST(shadow_root->append_child(*text_container));
 }
@@ -1053,8 +1053,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
     MUST(element->append_child(*m_placeholder_element));
 
-    m_placeholder_text_node = realm().create<DOM::Text>(document(), String {});
-    m_placeholder_text_node->set_data(placeholder());
+    m_placeholder_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(placeholder()));
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     // https://www.w3.org/TR/css-ui-4/#input-rules
@@ -1075,7 +1074,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     }
     MUST(element->append_child(*m_inner_text_element));
 
-    m_text_node = realm().create<DOM::Text>(document(), move(initial_value));
+    m_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(initial_value));
     handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     if (type_state() == TypeAttributeState::Password)
         m_text_node->set_is_password_input({}, true);
@@ -1421,7 +1420,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
         }
     } else if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node) {
-            m_placeholder_text_node->set_data(placeholder());
+            m_placeholder_text_node->set_data(Utf16String::from_utf8(placeholder()));
             update_placeholder_visibility();
         }
     } else if (name == HTML::AttributeNames::readonly) {
@@ -1771,7 +1770,7 @@ void HTMLInputElement::reset_algorithm()
         relevant_value_was_changed();
 
     if (m_text_node) {
-        m_text_node->set_data(m_value);
+        m_text_node->set_data(Utf16String::from_utf8(m_value));
         update_placeholder_visibility();
     }
 
@@ -1807,7 +1806,7 @@ void HTMLInputElement::clear_algorithm()
         relevant_value_was_changed();
 
     if (m_text_node) {
-        m_text_node->set_data(m_value);
+        m_text_node->set_data(Utf16String::from_utf8(m_value));
         update_placeholder_visibility();
     }
 

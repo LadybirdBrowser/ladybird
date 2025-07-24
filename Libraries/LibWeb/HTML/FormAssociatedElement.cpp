@@ -806,7 +806,7 @@ void FormAssociatedTextControlElement::handle_insert(String const& data)
     String data_for_insertion = data;
     // FIXME: Cut by UTF-16 code units instead of raw bytes
     if (auto max_length = text_node->max_length(); max_length.has_value()) {
-        auto remaining_length = *max_length - text_node->data().code_points().length();
+        auto remaining_length = *max_length - text_node->data().length_in_code_points();
         if (remaining_length < data.code_points().length()) {
             data_for_insertion = MUST(data.substring_from_byte_offset(0, remaining_length));
         }
@@ -832,7 +832,7 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
                 MUST(set_range_text(String {}, selection_start - 1, selection_end, Bindings::SelectionMode::End));
             }
         } else {
-            if (selection_start < text_node->data().code_points().length()) {
+            if (selection_start < text_node->data().length_in_code_points()) {
                 MUST(set_range_text(String {}, selection_start, selection_end + 1, Bindings::SelectionMode::End));
             }
         }
@@ -982,7 +982,7 @@ void FormAssociatedTextControlElement::increment_cursor_position_to_next_word(Co
 
     while (true) {
         if (auto offset = text_node->word_segmenter().next_boundary(m_selection_end); offset.has_value()) {
-            auto word = text_node->data().code_points().substring_view(m_selection_end, *offset - m_selection_end);
+            auto word = text_node->data().substring_view(m_selection_end, *offset - m_selection_end);
             if (collapse == CollapseSelection::Yes) {
                 collapse_selection_to_offset(*offset);
             } else {
@@ -1005,7 +1005,7 @@ void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_wor
 
     while (true) {
         if (auto offset = text_node->word_segmenter().previous_boundary(m_selection_end); offset.has_value()) {
-            auto word = text_node->data().code_points().substring_view(*offset, m_selection_end - *offset);
+            auto word = text_node->data().substring_view(*offset, m_selection_end - *offset);
             if (collapse == CollapseSelection::Yes) {
                 collapse_selection_to_offset(*offset);
             } else {

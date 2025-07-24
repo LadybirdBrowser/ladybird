@@ -15,13 +15,13 @@ class Comment final : public CharacterData {
     GC_DECLARE_ALLOCATOR(Comment);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Comment>> construct_impl(JS::Realm&, String const& data);
+    static WebIDL::ExceptionOr<GC::Ref<Comment>> construct_impl(JS::Realm&, Utf16String data);
     virtual ~Comment() override = default;
 
     virtual FlyString node_name() const override { return "#comment"_fly_string; }
 
 private:
-    Comment(Document&, String const&);
+    Comment(Document&, Utf16String);
 
     virtual void initialize(JS::Realm&) override;
 };

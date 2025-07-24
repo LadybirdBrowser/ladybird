@@ -13,16 +13,16 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Comment);
 
-Comment::Comment(Document& document, String const& data)
-    : CharacterData(document, NodeType::COMMENT_NODE, data)
+Comment::Comment(Document& document, Utf16String data)
+    : CharacterData(document, NodeType::COMMENT_NODE, move(data))
 {
 }
 
 // https://dom.spec.whatwg.org/#dom-comment-comment
-WebIDL::ExceptionOr<GC::Ref<Comment>> Comment::construct_impl(JS::Realm& realm, String const& data)
+WebIDL::ExceptionOr<GC::Ref<Comment>> Comment::construct_impl(JS::Realm& realm, Utf16String data)
 {
     auto& window = as<HTML::Window>(realm.global_object());
-    return realm.create<Comment>(window.associated_document(), data);
+    return realm.create<Comment>(window.associated_document(), move(data));
 }
 
 void Comment::initialize(JS::Realm& realm)

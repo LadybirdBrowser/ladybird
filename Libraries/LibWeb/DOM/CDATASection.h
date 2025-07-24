@@ -22,7 +22,7 @@ public:
     virtual FlyString node_name() const override { return "#cdata-section"_fly_string; }
 
 private:
-    CDATASection(Document&, String const&);
+    CDATASection(Document&, Utf16String);
 
     virtual void initialize(JS::Realm&) override;
 };

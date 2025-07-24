@@ -22,7 +22,7 @@ public:
     String const& target() const { return m_target; }
 
 private:
-    ProcessingInstruction(Document&, String const& data, String const& target);
+    ProcessingInstruction(Document&, Utf16String data, String const& target);
 
     virtual void initialize(JS::Realm&) override;
 

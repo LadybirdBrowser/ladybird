@@ -228,7 +228,7 @@ private:
     Vector<HTMLToken> m_pending_table_character_tokens;
 
     GC::Ptr<DOM::Text> m_character_insertion_node;
-    StringBuilder m_character_insertion_builder;
+    StringBuilder m_character_insertion_builder { StringBuilder::Mode::UTF16 };
 } SWIFT_UNSAFE_REFERENCE;
 
 RefPtr<CSS::CSSStyleValue const> parse_dimension_value(StringView);

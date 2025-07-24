@@ -377,10 +377,10 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Element>> create_element(String const& local_name, Variant<String, ElementCreationOptions> const& options);
     WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, ElementCreationOptions> const& options);
     GC::Ref<DocumentFragment> create_document_fragment();
-    GC::Ref<Text> create_text_node(String const& data);
-    WebIDL::ExceptionOr<GC::Ref<CDATASection>> create_cdata_section(String const& data);
-    GC::Ref<Comment> create_comment(String const& data);
-    WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> create_processing_instruction(String const& target, String const& data);
+    GC::Ref<Text> create_text_node(Utf16String data);
+    WebIDL::ExceptionOr<GC::Ref<CDATASection>> create_cdata_section(Utf16String data);
+    GC::Ref<Comment> create_comment(Utf16String data);
+    WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> create_processing_instruction(String const& target, Utf16String data);
 
     WebIDL::ExceptionOr<GC::Ref<Attr>> create_attribute(String const& local_name);
     WebIDL::ExceptionOr<GC::Ref<Attr>> create_attribute_ns(Optional<FlyString> const& namespace_, String const& qualified_name);

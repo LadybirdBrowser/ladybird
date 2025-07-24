@@ -599,12 +599,12 @@ void Selection::move_offset_to_next_word(bool collapse_selection)
     auto& text_node = static_cast<DOM::Text&>(*anchor_node);
     while (true) {
         auto focus_offset = this->focus_offset();
-        if (focus_offset == text_node.data().bytes_as_string_view().length()) {
+        if (focus_offset == text_node.data().length_in_code_units()) {
             return;
         }
 
         if (auto offset = text_node.word_segmenter().next_boundary(focus_offset); offset.has_value()) {
-            auto word = text_node.data().code_points().substring_view(focus_offset, *offset - focus_offset);
+            auto word = text_node.data().substring_view(focus_offset, *offset - focus_offset);
             if (collapse_selection) {
                 MUST(collapse(anchor_node, *offset));
                 m_document->reset_cursor_blink_cycle();
@@ -629,7 +629,7 @@ void Selection::move_offset_to_previous_word(bool collapse_selection)
     while (true) {
         auto focus_offset = this->focus_offset();
         if (auto offset = text_node.word_segmenter().previous_boundary(focus_offset); offset.has_value()) {
-            auto word = text_node.data().code_points().unicode_substring_view(*offset, focus_offset - *offset);
+            auto word = text_node.data().substring_view(*offset, focus_offset - *offset);
             if (collapse_selection) {
                 MUST(collapse(anchor_node, *offset));
                 m_document->reset_cursor_blink_cycle();

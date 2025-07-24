@@ -12,8 +12,8 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(CDATASection);
 
-CDATASection::CDATASection(Document& document, String const& data)
-    : Text(document, NodeType::CDATA_SECTION_NODE, data)
+CDATASection::CDATASection(Document& document, Utf16String data)
+    : Text(document, NodeType::CDATA_SECTION_NODE, move(data))
 {
 }
 

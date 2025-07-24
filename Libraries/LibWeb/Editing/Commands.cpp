@@ -1367,10 +1367,10 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16View const&)
     if (auto* text_node = as_if<DOM::Text>(*start_node); text_node) {
         auto resolved_white_space_collapse = resolved_keyword(*start_node, CSS::PropertyID::WhiteSpaceCollapse);
         if (resolved_white_space_collapse.has_value() && first_is_one_of(resolved_white_space_collapse.value(), CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks)) {
-            MUST(text_node->insert_data(active_range.start_offset(), "\n"_string));
+            MUST(text_node->insert_data(active_range.start_offset(), "\n"_utf16));
             MUST(selection.collapse(start_node, active_range.start_offset() + 1));
             if (selection.range()->start_offset() == start_node->length())
-                MUST(text_node->insert_data(active_range.start_offset(), "\n"_string));
+                MUST(text_node->insert_data(active_range.start_offset(), "\n"_utf16));
             return true;
         }
     }
@@ -1796,7 +1796,7 @@ bool command_insert_text_action(DOM::Document& document, Utf16View const& value)
     // 13. If node is a Text node:
     if (is<DOM::Text>(*node)) {
         // 1. Call insertData(offset, value) on node.
-        MUST(static_cast<DOM::Text&>(*node).insert_data(offset, value.to_utf8_but_should_be_ported_to_utf16()));
+        MUST(static_cast<DOM::Text&>(*node).insert_data(offset, value));
 
         // 2. Call collapse(node, offset) on the context object's selection.
         MUST(selection.collapse(node, offset));
@@ -1812,7 +1812,7 @@ bool command_insert_text_action(DOM::Document& document, Utf16View const& value)
             node->first_child()->remove();
 
         // 2. Let text be the result of calling createTextNode(value) on the context object.
-        auto text = document.create_text_node(value.to_utf8_but_should_be_ported_to_utf16());
+        auto text = document.create_text_node(Utf16String::from_utf16_without_validation(value));
 
         // 3. Call insertNode(text) on the active range.
         MUST(active_range(document)->insert_node(text));

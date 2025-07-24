@@ -60,9 +60,9 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(Function
     GC::Ref<HTML::HTMLOptionElement> option_element = as<HTML::HTMLOptionElement>(*element);
 
     // 3. If text is not the empty string, then append to option a new Text node whose data is text.
-    auto text = TRY(text_value.to_string(vm));
+    auto text = TRY(text_value.to_utf16_string(vm));
     if (!text.is_empty()) {
-        auto new_text_node = realm.create<DOM::Text>(document, text);
+        auto new_text_node = realm.create<DOM::Text>(document, move(text));
         MUST(option_element->append_child(*new_text_node));
     }
 

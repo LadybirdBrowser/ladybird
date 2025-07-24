@@ -754,7 +754,7 @@ static WebIDL::ExceptionOr<String> serialize_comment(DOM::Comment const& comment
         if (comment.data().contains("--"sv))
             return WebIDL::InvalidStateError::create(comment.realm(), "Comment data contains two adjacent hyphens"_string);
 
-        if (comment.data().ends_with('-'))
+        if (comment.data().ends_with("-"sv))
             return WebIDL::InvalidStateError::create(comment.realm(), "Comment data ends with a hyphen"_string);
     }
 
@@ -776,7 +776,7 @@ static WebIDL::ExceptionOr<String> serialize_text(DOM::Text const& text, Require
     // 1. If the require well-formed flag is set (its value is true), and node's data contains characters that are not matched by the XML Char production,
     //    then throw an exception; the serialization of this node's data would not be well-formed.
     if (require_well_formed == RequireWellFormed::Yes) {
-        for (u32 code_point : text.data().code_points()) {
+        for (u32 code_point : text.data()) {
             if (!is_valid_xml_char(code_point))
                 return WebIDL::InvalidStateError::create(text.realm(), "Text contains characters not allowed in XML"_string);
         }
@@ -786,16 +786,16 @@ static WebIDL::ExceptionOr<String> serialize_text(DOM::Text const& text, Require
     auto markup = text.data();
 
     // 3. Replace any occurrences of "&" in markup by "&amp;".
-    markup = MUST(markup.replace("&"sv, "&amp;"sv, ReplaceMode::All));
+    markup = markup.replace("&"sv, "&amp;"sv, ReplaceMode::All);
 
     // 4. Replace any occurrences of "<" in markup by "&lt;".
-    markup = MUST(markup.replace("<"sv, "&lt;"sv, ReplaceMode::All));
+    markup = markup.replace("<"sv, "&lt;"sv, ReplaceMode::All);
 
     // 5. Replace any occurrences of ">" in markup by "&gt;".
-    markup = MUST(markup.replace(">"sv, "&gt;"sv, ReplaceMode::All));
+    markup = markup.replace(">"sv, "&gt;"sv, ReplaceMode::All);
 
     // 6. Return the value of markup.
-    return markup;
+    return markup.to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://w3c.github.io/DOM-Parsing/#xml-serializing-a-documentfragment-node

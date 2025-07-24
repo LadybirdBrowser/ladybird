@@ -186,7 +186,7 @@ Optional<String> Node::text_content() const
 
     // If CharacterData, return this’s data.
     if (is<CharacterData>(this))
-        return static_cast<CharacterData const&>(*this).data();
+        return static_cast<CharacterData const&>(*this).data().to_utf8_but_should_be_ported_to_utf16();
 
     // If Attr node, return this's value.
     if (is<Attr>(*this))
@@ -214,9 +214,8 @@ void Node::set_text_content(Optional<String> const& maybe_content)
 
     // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
     else if (is<CharacterData>(this)) {
-
         auto* character_data_node = as<CharacterData>(this);
-        character_data_node->set_data(content);
+        character_data_node->set_data(Utf16String::from_utf8(content));
 
         // FIXME: CharacterData::set_data is not spec compliant. Make this match the spec when set_data becomes spec compliant.
         //        Do note that this will make this function able to throw an exception.
@@ -288,12 +287,12 @@ WebIDL::ExceptionOr<void> Node::normalize()
         }
 
         // 3. Let data be the concatenation of the data of node’s contiguous exclusive Text nodes (excluding itself), in tree order.
-        StringBuilder data;
+        StringBuilder data(StringBuilder::Mode::UTF16);
         for (auto const& text_node : contiguous_exclusive_text_nodes_excluding_self(node))
             data.append(text_node->data());
 
         // 4. Replace data with node node, offset length, count 0, and data data.
-        TRY(character_data.replace_data(length, 0, MUST(data.to_string())));
+        TRY(character_data.replace_data(length, 0, data.to_utf16_string()));
 
         // 5. Let currentNode be node’s next sibling.
         auto* current_node = node.next_sibling();
@@ -363,7 +362,7 @@ Optional<String> Node::node_value() const
 
     // If CharacterData, return this’s data.
     if (is<CharacterData>(this)) {
-        return as<CharacterData>(this)->data();
+        return as<CharacterData>(this)->data().to_utf8_but_should_be_ported_to_utf16();
     }
 
     // Otherwise, return null.
@@ -382,7 +381,7 @@ void Node::set_node_value(Optional<String> const& maybe_value)
         as<Attr>(this)->set_value(move(value));
     } else if (is<CharacterData>(this)) {
         // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
-        as<CharacterData>(this)->set_data(value);
+        as<CharacterData>(this)->set_data(Utf16String::from_utf8(value));
     }
 
     // Otherwise, do nothing.
@@ -1870,7 +1869,7 @@ bool Node::is_uninteresting_whitespace_node() const
 {
     if (!is<Text>(*this))
         return false;
-    if (!static_cast<Text const&>(*this).data().bytes_as_string_view().is_whitespace())
+    if (!static_cast<Text const&>(*this).data().is_ascii_whitespace())
         return false;
     if (!layout_node())
         return true;
@@ -1936,10 +1935,10 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
         MUST(object.add("type"sv, "text"));
 
         auto text_node = static_cast<DOM::Text const*>(this);
-        MUST(object.add("text"sv, text_node->data()));
+        MUST(object.add("text"sv, text_node->data().to_utf8()));
     } else if (is_comment()) {
         MUST(object.add("type"sv, "comment"sv));
-        MUST(object.add("data"sv, static_cast<DOM::Comment const&>(*this).data()));
+        MUST(object.add("data"sv, static_cast<DOM::Comment const&>(*this).data().to_utf8()));
     } else if (is_shadow_root()) {
         MUST(object.add("type"sv, "shadow-root"));
         MUST(object.add("mode"sv, static_cast<DOM::ShadowRoot const&>(*this).mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv));
@@ -2053,7 +2052,7 @@ void Node::string_replace_all(String const& string)
 
     // 2. If string is not the empty string, then set node to a new Text node whose data is string and node document is parent’s node document.
     if (!string.is_empty())
-        node = realm().create<Text>(document(), string);
+        node = realm().create<Text>(document(), Utf16String::from_utf8(string));
 
     // 3. Replace all with node within parent.
     replace_all(node);

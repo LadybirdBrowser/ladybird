@@ -191,7 +191,7 @@ void HTMLTextAreaElement::set_value(String const& value)
     //    the text control, unselecting any selected text and resetting the selection direction to "none".
     if (api_value() != old_api_value) {
         if (m_text_node) {
-            m_text_node->set_data(m_raw_value);
+            m_text_node->set_data(Utf16String::from_utf8(m_raw_value));
             update_placeholder_visibility();
 
             set_the_selection_range(m_text_node->length(), m_text_node->length());
@@ -369,14 +369,13 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     m_placeholder_element->set_use_pseudo_element(CSS::PseudoElement::Placeholder);
     MUST(element->append_child(*m_placeholder_element));
 
-    m_placeholder_text_node = realm().create<DOM::Text>(document(), String {});
-    m_placeholder_text_node->set_data(get_attribute_value(HTML::AttributeNames::placeholder));
+    m_placeholder_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(get_attribute_value(HTML::AttributeNames::placeholder)));
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     MUST(element->append_child(*m_inner_text_element));
 
-    m_text_node = realm().create<DOM::Text>(document(), String {});
+    m_text_node = realm().create<DOM::Text>(document(), Utf16String {});
     handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
     //       Otherwise, it will get filled in whenever that does get called.
@@ -442,7 +441,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
 {
     if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node)
-            m_placeholder_text_node->set_data(value.value_or(String {}));
+            m_placeholder_text_node->set_data(Utf16String::from_utf8(value.value_or(String {})));
     } else if (name == HTML::AttributeNames::readonly) {
         handle_readonly_attribute(value);
     } else if (name == HTML::AttributeNames::maxlength) {
@@ -453,7 +452,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
 void HTMLTextAreaElement::did_edit_text_node()
 {
     VERIFY(m_text_node);
-    set_raw_value(m_text_node->data());
+    set_raw_value(m_text_node->data().to_utf8_but_should_be_ported_to_utf16());
 
     // Any time the user causes the element's raw value to change, the user agent must queue an element task on the user
     // interaction task source given the textarea element to fire an event named input at the textarea element, with the
