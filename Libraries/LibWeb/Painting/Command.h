@@ -416,7 +416,6 @@ struct AddMask {
 
 struct PaintNestedDisplayList {
     RefPtr<DisplayList> display_list;
-    ScrollStateSnapshot scroll_state_snapshot;
     Gfx::IntRect rect;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }

@@ -14,7 +14,6 @@
 #include <LibThreading/Thread.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::HTML {
 
@@ -28,7 +27,7 @@ public:
 
     void start(DisplayListPlayerType);
     void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player);
-    void enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
+    void enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshotByDisplayList&&, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
 private:
     void rendering_thread_loop();
@@ -44,7 +43,7 @@ private:
 
     struct Task {
         NonnullRefPtr<Painting::DisplayList> display_list;
-        Painting::ScrollStateSnapshot scroll_state_snapshot;
+        Painting::ScrollStateSnapshotByDisplayList scroll_state_snapshot_by_display_list;
         NonnullRefPtr<Gfx::PaintingSurface> painting_surface;
         Function<void()> callback;
     };

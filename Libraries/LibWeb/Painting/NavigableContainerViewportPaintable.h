@@ -16,6 +16,8 @@ class NavigableContainerViewportPaintable final : public PaintableBox {
     GC_DECLARE_ALLOCATOR(NavigableContainerViewportPaintable);
 
 public:
+    virtual bool is_navigable_container_viewport_paintable() const override { return true; }
+
     static GC::Ref<NavigableContainerViewportPaintable> create(Layout::NavigableContainerViewport const&);
 
     virtual void paint(PaintContext&, PaintPhase) const override;
@@ -25,5 +27,8 @@ public:
 private:
     NavigableContainerViewportPaintable(Layout::NavigableContainerViewport const&);
 };
+
+template<>
+inline bool Paintable::fast_is<NavigableContainerViewportPaintable>() const { return is_navigable_container_viewport_paintable(); }
 
 }

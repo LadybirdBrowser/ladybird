@@ -114,8 +114,7 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     case DisplayListPlayerType::SkiaCPU: {
         auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
         Painting::DisplayListPlayerSkia display_list_player;
-        Painting::ScrollStateSnapshot scroll_state_snapshot;
-        display_list_player.execute(*display_list, scroll_state_snapshot, painting_surface);
+        display_list_player.execute(*display_list, {}, painting_surface);
         break;
     }
     default:

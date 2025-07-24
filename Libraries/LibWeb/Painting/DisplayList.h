@@ -15,23 +15,24 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ClipFrame.h>
 #include <LibWeb/Painting/Command.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
 
-class DisplayList;
-
 class DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
 
-    void execute(DisplayList&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>);
+    void execute(DisplayList&, ScrollStateSnapshotByDisplayList&&, RefPtr<Gfx::PaintingSurface>);
 
 protected:
     Gfx::PaintingSurface& surface() const { return m_surfaces.last(); }
     void execute_impl(DisplayList&, ScrollStateSnapshot const& scroll_state, RefPtr<Gfx::PaintingSurface>);
+
+    ScrollStateSnapshotByDisplayList m_scroll_state_snapshots_by_display_list;
 
 private:
     virtual void flush() = 0;

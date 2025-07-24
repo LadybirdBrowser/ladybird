@@ -46,6 +46,7 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -2612,14 +2613,35 @@ void Navigable::start_display_list_rendering(Gfx::PaintingSurface& painting_surf
         callback();
         return;
     }
-    document->paintable()->refresh_scroll_state();
     auto display_list = document->record_display_list(paint_config);
     if (!display_list) {
         callback();
         return;
     }
-    auto scroll_state_snapshot = document->paintable()->scroll_state().snapshot();
-    m_rendering_thread.enqueue_rendering_task(*display_list, move(scroll_state_snapshot), painting_surface, move(callback));
+
+    auto& document_paintable = *document->paintable();
+    Painting::ScrollStateSnapshotByDisplayList scroll_state_snapshot_by_display_list;
+    document_paintable.refresh_scroll_state();
+    auto scroll_state_snapshot = document_paintable.scroll_state().snapshot();
+    scroll_state_snapshot_by_display_list.set(*display_list, move(scroll_state_snapshot));
+    // Collect scroll state snapshots for each nested navigable
+    document_paintable.for_each_in_inclusive_subtree_of_type<Painting::NavigableContainerViewportPaintable>([&scroll_state_snapshot_by_display_list](auto& navigable_container_paintable) {
+        auto const* hosted_document = navigable_container_paintable.layout_box().dom_node().content_document_without_origin_check();
+        if (!hosted_document || !hosted_document->paintable())
+            return TraversalDecision::Continue;
+        // We are only interested in collecting scroll state snapshots for visible nested navigables, which is
+        // detectable by checking if they have a cached display list that should've been populated by
+        // record_display_list() on top-level document.
+        auto navigable_display_list = hosted_document->cached_display_list();
+        if (!navigable_display_list)
+            return TraversalDecision::Continue;
+        const_cast<DOM::Document&>(*hosted_document).paintable()->refresh_scroll_state();
+        auto navigable_scroll_state_snapshot = hosted_document->paintable()->scroll_state().snapshot();
+        scroll_state_snapshot_by_display_list.set(*navigable_display_list, move(navigable_scroll_state_snapshot));
+        return TraversalDecision::Continue;
+    });
+
+    m_rendering_thread.enqueue_rendering_task(*display_list, move(scroll_state_snapshot_by_display_list), painting_surface, move(callback));
 }
 
 RefPtr<Gfx::SkiaBackendContext> Navigable::skia_backend_context() const
