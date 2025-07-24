@@ -813,13 +813,14 @@ void Parser::parse_interface(Interface& interface)
     consume_whitespace();
 }
 
-void Parser::parse_partial_interface(Interface& parent)
+void Parser::parse_partial_interface(HashMap<ByteString, ByteString> extended_attributes, Interface& parent)
 {
     assert_string("partial"sv);
     consume_whitespace();
     assert_string("interface"sv);
 
     auto partial_interface = make<Interface>();
+    partial_interface->extended_attributes = move(extended_attributes);
     parse_interface(*partial_interface);
     parent.partial_interfaces.append(move(partial_interface));
 }
@@ -1063,7 +1064,7 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
         } else if (lexer.next_is("typedef")) {
             parse_typedef(interface);
         } else if (lexer.next_is("partial interface"sv)) {
-            parse_partial_interface(interface);
+            parse_partial_interface(extended_attributes, interface);
         } else if (lexer.next_is("interface mixin")) {
             parse_interface_mixin(interface);
         } else if (lexer.next_is("callback")) {
