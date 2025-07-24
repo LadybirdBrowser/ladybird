@@ -90,6 +90,7 @@ public:
 
 protected:
     virtual bool parse_internal(ByteCode&, size_t& match_length_minimum) = 0;
+    bool resolve_forward_named_references();
 
     ALWAYS_INLINE bool match(TokenType type) const;
     ALWAYS_INLINE bool match(char ch) const;
@@ -121,6 +122,12 @@ protected:
         AllOptions regex_options;
         HashMap<size_t, size_t> capture_group_minimum_lengths;
         OrderedHashMap<FlyString, Vector<NamedCaptureGroup>> named_capture_groups;
+
+        struct UnresolvedNamedReference {
+            FlyString name;
+            size_t bytecode_offset;
+        };
+        Vector<UnresolvedNamedReference> unresolved_named_references;
 
         explicit ParserState(Lexer& lexer)
             : lexer(lexer)
