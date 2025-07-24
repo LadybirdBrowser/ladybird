@@ -120,7 +120,7 @@ protected:
         size_t repetition_mark_count { 0 };
         AllOptions regex_options;
         HashMap<size_t, size_t> capture_group_minimum_lengths;
-        HashMap<FlyString, Vector<NamedCaptureGroup>> named_capture_groups;
+        OrderedHashMap<FlyString, Vector<NamedCaptureGroup>> named_capture_groups;
 
         explicit ParserState(Lexer& lexer)
             : lexer(lexer)
