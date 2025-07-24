@@ -387,7 +387,7 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup::execute(MatchInput c
     if (start_position < match.column)
         return ExecutionResult::Continue;
 
-    VERIFY(start_position + length <= input.view.length());
+    VERIFY(start_position + length <= input.view.length_in_code_units());
 
     auto captured_text = input.view.substring_view(start_position, length);
 
@@ -420,7 +420,7 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup::execute(MatchIn
     if (start_position < match.column)
         return ExecutionResult::Continue;
 
-    VERIFY(start_position + length <= input.view.length());
+    VERIFY(start_position + length <= input.view.length_in_code_units());
 
     auto view = input.view.substring_view(start_position, length);
 
@@ -551,7 +551,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             break;
         }
         case CharacterCompareType::CharClass: {
-            if (input.view.length() <= state.string_position_in_code_units)
+            if (input.view.length_in_code_units() <= state.string_position_in_code_units)
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
             auto character_class = (CharClass)m_bytecode->at(offset++);
