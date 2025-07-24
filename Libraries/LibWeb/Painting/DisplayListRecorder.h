@@ -124,7 +124,6 @@ public:
         Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
         bool isolate;
         bool is_fixed_position;
-        Gfx::IntRect source_paintable_rect;
         StackingContextTransform transform;
         Optional<Gfx::Path> clip_path = {};
     };

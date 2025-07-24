@@ -330,7 +330,6 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
         .opacity = params.opacity,
         .compositing_and_blending_operator = params.compositing_and_blending_operator,
         .isolate = params.isolate,
-        .source_paintable_rect = params.source_paintable_rect,
         .transform = {
             .origin = params.transform.origin,
             .matrix = params.transform.matrix,

@@ -130,15 +130,12 @@ struct PushStackingContext {
     float opacity;
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
     bool isolate;
-    // The bounding box of the source paintable (pre-transform).
-    Gfx::IntRect source_paintable_rect;
     // A translation to be applied after the stacking context has been transformed.
     StackingContextTransform transform;
     Optional<Gfx::Path> clip_path = {};
 
     void translate_by(Gfx::IntPoint const& offset)
     {
-        source_paintable_rect.translate_by(offset);
         transform.origin.translate_by(offset.to_type<float>());
         if (clip_path.has_value()) {
             clip_path.value().transform(Gfx::AffineTransform().translate(offset.to_type<float>()));
