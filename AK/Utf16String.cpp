@@ -114,6 +114,20 @@ Utf16String Utf16String::repeated(u32 code_point, size_t count)
     return builder.to_utf16_string();
 }
 
+Utf16String Utf16String::to_well_formed() const
+{
+    if (utf16_view().validate(AllowLonelySurrogates::No))
+        return *this;
+    return Utf16String { Detail::Utf16StringData::to_well_formed(*this) };
+}
+
+String Utf16String::to_well_formed_utf8() const
+{
+    if (utf16_view().validate(AllowLonelySurrogates::No))
+        return to_utf8(AllowLonelySurrogates::No);
+    return to_well_formed().to_utf8(AllowLonelySurrogates::No);
+}
+
 ErrorOr<void> Formatter<Utf16String>::format(FormatBuilder& builder, Utf16String const& utf16_string)
 {
     if (utf16_string.has_long_utf16_storage())

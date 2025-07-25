@@ -138,6 +138,9 @@ public:
         return from_string_builder_without_validation(builder);
     }
 
+    Utf16String to_well_formed() const;
+    String to_well_formed_utf8() const;
+
     // These methods require linking LibUnicode.
     Utf16String to_lowercase(Optional<StringView> const& locale = {}) const;
     Utf16String to_uppercase(Optional<StringView> const& locale = {}) const;

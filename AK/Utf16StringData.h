@@ -35,6 +35,8 @@ public:
     static NonnullRefPtr<Utf16StringData> from_utf32(Utf32View const&);
     static NonnullRefPtr<Utf16StringData> from_string_builder(StringBuilder&);
 
+    static NonnullRefPtr<Utf16StringData> to_well_formed(Utf16View const&);
+
     ~Utf16StringData()
     {
         if (is_fly_string())
