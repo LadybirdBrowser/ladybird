@@ -1,0 +1,287 @@
+<!doctype html>
+<title>Range.insertNode() tests</title>
+<link rel="author" title="Aryeh Gregor" href=ayg@aryeh.name>
+<meta name=timeout content=long>
+<p>To debug test failures, add a query parameter "subtest" with the test id (like
+"?subtest=5,16").  Only that test will be run.  Then you can look at the resulting
+iframes in the DOM.
+<div id=log></div>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script src=../common.js></script>
+<script>
+"use strict";
+
+testDiv.parentNode.removeChild(testDiv);
+
+function restoreIframe(iframe, i, j) {
+    // Most of this function is designed to work around the fact that Opera
+    // doesn't let you add a doctype to a document that no longer has one, in
+    // any way I can figure out.  I eventually compromised on something that
+    // will still let Opera pass most tests that don't actually involve
+    // doctypes.
+    while (iframe.contentDocument.firstChild
+    && iframe.contentDocument.firstChild.nodeType != Node.DOCUMENT_TYPE_NODE) {
+        iframe.contentDocument.removeChild(iframe.contentDocument.firstChild);
+    }
+
+    while (iframe.contentDocument.lastChild
+    && iframe.contentDocument.lastChild.nodeType != Node.DOCUMENT_TYPE_NODE) {
+        iframe.contentDocument.removeChild(iframe.contentDocument.lastChild);
+    }
+
+    if (!iframe.contentDocument.firstChild) {
+        // This will throw an exception in Opera if we reach here, which is why
+        // I try to avoid it.  It will never happen in a browser that obeys the
+        // spec, so it's really just insurance.  I don't think it actually gets
+        // hit by anything.
+        iframe.contentDocument.appendChild(iframe.contentDocument.implementation.createDocumentType("html", "", ""));
+    }
+    iframe.contentDocument.appendChild(referenceDoc.documentElement.cloneNode(true));
+    iframe.contentWindow.setupRangeTests();
+    iframe.contentWindow.testRangeInput = testRangesShort[i];
+    iframe.contentWindow.testNodeInput = testNodesShort[j];
+    iframe.contentWindow.run();
+}
+
+function testInsertNode(i, j) {
+    var actualRange;
+    var expectedRange;
+    var actualNode;
+    var expectedNode;
+    var actualRoots = [];
+    var expectedRoots = [];
+
+    var detached = false;
+
+    domTests[i][j].step(function() {
+        restoreIframe(actualIframe, i, j);
+        restoreIframe(expectedIframe, i, j);
+
+        actualRange = actualIframe.contentWindow.testRange;
+        expectedRange = expectedIframe.contentWindow.testRange;
+        actualNode = actualIframe.contentWindow.testNode;
+        expectedNode = expectedIframe.contentWindow.testNode;
+
+        try {
+            actualRange.collapsed;
+        } catch (e) {
+            detached = true;
+        }
+
+        assert_equals(actualIframe.contentWindow.unexpectedException, null,
+            "Unexpected exception thrown when setting up Range for actual insertNode()");
+        assert_equals(expectedIframe.contentWindow.unexpectedException, null,
+            "Unexpected exception thrown when setting up Range for simulated insertNode()");
+        assert_equals(typeof actualRange, "object",
+            "typeof Range produced in actual iframe");
+        assert_not_equals(actualRange, null,
+            "Range produced in actual iframe was null");
+        assert_equals(typeof expectedRange, "object",
+            "typeof Range produced in expected iframe");
+        assert_not_equals(expectedRange, null,
+            "Range produced in expected iframe was null");
+        assert_equals(typeof actualNode, "object",
+            "typeof Node produced in actual iframe");
+        assert_not_equals(actualNode, null,
+            "Node produced in actual iframe was null");
+        assert_equals(typeof expectedNode, "object",
+            "typeof Node produced in expected iframe");
+        assert_not_equals(expectedNode, null,
+            "Node produced in expected iframe was null");
+
+        // We want to test that the trees containing the ranges are equal, and
+        // also the trees containing the moved nodes.  These might not be the
+        // same, if we're inserting a node from a detached tree or a different
+        // document.
+        //
+        // Detached ranges are always in the contentDocument.
+        if (detached) {
+            actualRoots.push(actualIframe.contentDocument);
+            expectedRoots.push(expectedIframe.contentDocument);
+        } else {
+            actualRoots.push(furthestAncestor(actualRange.startContainer));
+            expectedRoots.push(furthestAncestor(expectedRange.startContainer));
+        }
+
+        if (furthestAncestor(actualNode) != actualRoots[0]) {
+            actualRoots.push(furthestAncestor(actualNode));
+        }
+        if (furthestAncestor(expectedNode) != expectedRoots[0]) {
+            expectedRoots.push(furthestAncestor(expectedNode));
+        }
+
+        assert_equals(actualRoots.length, expectedRoots.length,
+            "Either the actual node and actual range are in the same tree but the expected are in different trees, or vice versa");
+
+        // This doctype stuff is to work around the fact that Opera 11.00 will
+        // move around doctypes within a document, even to totally invalid
+        // positions, but it won't allow a new doctype to be added to a
+        // document in any way I can figure out.  So if we try moving a doctype
+        // to some invalid place, in Opera it will actually succeed, and then
+        // restoreIframe() will remove the doctype along with the root element,
+        // and then nothing can re-add the doctype.  So instead, we catch it
+        // during the test itself and move it back to the right place while we
+        // still can.
+        //
+        // I spent *way* too much time debugging and working around this bug.
+        var actualDoctype = actualIframe.contentDocument.doctype;
+        var expectedDoctype = expectedIframe.contentDocument.doctype;
+
+        var result;
+        try {
+            result = myInsertNode(expectedRange, expectedNode);
+        } catch (e) {
+            if (expectedDoctype != expectedIframe.contentDocument.firstChild) {
+                expectedIframe.contentDocument.insertBefore(expectedDoctype, expectedIframe.contentDocument.firstChild);
+            }
+            throw e;
+        }
+        if (typeof result == "string") {
+            assert_throws_dom(result, actualIframe.contentWindow.DOMException, function() {
+                try {
+                    actualRange.insertNode(actualNode);
+                } catch (e) {
+                    if (expectedDoctype != expectedIframe.contentDocument.firstChild) {
+                        expectedIframe.contentDocument.insertBefore(expectedDoctype, expectedIframe.contentDocument.firstChild);
+                    }
+                    if (actualDoctype != actualIframe.contentDocument.firstChild) {
+                        actualIframe.contentDocument.insertBefore(actualDoctype, actualIframe.contentDocument.firstChild);
+                    }
+                    throw e;
+                }
+            }, "A " + result + " DOMException must be thrown in this case");
+            // Don't return, we still need to test DOM equality
+        } else {
+            try {
+                actualRange.insertNode(actualNode);
+            } catch (e) {
+                if (expectedDoctype != expectedIframe.contentDocument.firstChild) {
+                    expectedIframe.contentDocument.insertBefore(expectedDoctype, expectedIframe.contentDocument.firstChild);
+                }
+                if (actualDoctype != actualIframe.contentDocument.firstChild) {
+                    actualIframe.contentDocument.insertBefore(actualDoctype, actualIframe.contentDocument.firstChild);
+                }
+                throw e;
+            }
+        }
+
+        for (var k = 0; k < actualRoots.length; k++) {
+            assertNodesEqual(actualRoots[k], expectedRoots[k], k ? "moved node's tree root" : "range's tree root");
+        }
+    });
+    domTests[i][j].done();
+
+    positionTests[i][j].step(function() {
+        assert_equals(actualIframe.contentWindow.unexpectedException, null,
+            "Unexpected exception thrown when setting up Range for actual insertNode()");
+        assert_equals(expectedIframe.contentWindow.unexpectedException, null,
+            "Unexpected exception thrown when setting up Range for simulated insertNode()");
+        assert_equals(typeof actualRange, "object",
+            "typeof Range produced in actual iframe");
+        assert_not_equals(actualRange, null,
+            "Range produced in actual iframe was null");
+        assert_equals(typeof expectedRange, "object",
+            "typeof Range produced in expected iframe");
+        assert_not_equals(expectedRange, null,
+            "Range produced in expected iframe was null");
+        assert_equals(typeof actualNode, "object",
+            "typeof Node produced in actual iframe");
+        assert_not_equals(actualNode, null,
+            "Node produced in actual iframe was null");
+        assert_equals(typeof expectedNode, "object",
+            "typeof Node produced in expected iframe");
+        assert_not_equals(expectedNode, null,
+            "Node produced in expected iframe was null");
+
+        for (var k = 0; k < actualRoots.length; k++) {
+            assertNodesEqual(actualRoots[k], expectedRoots[k], k ? "moved node's tree root" : "range's tree root");
+        }
+
+        if (detached) {
+            // No further tests we can do
+            return;
+        }
+
+        assert_equals(actualRange.startOffset, expectedRange.startOffset,
+            "Unexpected startOffset after insertNode()");
+        assert_equals(actualRange.endOffset, expectedRange.endOffset,
+            "Unexpected endOffset after insertNode()");
+        // How do we decide that the two nodes are equal, since they're in
+        // different trees?  Since the DOMs are the same, it's enough to check
+        // that the index in the parent is the same all the way up the tree.
+        // But we can first cheat by just checking they're actually equal.
+        assert_true(actualRange.startContainer.isEqualNode(expectedRange.startContainer),
+            "Unexpected startContainer after insertNode(), expected " +
+            expectedRange.startContainer.nodeName.toLowerCase() + " but got " +
+            actualRange.startContainer.nodeName.toLowerCase());
+        var currentActual = actualRange.startContainer;
+        var currentExpected = expectedRange.startContainer;
+        var actual = "";
+        var expected = "";
+        while (currentActual && currentExpected) {
+            actual = indexOf(currentActual) + "-" + actual;
+            expected = indexOf(currentExpected) + "-" + expected;
+
+            currentActual = currentActual.parentNode;
+            currentExpected = currentExpected.parentNode;
+        }
+        actual = actual.substr(0, actual.length - 1);
+        expected = expected.substr(0, expected.length - 1);
+        assert_equals(actual, expected,
+            "startContainer superficially looks right but is actually the wrong node if you trace back its index in all its ancestors (I'm surprised this actually happened");
+    });
+    positionTests[i][j].done();
+}
+
+testRanges.unshift('"detached"');
+
+var iStart = 0;
+var iStop = testRangesShort.length;
+var jStart = 0;
+var jStop = testNodesShort.length;
+
+if (/subtest=[0-9]+,[0-9]+/.test(location.search)) {
+    var matches = /subtest=([0-9]+),([0-9]+)/.exec(location.search);
+    iStart = Number(matches[1]);
+    iStop = Number(matches[1]) + 1;
+    jStart = Number(matches[2]) + 0;
+    jStop = Number(matches[2]) + 1;
+}
+
+var domTests = [];
+var positionTests = [];
+for (var i = iStart; i < iStop; i++) {
+    domTests[i] = [];
+    positionTests[i] = [];
+    for (var j = jStart; j < jStop; j++) {
+        domTests[i][j] = async_test(i + "," + j + ": resulting DOM for range " + testRangesShort[i] + ", node " + testNodesShort[j]);
+        positionTests[i][j] = async_test(i + "," + j + ": resulting range position for range " + testRangesShort[i] + ", node " + testNodesShort[j]);
+    }
+}
+
+var actualIframe = document.createElement("iframe");
+actualIframe.style.display = "none";
+document.body.appendChild(actualIframe);
+
+var expectedIframe = document.createElement("iframe");
+expectedIframe.style.display = "none";
+document.body.appendChild(expectedIframe);
+
+var referenceDoc = document.implementation.createHTMLDocument("");
+referenceDoc.removeChild(referenceDoc.documentElement);
+
+actualIframe.onload = function() {
+    expectedIframe.onload = function() {
+        for (var i = iStart; i < iStop; i++) {
+            for (var j = jStart; j < jStop; j++) {
+                testInsertNode(i, j);
+            }
+        }
+    }
+    expectedIframe.src = "resources/Range-test-iframe.html";
+    referenceDoc.appendChild(actualIframe.contentDocument.documentElement.cloneNode(true));
+}
+// FIXME: This location of this file has been modified so that this file is not treated as a test file.
+actualIframe.src = "resources/Range-test-iframe.html";
+</script>

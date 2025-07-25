@@ -375,7 +375,7 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    WebIDL::ExceptionOr<void> ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child) const;
+    WebIDL::ExceptionOr<void> ensure_pre_insertion_validity(JS::Realm&, GC::Ref<Node> node, GC::Ptr<Node> child) const;
 
     bool is_host_including_inclusive_ancestor_of(Node const&) const;
 

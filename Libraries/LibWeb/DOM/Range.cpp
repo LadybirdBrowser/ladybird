@@ -839,7 +839,7 @@ WebIDL::ExceptionOr<void> Range::insert(GC::Ref<Node> node)
         parent = reference_node->parent();
 
     // 6. Ensure pre-insertion validity of node into parent before referenceNode.
-    TRY(parent->ensure_pre_insertion_validity(node, reference_node));
+    TRY(parent->ensure_pre_insertion_validity(node->realm(), node, reference_node));
 
     // 7. If range’s start node is a Text node, set referenceNode to the result of splitting it with offset range’s start offset.
     if (is<Text>(*m_start_container))

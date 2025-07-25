@@ -1,0 +1,1845 @@
+Harness status: OK
+
+Found 1840 tests
+
+1840 Pass
+Pass	0,0: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node paras[0]
+Pass	0,0: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node paras[0]
+Pass	0,1: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node paras[0].firstChild
+Pass	0,1: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node paras[0].firstChild
+Pass	0,2: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node paras[1].firstChild
+Pass	0,2: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node paras[1].firstChild
+Pass	0,3: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node paras[5].firstChild
+Pass	0,3: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node paras[5].firstChild
+Pass	0,4: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignPara1
+Pass	0,4: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignPara1
+Pass	0,5: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignPara1.firstChild
+Pass	0,5: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignPara1.firstChild
+Pass	0,6: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedPara1
+Pass	0,6: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedPara1
+Pass	0,7: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedPara1.firstChild
+Pass	0,7: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedPara1.firstChild
+Pass	0,8: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node document
+Pass	0,8: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node document
+Pass	0,9: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedDiv
+Pass	0,9: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedDiv
+Pass	0,10: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignDoc
+Pass	0,10: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignDoc
+Pass	0,11: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignPara2
+Pass	0,11: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignPara2
+Pass	0,12: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node xmlDoc
+Pass	0,12: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node xmlDoc
+Pass	0,13: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node xmlElement
+Pass	0,13: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node xmlElement
+Pass	0,14: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedTextNode
+Pass	0,14: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedTextNode
+Pass	0,15: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignTextNode
+Pass	0,15: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignTextNode
+Pass	0,16: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node processingInstruction
+Pass	0,16: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node processingInstruction
+Pass	0,17: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedProcessingInstruction
+Pass	0,17: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedProcessingInstruction
+Pass	0,18: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node comment
+Pass	0,18: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node comment
+Pass	0,19: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedComment
+Pass	0,19: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node detachedComment
+Pass	0,20: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node docfrag
+Pass	0,20: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node docfrag
+Pass	0,21: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node doctype
+Pass	0,21: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node doctype
+Pass	0,22: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignDoctype
+Pass	0,22: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 0], node foreignDoctype
+Pass	1,0: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node paras[0]
+Pass	1,0: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node paras[0]
+Pass	1,1: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node paras[0].firstChild
+Pass	1,1: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node paras[0].firstChild
+Pass	1,2: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node paras[1].firstChild
+Pass	1,2: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node paras[1].firstChild
+Pass	1,3: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node paras[5].firstChild
+Pass	1,3: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node paras[5].firstChild
+Pass	1,4: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignPara1
+Pass	1,4: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignPara1
+Pass	1,5: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignPara1.firstChild
+Pass	1,5: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignPara1.firstChild
+Pass	1,6: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedPara1
+Pass	1,6: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedPara1
+Pass	1,7: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedPara1.firstChild
+Pass	1,7: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedPara1.firstChild
+Pass	1,8: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node document
+Pass	1,8: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node document
+Pass	1,9: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedDiv
+Pass	1,9: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedDiv
+Pass	1,10: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignDoc
+Pass	1,10: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignDoc
+Pass	1,11: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignPara2
+Pass	1,11: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignPara2
+Pass	1,12: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node xmlDoc
+Pass	1,12: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node xmlDoc
+Pass	1,13: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node xmlElement
+Pass	1,13: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node xmlElement
+Pass	1,14: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedTextNode
+Pass	1,14: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedTextNode
+Pass	1,15: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignTextNode
+Pass	1,15: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignTextNode
+Pass	1,16: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node processingInstruction
+Pass	1,16: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node processingInstruction
+Pass	1,17: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedProcessingInstruction
+Pass	1,17: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedProcessingInstruction
+Pass	1,18: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node comment
+Pass	1,18: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node comment
+Pass	1,19: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedComment
+Pass	1,19: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node detachedComment
+Pass	1,20: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node docfrag
+Pass	1,20: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node docfrag
+Pass	1,21: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node doctype
+Pass	1,21: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node doctype
+Pass	1,22: resulting DOM for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignDoctype
+Pass	1,22: resulting range position for range [paras[0].firstChild, 0, paras[0].firstChild, 1], node foreignDoctype
+Pass	2,0: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node paras[0]
+Pass	2,0: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node paras[0]
+Pass	2,1: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node paras[0].firstChild
+Pass	2,1: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node paras[0].firstChild
+Pass	2,2: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node paras[1].firstChild
+Pass	2,2: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node paras[1].firstChild
+Pass	2,3: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node paras[5].firstChild
+Pass	2,3: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node paras[5].firstChild
+Pass	2,4: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignPara1
+Pass	2,4: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignPara1
+Pass	2,5: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignPara1.firstChild
+Pass	2,5: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignPara1.firstChild
+Pass	2,6: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedPara1
+Pass	2,6: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedPara1
+Pass	2,7: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedPara1.firstChild
+Pass	2,7: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedPara1.firstChild
+Pass	2,8: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node document
+Pass	2,8: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node document
+Pass	2,9: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedDiv
+Pass	2,9: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedDiv
+Pass	2,10: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignDoc
+Pass	2,10: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignDoc
+Pass	2,11: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignPara2
+Pass	2,11: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignPara2
+Pass	2,12: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node xmlDoc
+Pass	2,12: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node xmlDoc
+Pass	2,13: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node xmlElement
+Pass	2,13: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node xmlElement
+Pass	2,14: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedTextNode
+Pass	2,14: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedTextNode
+Pass	2,15: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignTextNode
+Pass	2,15: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignTextNode
+Pass	2,16: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node processingInstruction
+Pass	2,16: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node processingInstruction
+Pass	2,17: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedProcessingInstruction
+Pass	2,17: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedProcessingInstruction
+Pass	2,18: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node comment
+Pass	2,18: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node comment
+Pass	2,19: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedComment
+Pass	2,19: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node detachedComment
+Pass	2,20: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node docfrag
+Pass	2,20: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node docfrag
+Pass	2,21: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node doctype
+Pass	2,21: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node doctype
+Pass	2,22: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignDoctype
+Pass	2,22: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 8], node foreignDoctype
+Pass	3,0: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node paras[0]
+Pass	3,0: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node paras[0]
+Pass	3,1: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node paras[0].firstChild
+Pass	3,1: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node paras[0].firstChild
+Pass	3,2: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node paras[1].firstChild
+Pass	3,2: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node paras[1].firstChild
+Pass	3,3: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node paras[5].firstChild
+Pass	3,3: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node paras[5].firstChild
+Pass	3,4: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignPara1
+Pass	3,4: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignPara1
+Pass	3,5: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignPara1.firstChild
+Pass	3,5: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignPara1.firstChild
+Pass	3,6: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedPara1
+Pass	3,6: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedPara1
+Pass	3,7: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedPara1.firstChild
+Pass	3,7: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedPara1.firstChild
+Pass	3,8: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node document
+Pass	3,8: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node document
+Pass	3,9: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedDiv
+Pass	3,9: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedDiv
+Pass	3,10: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignDoc
+Pass	3,10: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignDoc
+Pass	3,11: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignPara2
+Pass	3,11: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignPara2
+Pass	3,12: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node xmlDoc
+Pass	3,12: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node xmlDoc
+Pass	3,13: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node xmlElement
+Pass	3,13: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node xmlElement
+Pass	3,14: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedTextNode
+Pass	3,14: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedTextNode
+Pass	3,15: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignTextNode
+Pass	3,15: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignTextNode
+Pass	3,16: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node processingInstruction
+Pass	3,16: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node processingInstruction
+Pass	3,17: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedProcessingInstruction
+Pass	3,17: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedProcessingInstruction
+Pass	3,18: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node comment
+Pass	3,18: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node comment
+Pass	3,19: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedComment
+Pass	3,19: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node detachedComment
+Pass	3,20: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node docfrag
+Pass	3,20: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node docfrag
+Pass	3,21: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node doctype
+Pass	3,21: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node doctype
+Pass	3,22: resulting DOM for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignDoctype
+Pass	3,22: resulting range position for range [paras[0].firstChild, 2, paras[0].firstChild, 9], node foreignDoctype
+Pass	4,0: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node paras[0]
+Pass	4,0: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node paras[0]
+Pass	4,1: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node paras[0].firstChild
+Pass	4,1: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node paras[0].firstChild
+Pass	4,2: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node paras[1].firstChild
+Pass	4,2: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node paras[1].firstChild
+Pass	4,3: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node paras[5].firstChild
+Pass	4,3: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node paras[5].firstChild
+Pass	4,4: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignPara1
+Pass	4,4: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignPara1
+Pass	4,5: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignPara1.firstChild
+Pass	4,5: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignPara1.firstChild
+Pass	4,6: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedPara1
+Pass	4,6: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedPara1
+Pass	4,7: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedPara1.firstChild
+Pass	4,7: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedPara1.firstChild
+Pass	4,8: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node document
+Pass	4,8: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node document
+Pass	4,9: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedDiv
+Pass	4,9: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedDiv
+Pass	4,10: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignDoc
+Pass	4,10: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignDoc
+Pass	4,11: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignPara2
+Pass	4,11: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignPara2
+Pass	4,12: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node xmlDoc
+Pass	4,12: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node xmlDoc
+Pass	4,13: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node xmlElement
+Pass	4,13: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node xmlElement
+Pass	4,14: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedTextNode
+Pass	4,14: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedTextNode
+Pass	4,15: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignTextNode
+Pass	4,15: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignTextNode
+Pass	4,16: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node processingInstruction
+Pass	4,16: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node processingInstruction
+Pass	4,17: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedProcessingInstruction
+Pass	4,17: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedProcessingInstruction
+Pass	4,18: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node comment
+Pass	4,18: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node comment
+Pass	4,19: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedComment
+Pass	4,19: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node detachedComment
+Pass	4,20: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node docfrag
+Pass	4,20: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node docfrag
+Pass	4,21: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node doctype
+Pass	4,21: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node doctype
+Pass	4,22: resulting DOM for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignDoctype
+Pass	4,22: resulting range position for range [paras[1].firstChild, 0, paras[1].firstChild, 0], node foreignDoctype
+Pass	5,0: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node paras[0]
+Pass	5,0: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node paras[0]
+Pass	5,1: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node paras[0].firstChild
+Pass	5,1: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node paras[0].firstChild
+Pass	5,2: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node paras[1].firstChild
+Pass	5,2: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node paras[1].firstChild
+Pass	5,3: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node paras[5].firstChild
+Pass	5,3: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node paras[5].firstChild
+Pass	5,4: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignPara1
+Pass	5,4: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignPara1
+Pass	5,5: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignPara1.firstChild
+Pass	5,5: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignPara1.firstChild
+Pass	5,6: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedPara1
+Pass	5,6: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedPara1
+Pass	5,7: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedPara1.firstChild
+Pass	5,7: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedPara1.firstChild
+Pass	5,8: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node document
+Pass	5,8: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node document
+Pass	5,9: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedDiv
+Pass	5,9: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedDiv
+Pass	5,10: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignDoc
+Pass	5,10: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignDoc
+Pass	5,11: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignPara2
+Pass	5,11: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignPara2
+Pass	5,12: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node xmlDoc
+Pass	5,12: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node xmlDoc
+Pass	5,13: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node xmlElement
+Pass	5,13: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node xmlElement
+Pass	5,14: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedTextNode
+Pass	5,14: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedTextNode
+Pass	5,15: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignTextNode
+Pass	5,15: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignTextNode
+Pass	5,16: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node processingInstruction
+Pass	5,16: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node processingInstruction
+Pass	5,17: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedProcessingInstruction
+Pass	5,17: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedProcessingInstruction
+Pass	5,18: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node comment
+Pass	5,18: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node comment
+Pass	5,19: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedComment
+Pass	5,19: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node detachedComment
+Pass	5,20: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node docfrag
+Pass	5,20: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node docfrag
+Pass	5,21: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node doctype
+Pass	5,21: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node doctype
+Pass	5,22: resulting DOM for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignDoctype
+Pass	5,22: resulting range position for range [paras[1].firstChild, 2, paras[1].firstChild, 9], node foreignDoctype
+Pass	6,0: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node paras[0]
+Pass	6,0: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node paras[0]
+Pass	6,1: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node paras[0].firstChild
+Pass	6,1: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node paras[0].firstChild
+Pass	6,2: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node paras[1].firstChild
+Pass	6,2: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node paras[1].firstChild
+Pass	6,3: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node paras[5].firstChild
+Pass	6,3: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node paras[5].firstChild
+Pass	6,4: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignPara1
+Pass	6,4: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignPara1
+Pass	6,5: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignPara1.firstChild
+Pass	6,5: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignPara1.firstChild
+Pass	6,6: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedPara1
+Pass	6,6: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedPara1
+Pass	6,7: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedPara1.firstChild
+Pass	6,7: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedPara1.firstChild
+Pass	6,8: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node document
+Pass	6,8: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node document
+Pass	6,9: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedDiv
+Pass	6,9: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedDiv
+Pass	6,10: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignDoc
+Pass	6,10: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignDoc
+Pass	6,11: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignPara2
+Pass	6,11: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignPara2
+Pass	6,12: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node xmlDoc
+Pass	6,12: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node xmlDoc
+Pass	6,13: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node xmlElement
+Pass	6,13: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node xmlElement
+Pass	6,14: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedTextNode
+Pass	6,14: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedTextNode
+Pass	6,15: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignTextNode
+Pass	6,15: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignTextNode
+Pass	6,16: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node processingInstruction
+Pass	6,16: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node processingInstruction
+Pass	6,17: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedProcessingInstruction
+Pass	6,17: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedProcessingInstruction
+Pass	6,18: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node comment
+Pass	6,18: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node comment
+Pass	6,19: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedComment
+Pass	6,19: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node detachedComment
+Pass	6,20: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node docfrag
+Pass	6,20: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node docfrag
+Pass	6,21: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node doctype
+Pass	6,21: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node doctype
+Pass	6,22: resulting DOM for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignDoctype
+Pass	6,22: resulting range position for range [paras[5].firstChild, 2, paras[5].lastChild, 4], node foreignDoctype
+Pass	7,0: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node paras[0]
+Pass	7,0: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node paras[0]
+Pass	7,1: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node paras[0].firstChild
+Pass	7,1: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node paras[0].firstChild
+Pass	7,2: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node paras[1].firstChild
+Pass	7,2: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node paras[1].firstChild
+Pass	7,3: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node paras[5].firstChild
+Pass	7,3: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node paras[5].firstChild
+Pass	7,4: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignPara1
+Pass	7,4: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignPara1
+Pass	7,5: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignPara1.firstChild
+Pass	7,5: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignPara1.firstChild
+Pass	7,6: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedPara1
+Pass	7,6: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedPara1
+Pass	7,7: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedPara1.firstChild
+Pass	7,7: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedPara1.firstChild
+Pass	7,8: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node document
+Pass	7,8: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node document
+Pass	7,9: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedDiv
+Pass	7,9: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedDiv
+Pass	7,10: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignDoc
+Pass	7,10: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignDoc
+Pass	7,11: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignPara2
+Pass	7,11: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignPara2
+Pass	7,12: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node xmlDoc
+Pass	7,12: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node xmlDoc
+Pass	7,13: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node xmlElement
+Pass	7,13: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node xmlElement
+Pass	7,14: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedTextNode
+Pass	7,14: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedTextNode
+Pass	7,15: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignTextNode
+Pass	7,15: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignTextNode
+Pass	7,16: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node processingInstruction
+Pass	7,16: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node processingInstruction
+Pass	7,17: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedProcessingInstruction
+Pass	7,17: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedProcessingInstruction
+Pass	7,18: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node comment
+Pass	7,18: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node comment
+Pass	7,19: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedComment
+Pass	7,19: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node detachedComment
+Pass	7,20: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node docfrag
+Pass	7,20: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node docfrag
+Pass	7,21: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node doctype
+Pass	7,21: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node doctype
+Pass	7,22: resulting DOM for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignDoctype
+Pass	7,22: resulting range position for range [paras[5].firstChild, 1, paras[5].firstChild, 3], node foreignDoctype
+Pass	8,0: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node paras[0]
+Pass	8,0: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node paras[0]
+Pass	8,1: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node paras[0].firstChild
+Pass	8,1: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node paras[0].firstChild
+Pass	8,2: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node paras[1].firstChild
+Pass	8,2: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node paras[1].firstChild
+Pass	8,3: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node paras[5].firstChild
+Pass	8,3: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node paras[5].firstChild
+Pass	8,4: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignPara1
+Pass	8,4: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignPara1
+Pass	8,5: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignPara1.firstChild
+Pass	8,5: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignPara1.firstChild
+Pass	8,6: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedPara1
+Pass	8,6: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedPara1
+Pass	8,7: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedPara1.firstChild
+Pass	8,7: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedPara1.firstChild
+Pass	8,8: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node document
+Pass	8,8: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node document
+Pass	8,9: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedDiv
+Pass	8,9: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedDiv
+Pass	8,10: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignDoc
+Pass	8,10: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignDoc
+Pass	8,11: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignPara2
+Pass	8,11: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignPara2
+Pass	8,12: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node xmlDoc
+Pass	8,12: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node xmlDoc
+Pass	8,13: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node xmlElement
+Pass	8,13: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node xmlElement
+Pass	8,14: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedTextNode
+Pass	8,14: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedTextNode
+Pass	8,15: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignTextNode
+Pass	8,15: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignTextNode
+Pass	8,16: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node processingInstruction
+Pass	8,16: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node processingInstruction
+Pass	8,17: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedProcessingInstruction
+Pass	8,17: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedProcessingInstruction
+Pass	8,18: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node comment
+Pass	8,18: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node comment
+Pass	8,19: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedComment
+Pass	8,19: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node detachedComment
+Pass	8,20: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node docfrag
+Pass	8,20: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node docfrag
+Pass	8,21: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node doctype
+Pass	8,21: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node doctype
+Pass	8,22: resulting DOM for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignDoctype
+Pass	8,22: resulting range position for range [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0], node foreignDoctype
+Pass	9,0: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node paras[0]
+Pass	9,0: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node paras[0]
+Pass	9,1: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node paras[0].firstChild
+Pass	9,1: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node paras[0].firstChild
+Pass	9,2: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node paras[1].firstChild
+Pass	9,2: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node paras[1].firstChild
+Pass	9,3: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node paras[5].firstChild
+Pass	9,3: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node paras[5].firstChild
+Pass	9,4: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignPara1
+Pass	9,4: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignPara1
+Pass	9,5: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignPara1.firstChild
+Pass	9,5: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignPara1.firstChild
+Pass	9,6: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedPara1
+Pass	9,6: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedPara1
+Pass	9,7: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedPara1.firstChild
+Pass	9,7: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedPara1.firstChild
+Pass	9,8: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node document
+Pass	9,8: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node document
+Pass	9,9: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedDiv
+Pass	9,9: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedDiv
+Pass	9,10: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignDoc
+Pass	9,10: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignDoc
+Pass	9,11: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignPara2
+Pass	9,11: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignPara2
+Pass	9,12: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node xmlDoc
+Pass	9,12: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node xmlDoc
+Pass	9,13: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node xmlElement
+Pass	9,13: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node xmlElement
+Pass	9,14: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedTextNode
+Pass	9,14: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedTextNode
+Pass	9,15: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignTextNode
+Pass	9,15: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignTextNode
+Pass	9,16: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node processingInstruction
+Pass	9,16: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node processingInstruction
+Pass	9,17: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedProcessingInstruction
+Pass	9,17: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedProcessingInstruction
+Pass	9,18: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node comment
+Pass	9,18: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node comment
+Pass	9,19: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedComment
+Pass	9,19: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node detachedComment
+Pass	9,20: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node docfrag
+Pass	9,20: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node docfrag
+Pass	9,21: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node doctype
+Pass	9,21: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node doctype
+Pass	9,22: resulting DOM for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignDoctype
+Pass	9,22: resulting range position for range [detachedPara1.firstChild, 2, detachedPara1.firstChild, 8], node foreignDoctype
+Pass	10,0: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node paras[0]
+Pass	10,0: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node paras[0]
+Pass	10,1: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node paras[0].firstChild
+Pass	10,1: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node paras[0].firstChild
+Pass	10,2: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node paras[1].firstChild
+Pass	10,2: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node paras[1].firstChild
+Pass	10,3: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node paras[5].firstChild
+Pass	10,3: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node paras[5].firstChild
+Pass	10,4: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignPara1
+Pass	10,4: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignPara1
+Pass	10,5: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignPara1.firstChild
+Pass	10,5: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignPara1.firstChild
+Pass	10,6: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedPara1
+Pass	10,6: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedPara1
+Pass	10,7: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedPara1.firstChild
+Pass	10,7: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedPara1.firstChild
+Pass	10,8: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node document
+Pass	10,8: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node document
+Pass	10,9: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedDiv
+Pass	10,9: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedDiv
+Pass	10,10: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignDoc
+Pass	10,10: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignDoc
+Pass	10,11: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignPara2
+Pass	10,11: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignPara2
+Pass	10,12: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node xmlDoc
+Pass	10,12: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node xmlDoc
+Pass	10,13: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node xmlElement
+Pass	10,13: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node xmlElement
+Pass	10,14: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedTextNode
+Pass	10,14: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedTextNode
+Pass	10,15: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignTextNode
+Pass	10,15: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignTextNode
+Pass	10,16: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node processingInstruction
+Pass	10,16: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node processingInstruction
+Pass	10,17: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedProcessingInstruction
+Pass	10,17: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedProcessingInstruction
+Pass	10,18: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node comment
+Pass	10,18: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node comment
+Pass	10,19: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedComment
+Pass	10,19: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node detachedComment
+Pass	10,20: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node docfrag
+Pass	10,20: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node docfrag
+Pass	10,21: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node doctype
+Pass	10,21: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node doctype
+Pass	10,22: resulting DOM for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignDoctype
+Pass	10,22: resulting range position for range [foreignPara1.firstChild, 0, foreignPara1.firstChild, 0], node foreignDoctype
+Pass	11,0: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node paras[0]
+Pass	11,0: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node paras[0]
+Pass	11,1: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node paras[0].firstChild
+Pass	11,1: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node paras[0].firstChild
+Pass	11,2: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node paras[1].firstChild
+Pass	11,2: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node paras[1].firstChild
+Pass	11,3: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node paras[5].firstChild
+Pass	11,3: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node paras[5].firstChild
+Pass	11,4: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignPara1
+Pass	11,4: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignPara1
+Pass	11,5: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignPara1.firstChild
+Pass	11,5: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignPara1.firstChild
+Pass	11,6: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedPara1
+Pass	11,6: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedPara1
+Pass	11,7: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedPara1.firstChild
+Pass	11,7: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedPara1.firstChild
+Pass	11,8: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node document
+Pass	11,8: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node document
+Pass	11,9: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedDiv
+Pass	11,9: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedDiv
+Pass	11,10: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignDoc
+Pass	11,10: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignDoc
+Pass	11,11: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignPara2
+Pass	11,11: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignPara2
+Pass	11,12: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node xmlDoc
+Pass	11,12: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node xmlDoc
+Pass	11,13: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node xmlElement
+Pass	11,13: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node xmlElement
+Pass	11,14: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedTextNode
+Pass	11,14: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedTextNode
+Pass	11,15: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignTextNode
+Pass	11,15: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignTextNode
+Pass	11,16: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node processingInstruction
+Pass	11,16: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node processingInstruction
+Pass	11,17: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedProcessingInstruction
+Pass	11,17: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedProcessingInstruction
+Pass	11,18: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node comment
+Pass	11,18: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node comment
+Pass	11,19: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedComment
+Pass	11,19: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node detachedComment
+Pass	11,20: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node docfrag
+Pass	11,20: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node docfrag
+Pass	11,21: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node doctype
+Pass	11,21: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node doctype
+Pass	11,22: resulting DOM for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignDoctype
+Pass	11,22: resulting range position for range [foreignPara1.firstChild, 2, foreignPara1.firstChild, 8], node foreignDoctype
+Pass	12,0: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node paras[0]
+Pass	12,0: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node paras[0]
+Pass	12,1: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node paras[0].firstChild
+Pass	12,1: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node paras[0].firstChild
+Pass	12,2: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node paras[1].firstChild
+Pass	12,2: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node paras[1].firstChild
+Pass	12,3: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node paras[5].firstChild
+Pass	12,3: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node paras[5].firstChild
+Pass	12,4: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node foreignPara1
+Pass	12,4: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node foreignPara1
+Pass	12,5: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node foreignPara1.firstChild
+Pass	12,5: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node foreignPara1.firstChild
+Pass	12,6: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node detachedPara1
+Pass	12,6: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node detachedPara1
+Pass	12,7: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node detachedPara1.firstChild
+Pass	12,7: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node detachedPara1.firstChild
+Pass	12,8: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node document
+Pass	12,8: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node document
+Pass	12,9: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node detachedDiv
+Pass	12,9: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node detachedDiv
+Pass	12,10: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node foreignDoc
+Pass	12,10: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node foreignDoc
+Pass	12,11: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node foreignPara2
+Pass	12,11: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node foreignPara2
+Pass	12,12: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node xmlDoc
+Pass	12,12: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node xmlDoc
+Pass	12,13: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node xmlElement
+Pass	12,13: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node xmlElement
+Pass	12,14: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node detachedTextNode
+Pass	12,14: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node detachedTextNode
+Pass	12,15: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node foreignTextNode
+Pass	12,15: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node foreignTextNode
+Pass	12,16: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node processingInstruction
+Pass	12,16: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node processingInstruction
+Pass	12,17: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node detachedProcessingInstruction
+Pass	12,17: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node detachedProcessingInstruction
+Pass	12,18: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node comment
+Pass	12,18: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node comment
+Pass	12,19: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node detachedComment
+Pass	12,19: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node detachedComment
+Pass	12,20: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node docfrag
+Pass	12,20: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node docfrag
+Pass	12,21: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node doctype
+Pass	12,21: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node doctype
+Pass	12,22: resulting DOM for range [document.documentElement, 0, document.documentElement, 1], node foreignDoctype
+Pass	12,22: resulting range position for range [document.documentElement, 0, document.documentElement, 1], node foreignDoctype
+Pass	13,0: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node paras[0]
+Pass	13,0: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node paras[0]
+Pass	13,1: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node paras[0].firstChild
+Pass	13,1: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node paras[0].firstChild
+Pass	13,2: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node paras[1].firstChild
+Pass	13,2: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node paras[1].firstChild
+Pass	13,3: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node paras[5].firstChild
+Pass	13,3: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node paras[5].firstChild
+Pass	13,4: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node foreignPara1
+Pass	13,4: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node foreignPara1
+Pass	13,5: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node foreignPara1.firstChild
+Pass	13,5: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node foreignPara1.firstChild
+Pass	13,6: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node detachedPara1
+Pass	13,6: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node detachedPara1
+Pass	13,7: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node detachedPara1.firstChild
+Pass	13,7: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node detachedPara1.firstChild
+Pass	13,8: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node document
+Pass	13,8: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node document
+Pass	13,9: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node detachedDiv
+Pass	13,9: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node detachedDiv
+Pass	13,10: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node foreignDoc
+Pass	13,10: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node foreignDoc
+Pass	13,11: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node foreignPara2
+Pass	13,11: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node foreignPara2
+Pass	13,12: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node xmlDoc
+Pass	13,12: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node xmlDoc
+Pass	13,13: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node xmlElement
+Pass	13,13: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node xmlElement
+Pass	13,14: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node detachedTextNode
+Pass	13,14: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node detachedTextNode
+Pass	13,15: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node foreignTextNode
+Pass	13,15: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node foreignTextNode
+Pass	13,16: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node processingInstruction
+Pass	13,16: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node processingInstruction
+Pass	13,17: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node detachedProcessingInstruction
+Pass	13,17: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node detachedProcessingInstruction
+Pass	13,18: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node comment
+Pass	13,18: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node comment
+Pass	13,19: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node detachedComment
+Pass	13,19: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node detachedComment
+Pass	13,20: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node docfrag
+Pass	13,20: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node docfrag
+Pass	13,21: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node doctype
+Pass	13,21: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node doctype
+Pass	13,22: resulting DOM for range [document.documentElement, 0, document.documentElement, 2], node foreignDoctype
+Pass	13,22: resulting range position for range [document.documentElement, 0, document.documentElement, 2], node foreignDoctype
+Pass	14,0: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node paras[0]
+Pass	14,0: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node paras[0]
+Pass	14,1: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node paras[0].firstChild
+Pass	14,1: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node paras[0].firstChild
+Pass	14,2: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node paras[1].firstChild
+Pass	14,2: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node paras[1].firstChild
+Pass	14,3: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node paras[5].firstChild
+Pass	14,3: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node paras[5].firstChild
+Pass	14,4: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node foreignPara1
+Pass	14,4: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node foreignPara1
+Pass	14,5: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node foreignPara1.firstChild
+Pass	14,5: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node foreignPara1.firstChild
+Pass	14,6: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node detachedPara1
+Pass	14,6: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node detachedPara1
+Pass	14,7: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node detachedPara1.firstChild
+Pass	14,7: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node detachedPara1.firstChild
+Pass	14,8: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node document
+Pass	14,8: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node document
+Pass	14,9: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node detachedDiv
+Pass	14,9: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node detachedDiv
+Pass	14,10: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node foreignDoc
+Pass	14,10: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node foreignDoc
+Pass	14,11: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node foreignPara2
+Pass	14,11: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node foreignPara2
+Pass	14,12: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node xmlDoc
+Pass	14,12: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node xmlDoc
+Pass	14,13: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node xmlElement
+Pass	14,13: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node xmlElement
+Pass	14,14: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node detachedTextNode
+Pass	14,14: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node detachedTextNode
+Pass	14,15: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node foreignTextNode
+Pass	14,15: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node foreignTextNode
+Pass	14,16: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node processingInstruction
+Pass	14,16: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node processingInstruction
+Pass	14,17: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node detachedProcessingInstruction
+Pass	14,17: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node detachedProcessingInstruction
+Pass	14,18: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node comment
+Pass	14,18: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node comment
+Pass	14,19: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node detachedComment
+Pass	14,19: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node detachedComment
+Pass	14,20: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node docfrag
+Pass	14,20: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node docfrag
+Pass	14,21: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node doctype
+Pass	14,21: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node doctype
+Pass	14,22: resulting DOM for range [document.documentElement, 1, document.documentElement, 2], node foreignDoctype
+Pass	14,22: resulting range position for range [document.documentElement, 1, document.documentElement, 2], node foreignDoctype
+Pass	15,0: resulting DOM for range [document.head, 1, document.head, 1], node paras[0]
+Pass	15,0: resulting range position for range [document.head, 1, document.head, 1], node paras[0]
+Pass	15,1: resulting DOM for range [document.head, 1, document.head, 1], node paras[0].firstChild
+Pass	15,1: resulting range position for range [document.head, 1, document.head, 1], node paras[0].firstChild
+Pass	15,2: resulting DOM for range [document.head, 1, document.head, 1], node paras[1].firstChild
+Pass	15,2: resulting range position for range [document.head, 1, document.head, 1], node paras[1].firstChild
+Pass	15,3: resulting DOM for range [document.head, 1, document.head, 1], node paras[5].firstChild
+Pass	15,3: resulting range position for range [document.head, 1, document.head, 1], node paras[5].firstChild
+Pass	15,4: resulting DOM for range [document.head, 1, document.head, 1], node foreignPara1
+Pass	15,4: resulting range position for range [document.head, 1, document.head, 1], node foreignPara1
+Pass	15,5: resulting DOM for range [document.head, 1, document.head, 1], node foreignPara1.firstChild
+Pass	15,5: resulting range position for range [document.head, 1, document.head, 1], node foreignPara1.firstChild
+Pass	15,6: resulting DOM for range [document.head, 1, document.head, 1], node detachedPara1
+Pass	15,6: resulting range position for range [document.head, 1, document.head, 1], node detachedPara1
+Pass	15,7: resulting DOM for range [document.head, 1, document.head, 1], node detachedPara1.firstChild
+Pass	15,7: resulting range position for range [document.head, 1, document.head, 1], node detachedPara1.firstChild
+Pass	15,8: resulting DOM for range [document.head, 1, document.head, 1], node document
+Pass	15,8: resulting range position for range [document.head, 1, document.head, 1], node document
+Pass	15,9: resulting DOM for range [document.head, 1, document.head, 1], node detachedDiv
+Pass	15,9: resulting range position for range [document.head, 1, document.head, 1], node detachedDiv
+Pass	15,10: resulting DOM for range [document.head, 1, document.head, 1], node foreignDoc
+Pass	15,10: resulting range position for range [document.head, 1, document.head, 1], node foreignDoc
+Pass	15,11: resulting DOM for range [document.head, 1, document.head, 1], node foreignPara2
+Pass	15,11: resulting range position for range [document.head, 1, document.head, 1], node foreignPara2
+Pass	15,12: resulting DOM for range [document.head, 1, document.head, 1], node xmlDoc
+Pass	15,12: resulting range position for range [document.head, 1, document.head, 1], node xmlDoc
+Pass	15,13: resulting DOM for range [document.head, 1, document.head, 1], node xmlElement
+Pass	15,13: resulting range position for range [document.head, 1, document.head, 1], node xmlElement
+Pass	15,14: resulting DOM for range [document.head, 1, document.head, 1], node detachedTextNode
+Pass	15,14: resulting range position for range [document.head, 1, document.head, 1], node detachedTextNode
+Pass	15,15: resulting DOM for range [document.head, 1, document.head, 1], node foreignTextNode
+Pass	15,15: resulting range position for range [document.head, 1, document.head, 1], node foreignTextNode
+Pass	15,16: resulting DOM for range [document.head, 1, document.head, 1], node processingInstruction
+Pass	15,16: resulting range position for range [document.head, 1, document.head, 1], node processingInstruction
+Pass	15,17: resulting DOM for range [document.head, 1, document.head, 1], node detachedProcessingInstruction
+Pass	15,17: resulting range position for range [document.head, 1, document.head, 1], node detachedProcessingInstruction
+Pass	15,18: resulting DOM for range [document.head, 1, document.head, 1], node comment
+Pass	15,18: resulting range position for range [document.head, 1, document.head, 1], node comment
+Pass	15,19: resulting DOM for range [document.head, 1, document.head, 1], node detachedComment
+Pass	15,19: resulting range position for range [document.head, 1, document.head, 1], node detachedComment
+Pass	15,20: resulting DOM for range [document.head, 1, document.head, 1], node docfrag
+Pass	15,20: resulting range position for range [document.head, 1, document.head, 1], node docfrag
+Pass	15,21: resulting DOM for range [document.head, 1, document.head, 1], node doctype
+Pass	15,21: resulting range position for range [document.head, 1, document.head, 1], node doctype
+Pass	15,22: resulting DOM for range [document.head, 1, document.head, 1], node foreignDoctype
+Pass	15,22: resulting range position for range [document.head, 1, document.head, 1], node foreignDoctype
+Pass	16,0: resulting DOM for range [document.body, 4, document.body, 5], node paras[0]
+Pass	16,0: resulting range position for range [document.body, 4, document.body, 5], node paras[0]
+Pass	16,1: resulting DOM for range [document.body, 4, document.body, 5], node paras[0].firstChild
+Pass	16,1: resulting range position for range [document.body, 4, document.body, 5], node paras[0].firstChild
+Pass	16,2: resulting DOM for range [document.body, 4, document.body, 5], node paras[1].firstChild
+Pass	16,2: resulting range position for range [document.body, 4, document.body, 5], node paras[1].firstChild
+Pass	16,3: resulting DOM for range [document.body, 4, document.body, 5], node paras[5].firstChild
+Pass	16,3: resulting range position for range [document.body, 4, document.body, 5], node paras[5].firstChild
+Pass	16,4: resulting DOM for range [document.body, 4, document.body, 5], node foreignPara1
+Pass	16,4: resulting range position for range [document.body, 4, document.body, 5], node foreignPara1
+Pass	16,5: resulting DOM for range [document.body, 4, document.body, 5], node foreignPara1.firstChild
+Pass	16,5: resulting range position for range [document.body, 4, document.body, 5], node foreignPara1.firstChild
+Pass	16,6: resulting DOM for range [document.body, 4, document.body, 5], node detachedPara1
+Pass	16,6: resulting range position for range [document.body, 4, document.body, 5], node detachedPara1
+Pass	16,7: resulting DOM for range [document.body, 4, document.body, 5], node detachedPara1.firstChild
+Pass	16,7: resulting range position for range [document.body, 4, document.body, 5], node detachedPara1.firstChild
+Pass	16,8: resulting DOM for range [document.body, 4, document.body, 5], node document
+Pass	16,8: resulting range position for range [document.body, 4, document.body, 5], node document
+Pass	16,9: resulting DOM for range [document.body, 4, document.body, 5], node detachedDiv
+Pass	16,9: resulting range position for range [document.body, 4, document.body, 5], node detachedDiv
+Pass	16,10: resulting DOM for range [document.body, 4, document.body, 5], node foreignDoc
+Pass	16,10: resulting range position for range [document.body, 4, document.body, 5], node foreignDoc
+Pass	16,11: resulting DOM for range [document.body, 4, document.body, 5], node foreignPara2
+Pass	16,11: resulting range position for range [document.body, 4, document.body, 5], node foreignPara2
+Pass	16,12: resulting DOM for range [document.body, 4, document.body, 5], node xmlDoc
+Pass	16,12: resulting range position for range [document.body, 4, document.body, 5], node xmlDoc
+Pass	16,13: resulting DOM for range [document.body, 4, document.body, 5], node xmlElement
+Pass	16,13: resulting range position for range [document.body, 4, document.body, 5], node xmlElement
+Pass	16,14: resulting DOM for range [document.body, 4, document.body, 5], node detachedTextNode
+Pass	16,14: resulting range position for range [document.body, 4, document.body, 5], node detachedTextNode
+Pass	16,15: resulting DOM for range [document.body, 4, document.body, 5], node foreignTextNode
+Pass	16,15: resulting range position for range [document.body, 4, document.body, 5], node foreignTextNode
+Pass	16,16: resulting DOM for range [document.body, 4, document.body, 5], node processingInstruction
+Pass	16,16: resulting range position for range [document.body, 4, document.body, 5], node processingInstruction
+Pass	16,17: resulting DOM for range [document.body, 4, document.body, 5], node detachedProcessingInstruction
+Pass	16,17: resulting range position for range [document.body, 4, document.body, 5], node detachedProcessingInstruction
+Pass	16,18: resulting DOM for range [document.body, 4, document.body, 5], node comment
+Pass	16,18: resulting range position for range [document.body, 4, document.body, 5], node comment
+Pass	16,19: resulting DOM for range [document.body, 4, document.body, 5], node detachedComment
+Pass	16,19: resulting range position for range [document.body, 4, document.body, 5], node detachedComment
+Pass	16,20: resulting DOM for range [document.body, 4, document.body, 5], node docfrag
+Pass	16,20: resulting range position for range [document.body, 4, document.body, 5], node docfrag
+Pass	16,21: resulting DOM for range [document.body, 4, document.body, 5], node doctype
+Pass	16,21: resulting range position for range [document.body, 4, document.body, 5], node doctype
+Pass	16,22: resulting DOM for range [document.body, 4, document.body, 5], node foreignDoctype
+Pass	16,22: resulting range position for range [document.body, 4, document.body, 5], node foreignDoctype
+Pass	17,0: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node paras[0]
+Pass	17,0: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node paras[0]
+Pass	17,1: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node paras[0].firstChild
+Pass	17,1: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node paras[0].firstChild
+Pass	17,2: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node paras[1].firstChild
+Pass	17,2: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node paras[1].firstChild
+Pass	17,3: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node paras[5].firstChild
+Pass	17,3: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node paras[5].firstChild
+Pass	17,4: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignPara1
+Pass	17,4: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignPara1
+Pass	17,5: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignPara1.firstChild
+Pass	17,5: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignPara1.firstChild
+Pass	17,6: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedPara1
+Pass	17,6: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedPara1
+Pass	17,7: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedPara1.firstChild
+Pass	17,7: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedPara1.firstChild
+Pass	17,8: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node document
+Pass	17,8: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node document
+Pass	17,9: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedDiv
+Pass	17,9: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedDiv
+Pass	17,10: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignDoc
+Pass	17,10: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignDoc
+Pass	17,11: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignPara2
+Pass	17,11: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignPara2
+Pass	17,12: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node xmlDoc
+Pass	17,12: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node xmlDoc
+Pass	17,13: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node xmlElement
+Pass	17,13: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node xmlElement
+Pass	17,14: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedTextNode
+Pass	17,14: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedTextNode
+Pass	17,15: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignTextNode
+Pass	17,15: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignTextNode
+Pass	17,16: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node processingInstruction
+Pass	17,16: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node processingInstruction
+Pass	17,17: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedProcessingInstruction
+Pass	17,17: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedProcessingInstruction
+Pass	17,18: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node comment
+Pass	17,18: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node comment
+Pass	17,19: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedComment
+Pass	17,19: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node detachedComment
+Pass	17,20: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node docfrag
+Pass	17,20: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node docfrag
+Pass	17,21: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node doctype
+Pass	17,21: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node doctype
+Pass	17,22: resulting DOM for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignDoctype
+Pass	17,22: resulting range position for range [foreignDoc.documentElement, 0, foreignDoc.documentElement, 1], node foreignDoctype
+Pass	18,0: resulting DOM for range [paras[0], 0, paras[0], 1], node paras[0]
+Pass	18,0: resulting range position for range [paras[0], 0, paras[0], 1], node paras[0]
+Pass	18,1: resulting DOM for range [paras[0], 0, paras[0], 1], node paras[0].firstChild
+Pass	18,1: resulting range position for range [paras[0], 0, paras[0], 1], node paras[0].firstChild
+Pass	18,2: resulting DOM for range [paras[0], 0, paras[0], 1], node paras[1].firstChild
+Pass	18,2: resulting range position for range [paras[0], 0, paras[0], 1], node paras[1].firstChild
+Pass	18,3: resulting DOM for range [paras[0], 0, paras[0], 1], node paras[5].firstChild
+Pass	18,3: resulting range position for range [paras[0], 0, paras[0], 1], node paras[5].firstChild
+Pass	18,4: resulting DOM for range [paras[0], 0, paras[0], 1], node foreignPara1
+Pass	18,4: resulting range position for range [paras[0], 0, paras[0], 1], node foreignPara1
+Pass	18,5: resulting DOM for range [paras[0], 0, paras[0], 1], node foreignPara1.firstChild
+Pass	18,5: resulting range position for range [paras[0], 0, paras[0], 1], node foreignPara1.firstChild
+Pass	18,6: resulting DOM for range [paras[0], 0, paras[0], 1], node detachedPara1
+Pass	18,6: resulting range position for range [paras[0], 0, paras[0], 1], node detachedPara1
+Pass	18,7: resulting DOM for range [paras[0], 0, paras[0], 1], node detachedPara1.firstChild
+Pass	18,7: resulting range position for range [paras[0], 0, paras[0], 1], node detachedPara1.firstChild
+Pass	18,8: resulting DOM for range [paras[0], 0, paras[0], 1], node document
+Pass	18,8: resulting range position for range [paras[0], 0, paras[0], 1], node document
+Pass	18,9: resulting DOM for range [paras[0], 0, paras[0], 1], node detachedDiv
+Pass	18,9: resulting range position for range [paras[0], 0, paras[0], 1], node detachedDiv
+Pass	18,10: resulting DOM for range [paras[0], 0, paras[0], 1], node foreignDoc
+Pass	18,10: resulting range position for range [paras[0], 0, paras[0], 1], node foreignDoc
+Pass	18,11: resulting DOM for range [paras[0], 0, paras[0], 1], node foreignPara2
+Pass	18,11: resulting range position for range [paras[0], 0, paras[0], 1], node foreignPara2
+Pass	18,12: resulting DOM for range [paras[0], 0, paras[0], 1], node xmlDoc
+Pass	18,12: resulting range position for range [paras[0], 0, paras[0], 1], node xmlDoc
+Pass	18,13: resulting DOM for range [paras[0], 0, paras[0], 1], node xmlElement
+Pass	18,13: resulting range position for range [paras[0], 0, paras[0], 1], node xmlElement
+Pass	18,14: resulting DOM for range [paras[0], 0, paras[0], 1], node detachedTextNode
+Pass	18,14: resulting range position for range [paras[0], 0, paras[0], 1], node detachedTextNode
+Pass	18,15: resulting DOM for range [paras[0], 0, paras[0], 1], node foreignTextNode
+Pass	18,15: resulting range position for range [paras[0], 0, paras[0], 1], node foreignTextNode
+Pass	18,16: resulting DOM for range [paras[0], 0, paras[0], 1], node processingInstruction
+Pass	18,16: resulting range position for range [paras[0], 0, paras[0], 1], node processingInstruction
+Pass	18,17: resulting DOM for range [paras[0], 0, paras[0], 1], node detachedProcessingInstruction
+Pass	18,17: resulting range position for range [paras[0], 0, paras[0], 1], node detachedProcessingInstruction
+Pass	18,18: resulting DOM for range [paras[0], 0, paras[0], 1], node comment
+Pass	18,18: resulting range position for range [paras[0], 0, paras[0], 1], node comment
+Pass	18,19: resulting DOM for range [paras[0], 0, paras[0], 1], node detachedComment
+Pass	18,19: resulting range position for range [paras[0], 0, paras[0], 1], node detachedComment
+Pass	18,20: resulting DOM for range [paras[0], 0, paras[0], 1], node docfrag
+Pass	18,20: resulting range position for range [paras[0], 0, paras[0], 1], node docfrag
+Pass	18,21: resulting DOM for range [paras[0], 0, paras[0], 1], node doctype
+Pass	18,21: resulting range position for range [paras[0], 0, paras[0], 1], node doctype
+Pass	18,22: resulting DOM for range [paras[0], 0, paras[0], 1], node foreignDoctype
+Pass	18,22: resulting range position for range [paras[0], 0, paras[0], 1], node foreignDoctype
+Pass	19,0: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node paras[0]
+Pass	19,0: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node paras[0]
+Pass	19,1: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node paras[0].firstChild
+Pass	19,1: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node paras[0].firstChild
+Pass	19,2: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node paras[1].firstChild
+Pass	19,2: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node paras[1].firstChild
+Pass	19,3: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node paras[5].firstChild
+Pass	19,3: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node paras[5].firstChild
+Pass	19,4: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node foreignPara1
+Pass	19,4: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node foreignPara1
+Pass	19,5: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node foreignPara1.firstChild
+Pass	19,5: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node foreignPara1.firstChild
+Pass	19,6: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node detachedPara1
+Pass	19,6: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node detachedPara1
+Pass	19,7: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node detachedPara1.firstChild
+Pass	19,7: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node detachedPara1.firstChild
+Pass	19,8: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node document
+Pass	19,8: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node document
+Pass	19,9: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node detachedDiv
+Pass	19,9: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node detachedDiv
+Pass	19,10: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node foreignDoc
+Pass	19,10: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node foreignDoc
+Pass	19,11: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node foreignPara2
+Pass	19,11: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node foreignPara2
+Pass	19,12: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node xmlDoc
+Pass	19,12: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node xmlDoc
+Pass	19,13: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node xmlElement
+Pass	19,13: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node xmlElement
+Pass	19,14: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node detachedTextNode
+Pass	19,14: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node detachedTextNode
+Pass	19,15: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node foreignTextNode
+Pass	19,15: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node foreignTextNode
+Pass	19,16: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node processingInstruction
+Pass	19,16: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node processingInstruction
+Pass	19,17: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node detachedProcessingInstruction
+Pass	19,17: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node detachedProcessingInstruction
+Pass	19,18: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node comment
+Pass	19,18: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node comment
+Pass	19,19: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node detachedComment
+Pass	19,19: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node detachedComment
+Pass	19,20: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node docfrag
+Pass	19,20: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node docfrag
+Pass	19,21: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node doctype
+Pass	19,21: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node doctype
+Pass	19,22: resulting DOM for range [detachedPara1, 0, detachedPara1, 1], node foreignDoctype
+Pass	19,22: resulting range position for range [detachedPara1, 0, detachedPara1, 1], node foreignDoctype
+Pass	20,0: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node paras[0]
+Pass	20,0: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node paras[0]
+Pass	20,1: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node paras[0].firstChild
+Pass	20,1: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node paras[0].firstChild
+Pass	20,2: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node paras[1].firstChild
+Pass	20,2: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node paras[1].firstChild
+Pass	20,3: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node paras[5].firstChild
+Pass	20,3: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node paras[5].firstChild
+Pass	20,4: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignPara1
+Pass	20,4: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignPara1
+Pass	20,5: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignPara1.firstChild
+Pass	20,5: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignPara1.firstChild
+Pass	20,6: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedPara1
+Pass	20,6: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedPara1
+Pass	20,7: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedPara1.firstChild
+Pass	20,7: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedPara1.firstChild
+Pass	20,8: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node document
+Pass	20,8: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node document
+Pass	20,9: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedDiv
+Pass	20,9: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedDiv
+Pass	20,10: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignDoc
+Pass	20,10: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignDoc
+Pass	20,11: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignPara2
+Pass	20,11: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignPara2
+Pass	20,12: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node xmlDoc
+Pass	20,12: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node xmlDoc
+Pass	20,13: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node xmlElement
+Pass	20,13: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node xmlElement
+Pass	20,14: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedTextNode
+Pass	20,14: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedTextNode
+Pass	20,15: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignTextNode
+Pass	20,15: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignTextNode
+Pass	20,16: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node processingInstruction
+Pass	20,16: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node processingInstruction
+Pass	20,17: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedProcessingInstruction
+Pass	20,17: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedProcessingInstruction
+Pass	20,18: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node comment
+Pass	20,18: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node comment
+Pass	20,19: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedComment
+Pass	20,19: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node detachedComment
+Pass	20,20: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node docfrag
+Pass	20,20: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node docfrag
+Pass	20,21: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node doctype
+Pass	20,21: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node doctype
+Pass	20,22: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignDoctype
+Pass	20,22: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 0], node foreignDoctype
+Pass	21,0: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node paras[0]
+Pass	21,0: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node paras[0]
+Pass	21,1: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node paras[0].firstChild
+Pass	21,1: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node paras[0].firstChild
+Pass	21,2: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node paras[1].firstChild
+Pass	21,2: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node paras[1].firstChild
+Pass	21,3: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node paras[5].firstChild
+Pass	21,3: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node paras[5].firstChild
+Pass	21,4: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignPara1
+Pass	21,4: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignPara1
+Pass	21,5: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignPara1.firstChild
+Pass	21,5: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignPara1.firstChild
+Pass	21,6: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedPara1
+Pass	21,6: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedPara1
+Pass	21,7: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedPara1.firstChild
+Pass	21,7: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedPara1.firstChild
+Pass	21,8: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node document
+Pass	21,8: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node document
+Pass	21,9: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedDiv
+Pass	21,9: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedDiv
+Pass	21,10: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignDoc
+Pass	21,10: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignDoc
+Pass	21,11: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignPara2
+Pass	21,11: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignPara2
+Pass	21,12: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node xmlDoc
+Pass	21,12: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node xmlDoc
+Pass	21,13: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node xmlElement
+Pass	21,13: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node xmlElement
+Pass	21,14: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedTextNode
+Pass	21,14: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedTextNode
+Pass	21,15: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignTextNode
+Pass	21,15: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignTextNode
+Pass	21,16: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node processingInstruction
+Pass	21,16: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node processingInstruction
+Pass	21,17: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedProcessingInstruction
+Pass	21,17: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedProcessingInstruction
+Pass	21,18: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node comment
+Pass	21,18: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node comment
+Pass	21,19: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedComment
+Pass	21,19: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node detachedComment
+Pass	21,20: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node docfrag
+Pass	21,20: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node docfrag
+Pass	21,21: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node doctype
+Pass	21,21: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node doctype
+Pass	21,22: resulting DOM for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignDoctype
+Pass	21,22: resulting range position for range [paras[0].firstChild, 0, paras[1].firstChild, 8], node foreignDoctype
+Pass	22,0: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node paras[0]
+Pass	22,0: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node paras[0]
+Pass	22,1: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node paras[0].firstChild
+Pass	22,1: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node paras[0].firstChild
+Pass	22,2: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node paras[1].firstChild
+Pass	22,2: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node paras[1].firstChild
+Pass	22,3: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node paras[5].firstChild
+Pass	22,3: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node paras[5].firstChild
+Pass	22,4: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node foreignPara1
+Pass	22,4: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node foreignPara1
+Pass	22,5: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node foreignPara1.firstChild
+Pass	22,5: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node foreignPara1.firstChild
+Pass	22,6: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node detachedPara1
+Pass	22,6: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node detachedPara1
+Pass	22,7: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node detachedPara1.firstChild
+Pass	22,7: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node detachedPara1.firstChild
+Pass	22,8: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node document
+Pass	22,8: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node document
+Pass	22,9: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node detachedDiv
+Pass	22,9: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node detachedDiv
+Pass	22,10: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node foreignDoc
+Pass	22,10: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node foreignDoc
+Pass	22,11: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node foreignPara2
+Pass	22,11: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node foreignPara2
+Pass	22,12: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node xmlDoc
+Pass	22,12: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node xmlDoc
+Pass	22,13: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node xmlElement
+Pass	22,13: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node xmlElement
+Pass	22,14: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node detachedTextNode
+Pass	22,14: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node detachedTextNode
+Pass	22,15: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node foreignTextNode
+Pass	22,15: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node foreignTextNode
+Pass	22,16: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node processingInstruction
+Pass	22,16: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node processingInstruction
+Pass	22,17: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node detachedProcessingInstruction
+Pass	22,17: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node detachedProcessingInstruction
+Pass	22,18: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node comment
+Pass	22,18: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node comment
+Pass	22,19: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node detachedComment
+Pass	22,19: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node detachedComment
+Pass	22,20: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node docfrag
+Pass	22,20: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node docfrag
+Pass	22,21: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node doctype
+Pass	22,21: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node doctype
+Pass	22,22: resulting DOM for range [paras[0].firstChild, 3, paras[3], 1], node foreignDoctype
+Pass	22,22: resulting range position for range [paras[0].firstChild, 3, paras[3], 1], node foreignDoctype
+Pass	23,0: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node paras[0]
+Pass	23,0: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node paras[0]
+Pass	23,1: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node paras[0].firstChild
+Pass	23,1: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node paras[0].firstChild
+Pass	23,2: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node paras[1].firstChild
+Pass	23,2: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node paras[1].firstChild
+Pass	23,3: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node paras[5].firstChild
+Pass	23,3: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node paras[5].firstChild
+Pass	23,4: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node foreignPara1
+Pass	23,4: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node foreignPara1
+Pass	23,5: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node foreignPara1.firstChild
+Pass	23,5: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node foreignPara1.firstChild
+Pass	23,6: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node detachedPara1
+Pass	23,6: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node detachedPara1
+Pass	23,7: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node detachedPara1.firstChild
+Pass	23,7: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node detachedPara1.firstChild
+Pass	23,8: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node document
+Pass	23,8: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node document
+Pass	23,9: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node detachedDiv
+Pass	23,9: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node detachedDiv
+Pass	23,10: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node foreignDoc
+Pass	23,10: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node foreignDoc
+Pass	23,11: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node foreignPara2
+Pass	23,11: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node foreignPara2
+Pass	23,12: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node xmlDoc
+Pass	23,12: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node xmlDoc
+Pass	23,13: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node xmlElement
+Pass	23,13: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node xmlElement
+Pass	23,14: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node detachedTextNode
+Pass	23,14: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node detachedTextNode
+Pass	23,15: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node foreignTextNode
+Pass	23,15: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node foreignTextNode
+Pass	23,16: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node processingInstruction
+Pass	23,16: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node processingInstruction
+Pass	23,17: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node detachedProcessingInstruction
+Pass	23,17: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node detachedProcessingInstruction
+Pass	23,18: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node comment
+Pass	23,18: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node comment
+Pass	23,19: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node detachedComment
+Pass	23,19: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node detachedComment
+Pass	23,20: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node docfrag
+Pass	23,20: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node docfrag
+Pass	23,21: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node doctype
+Pass	23,21: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node doctype
+Pass	23,22: resulting DOM for range [paras[0], 0, paras[0].firstChild, 7], node foreignDoctype
+Pass	23,22: resulting range position for range [paras[0], 0, paras[0].firstChild, 7], node foreignDoctype
+Pass	24,0: resulting DOM for range [testDiv, 2, paras[4], 1], node paras[0]
+Pass	24,0: resulting range position for range [testDiv, 2, paras[4], 1], node paras[0]
+Pass	24,1: resulting DOM for range [testDiv, 2, paras[4], 1], node paras[0].firstChild
+Pass	24,1: resulting range position for range [testDiv, 2, paras[4], 1], node paras[0].firstChild
+Pass	24,2: resulting DOM for range [testDiv, 2, paras[4], 1], node paras[1].firstChild
+Pass	24,2: resulting range position for range [testDiv, 2, paras[4], 1], node paras[1].firstChild
+Pass	24,3: resulting DOM for range [testDiv, 2, paras[4], 1], node paras[5].firstChild
+Pass	24,3: resulting range position for range [testDiv, 2, paras[4], 1], node paras[5].firstChild
+Pass	24,4: resulting DOM for range [testDiv, 2, paras[4], 1], node foreignPara1
+Pass	24,4: resulting range position for range [testDiv, 2, paras[4], 1], node foreignPara1
+Pass	24,5: resulting DOM for range [testDiv, 2, paras[4], 1], node foreignPara1.firstChild
+Pass	24,5: resulting range position for range [testDiv, 2, paras[4], 1], node foreignPara1.firstChild
+Pass	24,6: resulting DOM for range [testDiv, 2, paras[4], 1], node detachedPara1
+Pass	24,6: resulting range position for range [testDiv, 2, paras[4], 1], node detachedPara1
+Pass	24,7: resulting DOM for range [testDiv, 2, paras[4], 1], node detachedPara1.firstChild
+Pass	24,7: resulting range position for range [testDiv, 2, paras[4], 1], node detachedPara1.firstChild
+Pass	24,8: resulting DOM for range [testDiv, 2, paras[4], 1], node document
+Pass	24,8: resulting range position for range [testDiv, 2, paras[4], 1], node document
+Pass	24,9: resulting DOM for range [testDiv, 2, paras[4], 1], node detachedDiv
+Pass	24,9: resulting range position for range [testDiv, 2, paras[4], 1], node detachedDiv
+Pass	24,10: resulting DOM for range [testDiv, 2, paras[4], 1], node foreignDoc
+Pass	24,10: resulting range position for range [testDiv, 2, paras[4], 1], node foreignDoc
+Pass	24,11: resulting DOM for range [testDiv, 2, paras[4], 1], node foreignPara2
+Pass	24,11: resulting range position for range [testDiv, 2, paras[4], 1], node foreignPara2
+Pass	24,12: resulting DOM for range [testDiv, 2, paras[4], 1], node xmlDoc
+Pass	24,12: resulting range position for range [testDiv, 2, paras[4], 1], node xmlDoc
+Pass	24,13: resulting DOM for range [testDiv, 2, paras[4], 1], node xmlElement
+Pass	24,13: resulting range position for range [testDiv, 2, paras[4], 1], node xmlElement
+Pass	24,14: resulting DOM for range [testDiv, 2, paras[4], 1], node detachedTextNode
+Pass	24,14: resulting range position for range [testDiv, 2, paras[4], 1], node detachedTextNode
+Pass	24,15: resulting DOM for range [testDiv, 2, paras[4], 1], node foreignTextNode
+Pass	24,15: resulting range position for range [testDiv, 2, paras[4], 1], node foreignTextNode
+Pass	24,16: resulting DOM for range [testDiv, 2, paras[4], 1], node processingInstruction
+Pass	24,16: resulting range position for range [testDiv, 2, paras[4], 1], node processingInstruction
+Pass	24,17: resulting DOM for range [testDiv, 2, paras[4], 1], node detachedProcessingInstruction
+Pass	24,17: resulting range position for range [testDiv, 2, paras[4], 1], node detachedProcessingInstruction
+Pass	24,18: resulting DOM for range [testDiv, 2, paras[4], 1], node comment
+Pass	24,18: resulting range position for range [testDiv, 2, paras[4], 1], node comment
+Pass	24,19: resulting DOM for range [testDiv, 2, paras[4], 1], node detachedComment
+Pass	24,19: resulting range position for range [testDiv, 2, paras[4], 1], node detachedComment
+Pass	24,20: resulting DOM for range [testDiv, 2, paras[4], 1], node docfrag
+Pass	24,20: resulting range position for range [testDiv, 2, paras[4], 1], node docfrag
+Pass	24,21: resulting DOM for range [testDiv, 2, paras[4], 1], node doctype
+Pass	24,21: resulting range position for range [testDiv, 2, paras[4], 1], node doctype
+Pass	24,22: resulting DOM for range [testDiv, 2, paras[4], 1], node foreignDoctype
+Pass	24,22: resulting range position for range [testDiv, 2, paras[4], 1], node foreignDoctype
+Pass	25,0: resulting DOM for range [document, 0, document, 1], node paras[0]
+Pass	25,0: resulting range position for range [document, 0, document, 1], node paras[0]
+Pass	25,1: resulting DOM for range [document, 0, document, 1], node paras[0].firstChild
+Pass	25,1: resulting range position for range [document, 0, document, 1], node paras[0].firstChild
+Pass	25,2: resulting DOM for range [document, 0, document, 1], node paras[1].firstChild
+Pass	25,2: resulting range position for range [document, 0, document, 1], node paras[1].firstChild
+Pass	25,3: resulting DOM for range [document, 0, document, 1], node paras[5].firstChild
+Pass	25,3: resulting range position for range [document, 0, document, 1], node paras[5].firstChild
+Pass	25,4: resulting DOM for range [document, 0, document, 1], node foreignPara1
+Pass	25,4: resulting range position for range [document, 0, document, 1], node foreignPara1
+Pass	25,5: resulting DOM for range [document, 0, document, 1], node foreignPara1.firstChild
+Pass	25,5: resulting range position for range [document, 0, document, 1], node foreignPara1.firstChild
+Pass	25,6: resulting DOM for range [document, 0, document, 1], node detachedPara1
+Pass	25,6: resulting range position for range [document, 0, document, 1], node detachedPara1
+Pass	25,7: resulting DOM for range [document, 0, document, 1], node detachedPara1.firstChild
+Pass	25,7: resulting range position for range [document, 0, document, 1], node detachedPara1.firstChild
+Pass	25,8: resulting DOM for range [document, 0, document, 1], node document
+Pass	25,8: resulting range position for range [document, 0, document, 1], node document
+Pass	25,9: resulting DOM for range [document, 0, document, 1], node detachedDiv
+Pass	25,9: resulting range position for range [document, 0, document, 1], node detachedDiv
+Pass	25,10: resulting DOM for range [document, 0, document, 1], node foreignDoc
+Pass	25,10: resulting range position for range [document, 0, document, 1], node foreignDoc
+Pass	25,11: resulting DOM for range [document, 0, document, 1], node foreignPara2
+Pass	25,11: resulting range position for range [document, 0, document, 1], node foreignPara2
+Pass	25,12: resulting DOM for range [document, 0, document, 1], node xmlDoc
+Pass	25,12: resulting range position for range [document, 0, document, 1], node xmlDoc
+Pass	25,13: resulting DOM for range [document, 0, document, 1], node xmlElement
+Pass	25,13: resulting range position for range [document, 0, document, 1], node xmlElement
+Pass	25,14: resulting DOM for range [document, 0, document, 1], node detachedTextNode
+Pass	25,14: resulting range position for range [document, 0, document, 1], node detachedTextNode
+Pass	25,15: resulting DOM for range [document, 0, document, 1], node foreignTextNode
+Pass	25,15: resulting range position for range [document, 0, document, 1], node foreignTextNode
+Pass	25,16: resulting DOM for range [document, 0, document, 1], node processingInstruction
+Pass	25,16: resulting range position for range [document, 0, document, 1], node processingInstruction
+Pass	25,17: resulting DOM for range [document, 0, document, 1], node detachedProcessingInstruction
+Pass	25,17: resulting range position for range [document, 0, document, 1], node detachedProcessingInstruction
+Pass	25,18: resulting DOM for range [document, 0, document, 1], node comment
+Pass	25,18: resulting range position for range [document, 0, document, 1], node comment
+Pass	25,19: resulting DOM for range [document, 0, document, 1], node detachedComment
+Pass	25,19: resulting range position for range [document, 0, document, 1], node detachedComment
+Pass	25,20: resulting DOM for range [document, 0, document, 1], node docfrag
+Pass	25,20: resulting range position for range [document, 0, document, 1], node docfrag
+Pass	25,21: resulting DOM for range [document, 0, document, 1], node doctype
+Pass	25,21: resulting range position for range [document, 0, document, 1], node doctype
+Pass	25,22: resulting DOM for range [document, 0, document, 1], node foreignDoctype
+Pass	25,22: resulting range position for range [document, 0, document, 1], node foreignDoctype
+Pass	26,0: resulting DOM for range [document, 0, document, 2], node paras[0]
+Pass	26,0: resulting range position for range [document, 0, document, 2], node paras[0]
+Pass	26,1: resulting DOM for range [document, 0, document, 2], node paras[0].firstChild
+Pass	26,1: resulting range position for range [document, 0, document, 2], node paras[0].firstChild
+Pass	26,2: resulting DOM for range [document, 0, document, 2], node paras[1].firstChild
+Pass	26,2: resulting range position for range [document, 0, document, 2], node paras[1].firstChild
+Pass	26,3: resulting DOM for range [document, 0, document, 2], node paras[5].firstChild
+Pass	26,3: resulting range position for range [document, 0, document, 2], node paras[5].firstChild
+Pass	26,4: resulting DOM for range [document, 0, document, 2], node foreignPara1
+Pass	26,4: resulting range position for range [document, 0, document, 2], node foreignPara1
+Pass	26,5: resulting DOM for range [document, 0, document, 2], node foreignPara1.firstChild
+Pass	26,5: resulting range position for range [document, 0, document, 2], node foreignPara1.firstChild
+Pass	26,6: resulting DOM for range [document, 0, document, 2], node detachedPara1
+Pass	26,6: resulting range position for range [document, 0, document, 2], node detachedPara1
+Pass	26,7: resulting DOM for range [document, 0, document, 2], node detachedPara1.firstChild
+Pass	26,7: resulting range position for range [document, 0, document, 2], node detachedPara1.firstChild
+Pass	26,8: resulting DOM for range [document, 0, document, 2], node document
+Pass	26,8: resulting range position for range [document, 0, document, 2], node document
+Pass	26,9: resulting DOM for range [document, 0, document, 2], node detachedDiv
+Pass	26,9: resulting range position for range [document, 0, document, 2], node detachedDiv
+Pass	26,10: resulting DOM for range [document, 0, document, 2], node foreignDoc
+Pass	26,10: resulting range position for range [document, 0, document, 2], node foreignDoc
+Pass	26,11: resulting DOM for range [document, 0, document, 2], node foreignPara2
+Pass	26,11: resulting range position for range [document, 0, document, 2], node foreignPara2
+Pass	26,12: resulting DOM for range [document, 0, document, 2], node xmlDoc
+Pass	26,12: resulting range position for range [document, 0, document, 2], node xmlDoc
+Pass	26,13: resulting DOM for range [document, 0, document, 2], node xmlElement
+Pass	26,13: resulting range position for range [document, 0, document, 2], node xmlElement
+Pass	26,14: resulting DOM for range [document, 0, document, 2], node detachedTextNode
+Pass	26,14: resulting range position for range [document, 0, document, 2], node detachedTextNode
+Pass	26,15: resulting DOM for range [document, 0, document, 2], node foreignTextNode
+Pass	26,15: resulting range position for range [document, 0, document, 2], node foreignTextNode
+Pass	26,16: resulting DOM for range [document, 0, document, 2], node processingInstruction
+Pass	26,16: resulting range position for range [document, 0, document, 2], node processingInstruction
+Pass	26,17: resulting DOM for range [document, 0, document, 2], node detachedProcessingInstruction
+Pass	26,17: resulting range position for range [document, 0, document, 2], node detachedProcessingInstruction
+Pass	26,18: resulting DOM for range [document, 0, document, 2], node comment
+Pass	26,18: resulting range position for range [document, 0, document, 2], node comment
+Pass	26,19: resulting DOM for range [document, 0, document, 2], node detachedComment
+Pass	26,19: resulting range position for range [document, 0, document, 2], node detachedComment
+Pass	26,20: resulting DOM for range [document, 0, document, 2], node docfrag
+Pass	26,20: resulting range position for range [document, 0, document, 2], node docfrag
+Pass	26,21: resulting DOM for range [document, 0, document, 2], node doctype
+Pass	26,21: resulting range position for range [document, 0, document, 2], node doctype
+Pass	26,22: resulting DOM for range [document, 0, document, 2], node foreignDoctype
+Pass	26,22: resulting range position for range [document, 0, document, 2], node foreignDoctype
+Pass	27,0: resulting DOM for range [comment, 2, comment, 3], node paras[0]
+Pass	27,0: resulting range position for range [comment, 2, comment, 3], node paras[0]
+Pass	27,1: resulting DOM for range [comment, 2, comment, 3], node paras[0].firstChild
+Pass	27,1: resulting range position for range [comment, 2, comment, 3], node paras[0].firstChild
+Pass	27,2: resulting DOM for range [comment, 2, comment, 3], node paras[1].firstChild
+Pass	27,2: resulting range position for range [comment, 2, comment, 3], node paras[1].firstChild
+Pass	27,3: resulting DOM for range [comment, 2, comment, 3], node paras[5].firstChild
+Pass	27,3: resulting range position for range [comment, 2, comment, 3], node paras[5].firstChild
+Pass	27,4: resulting DOM for range [comment, 2, comment, 3], node foreignPara1
+Pass	27,4: resulting range position for range [comment, 2, comment, 3], node foreignPara1
+Pass	27,5: resulting DOM for range [comment, 2, comment, 3], node foreignPara1.firstChild
+Pass	27,5: resulting range position for range [comment, 2, comment, 3], node foreignPara1.firstChild
+Pass	27,6: resulting DOM for range [comment, 2, comment, 3], node detachedPara1
+Pass	27,6: resulting range position for range [comment, 2, comment, 3], node detachedPara1
+Pass	27,7: resulting DOM for range [comment, 2, comment, 3], node detachedPara1.firstChild
+Pass	27,7: resulting range position for range [comment, 2, comment, 3], node detachedPara1.firstChild
+Pass	27,8: resulting DOM for range [comment, 2, comment, 3], node document
+Pass	27,8: resulting range position for range [comment, 2, comment, 3], node document
+Pass	27,9: resulting DOM for range [comment, 2, comment, 3], node detachedDiv
+Pass	27,9: resulting range position for range [comment, 2, comment, 3], node detachedDiv
+Pass	27,10: resulting DOM for range [comment, 2, comment, 3], node foreignDoc
+Pass	27,10: resulting range position for range [comment, 2, comment, 3], node foreignDoc
+Pass	27,11: resulting DOM for range [comment, 2, comment, 3], node foreignPara2
+Pass	27,11: resulting range position for range [comment, 2, comment, 3], node foreignPara2
+Pass	27,12: resulting DOM for range [comment, 2, comment, 3], node xmlDoc
+Pass	27,12: resulting range position for range [comment, 2, comment, 3], node xmlDoc
+Pass	27,13: resulting DOM for range [comment, 2, comment, 3], node xmlElement
+Pass	27,13: resulting range position for range [comment, 2, comment, 3], node xmlElement
+Pass	27,14: resulting DOM for range [comment, 2, comment, 3], node detachedTextNode
+Pass	27,14: resulting range position for range [comment, 2, comment, 3], node detachedTextNode
+Pass	27,15: resulting DOM for range [comment, 2, comment, 3], node foreignTextNode
+Pass	27,15: resulting range position for range [comment, 2, comment, 3], node foreignTextNode
+Pass	27,16: resulting DOM for range [comment, 2, comment, 3], node processingInstruction
+Pass	27,16: resulting range position for range [comment, 2, comment, 3], node processingInstruction
+Pass	27,17: resulting DOM for range [comment, 2, comment, 3], node detachedProcessingInstruction
+Pass	27,17: resulting range position for range [comment, 2, comment, 3], node detachedProcessingInstruction
+Pass	27,18: resulting DOM for range [comment, 2, comment, 3], node comment
+Pass	27,18: resulting range position for range [comment, 2, comment, 3], node comment
+Pass	27,19: resulting DOM for range [comment, 2, comment, 3], node detachedComment
+Pass	27,19: resulting range position for range [comment, 2, comment, 3], node detachedComment
+Pass	27,20: resulting DOM for range [comment, 2, comment, 3], node docfrag
+Pass	27,20: resulting range position for range [comment, 2, comment, 3], node docfrag
+Pass	27,21: resulting DOM for range [comment, 2, comment, 3], node doctype
+Pass	27,21: resulting range position for range [comment, 2, comment, 3], node doctype
+Pass	27,22: resulting DOM for range [comment, 2, comment, 3], node foreignDoctype
+Pass	27,22: resulting range position for range [comment, 2, comment, 3], node foreignDoctype
+Pass	28,0: resulting DOM for range [testDiv, 0, comment, 5], node paras[0]
+Pass	28,0: resulting range position for range [testDiv, 0, comment, 5], node paras[0]
+Pass	28,1: resulting DOM for range [testDiv, 0, comment, 5], node paras[0].firstChild
+Pass	28,1: resulting range position for range [testDiv, 0, comment, 5], node paras[0].firstChild
+Pass	28,2: resulting DOM for range [testDiv, 0, comment, 5], node paras[1].firstChild
+Pass	28,2: resulting range position for range [testDiv, 0, comment, 5], node paras[1].firstChild
+Pass	28,3: resulting DOM for range [testDiv, 0, comment, 5], node paras[5].firstChild
+Pass	28,3: resulting range position for range [testDiv, 0, comment, 5], node paras[5].firstChild
+Pass	28,4: resulting DOM for range [testDiv, 0, comment, 5], node foreignPara1
+Pass	28,4: resulting range position for range [testDiv, 0, comment, 5], node foreignPara1
+Pass	28,5: resulting DOM for range [testDiv, 0, comment, 5], node foreignPara1.firstChild
+Pass	28,5: resulting range position for range [testDiv, 0, comment, 5], node foreignPara1.firstChild
+Pass	28,6: resulting DOM for range [testDiv, 0, comment, 5], node detachedPara1
+Pass	28,6: resulting range position for range [testDiv, 0, comment, 5], node detachedPara1
+Pass	28,7: resulting DOM for range [testDiv, 0, comment, 5], node detachedPara1.firstChild
+Pass	28,7: resulting range position for range [testDiv, 0, comment, 5], node detachedPara1.firstChild
+Pass	28,8: resulting DOM for range [testDiv, 0, comment, 5], node document
+Pass	28,8: resulting range position for range [testDiv, 0, comment, 5], node document
+Pass	28,9: resulting DOM for range [testDiv, 0, comment, 5], node detachedDiv
+Pass	28,9: resulting range position for range [testDiv, 0, comment, 5], node detachedDiv
+Pass	28,10: resulting DOM for range [testDiv, 0, comment, 5], node foreignDoc
+Pass	28,10: resulting range position for range [testDiv, 0, comment, 5], node foreignDoc
+Pass	28,11: resulting DOM for range [testDiv, 0, comment, 5], node foreignPara2
+Pass	28,11: resulting range position for range [testDiv, 0, comment, 5], node foreignPara2
+Pass	28,12: resulting DOM for range [testDiv, 0, comment, 5], node xmlDoc
+Pass	28,12: resulting range position for range [testDiv, 0, comment, 5], node xmlDoc
+Pass	28,13: resulting DOM for range [testDiv, 0, comment, 5], node xmlElement
+Pass	28,13: resulting range position for range [testDiv, 0, comment, 5], node xmlElement
+Pass	28,14: resulting DOM for range [testDiv, 0, comment, 5], node detachedTextNode
+Pass	28,14: resulting range position for range [testDiv, 0, comment, 5], node detachedTextNode
+Pass	28,15: resulting DOM for range [testDiv, 0, comment, 5], node foreignTextNode
+Pass	28,15: resulting range position for range [testDiv, 0, comment, 5], node foreignTextNode
+Pass	28,16: resulting DOM for range [testDiv, 0, comment, 5], node processingInstruction
+Pass	28,16: resulting range position for range [testDiv, 0, comment, 5], node processingInstruction
+Pass	28,17: resulting DOM for range [testDiv, 0, comment, 5], node detachedProcessingInstruction
+Pass	28,17: resulting range position for range [testDiv, 0, comment, 5], node detachedProcessingInstruction
+Pass	28,18: resulting DOM for range [testDiv, 0, comment, 5], node comment
+Pass	28,18: resulting range position for range [testDiv, 0, comment, 5], node comment
+Pass	28,19: resulting DOM for range [testDiv, 0, comment, 5], node detachedComment
+Pass	28,19: resulting range position for range [testDiv, 0, comment, 5], node detachedComment
+Pass	28,20: resulting DOM for range [testDiv, 0, comment, 5], node docfrag
+Pass	28,20: resulting range position for range [testDiv, 0, comment, 5], node docfrag
+Pass	28,21: resulting DOM for range [testDiv, 0, comment, 5], node doctype
+Pass	28,21: resulting range position for range [testDiv, 0, comment, 5], node doctype
+Pass	28,22: resulting DOM for range [testDiv, 0, comment, 5], node foreignDoctype
+Pass	28,22: resulting range position for range [testDiv, 0, comment, 5], node foreignDoctype
+Pass	29,0: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node paras[0]
+Pass	29,0: resulting range position for range [foreignDoc, 1, foreignComment, 2], node paras[0]
+Pass	29,1: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node paras[0].firstChild
+Pass	29,1: resulting range position for range [foreignDoc, 1, foreignComment, 2], node paras[0].firstChild
+Pass	29,2: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node paras[1].firstChild
+Pass	29,2: resulting range position for range [foreignDoc, 1, foreignComment, 2], node paras[1].firstChild
+Pass	29,3: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node paras[5].firstChild
+Pass	29,3: resulting range position for range [foreignDoc, 1, foreignComment, 2], node paras[5].firstChild
+Pass	29,4: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node foreignPara1
+Pass	29,4: resulting range position for range [foreignDoc, 1, foreignComment, 2], node foreignPara1
+Pass	29,5: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node foreignPara1.firstChild
+Pass	29,5: resulting range position for range [foreignDoc, 1, foreignComment, 2], node foreignPara1.firstChild
+Pass	29,6: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node detachedPara1
+Pass	29,6: resulting range position for range [foreignDoc, 1, foreignComment, 2], node detachedPara1
+Pass	29,7: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node detachedPara1.firstChild
+Pass	29,7: resulting range position for range [foreignDoc, 1, foreignComment, 2], node detachedPara1.firstChild
+Pass	29,8: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node document
+Pass	29,8: resulting range position for range [foreignDoc, 1, foreignComment, 2], node document
+Pass	29,9: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node detachedDiv
+Pass	29,9: resulting range position for range [foreignDoc, 1, foreignComment, 2], node detachedDiv
+Pass	29,10: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node foreignDoc
+Pass	29,10: resulting range position for range [foreignDoc, 1, foreignComment, 2], node foreignDoc
+Pass	29,11: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node foreignPara2
+Pass	29,11: resulting range position for range [foreignDoc, 1, foreignComment, 2], node foreignPara2
+Pass	29,12: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node xmlDoc
+Pass	29,12: resulting range position for range [foreignDoc, 1, foreignComment, 2], node xmlDoc
+Pass	29,13: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node xmlElement
+Pass	29,13: resulting range position for range [foreignDoc, 1, foreignComment, 2], node xmlElement
+Pass	29,14: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node detachedTextNode
+Pass	29,14: resulting range position for range [foreignDoc, 1, foreignComment, 2], node detachedTextNode
+Pass	29,15: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node foreignTextNode
+Pass	29,15: resulting range position for range [foreignDoc, 1, foreignComment, 2], node foreignTextNode
+Pass	29,16: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node processingInstruction
+Pass	29,16: resulting range position for range [foreignDoc, 1, foreignComment, 2], node processingInstruction
+Pass	29,17: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node detachedProcessingInstruction
+Pass	29,17: resulting range position for range [foreignDoc, 1, foreignComment, 2], node detachedProcessingInstruction
+Pass	29,18: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node comment
+Pass	29,18: resulting range position for range [foreignDoc, 1, foreignComment, 2], node comment
+Pass	29,19: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node detachedComment
+Pass	29,19: resulting range position for range [foreignDoc, 1, foreignComment, 2], node detachedComment
+Pass	29,20: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node docfrag
+Pass	29,20: resulting range position for range [foreignDoc, 1, foreignComment, 2], node docfrag
+Pass	29,21: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node doctype
+Pass	29,21: resulting range position for range [foreignDoc, 1, foreignComment, 2], node doctype
+Pass	29,22: resulting DOM for range [foreignDoc, 1, foreignComment, 2], node foreignDoctype
+Pass	29,22: resulting range position for range [foreignDoc, 1, foreignComment, 2], node foreignDoctype
+Pass	30,0: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node paras[0]
+Pass	30,0: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node paras[0]
+Pass	30,1: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node paras[0].firstChild
+Pass	30,1: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node paras[0].firstChild
+Pass	30,2: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node paras[1].firstChild
+Pass	30,2: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node paras[1].firstChild
+Pass	30,3: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node paras[5].firstChild
+Pass	30,3: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node paras[5].firstChild
+Pass	30,4: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignPara1
+Pass	30,4: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignPara1
+Pass	30,5: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignPara1.firstChild
+Pass	30,5: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignPara1.firstChild
+Pass	30,6: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedPara1
+Pass	30,6: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedPara1
+Pass	30,7: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedPara1.firstChild
+Pass	30,7: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedPara1.firstChild
+Pass	30,8: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node document
+Pass	30,8: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node document
+Pass	30,9: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedDiv
+Pass	30,9: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedDiv
+Pass	30,10: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignDoc
+Pass	30,10: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignDoc
+Pass	30,11: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignPara2
+Pass	30,11: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignPara2
+Pass	30,12: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node xmlDoc
+Pass	30,12: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node xmlDoc
+Pass	30,13: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node xmlElement
+Pass	30,13: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node xmlElement
+Pass	30,14: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedTextNode
+Pass	30,14: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedTextNode
+Pass	30,15: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignTextNode
+Pass	30,15: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignTextNode
+Pass	30,16: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node processingInstruction
+Pass	30,16: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node processingInstruction
+Pass	30,17: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedProcessingInstruction
+Pass	30,17: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedProcessingInstruction
+Pass	30,18: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node comment
+Pass	30,18: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node comment
+Pass	30,19: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedComment
+Pass	30,19: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node detachedComment
+Pass	30,20: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node docfrag
+Pass	30,20: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node docfrag
+Pass	30,21: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node doctype
+Pass	30,21: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node doctype
+Pass	30,22: resulting DOM for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignDoctype
+Pass	30,22: resulting range position for range [foreignDoc.body, 0, foreignTextNode, 36], node foreignDoctype
+Pass	31,0: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node paras[0]
+Pass	31,0: resulting range position for range [xmlDoc, 1, xmlComment, 0], node paras[0]
+Pass	31,1: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node paras[0].firstChild
+Pass	31,1: resulting range position for range [xmlDoc, 1, xmlComment, 0], node paras[0].firstChild
+Pass	31,2: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node paras[1].firstChild
+Pass	31,2: resulting range position for range [xmlDoc, 1, xmlComment, 0], node paras[1].firstChild
+Pass	31,3: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node paras[5].firstChild
+Pass	31,3: resulting range position for range [xmlDoc, 1, xmlComment, 0], node paras[5].firstChild
+Pass	31,4: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node foreignPara1
+Pass	31,4: resulting range position for range [xmlDoc, 1, xmlComment, 0], node foreignPara1
+Pass	31,5: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node foreignPara1.firstChild
+Pass	31,5: resulting range position for range [xmlDoc, 1, xmlComment, 0], node foreignPara1.firstChild
+Pass	31,6: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node detachedPara1
+Pass	31,6: resulting range position for range [xmlDoc, 1, xmlComment, 0], node detachedPara1
+Pass	31,7: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node detachedPara1.firstChild
+Pass	31,7: resulting range position for range [xmlDoc, 1, xmlComment, 0], node detachedPara1.firstChild
+Pass	31,8: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node document
+Pass	31,8: resulting range position for range [xmlDoc, 1, xmlComment, 0], node document
+Pass	31,9: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node detachedDiv
+Pass	31,9: resulting range position for range [xmlDoc, 1, xmlComment, 0], node detachedDiv
+Pass	31,10: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node foreignDoc
+Pass	31,10: resulting range position for range [xmlDoc, 1, xmlComment, 0], node foreignDoc
+Pass	31,11: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node foreignPara2
+Pass	31,11: resulting range position for range [xmlDoc, 1, xmlComment, 0], node foreignPara2
+Pass	31,12: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node xmlDoc
+Pass	31,12: resulting range position for range [xmlDoc, 1, xmlComment, 0], node xmlDoc
+Pass	31,13: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node xmlElement
+Pass	31,13: resulting range position for range [xmlDoc, 1, xmlComment, 0], node xmlElement
+Pass	31,14: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node detachedTextNode
+Pass	31,14: resulting range position for range [xmlDoc, 1, xmlComment, 0], node detachedTextNode
+Pass	31,15: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node foreignTextNode
+Pass	31,15: resulting range position for range [xmlDoc, 1, xmlComment, 0], node foreignTextNode
+Pass	31,16: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node processingInstruction
+Pass	31,16: resulting range position for range [xmlDoc, 1, xmlComment, 0], node processingInstruction
+Pass	31,17: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node detachedProcessingInstruction
+Pass	31,17: resulting range position for range [xmlDoc, 1, xmlComment, 0], node detachedProcessingInstruction
+Pass	31,18: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node comment
+Pass	31,18: resulting range position for range [xmlDoc, 1, xmlComment, 0], node comment
+Pass	31,19: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node detachedComment
+Pass	31,19: resulting range position for range [xmlDoc, 1, xmlComment, 0], node detachedComment
+Pass	31,20: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node docfrag
+Pass	31,20: resulting range position for range [xmlDoc, 1, xmlComment, 0], node docfrag
+Pass	31,21: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node doctype
+Pass	31,21: resulting range position for range [xmlDoc, 1, xmlComment, 0], node doctype
+Pass	31,22: resulting DOM for range [xmlDoc, 1, xmlComment, 0], node foreignDoctype
+Pass	31,22: resulting range position for range [xmlDoc, 1, xmlComment, 0], node foreignDoctype
+Pass	32,0: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node paras[0]
+Pass	32,0: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node paras[0]
+Pass	32,1: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node paras[0].firstChild
+Pass	32,1: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node paras[0].firstChild
+Pass	32,2: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node paras[1].firstChild
+Pass	32,2: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node paras[1].firstChild
+Pass	32,3: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node paras[5].firstChild
+Pass	32,3: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node paras[5].firstChild
+Pass	32,4: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node foreignPara1
+Pass	32,4: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node foreignPara1
+Pass	32,5: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node foreignPara1.firstChild
+Pass	32,5: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node foreignPara1.firstChild
+Pass	32,6: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node detachedPara1
+Pass	32,6: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node detachedPara1
+Pass	32,7: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node detachedPara1.firstChild
+Pass	32,7: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node detachedPara1.firstChild
+Pass	32,8: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node document
+Pass	32,8: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node document
+Pass	32,9: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node detachedDiv
+Pass	32,9: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node detachedDiv
+Pass	32,10: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node foreignDoc
+Pass	32,10: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node foreignDoc
+Pass	32,11: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node foreignPara2
+Pass	32,11: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node foreignPara2
+Pass	32,12: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node xmlDoc
+Pass	32,12: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node xmlDoc
+Pass	32,13: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node xmlElement
+Pass	32,13: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node xmlElement
+Pass	32,14: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node detachedTextNode
+Pass	32,14: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node detachedTextNode
+Pass	32,15: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node foreignTextNode
+Pass	32,15: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node foreignTextNode
+Pass	32,16: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node processingInstruction
+Pass	32,16: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node processingInstruction
+Pass	32,17: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node detachedProcessingInstruction
+Pass	32,17: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node detachedProcessingInstruction
+Pass	32,18: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node comment
+Pass	32,18: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node comment
+Pass	32,19: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node detachedComment
+Pass	32,19: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node detachedComment
+Pass	32,20: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node docfrag
+Pass	32,20: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node docfrag
+Pass	32,21: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node doctype
+Pass	32,21: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node doctype
+Pass	32,22: resulting DOM for range [detachedTextNode, 0, detachedTextNode, 8], node foreignDoctype
+Pass	32,22: resulting range position for range [detachedTextNode, 0, detachedTextNode, 8], node foreignDoctype
+Pass	33,0: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node paras[0]
+Pass	33,0: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node paras[0]
+Pass	33,1: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node paras[0].firstChild
+Pass	33,1: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node paras[0].firstChild
+Pass	33,2: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node paras[1].firstChild
+Pass	33,2: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node paras[1].firstChild
+Pass	33,3: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node paras[5].firstChild
+Pass	33,3: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node paras[5].firstChild
+Pass	33,4: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignPara1
+Pass	33,4: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignPara1
+Pass	33,5: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignPara1.firstChild
+Pass	33,5: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignPara1.firstChild
+Pass	33,6: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedPara1
+Pass	33,6: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedPara1
+Pass	33,7: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedPara1.firstChild
+Pass	33,7: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedPara1.firstChild
+Pass	33,8: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node document
+Pass	33,8: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node document
+Pass	33,9: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedDiv
+Pass	33,9: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedDiv
+Pass	33,10: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignDoc
+Pass	33,10: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignDoc
+Pass	33,11: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignPara2
+Pass	33,11: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignPara2
+Pass	33,12: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node xmlDoc
+Pass	33,12: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node xmlDoc
+Pass	33,13: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node xmlElement
+Pass	33,13: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node xmlElement
+Pass	33,14: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedTextNode
+Pass	33,14: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedTextNode
+Pass	33,15: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignTextNode
+Pass	33,15: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignTextNode
+Pass	33,16: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node processingInstruction
+Pass	33,16: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node processingInstruction
+Pass	33,17: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedProcessingInstruction
+Pass	33,17: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedProcessingInstruction
+Pass	33,18: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node comment
+Pass	33,18: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node comment
+Pass	33,19: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedComment
+Pass	33,19: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node detachedComment
+Pass	33,20: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node docfrag
+Pass	33,20: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node docfrag
+Pass	33,21: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node doctype
+Pass	33,21: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node doctype
+Pass	33,22: resulting DOM for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignDoctype
+Pass	33,22: resulting range position for range [detachedForeignTextNode, 0, detachedForeignTextNode, 8], node foreignDoctype
+Pass	34,0: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node paras[0]
+Pass	34,0: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node paras[0]
+Pass	34,1: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node paras[0].firstChild
+Pass	34,1: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node paras[0].firstChild
+Pass	34,2: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node paras[1].firstChild
+Pass	34,2: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node paras[1].firstChild
+Pass	34,3: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node paras[5].firstChild
+Pass	34,3: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node paras[5].firstChild
+Pass	34,4: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignPara1
+Pass	34,4: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignPara1
+Pass	34,5: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignPara1.firstChild
+Pass	34,5: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignPara1.firstChild
+Pass	34,6: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedPara1
+Pass	34,6: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedPara1
+Pass	34,7: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedPara1.firstChild
+Pass	34,7: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedPara1.firstChild
+Pass	34,8: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node document
+Pass	34,8: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node document
+Pass	34,9: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedDiv
+Pass	34,9: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedDiv
+Pass	34,10: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignDoc
+Pass	34,10: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignDoc
+Pass	34,11: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignPara2
+Pass	34,11: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignPara2
+Pass	34,12: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node xmlDoc
+Pass	34,12: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node xmlDoc
+Pass	34,13: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node xmlElement
+Pass	34,13: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node xmlElement
+Pass	34,14: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedTextNode
+Pass	34,14: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedTextNode
+Pass	34,15: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignTextNode
+Pass	34,15: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignTextNode
+Pass	34,16: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node processingInstruction
+Pass	34,16: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node processingInstruction
+Pass	34,17: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedProcessingInstruction
+Pass	34,17: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedProcessingInstruction
+Pass	34,18: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node comment
+Pass	34,18: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node comment
+Pass	34,19: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedComment
+Pass	34,19: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node detachedComment
+Pass	34,20: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node docfrag
+Pass	34,20: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node docfrag
+Pass	34,21: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node doctype
+Pass	34,21: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node doctype
+Pass	34,22: resulting DOM for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignDoctype
+Pass	34,22: resulting range position for range [detachedXmlTextNode, 0, detachedXmlTextNode, 8], node foreignDoctype
+Pass	35,0: resulting DOM for range [detachedComment, 3, detachedComment, 4], node paras[0]
+Pass	35,0: resulting range position for range [detachedComment, 3, detachedComment, 4], node paras[0]
+Pass	35,1: resulting DOM for range [detachedComment, 3, detachedComment, 4], node paras[0].firstChild
+Pass	35,1: resulting range position for range [detachedComment, 3, detachedComment, 4], node paras[0].firstChild
+Pass	35,2: resulting DOM for range [detachedComment, 3, detachedComment, 4], node paras[1].firstChild
+Pass	35,2: resulting range position for range [detachedComment, 3, detachedComment, 4], node paras[1].firstChild
+Pass	35,3: resulting DOM for range [detachedComment, 3, detachedComment, 4], node paras[5].firstChild
+Pass	35,3: resulting range position for range [detachedComment, 3, detachedComment, 4], node paras[5].firstChild
+Pass	35,4: resulting DOM for range [detachedComment, 3, detachedComment, 4], node foreignPara1
+Pass	35,4: resulting range position for range [detachedComment, 3, detachedComment, 4], node foreignPara1
+Pass	35,5: resulting DOM for range [detachedComment, 3, detachedComment, 4], node foreignPara1.firstChild
+Pass	35,5: resulting range position for range [detachedComment, 3, detachedComment, 4], node foreignPara1.firstChild
+Pass	35,6: resulting DOM for range [detachedComment, 3, detachedComment, 4], node detachedPara1
+Pass	35,6: resulting range position for range [detachedComment, 3, detachedComment, 4], node detachedPara1
+Pass	35,7: resulting DOM for range [detachedComment, 3, detachedComment, 4], node detachedPara1.firstChild
+Pass	35,7: resulting range position for range [detachedComment, 3, detachedComment, 4], node detachedPara1.firstChild
+Pass	35,8: resulting DOM for range [detachedComment, 3, detachedComment, 4], node document
+Pass	35,8: resulting range position for range [detachedComment, 3, detachedComment, 4], node document
+Pass	35,9: resulting DOM for range [detachedComment, 3, detachedComment, 4], node detachedDiv
+Pass	35,9: resulting range position for range [detachedComment, 3, detachedComment, 4], node detachedDiv
+Pass	35,10: resulting DOM for range [detachedComment, 3, detachedComment, 4], node foreignDoc
+Pass	35,10: resulting range position for range [detachedComment, 3, detachedComment, 4], node foreignDoc
+Pass	35,11: resulting DOM for range [detachedComment, 3, detachedComment, 4], node foreignPara2
+Pass	35,11: resulting range position for range [detachedComment, 3, detachedComment, 4], node foreignPara2
+Pass	35,12: resulting DOM for range [detachedComment, 3, detachedComment, 4], node xmlDoc
+Pass	35,12: resulting range position for range [detachedComment, 3, detachedComment, 4], node xmlDoc
+Pass	35,13: resulting DOM for range [detachedComment, 3, detachedComment, 4], node xmlElement
+Pass	35,13: resulting range position for range [detachedComment, 3, detachedComment, 4], node xmlElement
+Pass	35,14: resulting DOM for range [detachedComment, 3, detachedComment, 4], node detachedTextNode
+Pass	35,14: resulting range position for range [detachedComment, 3, detachedComment, 4], node detachedTextNode
+Pass	35,15: resulting DOM for range [detachedComment, 3, detachedComment, 4], node foreignTextNode
+Pass	35,15: resulting range position for range [detachedComment, 3, detachedComment, 4], node foreignTextNode
+Pass	35,16: resulting DOM for range [detachedComment, 3, detachedComment, 4], node processingInstruction
+Pass	35,16: resulting range position for range [detachedComment, 3, detachedComment, 4], node processingInstruction
+Pass	35,17: resulting DOM for range [detachedComment, 3, detachedComment, 4], node detachedProcessingInstruction
+Pass	35,17: resulting range position for range [detachedComment, 3, detachedComment, 4], node detachedProcessingInstruction
+Pass	35,18: resulting DOM for range [detachedComment, 3, detachedComment, 4], node comment
+Pass	35,18: resulting range position for range [detachedComment, 3, detachedComment, 4], node comment
+Pass	35,19: resulting DOM for range [detachedComment, 3, detachedComment, 4], node detachedComment
+Pass	35,19: resulting range position for range [detachedComment, 3, detachedComment, 4], node detachedComment
+Pass	35,20: resulting DOM for range [detachedComment, 3, detachedComment, 4], node docfrag
+Pass	35,20: resulting range position for range [detachedComment, 3, detachedComment, 4], node docfrag
+Pass	35,21: resulting DOM for range [detachedComment, 3, detachedComment, 4], node doctype
+Pass	35,21: resulting range position for range [detachedComment, 3, detachedComment, 4], node doctype
+Pass	35,22: resulting DOM for range [detachedComment, 3, detachedComment, 4], node foreignDoctype
+Pass	35,22: resulting range position for range [detachedComment, 3, detachedComment, 4], node foreignDoctype
+Pass	36,0: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node paras[0]
+Pass	36,0: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node paras[0]
+Pass	36,1: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node paras[0].firstChild
+Pass	36,1: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node paras[0].firstChild
+Pass	36,2: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node paras[1].firstChild
+Pass	36,2: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node paras[1].firstChild
+Pass	36,3: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node paras[5].firstChild
+Pass	36,3: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node paras[5].firstChild
+Pass	36,4: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignPara1
+Pass	36,4: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignPara1
+Pass	36,5: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignPara1.firstChild
+Pass	36,5: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignPara1.firstChild
+Pass	36,6: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedPara1
+Pass	36,6: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedPara1
+Pass	36,7: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedPara1.firstChild
+Pass	36,7: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedPara1.firstChild
+Pass	36,8: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node document
+Pass	36,8: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node document
+Pass	36,9: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedDiv
+Pass	36,9: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedDiv
+Pass	36,10: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignDoc
+Pass	36,10: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignDoc
+Pass	36,11: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignPara2
+Pass	36,11: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignPara2
+Pass	36,12: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node xmlDoc
+Pass	36,12: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node xmlDoc
+Pass	36,13: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node xmlElement
+Pass	36,13: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node xmlElement
+Pass	36,14: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedTextNode
+Pass	36,14: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedTextNode
+Pass	36,15: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignTextNode
+Pass	36,15: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignTextNode
+Pass	36,16: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node processingInstruction
+Pass	36,16: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node processingInstruction
+Pass	36,17: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedProcessingInstruction
+Pass	36,17: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedProcessingInstruction
+Pass	36,18: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node comment
+Pass	36,18: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node comment
+Pass	36,19: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedComment
+Pass	36,19: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node detachedComment
+Pass	36,20: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node docfrag
+Pass	36,20: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node docfrag
+Pass	36,21: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node doctype
+Pass	36,21: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node doctype
+Pass	36,22: resulting DOM for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignDoctype
+Pass	36,22: resulting range position for range [detachedForeignComment, 0, detachedForeignComment, 1], node foreignDoctype
+Pass	37,0: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node paras[0]
+Pass	37,0: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node paras[0]
+Pass	37,1: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node paras[0].firstChild
+Pass	37,1: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node paras[0].firstChild
+Pass	37,2: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node paras[1].firstChild
+Pass	37,2: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node paras[1].firstChild
+Pass	37,3: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node paras[5].firstChild
+Pass	37,3: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node paras[5].firstChild
+Pass	37,4: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignPara1
+Pass	37,4: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignPara1
+Pass	37,5: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignPara1.firstChild
+Pass	37,5: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignPara1.firstChild
+Pass	37,6: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedPara1
+Pass	37,6: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedPara1
+Pass	37,7: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedPara1.firstChild
+Pass	37,7: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedPara1.firstChild
+Pass	37,8: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node document
+Pass	37,8: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node document
+Pass	37,9: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedDiv
+Pass	37,9: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedDiv
+Pass	37,10: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignDoc
+Pass	37,10: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignDoc
+Pass	37,11: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignPara2
+Pass	37,11: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignPara2
+Pass	37,12: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node xmlDoc
+Pass	37,12: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node xmlDoc
+Pass	37,13: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node xmlElement
+Pass	37,13: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node xmlElement
+Pass	37,14: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedTextNode
+Pass	37,14: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedTextNode
+Pass	37,15: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignTextNode
+Pass	37,15: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignTextNode
+Pass	37,16: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node processingInstruction
+Pass	37,16: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node processingInstruction
+Pass	37,17: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedProcessingInstruction
+Pass	37,17: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedProcessingInstruction
+Pass	37,18: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node comment
+Pass	37,18: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node comment
+Pass	37,19: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedComment
+Pass	37,19: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node detachedComment
+Pass	37,20: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node docfrag
+Pass	37,20: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node docfrag
+Pass	37,21: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node doctype
+Pass	37,21: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node doctype
+Pass	37,22: resulting DOM for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignDoctype
+Pass	37,22: resulting range position for range [detachedXmlComment, 2, detachedXmlComment, 6], node foreignDoctype
+Pass	38,0: resulting DOM for range [docfrag, 0, docfrag, 0], node paras[0]
+Pass	38,0: resulting range position for range [docfrag, 0, docfrag, 0], node paras[0]
+Pass	38,1: resulting DOM for range [docfrag, 0, docfrag, 0], node paras[0].firstChild
+Pass	38,1: resulting range position for range [docfrag, 0, docfrag, 0], node paras[0].firstChild
+Pass	38,2: resulting DOM for range [docfrag, 0, docfrag, 0], node paras[1].firstChild
+Pass	38,2: resulting range position for range [docfrag, 0, docfrag, 0], node paras[1].firstChild
+Pass	38,3: resulting DOM for range [docfrag, 0, docfrag, 0], node paras[5].firstChild
+Pass	38,3: resulting range position for range [docfrag, 0, docfrag, 0], node paras[5].firstChild
+Pass	38,4: resulting DOM for range [docfrag, 0, docfrag, 0], node foreignPara1
+Pass	38,4: resulting range position for range [docfrag, 0, docfrag, 0], node foreignPara1
+Pass	38,5: resulting DOM for range [docfrag, 0, docfrag, 0], node foreignPara1.firstChild
+Pass	38,5: resulting range position for range [docfrag, 0, docfrag, 0], node foreignPara1.firstChild
+Pass	38,6: resulting DOM for range [docfrag, 0, docfrag, 0], node detachedPara1
+Pass	38,6: resulting range position for range [docfrag, 0, docfrag, 0], node detachedPara1
+Pass	38,7: resulting DOM for range [docfrag, 0, docfrag, 0], node detachedPara1.firstChild
+Pass	38,7: resulting range position for range [docfrag, 0, docfrag, 0], node detachedPara1.firstChild
+Pass	38,8: resulting DOM for range [docfrag, 0, docfrag, 0], node document
+Pass	38,8: resulting range position for range [docfrag, 0, docfrag, 0], node document
+Pass	38,9: resulting DOM for range [docfrag, 0, docfrag, 0], node detachedDiv
+Pass	38,9: resulting range position for range [docfrag, 0, docfrag, 0], node detachedDiv
+Pass	38,10: resulting DOM for range [docfrag, 0, docfrag, 0], node foreignDoc
+Pass	38,10: resulting range position for range [docfrag, 0, docfrag, 0], node foreignDoc
+Pass	38,11: resulting DOM for range [docfrag, 0, docfrag, 0], node foreignPara2
+Pass	38,11: resulting range position for range [docfrag, 0, docfrag, 0], node foreignPara2
+Pass	38,12: resulting DOM for range [docfrag, 0, docfrag, 0], node xmlDoc
+Pass	38,12: resulting range position for range [docfrag, 0, docfrag, 0], node xmlDoc
+Pass	38,13: resulting DOM for range [docfrag, 0, docfrag, 0], node xmlElement
+Pass	38,13: resulting range position for range [docfrag, 0, docfrag, 0], node xmlElement
+Pass	38,14: resulting DOM for range [docfrag, 0, docfrag, 0], node detachedTextNode
+Pass	38,14: resulting range position for range [docfrag, 0, docfrag, 0], node detachedTextNode
+Pass	38,15: resulting DOM for range [docfrag, 0, docfrag, 0], node foreignTextNode
+Pass	38,15: resulting range position for range [docfrag, 0, docfrag, 0], node foreignTextNode
+Pass	38,16: resulting DOM for range [docfrag, 0, docfrag, 0], node processingInstruction
+Pass	38,16: resulting range position for range [docfrag, 0, docfrag, 0], node processingInstruction
+Pass	38,17: resulting DOM for range [docfrag, 0, docfrag, 0], node detachedProcessingInstruction
+Pass	38,17: resulting range position for range [docfrag, 0, docfrag, 0], node detachedProcessingInstruction
+Pass	38,18: resulting DOM for range [docfrag, 0, docfrag, 0], node comment
+Pass	38,18: resulting range position for range [docfrag, 0, docfrag, 0], node comment
+Pass	38,19: resulting DOM for range [docfrag, 0, docfrag, 0], node detachedComment
+Pass	38,19: resulting range position for range [docfrag, 0, docfrag, 0], node detachedComment
+Pass	38,20: resulting DOM for range [docfrag, 0, docfrag, 0], node docfrag
+Pass	38,20: resulting range position for range [docfrag, 0, docfrag, 0], node docfrag
+Pass	38,21: resulting DOM for range [docfrag, 0, docfrag, 0], node doctype
+Pass	38,21: resulting range position for range [docfrag, 0, docfrag, 0], node doctype
+Pass	38,22: resulting DOM for range [docfrag, 0, docfrag, 0], node foreignDoctype
+Pass	38,22: resulting range position for range [docfrag, 0, docfrag, 0], node foreignDoctype
+Pass	39,0: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node paras[0]
+Pass	39,0: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node paras[0]
+Pass	39,1: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node paras[0].firstChild
+Pass	39,1: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node paras[0].firstChild
+Pass	39,2: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node paras[1].firstChild
+Pass	39,2: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node paras[1].firstChild
+Pass	39,3: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node paras[5].firstChild
+Pass	39,3: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node paras[5].firstChild
+Pass	39,4: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node foreignPara1
+Pass	39,4: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node foreignPara1
+Pass	39,5: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node foreignPara1.firstChild
+Pass	39,5: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node foreignPara1.firstChild
+Pass	39,6: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node detachedPara1
+Pass	39,6: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node detachedPara1
+Pass	39,7: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node detachedPara1.firstChild
+Pass	39,7: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node detachedPara1.firstChild
+Pass	39,8: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node document
+Pass	39,8: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node document
+Pass	39,9: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node detachedDiv
+Pass	39,9: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node detachedDiv
+Pass	39,10: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node foreignDoc
+Pass	39,10: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node foreignDoc
+Pass	39,11: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node foreignPara2
+Pass	39,11: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node foreignPara2
+Pass	39,12: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node xmlDoc
+Pass	39,12: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node xmlDoc
+Pass	39,13: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node xmlElement
+Pass	39,13: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node xmlElement
+Pass	39,14: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node detachedTextNode
+Pass	39,14: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node detachedTextNode
+Pass	39,15: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node foreignTextNode
+Pass	39,15: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node foreignTextNode
+Pass	39,16: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node processingInstruction
+Pass	39,16: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node processingInstruction
+Pass	39,17: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node detachedProcessingInstruction
+Pass	39,17: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node detachedProcessingInstruction
+Pass	39,18: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node comment
+Pass	39,18: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node comment
+Pass	39,19: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node detachedComment
+Pass	39,19: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node detachedComment
+Pass	39,20: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node docfrag
+Pass	39,20: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node docfrag
+Pass	39,21: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node doctype
+Pass	39,21: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node doctype
+Pass	39,22: resulting DOM for range [processingInstruction, 0, processingInstruction, 4], node foreignDoctype
+Pass	39,22: resulting range position for range [processingInstruction, 0, processingInstruction, 4], node foreignDoctype
