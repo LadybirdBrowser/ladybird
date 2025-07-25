@@ -47,6 +47,6 @@ DataView
 -------------
 Hello from wasm!!!!!!
 -------------
-WebAssembly.Module
+Module
 -------------
 Hello from wasm!!!!!!

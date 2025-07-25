@@ -5169,7 +5169,7 @@ void @constructor_class@::initialize(JS::Realm& realm)
 
     generator.append(R"~~~(
     define_direct_property(vm.names.length, JS::Value(@constructor.length@), JS::Attribute::Configurable);
-    define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "@namespaced_name@"_string), JS::Attribute::Configurable);
+    define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "@name@"_string), JS::Attribute::Configurable);
     define_direct_property(vm.names.prototype, &ensure_web_prototype<@prototype_class@>(realm, "@namespaced_name@"_fly_string), 0);
 
 )~~~");
