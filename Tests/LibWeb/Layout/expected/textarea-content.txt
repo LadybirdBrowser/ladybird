@@ -23,7 +23,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <textarea> at (513,11) content-size 240x44 inline-block [BFC] children: not-inline
         BlockContainer <div> at (513,11) content-size 240x23 children: not-inline
           BlockContainer <div> at (513,11) content-size 240x23 children: inline
-            frag 0 from TextNode start: 0, length: 16, rect: [513,11 154.078125x23] baseline: 17.5
+            frag 0 from TextNode start: 0, length: 15, rect: [513,11 154.078125x23] baseline: 17.5
                 "Tja hej vänner!"
             TextNode <#text>
       TextNode <#text>

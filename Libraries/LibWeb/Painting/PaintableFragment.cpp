@@ -19,8 +19,8 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment)
     , m_offset(fragment.offset())
     , m_size(fragment.size())
     , m_baseline(fragment.baseline())
-    , m_start_byte_offset(fragment.start())
-    , m_length_in_bytes(fragment.length())
+    , m_start_offset(fragment.start())
+    , m_length_in_code_units(fragment.length())
     , m_glyph_run(fragment.glyph_run())
     , m_writing_mode(fragment.writing_mode())
 {
@@ -33,16 +33,6 @@ CSSPixelRect const PaintableFragment::absolute_rect() const
         rect.set_location(containing_block->absolute_position());
     rect.translate_by(offset());
     return rect;
-}
-
-size_t PaintableFragment::index_in_node_for_byte_offset(size_t byte_offset) const
-{
-    if (m_length_in_bytes == 0)
-        return 0;
-    if (byte_offset >= m_start_byte_offset + m_length_in_bytes)
-        return utf16_view().length_in_code_units();
-    auto code_point_offset = utf8_view().code_point_offset_of(byte_offset);
-    return utf16_view().code_unit_offset_of(code_point_offset);
 }
 
 size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
@@ -62,8 +52,6 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
     if (relative_inline_offset < 0)
         return 0;
 
-    // Find the code point offset of the glyph matching the position.
-    auto code_point_offset = utf8_view().code_point_offset_of(m_start_byte_offset);
     auto const& glyphs = m_glyph_run->glyphs();
     auto smallest_distance = AK::NumericLimits<float>::max();
     for (size_t i = 0; i < glyphs.size(); ++i) {
@@ -71,14 +59,11 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
 
         // The last distance was smaller than this new distance, so we've found the closest glyph.
         if (distance_to_position > smallest_distance)
-            break;
+            return m_start_offset + i - 1;
         smallest_distance = distance_to_position;
-
-        ++code_point_offset;
     }
 
-    // Return the code unit offset in the UTF-16 string.
-    return utf16_view().code_unit_offset_of(code_point_offset - 1);
+    return m_start_offset + m_length_in_code_units - 1;
 }
 
 CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const
@@ -89,39 +74,24 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
     if (selection_state == Paintable::SelectionState::Full)
         return absolute_rect();
 
+    auto const start_index = m_start_offset;
+    auto const end_index = m_start_offset + m_length_in_code_units;
+
     auto const& font = glyph_run() ? glyph_run()->font() : layout_node().first_available_font();
-
-    // We are invoked with offsets coming from a Range, which means they are expressed in UTF-16 code units. We need to
-    // convert them to the byte offsets in the UTF-8 string. This is inefficient, but we only need to do it for
-    // fragments with a partial selection.
-    auto code_unit_to_byte_offset = [&](size_t offset_in_code_units) -> size_t {
-        auto text_in_utf16 = utf16_view();
-        if (offset_in_code_units >= text_in_utf16.length_in_code_units())
-            return m_length_in_bytes;
-        auto offset_code_point = text_in_utf16.code_point_offset_of(offset_in_code_units);
-        auto byte_offset = utf8_view().byte_offset_of(offset_code_point);
-        if (byte_offset <= m_start_byte_offset)
-            return 0;
-        if (byte_offset > m_start_byte_offset + m_length_in_bytes)
-            return m_length_in_bytes;
-        return byte_offset - m_start_byte_offset;
-    };
-
-    // We operate on the UTF-8 string that is part of this fragment.
-    auto text = utf8_view().substring_view(m_start_byte_offset, m_length_in_bytes);
+    auto text = this->text();
 
     if (selection_state == Paintable::SelectionState::StartAndEnd) {
-        auto selection_start_in_this_fragment = code_unit_to_byte_offset(start_offset_in_code_units);
-        auto selection_end_in_this_fragment = code_unit_to_byte_offset(end_offset_in_code_units);
-
         // we are in the start/end node (both the same)
-        if (selection_start_in_this_fragment >= m_length_in_bytes)
+        if (start_index > end_offset_in_code_units)
             return {};
-        if (selection_end_in_this_fragment == 0)
-            return {};
-        if (selection_start_in_this_fragment == selection_end_in_this_fragment)
+        if (end_index < start_offset_in_code_units)
             return {};
 
+        if (start_offset_in_code_units == end_offset_in_code_units)
+            return {};
+
+        auto selection_start_in_this_fragment = max(0, start_offset_in_code_units - m_start_offset);
+        auto selection_end_in_this_fragment = min(m_length_in_code_units, end_offset_in_code_units - m_start_offset);
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
@@ -142,13 +112,12 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         return rect;
     }
     if (selection_state == Paintable::SelectionState::Start) {
-        auto selection_start_in_this_fragment = code_unit_to_byte_offset(start_offset_in_code_units);
-        auto selection_end_in_this_fragment = m_length_in_bytes;
-
         // we are in the start node
-        if (selection_start_in_this_fragment >= m_length_in_bytes)
+        if (end_index < start_offset_in_code_units)
             return {};
 
+        auto selection_start_in_this_fragment = max(0, start_offset_in_code_units - m_start_offset);
+        auto selection_end_in_this_fragment = m_length_in_code_units;
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
@@ -169,13 +138,12 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         return rect;
     }
     if (selection_state == Paintable::SelectionState::End) {
-        auto selection_start_in_this_fragment = 0u;
-        auto selection_end_in_this_fragment = code_unit_to_byte_offset(end_offset_in_code_units);
-
         // we are in the end node
-        if (selection_end_in_this_fragment == 0)
+        if (start_index > end_offset_in_code_units)
             return {};
 
+        auto selection_start_in_this_fragment = 0;
+        auto selection_end_in_this_fragment = min<int>(end_offset_in_code_units - m_start_offset, m_length_in_code_units);
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
@@ -239,21 +207,11 @@ CSSPixelRect PaintableFragment::selection_rect() const
     return range_rect(paintable().selection_state(), range->start_offset(), range->end_offset());
 }
 
-Utf8View PaintableFragment::utf8_view() const
+Utf16View PaintableFragment::text() const
 {
     if (!is<TextPaintable>(paintable()))
         return {};
-    return Utf8View { static_cast<TextPaintable const&>(paintable()).text_for_rendering() };
-}
-
-Utf16View PaintableFragment::utf16_view() const
-{
-    if (!is<TextPaintable>(paintable()))
-        return {};
-
-    if (!m_text_in_utf16.has_value())
-        m_text_in_utf16 = Utf16String::from_utf8(utf8_view().as_string());
-    return *m_text_in_utf16;
+    return static_cast<TextPaintable const&>(paintable()).text_for_rendering().substring_view(m_start_offset, m_length_in_code_units);
 }
 
 }

@@ -92,7 +92,7 @@ CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespac
 
     size_t last_fragment_length = last_fragment->length();
     while (last_fragment_length) {
-        auto last_character = last_text[--last_fragment_length];
+        auto last_character = last_text.code_unit_at(--last_fragment_length);
         if (!is_ascii_space(last_character))
             break;
 

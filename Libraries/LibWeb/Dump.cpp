@@ -391,15 +391,15 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             color_off,
             fragment.layout_node().class_name());
         builder.appendff("start: {}, length: {}, rect: {} baseline: {}\n",
-            fragment.start_byte_offset(),
-            fragment.length_in_bytes(),
+            fragment.start_offset(),
+            fragment.length_in_code_units(),
             fragment.absolute_rect(),
             fragment.baseline());
         if (is<Layout::TextNode>(fragment.layout_node())) {
             for (size_t i = 0; i < indent; ++i)
                 builder.append("  "sv);
             auto const& layout_text = static_cast<Layout::TextNode const&>(fragment.layout_node());
-            auto fragment_text = MUST(layout_text.text_for_rendering().substring_from_byte_offset(fragment.start_byte_offset(), fragment.length_in_bytes()));
+            auto fragment_text = layout_text.text_for_rendering().substring_view(fragment.start_offset(), fragment.length_in_code_units());
             builder.appendff("      \"{}\"\n", fragment_text);
         }
     };

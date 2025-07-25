@@ -3009,7 +3009,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
     // aria-labelledby or aria-describedby and/or un-hidden. See the comment for substep A above.
     if (is_text() && (!parent_element() || (parent_element()->is_referenced() || !parent_element()->is_hidden() || !parent_element()->has_hidden_ancestor() || parent_element()->has_referenced_and_hidden_ancestor()))) {
         if (layout_node() && layout_node()->is_text_node())
-            return as<Layout::TextNode>(layout_node())->text_for_rendering();
+            return as<Layout::TextNode>(layout_node())->text_for_rendering().to_utf8_but_should_be_ported_to_utf16();
         return text_content().release_value();
     }
 

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/ShadowData.h>
@@ -23,8 +23,8 @@ public:
     Layout::Node const& layout_node() const { return m_layout_node; }
     Paintable const& paintable() const { return *m_layout_node->first_paintable(); }
 
-    size_t start_byte_offset() const { return m_start_byte_offset; }
-    size_t length_in_bytes() const { return m_length_in_bytes; }
+    size_t start_offset() const { return m_start_offset; }
+    size_t length_in_code_units() const { return m_length_in_code_units; }
 
     CSSPixels baseline() const { return m_baseline; }
     CSSPixelPoint offset() const { return m_offset; }
@@ -45,11 +45,9 @@ public:
     CSSPixels width() const { return m_size.width(); }
     CSSPixels height() const { return m_size.height(); }
 
-    size_t index_in_node_for_byte_offset(size_t) const;
     size_t index_in_node_for_point(CSSPixelPoint) const;
 
-    Utf8View utf8_view() const;
-    Utf16View utf16_view() const;
+    Utf16View text() const;
 
     CSSPixels text_decoration_thickness() const { return m_text_decoration_thickness; }
     void set_text_decoration_thickness(CSSPixels thickness) { m_text_decoration_thickness = thickness; }
@@ -59,13 +57,12 @@ private:
     CSSPixelPoint m_offset;
     CSSPixelSize m_size;
     CSSPixels m_baseline;
-    size_t m_start_byte_offset;
-    size_t m_length_in_bytes;
+    size_t m_start_offset { 0 };
+    size_t m_length_in_code_units { 0 };
     RefPtr<Gfx::GlyphRun> m_glyph_run;
     CSS::WritingMode m_writing_mode;
     Vector<ShadowData> m_shadows;
     CSSPixels m_text_decoration_thickness { 0 };
-    mutable Optional<Utf16String> m_text_in_utf16;
 };
 
 }

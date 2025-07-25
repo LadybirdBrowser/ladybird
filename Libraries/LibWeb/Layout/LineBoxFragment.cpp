@@ -51,19 +51,19 @@ bool LineBoxFragment::ends_in_whitespace() const
     auto text = this->text();
     if (text.is_empty())
         return false;
-    return isspace(text[text.length() - 1]);
+    return is_ascii_space(text.code_unit_at(text.length_in_code_units() - 1));
 }
 
 bool LineBoxFragment::is_justifiable_whitespace() const
 {
-    return text() == " ";
+    return text() == " "sv;
 }
 
-StringView LineBoxFragment::text() const
+Utf16View LineBoxFragment::text() const
 {
     if (!is<TextNode>(layout_node()))
         return {};
-    return as<TextNode>(layout_node()).text_for_rendering().bytes_as_string_view().substring_view(m_start, m_length);
+    return as<TextNode>(layout_node()).text_for_rendering().substring_view(m_start, m_length);
 }
 
 bool LineBoxFragment::is_atomic_inline() const

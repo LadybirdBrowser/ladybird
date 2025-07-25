@@ -348,7 +348,7 @@ static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_
 
     if (is<DOM::Text>(node)) {
         auto const* layout_text_node = as<Layout::TextNode>(layout_node);
-        items.append(layout_text_node->text_for_rendering());
+        items.append(layout_text_node->text_for_rendering().to_utf8_but_should_be_ported_to_utf16());
         return items;
     }
 

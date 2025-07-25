@@ -15,29 +15,29 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <div.inner> at (35,157) content-size 400x100 children: inline
           frag 0 from TextNode start: 0, length: 46, rect: [35,157 373.796875x18] baseline: 13.796875
               "This padding represents, within the scrollable"
-          frag 1 from TextNode start: 47, length: 46, rect: [35,175 370.875x18] baseline: 13.796875
+          frag 1 from TextNode start: 47, length: 44, rect: [35,175 370.875x18] baseline: 13.796875
               "overflow rectangle, the box’s own padding so"
-          frag 2 from TextNode start: 94, length: 45, rect: [35,193 366.578125x18] baseline: 13.796875
+          frag 2 from TextNode start: 92, length: 45, rect: [35,193 366.578125x18] baseline: 13.796875
               "that when its content is scrolled to the end,"
-          frag 3 from TextNode start: 140, length: 44, rect: [35,211 359.828125x18] baseline: 13.796875
+          frag 3 from TextNode start: 138, length: 44, rect: [35,211 359.828125x18] baseline: 13.796875
               "there is padding between the end-edge of its"
-          frag 4 from TextNode start: 185, length: 48, rect: [35,229 391.71875x18] baseline: 13.796875
+          frag 4 from TextNode start: 183, length: 48, rect: [35,229 391.71875x18] baseline: 13.796875
               "in-flow (or floated) content and the border edge"
-          frag 5 from TextNode start: 234, length: 50, rect: [35,247 395.328125x18] baseline: 13.796875
+          frag 5 from TextNode start: 232, length: 50, rect: [35,247 395.328125x18] baseline: 13.796875
               "of the box. It typically ends up being exactly the"
-          frag 6 from TextNode start: 285, length: 49, rect: [35,265 399.1875x18] baseline: 13.796875
+          frag 6 from TextNode start: 283, length: 47, rect: [35,265 399.1875x18] baseline: 13.796875
               "same size as the box’s own padding, except in a"
-          frag 7 from TextNode start: 335, length: 39, rect: [35,283 320.640625x18] baseline: 13.796875
+          frag 7 from TextNode start: 331, length: 37, rect: [35,283 320.640625x18] baseline: 13.796875
               "few cases—such as when an out-of-flow"
-          frag 8 from TextNode start: 375, length: 48, rect: [35,301 389.421875x18] baseline: 13.796875
+          frag 8 from TextNode start: 369, length: 48, rect: [35,301 389.421875x18] baseline: 13.796875
               "positioned element, or the visible overflow of a"
-          frag 9 from TextNode start: 424, length: 45, rect: [35,319 371.28125x18] baseline: 13.796875
+          frag 9 from TextNode start: 418, length: 45, rect: [35,319 371.28125x18] baseline: 13.796875
               "descendent, has already increased the size of"
-          frag 10 from TextNode start: 470, length: 45, rect: [35,337 366x18] baseline: 13.796875
+          frag 10 from TextNode start: 464, length: 45, rect: [35,337 366x18] baseline: 13.796875
               "the scrollable overflow rectangle outside the"
-          frag 11 from TextNode start: 516, length: 43, rect: [35,355 319.109375x18] baseline: 13.796875
+          frag 11 from TextNode start: 510, length: 39, rect: [35,355 319.109375x18] baseline: 13.796875
               "conceptual “content edge” of the scroll"
-          frag 12 from TextNode start: 560, length: 22, rect: [35,373 165.21875x18] baseline: 13.796875
+          frag 12 from TextNode start: 550, length: 20, rect: [35,373 165.21875x18] baseline: 13.796875
               "container’s content."
           TextNode <#text>
       BlockContainer <(anonymous)> at (8,252) content-size 784x0 children: inline

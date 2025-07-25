@@ -14,14 +14,14 @@ namespace Web::Painting {
 
 GC_DEFINE_ALLOCATOR(TextPaintable);
 
-GC::Ref<TextPaintable> TextPaintable::create(Layout::TextNode const& layout_node, String const& text_for_rendering)
+GC::Ref<TextPaintable> TextPaintable::create(Layout::TextNode const& layout_node, Utf16String text_for_rendering)
 {
-    return layout_node.heap().allocate<TextPaintable>(layout_node, text_for_rendering);
+    return layout_node.heap().allocate<TextPaintable>(layout_node, move(text_for_rendering));
 }
 
-TextPaintable::TextPaintable(Layout::TextNode const& layout_node, String const& text_for_rendering)
+TextPaintable::TextPaintable(Layout::TextNode const& layout_node, Utf16String text_for_rendering)
     : Paintable(layout_node)
-    , m_text_for_rendering(text_for_rendering)
+    , m_text_for_rendering(move(text_for_rendering))
 {
 }
 
