@@ -55,6 +55,7 @@ public:
     void set_viewport_size(Web::DevicePixelSize const&);
     void set_screen_rects(Vector<Web::DevicePixelRect, 4> const& rects, size_t main_screen_index) { m_screen_rect = rects[main_screen_index]; }
     void set_device_pixels_per_css_pixel(float device_pixels_per_css_pixel) { m_device_pixels_per_css_pixel = device_pixels_per_css_pixel; }
+    void set_maximum_frames_per_second(u64 maximum_frames_per_second);
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
@@ -186,6 +187,7 @@ private:
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
     Web::DevicePixelRect m_screen_rect;
     float m_device_pixels_per_css_pixel { 1.0f };
+    double m_maximum_frames_per_second { 60.0 };
     u64 m_id { 0 };
     bool m_has_focus { false };
 

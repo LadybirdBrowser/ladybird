@@ -68,7 +68,11 @@ PageClient::PageClient(PageHost& owner, u64 id)
 {
     setup_palette();
 
-    int refresh_interval = 1000 / 60; // FIXME: Account for the actual refresh rate of the display
+    // FIXME: This removes the decimal part, so the refresh interval will actually be higher than the maximum FPS.
+    //        For example, 60 FPS = 1000ms / 60 = 16.6666...ms, but it will become 16ms, making the interval equivalent
+    //        to 62.5 FPS.
+    int refresh_interval = static_cast<int>(1000.0 / m_maximum_frames_per_second);
+
     m_paint_refresh_timer = Core::Timer::create_repeating(refresh_interval, [] {
         Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
     });
@@ -200,6 +204,19 @@ void PageClient::report_finished_handling_input_event(u64 page_id, Web::EventRes
 void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
 {
     page().top_level_traversable()->set_viewport_size(page().device_to_css_size(size));
+}
+
+void PageClient::set_maximum_frames_per_second(u64 maximum_frames_per_second)
+{
+    m_maximum_frames_per_second = maximum_frames_per_second;
+
+    // FIXME: This removes the decimal part, so the refresh interval will actually be higher than the maximum FPS.
+    //        For example, 60 FPS = 1000ms / 60 = 16.6666...ms, but it will become 16ms, making the interval equivalent
+    //        to 62.5 FPS.
+    int refresh_interval = static_cast<int>(1000.0 / m_maximum_frames_per_second);
+
+    VERIFY(m_paint_refresh_timer);
+    m_paint_refresh_timer->set_interval(refresh_interval);
 }
 
 void PageClient::page_did_request_cursor_change(Gfx::Cursor const& cursor)

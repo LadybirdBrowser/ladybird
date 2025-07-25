@@ -99,6 +99,7 @@ endpoint WebContentServer
     set_has_focus(u64 page_id, bool has_focus) =|
     set_is_scripting_enabled(u64 page_id, bool is_scripting_enabled) =|
     set_device_pixels_per_css_pixel(u64 page_id, float device_pixels_per_css_pixel) =|
+    set_maximum_frames_per_second(u64 page_id, double maximum_frames_per_second) =|
 
     set_window_position(u64 page_id, Web::DevicePixelPoint position) =|
     set_window_size(u64 page_id, Web::DevicePixelSize size) =|

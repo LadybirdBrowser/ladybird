@@ -589,6 +589,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
 
     client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio);
+    client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
     client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
 
     if (auto webdriver_content_ipc_path = Application::browser_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())

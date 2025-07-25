@@ -72,6 +72,7 @@ public:
     void reset_zoom();
     float zoom_level() const { return m_zoom_level; }
     float device_pixel_ratio() const { return m_device_pixel_ratio; }
+    double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
 
     void enqueue_input_event(Web::InputEvent);
     void did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result);
@@ -288,6 +289,7 @@ protected:
 
     float m_zoom_level { 1.0 };
     float m_device_pixel_ratio { 1.0 };
+    double m_maximum_frames_per_second { 60.0 };
 
     Queue<Web::InputEvent> m_pending_input_events;
 

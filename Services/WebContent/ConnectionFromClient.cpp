@@ -1158,6 +1158,12 @@ void ConnectionFromClient::set_device_pixels_per_css_pixel(u64 page_id, float de
         page->set_device_pixels_per_css_pixel(device_pixels_per_css_pixel);
 }
 
+void ConnectionFromClient::set_maximum_frames_per_second(u64 page_id, double maximum_frames_per_second)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_maximum_frames_per_second(maximum_frames_per_second);
+}
+
 void ConnectionFromClient::set_window_position(u64 page_id, Web::DevicePixelPoint position)
 {
     if (auto page = this->page(page_id); page.has_value())
