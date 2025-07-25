@@ -82,18 +82,26 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     // Listen for DPI changes
     m_device_pixel_ratio = devicePixelRatio();
     m_current_screen = screen();
+    m_refresh_rate = m_current_screen->refreshRate();
+
     if (QT_VERSION < QT_VERSION_CHECK(6, 6, 0) || QGuiApplication::platformName() != "wayland") {
         setAttribute(Qt::WA_NativeWindow);
         setAttribute(Qt::WA_DontCreateNativeAncestors);
         QObject::connect(m_current_screen, &QScreen::logicalDotsPerInchChanged, this, &BrowserWindow::device_pixel_ratio_changed);
+        QObject::connect(m_current_screen, &QScreen::refreshRateChanged, this, &BrowserWindow::refresh_rate_changed);
         QObject::connect(windowHandle(), &QWindow::screenChanged, this, [this](QScreen* screen) {
             if (m_device_pixel_ratio != devicePixelRatio())
                 device_pixel_ratio_changed(devicePixelRatio());
 
-            // Listen for logicalDotsPerInchChanged signals on new screen
+            if (m_refresh_rate != screen->refreshRate())
+                refresh_rate_changed(screen->refreshRate());
+
+            // Listen for logicalDotsPerInchChanged and refreshRateChanged signals on new screen
             QObject::disconnect(m_current_screen, &QScreen::logicalDotsPerInchChanged, nullptr, nullptr);
+            QObject::disconnect(m_current_screen, &QScreen::refreshRateChanged, nullptr, nullptr);
             m_current_screen = screen;
             QObject::connect(m_current_screen, &QScreen::logicalDotsPerInchChanged, this, &BrowserWindow::device_pixel_ratio_changed);
+            QObject::connect(m_current_screen, &QScreen::refreshRateChanged, this, &BrowserWindow::refresh_rate_changed);
         });
     }
 
@@ -890,6 +898,14 @@ void BrowserWindow::device_pixel_ratio_changed(qreal dpi)
     m_device_pixel_ratio = dpi;
     for_each_tab([this](auto& tab) {
         tab.view().set_device_pixel_ratio(m_device_pixel_ratio);
+    });
+}
+
+void BrowserWindow::refresh_rate_changed(qreal refresh_rate)
+{
+    m_refresh_rate = refresh_rate;
+    for_each_tab([this](auto& tab) {
+        tab.view().set_maximum_frames_per_second(m_refresh_rate);
     });
 }
 

@@ -43,12 +43,16 @@ namespace Ladybird {
 
 class Tab;
 
+struct WebContentViewInitialState {
+    double maximum_frames_per_second { 60.0 };
+};
+
 class WebContentView final
     : public QWidget
     , public WebView::ViewImplementation {
     Q_OBJECT
 public:
-    WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, size_t page_index = 0);
+    WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, size_t page_index = 0, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
 
     Function<String(const URL::URL&, Web::HTML::ActivateTab)> on_tab_open_request;
@@ -76,6 +80,7 @@ public:
 
     void set_viewport_rect(Gfx::IntRect);
     void set_device_pixel_ratio(double);
+    void set_maximum_frames_per_second(double);
 
     enum class PaletteMode {
         Default,

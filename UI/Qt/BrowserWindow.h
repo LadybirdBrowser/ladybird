@@ -100,8 +100,11 @@ public:
 
     Tab* current_tab() const { return m_current_tab; }
 
+    double refresh_rate() const { return m_refresh_rate; }
+
 public slots:
     void device_pixel_ratio_changed(qreal dpi);
+    void refresh_rate_changed(qreal refresh_rate);
     void tab_title_changed(int index, QString const&);
     void tab_favicon_changed(int index, QIcon const& icon);
     void tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState);
@@ -174,6 +177,7 @@ private:
 
     QScreen* m_current_screen;
     double m_device_pixel_ratio { 0 };
+    double m_refresh_rate { 60.0 };
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme);
