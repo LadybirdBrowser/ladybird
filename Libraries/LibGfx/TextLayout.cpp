@@ -7,15 +7,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16View.h>
+#include <AK/Utf8View.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/TextLayout.h>
 #include <harfbuzz/hb.h>
 
 namespace Gfx {
 
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf8View string, FontCascadeList const& font_cascade_list)
+template<typename UnicodeView>
+Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, UnicodeView const& string, FontCascadeList const& font_cascade_list)
 {
-    if (string.length() == 0)
+    if (string.is_empty())
         return {};
 
     Vector<NonnullRefPtr<GlyphRun>> runs;
@@ -25,7 +28,7 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf8View s
     Font const* last_font = &font_cascade_list.font_for_code_point(*it);
     FloatPoint last_position = baseline_start;
 
-    auto add_run = [&runs, &last_position](Utf8View string, Font const& font) {
+    auto add_run = [&runs, &last_position](UnicodeView const& string, Font const& font) {
         auto run = shape_text(last_position, 0, string, font, GlyphRun::TextType::Common, {});
         last_position.translate_by(run->width(), 0);
         runs.append(*run);
@@ -52,11 +55,26 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf8View s
     return runs;
 }
 
-static hb_buffer_t* setup_text_shaping(Utf8View string, Font const& font, ShapeFeatures const& features)
+template Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint, Utf8View const&, FontCascadeList const&);
+template Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint, Utf16View const&, FontCascadeList const&);
+
+template<typename UnicodeView>
+static hb_buffer_t* setup_text_shaping(UnicodeView const& string, Font const& font, ShapeFeatures const& features)
 {
     static hb_buffer_t* buffer = hb_buffer_create();
     hb_buffer_reset(buffer);
-    hb_buffer_add_utf8(buffer, reinterpret_cast<char const*>(string.bytes()), string.byte_length(), 0, -1);
+
+    if constexpr (IsSame<UnicodeView, Utf8View>) {
+        hb_buffer_add_utf8(buffer, reinterpret_cast<char const*>(string.bytes()), string.byte_length(), 0, -1);
+    } else if constexpr (IsSame<UnicodeView, Utf16View>) {
+        if (string.has_ascii_storage())
+            hb_buffer_add_utf8(buffer, string.ascii_span().data(), string.length_in_code_units(), 0, -1);
+        else
+            hb_buffer_add_utf16(buffer, reinterpret_cast<u16 const*>(string.utf16_span().data()), string.length_in_code_units(), 0, -1);
+    } else {
+        static_assert(DependentFalse<UnicodeView>);
+    }
+
     hb_buffer_guess_segment_properties(buffer);
 
     auto* hb_font = font.harfbuzz_font();
@@ -80,7 +98,8 @@ static hb_buffer_t* setup_text_shaping(Utf8View string, Font const& font, ShapeF
     return buffer;
 }
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Font const& font, GlyphRun::TextType text_type, ShapeFeatures const& features)
+template<typename UnicodeView>
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, UnicodeView const& string, Font const& font, GlyphRun::TextType text_type, ShapeFeatures const& features)
 {
     auto* buffer = setup_text_shaping(string, font, features);
 
@@ -107,7 +126,11 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
     return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
 }
 
-float measure_text_width(Utf8View const& string, Font const& font, ShapeFeatures const& features)
+template NonnullRefPtr<GlyphRun> shape_text(FloatPoint, float, Utf8View const&, Font const&, GlyphRun::TextType, ShapeFeatures const&);
+template NonnullRefPtr<GlyphRun> shape_text(FloatPoint, float, Utf16View const&, Font const&, GlyphRun::TextType, ShapeFeatures const&);
+
+template<typename UnicodeView>
+float measure_text_width(UnicodeView const& string, Font const& font, ShapeFeatures const& features)
 {
     auto* buffer = setup_text_shaping(string, font, features);
 
@@ -120,5 +143,8 @@ float measure_text_width(Utf8View const& string, Font const& font, ShapeFeatures
 
     return point_x / text_shaping_resolution;
 }
+
+template float measure_text_width(Utf8View const&, Font const&, ShapeFeatures const&);
+template float measure_text_width(Utf16View const&, Font const&, ShapeFeatures const&);
 
 }

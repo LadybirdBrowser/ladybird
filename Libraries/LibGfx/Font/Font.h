@@ -69,6 +69,7 @@ public:
     u8 baseline() const { return m_point_height; }  // FIXME: Read from font
     float width(StringView) const;
     float width(Utf8View const&) const;
+    float width(Utf16View const&) const;
     FlyString const& family() const { return m_typeface->family(); }
 
     NonnullRefPtr<Font> scaled_with_size(float point_size) const;
