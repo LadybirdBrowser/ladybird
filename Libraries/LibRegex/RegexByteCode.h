@@ -278,8 +278,7 @@ public:
                 }
                 m_string_table.m_table.set(entry.key, entry.value);
             }
-            for (auto const& entry : other.m_string_table.m_inverse_table)
-                m_string_table.m_inverse_table.set(entry.key, entry.value);
+            m_string_table.m_inverse_table.update(other.m_string_table.m_inverse_table);
         }
     }
 

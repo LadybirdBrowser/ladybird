@@ -983,10 +983,8 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Pseud
     }
 
     if (!pseudo_element.has_value()) {
-        if (auto const inline_style = element.inline_style()) {
-            for (auto const& it : inline_style->custom_properties())
-                custom_properties.set(it.key, it.value);
-        }
+        if (auto const inline_style = element.inline_style())
+            custom_properties.update(inline_style->custom_properties());
     }
 }
 
