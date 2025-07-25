@@ -29,9 +29,10 @@ struct TestAKBindings {
         //precondition(isCxxSequenceType(AK.StringView.self))
         precondition(isCxxSequenceType(AK.Bytes.self))
         precondition(isCxxSequenceType(AK.ReadonlyBytes.self))
-        precondition(isCxxSequenceType(AK.Utf16Data.self))
-
         precondition(!isCxxSequenceType(AK.Utf16View.self))
+
+        // FIXME: Not bound for some reason
+        //precondition(isCxxSequenceType(AK.Utf16String.self))
         precondition(!isCxxSequenceType(AK.String.self))
 
         precondition(!isCxxSequenceType(AK.Error.self))
