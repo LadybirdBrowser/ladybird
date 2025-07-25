@@ -219,9 +219,9 @@ String HTMLTextAreaElement::api_value() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_relevant_value(String const& value)
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_relevant_value(Utf16String const& value)
 {
-    set_value(value);
+    set_value(value.to_utf8_but_should_be_ported_to_utf16());
     return {};
 }
 

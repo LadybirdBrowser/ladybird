@@ -87,8 +87,8 @@ public:
     String api_value() const;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-    virtual String relevant_value() override { return api_value(); }
-    virtual WebIDL::ExceptionOr<void> set_relevant_value(String const& value) override;
+    virtual Utf16String relevant_value() override { return Utf16String::from_utf8(api_value()); }
+    virtual WebIDL::ExceptionOr<void> set_relevant_value(Utf16String const& value) override;
 
     virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
 

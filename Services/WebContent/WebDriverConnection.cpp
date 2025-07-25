@@ -1978,14 +1978,8 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
         if (target.has_value()) {
             // 1. If element does not currently have focus, let current text length be the length of element's API value.
             Optional<Web::WebIDL::UnsignedLong> current_text_length;
-
-            if (!element->is_focused()) {
-                auto api_value = target->relevant_value();
-
-                // FIXME: This should be a UTF-16 code unit length, but `set_the_selection_range` is also currently
-                //        implemented in terms of code point length.
-                current_text_length = api_value.code_points().length();
-            }
+            if (!element->is_focused())
+                current_text_length = target->relevant_value().length_in_code_units();
 
             // 2. Set the text insertion caret using set selection range using current text length for both the start
             //    and end parameters.

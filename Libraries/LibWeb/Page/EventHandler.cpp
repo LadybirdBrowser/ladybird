@@ -1288,7 +1288,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
             FIRE(input_event(UIEvents::EventNames::beforeinput, input_type, m_navigable, code_point));
             if (target->handle_return_key(input_type) != EventResult::Handled)
-                target->handle_insert(String::from_code_point(code_point));
+                target->handle_insert(Utf16String::from_code_point(code_point));
 
             return EventResult::Handled;
         }
@@ -1296,7 +1296,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
         if (!should_ignore_keydown_event(code_point, modifiers)) {
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, code_point));
-            target->handle_insert(String::from_code_point(code_point));
+            target->handle_insert(Utf16String::from_code_point(code_point));
             return EventResult::Handled;
         }
     } else if (auto selection = document->get_selection(); selection && !selection->is_collapsed()) {
@@ -1386,7 +1386,7 @@ EventResult EventHandler::handle_paste(String const& text)
         return EventResult::Dropped;
 
     FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertFromPaste, m_navigable, text));
-    target->handle_insert(text);
+    target->handle_insert(Utf16String::from_utf8(text));
     return EventResult::Handled;
 }
 

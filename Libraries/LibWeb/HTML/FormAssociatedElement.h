@@ -181,8 +181,8 @@ class FormAssociatedTextControlElement
     , public InputEventsTarget {
 public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-    virtual String relevant_value() = 0;
-    virtual WebIDL::ExceptionOr<void> set_relevant_value(String const&) = 0;
+    virtual Utf16String relevant_value() = 0;
+    virtual WebIDL::ExceptionOr<void> set_relevant_value(Utf16String const&) = 0;
 
     virtual void set_dirty_value_flag(bool flag) = 0;
 
@@ -206,9 +206,9 @@ public:
     SelectionDirection selection_direction_state() const { return m_selection_direction; }
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-    WebIDL::ExceptionOr<void> set_range_text_binding(String const& replacement);
-    WebIDL::ExceptionOr<void> set_range_text_binding(String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
-    WebIDL::ExceptionOr<void> set_range_text(String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
+    WebIDL::ExceptionOr<void> set_range_text_binding(Utf16String const& replacement);
+    WebIDL::ExceptionOr<void> set_range_text_binding(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
+    WebIDL::ExceptionOr<void> set_range_text(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
     void set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction = SelectionDirection::None, SelectionSource source = SelectionSource::DOM);
@@ -228,7 +228,7 @@ public:
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() = 0;
     virtual GC::Ptr<DOM::Text const> form_associated_element_to_text_node() const { return const_cast<FormAssociatedTextControlElement&>(*this).form_associated_element_to_text_node(); }
 
-    virtual void handle_insert(String const&) override;
+    virtual void handle_insert(Utf16String const&) override;
     virtual void handle_delete(DeleteDirection) override;
     virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
     virtual void select_all() override;
