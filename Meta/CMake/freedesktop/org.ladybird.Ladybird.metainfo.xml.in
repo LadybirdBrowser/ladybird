@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2025, the Ladybird developers. -->
+<component type="desktop-application">
+  <id>org.ladybird.Ladybird</id>
+
+  <name>Ladybird</name>
+  <summary>Truly independent web browser</summary>
+
+  <developer id="org.ladybird">
+    <name>Ladybird Browser</name>
+  </developer>
+
+  <url type="homepage">https://ladybird.org</url>
+  <url type="bugtracker">https://github.com/LadybirdBrowser/ladybird/issues</url>
+  <url type="faq">https://ladybird.org/#faq</url>
+  <url type="donation">https://donorbox.org/ladybird</url>
+  <url type="contact">https://ladybird.org/organization/#intiative</url>
+  <url type="vcs-browser">https://github.com/LadybirdBrowser/ladybird</url>
+  <url type="contribute">https://ladybird.org/#gi</url>
+
+  <metadata_license>0BSD</metadata_license>
+  <project_license>BSD-2-Clause</project_license>
+  <content_rating type="oars-1.1" />
+
+  <description>
+    <p>
+      Ladybird is a brand-new browser and web engine.
+      Driven by a web standards first approach, Ladybird aims to render the modern web with good performance, stability and security.
+    </p>
+  </description>
+
+  <provides>
+    <mediatype>text/html</mediatype>
+    <mediatype>text/xml</mediatype>
+    <mediatype>application/xhtml+xml</mediatype>
+    <mediatype>x-scheme-handler/http</mediatype>
+    <mediatype>x-scheme-handler/https</mediatype>
+  </provides>
+
+  <launchable type="desktop-id">org.ladybird.Ladybird.desktop</launchable>
+  <releases>
+    <release version="@CMAKE_PROJECT_VERSION@-snapshot-@GIT_HASH@" type="snapshot" date="@DATE@">
+      <description>
+        <p>
+          Pre-Alpha.
+        </p>
+      </description>
+    </release>
+  </releases>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#9d7cf2</color>
+    <color type="primary" scheme_preference="dark">#8a64e5</color>
+  </branding>
+
+</component>
