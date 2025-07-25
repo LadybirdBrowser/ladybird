@@ -1979,7 +1979,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
             // 1. If element does not currently have focus, let current text length be the length of element's API value.
             Optional<Web::WebIDL::UnsignedLong> current_text_length;
 
-            if (element->is_focused()) {
+            if (!element->is_focused()) {
                 auto api_value = target->relevant_value();
 
                 // FIXME: This should be a UTF-16 code unit length, but `set_the_selection_range` is also currently
