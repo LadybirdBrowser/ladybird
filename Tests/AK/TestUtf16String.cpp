@@ -411,6 +411,434 @@ TEST_CASE(repeated)
     EXPECT_DEATH("Creating a string from an invalid code point", (void)Utf16String::repeated(0xffffffff, 1));
 }
 
+TEST_CASE(to_lowercase_unconditional_special_casing)
+{
+    // LATIN SMALL LETTER SHARP S
+    auto result = "\u00DF"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\u00DF"sv);
+
+    // LATIN CAPITAL LETTER I WITH DOT ABOVE
+    result = "\u0130"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\u0069\u0307"sv);
+
+    // LATIN SMALL LIGATURE FF
+    result = "\uFB00"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\uFB00"sv);
+
+    // LATIN SMALL LIGATURE FI
+    result = "\uFB01"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\uFB01"sv);
+
+    // LATIN SMALL LIGATURE FL
+    result = "\uFB02"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\uFB02"sv);
+
+    // LATIN SMALL LIGATURE FFI
+    result = "\uFB03"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\uFB03"sv);
+
+    // LATIN SMALL LIGATURE FFL
+    result = "\uFB04"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\uFB04"sv);
+
+    // LATIN SMALL LIGATURE LONG S T
+    result = "\uFB05"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\uFB05"sv);
+
+    // LATIN SMALL LIGATURE ST
+    result = "\uFB06"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\uFB06"sv);
+
+    // GREEK SMALL LETTER ALPHA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FB7"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\u1FB7"sv);
+
+    // GREEK SMALL LETTER ETA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FC7"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\u1FC7"sv);
+
+    // GREEK SMALL LETTER OMEGA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FF7"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\u1FF7"sv);
+}
+
+TEST_CASE(to_lowercase_special_casing_sigma)
+{
+    auto result = "ABCI"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"abci"sv);
+
+    // Sigma preceded by A
+    result = "A\u03A3"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"a\u03C2"sv);
+
+    // Sigma preceded by FEMININE ORDINAL INDICATOR
+    result = "\u00AA\u03A3"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\u00AA\u03C2"sv);
+
+    // Sigma preceded by ROMAN NUMERAL ONE
+    result = "\u2160\u03A3"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\u2170\u03C2"sv);
+
+    // Sigma preceded by COMBINING GREEK YPOGEGRAMMENI
+    result = "\u0345\u03A3"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\u0345\u03C3"sv);
+
+    // Sigma preceded by A and FULL STOP
+    result = "A.\u03A3"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"a.\u03C2"sv);
+
+    // Sigma preceded by A and MONGOLIAN VOWEL SEPARATOR
+    result = "A\u180E\u03A3"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"a\u180E\u03C2"sv);
+
+    // Sigma preceded by A and MONGOLIAN VOWEL SEPARATOR, followed by B
+    result = "A\u180E\u03A3B"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"a\u180E\u03C3b"sv);
+
+    // Sigma followed by A
+    result = "\u03A3A"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"\u03C3a"sv);
+
+    // Sigma preceded by A, followed by MONGOLIAN VOWEL SEPARATOR
+    result = "A\u03A3\u180E"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"a\u03C2\u180E"sv);
+
+    // Sigma preceded by A, followed by MONGOLIAN VOWEL SEPARATOR and B
+    result = "A\u03A3\u180EB"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"a\u03C3\u180Eb"sv);
+
+    // Sigma preceded by A and MONGOLIAN VOWEL SEPARATOR, followed by MONGOLIAN VOWEL SEPARATOR
+    result = "A\u180E\u03A3\u180E"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"a\u180E\u03C2\u180E"sv);
+
+    // Sigma preceded by A and MONGOLIAN VOWEL SEPARATOR, followed by MONGOLIAN VOWEL SEPARATOR and B
+    result = "A\u180E\u03A3\u180EB"_utf16.to_lowercase();
+    EXPECT_EQ(result, u"a\u180E\u03C3\u180Eb"sv);
+}
+
+TEST_CASE(to_lowercase_special_casing_i)
+{
+    // LATIN CAPITAL LETTER I
+    auto result = "I"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"i"sv);
+
+    result = "I"_utf16.to_lowercase("az"sv);
+    EXPECT_EQ(result, u"\u0131"sv);
+
+    result = "I"_utf16.to_lowercase("tr"sv);
+    EXPECT_EQ(result, u"\u0131"sv);
+
+    // LATIN CAPITAL LETTER I WITH DOT ABOVE
+    result = "\u0130"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"\u0069\u0307"sv);
+
+    result = "\u0130"_utf16.to_lowercase("az"sv);
+    EXPECT_EQ(result, u"i"sv);
+
+    result = "\u0130"_utf16.to_lowercase("tr"sv);
+    EXPECT_EQ(result, u"i"sv);
+
+    // LATIN CAPITAL LETTER I followed by COMBINING DOT ABOVE
+    result = "I\u0307"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"i\u0307"sv);
+
+    result = "I\u0307"_utf16.to_lowercase("az"sv);
+    EXPECT_EQ(result, u"i"sv);
+
+    result = "I\u0307"_utf16.to_lowercase("tr"sv);
+    EXPECT_EQ(result, u"i"sv);
+
+    // LATIN CAPITAL LETTER I followed by combining class 0 and COMBINING DOT ABOVE
+    result = "IA\u0307"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"ia\u0307"sv);
+
+    result = "IA\u0307"_utf16.to_lowercase("az"sv);
+    EXPECT_EQ(result, u"\u0131a\u0307"sv);
+
+    result = "IA\u0307"_utf16.to_lowercase("tr"sv);
+    EXPECT_EQ(result, u"\u0131a\u0307"sv);
+}
+
+TEST_CASE(to_lowercase_special_casing_more_above)
+{
+    // LATIN CAPITAL LETTER I
+    auto result = "I"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"i"sv);
+
+    result = "I"_utf16.to_lowercase("lt"sv);
+    EXPECT_EQ(result, u"i"sv);
+
+    // LATIN CAPITAL LETTER J
+    result = "J"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"j"sv);
+
+    result = "J"_utf16.to_lowercase("lt"sv);
+    EXPECT_EQ(result, u"j"sv);
+
+    // LATIN CAPITAL LETTER I WITH OGONEK
+    result = "\u012e"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"\u012f"sv);
+
+    result = "\u012e"_utf16.to_lowercase("lt"sv);
+    EXPECT_EQ(result, u"\u012f"sv);
+
+    // LATIN CAPITAL LETTER I followed by COMBINING GRAVE ACCENT
+    result = "I\u0300"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"i\u0300"sv);
+
+    result = "I\u0300"_utf16.to_lowercase("lt"sv);
+    EXPECT_EQ(result, u"i\u0307\u0300"sv);
+
+    // LATIN CAPITAL LETTER J followed by COMBINING GRAVE ACCENT
+    result = "J\u0300"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"j\u0300"sv);
+
+    result = "J\u0300"_utf16.to_lowercase("lt"sv);
+    EXPECT_EQ(result, u"j\u0307\u0300"sv);
+
+    // LATIN CAPITAL LETTER I WITH OGONEK followed by COMBINING GRAVE ACCENT
+    result = "\u012e\u0300"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"\u012f\u0300"sv);
+
+    result = "\u012e\u0300"_utf16.to_lowercase("lt"sv);
+    EXPECT_EQ(result, u"\u012f\u0307\u0300"sv);
+}
+
+TEST_CASE(to_lowercase_special_casing_not_before_dot)
+{
+    // LATIN CAPITAL LETTER I
+    auto result = "I"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"i"sv);
+
+    result = "I"_utf16.to_lowercase("az"sv);
+    EXPECT_EQ(result, u"\u0131"sv);
+
+    result = "I"_utf16.to_lowercase("tr"sv);
+    EXPECT_EQ(result, u"\u0131"sv);
+
+    // LATIN CAPITAL LETTER I followed by COMBINING DOT ABOVE
+    result = "I\u0307"_utf16.to_lowercase("en"sv);
+    EXPECT_EQ(result, u"i\u0307"sv);
+
+    result = "I\u0307"_utf16.to_lowercase("az"sv);
+    EXPECT_EQ(result, u"i"sv);
+
+    result = "I\u0307"_utf16.to_lowercase("tr"sv);
+    EXPECT_EQ(result, u"i"sv);
+}
+
+TEST_CASE(to_uppercase_unconditional_special_casing)
+{
+    // LATIN SMALL LETTER SHARP S
+    auto result = "\u00DF"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0053\u0053"sv);
+
+    // LATIN CAPITAL LETTER I WITH DOT ABOVE
+    result = "\u0130"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0130"sv);
+
+    // LATIN SMALL LIGATURE FF
+    result = "\uFB00"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0046\u0046"sv);
+
+    // LATIN SMALL LIGATURE FI
+    result = "\uFB01"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0046\u0049"sv);
+
+    // LATIN SMALL LIGATURE FL
+    result = "\uFB02"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0046\u004C"sv);
+
+    // LATIN SMALL LIGATURE FFI
+    result = "\uFB03"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0046\u0046\u0049"sv);
+
+    // LATIN SMALL LIGATURE FFL
+    result = "\uFB04"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0046\u0046\u004C"sv);
+
+    // LATIN SMALL LIGATURE LONG S T
+    result = "\uFB05"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0053\u0054"sv);
+
+    // LATIN SMALL LIGATURE ST
+    result = "\uFB06"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0053\u0054"sv);
+
+    // GREEK SMALL LETTER IOTA WITH DIALYTIKA AND TONOS
+    result = "\u0390"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0399\u0308\u0301"sv);
+
+    // GREEK SMALL LETTER UPSILON WITH DIALYTIKA AND TONOS
+    result = "\u03B0"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u03A5\u0308\u0301"sv);
+
+    // GREEK SMALL LETTER ALPHA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FB7"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0391\u0342\u0399"sv);
+
+    // GREEK SMALL LETTER ETA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FC7"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u0397\u0342\u0399"sv);
+
+    // GREEK SMALL LETTER OMEGA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FF7"_utf16.to_uppercase();
+    EXPECT_EQ(result, u"\u03A9\u0342\u0399"sv);
+}
+
+TEST_CASE(to_uppercase_special_casing_soft_dotted)
+{
+    // LATIN SMALL LETTER I
+    auto result = "i"_utf16.to_uppercase("en"sv);
+    EXPECT_EQ(result, u"I"sv);
+
+    result = "i"_utf16.to_uppercase("lt"sv);
+    EXPECT_EQ(result, u"I"sv);
+
+    // LATIN SMALL LETTER J
+    result = "j"_utf16.to_uppercase("en"sv);
+    EXPECT_EQ(result, u"J"sv);
+
+    result = "j"_utf16.to_uppercase("lt"sv);
+    EXPECT_EQ(result, u"J"sv);
+
+    // LATIN SMALL LETTER I followed by COMBINING DOT ABOVE
+    result = "i\u0307"_utf16.to_uppercase("en"sv);
+    EXPECT_EQ(result, u"I\u0307"sv);
+
+    result = "i\u0307"_utf16.to_uppercase("lt"sv);
+    EXPECT_EQ(result, u"I"sv);
+
+    // LATIN SMALL LETTER J followed by COMBINING DOT ABOVE
+    result = "j\u0307"_utf16.to_uppercase("en"sv);
+    EXPECT_EQ(result, u"J\u0307"sv);
+
+    result = "j\u0307"_utf16.to_uppercase("lt"sv);
+    EXPECT_EQ(result, u"J"sv);
+}
+
+TEST_CASE(to_titlecase)
+{
+    EXPECT_EQ(""_utf16.to_titlecase(), ""sv);
+    EXPECT_EQ(" "_utf16.to_titlecase(), " "sv);
+    EXPECT_EQ(" - "_utf16.to_titlecase(), " - "sv);
+
+    EXPECT_EQ("a"_utf16.to_titlecase(), "A"sv);
+    EXPECT_EQ("A"_utf16.to_titlecase(), "A"sv);
+    EXPECT_EQ(" a"_utf16.to_titlecase(), " A"sv);
+    EXPECT_EQ("a "_utf16.to_titlecase(), "A "sv);
+
+    EXPECT_EQ("ab"_utf16.to_titlecase(), "Ab"sv);
+    EXPECT_EQ("Ab"_utf16.to_titlecase(), "Ab"sv);
+    EXPECT_EQ("aB"_utf16.to_titlecase(), "Ab"sv);
+    EXPECT_EQ("AB"_utf16.to_titlecase(), "Ab"sv);
+    EXPECT_EQ(" ab"_utf16.to_titlecase(), " Ab"sv);
+    EXPECT_EQ("ab "_utf16.to_titlecase(), "Ab "sv);
+
+    EXPECT_EQ("foo bar baz"_utf16.to_titlecase(), "Foo Bar Baz"sv);
+    EXPECT_EQ("foo \n \r bar \t baz"_utf16.to_titlecase(), "Foo \n \r Bar \t Baz"sv);
+    EXPECT_EQ("f\"oo\" b'ar'"_utf16.to_titlecase(), "F\"Oo\" B'ar'"sv);
+}
+
+TEST_CASE(to_titlecase_unconditional_special_casing)
+{
+    // LATIN SMALL LETTER SHARP S
+    auto result = "\u00DF"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0053\u0073"sv);
+
+    // LATIN CAPITAL LETTER I WITH DOT ABOVE
+    result = "\u0130"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0130"sv);
+
+    // LATIN SMALL LIGATURE FF
+    result = "\uFB00"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0046\u0066"sv);
+
+    // LATIN SMALL LIGATURE FI
+    result = "\uFB01"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0046\u0069"sv);
+
+    // LATIN SMALL LIGATURE FL
+    result = "\uFB02"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0046\u006C"sv);
+
+    // LATIN SMALL LIGATURE FFI
+    result = "\uFB03"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0046\u0066\u0069"sv);
+
+    // LATIN SMALL LIGATURE FFL
+    result = "\uFB04"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0046\u0066\u006C"sv);
+
+    // LATIN SMALL LIGATURE LONG S T
+    result = "\uFB05"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0053\u0074"sv);
+
+    // LATIN SMALL LIGATURE ST
+    result = "\uFB06"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0053\u0074"sv);
+
+    // GREEK SMALL LETTER IOTA WITH DIALYTIKA AND TONOS
+    result = "\u0390"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0399\u0308\u0301"sv);
+
+    // GREEK SMALL LETTER UPSILON WITH DIALYTIKA AND TONOS
+    result = "\u03B0"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u03A5\u0308\u0301"sv);
+
+    // GREEK SMALL LETTER ALPHA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FB7"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0391\u0342\u0345"sv);
+
+    // GREEK SMALL LETTER ETA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FC7"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u0397\u0342\u0345"sv);
+
+    // GREEK SMALL LETTER OMEGA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FF7"_utf16.to_titlecase();
+    EXPECT_EQ(result, u"\u03A9\u0342\u0345"sv);
+}
+
+TEST_CASE(to_titlecase_special_casing_i)
+{
+    // LATIN SMALL LETTER I
+    auto result = "i"_utf16.to_titlecase("en"sv);
+    EXPECT_EQ(result, u"I"sv);
+
+    result = "i"_utf16.to_titlecase("az"sv);
+    EXPECT_EQ(result, u"\u0130"sv);
+
+    result = "i"_utf16.to_titlecase("tr"sv);
+    EXPECT_EQ(result, u"\u0130"sv);
+}
+
+TEST_CASE(to_casefold)
+{
+    for (u8 code_point = 0; code_point < 0x80; ++code_point) {
+        auto ascii = to_ascii_lowercase(code_point);
+        auto unicode = Utf16String::from_code_point(code_point).to_casefold();
+
+        EXPECT_EQ(unicode.length_in_code_units(), 1uz);
+        EXPECT_EQ(unicode.code_unit_at(0), ascii);
+    }
+
+    // LATIN SMALL LETTER SHARP S
+    auto result = "\u00DF"_utf16.to_casefold();
+    EXPECT_EQ(result, u"\u0073\u0073"sv);
+
+    // GREEK SMALL LETTER ALPHA WITH YPOGEGRAMMENI
+    result = "\u1FB3"_utf16.to_casefold();
+    EXPECT_EQ(result, u"\u03B1\u03B9"sv);
+
+    // GREEK SMALL LETTER ALPHA WITH PERISPOMENI
+    result = "\u1FB6"_utf16.to_casefold();
+    EXPECT_EQ(result, u"\u03B1\u0342"sv);
+
+    // GREEK SMALL LETTER ALPHA WITH PERISPOMENI AND YPOGEGRAMMENI
+    result = "\u1FB7"_utf16.to_casefold();
+    EXPECT_EQ(result, u"\u03B1\u0342\u03B9"sv);
+}
+
 TEST_CASE(copy_operations)
 {
     auto test = [](Utf16String const& string1) {

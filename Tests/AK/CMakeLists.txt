@@ -113,6 +113,7 @@ if (CXX_COMPILER_SUPPORTS_OBJC_ARC)
 endif()
 
 target_link_libraries(TestString PRIVATE LibUnicode)
+target_link_libraries(TestUtf16String PRIVATE LibUnicode)
 
 if (ENABLE_SWIFT)
 
