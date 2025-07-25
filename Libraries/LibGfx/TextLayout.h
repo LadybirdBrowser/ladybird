@@ -10,7 +10,6 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
@@ -68,8 +67,13 @@ private:
     float m_width { 0 };
 };
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf8View string, FontCascadeList const&);
-float measure_text_width(Utf8View const& string, Gfx::Font const& font, ShapeFeatures const& features);
+template<typename UnicodeView>
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, UnicodeView const& string, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
+
+template<typename UnicodeView>
+Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, UnicodeView const& string, FontCascadeList const&);
+
+template<typename UnicodeView>
+float measure_text_width(UnicodeView const& string, Gfx::Font const& font, ShapeFeatures const& features);
 
 }
