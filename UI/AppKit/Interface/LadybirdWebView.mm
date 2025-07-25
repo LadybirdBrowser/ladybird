@@ -131,8 +131,9 @@ struct HideCursor {
 
         // This returns device pixel ratio of the screen the window is opened in
         auto device_pixel_ratio = [[NSScreen mainScreen] backingScaleFactor];
+        auto maximum_frames_per_second = [[NSScreen mainScreen] maximumFramesPerSecond];
 
-        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, [delegate preferredColorScheme], [delegate preferredContrast], [delegate preferredMotion]));
+        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, maximum_frames_per_second, [delegate preferredColorScheme], [delegate preferredContrast], [delegate preferredMotion]));
         [self setWebViewCallbacks];
 
         auto* area = [[NSTrackingArea alloc] initWithRect:[self bounds]
@@ -210,6 +211,11 @@ struct HideCursor {
     m_web_view_bridge->set_device_pixel_ratio([[self window] backingScaleFactor]);
     [self updateViewportRect];
     [self updateStatusLabelPosition];
+}
+
+- (void)handleDisplayRefreshRateChange
+{
+    m_web_view_bridge->set_maximum_frames_per_second([[[self window] screen] maximumFramesPerSecond]);
 }
 
 - (void)handleVisibility:(BOOL)is_visible

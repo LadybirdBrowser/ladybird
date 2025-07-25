@@ -379,6 +379,14 @@
     }
 }
 
+- (void)broadcastDisplayRefreshRateChange
+{
+    for (TabController* controller in self.managed_tabs) {
+        auto* tab = (Tab*)[controller window];
+        [[tab web_view] handleDisplayRefreshRateChange];
+    }
+}
+
 - (void)clearHistory:(id)sender
 {
     for (TabController* controller in self.managed_tabs) {
@@ -781,6 +789,11 @@
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)sender
 {
     return YES;
+}
+
+- (void)applicationDidChangeScreenParameters:(NSNotification*)notification
+{
+    [self broadcastDisplayRefreshRateChange];
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem*)item
