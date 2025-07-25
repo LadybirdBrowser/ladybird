@@ -25,6 +25,7 @@ JS::Completion call_user_object_operation(CallbackType& callback, String const& 
 JS::ThrowCompletionOr<String> to_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<String> to_usv_string(JS::VM&, JS::Value);
+JS::ThrowCompletionOr<Utf16String> to_utf16_usv_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<String> to_byte_string(JS::VM&, JS::Value);
 
 enum class ExceptionBehavior {
