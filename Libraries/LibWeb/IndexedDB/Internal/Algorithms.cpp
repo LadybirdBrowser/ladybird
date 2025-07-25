@@ -2186,6 +2186,7 @@ bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
     return false;
 }
 
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#retrieve-multiple-items-from-an-index
 GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
 {
     // 1. If count is not given or is 0 (zero), let count be infinity.
@@ -2327,6 +2328,94 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm
 
     // 6. Return list.
     return list;
+}
+
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#create-a-request-to-retrieve-multiple-items
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_items(JS::Realm& realm, IDBRequestSource source_handle, RecordKind kind, JS::Value query_or_options, Optional<WebIDL::UnsignedLong> count)
+{
+    auto& vm = realm.vm();
+
+    // 1. Let source be an index or an object store from sourceHandle.
+    // If sourceHandle is an index handle, then source is the index handle’s associated index.
+    // Otherwise, source is the object store handle’s associated object store.
+    auto source = source_handle.visit(
+        [](Empty) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { VERIFY_NOT_REACHED(); },
+        [](GC::Ref<IDBCursor>) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { VERIFY_NOT_REACHED(); },
+        [](GC::Ref<IDBIndex> index) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { return index->index(); },
+        [](GC::Ref<IDBObjectStore> object_store) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { return object_store->store(); });
+
+    // FIXME: 2. If source has been deleted, throw an "InvalidStateError" DOMException.
+    // FIXME: 3. If source is an index and source’s object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. Let transaction be sourceHandle’s transaction.
+    auto transaction = source_handle.visit(
+        [](Empty) -> GC::Ref<IDBTransaction> { VERIFY_NOT_REACHED(); },
+        [](GC::Ref<IDBCursor>) -> GC::Ref<IDBTransaction> { VERIFY_NOT_REACHED(); },
+        [](GC::Ref<IDBIndex> index) -> GC::Ref<IDBTransaction> { return index->transaction(); },
+        [](GC::Ref<IDBObjectStore> object_store) -> GC::Ref<IDBTransaction> { return object_store->transaction(); });
+
+    // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while creating retrieve multiple items request"_utf16);
+
+    // 6. Let range be a key range.
+    GC::Ptr<IDBKeyRange> range;
+
+    // 7. Let direction be a cursor direction.
+    Bindings::IDBCursorDirection direction;
+
+    // 8. If running is a potentially valid key range with queryOrOptions is true, then:
+    if (is_a_potentially_valid_key_range(realm, query_or_options)) {
+        // 1. Set range to the result of converting a value to a key range with queryOrOptions. Rethrow any exceptions.
+        range = TRY(convert_a_value_to_a_key_range(realm, query_or_options));
+
+        // 2. Set direction to "next".
+        direction = Bindings::IDBCursorDirection::Next;
+    }
+
+    // 9. Else:
+    else {
+        // 1. Set range to the result of converting a value to a key range with queryOrOptions["query"]. Rethrow any exceptions.
+        range = TRY(convert_a_value_to_a_key_range(realm, TRY(query_or_options.get(vm, "query"_utf16))));
+
+        // 2. Set count to query_or_options["count"].
+        count = TRY(TRY(query_or_options.get(vm, "count"_utf16)).to_u32(vm));
+
+        // 3. Set direction to query_or_options["direction"].
+        auto direction_value = TRY(TRY(query_or_options.get(vm, "direction"_utf16)).to_string(vm));
+        if (direction_value == "next")
+            direction = Bindings::IDBCursorDirection::Next;
+        else if (direction_value == "nextunique")
+            direction = Bindings::IDBCursorDirection::Nextunique;
+        else if (direction_value == "prev")
+            direction = Bindings::IDBCursorDirection::Prev;
+        else if (direction_value == "prevunique")
+            direction = Bindings::IDBCursorDirection::Prevunique;
+        else
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid direction value"_string };
+    }
+
+    // 10. Let operation be an algorithm to run.
+    auto operation = source.visit(
+        // 11. If source is an index, set operation to retrieve multiple items from an index with targetRealm, source, range, kind, direction, and count if given.
+        [&](GC::Ref<Index> index) {
+            return GC::create_function(realm.heap(),
+                [&realm, index, range, kind, direction, count]() -> WebIDL::ExceptionOr<JS::Value> {
+                    return retrieve_multiple_items_from_an_index(realm, index, GC::Ref(*range), kind, direction, count);
+                });
+        },
+        // 12. Else set operation to retrieve multiple items from an object store with targetRealm, source, range, kind, direction, and count if given.
+        [&](GC::Ref<ObjectStore> object_store) {
+            return GC::create_function(realm.heap(),
+                [&realm, object_store, range, kind, direction, count]() -> WebIDL::ExceptionOr<JS::Value> {
+                    return retrieve_multiple_items_from_an_object_store(realm, object_store, GC::Ref(*range), kind, direction, count);
+                });
+        });
+
+    // 13. Return the result (an IDBRequest) of running asynchronously execute a request with sourceHandle and operation.
+    auto result = asynchronously_execute_a_request(realm, source_handle, operation);
+    dbgln_if(IDB_DEBUG, "Executing request for creating retrieve multiple items request with uuid {}", result->uuid());
+    return result;
 }
 
 }
