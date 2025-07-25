@@ -193,6 +193,28 @@ ErrorOr<void> StringBuilder::try_append_repeated(StringView string, size_t n)
     return {};
 }
 
+ErrorOr<void> StringBuilder::try_append_repeated(Utf16View const& string, size_t n)
+{
+    if (string.is_empty())
+        return {};
+
+    if (m_mode == Mode::UTF8) {
+        if (string.has_ascii_storage()) {
+            TRY(will_append(string.length_in_code_units() * n));
+        } else {
+            auto utf8_length = simdutf::utf8_length_from_utf16(string.utf16_span().data(), string.length_in_code_units());
+            TRY(will_append(utf8_length * n));
+        }
+    } else {
+        TRY(will_append(string.length_in_code_units() * n * 2));
+    }
+
+    for (size_t i = 0; i < n; ++i)
+        TRY(try_append(string));
+
+    return {};
+}
+
 void StringBuilder::append(StringView string)
 {
     MUST(try_append(string));
@@ -224,6 +246,11 @@ void StringBuilder::append_repeated(char ch, size_t n)
 }
 
 void StringBuilder::append_repeated(StringView string, size_t n)
+{
+    MUST(try_append_repeated(string, n));
+}
+
+void StringBuilder::append_repeated(Utf16View const& string, size_t n)
 {
     MUST(try_append_repeated(string, n));
 }

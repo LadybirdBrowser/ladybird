@@ -356,6 +356,61 @@ TEST_CASE(formatted)
     }
 }
 
+TEST_CASE(repeated)
+{
+    {
+        auto string1 = Utf16String::repeated('a', 0);
+        EXPECT(string1.is_empty());
+
+        auto string2 = Utf16String::repeated(0x03C9U, 0);
+        EXPECT(string2.is_empty());
+
+        auto string3 = Utf16String::repeated(0x10300, 0);
+        EXPECT(string3.is_empty());
+    }
+    {
+        auto string1 = Utf16String::repeated('a', 1);
+        EXPECT_EQ(string1.length_in_code_units(), 1uz);
+        EXPECT_EQ(string1, u"a"sv);
+
+        auto string2 = Utf16String::repeated(0x03C9U, 1);
+        EXPECT_EQ(string2.length_in_code_units(), 1uz);
+        EXPECT_EQ(string2, u"ω"sv);
+
+        auto string3 = Utf16String::repeated(0x10300, 1);
+        EXPECT_EQ(string3.length_in_code_units(), 2uz);
+        EXPECT_EQ(string3, u"𐌀"sv);
+    }
+    {
+        auto string1 = Utf16String::repeated('a', 3);
+        EXPECT_EQ(string1.length_in_code_units(), 3uz);
+        EXPECT_EQ(string1, u"aaa"sv);
+
+        auto string2 = Utf16String::repeated(0x03C9U, 3);
+        EXPECT_EQ(string2.length_in_code_units(), 3uz);
+        EXPECT_EQ(string2, u"ωωω"sv);
+
+        auto string3 = Utf16String::repeated(0x10300, 3);
+        EXPECT_EQ(string3.length_in_code_units(), 6uz);
+        EXPECT_EQ(string3, u"𐌀𐌀𐌀"sv);
+    }
+    {
+        auto string1 = Utf16String::repeated('a', 10);
+        EXPECT_EQ(string1.length_in_code_units(), 10uz);
+        EXPECT_EQ(string1, u"aaaaaaaaaa"sv);
+
+        auto string2 = Utf16String::repeated(0x03C9U, 10);
+        EXPECT_EQ(string2.length_in_code_units(), 10uz);
+        EXPECT_EQ(string2, u"ωωωωωωωωωω"sv);
+
+        auto string3 = Utf16String::repeated(0x10300, 10);
+        EXPECT_EQ(string3.length_in_code_units(), 20uz);
+        EXPECT_EQ(string3, u"𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀"sv);
+    }
+
+    EXPECT_DEATH("Creating a string from an invalid code point", (void)Utf16String::repeated(0xffffffff, 1));
+}
+
 TEST_CASE(copy_operations)
 {
     auto test = [](Utf16String const& string1) {
