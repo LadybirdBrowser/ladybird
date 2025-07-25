@@ -1,0 +1,9 @@
+#import <DOM/EventHandler.idl>
+#import <WebAudio/AudioNode.idl>
+
+// https://webaudio.github.io/web-audio-api/#ScriptProcessorNode
+[Exposed=Window]
+interface ScriptProcessorNode : AudioNode {
+    attribute EventHandler onaudioprocess;
+    readonly attribute long bufferSize;
+};

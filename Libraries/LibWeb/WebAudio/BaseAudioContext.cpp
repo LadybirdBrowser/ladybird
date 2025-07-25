@@ -160,6 +160,21 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> BaseAudioContext::create_periodic_wav
     return PeriodicWave::construct_impl(realm(), *this, options);
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createscriptprocessor
+WebIDL::ExceptionOr<GC::Ref<ScriptProcessorNode>> BaseAudioContext::create_script_processor(
+    WebIDL::UnsignedLong buffer_size, WebIDL::UnsignedLong number_of_input_channels,
+    WebIDL::UnsignedLong number_of_output_channels)
+{
+    // The bufferSize parameter determines the buffer size in units of sample-frames. If it’s not passed in, or if the
+    // value is 0, then the implementation will choose the best buffer size for the given environment, which will be
+    // constant power of 2 throughout the lifetime of the node.
+    if (buffer_size == 0)
+        buffer_size = ScriptProcessorNode::DEFAULT_BUFFER_SIZE;
+
+    return ScriptProcessorNode::create(realm(), *this, buffer_size, number_of_input_channels,
+        number_of_output_channels);
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createstereopanner
 WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> BaseAudioContext::create_stereo_panner()
 {
