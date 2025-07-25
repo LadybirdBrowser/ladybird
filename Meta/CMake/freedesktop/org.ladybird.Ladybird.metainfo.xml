@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.ladybird.Ladybird</id>
+
+  <name>Ladybird</name>
+  <summary>Truly independent web browser</summary>
+
+  <developer id="org.ladybird">
+    <name>Ladybird Browser</name>
+  </developer>
+
+  <url type="homepage">https://ladybird.org</url>
+  <url type="bugtracker">https://github.com/LadybirdBrowser/ladybird/issues</url>
+  <url type="donation">https://donorbox.org/ladybird</url>
+  <url type="vcs-browser">https://github.com/LadybirdBrowser/ladybird</url>
+  <url type="contact">https://discord.gg/nvfjVJ4Svh</url>
+
+  <metadata_license>0BSD</metadata_license>
+  <project_license>BSD-2-Clause</project_license>
+  <content_rating type="oars-1.1" />
+
+  <description>
+    <p>
+      Ladybird is a brand-new browser and web engine.
+      Driven by a web standards first approach, Ladybird aims to render the modern web with good performance, stability and security.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">org.ladybird.Ladybird.desktop</launchable>
+  <releases>
+    <release version="1.0" date="2026-07-01">
+      <description>
+        <p>
+          Pre-Alpha.
+        </p>
+      </description>
+    </release>
+  </releases>
+
+</component>

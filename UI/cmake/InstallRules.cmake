@@ -127,4 +127,9 @@ if (ENABLE_INSTALL_FREEDESKTOP_FILES)
         DESTINATION "${CMAKE_INSTALL_DATADIR}/dbus-1/services"
         COMPONENT ladybird_Runtime
     )
+    install(FILES
+        "${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.metainfo.xml"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo"
+        COMPONENT ladybird_Runtime
+    )
 endif()
