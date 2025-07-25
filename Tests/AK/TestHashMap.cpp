@@ -327,3 +327,29 @@ TEST_CASE(move_assign)
     EXPECT_EQ(second.size(), static_cast<size_t>(3));
     EXPECT_EQ(second.get(2), Optional<int>(20));
 }
+
+TEST_CASE(update)
+{
+    HashMap<int, int> first;
+    HashMap<int, int> second;
+
+    first.set(1, 10);
+    first.set(2, 20);
+
+    second.set(1, 9);
+    second.set(3, 30);
+    second.set(4, 40);
+
+    first.update(second);
+
+    EXPECT_EQ(4u, first.size());
+    EXPECT_EQ(3u, second.size());
+
+    EXPECT_EQ(9, first.get(1));
+    EXPECT_EQ(20, first.get(2));
+    EXPECT_EQ(30, first.get(3));
+    EXPECT_EQ(40, first.get(4));
+
+    second.update(first);
+    EXPECT_EQ(4u, second.size());
+}

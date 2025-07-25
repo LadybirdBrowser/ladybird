@@ -64,6 +64,12 @@ public:
     ErrorOr<HashSetResult> try_set(K const& key, V&& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace) { return m_table.try_set({ key, move(value) }, existing_entry_behavior); }
     ErrorOr<HashSetResult> try_set(K&& key, V&& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace) { return m_table.try_set({ move(key), move(value) }, existing_entry_behavior); }
 
+    void update(HashMap const& other)
+    {
+        for (auto const& [key, value] : other)
+            set(key, value);
+    }
+
     bool remove(K const& key)
     {
         auto it = find(key);
