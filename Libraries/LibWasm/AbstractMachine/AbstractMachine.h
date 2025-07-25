@@ -260,9 +260,15 @@ private:
     Variant<Vector<Value>, Trap> m_result;
 };
 
+enum class InstantiationErrorSource : u8 {
+    Linking,
+    StartFunction,
+};
+
 struct InstantiationError {
     ByteString error { "Unknown error" };
     Optional<Trap> relevant_trap {};
+    InstantiationErrorSource source { InstantiationErrorSource::Linking };
 };
 
 using ExternValue = Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress>;
