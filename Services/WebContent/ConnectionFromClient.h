@@ -112,6 +112,7 @@ private:
     virtual void set_has_focus(u64 page_id, bool) override;
     virtual void set_is_scripting_enabled(u64 page_id, bool) override;
     virtual void set_device_pixels_per_css_pixel(u64 page_id, float) override;
+    virtual void set_maximum_frames_per_second(u64 page_id, double) override;
     virtual void set_window_position(u64 page_id, Web::DevicePixelPoint) override;
     virtual void set_window_size(u64 page_id, Web::DevicePixelSize) override;
     virtual void did_update_window_rect(u64 page_id) override;
