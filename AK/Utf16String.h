@@ -138,6 +138,13 @@ public:
         return from_string_builder_without_validation(builder);
     }
 
+    // These methods require linking LibUnicode.
+    Utf16String to_lowercase(Optional<StringView> const& locale = {}) const;
+    Utf16String to_uppercase(Optional<StringView> const& locale = {}) const;
+    Utf16String to_titlecase(Optional<StringView> const& locale = {}, TrailingCodePointTransformation trailing_code_point_transformation = TrailingCodePointTransformation::Lowercase) const;
+    Utf16String to_casefold() const;
+    Utf16String to_fullwidth() const;
+
     ALWAYS_INLINE Utf16String to_ascii_lowercase() const
     {
         auto view = utf16_view();

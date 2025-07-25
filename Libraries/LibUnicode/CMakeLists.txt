@@ -17,6 +17,7 @@ set(SOURCES
     String.cpp
     TimeZone.cpp
     UnicodeKeywords.cpp
+    Utf16String.cpp
 )
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
