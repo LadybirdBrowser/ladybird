@@ -426,8 +426,8 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
         scoped_generator.set("string_suffix", "_string"sv);
     }
 
-    if (parameter.type->name() == "USVString")
-        scoped_generator.set("to_string", "to_usv_string"sv);
+    if (parameter.type->name().is_one_of("USVString"sv, "Utf16USVString"sv))
+        scoped_generator.set("to_string", is_utf16_string ? "to_utf16_usv_string"sv : "to_usv_string"sv);
     else if (parameter.type->name() == "ByteString")
         scoped_generator.set("to_string", "to_byte_string"sv);
     else

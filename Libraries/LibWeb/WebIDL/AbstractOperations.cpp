@@ -244,6 +244,11 @@ JS::ThrowCompletionOr<String> to_usv_string(JS::VM& vm, JS::Value value)
     return TRY(value.to_utf16_string(vm)).to_well_formed_utf8();
 }
 
+JS::ThrowCompletionOr<Utf16String> to_utf16_usv_string(JS::VM& vm, JS::Value value)
+{
+    return TRY(value.to_utf16_string(vm)).to_well_formed();
+}
+
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function
 // https://whatpr.org/webidl/1437.html#invoke-a-callback-function
 template<typename ReturnSteps>
