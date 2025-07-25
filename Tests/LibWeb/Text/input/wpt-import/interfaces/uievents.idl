@@ -1,0 +1,237 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: UI Events (https://w3c.github.io/uievents/)
+
+[Exposed=Window]
+interface UIEvent : Event {
+  constructor(DOMString type, optional UIEventInit eventInitDict = {});
+  readonly attribute Window? view;
+  readonly attribute long detail;
+};
+
+dictionary UIEventInit : EventInit {
+  Window? view = null;
+  long detail = 0;
+};
+
+[Exposed=Window]
+interface FocusEvent : UIEvent {
+  constructor(DOMString type, optional FocusEventInit eventInitDict = {});
+  readonly attribute EventTarget? relatedTarget;
+};
+
+dictionary FocusEventInit : UIEventInit {
+  EventTarget? relatedTarget = null;
+};
+
+[Exposed=Window]
+interface MouseEvent : UIEvent {
+  constructor(DOMString type, optional MouseEventInit eventInitDict = {});
+  readonly attribute long screenX;
+  readonly attribute long screenY;
+  readonly attribute long clientX;
+  readonly attribute long clientY;
+  readonly attribute long layerX;
+  readonly attribute long layerY;
+
+  readonly attribute boolean ctrlKey;
+  readonly attribute boolean shiftKey;
+  readonly attribute boolean altKey;
+  readonly attribute boolean metaKey;
+
+  readonly attribute short button;
+  readonly attribute unsigned short buttons;
+
+  readonly attribute EventTarget? relatedTarget;
+
+  boolean getModifierState(DOMString keyArg);
+};
+
+dictionary MouseEventInit : EventModifierInit {
+  long screenX = 0;
+  long screenY = 0;
+  long clientX = 0;
+  long clientY = 0;
+
+  short button = 0;
+  unsigned short buttons = 0;
+  EventTarget? relatedTarget = null;
+};
+
+dictionary EventModifierInit : UIEventInit {
+  boolean ctrlKey = false;
+  boolean shiftKey = false;
+  boolean altKey = false;
+  boolean metaKey = false;
+
+  boolean modifierAltGraph = false;
+  boolean modifierCapsLock = false;
+  boolean modifierFn = false;
+  boolean modifierFnLock = false;
+  boolean modifierHyper = false;
+  boolean modifierNumLock = false;
+  boolean modifierScrollLock = false;
+  boolean modifierSuper = false;
+  boolean modifierSymbol = false;
+  boolean modifierSymbolLock = false;
+};
+
+[Exposed=Window]
+interface WheelEvent : MouseEvent {
+  constructor(DOMString type, optional WheelEventInit eventInitDict = {});
+  // DeltaModeCode
+  const unsigned long DOM_DELTA_PIXEL = 0x00;
+  const unsigned long DOM_DELTA_LINE  = 0x01;
+  const unsigned long DOM_DELTA_PAGE  = 0x02;
+
+  readonly attribute double deltaX;
+  readonly attribute double deltaY;
+  readonly attribute double deltaZ;
+  readonly attribute unsigned long deltaMode;
+};
+
+dictionary WheelEventInit : MouseEventInit {
+  double deltaX = 0.0;
+  double deltaY = 0.0;
+  double deltaZ = 0.0;
+  unsigned long deltaMode = 0;
+};
+
+[Exposed=Window]
+interface InputEvent : UIEvent {
+  constructor(DOMString type, optional InputEventInit eventInitDict = {});
+  readonly attribute USVString? data;
+  readonly attribute boolean isComposing;
+  readonly attribute DOMString inputType;
+};
+
+dictionary InputEventInit : UIEventInit {
+  DOMString? data = null;
+  boolean isComposing = false;
+  DOMString inputType = "";
+};
+
+[Exposed=Window]
+interface KeyboardEvent : UIEvent {
+  constructor(DOMString type, optional KeyboardEventInit eventInitDict = {});
+  // KeyLocationCode
+  const unsigned long DOM_KEY_LOCATION_STANDARD = 0x00;
+  const unsigned long DOM_KEY_LOCATION_LEFT = 0x01;
+  const unsigned long DOM_KEY_LOCATION_RIGHT = 0x02;
+  const unsigned long DOM_KEY_LOCATION_NUMPAD = 0x03;
+
+  readonly attribute DOMString key;
+  readonly attribute DOMString code;
+  readonly attribute unsigned long location;
+
+  readonly attribute boolean ctrlKey;
+  readonly attribute boolean shiftKey;
+  readonly attribute boolean altKey;
+  readonly attribute boolean metaKey;
+
+  readonly attribute boolean repeat;
+  readonly attribute boolean isComposing;
+
+  boolean getModifierState(DOMString keyArg);
+};
+
+dictionary KeyboardEventInit : EventModifierInit {
+  DOMString key = "";
+  DOMString code = "";
+  unsigned long location = 0;
+  boolean repeat = false;
+  boolean isComposing = false;
+};
+
+[Exposed=Window]
+interface CompositionEvent : UIEvent {
+  constructor(DOMString type, optional CompositionEventInit eventInitDict = {});
+  readonly attribute USVString data;
+};
+
+dictionary CompositionEventInit : UIEventInit {
+  DOMString data = "";
+};
+
+partial interface UIEvent {
+  // Deprecated in this specification
+  undefined initUIEvent(DOMString typeArg,
+    optional boolean bubblesArg = false,
+    optional boolean cancelableArg = false,
+    optional Window? viewArg = null,
+    optional long detailArg = 0);
+};
+
+partial interface MouseEvent {
+  // Deprecated in this specification
+  undefined initMouseEvent(DOMString typeArg,
+    optional boolean bubblesArg = false,
+    optional boolean cancelableArg = false,
+    optional Window? viewArg = null,
+    optional long detailArg = 0,
+    optional long screenXArg = 0,
+    optional long screenYArg = 0,
+    optional long clientXArg = 0,
+    optional long clientYArg = 0,
+    optional boolean ctrlKeyArg = false,
+    optional boolean altKeyArg = false,
+    optional boolean shiftKeyArg = false,
+    optional boolean metaKeyArg = false,
+    optional short buttonArg = 0,
+    optional EventTarget? relatedTargetArg = null);
+};
+
+partial interface KeyboardEvent {
+  // Originally introduced (and deprecated) in this specification
+  undefined initKeyboardEvent(DOMString typeArg,
+    optional boolean bubblesArg = false,
+    optional boolean cancelableArg = false,
+    optional Window? viewArg = null,
+    optional DOMString keyArg = "",
+    optional unsigned long locationArg = 0,
+    optional boolean ctrlKey = false,
+    optional boolean altKey = false,
+    optional boolean shiftKey = false,
+    optional boolean metaKey = false);
+};
+
+partial interface CompositionEvent {
+  // Originally introduced (and deprecated) in this specification
+  undefined initCompositionEvent(DOMString typeArg,
+    optional boolean bubblesArg = false,
+    optional boolean cancelableArg = false,
+    optional WindowProxy? viewArg = null,
+    optional DOMString dataArg = "");
+};
+
+partial interface UIEvent {
+  // The following support legacy user agents
+  readonly attribute unsigned long which;
+};
+
+partial dictionary UIEventInit {
+  unsigned long which = 0;
+};
+
+partial interface KeyboardEvent {
+  // The following support legacy user agents
+  readonly attribute unsigned long charCode;
+  readonly attribute unsigned long keyCode;
+};
+
+partial dictionary KeyboardEventInit {
+  // The following support legacy user agents
+  unsigned long charCode = 0;
+  unsigned long keyCode = 0;
+};
+
+[Exposed=Window]
+interface TextEvent : UIEvent {
+    readonly attribute DOMString data;
+    undefined initTextEvent(DOMString type,
+        optional boolean bubbles = false,
+        optional boolean cancelable = false,
+        optional Window? view = null,
+        optional DOMString data = "undefined");
+};

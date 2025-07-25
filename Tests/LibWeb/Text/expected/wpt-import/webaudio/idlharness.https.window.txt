@@ -1,0 +1,1163 @@
+Harness status: OK
+
+Found 1147 tests
+
+879 Pass
+268 Fail
+Fail	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Element: member names are unique
+Pass	HTMLElement includes GlobalEventHandlers: member names are unique
+Pass	HTMLElement includes ElementContentEditable: member names are unique
+Pass	HTMLElement includes HTMLOrSVGElement: member names are unique
+Pass	MessagePort includes MessageEventTarget: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	BaseAudioContext interface: existence and properties of interface object
+Pass	BaseAudioContext interface object length
+Pass	BaseAudioContext interface object name
+Pass	BaseAudioContext interface: existence and properties of interface prototype object
+Pass	BaseAudioContext interface: existence and properties of interface prototype object's "constructor" property
+Pass	BaseAudioContext interface: existence and properties of interface prototype object's @@unscopables property
+Pass	BaseAudioContext interface: attribute destination
+Pass	BaseAudioContext interface: attribute sampleRate
+Pass	BaseAudioContext interface: attribute currentTime
+Pass	BaseAudioContext interface: attribute listener
+Pass	BaseAudioContext interface: attribute state
+Fail	BaseAudioContext interface: attribute renderQuantumSize
+Fail	BaseAudioContext interface: attribute audioWorklet
+Pass	BaseAudioContext interface: attribute onstatechange
+Pass	BaseAudioContext interface: operation createAnalyser()
+Pass	BaseAudioContext interface: operation createBiquadFilter()
+Pass	BaseAudioContext interface: operation createBuffer(unsigned long, unsigned long, float)
+Pass	BaseAudioContext interface: operation createBufferSource()
+Pass	BaseAudioContext interface: operation createChannelMerger(optional unsigned long)
+Pass	BaseAudioContext interface: operation createChannelSplitter(optional unsigned long)
+Pass	BaseAudioContext interface: operation createConstantSource()
+Fail	BaseAudioContext interface: operation createConvolver()
+Pass	BaseAudioContext interface: operation createDelay(optional double)
+Pass	BaseAudioContext interface: operation createDynamicsCompressor()
+Pass	BaseAudioContext interface: operation createGain()
+Fail	BaseAudioContext interface: operation createIIRFilter(sequence<double>, sequence<double>)
+Pass	BaseAudioContext interface: operation createOscillator()
+Pass	BaseAudioContext interface: operation createPanner()
+Pass	BaseAudioContext interface: operation createPeriodicWave(sequence<float>, sequence<float>, optional PeriodicWaveConstraints)
+Pass	BaseAudioContext interface: operation createScriptProcessor(optional unsigned long, optional unsigned long, optional unsigned long)
+Pass	BaseAudioContext interface: operation createStereoPanner()
+Fail	BaseAudioContext interface: operation createWaveShaper()
+Pass	BaseAudioContext interface: operation decodeAudioData(ArrayBuffer, optional DecodeSuccessCallback?, optional DecodeErrorCallback?)
+Pass	AudioContext interface: existence and properties of interface object
+Pass	AudioContext interface object length
+Pass	AudioContext interface object name
+Pass	AudioContext interface: existence and properties of interface prototype object
+Pass	AudioContext interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioContext interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioContext interface: attribute baseLatency
+Pass	AudioContext interface: attribute outputLatency
+Fail	AudioContext interface: attribute sinkId
+Fail	AudioContext interface: attribute onsinkchange
+Fail	AudioContext interface: attribute onerror
+Pass	AudioContext interface: operation getOutputTimestamp()
+Pass	AudioContext interface: operation resume()
+Pass	AudioContext interface: operation suspend()
+Pass	AudioContext interface: operation close()
+Fail	AudioContext interface: operation setSinkId((DOMString or AudioSinkOptions))
+Pass	AudioContext interface: operation createMediaElementSource(HTMLMediaElement)
+Fail	AudioContext interface: operation createMediaStreamSource(MediaStream)
+Fail	AudioContext interface: operation createMediaStreamTrackSource(MediaStreamTrack)
+Fail	AudioContext interface: operation createMediaStreamDestination()
+Pass	AudioContext must be primary interface of context
+Pass	Stringification of context
+Pass	AudioContext interface: context must inherit property "baseLatency" with the proper type
+Pass	AudioContext interface: context must inherit property "outputLatency" with the proper type
+Fail	AudioContext interface: context must inherit property "sinkId" with the proper type
+Fail	AudioContext interface: context must inherit property "onsinkchange" with the proper type
+Fail	AudioContext interface: context must inherit property "onerror" with the proper type
+Pass	AudioContext interface: context must inherit property "getOutputTimestamp()" with the proper type
+Pass	AudioContext interface: context must inherit property "resume()" with the proper type
+Pass	AudioContext interface: context must inherit property "suspend()" with the proper type
+Pass	AudioContext interface: context must inherit property "close()" with the proper type
+Fail	AudioContext interface: context must inherit property "setSinkId((DOMString or AudioSinkOptions))" with the proper type
+Fail	AudioContext interface: calling setSinkId((DOMString or AudioSinkOptions)) on context with too few arguments must throw TypeError
+Pass	AudioContext interface: context must inherit property "createMediaElementSource(HTMLMediaElement)" with the proper type
+Pass	AudioContext interface: calling createMediaElementSource(HTMLMediaElement) on context with too few arguments must throw TypeError
+Fail	AudioContext interface: context must inherit property "createMediaStreamSource(MediaStream)" with the proper type
+Pass	AudioContext interface: calling createMediaStreamSource(MediaStream) on context with too few arguments must throw TypeError
+Fail	AudioContext interface: context must inherit property "createMediaStreamTrackSource(MediaStreamTrack)" with the proper type
+Pass	AudioContext interface: calling createMediaStreamTrackSource(MediaStreamTrack) on context with too few arguments must throw TypeError
+Fail	AudioContext interface: context must inherit property "createMediaStreamDestination()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "destination" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "sampleRate" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "currentTime" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "listener" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "state" with the proper type
+Fail	BaseAudioContext interface: context must inherit property "renderQuantumSize" with the proper type
+Fail	BaseAudioContext interface: context must inherit property "audioWorklet" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "onstatechange" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "createAnalyser()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "createBiquadFilter()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "createBuffer(unsigned long, unsigned long, float)" with the proper type
+Pass	BaseAudioContext interface: calling createBuffer(unsigned long, unsigned long, float) on context with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: context must inherit property "createBufferSource()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "createChannelMerger(optional unsigned long)" with the proper type
+Pass	BaseAudioContext interface: calling createChannelMerger(optional unsigned long) on context with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: context must inherit property "createChannelSplitter(optional unsigned long)" with the proper type
+Pass	BaseAudioContext interface: calling createChannelSplitter(optional unsigned long) on context with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: context must inherit property "createConstantSource()" with the proper type
+Fail	BaseAudioContext interface: context must inherit property "createConvolver()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "createDelay(optional double)" with the proper type
+Pass	BaseAudioContext interface: calling createDelay(optional double) on context with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: context must inherit property "createDynamicsCompressor()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "createGain()" with the proper type
+Fail	BaseAudioContext interface: context must inherit property "createIIRFilter(sequence<double>, sequence<double>)" with the proper type
+Pass	BaseAudioContext interface: calling createIIRFilter(sequence<double>, sequence<double>) on context with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: context must inherit property "createOscillator()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "createPanner()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "createPeriodicWave(sequence<float>, sequence<float>, optional PeriodicWaveConstraints)" with the proper type
+Pass	BaseAudioContext interface: calling createPeriodicWave(sequence<float>, sequence<float>, optional PeriodicWaveConstraints) on context with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: context must inherit property "createScriptProcessor(optional unsigned long, optional unsigned long, optional unsigned long)" with the proper type
+Pass	BaseAudioContext interface: calling createScriptProcessor(optional unsigned long, optional unsigned long, optional unsigned long) on context with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: context must inherit property "createStereoPanner()" with the proper type
+Fail	BaseAudioContext interface: context must inherit property "createWaveShaper()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "decodeAudioData(ArrayBuffer, optional DecodeSuccessCallback?, optional DecodeErrorCallback?)" with the proper type
+Pass	BaseAudioContext interface: calling decodeAudioData(ArrayBuffer, optional DecodeSuccessCallback?, optional DecodeErrorCallback?) on context with too few arguments must throw TypeError
+Fail	AudioSinkInfo interface: existence and properties of interface object
+Fail	AudioSinkInfo interface object length
+Fail	AudioSinkInfo interface object name
+Fail	AudioSinkInfo interface: existence and properties of interface prototype object
+Fail	AudioSinkInfo interface: existence and properties of interface prototype object's "constructor" property
+Fail	AudioSinkInfo interface: existence and properties of interface prototype object's @@unscopables property
+Fail	AudioSinkInfo interface: attribute type
+Pass	OfflineAudioContext interface: existence and properties of interface object
+Pass	OfflineAudioContext interface object length
+Pass	OfflineAudioContext interface object name
+Pass	OfflineAudioContext interface: existence and properties of interface prototype object
+Pass	OfflineAudioContext interface: existence and properties of interface prototype object's "constructor" property
+Pass	OfflineAudioContext interface: existence and properties of interface prototype object's @@unscopables property
+Pass	OfflineAudioContext interface: operation startRendering()
+Pass	OfflineAudioContext interface: operation resume()
+Pass	OfflineAudioContext interface: operation suspend(double)
+Pass	OfflineAudioContext interface: attribute length
+Pass	OfflineAudioContext interface: attribute oncomplete
+Pass	OfflineAudioContext must be primary interface of new OfflineAudioContext(1, 1, sample_rate)
+Pass	Stringification of new OfflineAudioContext(1, 1, sample_rate)
+Pass	OfflineAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "startRendering()" with the proper type
+Pass	OfflineAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "resume()" with the proper type
+Pass	OfflineAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "suspend(double)" with the proper type
+Pass	OfflineAudioContext interface: calling suspend(double) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
+Pass	OfflineAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "length" with the proper type
+Pass	OfflineAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "oncomplete" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "destination" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "sampleRate" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "currentTime" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "listener" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "state" with the proper type
+Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "renderQuantumSize" with the proper type
+Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "audioWorklet" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "onstatechange" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createAnalyser()" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createBiquadFilter()" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createBuffer(unsigned long, unsigned long, float)" with the proper type
+Pass	BaseAudioContext interface: calling createBuffer(unsigned long, unsigned long, float) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createBufferSource()" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createChannelMerger(optional unsigned long)" with the proper type
+Pass	BaseAudioContext interface: calling createChannelMerger(optional unsigned long) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createChannelSplitter(optional unsigned long)" with the proper type
+Pass	BaseAudioContext interface: calling createChannelSplitter(optional unsigned long) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createConstantSource()" with the proper type
+Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createConvolver()" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createDelay(optional double)" with the proper type
+Pass	BaseAudioContext interface: calling createDelay(optional double) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createDynamicsCompressor()" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createGain()" with the proper type
+Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createIIRFilter(sequence<double>, sequence<double>)" with the proper type
+Pass	BaseAudioContext interface: calling createIIRFilter(sequence<double>, sequence<double>) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createOscillator()" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createPanner()" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createPeriodicWave(sequence<float>, sequence<float>, optional PeriodicWaveConstraints)" with the proper type
+Pass	BaseAudioContext interface: calling createPeriodicWave(sequence<float>, sequence<float>, optional PeriodicWaveConstraints) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createScriptProcessor(optional unsigned long, optional unsigned long, optional unsigned long)" with the proper type
+Pass	BaseAudioContext interface: calling createScriptProcessor(optional unsigned long, optional unsigned long, optional unsigned long) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createStereoPanner()" with the proper type
+Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createWaveShaper()" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "decodeAudioData(ArrayBuffer, optional DecodeSuccessCallback?, optional DecodeErrorCallback?)" with the proper type
+Pass	BaseAudioContext interface: calling decodeAudioData(ArrayBuffer, optional DecodeSuccessCallback?, optional DecodeErrorCallback?) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
+Fail	OfflineAudioCompletionEvent interface: existence and properties of interface object
+Fail	OfflineAudioCompletionEvent interface object length
+Fail	OfflineAudioCompletionEvent interface object name
+Fail	OfflineAudioCompletionEvent interface: existence and properties of interface prototype object
+Fail	OfflineAudioCompletionEvent interface: existence and properties of interface prototype object's "constructor" property
+Fail	OfflineAudioCompletionEvent interface: existence and properties of interface prototype object's @@unscopables property
+Fail	OfflineAudioCompletionEvent interface: attribute renderedBuffer
+Fail	OfflineAudioCompletionEvent must be primary interface of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer})
+Fail	Stringification of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer})
+Fail	OfflineAudioCompletionEvent interface: new OfflineAudioCompletionEvent("", {renderedBuffer: buffer}) must inherit property "renderedBuffer" with the proper type
+Pass	AudioBuffer interface: existence and properties of interface object
+Pass	AudioBuffer interface object length
+Pass	AudioBuffer interface object name
+Pass	AudioBuffer interface: existence and properties of interface prototype object
+Pass	AudioBuffer interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioBuffer interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioBuffer interface: attribute sampleRate
+Pass	AudioBuffer interface: attribute length
+Pass	AudioBuffer interface: attribute duration
+Pass	AudioBuffer interface: attribute numberOfChannels
+Pass	AudioBuffer interface: operation getChannelData(unsigned long)
+Pass	AudioBuffer interface: operation copyFromChannel(Float32Array, unsigned long, optional unsigned long)
+Pass	AudioBuffer interface: operation copyToChannel(Float32Array, unsigned long, optional unsigned long)
+Pass	AudioBuffer must be primary interface of buffer
+Pass	Stringification of buffer
+Pass	AudioBuffer interface: buffer must inherit property "sampleRate" with the proper type
+Pass	AudioBuffer interface: buffer must inherit property "length" with the proper type
+Pass	AudioBuffer interface: buffer must inherit property "duration" with the proper type
+Pass	AudioBuffer interface: buffer must inherit property "numberOfChannels" with the proper type
+Pass	AudioBuffer interface: buffer must inherit property "getChannelData(unsigned long)" with the proper type
+Pass	AudioBuffer interface: calling getChannelData(unsigned long) on buffer with too few arguments must throw TypeError
+Pass	AudioBuffer interface: buffer must inherit property "copyFromChannel(Float32Array, unsigned long, optional unsigned long)" with the proper type
+Pass	AudioBuffer interface: calling copyFromChannel(Float32Array, unsigned long, optional unsigned long) on buffer with too few arguments must throw TypeError
+Pass	AudioBuffer interface: buffer must inherit property "copyToChannel(Float32Array, unsigned long, optional unsigned long)" with the proper type
+Pass	AudioBuffer interface: calling copyToChannel(Float32Array, unsigned long, optional unsigned long) on buffer with too few arguments must throw TypeError
+Pass	AudioNode interface: existence and properties of interface object
+Pass	AudioNode interface object length
+Pass	AudioNode interface object name
+Pass	AudioNode interface: existence and properties of interface prototype object
+Pass	AudioNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioNode interface: operation connect(AudioNode, optional unsigned long, optional unsigned long)
+Pass	AudioNode interface: operation connect(AudioParam, optional unsigned long)
+Pass	AudioNode interface: operation disconnect()
+Pass	AudioNode interface: operation disconnect(unsigned long)
+Pass	AudioNode interface: operation disconnect(AudioNode)
+Pass	AudioNode interface: operation disconnect(AudioNode, unsigned long)
+Pass	AudioNode interface: operation disconnect(AudioNode, unsigned long, unsigned long)
+Pass	AudioNode interface: operation disconnect(AudioParam)
+Pass	AudioNode interface: operation disconnect(AudioParam, unsigned long)
+Pass	AudioNode interface: attribute context
+Pass	AudioNode interface: attribute numberOfInputs
+Pass	AudioNode interface: attribute numberOfOutputs
+Pass	AudioNode interface: attribute channelCount
+Pass	AudioNode interface: attribute channelCountMode
+Pass	AudioNode interface: attribute channelInterpretation
+Pass	AudioParam interface: existence and properties of interface object
+Pass	AudioParam interface object length
+Pass	AudioParam interface object name
+Pass	AudioParam interface: existence and properties of interface prototype object
+Pass	AudioParam interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioParam interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioParam interface: attribute value
+Pass	AudioParam interface: attribute automationRate
+Pass	AudioParam interface: attribute defaultValue
+Pass	AudioParam interface: attribute minValue
+Pass	AudioParam interface: attribute maxValue
+Pass	AudioParam interface: operation setValueAtTime(float, double)
+Pass	AudioParam interface: operation linearRampToValueAtTime(float, double)
+Pass	AudioParam interface: operation exponentialRampToValueAtTime(float, double)
+Pass	AudioParam interface: operation setTargetAtTime(float, double, float)
+Pass	AudioParam interface: operation setValueCurveAtTime(sequence<float>, double, double)
+Pass	AudioParam interface: operation cancelScheduledValues(double)
+Pass	AudioParam interface: operation cancelAndHoldAtTime(double)
+Pass	AudioParam must be primary interface of new AudioBufferSourceNode(context).playbackRate
+Pass	Stringification of new AudioBufferSourceNode(context).playbackRate
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "value" with the proper type
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "automationRate" with the proper type
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "defaultValue" with the proper type
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "minValue" with the proper type
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "maxValue" with the proper type
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "setValueAtTime(float, double)" with the proper type
+Pass	AudioParam interface: calling setValueAtTime(float, double) on new AudioBufferSourceNode(context).playbackRate with too few arguments must throw TypeError
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "linearRampToValueAtTime(float, double)" with the proper type
+Pass	AudioParam interface: calling linearRampToValueAtTime(float, double) on new AudioBufferSourceNode(context).playbackRate with too few arguments must throw TypeError
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "exponentialRampToValueAtTime(float, double)" with the proper type
+Pass	AudioParam interface: calling exponentialRampToValueAtTime(float, double) on new AudioBufferSourceNode(context).playbackRate with too few arguments must throw TypeError
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "setTargetAtTime(float, double, float)" with the proper type
+Pass	AudioParam interface: calling setTargetAtTime(float, double, float) on new AudioBufferSourceNode(context).playbackRate with too few arguments must throw TypeError
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "setValueCurveAtTime(sequence<float>, double, double)" with the proper type
+Pass	AudioParam interface: calling setValueCurveAtTime(sequence<float>, double, double) on new AudioBufferSourceNode(context).playbackRate with too few arguments must throw TypeError
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "cancelScheduledValues(double)" with the proper type
+Pass	AudioParam interface: calling cancelScheduledValues(double) on new AudioBufferSourceNode(context).playbackRate with too few arguments must throw TypeError
+Pass	AudioParam interface: new AudioBufferSourceNode(context).playbackRate must inherit property "cancelAndHoldAtTime(double)" with the proper type
+Pass	AudioParam interface: calling cancelAndHoldAtTime(double) on new AudioBufferSourceNode(context).playbackRate with too few arguments must throw TypeError
+Pass	AudioScheduledSourceNode interface: existence and properties of interface object
+Pass	AudioScheduledSourceNode interface object length
+Pass	AudioScheduledSourceNode interface object name
+Pass	AudioScheduledSourceNode interface: existence and properties of interface prototype object
+Pass	AudioScheduledSourceNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioScheduledSourceNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioScheduledSourceNode interface: attribute onended
+Pass	AudioScheduledSourceNode interface: operation start(optional double)
+Pass	AudioScheduledSourceNode interface: operation stop(optional double)
+Pass	AnalyserNode interface: existence and properties of interface object
+Pass	AnalyserNode interface object length
+Pass	AnalyserNode interface object name
+Pass	AnalyserNode interface: existence and properties of interface prototype object
+Pass	AnalyserNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	AnalyserNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AnalyserNode interface: operation getFloatFrequencyData(Float32Array)
+Pass	AnalyserNode interface: operation getByteFrequencyData(Uint8Array)
+Pass	AnalyserNode interface: operation getFloatTimeDomainData(Float32Array)
+Pass	AnalyserNode interface: operation getByteTimeDomainData(Uint8Array)
+Pass	AnalyserNode interface: attribute fftSize
+Pass	AnalyserNode interface: attribute frequencyBinCount
+Pass	AnalyserNode interface: attribute minDecibels
+Pass	AnalyserNode interface: attribute maxDecibels
+Pass	AnalyserNode interface: attribute smoothingTimeConstant
+Pass	AnalyserNode must be primary interface of new AnalyserNode(context)
+Pass	Stringification of new AnalyserNode(context)
+Pass	AnalyserNode interface: new AnalyserNode(context) must inherit property "getFloatFrequencyData(Float32Array)" with the proper type
+Pass	AnalyserNode interface: calling getFloatFrequencyData(Float32Array) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AnalyserNode interface: new AnalyserNode(context) must inherit property "getByteFrequencyData(Uint8Array)" with the proper type
+Pass	AnalyserNode interface: calling getByteFrequencyData(Uint8Array) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AnalyserNode interface: new AnalyserNode(context) must inherit property "getFloatTimeDomainData(Float32Array)" with the proper type
+Pass	AnalyserNode interface: calling getFloatTimeDomainData(Float32Array) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AnalyserNode interface: new AnalyserNode(context) must inherit property "getByteTimeDomainData(Uint8Array)" with the proper type
+Pass	AnalyserNode interface: calling getByteTimeDomainData(Uint8Array) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AnalyserNode interface: new AnalyserNode(context) must inherit property "fftSize" with the proper type
+Pass	AnalyserNode interface: new AnalyserNode(context) must inherit property "frequencyBinCount" with the proper type
+Pass	AnalyserNode interface: new AnalyserNode(context) must inherit property "minDecibels" with the proper type
+Pass	AnalyserNode interface: new AnalyserNode(context) must inherit property "maxDecibels" with the proper type
+Pass	AnalyserNode interface: new AnalyserNode(context) must inherit property "smoothingTimeConstant" with the proper type
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new AnalyserNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	AudioBufferSourceNode interface: existence and properties of interface object
+Pass	AudioBufferSourceNode interface object length
+Pass	AudioBufferSourceNode interface object name
+Pass	AudioBufferSourceNode interface: existence and properties of interface prototype object
+Pass	AudioBufferSourceNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioBufferSourceNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioBufferSourceNode interface: attribute buffer
+Pass	AudioBufferSourceNode interface: attribute playbackRate
+Pass	AudioBufferSourceNode interface: attribute detune
+Pass	AudioBufferSourceNode interface: attribute loop
+Pass	AudioBufferSourceNode interface: attribute loopStart
+Pass	AudioBufferSourceNode interface: attribute loopEnd
+Pass	AudioBufferSourceNode interface: operation start(optional double, optional double, optional double)
+Pass	AudioBufferSourceNode must be primary interface of new AudioBufferSourceNode(context)
+Pass	Stringification of new AudioBufferSourceNode(context)
+Pass	AudioBufferSourceNode interface: new AudioBufferSourceNode(context) must inherit property "buffer" with the proper type
+Pass	AudioBufferSourceNode interface: new AudioBufferSourceNode(context) must inherit property "playbackRate" with the proper type
+Pass	AudioBufferSourceNode interface: new AudioBufferSourceNode(context) must inherit property "detune" with the proper type
+Pass	AudioBufferSourceNode interface: new AudioBufferSourceNode(context) must inherit property "loop" with the proper type
+Pass	AudioBufferSourceNode interface: new AudioBufferSourceNode(context) must inherit property "loopStart" with the proper type
+Pass	AudioBufferSourceNode interface: new AudioBufferSourceNode(context) must inherit property "loopEnd" with the proper type
+Pass	AudioBufferSourceNode interface: new AudioBufferSourceNode(context) must inherit property "start(optional double, optional double, optional double)" with the proper type
+Pass	AudioBufferSourceNode interface: calling start(optional double, optional double, optional double) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioScheduledSourceNode interface: new AudioBufferSourceNode(context) must inherit property "onended" with the proper type
+Pass	AudioScheduledSourceNode interface: new AudioBufferSourceNode(context) must inherit property "start(optional double)" with the proper type
+Pass	AudioScheduledSourceNode interface: calling start(optional double) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioScheduledSourceNode interface: new AudioBufferSourceNode(context) must inherit property "stop(optional double)" with the proper type
+Pass	AudioScheduledSourceNode interface: calling stop(optional double) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new AudioBufferSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new AudioBufferSourceNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	AudioDestinationNode interface: existence and properties of interface object
+Pass	AudioDestinationNode interface object length
+Pass	AudioDestinationNode interface object name
+Pass	AudioDestinationNode interface: existence and properties of interface prototype object
+Pass	AudioDestinationNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioDestinationNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioDestinationNode interface: attribute maxChannelCount
+Pass	AudioDestinationNode must be primary interface of context.destination
+Pass	Stringification of context.destination
+Pass	AudioDestinationNode interface: context.destination must inherit property "maxChannelCount" with the proper type
+Pass	AudioNode interface: context.destination must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on context.destination with too few arguments must throw TypeError
+Pass	AudioNode interface: context.destination must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on context.destination with too few arguments must throw TypeError
+Pass	AudioNode interface: context.destination must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: context.destination must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on context.destination with too few arguments must throw TypeError
+Pass	AudioNode interface: context.destination must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on context.destination with too few arguments must throw TypeError
+Pass	AudioNode interface: context.destination must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on context.destination with too few arguments must throw TypeError
+Pass	AudioNode interface: context.destination must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on context.destination with too few arguments must throw TypeError
+Pass	AudioNode interface: context.destination must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on context.destination with too few arguments must throw TypeError
+Pass	AudioNode interface: context.destination must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on context.destination with too few arguments must throw TypeError
+Pass	AudioNode interface: context.destination must inherit property "context" with the proper type
+Pass	AudioNode interface: context.destination must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: context.destination must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: context.destination must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: context.destination must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: context.destination must inherit property "channelInterpretation" with the proper type
+Pass	AudioListener interface: existence and properties of interface object
+Pass	AudioListener interface object length
+Pass	AudioListener interface object name
+Pass	AudioListener interface: existence and properties of interface prototype object
+Pass	AudioListener interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioListener interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioListener interface: attribute positionX
+Pass	AudioListener interface: attribute positionY
+Pass	AudioListener interface: attribute positionZ
+Pass	AudioListener interface: attribute forwardX
+Pass	AudioListener interface: attribute forwardY
+Pass	AudioListener interface: attribute forwardZ
+Pass	AudioListener interface: attribute upX
+Pass	AudioListener interface: attribute upY
+Pass	AudioListener interface: attribute upZ
+Pass	AudioListener interface: operation setPosition(float, float, float)
+Pass	AudioListener interface: operation setOrientation(float, float, float, float, float, float)
+Pass	AudioListener must be primary interface of context.listener
+Pass	Stringification of context.listener
+Pass	AudioListener interface: context.listener must inherit property "positionX" with the proper type
+Pass	AudioListener interface: context.listener must inherit property "positionY" with the proper type
+Pass	AudioListener interface: context.listener must inherit property "positionZ" with the proper type
+Pass	AudioListener interface: context.listener must inherit property "forwardX" with the proper type
+Pass	AudioListener interface: context.listener must inherit property "forwardY" with the proper type
+Pass	AudioListener interface: context.listener must inherit property "forwardZ" with the proper type
+Pass	AudioListener interface: context.listener must inherit property "upX" with the proper type
+Pass	AudioListener interface: context.listener must inherit property "upY" with the proper type
+Pass	AudioListener interface: context.listener must inherit property "upZ" with the proper type
+Pass	AudioListener interface: context.listener must inherit property "setPosition(float, float, float)" with the proper type
+Pass	AudioListener interface: calling setPosition(float, float, float) on context.listener with too few arguments must throw TypeError
+Pass	AudioListener interface: context.listener must inherit property "setOrientation(float, float, float, float, float, float)" with the proper type
+Pass	AudioListener interface: calling setOrientation(float, float, float, float, float, float) on context.listener with too few arguments must throw TypeError
+Fail	AudioProcessingEvent interface: existence and properties of interface object
+Fail	AudioProcessingEvent interface object length
+Fail	AudioProcessingEvent interface object name
+Fail	AudioProcessingEvent interface: existence and properties of interface prototype object
+Fail	AudioProcessingEvent interface: existence and properties of interface prototype object's "constructor" property
+Fail	AudioProcessingEvent interface: existence and properties of interface prototype object's @@unscopables property
+Fail	AudioProcessingEvent interface: attribute playbackTime
+Fail	AudioProcessingEvent interface: attribute inputBuffer
+Fail	AudioProcessingEvent interface: attribute outputBuffer
+Fail	AudioProcessingEvent must be primary interface of new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      })
+Fail	Stringification of new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      })
+Fail	AudioProcessingEvent interface: new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      }) must inherit property "playbackTime" with the proper type
+Fail	AudioProcessingEvent interface: new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      }) must inherit property "inputBuffer" with the proper type
+Fail	AudioProcessingEvent interface: new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      }) must inherit property "outputBuffer" with the proper type
+Pass	BiquadFilterNode interface: existence and properties of interface object
+Pass	BiquadFilterNode interface object length
+Pass	BiquadFilterNode interface object name
+Pass	BiquadFilterNode interface: existence and properties of interface prototype object
+Pass	BiquadFilterNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	BiquadFilterNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	BiquadFilterNode interface: attribute type
+Pass	BiquadFilterNode interface: attribute frequency
+Pass	BiquadFilterNode interface: attribute detune
+Pass	BiquadFilterNode interface: attribute Q
+Pass	BiquadFilterNode interface: attribute gain
+Pass	BiquadFilterNode interface: operation getFrequencyResponse(Float32Array, Float32Array, Float32Array)
+Pass	BiquadFilterNode must be primary interface of new BiquadFilterNode(context)
+Pass	Stringification of new BiquadFilterNode(context)
+Pass	BiquadFilterNode interface: new BiquadFilterNode(context) must inherit property "type" with the proper type
+Pass	BiquadFilterNode interface: new BiquadFilterNode(context) must inherit property "frequency" with the proper type
+Pass	BiquadFilterNode interface: new BiquadFilterNode(context) must inherit property "detune" with the proper type
+Pass	BiquadFilterNode interface: new BiquadFilterNode(context) must inherit property "Q" with the proper type
+Pass	BiquadFilterNode interface: new BiquadFilterNode(context) must inherit property "gain" with the proper type
+Pass	BiquadFilterNode interface: new BiquadFilterNode(context) must inherit property "getFrequencyResponse(Float32Array, Float32Array, Float32Array)" with the proper type
+Pass	BiquadFilterNode interface: calling getFrequencyResponse(Float32Array, Float32Array, Float32Array) on new BiquadFilterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new BiquadFilterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new BiquadFilterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new BiquadFilterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new BiquadFilterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new BiquadFilterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new BiquadFilterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new BiquadFilterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new BiquadFilterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new BiquadFilterNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	ChannelMergerNode interface: existence and properties of interface object
+Pass	ChannelMergerNode interface object length
+Pass	ChannelMergerNode interface object name
+Pass	ChannelMergerNode interface: existence and properties of interface prototype object
+Pass	ChannelMergerNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	ChannelMergerNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	ChannelMergerNode must be primary interface of new ChannelMergerNode(context)
+Pass	Stringification of new ChannelMergerNode(context)
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new ChannelMergerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new ChannelMergerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new ChannelMergerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new ChannelMergerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new ChannelMergerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new ChannelMergerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new ChannelMergerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new ChannelMergerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new ChannelMergerNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	ChannelSplitterNode interface: existence and properties of interface object
+Pass	ChannelSplitterNode interface object length
+Pass	ChannelSplitterNode interface object name
+Pass	ChannelSplitterNode interface: existence and properties of interface prototype object
+Pass	ChannelSplitterNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	ChannelSplitterNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	ChannelSplitterNode must be primary interface of new ChannelSplitterNode(context)
+Pass	Stringification of new ChannelSplitterNode(context)
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new ChannelSplitterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new ChannelSplitterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new ChannelSplitterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new ChannelSplitterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new ChannelSplitterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new ChannelSplitterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new ChannelSplitterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new ChannelSplitterNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new ChannelSplitterNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	ConstantSourceNode interface: existence and properties of interface object
+Pass	ConstantSourceNode interface object length
+Pass	ConstantSourceNode interface object name
+Pass	ConstantSourceNode interface: existence and properties of interface prototype object
+Pass	ConstantSourceNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	ConstantSourceNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	ConstantSourceNode interface: attribute offset
+Pass	ConstantSourceNode must be primary interface of new ConstantSourceNode(context)
+Pass	Stringification of new ConstantSourceNode(context)
+Pass	ConstantSourceNode interface: new ConstantSourceNode(context) must inherit property "offset" with the proper type
+Pass	AudioScheduledSourceNode interface: new ConstantSourceNode(context) must inherit property "onended" with the proper type
+Pass	AudioScheduledSourceNode interface: new ConstantSourceNode(context) must inherit property "start(optional double)" with the proper type
+Pass	AudioScheduledSourceNode interface: calling start(optional double) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioScheduledSourceNode interface: new ConstantSourceNode(context) must inherit property "stop(optional double)" with the proper type
+Pass	AudioScheduledSourceNode interface: calling stop(optional double) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new ConstantSourceNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "channelInterpretation" with the proper type
+Fail	ConvolverNode interface: existence and properties of interface object
+Fail	ConvolverNode interface object length
+Fail	ConvolverNode interface object name
+Fail	ConvolverNode interface: existence and properties of interface prototype object
+Fail	ConvolverNode interface: existence and properties of interface prototype object's "constructor" property
+Fail	ConvolverNode interface: existence and properties of interface prototype object's @@unscopables property
+Fail	ConvolverNode interface: attribute buffer
+Fail	ConvolverNode interface: attribute normalize
+Fail	ConvolverNode must be primary interface of new ConvolverNode(context)
+Fail	Stringification of new ConvolverNode(context)
+Fail	ConvolverNode interface: new ConvolverNode(context) must inherit property "buffer" with the proper type
+Fail	ConvolverNode interface: new ConvolverNode(context) must inherit property "normalize" with the proper type
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect()" with the proper type
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode) on new ConvolverNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam) on new ConvolverNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "context" with the proper type
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "numberOfInputs" with the proper type
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "numberOfOutputs" with the proper type
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "channelCount" with the proper type
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "channelCountMode" with the proper type
+Fail	AudioNode interface: new ConvolverNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	DelayNode interface: existence and properties of interface object
+Pass	DelayNode interface object length
+Pass	DelayNode interface object name
+Pass	DelayNode interface: existence and properties of interface prototype object
+Pass	DelayNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	DelayNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	DelayNode interface: attribute delayTime
+Pass	DelayNode must be primary interface of new DelayNode(context)
+Pass	Stringification of new DelayNode(context)
+Pass	DelayNode interface: new DelayNode(context) must inherit property "delayTime" with the proper type
+Pass	AudioNode interface: new DelayNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new DelayNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DelayNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new DelayNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DelayNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new DelayNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new DelayNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new DelayNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new DelayNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new DelayNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new DelayNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new DelayNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DelayNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new DelayNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new DelayNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new DelayNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new DelayNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new DelayNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	DynamicsCompressorNode interface: existence and properties of interface object
+Pass	DynamicsCompressorNode interface object length
+Pass	DynamicsCompressorNode interface object name
+Pass	DynamicsCompressorNode interface: existence and properties of interface prototype object
+Pass	DynamicsCompressorNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	DynamicsCompressorNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	DynamicsCompressorNode interface: attribute threshold
+Pass	DynamicsCompressorNode interface: attribute knee
+Pass	DynamicsCompressorNode interface: attribute ratio
+Pass	DynamicsCompressorNode interface: attribute reduction
+Pass	DynamicsCompressorNode interface: attribute attack
+Pass	DynamicsCompressorNode interface: attribute release
+Pass	DynamicsCompressorNode must be primary interface of new DynamicsCompressorNode(context)
+Pass	Stringification of new DynamicsCompressorNode(context)
+Pass	DynamicsCompressorNode interface: new DynamicsCompressorNode(context) must inherit property "threshold" with the proper type
+Pass	DynamicsCompressorNode interface: new DynamicsCompressorNode(context) must inherit property "knee" with the proper type
+Pass	DynamicsCompressorNode interface: new DynamicsCompressorNode(context) must inherit property "ratio" with the proper type
+Pass	DynamicsCompressorNode interface: new DynamicsCompressorNode(context) must inherit property "reduction" with the proper type
+Pass	DynamicsCompressorNode interface: new DynamicsCompressorNode(context) must inherit property "attack" with the proper type
+Pass	DynamicsCompressorNode interface: new DynamicsCompressorNode(context) must inherit property "release" with the proper type
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new DynamicsCompressorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new DynamicsCompressorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new DynamicsCompressorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new DynamicsCompressorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new DynamicsCompressorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new DynamicsCompressorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new DynamicsCompressorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new DynamicsCompressorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new DynamicsCompressorNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	GainNode interface: existence and properties of interface object
+Pass	GainNode interface object length
+Pass	GainNode interface object name
+Pass	GainNode interface: existence and properties of interface prototype object
+Pass	GainNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	GainNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	GainNode interface: attribute gain
+Pass	GainNode must be primary interface of new GainNode(context)
+Pass	Stringification of new GainNode(context)
+Pass	GainNode interface: new GainNode(context) must inherit property "gain" with the proper type
+Pass	AudioNode interface: new GainNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new GainNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new GainNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new GainNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new GainNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new GainNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new GainNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new GainNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new GainNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new GainNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new GainNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new GainNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new GainNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new GainNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new GainNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new GainNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new GainNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new GainNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new GainNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new GainNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new GainNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new GainNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new GainNode(context) must inherit property "channelInterpretation" with the proper type
+Fail	IIRFilterNode interface: existence and properties of interface object
+Fail	IIRFilterNode interface object length
+Fail	IIRFilterNode interface object name
+Fail	IIRFilterNode interface: existence and properties of interface prototype object
+Fail	IIRFilterNode interface: existence and properties of interface prototype object's "constructor" property
+Fail	IIRFilterNode interface: existence and properties of interface prototype object's @@unscopables property
+Fail	IIRFilterNode interface: operation getFrequencyResponse(Float32Array, Float32Array, Float32Array)
+Fail	IIRFilterNode must be primary interface of new IIRFilterNode(context, {feedforward: [1], feedback: [1]})
+Fail	Stringification of new IIRFilterNode(context, {feedforward: [1], feedback: [1]})
+Fail	IIRFilterNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "getFrequencyResponse(Float32Array, Float32Array, Float32Array)" with the proper type
+Fail	IIRFilterNode interface: calling getFrequencyResponse(Float32Array, Float32Array, Float32Array) on new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) with too few arguments must throw TypeError
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) with too few arguments must throw TypeError
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) with too few arguments must throw TypeError
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "disconnect()" with the proper type
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "disconnect(unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(unsigned long) on new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) with too few arguments must throw TypeError
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "disconnect(AudioNode)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode) on new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) with too few arguments must throw TypeError
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) with too few arguments must throw TypeError
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) with too few arguments must throw TypeError
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "disconnect(AudioParam)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam) on new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) with too few arguments must throw TypeError
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) with too few arguments must throw TypeError
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "context" with the proper type
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "numberOfInputs" with the proper type
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "numberOfOutputs" with the proper type
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "channelCount" with the proper type
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "channelCountMode" with the proper type
+Fail	AudioNode interface: new IIRFilterNode(context, {feedforward: [1], feedback: [1]}) must inherit property "channelInterpretation" with the proper type
+Pass	MediaElementAudioSourceNode interface: existence and properties of interface object
+Pass	MediaElementAudioSourceNode interface object length
+Pass	MediaElementAudioSourceNode interface object name
+Pass	MediaElementAudioSourceNode interface: existence and properties of interface prototype object
+Pass	MediaElementAudioSourceNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	MediaElementAudioSourceNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	MediaElementAudioSourceNode interface: attribute mediaElement
+Pass	MediaElementAudioSourceNode must be primary interface of new MediaElementAudioSourceNode(context, {mediaElement: new Audio})
+Pass	Stringification of new MediaElementAudioSourceNode(context, {mediaElement: new Audio})
+Pass	MediaElementAudioSourceNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "mediaElement" with the proper type
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "context" with the proper type
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "channelInterpretation" with the proper type
+Fail	MediaStreamAudioDestinationNode interface: existence and properties of interface object
+Fail	MediaStreamAudioDestinationNode interface object length
+Fail	MediaStreamAudioDestinationNode interface object name
+Fail	MediaStreamAudioDestinationNode interface: existence and properties of interface prototype object
+Fail	MediaStreamAudioDestinationNode interface: existence and properties of interface prototype object's "constructor" property
+Fail	MediaStreamAudioDestinationNode interface: existence and properties of interface prototype object's @@unscopables property
+Fail	MediaStreamAudioDestinationNode interface: attribute stream
+Fail	MediaStreamAudioDestinationNode must be primary interface of new MediaStreamAudioDestinationNode(context)
+Fail	Stringification of new MediaStreamAudioDestinationNode(context)
+Fail	MediaStreamAudioDestinationNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "stream" with the proper type
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect()" with the proper type
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "context" with the proper type
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "numberOfInputs" with the proper type
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "numberOfOutputs" with the proper type
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "channelCount" with the proper type
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "channelCountMode" with the proper type
+Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "channelInterpretation" with the proper type
+Fail	MediaStreamAudioSourceNode interface: existence and properties of interface object
+Fail	MediaStreamAudioSourceNode interface object length
+Fail	MediaStreamAudioSourceNode interface object name
+Fail	MediaStreamAudioSourceNode interface: existence and properties of interface prototype object
+Fail	MediaStreamAudioSourceNode interface: existence and properties of interface prototype object's "constructor" property
+Fail	MediaStreamAudioSourceNode interface: existence and properties of interface prototype object's @@unscopables property
+Fail	MediaStreamAudioSourceNode interface: attribute mediaStream
+Fail	MediaStreamTrackAudioSourceNode interface: existence and properties of interface object
+Fail	MediaStreamTrackAudioSourceNode interface object length
+Fail	MediaStreamTrackAudioSourceNode interface object name
+Fail	MediaStreamTrackAudioSourceNode interface: existence and properties of interface prototype object
+Fail	MediaStreamTrackAudioSourceNode interface: existence and properties of interface prototype object's "constructor" property
+Fail	MediaStreamTrackAudioSourceNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	OscillatorNode interface: existence and properties of interface object
+Pass	OscillatorNode interface object length
+Pass	OscillatorNode interface object name
+Pass	OscillatorNode interface: existence and properties of interface prototype object
+Pass	OscillatorNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	OscillatorNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	OscillatorNode interface: attribute type
+Pass	OscillatorNode interface: attribute frequency
+Pass	OscillatorNode interface: attribute detune
+Pass	OscillatorNode interface: operation setPeriodicWave(PeriodicWave)
+Pass	OscillatorNode must be primary interface of new OscillatorNode(context)
+Pass	Stringification of new OscillatorNode(context)
+Pass	OscillatorNode interface: new OscillatorNode(context) must inherit property "type" with the proper type
+Pass	OscillatorNode interface: new OscillatorNode(context) must inherit property "frequency" with the proper type
+Pass	OscillatorNode interface: new OscillatorNode(context) must inherit property "detune" with the proper type
+Pass	OscillatorNode interface: new OscillatorNode(context) must inherit property "setPeriodicWave(PeriodicWave)" with the proper type
+Pass	OscillatorNode interface: calling setPeriodicWave(PeriodicWave) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioScheduledSourceNode interface: new OscillatorNode(context) must inherit property "onended" with the proper type
+Pass	AudioScheduledSourceNode interface: new OscillatorNode(context) must inherit property "start(optional double)" with the proper type
+Pass	AudioScheduledSourceNode interface: calling start(optional double) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioScheduledSourceNode interface: new OscillatorNode(context) must inherit property "stop(optional double)" with the proper type
+Pass	AudioScheduledSourceNode interface: calling stop(optional double) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new OscillatorNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new OscillatorNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	PannerNode interface: existence and properties of interface object
+Pass	PannerNode interface object length
+Pass	PannerNode interface object name
+Pass	PannerNode interface: existence and properties of interface prototype object
+Pass	PannerNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	PannerNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	PannerNode interface: attribute panningModel
+Pass	PannerNode interface: attribute positionX
+Pass	PannerNode interface: attribute positionY
+Pass	PannerNode interface: attribute positionZ
+Pass	PannerNode interface: attribute orientationX
+Pass	PannerNode interface: attribute orientationY
+Pass	PannerNode interface: attribute orientationZ
+Pass	PannerNode interface: attribute distanceModel
+Pass	PannerNode interface: attribute refDistance
+Pass	PannerNode interface: attribute maxDistance
+Pass	PannerNode interface: attribute rolloffFactor
+Pass	PannerNode interface: attribute coneInnerAngle
+Pass	PannerNode interface: attribute coneOuterAngle
+Pass	PannerNode interface: attribute coneOuterGain
+Pass	PannerNode interface: operation setPosition(float, float, float)
+Pass	PannerNode interface: operation setOrientation(float, float, float)
+Pass	PannerNode must be primary interface of new PannerNode(context)
+Pass	Stringification of new PannerNode(context)
+Pass	PannerNode interface: new PannerNode(context) must inherit property "panningModel" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "positionX" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "positionY" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "positionZ" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "orientationX" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "orientationY" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "orientationZ" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "distanceModel" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "refDistance" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "maxDistance" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "rolloffFactor" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "coneInnerAngle" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "coneOuterAngle" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "coneOuterGain" with the proper type
+Pass	PannerNode interface: new PannerNode(context) must inherit property "setPosition(float, float, float)" with the proper type
+Pass	PannerNode interface: calling setPosition(float, float, float) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	PannerNode interface: new PannerNode(context) must inherit property "setOrientation(float, float, float)" with the proper type
+Pass	PannerNode interface: calling setOrientation(float, float, float) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new PannerNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new PannerNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new PannerNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new PannerNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new PannerNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new PannerNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new PannerNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new PannerNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new PannerNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new PannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new PannerNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new PannerNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new PannerNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new PannerNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new PannerNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new PannerNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	PeriodicWave interface: existence and properties of interface object
+Pass	PeriodicWave interface object length
+Pass	PeriodicWave interface object name
+Pass	PeriodicWave interface: existence and properties of interface prototype object
+Pass	PeriodicWave interface: existence and properties of interface prototype object's "constructor" property
+Pass	PeriodicWave interface: existence and properties of interface prototype object's @@unscopables property
+Pass	PeriodicWave must be primary interface of new PeriodicWave(context)
+Pass	Stringification of new PeriodicWave(context)
+Pass	ScriptProcessorNode interface: existence and properties of interface object
+Pass	ScriptProcessorNode interface object length
+Pass	ScriptProcessorNode interface object name
+Pass	ScriptProcessorNode interface: existence and properties of interface prototype object
+Pass	ScriptProcessorNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	ScriptProcessorNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	ScriptProcessorNode interface: attribute onaudioprocess
+Pass	ScriptProcessorNode interface: attribute bufferSize
+Pass	ScriptProcessorNode must be primary interface of context.createScriptProcessor()
+Pass	Stringification of context.createScriptProcessor()
+Pass	ScriptProcessorNode interface: context.createScriptProcessor() must inherit property "onaudioprocess" with the proper type
+Pass	ScriptProcessorNode interface: context.createScriptProcessor() must inherit property "bufferSize" with the proper type
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on context.createScriptProcessor() with too few arguments must throw TypeError
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on context.createScriptProcessor() with too few arguments must throw TypeError
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on context.createScriptProcessor() with too few arguments must throw TypeError
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on context.createScriptProcessor() with too few arguments must throw TypeError
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on context.createScriptProcessor() with too few arguments must throw TypeError
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on context.createScriptProcessor() with too few arguments must throw TypeError
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on context.createScriptProcessor() with too few arguments must throw TypeError
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on context.createScriptProcessor() with too few arguments must throw TypeError
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "context" with the proper type
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: context.createScriptProcessor() must inherit property "channelInterpretation" with the proper type
+Pass	StereoPannerNode interface: existence and properties of interface object
+Pass	StereoPannerNode interface object length
+Pass	StereoPannerNode interface object name
+Pass	StereoPannerNode interface: existence and properties of interface prototype object
+Pass	StereoPannerNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	StereoPannerNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	StereoPannerNode interface: attribute pan
+Pass	StereoPannerNode must be primary interface of new StereoPannerNode(context)
+Pass	Stringification of new StereoPannerNode(context)
+Pass	StereoPannerNode interface: new StereoPannerNode(context) must inherit property "pan" with the proper type
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new StereoPannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new StereoPannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new StereoPannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new StereoPannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new StereoPannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new StereoPannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new StereoPannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new StereoPannerNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new StereoPannerNode(context) must inherit property "channelInterpretation" with the proper type
+Fail	WaveShaperNode interface: existence and properties of interface object
+Fail	WaveShaperNode interface object length
+Fail	WaveShaperNode interface object name
+Fail	WaveShaperNode interface: existence and properties of interface prototype object
+Fail	WaveShaperNode interface: existence and properties of interface prototype object's "constructor" property
+Fail	WaveShaperNode interface: existence and properties of interface prototype object's @@unscopables property
+Fail	WaveShaperNode interface: attribute curve
+Fail	WaveShaperNode interface: attribute oversample
+Fail	WaveShaperNode must be primary interface of new WaveShaperNode(context)
+Fail	Stringification of new WaveShaperNode(context)
+Fail	WaveShaperNode interface: new WaveShaperNode(context) must inherit property "curve" with the proper type
+Fail	WaveShaperNode interface: new WaveShaperNode(context) must inherit property "oversample" with the proper type
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect()" with the proper type
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode) on new WaveShaperNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam) on new WaveShaperNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "context" with the proper type
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "numberOfInputs" with the proper type
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "numberOfOutputs" with the proper type
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "channelCount" with the proper type
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "channelCountMode" with the proper type
+Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "channelInterpretation" with the proper type
+Fail	AudioWorklet interface: existence and properties of interface object
+Fail	AudioWorklet interface object length
+Fail	AudioWorklet interface object name
+Fail	AudioWorklet interface: existence and properties of interface prototype object
+Fail	AudioWorklet interface: existence and properties of interface prototype object's "constructor" property
+Fail	AudioWorklet interface: existence and properties of interface prototype object's @@unscopables property
+Fail	AudioWorklet interface: attribute port
+Fail	AudioWorklet must be primary interface of context.audioWorklet
+Fail	Stringification of context.audioWorklet
+Fail	AudioWorklet interface: context.audioWorklet must inherit property "port" with the proper type
+Pass	AudioWorkletGlobalScope interface: existence and properties of interface object
+Fail	AudioParamMap interface: existence and properties of interface object
+Fail	AudioParamMap interface object length
+Fail	AudioParamMap interface object name
+Fail	AudioParamMap interface: existence and properties of interface prototype object
+Fail	AudioParamMap interface: existence and properties of interface prototype object's "constructor" property
+Fail	AudioParamMap interface: existence and properties of interface prototype object's @@unscopables property
+Fail	AudioParamMap interface: maplike<DOMString, AudioParam>
+Fail	AudioParamMap must be primary interface of worklet_node.parameters
+Fail	Stringification of worklet_node.parameters
+Fail	AudioWorkletNode interface: existence and properties of interface object
+Fail	AudioWorkletNode interface object length
+Fail	AudioWorkletNode interface object name
+Fail	AudioWorkletNode interface: existence and properties of interface prototype object
+Fail	AudioWorkletNode interface: existence and properties of interface prototype object's "constructor" property
+Fail	AudioWorkletNode interface: existence and properties of interface prototype object's @@unscopables property
+Fail	AudioWorkletNode interface: attribute parameters
+Fail	AudioWorkletNode interface: attribute port
+Fail	AudioWorkletNode interface: attribute onprocessorerror
+Fail	AudioWorkletNode must be primary interface of worklet_node
+Fail	Stringification of worklet_node
+Fail	AudioWorkletNode interface: worklet_node must inherit property "parameters" with the proper type
+Fail	AudioWorkletNode interface: worklet_node must inherit property "port" with the proper type
+Fail	AudioWorkletNode interface: worklet_node must inherit property "onprocessorerror" with the proper type
+Fail	AudioNode interface: worklet_node must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on worklet_node with too few arguments must throw TypeError
+Fail	AudioNode interface: worklet_node must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Fail	AudioNode interface: calling connect(AudioParam, optional unsigned long) on worklet_node with too few arguments must throw TypeError
+Fail	AudioNode interface: worklet_node must inherit property "disconnect()" with the proper type
+Fail	AudioNode interface: worklet_node must inherit property "disconnect(unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(unsigned long) on worklet_node with too few arguments must throw TypeError
+Fail	AudioNode interface: worklet_node must inherit property "disconnect(AudioNode)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode) on worklet_node with too few arguments must throw TypeError
+Fail	AudioNode interface: worklet_node must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long) on worklet_node with too few arguments must throw TypeError
+Fail	AudioNode interface: worklet_node must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on worklet_node with too few arguments must throw TypeError
+Fail	AudioNode interface: worklet_node must inherit property "disconnect(AudioParam)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam) on worklet_node with too few arguments must throw TypeError
+Fail	AudioNode interface: worklet_node must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Fail	AudioNode interface: calling disconnect(AudioParam, unsigned long) on worklet_node with too few arguments must throw TypeError
+Fail	AudioNode interface: worklet_node must inherit property "context" with the proper type
+Fail	AudioNode interface: worklet_node must inherit property "numberOfInputs" with the proper type
+Fail	AudioNode interface: worklet_node must inherit property "numberOfOutputs" with the proper type
+Fail	AudioNode interface: worklet_node must inherit property "channelCount" with the proper type
+Fail	AudioNode interface: worklet_node must inherit property "channelCountMode" with the proper type
+Fail	AudioNode interface: worklet_node must inherit property "channelInterpretation" with the proper type
+Pass	AudioWorkletProcessor interface: existence and properties of interface object

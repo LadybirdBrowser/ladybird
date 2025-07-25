@@ -380,6 +380,7 @@ SVGUseElement
 SVGViewElement
 Screen
 ScreenOrientation
+ScriptProcessorNode
 SecurityPolicyViolationEvent
 Selection
 ServiceWorker
