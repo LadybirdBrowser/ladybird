@@ -1129,7 +1129,7 @@ static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(D
     return target_ranges;
 }
 
-EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable& navigable, Variant<u32, String> code_point_or_string)
+EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable& navigable, Variant<u32, Utf16String> code_point_or_string)
 {
     auto document = navigable.active_document();
     if (!document)
@@ -1139,14 +1139,14 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
 
     UIEvents::InputEventInit input_event_init;
 
-    if (code_point_or_string.has<u32>()) {
-        auto code_point = code_point_or_string.get<u32>();
-        if (!is_unicode_control(code_point)) {
-            input_event_init.data = String::from_code_point(code_point);
-        }
-    } else {
-        input_event_init.data = code_point_or_string.get<String>();
-    }
+    code_point_or_string.visit(
+        [&](u32 code_point) {
+            if (!is_unicode_control(code_point))
+                input_event_init.data = Utf16String::from_code_point(code_point);
+        },
+        [&](Utf16String const& string) {
+            input_event_init.data = string;
+        });
 
     input_event_init.input_type = input_type;
 
@@ -1154,7 +1154,7 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
         if (is<HTML::NavigableContainer>(*focused_element)) {
             auto& navigable_container = as<HTML::NavigableContainer>(*focused_element);
             if (navigable_container.content_navigable())
-                return input_event(event_name, input_type, *navigable_container.content_navigable(), code_point_or_string);
+                return input_event(event_name, input_type, *navigable_container.content_navigable(), move(code_point_or_string));
         }
 
         auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init, target_ranges_for_input_event(*document));
@@ -1385,8 +1385,10 @@ EventResult EventHandler::handle_paste(String const& text)
     if (!target)
         return EventResult::Dropped;
 
-    FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertFromPaste, m_navigable, text));
-    target->handle_insert(Utf16String::from_utf8(text));
+    auto utf16_string = Utf16String::from_utf8(text);
+
+    FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertFromPaste, m_navigable, utf16_string));
+    target->handle_insert(utf16_string);
     return EventResult::Handled;
 }
 

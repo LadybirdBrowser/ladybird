@@ -12,7 +12,7 @@
 namespace Web::UIEvents {
 
 struct InputEventInit : public UIEventInit {
-    Optional<String> data;
+    Optional<Utf16String> data;
     bool is_composing { false };
     FlyString input_type {};
 };
@@ -28,7 +28,7 @@ public:
     virtual ~InputEvent() override;
 
     // https://w3c.github.io/uievents/#dom-inputevent-data
-    Optional<String> data() const { return m_data; }
+    Optional<Utf16String> data() const { return m_data; }
 
     // https://w3c.github.io/uievents/#dom-inputevent-iscomposing
     bool is_composing() const { return m_is_composing; }
@@ -44,7 +44,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    Optional<String> m_data;
+    Optional<Utf16String> m_data;
     bool m_is_composing;
     FlyString m_input_type;
     Vector<GC::Ref<DOM::StaticRange>> m_target_ranges;

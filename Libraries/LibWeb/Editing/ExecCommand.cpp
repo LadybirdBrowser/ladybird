@@ -17,7 +17,7 @@
 namespace Web::DOM {
 
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
-WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[maybe_unused]] bool show_ui, String const& value)
+WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[maybe_unused]] bool show_ui, Utf16String const& value)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -101,8 +101,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     auto old_character_data_version = character_data_version();
 
     // 5. Take the action for command, passing value to the instructions as an argument.
-    auto utf16_value = Utf16String::from_utf8_without_validation(value);
-    auto command_result = command_definition.action(*this, utf16_value.utf16_view());
+    auto command_result = command_definition.action(*this, value);
 
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
     // After taking the action, if the active range is collapsed, it must restore states and values from the recorded

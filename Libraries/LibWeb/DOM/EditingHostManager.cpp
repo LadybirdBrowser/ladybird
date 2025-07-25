@@ -43,7 +43,7 @@ void EditingHostManager::handle_insert(Utf16String const& value)
     // once or in quick succession, this specification does not define whether it is treated as one insertion or several
     // consecutive insertions.
 
-    auto editing_result = m_document->exec_command(Editing::CommandNames::insertText, false, value.to_utf8_but_should_be_ported_to_utf16());
+    auto editing_result = m_document->exec_command(Editing::CommandNames::insertText, false, value);
     if (editing_result.is_exception())
         dbgln("handle_insert(): editing resulted in exception: {}", editing_result.exception());
 }
