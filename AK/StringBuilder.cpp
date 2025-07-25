@@ -179,9 +179,17 @@ ErrorOr<void> StringBuilder::try_append_repeated(StringView string, size_t n)
 {
     if (string.is_empty())
         return {};
-    TRY(will_append(string.length() * (m_mode == Mode::UTF8 ? 1 : 2)));
+
+    if (m_mode == Mode::UTF8) {
+        TRY(will_append(string.length() * n));
+    } else {
+        auto utf16_length = simdutf::utf16_length_from_utf8(string.characters_without_null_termination(), string.length());
+        TRY(will_append(utf16_length * n * 2));
+    }
+
     for (size_t i = 0; i < n; ++i)
         TRY(try_append(string));
+
     return {};
 }
 
