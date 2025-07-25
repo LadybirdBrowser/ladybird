@@ -129,7 +129,7 @@ void EditingHostManager::increment_cursor_position_to_next_word(CollapseSelectio
     auto selection = m_document->get_selection();
     if (!selection)
         return;
-    selection->move_offset_to_next_character(collapse == CollapseSelection::Yes);
+    selection->move_offset_to_next_word(collapse == CollapseSelection::Yes);
 }
 
 void EditingHostManager::decrement_cursor_position_to_previous_word(CollapseSelection collapse)
