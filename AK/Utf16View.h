@@ -341,6 +341,23 @@ public:
         return { m_string.utf16 + length_in_code_units(), 0 };
     }
 
+    [[nodiscard]] constexpr size_t iterator_offset(Utf16CodePointIterator const& it) const
+    {
+        if (has_ascii_storage()) {
+            VERIFY(it.has_ascii_storage());
+            VERIFY(it.m_iterator.ascii >= m_string.ascii);
+            VERIFY(it.m_iterator.ascii <= m_string.ascii);
+
+            return it.m_iterator.ascii - m_string.ascii;
+        }
+
+        VERIFY(!it.has_ascii_storage());
+        VERIFY(it.m_iterator.utf16 >= m_string.utf16);
+        VERIFY(it.m_iterator.utf16 <= m_string.utf16);
+
+        return it.m_iterator.utf16 - m_string.utf16;
+    }
+
     Utf16String replace(Utf16View const& needle, Utf16View const& replacement, ReplaceMode) const;
     Utf16String escape_html_entities() const;
 
