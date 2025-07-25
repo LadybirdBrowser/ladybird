@@ -76,6 +76,7 @@ function(_swift_generate_cxx_header target header)
       -Xcc -Wno-unqualified-std-cast-call
       -Xcc -Wno-user-defined-literals
       -Xcc -Wno-unknown-warning-option
+      -Xcc -Wno-invalid-offsetof
       -module-name "${ARG_MODULE_NAME}"
       -cxx-interoperability-mode=default
       -emit-clang-header-path ${header_path}
