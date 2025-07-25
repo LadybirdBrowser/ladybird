@@ -331,8 +331,8 @@ void InlineFormattingContext::generate_line_boxes()
                     next_width = iterator.next_non_whitespace_sequence_width();
                 } else {
                     // In whitespace-preserving contexts (white-space: pre*), we have to check manually.
-                    auto view = text_node.text_for_rendering().bytes_as_string_view().substring_view(item.offset_in_node, item.length_in_node);
-                    is_whitespace = view.is_whitespace();
+                    auto view = text_node.text_for_rendering().substring_view(item.offset_in_node, item.length_in_node);
+                    is_whitespace = view.is_ascii_whitespace();
                     if (is_whitespace)
                         next_width = iterator.next_non_whitespace_sequence_width();
                 }

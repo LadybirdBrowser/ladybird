@@ -702,14 +702,7 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
         return;
 
     // NOTE: This checks if the cursor is before the start or after the end of the fragment. If it is at the end, after all text, it should still be painted.
-    size_t cursor_position_byte_offset = 0;
-    if (cursor_position->offset() == fragment.utf16_view().length_in_code_units()) {
-        cursor_position_byte_offset = fragment.utf8_view().byte_length();
-    } else {
-        auto cursor_position_code_point_offset = fragment.utf16_view().code_point_offset_of(cursor_position->offset());
-        cursor_position_byte_offset = fragment.utf8_view().byte_offset_of(cursor_position_code_point_offset);
-    }
-    if (cursor_position_byte_offset < fragment.start_byte_offset() || cursor_position_byte_offset > (fragment.start_byte_offset() + fragment.length_in_bytes()))
+    if (cursor_position->offset() < (unsigned)fragment.start_offset() || cursor_position->offset() > (unsigned)(fragment.start_offset() + fragment.length_in_code_units()))
         return;
 
     auto active_element = document.active_element();
@@ -725,10 +718,10 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
         return;
 
     auto fragment_rect = fragment.absolute_rect();
+    auto text = fragment.text();
 
     auto const& font = fragment.glyph_run() ? fragment.glyph_run()->font() : fragment.layout_node().first_available_font();
-    auto utf8_text = fragment.utf8_view();
-    auto cursor_offset = font.width(utf8_text.substring_view(fragment.start_byte_offset(), cursor_position_byte_offset - fragment.start_byte_offset()));
+    auto cursor_offset = font.width(text.substring_view(0, cursor_position->offset() - fragment.start_offset()));
 
     CSSPixelRect cursor_rect {
         fragment_rect.x() + CSSPixels::nearest_value_for(cursor_offset),
@@ -868,8 +861,6 @@ void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, 
 
         if (paintable.document().highlighted_layout_node() == &paintable.layout_node())
             context.display_list_recorder().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Magenta);
-
-        auto text = paintable.text_for_rendering();
 
         auto glyph_run = fragment.glyph_run();
         if (!glyph_run)
@@ -1244,7 +1235,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
                 if (fragment_absolute_rect.bottom() - 1 <= transformed_position_adjusted_by_scroll_offset.y()) { // fully below the fragment
                     HitTestResult hit_test_result {
                         .paintable = const_cast<Paintable&>(fragment.paintable()),
-                        .index_in_node = fragment.index_in_node_for_byte_offset(fragment.start_byte_offset() + fragment.length_in_bytes()),
+                        .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
                         .vertical_distance = transformed_position_adjusted_by_scroll_offset.y() - fragment_absolute_rect.bottom(),
                     };
                     if (callback(hit_test_result) == TraversalDecision::Break)
@@ -1253,7 +1244,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
                     if (transformed_position_adjusted_by_scroll_offset.x() < fragment_absolute_rect.left()) {
                         HitTestResult hit_test_result {
                             .paintable = const_cast<Paintable&>(fragment.paintable()),
-                            .index_in_node = fragment.index_in_node_for_byte_offset(fragment.start_byte_offset()),
+                            .index_in_node = fragment.start_offset(),
                             .vertical_distance = 0,
                             .horizontal_distance = fragment_absolute_rect.left() - transformed_position_adjusted_by_scroll_offset.x(),
                         };
@@ -1262,7 +1253,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
                     } else if (transformed_position_adjusted_by_scroll_offset.x() > fragment_absolute_rect.right()) {
                         HitTestResult hit_test_result {
                             .paintable = const_cast<Paintable&>(fragment.paintable()),
-                            .index_in_node = fragment.index_in_node_for_byte_offset(fragment.start_byte_offset() + fragment.length_in_bytes()),
+                            .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
                             .vertical_distance = 0,
                             .horizontal_distance = transformed_position_adjusted_by_scroll_offset.x() - fragment_absolute_rect.right(),
                         };

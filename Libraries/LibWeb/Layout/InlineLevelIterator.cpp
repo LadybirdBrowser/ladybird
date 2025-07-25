@@ -161,8 +161,8 @@ CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
             if (next_item.is_collapsible_whitespace)
                 break;
             auto& next_text_node = as<Layout::TextNode>(*(next_item.node));
-            auto next_view = next_text_node.text_for_rendering().bytes_as_string_view().substring_view(next_item.offset_in_node, next_item.length_in_node);
-            if (next_view.is_whitespace())
+            auto next_view = next_text_node.text_for_rendering().substring_view(next_item.offset_in_node, next_item.length_in_node);
+            if (next_view.is_ascii_whitespace())
                 break;
         }
         next_width += next_item.border_box_width();

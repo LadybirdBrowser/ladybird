@@ -63,7 +63,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           frag 1 from TextNode start: 0, length: 1, rect: [128.171875,26 4.5625x18] baseline: 13.796875
               "i"
           InlineNode <(anonymous)>
-            frag 0 from TextNode start: 0, length: 3, rect: [8,26 5.84375x18] baseline: 13.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [8,26 5.84375x18] baseline: 13.796875
                 "“"
             TextNode <#text>
           TextNode <#text>
@@ -73,7 +73,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             frag 1 from TextNode start: 0, length: 1, rect: [113.03125,26 9.296875x18] baseline: 13.796875
                 "h"
             InlineNode <(anonymous)>
-              frag 0 from TextNode start: 0, length: 3, rect: [23.1875,26 5.84375x18] baseline: 13.796875
+              frag 0 from TextNode start: 0, length: 1, rect: [23.1875,26 5.84375x18] baseline: 13.796875
                   "‘"
               TextNode <#text>
             TextNode <#text>
@@ -83,7 +83,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
               frag 1 from TextNode start: 0, length: 1, rect: [99.625,26 7.5625x18] baseline: 13.796875
                   "g"
               InlineNode <(anonymous)>
-                frag 0 from TextNode start: 0, length: 3, rect: [38.5,26 5.84375x18] baseline: 13.796875
+                frag 0 from TextNode start: 0, length: 1, rect: [38.5,26 5.84375x18] baseline: 13.796875
                     "‘"
                 TextNode <#text>
               TextNode <#text>
@@ -93,7 +93,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
                 frag 1 from TextNode start: 0, length: 1, rect: [87.34375,26 6.4375x18] baseline: 13.796875
                     "f"
                 InlineNode <(anonymous)>
-                  frag 0 from TextNode start: 0, length: 3, rect: [53.234375,26 5.84375x18] baseline: 13.796875
+                  frag 0 from TextNode start: 0, length: 1, rect: [53.234375,26 5.84375x18] baseline: 13.796875
                       "‘"
                   TextNode <#text>
                 TextNode <#text>
@@ -101,32 +101,32 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
                   frag 0 from TextNode start: 0, length: 1, rect: [72.78125,26 8.71875x18] baseline: 13.796875
                       "e"
                   InlineNode <(anonymous)>
-                    frag 0 from TextNode start: 0, length: 3, rect: [66.9375,26 5.84375x18] baseline: 13.796875
+                    frag 0 from TextNode start: 0, length: 1, rect: [66.9375,26 5.84375x18] baseline: 13.796875
                         "‘"
                     TextNode <#text>
                   TextNode <#text>
                   InlineNode <(anonymous)>
-                    frag 0 from TextNode start: 0, length: 3, rect: [81.5,26 5.84375x18] baseline: 13.796875
+                    frag 0 from TextNode start: 0, length: 1, rect: [81.5,26 5.84375x18] baseline: 13.796875
                         "’"
                     TextNode <#text>
                 TextNode <#text>
                 InlineNode <(anonymous)>
-                  frag 0 from TextNode start: 0, length: 3, rect: [93.78125,26 5.84375x18] baseline: 13.796875
+                  frag 0 from TextNode start: 0, length: 1, rect: [93.78125,26 5.84375x18] baseline: 13.796875
                       "’"
                   TextNode <#text>
               TextNode <#text>
               InlineNode <(anonymous)>
-                frag 0 from TextNode start: 0, length: 3, rect: [107.1875,26 5.84375x18] baseline: 13.796875
+                frag 0 from TextNode start: 0, length: 1, rect: [107.1875,26 5.84375x18] baseline: 13.796875
                     "’"
                 TextNode <#text>
             TextNode <#text>
             InlineNode <(anonymous)>
-              frag 0 from TextNode start: 0, length: 3, rect: [122.328125,26 5.84375x18] baseline: 13.796875
+              frag 0 from TextNode start: 0, length: 1, rect: [122.328125,26 5.84375x18] baseline: 13.796875
                   "’"
               TextNode <#text>
           TextNode <#text>
           InlineNode <(anonymous)>
-            frag 0 from TextNode start: 0, length: 3, rect: [132.734375,26 5.84375x18] baseline: 13.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [132.734375,26 5.84375x18] baseline: 13.796875
                 "”"
             TextNode <#text>
       BlockContainer <(anonymous)> at (8,44) content-size 784x0 children: inline

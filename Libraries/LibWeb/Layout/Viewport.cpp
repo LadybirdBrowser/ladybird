@@ -80,7 +80,7 @@ void Viewport::update_text_blocks()
                     text_positions.empend(dom_node, current_start_position);
                 }
 
-                auto const& current_node_text = Utf16String::from_utf8(text_node->text_for_rendering());
+                auto const& current_node_text = text_node->text_for_rendering();
                 current_start_position += current_node_text.length_in_code_units();
                 builder.append(current_node_text);
             }

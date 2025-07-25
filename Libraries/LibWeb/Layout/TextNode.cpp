@@ -26,19 +26,9 @@ TextNode::TextNode(DOM::Document& document, DOM::Text& text)
 
 TextNode::~TextNode() = default;
 
-static bool is_all_whitespace(StringView string)
-{
-    for (size_t i = 0; i < string.length(); ++i) {
-        if (!is_ascii_space(string[i]))
-            return false;
-    }
-    return true;
-}
-
 // https://w3c.github.io/mathml-core/#new-text-transform-values
-static String apply_math_auto_text_transform(String const& string)
+static Utf16String apply_math_auto_text_transform(Utf16String const& string)
 {
-
     // https://w3c.github.io/mathml-core/#italic-mappings
     auto map_code_point_to_italic = [](u32 code_point) -> u32 {
         switch (code_point) {
@@ -271,15 +261,15 @@ static String apply_math_auto_text_transform(String const& string)
         }
     };
 
-    StringBuilder builder(string.bytes().size());
+    StringBuilder builder(StringBuilder::Mode::UTF16, string.length_in_code_units());
 
-    for (auto code_point : string.code_points())
+    for (auto code_point : string)
         builder.append_code_point(map_code_point_to_italic(code_point));
 
-    return MUST(builder.to_string());
+    return builder.to_utf16_string();
 }
 
-static ErrorOr<String> apply_text_transform(String const& string, CSS::TextTransform text_transform, Optional<StringView> const& locale)
+static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTransform text_transform, Optional<StringView> const& locale)
 {
     switch (text_transform) {
     case CSS::TextTransform::Uppercase:
@@ -311,7 +301,7 @@ void TextNode::invalidate_text_for_rendering()
     m_grapheme_segmenter.clear();
 }
 
-String const& TextNode::text_for_rendering() const
+Utf16String const& TextNode::text_for_rendering() const
 {
     if (!m_text_for_rendering.has_value())
         const_cast<TextNode*>(this)->compute_text_for_rendering();
@@ -322,7 +312,7 @@ String const& TextNode::text_for_rendering() const
 void TextNode::compute_text_for_rendering()
 {
     if (dom_node().is_password_input()) {
-        m_text_for_rendering = MUST(String::repeated('*', dom_node().data().length_in_code_points()));
+        m_text_for_rendering = Utf16String::repeated('*', dom_node().data().length_in_code_points());
         return;
     }
 
@@ -332,58 +322,54 @@ void TextNode::compute_text_for_rendering()
     auto const maybe_lang = parent_element ? parent_element->lang() : Optional<String> {};
     auto const lang = maybe_lang.has_value() ? maybe_lang.value() : Optional<StringView> {};
 
-    auto data = apply_text_transform(dom_node().data().to_utf8_but_should_be_ported_to_utf16(), computed_values().text_transform(), lang).release_value_but_fixme_should_propagate_errors();
-
-    auto data_view = data.bytes_as_string_view();
+    auto data = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang);
 
     if (!collapse || data.is_empty()) {
-        m_text_for_rendering = data;
+        m_text_for_rendering = move(data);
         return;
     }
 
     // NOTE: A couple fast returns to avoid unnecessarily allocating a StringBuilder.
-    if (data_view.length() == 1) {
-        if (is_ascii_space(data_view[0])) {
-            static String s_single_space_string = " "_string;
-            m_text_for_rendering = s_single_space_string;
-        } else {
-            m_text_for_rendering = data;
-        }
+    if (data.length_in_code_units() == 1) {
+        if (data.is_ascii_whitespace())
+            m_text_for_rendering = " "_utf16;
+        else
+            m_text_for_rendering = move(data);
         return;
     }
 
     bool contains_space = false;
-    for (auto c : data_view) {
-        if (is_ascii_space(c)) {
+    for (auto code_point : data) {
+        if (is_ascii_space(code_point)) {
             contains_space = true;
             break;
         }
     }
     if (!contains_space) {
-        m_text_for_rendering = data;
+        m_text_for_rendering = move(data);
         return;
     }
 
-    StringBuilder builder(data_view.length());
+    StringBuilder builder(StringBuilder::Mode::UTF16, data.length_in_code_units());
     size_t index = 0;
 
-    auto skip_over_whitespace = [&index, &data_view] {
-        while (index < data_view.length() && is_ascii_space(data_view[index]))
+    auto skip_over_whitespace = [&]() {
+        while (index < data.length_in_code_units() && is_ascii_space(data.code_unit_at(index)))
             ++index;
     };
 
-    while (index < data_view.length()) {
-        if (is_ascii_space(data_view[index])) {
+    while (index < data.length_in_code_units()) {
+        if (is_ascii_space(data.code_unit_at(index))) {
             builder.append(' ');
             ++index;
             skip_over_whitespace();
         } else {
-            builder.append(data_view[index]);
+            builder.append_code_unit(data.code_unit_at(index));
             ++index;
         }
     }
 
-    m_text_for_rendering = MUST(builder.to_string());
+    m_text_for_rendering = builder.to_utf16_string();
 }
 
 Unicode::Segmenter& TextNode::grapheme_segmenter() const
@@ -399,7 +385,7 @@ Unicode::Segmenter& TextNode::grapheme_segmenter() const
 TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, bool wrap_lines, bool respect_linebreaks)
     : m_wrap_lines(wrap_lines)
     , m_respect_linebreaks(respect_linebreaks)
-    , m_utf8_view(text_node.text_for_rendering())
+    , m_view(text_node.text_for_rendering())
     , m_font_cascade_list(text_node.computed_values().font_list())
     , m_grapheme_segmenter(text_node.grapheme_segmenter())
 {
@@ -467,14 +453,14 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::peek(size_t count)
 
 Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 {
-    if (m_current_index >= m_utf8_view.byte_length())
+    if (m_current_index >= m_view.length_in_code_units())
         return {};
 
     auto current_code_point = [this]() {
-        return *m_utf8_view.iterator_at_byte_offset_without_validation(m_current_index);
+        return m_view.code_point_at(m_current_index);
     };
     auto next_grapheme_boundary = [this]() {
-        return m_grapheme_segmenter.next_boundary(m_current_index).value_or(m_utf8_view.byte_length());
+        return m_grapheme_segmenter.next_boundary(m_current_index).value_or(m_view.length_in_code_units());
     };
 
     auto code_point = current_code_point();
@@ -485,7 +471,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 
     auto broken_on_tab = false;
 
-    while (m_current_index < m_utf8_view.byte_length()) {
+    while (m_current_index < m_view.length_in_code_units()) {
         code_point = current_code_point();
 
         if (code_point == '\t') {
@@ -494,7 +480,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 
             broken_on_tab = true;
             // consume any consecutive tabs
-            while (m_current_index < m_utf8_view.byte_length() && current_code_point() == '\t') {
+            while (m_current_index < m_view.length_in_code_units() && current_code_point() == '\t') {
                 m_current_index = next_grapheme_boundary();
             }
         }
@@ -542,9 +528,9 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
         m_current_index = next_grapheme_boundary();
     }
 
-    if (start_of_chunk != m_utf8_view.byte_length()) {
+    if (start_of_chunk != m_view.length_in_code_units()) {
         // Try to output whatever's left at the end of the text node.
-        if (auto result = try_commit_chunk(start_of_chunk, m_utf8_view.byte_length(), false, broken_on_tab, font, text_type); result.has_value())
+        if (auto result = try_commit_chunk(start_of_chunk, m_view.length_in_code_units(), false, broken_on_tab, font, text_type); result.has_value())
             return result.release_value();
     }
 
@@ -554,7 +540,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, bool has_breaking_tab, Gfx::Font const& font, Gfx::GlyphRun::TextType text_type) const
 {
     if (auto byte_length = end - start; byte_length > 0) {
-        auto chunk_view = m_utf8_view.substring_view(start, byte_length);
+        auto chunk_view = m_view.substring_view(start, byte_length);
         return Chunk {
             .view = chunk_view,
             .font = font,
@@ -562,7 +548,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start
             .length = byte_length,
             .has_breaking_newline = has_breaking_newline,
             .has_breaking_tab = has_breaking_tab,
-            .is_all_whitespace = is_all_whitespace(chunk_view.as_string()),
+            .is_all_whitespace = chunk_view.is_ascii_whitespace(),
             .text_type = text_type,
         };
     }

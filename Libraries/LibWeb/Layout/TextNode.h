@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/Utf8View.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibGfx/TextLayout.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Text.h>
@@ -26,10 +27,10 @@ public:
 
     const DOM::Text& dom_node() const { return static_cast<const DOM::Text&>(*Node::dom_node()); }
 
-    String const& text_for_rendering() const;
+    Utf16String const& text_for_rendering() const;
 
     struct Chunk {
-        Utf8View view;
+        Utf16View view;
         NonnullRefPtr<Gfx::Font const> font;
         size_t start { 0 };
         size_t length { 0 };
@@ -52,7 +53,7 @@ public:
 
         bool const m_wrap_lines;
         bool const m_respect_linebreaks;
-        Utf8View m_utf8_view;
+        Utf16View m_view;
         Gfx::FontCascadeList const& m_font_cascade_list;
 
         Unicode::Segmenter& m_grapheme_segmenter;
@@ -62,7 +63,6 @@ public:
     };
 
     void invalidate_text_for_rendering();
-    void compute_text_for_rendering();
 
     Unicode::Segmenter& grapheme_segmenter() const;
 
@@ -71,7 +71,9 @@ public:
 private:
     virtual bool is_text_node() const final { return true; }
 
-    Optional<String> m_text_for_rendering;
+    void compute_text_for_rendering();
+
+    Optional<Utf16String> m_text_for_rendering;
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
 };
 
