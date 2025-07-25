@@ -416,8 +416,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
             if (keyframe_a.computed_offset.value() == keyframe_b.computed_offset.value()) {
                 keyframe_a.easing = keyframe_b.easing;
                 keyframe_a.composite = keyframe_b.composite;
-                for (auto const& [property_name, property_value] : keyframe_b.unparsed_properties())
-                    keyframe_a.unparsed_properties().set(property_name, property_value);
+                keyframe_a.unparsed_properties().update(keyframe_b.unparsed_properties());
                 processed_keyframes.remove(i + 1);
                 i--;
             }

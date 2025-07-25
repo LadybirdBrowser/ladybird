@@ -461,9 +461,7 @@ Gfx::ShapeFeatures InlineLevelIterator::create_and_merge_font_features() const
     // FIXME 2. If the font is defined via an @font-face rule, the font features implied by the font-feature-settings descriptor in the @font-face rule.
 
     // 3. Font features implied by the value of the ‘font-variant’ property, the related ‘font-variant’ subproperties and any other CSS property that uses OpenType features (e.g. the ‘font-kerning’ property).
-    for (auto& it : shape_features_map()) {
-        merged_features.set(it.key, it.value);
-    }
+    merged_features.update(shape_features_map());
 
     // FIXME 4. Feature settings determined by properties other than ‘font-variant’ or ‘font-feature-settings’. For example, setting a non-default value for the ‘letter-spacing’ property disables common ligatures.
 

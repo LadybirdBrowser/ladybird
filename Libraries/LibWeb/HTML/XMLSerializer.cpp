@@ -515,8 +515,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     // To copy a namespace prefix map map means to copy the map's keys into a new empty namespace prefix map,
     // and to copy each of the values in the namespace prefix list associated with each keys' value into a new list
     // which should be associated with the respective key in the new map.
-    for (auto const& map_entry : namespace_prefix_map)
-        map.set(map_entry.key, map_entry.value);
+    map.update(namespace_prefix_map);
 
     // 7. Let local prefixes map be an empty map. The map has unique Node prefix strings as its keys, with corresponding namespaceURI Node values
     //    as the map's key values (in this map, the null namespace is represented by the empty string).

@@ -1202,8 +1202,7 @@ Interface& Parser::parse()
                 interface.extend_with_partial_interface(*partial_interface);
         }
 
-        for (auto& dictionary : import.dictionaries)
-            interface.dictionaries.set(dictionary.key, dictionary.value);
+        interface.dictionaries.update(import.dictionaries);
 
         for (auto& partial_dictionary : import.partial_dictionaries) {
             auto& it = interface.partial_dictionaries.ensure(partial_dictionary.key);
@@ -1216,8 +1215,7 @@ Interface& Parser::parse()
             interface.enumerations.set(enumeration.key, move(enumeration_copy));
         }
 
-        for (auto& typedef_ : import.typedefs)
-            interface.typedefs.set(typedef_.key, typedef_.value);
+        interface.typedefs.update(import.typedefs);
 
         for (auto& mixin : import.mixins) {
             if (auto it = interface.mixins.find(mixin.key); it != interface.mixins.end() && it->value != mixin.value)
@@ -1225,8 +1223,7 @@ Interface& Parser::parse()
             interface.mixins.set(mixin.key, mixin.value);
         }
 
-        for (auto& callback_function : import.callback_functions)
-            interface.callback_functions.set(callback_function.key, callback_function.value);
+        interface.callback_functions.update(import.callback_functions);
     }
 
     // Resolve mixins
