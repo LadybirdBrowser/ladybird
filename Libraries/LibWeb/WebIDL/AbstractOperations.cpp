@@ -241,7 +241,7 @@ JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM& vm, JS::Value value)
 
 JS::ThrowCompletionOr<String> to_usv_string(JS::VM& vm, JS::Value value)
 {
-    return value.to_well_formed_string(vm);
+    return TRY(value.to_utf16_string(vm)).to_well_formed_utf8();
 }
 
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function

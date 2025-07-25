@@ -158,6 +158,16 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_string_builder(StringBuilde
     return adopt_ref(*new (buffer->buffer.data()) Utf16StringData { storage_type, code_unit_length });
 }
 
+NonnullRefPtr<Utf16StringData> Utf16StringData::to_well_formed(Utf16View const& utf16_string)
+{
+    VERIFY(!utf16_string.has_ascii_storage());
+
+    auto string = create_uninitialized(StorageType::UTF16, utf16_string.length_in_code_units());
+    simdutf::to_well_formed_utf16(utf16_string.utf16_span().data(), utf16_string.length_in_code_units(), string->m_utf16_data);
+
+    return string;
+}
+
 size_t Utf16StringData::calculate_code_point_length() const
 {
     ASSERT(!has_ascii_storage());

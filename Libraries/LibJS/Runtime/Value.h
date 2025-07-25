@@ -352,7 +352,6 @@ public:
     ThrowCompletionOr<String> to_string(VM&) const;
     ThrowCompletionOr<ByteString> to_byte_string(VM&) const;
     ThrowCompletionOr<Utf16String> to_utf16_string(VM&) const;
-    ThrowCompletionOr<String> to_well_formed_string(VM&) const;
     ThrowCompletionOr<GC::Ref<PrimitiveString>> to_primitive_string(VM&);
     ThrowCompletionOr<Value> to_primitive(VM&, PreferredType preferred_type = PreferredType::Default) const;
     ThrowCompletionOr<GC::Ref<Object>> to_object(VM&) const;

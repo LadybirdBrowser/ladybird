@@ -1362,44 +1362,17 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::to_well_formed)
     // 2. Let S be ? ToString(O).
     auto string = TRY(primitive_string_from(vm));
 
-    // NOTE: Rest of steps in to_well_formed below
-    return PrimitiveString::create(vm, to_well_formed_string(string->utf16_string()));
-}
-
-// https://tc39.es/ecma262/#sec-string.prototype.towellformed
-String to_well_formed_string(Utf16String const& string)
-{
     // 3. Let strLen be the length of S.
-    auto length = string.length_in_code_units();
-
     // 4. Let k be 0.
-    size_t k = 0;
-
     // 5. Let result be the empty String.
-    StringBuilder result;
-
     // 6. Repeat, while k < strLen,
-    while (k < length) {
-        // a. Let cp be CodePointAt(S, k).
-        auto code_point = JS::code_point_at(string, k);
-
-        // b. If cp.[[IsUnpairedSurrogate]] is true, then
-        if (code_point.is_unpaired_surrogate) {
-            // i. Set result to the string-concatenation of result and 0xFFFD (REPLACEMENT CHARACTER).
-            result.append_code_point(0xfffd);
-        }
-        // c. Else,
-        else {
-            // i. Set result to the string-concatenation of result and UTF16EncodeCodePoint(cp.[[CodePoint]]).
-            result.append_code_point(code_point.code_point);
-        }
-
-        // d. Set k to k + cp.[[CodeUnitCount]].
-        k += code_point.code_unit_count;
-    }
-
-    // 7. Return result.
-    return MUST(result.to_string());
+    //     a. Let cp be CodePointAt(S, k).
+    //     b. If cp.[[IsUnpairedSurrogate]] is true, then
+    //         i. Set result to the string-concatenation of result and 0xFFFD (REPLACEMENT CHARACTER).
+    //     c. Else,
+    //         i. Set result to the string-concatenation of result and UTF16EncodeCodePoint(cp.[[CodePoint]]).
+    //     d. Set k to k + cp.[[CodeUnitCount]].
+    return PrimitiveString::create(vm, string->utf16_string().to_well_formed());
 }
 
 // 22.1.3.32.1 TrimString ( string, where ), https://tc39.es/ecma262/#sec-trimstring
