@@ -397,7 +397,7 @@ bool FormAssociatedElement::suffering_from_a_custom_error() const
 void FormAssociatedTextControlElement::relevant_value_was_changed()
 {
     auto the_relevant_value = relevant_value();
-    auto relevant_value_length = the_relevant_value.code_points().length();
+    auto relevant_value_length = the_relevant_value.length_in_code_units();
 
     // 1. If the element has a selection:
     if (m_selection_start < m_selection_end) {
@@ -592,13 +592,13 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(String const& replacement)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16String const& replacement)
 {
     return set_range_text_binding(replacement, m_selection_start, m_selection_end);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
 {
     auto& html_element = form_associated_element_to_html_element();
 
@@ -611,7 +611,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_bindi
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
 {
     auto& html_element = form_associated_element_to_html_element();
 
@@ -628,7 +628,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Strin
 
     // 5. If start is greater than the length of the relevant value of the text control, then set it to the length of the relevant value of the text control.
     auto the_relevant_value = relevant_value();
-    auto relevant_value_length = the_relevant_value.code_points().length();
+    auto relevant_value_length = the_relevant_value.length_in_code_units();
     if (start > relevant_value_length)
         start = relevant_value_length;
 
@@ -645,26 +645,24 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Strin
     // 9. If start is less than end, delete the sequence of code units within the element's relevant value starting with
     //    the code unit at the startth position and ending with the code unit at the (end-1)th position.
     if (start < end) {
-        StringBuilder builder;
-        auto before_removal_point_view = the_relevant_value.code_points().unicode_substring_view(0, start);
-        builder.append(before_removal_point_view.as_string());
-        auto after_removal_point_view = the_relevant_value.code_points().unicode_substring_view(end);
-        builder.append(after_removal_point_view.as_string());
-        the_relevant_value = MUST(builder.to_string());
+        StringBuilder builder(StringBuilder::Mode::UTF16, the_relevant_value.length_in_code_units() - (end - start));
+        builder.append(the_relevant_value.substring_view(0, start));
+        builder.append(the_relevant_value.substring_view(end));
+
+        the_relevant_value = builder.to_utf16_string();
     }
 
     // 10. Insert the value of the first argument into the text of the relevant value of the text control, immediately before the startth code unit.
-    StringBuilder builder;
-    auto before_insertion_point_view = the_relevant_value.code_points().unicode_substring_view(0, start);
-    builder.append(before_insertion_point_view.as_string());
+    StringBuilder builder(StringBuilder::Mode::UTF16, the_relevant_value.length_in_code_units() + replacement.length_in_code_units());
+    builder.append(the_relevant_value.substring_view(0, start));
     builder.append(replacement);
-    auto after_insertion_point_view = the_relevant_value.code_points().unicode_substring_view(start);
-    builder.append(after_insertion_point_view.as_string());
-    the_relevant_value = MUST(builder.to_string());
+    builder.append(the_relevant_value.substring_view(start));
+
+    the_relevant_value = builder.to_utf16_string();
     TRY(set_relevant_value(the_relevant_value));
 
     // 11. Let new length be the length of the value of the first argument.
-    i64 new_length = replacement.code_points().length();
+    auto new_length = replacement.length_in_code_units();
 
     // 12. Let new end be the sum of start and new length.
     auto new_end = start + new_length;
@@ -755,7 +753,8 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     //    relevant value of the text control (including the special value infinity) must be treated
     //    as pointing at the end of the text control.
     auto the_relevant_value = relevant_value();
-    auto relevant_value_length = the_relevant_value.code_points().length();
+    auto relevant_value_length = the_relevant_value.length_in_code_units();
+
     auto new_selection_start = AK::min(start.value(), relevant_value_length);
     auto new_selection_end = AK::min(end.value(), relevant_value_length);
 
@@ -797,20 +796,20 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     }
 }
 
-void FormAssociatedTextControlElement::handle_insert(String const& data)
+void FormAssociatedTextControlElement::handle_insert(Utf16String const& data)
 {
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || !is_mutable())
         return;
 
-    String data_for_insertion = data;
-    // FIXME: Cut by UTF-16 code units instead of raw bytes
+    auto data_for_insertion = data;
+
     if (auto max_length = text_node->max_length(); max_length.has_value()) {
-        auto remaining_length = *max_length - text_node->data().length_in_code_points();
-        if (remaining_length < data.code_points().length()) {
-            data_for_insertion = MUST(data.substring_from_byte_offset(0, remaining_length));
-        }
+        auto remaining_length = *max_length - text_node->length_in_utf16_code_units();
+        if (remaining_length < data.length_in_code_units())
+            data_for_insertion = Utf16String::from_utf16_without_validation(data.substring_view(0, remaining_length));
     }
+
     auto selection_start = this->selection_start();
     auto selection_end = this->selection_end();
     MUST(set_range_text(data_for_insertion, selection_start, selection_end, Bindings::SelectionMode::End));
@@ -824,21 +823,22 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || !is_mutable())
         return;
+
     auto selection_start = this->selection_start();
     auto selection_end = this->selection_end();
+
     if (selection_start == selection_end) {
         if (direction == DeleteDirection::Backward) {
-            if (selection_start > 0) {
-                MUST(set_range_text(String {}, selection_start - 1, selection_end, Bindings::SelectionMode::End));
-            }
+            if (selection_start > 0)
+                MUST(set_range_text({}, selection_start - 1, selection_end, Bindings::SelectionMode::End));
         } else {
-            if (selection_start < text_node->data().length_in_code_points()) {
-                MUST(set_range_text(String {}, selection_start, selection_end + 1, Bindings::SelectionMode::End));
-            }
+            if (selection_start < text_node->length_in_utf16_code_units())
+                MUST(set_range_text({}, selection_start, selection_end + 1, Bindings::SelectionMode::End));
         }
         return;
     }
-    MUST(set_range_text(String {}, selection_start, selection_end, Bindings::SelectionMode::End));
+
+    MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
 }
 
 EventResult FormAssociatedTextControlElement::handle_return_key(FlyString const&)
