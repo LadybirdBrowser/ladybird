@@ -5,7 +5,7 @@
 [Exposed=Window]
 interface InputEvent : UIEvent {
     constructor(DOMString type, optional InputEventInit eventInitDict = {});
-    readonly attribute USVString? data;
+    readonly attribute Utf16USVString? data;
     readonly attribute boolean isComposing;
     readonly attribute DOMString inputType;
 
@@ -14,7 +14,7 @@ interface InputEvent : UIEvent {
 
 // https://w3c.github.io/uievents/#dictdef-inputeventinit
 dictionary InputEventInit : UIEventInit {
-    DOMString? data = null;
+    Utf16DOMString? data = null;
     boolean isComposing = false;
     DOMString inputType = "";
 };

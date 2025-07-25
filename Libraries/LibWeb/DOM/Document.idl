@@ -146,7 +146,7 @@ interface Document : Node {
 
     // https://w3c.github.io/editing/docs/execCommand/
     // FIXME: [CEReactions] boolean execCommand(DOMString commandId, optional boolean showUI = false, optional (TrustedHTML or DOMString) value = "");
-    [CEReactions] boolean execCommand(DOMString commandId, optional boolean showUI = false, optional DOMString value = "");
+    [CEReactions] boolean execCommand(DOMString commandId, optional boolean showUI = false, optional Utf16DOMString value = "");
     boolean queryCommandEnabled(DOMString commandId);
     boolean queryCommandIndeterm(DOMString commandId);
     boolean queryCommandState(DOMString commandId);
