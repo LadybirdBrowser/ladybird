@@ -90,6 +90,7 @@ void Timer::timer_event(TimerEvent&)
         if (m_interval_dirty) {
             stop();
             start(m_interval_ms);
+            m_interval_dirty = false;
         }
     }
 
