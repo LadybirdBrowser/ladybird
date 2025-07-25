@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 60 tests
 
-59 Pass
-1 Fail
-Fail	name
+60 Pass
+Pass	name
 Pass	length
 Pass	No arguments
 Pass	Calling
