@@ -1389,7 +1389,7 @@ bool follows_a_line_break(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#force-the-value
-void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional<Utf16View const&> new_value)
+void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional<Utf16String const&> new_value)
 {
     // 1. Let command be the current command.
 
@@ -1402,17 +1402,14 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         return;
 
     // 4. If node is an allowed child of "span":
-    auto new_value_string = new_value.map([](Utf16View const& view) {
-        return Utf16String::from_utf16_without_validation(view);
-    });
     if (is_allowed_child_of_node(node, HTML::TagNames::span)) {
         // 1. Reorder modifiable descendants of node's previousSibling.
         if (node->previous_sibling())
-            reorder_modifiable_descendants(*node->previous_sibling(), command, new_value_string);
+            reorder_modifiable_descendants(*node->previous_sibling(), command, new_value);
 
         // 2. Reorder modifiable descendants of node's nextSibling.
         if (node->next_sibling())
-            reorder_modifiable_descendants(*node->next_sibling(), command, new_value_string);
+            reorder_modifiable_descendants(*node->next_sibling(), command, new_value);
 
         // 3. Wrap the one-node list consisting of node, with sibling criteria returning true for a simple modifiable
         //    element whose specified command value is equivalent to new value and whose effective command value is
@@ -1422,7 +1419,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
             [&](GC::Ref<DOM::Node> sibling) {
                 return is_simple_modifiable_element(sibling)
                     && specified_command_value(static_cast<DOM::Element&>(*sibling), command) == new_value
-                    && values_are_loosely_equivalent(command, effective_command_value(sibling, command), new_value_string);
+                    && values_are_loosely_equivalent(command, effective_command_value(sibling, command), new_value);
             },
             [] -> GC::Ptr<DOM::Node> { return {}; });
     }
@@ -1432,7 +1429,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         return;
 
     // 6. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value_string))
+    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
         return;
 
     // 7. If node is not an allowed child of "span":
@@ -1443,7 +1440,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         node->for_each_child([&](GC::Ref<DOM::Node> child) {
             if (is<DOM::Element>(*child)) {
                 auto const child_specified_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
-                if (child_specified_value.has_value() && !values_are_equivalent(command, child_specified_value.value(), new_value_string))
+                if (child_specified_value.has_value() && !values_are_equivalent(command, child_specified_value.value(), new_value))
                     return IterationDecision::Continue;
             }
 
@@ -1461,7 +1458,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     }
 
     // 8. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
-    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value_string))
+    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
         return;
 
     // 9. Let new parent be null.
@@ -1575,7 +1572,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     // 17. If the effective command value of command for new parent is not loosely equivalent to new value, and the
     //     relevant CSS property for command is not null, set that CSS property of new parent to new value (if the new
     //     value would be valid).
-    if (!values_are_loosely_equivalent(command, effective_command_value(new_parent, command), new_value_string)) {
+    if (!values_are_loosely_equivalent(command, effective_command_value(new_parent, command), new_value)) {
         auto const& command_definition = find_command_definition(command);
         if (command_definition->relevant_css_property.has_value()) {
             auto inline_style = new_parent->style_for_bindings();
@@ -1606,7 +1603,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     // 21. If node is an Element and the effective command value of command for node is not loosely equivalent to new
     //     value:
     if (is<DOM::Element>(*node)
-        && !values_are_loosely_equivalent(command, effective_command_value(node, command), new_value_string)) {
+        && !values_are_loosely_equivalent(command, effective_command_value(node, command), new_value)) {
         // 1. Insert node into the parent of new parent before new parent, preserving ranges.
         move_node_preserving_ranges(node, *new_parent->parent(), new_parent->index());
 
@@ -1619,7 +1616,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         node->for_each_child([&](GC::Ref<DOM::Node> child) {
             if (is<DOM::Element>(*child)) {
                 auto child_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
-                if (child_value.has_value() && !values_are_equivalent(command, child_value.value(), new_value_string))
+                if (child_value.has_value() && !values_are_equivalent(command, child_value.value(), new_value))
                     return IterationDecision::Continue;
             }
 
@@ -3239,10 +3236,7 @@ void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optiona
                 continue;
 
             // 4. Force the value of child, with command as in this algorithm and new value equal to propagated value.
-            force_the_value(
-                *child,
-                command,
-                propagated_value.map([](Utf16String const& string) { return string.utf16_view(); }));
+            force_the_value(*child, command, propagated_value);
         }
     }
 }
@@ -3590,7 +3584,7 @@ void restore_the_values_of_nodes(Vector<RecordedNodeValue> const& values)
         //    node.
         else if ((is<DOM::Element>(ancestor.ptr()) && specified_command_value(static_cast<DOM::Element&>(*ancestor), command) != value)
             || (!is<DOM::Element>(ancestor.ptr()) && value.has_value())) {
-            force_the_value(node, command, value->utf16_view());
+            force_the_value(node, command, value);
         }
     }
 }
@@ -3711,12 +3705,8 @@ SelectionsListState selections_list_state(DOM::Document const& document)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#set-the-selection's-value
-void set_the_selections_value(DOM::Document& document, FlyString const& command, Optional<Utf16View const&> new_value)
+void set_the_selections_value(DOM::Document& document, FlyString const& command, Optional<Utf16String const&> new_value)
 {
-    auto new_value_string = new_value.map([](Utf16View const& view) {
-        return Utf16String::from_utf16_without_validation(view);
-    });
-
     // 1. Let command be the current command.
 
     // 2. If there is no formattable node effectively contained in the active range:
@@ -3752,7 +3742,7 @@ void set_the_selections_value(DOM::Document& document, FlyString const& command,
 
         // 5. Otherwise, if command is "createLink" or it has a value specified, set the value override to new value.
         else if (command == CommandNames::createLink || !MUST(document.query_command_value(CommandNames::createLink)).is_empty()) {
-            document.set_command_value_override(command, *new_value_string);
+            document.set_command_value_override(command, *new_value);
         }
 
         // 6. Abort these steps.
@@ -3798,7 +3788,7 @@ void set_the_selections_value(DOM::Document& document, FlyString const& command,
     // 8. For each node in node list:
     for (auto node : node_list) {
         // 1. Push down values on node.
-        push_down_values(command, node, new_value_string);
+        push_down_values(command, node, new_value);
 
         // 2. If node is an allowed child of "span", force the value of node.
         if (is_allowed_child_of_node(node, HTML::TagNames::span))
@@ -4756,7 +4746,7 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::No
     return optional_style_property.value().value;
 }
 
-void take_the_action_for_command(DOM::Document& document, FlyString const& command, Utf16View const& value)
+void take_the_action_for_command(DOM::Document& document, FlyString const& command, Utf16String const& value)
 {
     auto const& command_definition = find_command_definition(command);
     command_definition->action(document, value);

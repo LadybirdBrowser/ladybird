@@ -64,7 +64,7 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node>, FlyString cons
 DOM::BoundaryPoint first_equivalent_point(DOM::BoundaryPoint);
 void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node>);
 bool follows_a_line_break(GC::Ref<DOM::Node>);
-void force_the_value(GC::Ref<DOM::Node>, FlyString const&, Optional<Utf16View const&>);
+void force_the_value(GC::Ref<DOM::Node>, FlyString const&, Optional<Utf16String const&>);
 void indent(Vector<GC::Ref<DOM::Node>>);
 bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Variant<GC::Ref<DOM::Node>, FlyString> parent);
 bool is_block_boundary_point(DOM::BoundaryPoint);
@@ -115,7 +115,7 @@ void reorder_modifiable_descendants(GC::Ref<DOM::Node>, FlyString const&, Option
 void restore_states_and_values(DOM::Document&, Vector<RecordedOverride> const&);
 void restore_the_values_of_nodes(Vector<RecordedNodeValue> const&);
 SelectionsListState selections_list_state(DOM::Document const&);
-void set_the_selections_value(DOM::Document&, FlyString const&, Optional<Utf16View const&>);
+void set_the_selections_value(DOM::Document&, FlyString const&, Optional<Utf16String const&>);
 GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element>, FlyString const&);
 Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element>, FlyString const& command);
 void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const&);
@@ -137,7 +137,7 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC
 Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node>);
 Optional<CSS::Keyword> resolved_keyword(GC::Ref<DOM::Node>, CSS::PropertyID);
 Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::Node>, CSS::PropertyID);
-void take_the_action_for_command(DOM::Document&, FlyString const&, Utf16View const&);
+void take_the_action_for_command(DOM::Document&, FlyString const&, Utf16String const&);
 bool value_contains_keyword(CSS::CSSStyleValue const&, CSS::Keyword);
 
 }
