@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
+#include <AK/Function.h>
+#include <AK/Vector.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Editing {
