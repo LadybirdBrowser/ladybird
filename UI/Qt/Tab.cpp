@@ -56,7 +56,11 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_layout->setSpacing(0);
     m_layout->setContentsMargins(0, 0, 0, 0);
 
-    m_view = new WebContentView(this, parent_client, page_index);
+    auto view_initial_state = WebContentViewInitialState {
+        .maximum_frames_per_second = window->refresh_rate(),
+    };
+
+    m_view = new WebContentView(this, parent_client, page_index, AK::move(view_initial_state));
     m_find_in_page = new FindInPageWidget(this, m_view);
     m_find_in_page->setVisible(false);
     m_toolbar = new QToolBar(this);
