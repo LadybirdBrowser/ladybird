@@ -660,6 +660,11 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [[[self tab] web_view] handleDevicePixelRatioChange];
 }
 
+- (void)windowDidChangeScreen:(NSNotification*)notification
+{
+    [[[self tab] web_view] handleDisplayRefreshRateChange];
+}
+
 - (BOOL)validateMenuItem:(NSMenuItem*)item
 {
     if ([item action] == @selector(toggleLineBoxBorders:)) {

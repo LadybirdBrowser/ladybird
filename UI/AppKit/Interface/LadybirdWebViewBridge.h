@@ -20,7 +20,7 @@ namespace Ladybird {
 
 class WebViewBridge final : public WebView::ViewImplementation {
 public:
-    static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast, Web::CSS::PreferredMotion);
+    static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, u64 maximum_frames_per_second, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast, Web::CSS::PreferredMotion);
     virtual ~WebViewBridge() override;
 
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes) override;
@@ -31,6 +31,8 @@ public:
     float inverse_device_pixel_ratio() const { return 1.0f / m_device_pixel_ratio; }
 
     void set_viewport_rect(Gfx::IntRect);
+
+    void set_maximum_frames_per_second(u64 maximum_frames_per_second);
 
     void update_palette();
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
@@ -50,7 +52,7 @@ public:
     Function<void()> on_zoom_level_changed;
 
 private:
-    WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast, Web::CSS::PreferredMotion);
+    WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, u64 maximum_frames_per_second, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast, Web::CSS::PreferredMotion);
 
     virtual void update_zoom() override;
     virtual Web::DevicePixelSize viewport_size() const override;

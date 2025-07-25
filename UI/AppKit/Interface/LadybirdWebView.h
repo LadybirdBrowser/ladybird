@@ -70,6 +70,7 @@
 
 - (void)handleResize;
 - (void)handleDevicePixelRatioChange;
+- (void)handleDisplayRefreshRateChange;
 - (void)handleVisibility:(BOOL)is_visible;
 
 - (void)setPreferredColorScheme:(Web::CSS::PreferredColorScheme)color_scheme;
