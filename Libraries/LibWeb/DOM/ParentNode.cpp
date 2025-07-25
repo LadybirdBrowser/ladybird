@@ -237,7 +237,7 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(Vector<Variant<GC::Root<N
     auto node = TRY(convert_nodes_to_single_node(nodes, document()));
 
     // 2. Ensure pre-insertion validity of node into this before null.
-    TRY(ensure_pre_insertion_validity(node, nullptr));
+    TRY(ensure_pre_insertion_validity(realm(), node, nullptr));
 
     // 3. Replace all with node within this.
     replace_all(*node);
