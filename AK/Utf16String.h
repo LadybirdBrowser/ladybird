@@ -125,6 +125,8 @@ public:
         return builder.to_utf16_string();
     }
 
+    static Utf16String repeated(u32 code_point, size_t count);
+
     ALWAYS_INLINE static Utf16String from_string_builder(Badge<StringBuilder>, StringBuilder& builder)
     {
         VERIFY(builder.utf16_string_view().validate());

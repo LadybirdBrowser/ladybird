@@ -90,6 +90,30 @@ Utf16String Utf16String::from_string_builder_without_validation(StringBuilder& b
     return Utf16String { Detail::Utf16StringData::from_string_builder(builder) };
 }
 
+Utf16String Utf16String::repeated(u32 code_point, size_t count)
+{
+    if (count <= Detail::MAX_SHORT_STRING_BYTE_COUNT && AK::is_ascii(code_point)) {
+        Utf16String string;
+        string.m_value.short_ascii_string = Detail::ShortString::create_with_byte_count(count);
+
+        Bytes bytes { string.m_value.short_ascii_string.storage, count };
+        bytes.fill(static_cast<u8>(code_point));
+
+        return string;
+    }
+
+    Array<char16_t, 2> code_units;
+    size_t length_in_code_units = 0;
+
+    (void)UnicodeUtils::code_point_to_utf16(code_point, [&](auto code_unit) {
+        code_units[length_in_code_units++] = code_unit;
+    });
+
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+    builder.append_repeated({ code_units.data(), length_in_code_units }, count);
+    return builder.to_utf16_string();
+}
+
 ErrorOr<void> Formatter<Utf16String>::format(FormatBuilder& builder, Utf16String const& utf16_string)
 {
     if (utf16_string.has_long_utf16_storage())
