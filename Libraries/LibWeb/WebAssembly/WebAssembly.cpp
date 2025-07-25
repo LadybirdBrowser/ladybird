@@ -342,8 +342,11 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                         // 3.5.1.7. Set the surrounding agent's associated store to store.
                         address = cache.abstract_machine().store().allocate({ type.type(), false }, cast_value);
                     }
-                    // FIXME: 3.5.2. Otherwise, if v implements Global,
-                    // FIXME: 3.5.2.1. Let globaladdr be v.[[Global]].
+                    // 3.5.2. Otherwise, if v implements Global,
+                    else if (import_.is_object() && is<Global>(import_.as_object())) {
+                        // 3.5.2.1. Let globaladdr be v.[[Global]].
+                        address = as<Global>(import_.as_object()).address();
+                    }
                     // 3.5.3. Otherwise,
                     else {
                         // 3.5.3.1. Throw a LinkError exception.
