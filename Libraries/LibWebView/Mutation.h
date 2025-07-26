@@ -11,25 +11,26 @@
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
-struct AttributeMutation {
+struct WEBVIEW_API AttributeMutation {
     String attribute_name;
     Optional<String> new_value;
 };
 
-struct CharacterDataMutation {
+struct WEBVIEW_API CharacterDataMutation {
     String new_value;
 };
 
-struct ChildListMutation {
+struct WEBVIEW_API ChildListMutation {
     Vector<Web::UniqueNodeID> added;
     Vector<Web::UniqueNodeID> removed;
     size_t target_child_count { 0 };
 };
 
-struct Mutation {
+struct WEBVIEW_API Mutation {
     using Type = Variant<AttributeMutation, CharacterDataMutation, ChildListMutation>;
 
     String type;
@@ -61,9 +62,9 @@ template<>
 ErrorOr<WebView::ChildListMutation> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::Mutation const&);
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::Mutation const&);
 
 template<>
-ErrorOr<WebView::Mutation> decode(Decoder&);
+WEBVIEW_API ErrorOr<WebView::Mutation> decode(Decoder&);
 
 }

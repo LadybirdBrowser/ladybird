@@ -62,7 +62,7 @@ if (ANDROID AND ENABLE_QT)
     set(ENABLE_QT OFF CACHE BOOL "" FORCE)
 endif()
 
-if (ENABLE_QT AND ENABLE_GUI_TARGETS AND (NOT WIN32 OR NOT ENABLE_WINDOWS_CI))
+if (ENABLE_QT AND ENABLE_GUI_TARGETS)
     set(CMAKE_AUTOMOC ON)
     set(CMAKE_AUTORCC ON)
     set(CMAKE_AUTOUIC ON)
@@ -74,7 +74,7 @@ find_package(OpenSSL REQUIRED)
 
 include(CTest) # for BUILD_TESTING option, default ON
 
-if (ENABLE_GUI_TARGETS AND (NOT WIN32 OR NOT ENABLE_WINDOWS_CI))
+if (ENABLE_GUI_TARGETS)
     add_subdirectory(Services)
     add_subdirectory(UI)
 endif()

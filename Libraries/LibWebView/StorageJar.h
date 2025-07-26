@@ -26,7 +26,7 @@ struct StorageLocation {
     String bottle_key;
 };
 
-class StorageJar {
+class WEBVIEW_API StorageJar {
     AK_MAKE_NONCOPYABLE(StorageJar);
     AK_MAKE_NONMOVABLE(StorageJar);
 

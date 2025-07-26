@@ -29,14 +29,14 @@ struct CookieStorageKey {
     String path;
 };
 
-class CookieJar {
+class WEBVIEW_API CookieJar {
     struct Statements {
         Database::StatementID insert_cookie { 0 };
         Database::StatementID expire_cookie { 0 };
         Database::StatementID select_all_cookies { 0 };
     };
 
-    class TransientStorage {
+    class WEBVIEW_API TransientStorage {
     public:
         using Cookies = HashMap<CookieStorageKey, Web::Cookie::Cookie>;
 
@@ -72,7 +72,7 @@ class CookieJar {
         Cookies m_dirty_cookies;
     };
 
-    struct PersistedStorage {
+    struct WEBVIEW_API PersistedStorage {
         void insert_cookie(Web::Cookie::Cookie const& cookie);
         TransientStorage::Cookies select_all_cookies();
 
