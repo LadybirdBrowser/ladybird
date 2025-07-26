@@ -547,6 +547,12 @@ TEST_CASE(contains)
     EXPECT(u"😀"sv.contains(u'\xd83d'));
     EXPECT(u"😀"sv.contains(u'\xde00'));
 
+    EXPECT(!Utf16View { ""sv }.contains(u'a'));
+    EXPECT(Utf16View { "a"sv }.contains(u'a'));
+    EXPECT(!Utf16View { "b"sv }.contains(u'a'));
+    EXPECT(!Utf16View { "b"sv }.contains(u'\xd83d'));
+    EXPECT(!Utf16View { "b"sv }.contains(u'\xde00'));
+
     EXPECT(u""sv.contains(u""sv));
     EXPECT(!u""sv.contains(u"a"sv));
     EXPECT(u"a"sv.contains(u"a"sv));

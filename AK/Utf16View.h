@@ -420,7 +420,7 @@ public:
 
         if (has_ascii_storage()) {
             if (!AK::is_ascii(needle))
-                return false;
+                return {};
 
             auto byte = static_cast<char>(needle);
             return AK::memmem_optional(m_string.ascii + start_offset, length_in_code_units() - start_offset, &byte, sizeof(byte));
