@@ -117,10 +117,10 @@ bool HTMLButtonElement::is_submit_button() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:concept-fe-value
-String HTMLButtonElement::value() const
+Utf16String HTMLButtonElement::value() const
 {
     // The element's value is the value of the element's value attribute, if there is one; otherwise the empty string.
-    return attribute(AttributeNames::value).value_or(String {});
+    return Utf16String::from_utf8(attribute(AttributeNames::value).value_or(String {}));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:concept-fe-optional-value

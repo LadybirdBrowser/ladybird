@@ -125,7 +125,7 @@ public:
     virtual bool suffering_from_bad_input() const { return false; }
     bool suffering_from_a_custom_error() const;
 
-    virtual String value() const { return String {}; }
+    virtual Utf16String value() const { return {}; }
     virtual Optional<String> optional_value() const { VERIFY_NOT_REACHED(); }
 
     virtual HTMLElement& form_associated_element_to_html_element() = 0;

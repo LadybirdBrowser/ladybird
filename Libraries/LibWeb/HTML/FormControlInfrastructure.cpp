@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
         if (auto* select_element = dynamic_cast<HTML::HTMLSelectElement*>(control.ptr())) {
             for (auto const& option_element : select_element->list_of_options()) {
                 if (option_element->selected() && !option_element->disabled()) {
-                    entry_list.append(TRY(create_entry(realm, name.to_string(), option_element->value())));
+                    entry_list.append(TRY(create_entry(realm, name.to_string(), option_element->value().to_utf8_but_should_be_ported_to_utf16())));
                 }
             }
         }
@@ -153,11 +153,11 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             //  1. If the field element has a value attribute specified, then let value be the value of that attribute; otherwise, let value be the string "on".
             auto value = checkbox_or_radio_element->value();
             if (value.is_empty())
-                value = "on"_string;
+                value = "on"_utf16;
 
             // 2. Create an entry with name and value, and append it to entry list.
             auto checkbox_or_radio_element_name = checkbox_or_radio_element->name();
-            entry_list.append(TRY(create_entry(realm, checkbox_or_radio_element_name->to_string(), value)));
+            entry_list.append(TRY(create_entry(realm, checkbox_or_radio_element_name->to_string(), value.to_utf8_but_should_be_ported_to_utf16())));
         }
         // 8. Otherwise, if the field element is an input element whose type attribute is in the File Upload state, then:
         else if (auto* file_element = dynamic_cast<HTML::HTMLInputElement*>(control.ptr()); file_element && file_element->type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
@@ -186,7 +186,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
         }
         // 10. Otherwise, create an entry with name and the value of the field element, and append it to entry list.
         else {
-            entry_list.append(TRY(create_entry(realm, name.to_string(), control_as_form_associated_element->value())));
+            entry_list.append(TRY(create_entry(realm, name.to_string(), control_as_form_associated_element->value().to_utf8_but_should_be_ported_to_utf16())));
         }
 
         // 11. If the element has a dirname attribute, and that attribute's value is not the empty string, then:

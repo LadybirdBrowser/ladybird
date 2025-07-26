@@ -6,6 +6,7 @@
 
 #include <AK/GenericLexer.h>
 #include <AK/StringConversions.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <math.h>
@@ -283,7 +284,7 @@ fraction_exit:
         value *= pow(10, exponent);
     }
 
-conversion: {
+conversion:
     // 15. Conversion: Let S be the set of finite IEEE 754 double-precision floating-point values except −0,
     //     but with two special values added: 2^1024 and −2^1024.
     if (!isfinite(value)) {
@@ -305,6 +306,14 @@ conversion: {
     // 18. Return rounded-value.
     return rounded_value;
 }
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-floating-point-number-values
+Optional<double> parse_floating_point_number(Utf16String const& string)
+{
+    // FIXME: Implement a UTF-16 GenericLexer.
+    if (!string.has_ascii_storage())
+        return {};
+    return parse_floating_point_number(string.ascii_view());
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number
@@ -338,6 +347,15 @@ bool is_valid_floating_point_number(StringView string)
             return false;
     }
     return lexer.tell_remaining() == 0;
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number
+bool is_valid_floating_point_number(Utf16String const& string)
+{
+    // FIXME: Implement a UTF-16 GenericLexer.
+    if (!string.has_ascii_storage())
+        return false;
+    return is_valid_floating_point_number(string.ascii_view());
 }
 
 WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm& realm, WebIDL::Long value)
