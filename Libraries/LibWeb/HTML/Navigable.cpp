@@ -1784,7 +1784,8 @@ void Navigable::begin_navigation(NavigateParams params)
                     return;
                 }
                 finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry);
-            }));
+            }),
+                history_entry->document());
         })).release_value_but_fixme_should_propagate_errors();
     }));
 

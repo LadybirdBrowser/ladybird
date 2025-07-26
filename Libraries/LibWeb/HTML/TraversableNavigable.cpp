@@ -531,7 +531,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
             changing_navigable_continuation->populated_cloned_target_session_history_entry = false;
 
             // 4. If displayedEntry is targetEntry and targetEntry's document state's reload pending is false, then:
-            if (synchronous_navigation == SynchronousNavigation::Yes && !target_entry->document_state()->reload_pending()) {
+            if (target_entry == displayed_entry && !target_entry->document_state()->reload_pending()) {
                 // 1. Set changingNavigableContinuation's update-only to true.
                 changing_navigable_continuation->update_only = true;
 
@@ -761,7 +761,6 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
             // 2. If changingNavigableContinuation's update-only is false, then activate history entry targetEntry for navigable.
             if (!update_only)
                 navigable->activate_history_entry(*target_entry);
-
             // 3. Let updateDocument be an algorithm step which performs update document for history step application given
             //    targetEntry's document, targetEntry, changingNavigableContinuation's update-only, scriptHistoryLength,
             //    scriptHistoryIndex, navigationType, entriesForNavigationAPI, and previousEntry.
