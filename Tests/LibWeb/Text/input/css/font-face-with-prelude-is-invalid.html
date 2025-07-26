@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    @font-face foo {}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`\`@font-face foo {}\` should be invalid: ${document.styleSheets[0].cssRules.length === 0 ? "PASS" : "FAIL"}`);
+    });
+</script>

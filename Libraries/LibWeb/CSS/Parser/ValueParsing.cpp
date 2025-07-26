@@ -13,13 +13,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
 #include <AK/StringConversions.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
@@ -485,7 +485,11 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(TokenStream<ComponentVal
     // All options start with 'u'/'U'.
     auto const& u = tokens.consume_a_token();
     if (!u.is_ident("u"sv)) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> does not start with 'u'");
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<urange>"_fly_string,
+            .value_string = tokens.dump_string(),
+            .description = "Doesn't start with 'u'."_string,
+        });
         return {};
     }
 
@@ -548,10 +552,11 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(TokenStream<ComponentVal
         }
     }
 
-    if constexpr (CSS_PARSER_DEBUG) {
-        dbgln("CSSParser: Tokens did not match <urange> grammar.");
-        tokens.dump_all_tokens();
-    }
+    ErrorReporter::the().report(InvalidValueError {
+        .value_type = "<urange>"_fly_string,
+        .value_string = tokens.dump_string(),
+        .description = "Did not match grammar."_string,
+    });
     return {};
 }
 
@@ -565,13 +570,21 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
         // 1. If end value is greater than the maximum allowed code point,
         //    the <urange> is invalid and a syntax error.
         if (end_value > maximum_allowed_code_point) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Invalid <urange>: end_value ({}) > maximum ({})", end_value, maximum_allowed_code_point);
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<urange>"_fly_string,
+                .value_string = MUST(String::from_utf8(text)),
+                .description = MUST(String::formatted("end_value ({}) > maximum ({})", end_value, maximum_allowed_code_point)),
+            });
             return {};
         }
 
         // 2. If start value is greater than end value, the <urange> is invalid and a syntax error.
         if (start_value > end_value) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Invalid <urange>: start_value ({}) > end_value ({})", start_value, end_value);
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<urange>"_fly_string,
+                .value_string = MUST(String::from_utf8(text)),
+                .description = MUST(String::formatted("start_value ({}) > end_value ({})", start_value, end_value)),
+            });
             return {};
         }
 
@@ -589,7 +602,11 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
     if (lexer.next_is('+')) {
         lexer.consume();
     } else {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Second character of <urange> was not '+'; got: '{}'", lexer.consume());
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<urange>"_fly_string,
+            .value_string = MUST(String::from_utf8(text)),
+            .description = MUST(String::formatted("Second character was '{}', expected '+'.", lexer.consume())),
+        });
         return {};
     }
 
@@ -602,7 +619,11 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
     //    this is an invalid <urange>, and this algorithm must exit.
     size_t consumed_code_points = hex_digits.length() + question_marks.length();
     if (consumed_code_points == 0 || consumed_code_points > 6) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> start value had {} digits/?s, expected between 1 and 6.", consumed_code_points);
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<urange>"_fly_string,
+            .value_string = MUST(String::from_utf8(text)),
+            .description = MUST(String::formatted("Start value had {} digits/?s, expected between 1 and 6.", consumed_code_points)),
+        });
         return {};
     }
     StringView start_value_code_points = text.substring_view(start_position, consumed_code_points);
@@ -612,7 +633,11 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
         // 1. If there are any code points left in text, this is an invalid <urange>,
         //    and this algorithm must exit.
         if (lexer.tell_remaining() != 0) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> invalid; had {} code points left over.", lexer.tell_remaining());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<urange>"_fly_string,
+                .value_string = MUST(String::from_utf8(text)),
+                .description = MUST(String::formatted("Has {} trailing unused code points.", lexer.tell_remaining())),
+            });
             return {};
         }
 
@@ -622,7 +647,11 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
         auto start_value_string = start_value_code_points.replace("?"sv, "0"sv, ReplaceMode::All);
         auto maybe_start_value = AK::parse_hexadecimal_number<u32>(start_value_string);
         if (!maybe_start_value.has_value()) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> ?-converted start value did not parse as hex number.");
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<urange>"_fly_string,
+                .value_string = MUST(String::from_utf8(text)),
+                .description = "?-converted start value did not parse as hex number."_string,
+            });
             return {};
         }
         u32 start_value = maybe_start_value.release_value();
@@ -633,7 +662,11 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
         auto end_value_string = start_value_code_points.replace("?"sv, "F"sv, ReplaceMode::All);
         auto maybe_end_value = AK::parse_hexadecimal_number<u32>(end_value_string);
         if (!maybe_end_value.has_value()) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> ?-converted end value did not parse as hex number.");
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<urange>"_fly_string,
+                .value_string = MUST(String::from_utf8(text)),
+                .description = "?-converted end value did not parse as hex number."_string,
+            });
             return {};
         }
         u32 end_value = maybe_end_value.release_value();
@@ -644,7 +677,11 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
     //   Otherwise, interpret the consumed code points as a hexadecimal number. This is the start value.
     auto maybe_start_value = AK::parse_hexadecimal_number<u32>(start_value_code_points);
     if (!maybe_start_value.has_value()) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> start value did not parse as hex number.");
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<urange>"_fly_string,
+            .value_string = MUST(String::from_utf8(text)),
+            .description = "Start value did not parse as hex number."_string,
+        });
         return {};
     }
     u32 start_value = maybe_start_value.release_value();
@@ -660,7 +697,11 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
     }
     //    Otherwise, this is an invalid <urange>, and this algorithm must exit.
     else {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> start and end values not separated by '-'.");
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<urange>"_fly_string,
+            .value_string = MUST(String::from_utf8(text)),
+            .description = "Start and end values not separated by '-'."_string,
+        });
         return {};
     }
 
@@ -670,20 +711,32 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
     //   If zero hex digits were consumed, or more than 6 hex digits were consumed,
     //   this is an invalid <urange>, and this algorithm must exit.
     if (end_hex_digits.length() == 0 || end_hex_digits.length() > 6) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> end value had {} digits, expected between 1 and 6.", end_hex_digits.length());
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<urange>"_fly_string,
+            .value_string = MUST(String::from_utf8(text)),
+            .description = MUST(String::formatted("End value had {} digits, expected between 1 and 6.", end_hex_digits.length())),
+        });
         return {};
     }
 
     //   If there are any code points left in text, this is an invalid <urange>, and this algorithm must exit.
     if (lexer.tell_remaining() != 0) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> invalid; had {} code points left over.", lexer.tell_remaining());
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<urange>"_fly_string,
+            .value_string = MUST(String::from_utf8(text)),
+            .description = MUST(String::formatted("Has {} trailing unused code points.", lexer.tell_remaining())),
+        });
         return {};
     }
 
     // 7. Interpret the consumed code points as a hexadecimal number. This is the end value.
     auto maybe_end_value = AK::parse_hexadecimal_number<u32>(end_hex_digits);
     if (!maybe_end_value.has_value()) {
-        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> end value did not parse as hex number.");
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<urange>"_fly_string,
+            .value_string = MUST(String::from_utf8(text)),
+            .description = "End value did not parse as hex number."_string,
+        });
         return {};
     }
     u32 end_value = maybe_end_value.release_value();
@@ -698,10 +751,8 @@ Vector<Gfx::UnicodeRange> Parser::parse_unicode_ranges(TokenStream<ComponentValu
     for (auto& range_tokens : range_token_lists) {
         TokenStream range_token_stream { range_tokens };
         auto maybe_unicode_range = parse_unicode_range(range_token_stream);
-        if (!maybe_unicode_range.has_value()) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: unicode-range format invalid; discarding.");
+        if (!maybe_unicode_range.has_value())
             return {};
-        }
         unicode_ranges.append(maybe_unicode_range.release_value());
     }
     return unicode_ranges;
@@ -2868,7 +2919,11 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
                     return {};
                 }
             } else {
-                dbgln_if(CSS_PARSER_DEBUG, "Unrecognized URL modifier: {}", modifier_token.to_debug_string());
+                ErrorReporter::the().report(InvalidValueError {
+                    .value_type = "<url>"_fly_string,
+                    .value_string = component_value.function().to_string(),
+                    .description = MUST(String::formatted("Unrecognized URL modifier: {}", modifier_token.to_string())),
+                });
                 return {};
             }
             url_tokens.discard_whitespace();
@@ -3981,7 +4036,11 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
                     // NOTE: <flex> values are not <length>s (nor are they compatible with <length>s, like some <percentage> values),
                     //       so they cannot be represented in or combined with other unit types in calc() expressions.
                     // FIXME: Flex is allowed in calc(), so figure out what this spec text means and how to implement it.
-                    dbgln_if(CSS_PARSER_DEBUG, "Rejecting <flex> in calc()");
+                    ErrorReporter::the().report(InvalidValueError {
+                        .value_type = "math-function"_fly_string,
+                        .value_string = component_value->to_string(),
+                        .description = "Rejecting <flex> in math function."_string,
+                    });
                     return nullptr;
                 }
 
@@ -3994,7 +4053,11 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
                 if (auto time_type = Time::unit_from_name(unit_string); time_type.has_value())
                     return NumericCalculationNode::create(Time { numeric_value, time_type.release_value() }, context);
 
-                dbgln_if(CSS_PARSER_DEBUG, "Unrecognized dimension type in calc() expression: {}", component_value->to_string());
+                ErrorReporter::the().report(InvalidValueError {
+                    .value_type = "math-function"_fly_string,
+                    .value_string = component_value->to_string(),
+                    .description = "Unrecognized dimension type."_string,
+                });
                 return nullptr;
             }
 
@@ -4003,11 +4066,19 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
 
             // NOTE: If we get here, then we have a ComponentValue that didn't get replaced with something else,
             //       so the calc() is invalid.
-            dbgln_if(CSS_PARSER_DEBUG, "Leftover ComponentValue in calc tree! That probably means the syntax is invalid, but maybe we just didn't implement `{}` yet.", component_value->to_debug_string());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "math-function"_fly_string,
+                .value_string = component_value->to_string(),
+                .description = "Left-over ComponentValue in calculation tree."_string,
+            });
             return nullptr;
         },
         [](CalcParsing::Operator const& op) -> RefPtr<CalculationNode const> {
-            dbgln_if(CSS_PARSER_DEBUG, "Leftover Operator {} in calc tree!", op.delim);
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "math-function"_fly_string,
+                .value_string = String::from_code_point(op.delim),
+                .description = "Left-over Operator in calculation tree."_string,
+            });
             return nullptr;
         });
 }
@@ -4248,22 +4319,38 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
                 format_name = "opentype"_fly_string;
                 tech.append(FontTech::Variations);
             } else {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`format()` parameter \"{}\" is not in the set of valid strings); skipping.", name_string);
+                ErrorReporter::the().report(InvalidValueError {
+                    .value_type = "<font-src>"_fly_string,
+                    .value_string = tokens.dump_string(),
+                    .description = MUST(String::formatted("format() parameter \"{}\" is not in the set of valid strings.", name_string)),
+                });
                 return nullptr;
             }
         } else {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`format()` parameter not an ident or string; is: {}); discarding.", format_name_token.to_debug_string());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<font-src>"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = MUST(String::formatted("format() parameter is not an ident or string; is: {}", format_name_token.to_debug_string())),
+            });
             return nullptr;
         }
 
         if (!font_format_is_supported(format_name)) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source format({}) not supported; skipping.", format_name);
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<font-src>"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = MUST(String::formatted("format({}) is not supported.", format_name)),
+            });
             return nullptr;
         }
 
         format_tokens.discard_whitespace();
         if (format_tokens.has_next_token()) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`format()` has trailing tokens); discarding.");
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<font-src>"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = "format() has trailing tokens."_string,
+            });
             return nullptr;
         }
 
@@ -4280,7 +4367,11 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
         TokenStream function_tokens { function.value };
         auto tech_items = parse_a_comma_separated_list_of_component_values(function_tokens);
         if (tech_items.is_empty()) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`tech()` has no arguments); discarding.");
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<font-src>"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = "tech() has no arguments."_string,
+            });
             return nullptr;
         }
 
@@ -4289,30 +4380,38 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
             tech_tokens.discard_whitespace();
             auto& ident_token = tech_tokens.consume_a_token();
             if (!ident_token.is(Token::Type::Ident)) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`tech()` parameters must be idents, got: {}); discarding.", ident_token.to_debug_string());
+                ErrorReporter::the().report(InvalidValueError {
+                    .value_type = "<font-src>"_fly_string,
+                    .value_string = tokens.dump_string(),
+                    .description = MUST(String::formatted("tech() parameters must be idents, got: {}", ident_token.to_debug_string())),
+                });
                 return nullptr;
             }
             tech_tokens.discard_whitespace();
             if (tech_tokens.has_next_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`tech()` has trailing tokens); discarding.");
+                ErrorReporter::the().report(InvalidValueError {
+                    .value_type = "<font-src>"_fly_string,
+                    .value_string = tokens.dump_string(),
+                    .description = "tech() has trailing tokens."_string,
+                });
                 return nullptr;
             }
 
             auto& font_tech_name = ident_token.token().ident();
             if (auto keyword = keyword_from_string(font_tech_name); keyword.has_value()) {
                 if (auto font_tech = keyword_to_font_tech(*keyword); font_tech.has_value()) {
-
-                    if (!font_tech_is_supported(*font_tech)) {
-                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source tech({}) not supported; skipping.", font_tech_name);
-                        return nullptr;
+                    if (font_tech_is_supported(*font_tech)) {
+                        tech.append(font_tech.release_value());
+                        continue;
                     }
-
-                    tech.append(font_tech.release_value());
-                    continue;
                 }
             }
 
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`{}` is not a supported value in `tech()`); discarding.", font_tech_name);
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<font-src>"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = MUST(String::formatted("tech({}) is not supported.", font_tech_name)),
+            });
             return nullptr;
         }
     }

@@ -1,12 +1,12 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Types.h>
 #include <LibWeb/CSS/Serialize.h>
 
@@ -120,8 +120,18 @@ void AtRule::for_each_as_declaration_list(DeclarationVisitor&& visit) const
 {
     // <declaration-list>: only declarations are allowed; at-rules and qualified rules are automatically invalid.
     for_each(
-        [](auto const& at_rule) { dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Found illegal @{} rule in `<declaration-list>`; discarding.", at_rule.name); },
-        [](auto const&) { dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Found illegal qualified rule in `<declaration-list>`; discarding."); },
+        [this](auto const& at_rule) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = MUST(String::formatted("@{}", name)),
+                .inner_rule_name = MUST(String::formatted("@{}", at_rule.name)),
+            });
+        },
+        [this](auto const&) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = MUST(String::formatted("@{}", name)),
+                .inner_rule_name = "qualified-rule"_fly_string,
+            });
+        },
         move(visit));
 }
 
@@ -130,9 +140,19 @@ void AtRule::for_each_as_qualified_rule_list(QualifiedRuleVisitor&& visit) const
 {
     // <qualified-rule-list>: only qualified rules are allowed; declarations and at-rules are automatically invalid.
     for_each(
-        [](auto const& at_rule) { dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Found illegal @{} rule in `<qualified-rule-list>`; discarding.", at_rule.name); },
+        [this](auto const& at_rule) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = MUST(String::formatted("@{}", name)),
+                .inner_rule_name = MUST(String::formatted("@{}", at_rule.name)),
+            });
+        },
         move(visit),
-        [](auto const&) { dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Found illegal list of declarations in `<qualified-rule-list>`; discarding."); });
+        [this](auto const&) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = MUST(String::formatted("@{}", name)),
+                .inner_rule_name = "list-of-declarations"_fly_string,
+            });
+        });
 }
 
 // https://drafts.csswg.org/css-syntax/#typedef-at-rule-list
@@ -141,8 +161,18 @@ void AtRule::for_each_as_at_rule_list(AtRuleVisitor&& visit) const
     // <at-rule-list>: only at-rules are allowed; declarations and qualified rules are automatically invalid.
     for_each(
         move(visit),
-        [](auto const&) { dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Found illegal qualified rule in `<at-rule-list>`; discarding."); },
-        [](auto const&) { dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Found illegal list of declarations in `<at-rule-list>`; discarding."); });
+        [this](auto const&) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = MUST(String::formatted("@{}", name)),
+                .inner_rule_name = "qualified-rule"_fly_string,
+            });
+        },
+        [this](auto const&) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = MUST(String::formatted("@{}", name)),
+                .inner_rule_name = "list-of-declarations"_fly_string,
+            });
+        });
 }
 
 // https://drafts.csswg.org/css-syntax/#typedef-declaration-rule-list
@@ -151,7 +181,12 @@ void AtRule::for_each_as_declaration_rule_list(AtRuleVisitor&& visit_at_rule, De
     // <declaration-rule-list>: declarations and at-rules are allowed; qualified rules are automatically invalid.
     for_each(
         move(visit_at_rule),
-        [](auto const&) { dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Found illegal qualified rule in `<declaration-rule-list>`; discarding."); },
+        [this](auto const&) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = MUST(String::formatted("@{}", name)),
+                .inner_rule_name = "qualified-rule"_fly_string,
+            });
+        },
         move(visit_declaration));
 }
 
@@ -162,12 +197,17 @@ void AtRule::for_each_as_rule_list(RuleVisitor&& visit) const
     for (auto const& child : child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& rule) { visit(rule); },
-            [&](Vector<Declaration> const&) { dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Found illegal list of declarations in `<rule-list>`; discarding."); });
+            [&](Vector<Declaration> const&) {
+                ErrorReporter::the().report(InvalidRuleLocationError {
+                    .outer_rule_name = MUST(String::formatted("@{}", name)),
+                    .inner_rule_name = "list-of-declarations"_fly_string,
+                });
+            });
     }
 }
 
 // https://drafts.csswg.org/css-syntax/#typedef-declaration-list
-void QualifiedRule::for_each_as_declaration_list(DeclarationVisitor&& visit) const
+void QualifiedRule::for_each_as_declaration_list(FlyString const& rule_name, DeclarationVisitor&& visit) const
 {
     // <declaration-list>: only declarations are allowed; at-rules and qualified rules are automatically invalid.
     for (auto const& declaration : declarations)
@@ -176,7 +216,10 @@ void QualifiedRule::for_each_as_declaration_list(DeclarationVisitor&& visit) con
     for (auto const& child : child_rules) {
         child.visit(
             [&](Rule const&) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Found illegal qualified rule in `<declaration-list>`; discarding.");
+                ErrorReporter::the().report(InvalidRuleLocationError {
+                    .outer_rule_name = rule_name,
+                    .inner_rule_name = "qualified-rule"_fly_string,
+                });
             },
             [&](Vector<Declaration> const& declarations) {
                 for (auto const& declaration : declarations)

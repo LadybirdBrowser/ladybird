@@ -7,6 +7,7 @@
 
 #include "Selector.h"
 #include <AK/GenericShorthands.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
@@ -728,7 +729,10 @@ Optional<Selector::SimpleSelector> Selector::SimpleSelector::absolutized(Selecto
         if (pseudo_class.type == PseudoClass::Has) {
             for (auto const& selector : pseudo_class.argument_selector_list) {
                 if (contains_invalid_contents_for_has(selector)) {
-                    dbgln_if(CSS_PARSER_DEBUG, "After absolutizing, :has() would contain invalid contents; rejecting");
+                    Parser::ErrorReporter::the().report(Parser::InvalidSelectorError {
+                        .value_string = selector->serialize(),
+                        .description = "After absolutizing, :has() would contain invalid contents."_string,
+                    });
                     return {};
                 }
             }

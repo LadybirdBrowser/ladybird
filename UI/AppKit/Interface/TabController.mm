@@ -376,6 +376,11 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self debugRequest:"dump-all-resolved-styles" argument:""];
 }
 
+- (void)dumpCSSErrors:(id)sender
+{
+    [self debugRequest:"dump-all-css-errors" argument:""];
+}
+
 - (void)dumpHistory:(id)sender
 {
     [self debugRequest:"dump-session-history" argument:""];

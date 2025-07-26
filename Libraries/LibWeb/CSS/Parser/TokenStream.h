@@ -189,6 +189,13 @@ public:
         }
     }
 
+    String dump_string()
+    {
+        // FIXME: The whitespace is only needed because we strip it when parsing property values. Remove it here once
+        //        we stop doing that.
+        return MUST(String::join(" "sv, m_tokens));
+    }
+
 private:
     // https://drafts.csswg.org/css-syntax/#token-stream-tokens
     Span<T const> m_tokens;

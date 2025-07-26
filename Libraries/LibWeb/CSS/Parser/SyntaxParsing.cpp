@@ -6,6 +6,7 @@
 
 #include <AK/GenericShorthands.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
@@ -251,7 +252,11 @@ RefPtr<CSSStyleValue const> Parser::parse_according_to_syntax_node(TokenStream<C
             return nullptr;
         }
 
-        dbgln_if(CSS_PARSER_DEBUG, "Couldn't parse `<{}>` because we don't know what it is.", type_name);
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = MUST(String::formatted("<{}>", type_name)),
+            .value_string = tokens.dump_string(),
+            .description = "Unknown type in <syntax>."_string,
+        });
         return nullptr;
     }
     case SyntaxNode::NodeType::Multiplier: {
