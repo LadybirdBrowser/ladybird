@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-visual-ref.html" />
+<div id="div">this<br>that</div>and then some
+<script>
+  let range = document.createRange();
+  range.setStart(div.childNodes[0], 1);
+  range.setEnd(div.childNodes[2], 3);
+  window.getSelection().addRange(range);
+</script>
