@@ -77,7 +77,7 @@ public:
     LengthPercentage length_percentage_or_fallback(PropertyID, LengthPercentage const& fallback) const;
     Optional<LengthPercentage> length_percentage(PropertyID) const;
     LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Length const& default_value) const;
-    Color color_or_fallback(PropertyID, Layout::NodeWithStyle const&, Color fallback) const;
+    Color color_or_fallback(PropertyID, ColorResolutionContext, Color fallback) const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
     TextAnchor text_anchor() const;
     TextAlign text_align() const;
@@ -185,7 +185,6 @@ public:
     Optional<Transformation> scale() const;
 
     MaskType mask_type() const;
-    Color stop_color() const;
     float stop_opacity() const;
     float fill_opacity() const;
     StrokeLinecap stroke_linecap() const;
@@ -194,7 +193,6 @@ public:
     float stroke_opacity() const;
     FillRule fill_rule() const;
     ClipRule clip_rule() const;
-    Color flood_color(Layout::NodeWithStyle const&) const;
     float flood_opacity() const;
 
     Gfx::FontCascadeList const& computed_font_list() const

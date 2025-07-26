@@ -375,12 +375,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     auto& computed_values = mutable_computed_values();
 
     // NOTE: color-scheme must be set first to ensure system colors can be resolved correctly.
-    auto preferred_color_scheme = document().page().preferred_color_scheme();
-    // FIXME: We can't just check for Auto because page().preferred_color_scheme() returns garbage data after startup.
-    if (preferred_color_scheme != CSS::PreferredColorScheme::Dark && preferred_color_scheme != CSS::PreferredColorScheme::Light) {
-        preferred_color_scheme = document().page().palette().is_dark() ? CSS::PreferredColorScheme::Dark : CSS::PreferredColorScheme::Light;
-    }
-    computed_values.set_color_scheme(computed_style.color_scheme(preferred_color_scheme, document().supported_color_schemes()));
+    computed_values.set_color_scheme(computed_style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes()));
 
     // NOTE: We have to be careful that font-related properties get set in the right order.
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
@@ -393,7 +388,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
-    computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, *this, CSS::InitialValues::color()));
+    computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::color()));
 
     computed_values.set_vertical_align(computed_style.vertical_align());
 
@@ -527,7 +522,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
         computed_values.set_background_layers(move(layers));
     }
-    computed_values.set_background_color(computed_style.color_or_fallback(CSS::PropertyID::BackgroundColor, *this, CSS::InitialValues::background_color()));
+    computed_values.set_background_color(computed_style.color_or_fallback(CSS::PropertyID::BackgroundColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::background_color()));
 
     computed_values.set_box_sizing(computed_style.box_sizing());
 
@@ -671,7 +666,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     if (computed_style.filter().has_filters())
         computed_values.set_filter(resolve_filter(computed_style.filter()));
 
-    computed_values.set_flood_color(computed_style.flood_color(*this));
+    computed_values.set_flood_color(computed_style.color_or_fallback(CSS::PropertyID::FloodColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::flood_color()));
     computed_values.set_flood_opacity(computed_style.flood_opacity());
 
     computed_values.set_justify_content(computed_style.justify_content());
@@ -738,11 +733,11 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     // FIXME: The default text decoration color value is `currentcolor`, but since we can't resolve that easily,
     //        we just manually grab the value from `color`. This makes it dependent on `color` being
     //        specified first, so it's far from ideal.
-    computed_values.set_text_decoration_color(computed_style.color_or_fallback(CSS::PropertyID::TextDecorationColor, *this, computed_values.color()));
+    computed_values.set_text_decoration_color(computed_style.color_or_fallback(CSS::PropertyID::TextDecorationColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), computed_values.color()));
     if (auto maybe_text_decoration_thickness = computed_style.length_percentage(CSS::PropertyID::TextDecorationThickness); maybe_text_decoration_thickness.has_value())
         computed_values.set_text_decoration_thickness(maybe_text_decoration_thickness.release_value());
 
-    computed_values.set_webkit_text_fill_color(computed_style.color_or_fallback(CSS::PropertyID::WebkitTextFillColor, *this, computed_values.color()));
+    computed_values.set_webkit_text_fill_color(computed_style.color_or_fallback(CSS::PropertyID::WebkitTextFillColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), computed_values.color()));
 
     computed_values.set_text_shadow(computed_style.text_shadow(*this));
 
@@ -817,7 +812,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         // FIXME: The default border color value is `currentcolor`, but since we can't resolve that easily,
         //        we just manually grab the value from `color`. This makes it dependent on `color` being
         //        specified first, so it's far from ideal.
-        border.color = computed_style.color_or_fallback(color_property, *this, computed_values.color());
+        border.color = computed_style.color_or_fallback(color_property, CSS::ColorResolutionContext::for_layout_node_with_style(*this), computed_values.color());
         border.line_style = computed_style.line_style(style_property);
 
         // https://w3c.github.io/csswg-drafts/css-backgrounds/#border-style
@@ -838,7 +833,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     do_border_style(computed_values.border_bottom(), CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
 
     if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); outline_color.has_color())
-        computed_values.set_outline_color(outline_color.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
+        computed_values.set_outline_color(outline_color.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
     if (auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset); outline_offset.is_length())
         computed_values.set_outline_offset(outline_offset.as_length().length());
     computed_values.set_outline_style(computed_style.outline_style());
@@ -878,16 +873,17 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     auto const& fill = computed_style.property(CSS::PropertyID::Fill);
     if (fill.has_color())
-        computed_values.set_fill(fill.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
+        computed_values.set_fill(fill.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
     else if (fill.is_url())
         computed_values.set_fill(fill.as_url().url());
     auto const& stroke = computed_style.property(CSS::PropertyID::Stroke);
     if (stroke.has_color())
-        computed_values.set_stroke(stroke.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
+        computed_values.set_stroke(stroke.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
     else if (stroke.is_url())
         computed_values.set_stroke(stroke.as_url().url());
-    if (auto const& stop_color = computed_style.property(CSS::PropertyID::StopColor); stop_color.has_color())
-        computed_values.set_stop_color(stop_color.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
+
+    computed_values.set_stop_color(computed_style.color_or_fallback(CSS::PropertyID::StopColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::stop_color()));
+
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits

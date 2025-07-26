@@ -762,11 +762,9 @@ RefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, Calcul
     StyleValueVector result_shadows;
     result_shadows.ensure_capacity(from_shadows.size());
 
-    Optional<Layout::NodeWithStyle const&> layout_node;
-    CalculationResolutionContext resolution_context;
+    ColorResolutionContext color_resolution_context {};
     if (auto node = element.layout_node()) {
-        layout_node = *node;
-        resolution_context.length_resolution_context = Length::ResolutionContext::for_layout_node(*node);
+        color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*element.layout_node());
     }
 
     for (size_t i = 0; i < from_shadows.size(); i++) {
@@ -787,8 +785,8 @@ RefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, Calcul
 
         // FIXME: If we aren't able to resolve the colors here, we should postpone interpolation until we can (perhaps
         //        by creating something similar to a ColorMixStyleValue).
-        auto from_color = from_shadow.color()->to_color(layout_node, resolution_context);
-        auto to_color = to_shadow.color()->to_color(layout_node, resolution_context);
+        auto from_color = from_shadow.color()->to_color(color_resolution_context);
+        auto to_color = to_shadow.color()->to_color(color_resolution_context);
 
         Color interpolated_color = Color::Black;
 
@@ -907,11 +905,9 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
         return BackgroundSizeStyleValue::create(*interpolated_x, *interpolated_y);
     }
     case CSSStyleValue::Type::Color: {
-        Optional<Layout::NodeWithStyle const&> layout_node;
-        CalculationResolutionContext resolution_context {};
+        ColorResolutionContext color_resolution_context {};
         if (auto node = element.layout_node()) {
-            layout_node = *node;
-            resolution_context.length_resolution_context = Length::ResolutionContext::for_layout_node(*node);
+            color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*element.layout_node());
         }
 
         auto color_syntax = ColorSyntax::Legacy;
@@ -922,8 +918,8 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
 
         // FIXME: If we aren't able to resolve the colors here, we should postpone interpolation until we can (perhaps
         //        by creating something similar to a ColorMixStyleValue).
-        auto from_color = from.to_color(layout_node, resolution_context);
-        auto to_color = to.to_color(layout_node, resolution_context);
+        auto from_color = from.to_color(color_resolution_context);
+        auto to_color = to.to_color(color_resolution_context);
 
         Color interpolated_color = Color::Black;
 
