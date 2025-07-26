@@ -43,6 +43,30 @@ String normalize_newlines(String const& string)
     return MUST(builder.to_string());
 }
 
+// https://infra.spec.whatwg.org/#normalize-newlines
+Utf16String normalize_newlines(Utf16String const& string)
+{
+    // To normalize newlines in a string, replace every U+000D CR U+000A LF code point pair with a single U+000A LF
+    // code point, and then replace every remaining U+000D CR code point with a U+000A LF code point.
+    if (!string.contains('\r'))
+        return string;
+
+    // FIXME: Implement a UTF-16 GenericLexer.
+    StringBuilder builder(StringBuilder::Mode::UTF16, string.length_in_code_units());
+
+    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
+        if (auto code_unit = string.code_unit_at(i); code_unit == '\r') {
+            if (i + 1 < string.length_in_code_units() && string.code_unit_at(i + 1) == '\n')
+                ++i;
+            builder.append('\n');
+        } else {
+            builder.append_code_unit(code_unit);
+        }
+    }
+
+    return builder.to_utf16_string();
+}
+
 // https://infra.spec.whatwg.org/#strip-and-collapse-ascii-whitespace
 ErrorOr<String> strip_and_collapse_whitespace(StringView string)
 {

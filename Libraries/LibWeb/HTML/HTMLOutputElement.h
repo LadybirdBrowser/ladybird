@@ -34,8 +34,8 @@ public:
     String default_value() const;
     void set_default_value(String const&);
 
-    String value() const override;
-    void set_value(String const&);
+    Utf16String value() const override;
+    void set_value(Utf16String const&);
 
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed

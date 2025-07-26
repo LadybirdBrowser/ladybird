@@ -10,7 +10,7 @@ interface HTMLOptionElement : HTMLElement {
     [CEReactions] attribute DOMString label;
     [CEReactions, Reflect=selected] attribute boolean defaultSelected;
     attribute boolean selected;
-    [CEReactions] attribute DOMString value;
+    [CEReactions] attribute Utf16DOMString value;
 
     [CEReactions] attribute DOMString text;
     readonly attribute long index;

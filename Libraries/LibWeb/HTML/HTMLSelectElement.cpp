@@ -365,16 +365,16 @@ Optional<ARIA::Role> HTMLSelectElement::default_role() const
     return ARIA::Role::combobox;
 }
 
-String HTMLSelectElement::value() const
+Utf16String HTMLSelectElement::value() const
 {
     update_cached_list_of_options();
     for (auto const& option_element : m_cached_list_of_options)
         if (option_element->selected())
             return option_element->value();
-    return ""_string;
+    return {};
 }
 
-WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(String const& value)
+WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(Utf16String const& value)
 {
     update_cached_list_of_options();
     for (auto const& option_element : list_of_options())
@@ -478,7 +478,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
                 for (auto const& child : opt_group_element->children_as_vector()) {
                     if (auto const& option_element = as_if<HTMLOptionElement>(*child)) {
                         if (!option_element->has_attribute(Web::HTML::AttributeNames::hidden))
-                            option_group_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, strip_newlines(option_element->label()), option_element->value() });
+                            option_group_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, strip_newlines(option_element->label()), option_element->value().to_utf8_but_should_be_ported_to_utf16() });
                     }
                 }
                 m_select_items.append(SelectItemOptionGroup { opt_group_element->get_attribute(AttributeNames::label).value_or(String {}), option_group_items });
@@ -487,7 +487,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
 
         if (auto const& option_element = as_if<HTMLOptionElement>(*child)) {
             if (!option_element->has_attribute(Web::HTML::AttributeNames::hidden))
-                m_select_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, strip_newlines(option_element->label()), option_element->value() });
+                m_select_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, strip_newlines(option_element->label()), option_element->value().to_utf8_but_should_be_ported_to_utf16() });
         }
 
         if (auto const* hr_element = as_if<HTMLHRElement>(*child)) {

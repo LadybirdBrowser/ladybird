@@ -74,20 +74,20 @@ void HTMLOutputElement::set_default_value(String const& default_value)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-output-value
-String HTMLOutputElement::value() const
+Utf16String HTMLOutputElement::value() const
 {
     // The value getter steps are to return this's descendant text content.
-    return descendant_text_content();
+    return Utf16String::from_utf8(descendant_text_content());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-output-value
-void HTMLOutputElement::set_value(String const& value)
+void HTMLOutputElement::set_value(Utf16String const& value)
 {
     // 1. Set this's default value override to its default value.
     m_default_value_override = default_value();
 
     // 2. String replace all with the given value within this.
-    string_replace_all(value);
+    string_replace_all(value.to_utf8_but_should_be_ported_to_utf16());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-output-element:concept-form-reset-control

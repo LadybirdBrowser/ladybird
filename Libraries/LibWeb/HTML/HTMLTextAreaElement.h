@@ -80,14 +80,14 @@ public:
     String default_value() const;
     void set_default_value(String const&);
 
-    String value() const override;
-    void set_value(String const&);
+    Utf16String value() const override;
+    void set_value(Utf16String const&);
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
-    String api_value() const;
+    Utf16String api_value() const;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-    virtual Utf16String relevant_value() override { return Utf16String::from_utf8(api_value()); }
+    virtual Utf16String relevant_value() override { return api_value(); }
     virtual WebIDL::ExceptionOr<void> set_relevant_value(Utf16String const& value) override;
 
     virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
@@ -140,7 +140,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void set_raw_value(String);
+    void set_raw_value(Utf16String);
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
@@ -169,10 +169,10 @@ private:
     bool m_user_validity { false };
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#concept-textarea-raw-value
-    String m_raw_value;
+    Utf16String m_raw_value;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-api-value
-    mutable Optional<String> m_api_value;
+    mutable Optional<Utf16String> m_api_value;
 };
 
 }

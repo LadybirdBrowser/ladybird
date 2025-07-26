@@ -89,15 +89,15 @@ void HTMLOptionElement::set_selected_internal(bool selected)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-value
-String HTMLOptionElement::value() const
+Utf16String HTMLOptionElement::value() const
 {
     // The value of an option element is the value of the value content attribute, if there is one.
     // ...or, if there is not, the value of the element's text IDL attribute.
-    return attribute(HTML::AttributeNames::value).value_or(text());
+    return Utf16String::from_utf8(attribute(HTML::AttributeNames::value).value_or(text()));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-value
-WebIDL::ExceptionOr<void> HTMLOptionElement::set_value(String const& value)
+WebIDL::ExceptionOr<void> HTMLOptionElement::set_value(Utf16String const& value)
 {
     return set_attribute(HTML::AttributeNames::value, value);
 }
