@@ -21,12 +21,12 @@ AudioBox::AudioBox(DOM::Document& document, DOM::Element& element, GC::Ref<CSS::
 
 HTML::HTMLAudioElement& AudioBox::dom_node()
 {
-    return static_cast<HTML::HTMLAudioElement&>(ReplacedBox::dom_node());
+    return static_cast<HTML::HTMLAudioElement&>(*ReplacedBox::dom_node());
 }
 
 HTML::HTMLAudioElement const& AudioBox::dom_node() const
 {
-    return static_cast<HTML::HTMLAudioElement const&>(ReplacedBox::dom_node());
+    return static_cast<HTML::HTMLAudioElement const&>(*ReplacedBox::dom_node());
 }
 
 GC::Ptr<Painting::Paintable> AudioBox::create_paintable() const

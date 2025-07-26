@@ -29,12 +29,12 @@ void VideoBox::finalize()
 
 HTML::HTMLVideoElement& VideoBox::dom_node()
 {
-    return static_cast<HTML::HTMLVideoElement&>(ReplacedBox::dom_node());
+    return static_cast<HTML::HTMLVideoElement&>(*ReplacedBox::dom_node());
 }
 
 HTML::HTMLVideoElement const& VideoBox::dom_node() const
 {
-    return static_cast<HTML::HTMLVideoElement const&>(ReplacedBox::dom_node());
+    return static_cast<HTML::HTMLVideoElement const&>(*ReplacedBox::dom_node());
 }
 
 void VideoBox::prepare_for_replaced_layout()
