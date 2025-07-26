@@ -50,7 +50,7 @@ public:
     void set_needs_layout_update(DOM::SetNeedsLayoutReason);
     void reset_needs_layout_update() { m_needs_layout_update = false; }
 
-    bool is_generated() const { return m_generated_for.has_value(); }
+    bool is_generated_for_pseudo_element() const { return m_generated_for.has_value(); }
     Optional<CSS::PseudoElement> generated_for_pseudo_element() const { return m_generated_for; }
     bool is_generated_for_before_pseudo_element() const { return m_generated_for == CSS::PseudoElement::Before; }
     bool is_generated_for_after_pseudo_element() const { return m_generated_for == CSS::PseudoElement::After; }
@@ -230,7 +230,7 @@ private:
 
     bool m_needs_layout_update { false };
 
-    Optional<CSS::PseudoElement> m_generated_for {};
+    Optional<CSS::PseudoElement> m_generated_for;
 
     u32 m_initial_quote_nesting_level { 0 };
 };

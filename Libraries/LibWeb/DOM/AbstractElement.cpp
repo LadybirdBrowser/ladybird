@@ -71,7 +71,7 @@ Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_meth
         if (auto* previous_element = as_if<Element>(node->dom_node()))
             return AbstractElement { *previous_element };
 
-        if (node->is_generated())
+        if (node->is_generated_for_pseudo_element())
             return AbstractElement { *node->pseudo_element_generator(), node->generated_for_pseudo_element() };
     }
 }
