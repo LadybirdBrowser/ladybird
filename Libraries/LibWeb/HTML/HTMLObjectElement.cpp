@@ -76,6 +76,7 @@ void HTMLObjectElement::initialize(JS::Realm& realm)
 void HTMLObjectElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    image_provider_visit_edges(visitor);
     visitor.visit(m_resource_request);
     visitor.visit(m_document_observer);
 }

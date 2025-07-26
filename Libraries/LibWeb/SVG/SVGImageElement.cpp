@@ -36,6 +36,7 @@ void SVGImageElement::initialize(JS::Realm& realm)
 void SVGImageElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    image_provider_visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_x);
     visitor.visit(m_y);

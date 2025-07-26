@@ -45,7 +45,7 @@ ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvi
 void ImagePaintable::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_image_provider.to_html_element());
+    m_image_provider.image_provider_visit_edges(visitor);
 }
 
 void ImagePaintable::finalize()
