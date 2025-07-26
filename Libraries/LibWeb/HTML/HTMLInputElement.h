@@ -283,7 +283,7 @@ private:
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize = {}) const override;
     virtual void set_visible_in_viewport(bool) override;
-    virtual GC::Ref<DOM::Element const> to_html_element() const override { return *this; }
+    virtual GC::Ptr<DOM::Element const> to_html_element() const override { return *this; }
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
