@@ -18,6 +18,9 @@ public:
     Painting::LabelablePaintable* paintable();
     Painting::LabelablePaintable const* paintable() const;
 
+    DOM::Element const& dom_node() const { return *ReplacedBox::dom_node(); }
+    DOM::Element& dom_node() { return *ReplacedBox::dom_node(); }
+
 protected:
     LabelableNode(DOM::Document& document, DOM::Element& element, GC::Ref<CSS::ComputedProperties> style)
         : ReplacedBox(document, element, move(style))

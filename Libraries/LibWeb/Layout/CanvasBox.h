@@ -21,7 +21,7 @@ public:
 
     virtual void prepare_for_replaced_layout() override;
 
-    const HTML::HTMLCanvasElement& dom_node() const { return static_cast<const HTML::HTMLCanvasElement&>(ReplacedBox::dom_node()); }
+    HTML::HTMLCanvasElement const& dom_node() const { return static_cast<HTML::HTMLCanvasElement const&>(*ReplacedBox::dom_node()); }
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };

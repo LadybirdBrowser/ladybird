@@ -15,7 +15,7 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(ImageBox);
 
-ImageBox::ImageBox(DOM::Document& document, DOM::Element& element, GC::Ref<CSS::ComputedProperties> style, ImageProvider const& image_provider)
+ImageBox::ImageBox(DOM::Document& document, GC::Ptr<DOM::Element> element, GC::Ref<CSS::ComputedProperties> style, ImageProvider const& image_provider)
     : ReplacedBox(document, element, move(style))
     , m_image_provider(image_provider)
 {
@@ -36,8 +36,9 @@ void ImageBox::prepare_for_replaced_layout()
     set_natural_aspect_ratio(m_image_provider.intrinsic_aspect_ratio());
 
     if (renders_as_alt_text()) {
-        auto const& element = as<HTML::HTMLElement>(dom_node());
-        auto alt = element.get_attribute_value(HTML::AttributeNames::alt);
+        String alt;
+        if (auto element = dom_node())
+            alt = element->get_attribute_value(HTML::AttributeNames::alt);
 
         if (alt.is_empty()) {
             set_natural_width(0);
@@ -66,7 +67,7 @@ void ImageBox::dom_node_did_update_alt_text(Badge<ImageProvider>)
 
 bool ImageBox::renders_as_alt_text() const
 {
-    if (auto const* image_provider = dynamic_cast<ImageProvider const*>(&dom_node()))
+    if (auto const* image_provider = dynamic_cast<ImageProvider const*>(dom_node().ptr()))
         return !image_provider->is_image_available();
     return false;
 }
