@@ -8,6 +8,7 @@
 
 #include <AK/BitCast.h>
 #include <AK/BuiltinWrappers.h>
+#include <AK/Math.h>
 #include <AK/Result.h>
 #include <AK/SIMD.h>
 #include <AK/SIMDExtras.h>
@@ -395,12 +396,10 @@ struct Minimum {
     auto operator()(Lhs lhs, Rhs rhs) const
     {
         if constexpr (IsFloatingPoint<Lhs> || IsFloatingPoint<Rhs>) {
-            if (isnan(lhs) || isnan(rhs)) {
-                return isnan(lhs) ? lhs : rhs;
-            }
-            if (lhs == 0 && rhs == 0) {
+            if (isnan(lhs) || isnan(rhs))
+                return AK::NaN<Lhs>;
+            if (lhs == 0 && rhs == 0)
                 return signbit(lhs) ? lhs : rhs;
-            }
         }
         return min(lhs, rhs);
     }
@@ -413,12 +412,10 @@ struct Maximum {
     auto operator()(Lhs lhs, Rhs rhs) const
     {
         if constexpr (IsFloatingPoint<Lhs> || IsFloatingPoint<Rhs>) {
-            if (isnan(lhs) || isnan(rhs)) {
-                return isnan(lhs) ? lhs : rhs;
-            }
-            if (lhs == 0 && rhs == 0) {
+            if (isnan(lhs) || isnan(rhs))
+                return AK::NaN<Lhs>;
+            if (lhs == 0 && rhs == 0)
                 return signbit(lhs) ? rhs : lhs;
-            }
         }
         return max(lhs, rhs);
     }
@@ -555,6 +552,9 @@ struct Ceil {
     template<typename Lhs>
     auto operator()(Lhs lhs) const
     {
+        if (isnan(lhs))
+            return AK::NaN<Lhs>;
+
         if constexpr (IsSame<Lhs, float>)
             return ceilf(lhs);
         else if constexpr (IsSame<Lhs, double>)
@@ -923,6 +923,9 @@ struct Floor {
     template<typename Lhs>
     auto operator()(Lhs lhs) const
     {
+        if (isnan(lhs))
+            return AK::NaN<Lhs>;
+
         if constexpr (IsSame<Lhs, float>)
             return floorf(lhs);
         else if constexpr (IsSame<Lhs, double>)
@@ -938,6 +941,9 @@ struct Truncate {
     template<typename Lhs>
     auto operator()(Lhs lhs) const
     {
+        if (isnan(lhs))
+            return AK::NaN<Lhs>;
+
         if constexpr (IsSame<Lhs, float>)
             return truncf(lhs);
         else if constexpr (IsSame<Lhs, double>)
