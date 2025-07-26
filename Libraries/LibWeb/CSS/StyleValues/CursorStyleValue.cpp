@@ -82,7 +82,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         painter->clear_rect(bitmap.rect().to_type<float>(), Color::Transparent);
 
         // Paint the cursor into a bitmap.
-        auto display_list = Painting::DisplayList::create();
+        auto display_list = Painting::DisplayList::create(document.page().client().device_pixels_per_css_pixel());
         Painting::DisplayListRecorder display_list_recorder(display_list);
         PaintContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel() };
 

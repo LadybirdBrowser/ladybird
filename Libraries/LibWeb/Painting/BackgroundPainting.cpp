@@ -20,7 +20,7 @@ namespace Web::Painting {
 
 static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Paintable const& paintable, CSSPixelPoint containing_block_location)
 {
-    auto text_clip_paths = DisplayList::create();
+    auto text_clip_paths = DisplayList::create(context.device_pixels_per_css_pixel());
     DisplayListRecorder display_list_recorder(*text_clip_paths);
     // Remove containing block offset, so executing the display list will produce mask at (0, 0)
     display_list_recorder.translate(-context.floored_device_point(containing_block_location).to_type<int>());
@@ -37,7 +37,7 @@ static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Painta
             fragment_absolute_rect.x().to_float(),
             fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
         } * scale;
-        display_list_recorder.draw_text_run(baseline_start, *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
+        display_list_recorder.draw_glyph_run(baseline_start, *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
     };
 
     paintable.for_each_in_inclusive_subtree([&](auto& paintable) {

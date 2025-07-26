@@ -323,7 +323,6 @@ void StackingContext::paint(PaintContext& context) const
         .opacity = opacity,
         .compositing_and_blending_operator = compositing_and_blending_operator,
         .isolate = paintable_box().computed_values().isolation() == CSS::Isolation::Isolate,
-        .is_fixed_position = paintable_box().is_fixed_position(),
         .transform = {
             .origin = transform_origin.scaled(to_device_pixels_scale),
             .matrix = matrix_with_scaled_translation(transform_matrix, to_device_pixels_scale),
@@ -354,7 +353,7 @@ void StackingContext::paint(PaintContext& context) const
     }
 
     if (auto mask_image = computed_values.mask_image()) {
-        auto mask_display_list = DisplayList::create();
+        auto mask_display_list = DisplayList::create(context.device_pixels_per_css_pixel());
         DisplayListRecorder display_list_recorder(*mask_display_list);
         auto mask_painting_context = context.clone(display_list_recorder);
         auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());

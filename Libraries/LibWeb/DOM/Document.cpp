@@ -6416,7 +6416,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         return m_cached_display_list;
     }
 
-    auto display_list = Painting::DisplayList::create();
+    auto display_list = Painting::DisplayList::create(page().client().device_pixels_per_css_pixel());
     Painting::DisplayListRecorder display_list_recorder(display_list);
 
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
@@ -6468,8 +6468,6 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     viewport_paintable.refresh_scroll_state();
 
     viewport_paintable.paint_all_phases(context);
-
-    display_list->set_device_pixels_per_css_pixel(page().client().device_pixels_per_css_pixel());
 
     m_cached_display_list = display_list;
     m_cached_display_list_paint_config = config;
