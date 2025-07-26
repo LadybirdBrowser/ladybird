@@ -35,6 +35,7 @@ static constexpr NSInteger CONTEXT_MENU_LOOP_TAG = 4;
 static constexpr NSInteger CONTEXT_MENU_SEARCH_SELECTED_TEXT_TAG = 5;
 static constexpr NSInteger CONTEXT_MENU_COPY_LINK_TAG = 6;
 static constexpr NSInteger CONTEXT_MENU_COPY_IMAGE_TAG = 7;
+static constexpr NSInteger CONTEXT_MENU_VIEW_SOURCE_TAG = 8;
 
 // Calls to [NSCursor hide] and [NSCursor unhide] must be balanced. We use this struct to ensure
 // we only call [NSCursor hide] once and to ensure that we do call [NSCursor unhide].
@@ -281,8 +282,15 @@ struct HideCursor {
     m_web_view_bridge->debug_request(request, argument);
 }
 
-- (void)viewSource
+- (void)viewSource:(id)sender
 {
+    // Prevent recursive view source: check if current page is already a source view
+    auto current_title = m_web_view_bridge->title();
+    if (current_title.starts_with("View Source -"sv)) {
+        // Already viewing source, don't allow recursive source viewing
+        return;
+    }
+
     m_web_view_bridge->get_source();
 }
 
@@ -628,6 +636,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             return;
         }
         auto* search_selected_text_menu_item = [self.page_context_menu itemWithTag:CONTEXT_MENU_SEARCH_SELECTED_TEXT_TAG];
+        auto* view_source_menu_item = [self.page_context_menu itemWithTag:CONTEXT_MENU_VIEW_SOURCE_TAG];
 
         auto const& search_engine = WebView::Application::settings().search_engine();
 
@@ -643,6 +652,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         } else {
             [search_selected_text_menu_item setHidden:YES];
         }
+
+        // Disable "View Source" if we're already viewing source
+        auto current_title = self->m_web_view_bridge->title();
+        bool is_already_viewing_source = current_title.starts_with("View Source -"sv);
+        [view_source_menu_item setEnabled:!is_already_viewing_source];
 
         auto* event = Ladybird::create_context_menu_mouse_event(self, position);
         [NSMenu popUpContextMenu:self.page_context_menu withEvent:event forView:self];
@@ -1324,9 +1338,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                                                         keyEquivalent:@""]];
         [_page_context_menu addItem:[NSMenuItem separatorItem]];
 
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"View Source"
-                                                               action:@selector(viewSource:)
-                                                        keyEquivalent:@""]];
+        auto* view_source_menu_item = [[NSMenuItem alloc] initWithTitle:@"View Source"
+                                                                 action:@selector(viewSource:)
+                                                          keyEquivalent:@""];
+        [view_source_menu_item setTag:CONTEXT_MENU_VIEW_SOURCE_TAG];
+        [_page_context_menu addItem:view_source_menu_item];
     }
 
     return _page_context_menu;

@@ -235,7 +235,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
 - (void)viewSource:(id)sender
 {
-    [[[self tab] web_view] viewSource];
+    [[[self tab] web_view] viewSource:sender];
 }
 
 - (void)focusLocationToolbarItem
