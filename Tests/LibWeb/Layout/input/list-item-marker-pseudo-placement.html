@@ -4,14 +4,28 @@
     display: list-item;
   }
 
-  div {}
+  div { border: 1px solid black; }
 
   span::before {
-    content: "before";
+    content: "before"; color: green;
   }
 
   span::after {
-    content: "after";
+    content: "after"; color: red;
   }
 </style>
-<span><div></div></span>
+<span><div>div-content</div></span>
+
+<!--
+Explanation:
+ - The CSS Display spec (https://www.w3.org/TR/css-display-3/#block-container) says:
+    "A block container either [...] or contains only block-level boxes [...] possibly generating anonymous block boxes to ensure this constraint [...]"
+   In our case, the contents of the ListItemBox are wrapped inside an anonymous block container (ABC). Nice.
+
+ - The CSS Lists spec (https://drafts.csswg.org/css-lists-3/#marker-pseudo) says:
+    "The marker box is generated [...] as the list item’s first child, before the ::before pseudo-element."
+    In our case, the ::before pseudo-element is a child of ABC.
+
+ - The most reasonable interpretation seems to be that the marker box is a "sibling of the ::before pseudo-element"
+   and NOT "a sibling of ABC".
+-->
