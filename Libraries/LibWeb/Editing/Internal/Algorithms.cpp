@@ -1505,7 +1505,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         //    ownerDocument of node, then set the face attribute of new parent to new value.
         if (command == CommandNames::fontName) {
             new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
-            MUST(new_parent->set_attribute(HTML::AttributeNames::face, new_value.value().to_utf8_but_should_be_ported_to_utf16()));
+            MUST(new_parent->set_attribute(HTML::AttributeNames::face, *new_value));
         }
     }
 
@@ -1515,7 +1515,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         new_parent = MUST(DOM::create_element(document, HTML::TagNames::a, Namespace::HTML));
 
         // 2. Set the href attribute of new parent to new value.
-        MUST(new_parent->set_attribute(HTML::AttributeNames::href, new_value.value().to_utf8_but_should_be_ported_to_utf16()));
+        MUST(new_parent->set_attribute(HTML::AttributeNames::href, *new_value));
 
         // 3. Let ancestor be node's parent.
         GC::Ptr<DOM::Node> ancestor = node->parent();
