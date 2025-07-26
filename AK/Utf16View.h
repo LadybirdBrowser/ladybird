@@ -479,6 +479,20 @@ public:
     [[nodiscard]] constexpr bool contains(char16_t needle) const { return find_code_unit_offset(needle).has_value(); }
     [[nodiscard]] constexpr bool contains(Utf16View const& needle) const { return find_code_unit_offset(needle).has_value(); }
 
+    [[nodiscard]] constexpr size_t count(Utf16View const& needle) const
+    {
+        if (needle.is_empty())
+            return length_in_code_units();
+
+        size_t count = 0;
+        for (size_t i = 0; i < length_in_code_units() - needle.length_in_code_units() + 1; ++i) {
+            if (substring_view(i).starts_with(needle))
+                ++count;
+        }
+
+        return count;
+    }
+
     [[nodiscard]] constexpr bool starts_with(Utf16View const& needle) const
     {
         auto needle_length = needle.length_in_code_units();

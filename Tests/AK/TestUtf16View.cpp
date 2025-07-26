@@ -558,6 +558,30 @@ TEST_CASE(contains)
     EXPECT(u"ab😀"sv.contains(u"😀"sv));
 }
 
+TEST_CASE(count)
+{
+    EXPECT_EQ(u""sv.count({}), 0uz);
+    EXPECT_EQ(u"abc"sv.count({}), 3uz);
+
+    EXPECT_EQ(u""sv.count(u"a"sv), 0uz);
+    EXPECT_EQ(u"abc"sv.count(u"a"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"b"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"c"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"ab"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"bc"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"abc"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"d"sv), 0uz);
+
+    EXPECT_EQ(u"aaaa"sv.count(u"aa"sv), 3uz);
+
+    EXPECT_EQ(u"😀"sv.count({}), 2uz);
+    EXPECT_EQ(u"😀"sv.count(u"\xd83d"sv), 1uz);
+    EXPECT_EQ(u"😀"sv.count(u"\xde00"sv), 1uz);
+    EXPECT_EQ(u"😀"sv.count(u"😀"sv), 1uz);
+    EXPECT_EQ(u"😀😀😀"sv.count(u"😀"sv), 3uz);
+    EXPECT_EQ(u"😀😀😀"sv.count(u"😀😀"sv), 2uz);
+}
+
 TEST_CASE(starts_with)
 {
     EXPECT(Utf16View {}.starts_with(u""sv));
