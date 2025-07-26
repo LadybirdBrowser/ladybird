@@ -2224,7 +2224,9 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
         return WebIDL::NotSupportedError::create(realm, "No constructor for interface found"_string);
     }
 
-    // FIXME: 4. If the interface indicated by constructor is not exposed on the relevant global object of this, then throw a "NotSupportedError" DOMException.
+    // 4. If the interface indicated by constructor is not exposed on the relevant global object of this, then throw a "NotSupportedError" DOMException.
+    if (!is_exposed(event->interface_name(), HTML::relevant_realm(*this)))
+        return WebIDL::NotSupportedError::create(realm, MUST(String::formatted("Interface '{}' is not exposed on realm", interface)));
 
     // NOTE: These are done in the if-chain above
     // 5. Let event be the result of creating an event given constructor.
