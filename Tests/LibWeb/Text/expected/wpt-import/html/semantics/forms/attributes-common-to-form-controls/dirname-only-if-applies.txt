@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Submit input element directionality to FormData, if dirname applies.
+Pass	Submit textarea element directionality to FormData.
+Pass	Submit input element directionality, if dirname applies.
+Pass	Submit textarea element directionality.
