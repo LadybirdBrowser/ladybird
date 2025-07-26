@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
+#include <AK/Utf16String.h>
 
 #ifdef AK_OS_WINDOWS
 #    include <AK/Windows.h>
@@ -310,7 +311,7 @@ UnixDateTime UnixDateTime::now_coarse()
     return UnixDateTime { now_time_from_clock(CLOCK_REALTIME_COARSE) };
 }
 
-ErrorOr<String> UnixDateTime::to_string(StringView format, LocalTime local_time) const
+ErrorOr<void> UnixDateTime::to_string_impl(StringBuilder& builder, StringView format, LocalTime local_time) const
 {
     struct tm tm;
 
@@ -320,15 +321,16 @@ ErrorOr<String> UnixDateTime::to_string(StringView format, LocalTime local_time)
     else
         (void)gmtime_r(&timestamp, &tm);
 
-    StringBuilder builder;
     size_t const format_len = format.length();
 
     for (size_t i = 0; i < format_len; ++i) {
         if (format[i] != '%') {
             TRY(builder.try_append(format[i]));
         } else {
-            if (++i == format_len)
-                return String {};
+            if (++i == format_len) {
+                builder.clear();
+                return {};
+            }
 
             switch (format[i]) {
             case 'a':
@@ -452,7 +454,7 @@ ErrorOr<String> UnixDateTime::to_string(StringView format, LocalTime local_time)
                 break;
             case 'Z': {
                 auto const* timezone_name = tzname[tm.tm_isdst == 0 ? 0 : 1];
-                TRY(builder.try_append({ timezone_name, strlen(timezone_name) }));
+                TRY(builder.try_append(StringView { timezone_name, strlen(timezone_name) }));
                 break;
             }
             case '%':
@@ -466,12 +468,28 @@ ErrorOr<String> UnixDateTime::to_string(StringView format, LocalTime local_time)
         }
     }
 
+    return {};
+}
+
+ErrorOr<String> UnixDateTime::to_string(StringView format, LocalTime local_time) const
+{
+    StringBuilder builder;
+    TRY(to_string_impl(builder, format, local_time));
     return builder.to_string();
+}
+
+Utf16String UnixDateTime::to_utf16_string(StringView format, LocalTime local_time) const
+{
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+    MUST(to_string_impl(builder, format, local_time));
+    return builder.to_utf16_string();
 }
 
 ByteString UnixDateTime::to_byte_string(StringView format, LocalTime local_time) const
 {
-    return MUST(to_string(format, local_time)).to_byte_string();
+    StringBuilder builder;
+    MUST(to_string_impl(builder, format, local_time));
+    return builder.to_byte_string();
 }
 
 }

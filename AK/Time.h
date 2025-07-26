@@ -472,6 +472,7 @@ public:
     // %+:      ignore until next '%'
     // %%:      require character '%'
     ErrorOr<String> to_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
+    Utf16String to_utf16_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
     ByteString to_byte_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
 
     // Offsetting a UNIX time by a duration yields another UNIX time.
@@ -506,6 +507,8 @@ private:
         : Detail::UnawareTime(offset)
     {
     }
+
+    ErrorOr<void> to_string_impl(StringBuilder&, StringView format, LocalTime) const;
 };
 
 // Monotonic time represents time returned from the CLOCK_MONOTONIC clock, which has an arbitrary fixed reference point.
