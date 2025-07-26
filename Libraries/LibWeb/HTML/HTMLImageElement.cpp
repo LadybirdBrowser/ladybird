@@ -86,6 +86,7 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
 void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    image_provider_visit_edges(visitor);
     visitor.visit(m_current_request);
     visitor.visit(m_pending_request);
     visitor.visit(m_document_observer);

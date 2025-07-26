@@ -79,6 +79,7 @@ void HTMLInputElement::initialize(JS::Realm& realm)
 void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    image_provider_visit_edges(visitor);
     visitor.visit(m_inner_text_element);
     visitor.visit(m_text_node);
     visitor.visit(m_placeholder_element);

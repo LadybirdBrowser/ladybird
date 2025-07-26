@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGC/Cell.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
@@ -25,9 +26,13 @@ public:
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize) const = 0;
     virtual void set_visible_in_viewport(bool) = 0;
 
-    virtual GC::Ptr<DOM::Element const> to_html_element() const = 0;
+    virtual void image_provider_visit_edges(GC::Cell::Visitor& visitor) const
+    {
+        visitor.visit(to_html_element());
+    }
 
 protected:
+    virtual GC::Ptr<DOM::Element const> to_html_element() const = 0;
     static void did_update_alt_text(ImageBox&);
 };
 
