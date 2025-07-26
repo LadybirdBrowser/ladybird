@@ -69,7 +69,7 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
         if (!layout_parent.last_child()
             || !layout_parent.last_child()->is_anonymous()
             || !layout_parent.last_child()->children_are_inline()
-            || layout_parent.last_child()->is_generated()) {
+            || layout_parent.last_child()->is_generated_for_pseudo_element()) {
             layout_parent.append_child(layout_parent.create_anonymous_wrapper());
         }
         return *layout_parent.last_child();
@@ -108,7 +108,7 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
     if (layout_node.is_out_of_flow()
         && !layout_parent.display().is_flex_inside()
         && !layout_parent.display().is_grid_inside()
-        && !layout_parent.last_child()->is_generated()
+        && !layout_parent.last_child()->is_generated_for_pseudo_element()
         && layout_parent.last_child()->is_anonymous()
         && layout_parent.last_child()->children_are_inline()) {
         // Block is out-of-flow & previous sibling was wrapped in an anonymous block.

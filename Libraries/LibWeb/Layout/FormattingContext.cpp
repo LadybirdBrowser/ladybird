@@ -1758,7 +1758,7 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
 
 bool FormattingContext::can_skip_is_anonymous_text_run(Box& box)
 {
-    if (box.is_anonymous() && !box.is_generated() && !box.first_child_of_type<BlockContainer>()) {
+    if (box.is_anonymous() && !box.is_generated_for_pseudo_element() && !box.first_child_of_type<BlockContainer>()) {
         bool contains_only_white_space = true;
         box.for_each_in_subtree([&](auto const& node) {
             if (!is<TextNode>(node) || !static_cast<TextNode const&>(node).dom_node().data().is_ascii_whitespace()) {

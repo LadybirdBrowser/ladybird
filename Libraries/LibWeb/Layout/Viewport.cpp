@@ -59,7 +59,7 @@ void Viewport::update_text_blocks()
         if (layout_node.display().is_none() || !layout_node.first_paintable() || !layout_node.first_paintable()->is_visible())
             return TraversalDecision::Continue;
 
-        if (layout_node.is_box() || layout_node.is_generated()) {
+        if (layout_node.is_box() || layout_node.is_generated_for_pseudo_element()) {
             if (!builder.is_empty()) {
                 text_blocks.append({ builder.to_utf16_string(), text_positions });
                 current_start_position = 0;
