@@ -254,6 +254,24 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
     VERIFY_NOT_REACHED();
 }
 
+Vector<Utf16View> Utf16View::split_view(char16_t separator, SplitBehavior split_behavior) const
+{
+    Utf16View seperator_view { &separator, 1 };
+    return split_view(seperator_view, split_behavior);
+}
+
+Vector<Utf16View> Utf16View::split_view(Utf16View const& separator, SplitBehavior split_behavior) const
+{
+    Vector<Utf16View> parts;
+
+    for_each_split_view(separator, split_behavior, [&](auto const& part) {
+        parts.append(part);
+        return IterationDecision::Continue;
+    });
+
+    return parts;
+}
+
 size_t Utf16View::calculate_length_in_code_points() const
 {
     ASSERT(!has_ascii_storage());

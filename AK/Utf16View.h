@@ -10,6 +10,7 @@
 #include <AK/Error.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
+#include <AK/IterationDecision.h>
 #include <AK/MemMem.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
@@ -513,6 +514,46 @@ public:
             return false;
 
         return substring_view(length_in_code_units() - needle_length, needle_length) == needle;
+    }
+
+    [[nodiscard]] Vector<Utf16View> split_view(char16_t, SplitBehavior) const;
+    [[nodiscard]] Vector<Utf16View> split_view(Utf16View const&, SplitBehavior) const;
+
+    template<typename Callback>
+    constexpr void for_each_split_view(char16_t separator, SplitBehavior split_behavior, Callback&& callback) const
+    {
+        Utf16View seperator_view { &separator, 1 };
+        for_each_split_view(seperator_view, split_behavior, forward<Callback>(callback));
+    }
+
+    template<typename Callback>
+    constexpr void for_each_split_view(Utf16View const& separator, SplitBehavior split_behavior, Callback&& callback) const
+    {
+        VERIFY(!separator.is_empty());
+
+        if (is_empty())
+            return;
+
+        bool keep_empty = has_flag(split_behavior, SplitBehavior::KeepEmpty);
+        bool keep_separator = has_flag(split_behavior, SplitBehavior::KeepTrailingSeparator);
+
+        auto view { *this };
+
+        for (auto index = view.find_code_unit_offset(separator); index.has_value(); index = view.find_code_unit_offset(separator)) {
+            if (keep_empty || *index > 0) {
+                auto part = keep_separator
+                    ? view.substring_view(0, *index + separator.length_in_code_units())
+                    : view.substring_view(0, *index);
+
+                if (callback(part) == IterationDecision::Break)
+                    return;
+            }
+
+            view = view.substring_view(*index + separator.length_in_code_units());
+        }
+
+        if (keep_empty || !view.is_empty())
+            callback(view);
     }
 
     // https://infra.spec.whatwg.org/#code-unit-less-than
