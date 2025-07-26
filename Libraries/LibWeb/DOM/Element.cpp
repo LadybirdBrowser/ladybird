@@ -229,6 +229,12 @@ WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String c
     return {};
 }
 
+// https://dom.spec.whatwg.org/#dom-element-setattribute
+WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, Utf16String const& value)
+{
+    return set_attribute(name, value.to_utf8_but_should_be_ported_to_utf16());
+}
+
 // https://dom.spec.whatwg.org/#valid-namespace-prefix
 bool is_valid_namespace_prefix(FlyString const& prefix)
 {
