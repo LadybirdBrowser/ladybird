@@ -604,7 +604,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                         .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this),
                     };
                     auto to_px = [&](CSS::LengthOrCalculated const& length) {
-                        return static_cast<float>(length.resolved(context).map([&](auto& it) { return it.to_px(*this).to_double(); }).value_or(0.0));
+                        return static_cast<float>(length.resolved(context).map([&](auto&& it) { return it.to_px(*this).to_double(); }).value_or(0.0));
                     };
                     // The default value for omitted values is missing length values set to 0
                     // and the missing used color is taken from the color property.
