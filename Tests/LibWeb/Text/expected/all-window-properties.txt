@@ -246,6 +246,7 @@ InternalError
 IntersectionObserver
 IntersectionObserverEntry
 Iterator
+Keyboard
 KeyboardEvent
 KeyframeEffect
 Location

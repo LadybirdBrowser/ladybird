@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/NavigatorOnLine.h>
 #include <LibWeb/HTML/PluginArray.h>
 #include <LibWeb/HTML/UserActivation.h>
+#include <LibWeb/Keyboard/Keyboard.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
 #include <LibWeb/StorageAPI/NavigatorStorage.h>
 
@@ -58,6 +59,7 @@ public:
     [[nodiscard]] GC::Ref<Geolocation::Geolocation> geolocation();
     [[nodiscard]] GC::Ref<UserActivation> user_activation();
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
+    [[nodiscard]] GC::Ref<Keyboard::Keyboard> keyboard();
 
     Optional<FlyString> do_not_track() const;
 
@@ -100,6 +102,9 @@ private:
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     GC::Ptr<CredentialManagement::CredentialsContainer> m_credentials;
+
+    // https://wicg.github.io/keyboard-lock/#navigator-interface
+    GC::Ptr<Keyboard::Keyboard> m_keyboard;
 };
 
 }
