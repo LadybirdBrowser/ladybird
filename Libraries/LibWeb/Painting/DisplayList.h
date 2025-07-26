@@ -84,9 +84,9 @@ private:
 
 class DisplayList : public AtomicRefCounted<DisplayList> {
 public:
-    static NonnullRefPtr<DisplayList> create()
+    static NonnullRefPtr<DisplayList> create(double device_pixels_per_css_pixel)
     {
-        return adopt_ref(*new DisplayList());
+        return adopt_ref(*new DisplayList(device_pixels_per_css_pixel));
     }
 
     void append(Command&& command, Optional<i32> scroll_frame_id, RefPtr<ClipFrame const>);
@@ -98,14 +98,15 @@ public:
     };
 
     AK::SegmentedVector<CommandListItem, 512> const& commands() const { return m_commands; }
-
-    void set_device_pixels_per_css_pixel(double device_pixels_per_css_pixel) { m_device_pixels_per_css_pixel = device_pixels_per_css_pixel; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
 
     String dump() const;
 
 private:
-    DisplayList() = default;
+    DisplayList(double device_pixels_per_css_pixel)
+        : m_device_pixels_per_css_pixel(device_pixels_per_css_pixel)
+    {
+    }
 
     AK::SegmentedVector<CommandListItem, 512> m_commands;
     double m_device_pixels_per_css_pixel;
