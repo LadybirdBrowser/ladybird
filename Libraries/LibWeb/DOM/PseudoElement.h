@@ -33,7 +33,7 @@ class PseudoElement : public JS::Cell {
     void set_custom_properties(HashMap<FlyString, CSS::StyleProperty> value) { m_custom_properties = move(value); }
 
     bool has_non_empty_counters_set() const { return m_counters_set; }
-    Optional<CSS::CountersSet const&> counters_set() const;
+    Optional<CSS::CountersSet&> counters_set() const;
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
