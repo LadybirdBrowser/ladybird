@@ -20,8 +20,10 @@ Optional<u32> parse_non_negative_integer(StringView string);
 Optional<StringView> parse_non_negative_integer_digits(StringView string);
 
 Optional<double> parse_floating_point_number(StringView string);
+Optional<double> parse_floating_point_number(Utf16String const& string);
 
 bool is_valid_floating_point_number(StringView string);
+bool is_valid_floating_point_number(Utf16String const& string);
 
 WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm&, WebIDL::Long);
 

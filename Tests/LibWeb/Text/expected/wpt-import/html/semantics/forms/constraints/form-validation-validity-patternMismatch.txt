@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 85 tests
 
-71 Pass
-14 Fail
+78 Pass
+7 Fail
 Pass	[INPUT in TEXT status] The pattern attribute is not set
 Pass	[INPUT in TEXT status] The value attibute is empty string
 Pass	[INPUT in TEXT status] The value attribute matches the pattern attribute
@@ -13,7 +13,7 @@ Pass	[INPUT in TEXT status] The value attribute mismatches the pattern attribute
 Pass	[INPUT in TEXT status] Invalid regular expression gets ignored
 Pass	[INPUT in TEXT status] Invalid `v` regular expression gets ignored
 Pass	[INPUT in TEXT status] The pattern attribute tries to escape a group
-Fail	[INPUT in TEXT status] The pattern attribute uses Unicode features
+Pass	[INPUT in TEXT status] The pattern attribute uses Unicode features
 Pass	[INPUT in TEXT status] The value attribute matches JavaScript-specific regular expression
 Fail	[INPUT in TEXT status] The value attribute mismatches JavaScript-specific regular expression
 Pass	[INPUT in SEARCH status] The pattern attribute is not set
@@ -25,7 +25,7 @@ Pass	[INPUT in SEARCH status] The value attribute mismatches the pattern attribu
 Pass	[INPUT in SEARCH status] Invalid regular expression gets ignored
 Pass	[INPUT in SEARCH status] Invalid `v` regular expression gets ignored
 Pass	[INPUT in SEARCH status] The pattern attribute tries to escape a group
-Fail	[INPUT in SEARCH status] The pattern attribute uses Unicode features
+Pass	[INPUT in SEARCH status] The pattern attribute uses Unicode features
 Pass	[INPUT in SEARCH status] The value attribute matches JavaScript-specific regular expression
 Fail	[INPUT in SEARCH status] The value attribute mismatches JavaScript-specific regular expression
 Pass	[INPUT in TEL status] The pattern attribute is not set
@@ -37,7 +37,7 @@ Pass	[INPUT in TEL status] The value attribute mismatches the pattern attribute 
 Pass	[INPUT in TEL status] Invalid regular expression gets ignored
 Pass	[INPUT in TEL status] Invalid `v` regular expression gets ignored
 Pass	[INPUT in TEL status] The pattern attribute tries to escape a group
-Fail	[INPUT in TEL status] The pattern attribute uses Unicode features
+Pass	[INPUT in TEL status] The pattern attribute uses Unicode features
 Pass	[INPUT in TEL status] The value attribute matches JavaScript-specific regular expression
 Fail	[INPUT in TEL status] The value attribute mismatches JavaScript-specific regular expression
 Pass	[INPUT in URL status] The pattern attribute is not set
@@ -49,7 +49,7 @@ Pass	[INPUT in URL status] The value attribute mismatches the pattern attribute 
 Pass	[INPUT in URL status] Invalid regular expression gets ignored
 Pass	[INPUT in URL status] Invalid `v` regular expression gets ignored
 Pass	[INPUT in URL status] The pattern attribute tries to escape a group
-Fail	[INPUT in URL status] The pattern attribute uses Unicode features
+Pass	[INPUT in URL status] The pattern attribute uses Unicode features
 Pass	[INPUT in URL status] The value attribute matches JavaScript-specific regular expression
 Fail	[INPUT in URL status] The value attribute mismatches JavaScript-specific regular expression
 Pass	[INPUT in EMAIL status] The pattern attribute is not set
@@ -61,7 +61,7 @@ Pass	[INPUT in EMAIL status] The value attribute mismatches the pattern attribut
 Pass	[INPUT in EMAIL status] Invalid regular expression gets ignored
 Pass	[INPUT in EMAIL status] Invalid `v` regular expression gets ignored
 Pass	[INPUT in EMAIL status] The pattern attribute tries to escape a group
-Fail	[INPUT in EMAIL status] The pattern attribute uses Unicode features
+Pass	[INPUT in EMAIL status] The pattern attribute uses Unicode features
 Pass	[INPUT in EMAIL status] The value attribute matches JavaScript-specific regular expression
 Fail	[INPUT in EMAIL status] The value attribute mismatches JavaScript-specific regular expression
 Pass	[INPUT in PASSWORD status] The pattern attribute is not set
@@ -73,7 +73,7 @@ Pass	[INPUT in PASSWORD status] The value attribute mismatches the pattern attri
 Pass	[INPUT in PASSWORD status] Invalid regular expression gets ignored
 Pass	[INPUT in PASSWORD status] Invalid `v` regular expression gets ignored
 Pass	[INPUT in PASSWORD status] The pattern attribute tries to escape a group
-Fail	[INPUT in PASSWORD status] The pattern attribute uses Unicode features
+Pass	[INPUT in PASSWORD status] The pattern attribute uses Unicode features
 Pass	[INPUT in PASSWORD status] The value attribute matches JavaScript-specific regular expression
 Fail	[INPUT in PASSWORD status] The value attribute mismatches JavaScript-specific regular expression
 Pass	[INPUT in EMAIL status] The pattern attribute is not set, if multiple is present
@@ -85,7 +85,7 @@ Pass	[INPUT in EMAIL status] The value attribute mismatches the pattern attribut
 Pass	[INPUT in EMAIL status] Invalid regular expression gets ignored, if multiple is present
 Pass	[INPUT in EMAIL status] Invalid `v` regular expression gets ignored, if multiple is present
 Pass	[INPUT in EMAIL status] The pattern attribute tries to escape a group, if multiple is present
-Fail	[INPUT in EMAIL status] The pattern attribute uses Unicode features, if multiple is present
+Pass	[INPUT in EMAIL status] The pattern attribute uses Unicode features, if multiple is present
 Pass	[INPUT in EMAIL status] The value attribute matches JavaScript-specific regular expression, if multiple is present
 Fail	[INPUT in EMAIL status] The value attribute mismatches JavaScript-specific regular expression, if multiple is present
 Pass	[INPUT in EMAIL status] Commas should be stripped from regex input, if multiple is present

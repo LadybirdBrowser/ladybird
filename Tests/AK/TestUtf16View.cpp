@@ -547,6 +547,12 @@ TEST_CASE(contains)
     EXPECT(u"😀"sv.contains(u'\xd83d'));
     EXPECT(u"😀"sv.contains(u'\xde00'));
 
+    EXPECT(!Utf16View { ""sv }.contains(u'a'));
+    EXPECT(Utf16View { "a"sv }.contains(u'a'));
+    EXPECT(!Utf16View { "b"sv }.contains(u'a'));
+    EXPECT(!Utf16View { "b"sv }.contains(u'\xd83d'));
+    EXPECT(!Utf16View { "b"sv }.contains(u'\xde00'));
+
     EXPECT(u""sv.contains(u""sv));
     EXPECT(!u""sv.contains(u"a"sv));
     EXPECT(u"a"sv.contains(u"a"sv));
@@ -556,6 +562,30 @@ TEST_CASE(contains)
     EXPECT(u"😀"sv.contains(u"\xde00"sv));
     EXPECT(u"😀"sv.contains(u"😀"sv));
     EXPECT(u"ab😀"sv.contains(u"😀"sv));
+}
+
+TEST_CASE(count)
+{
+    EXPECT_EQ(u""sv.count({}), 0uz);
+    EXPECT_EQ(u"abc"sv.count({}), 3uz);
+
+    EXPECT_EQ(u""sv.count(u"a"sv), 0uz);
+    EXPECT_EQ(u"abc"sv.count(u"a"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"b"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"c"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"ab"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"bc"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"abc"sv), 1uz);
+    EXPECT_EQ(u"abc"sv.count(u"d"sv), 0uz);
+
+    EXPECT_EQ(u"aaaa"sv.count(u"aa"sv), 3uz);
+
+    EXPECT_EQ(u"😀"sv.count({}), 2uz);
+    EXPECT_EQ(u"😀"sv.count(u"\xd83d"sv), 1uz);
+    EXPECT_EQ(u"😀"sv.count(u"\xde00"sv), 1uz);
+    EXPECT_EQ(u"😀"sv.count(u"😀"sv), 1uz);
+    EXPECT_EQ(u"😀😀😀"sv.count(u"😀"sv), 3uz);
+    EXPECT_EQ(u"😀😀😀"sv.count(u"😀😀"sv), 2uz);
 }
 
 TEST_CASE(starts_with)
@@ -608,6 +638,47 @@ TEST_CASE(ends_with)
     EXPECT(emoji.ends_with(u"😀🙃"sv));
     EXPECT(!emoji.ends_with(u"a"sv));
     EXPECT(!emoji.ends_with(u"😀"sv));
+}
+
+TEST_CASE(split_view)
+{
+    {
+        auto test = u"axxbxcxd"sv;
+
+        EXPECT_EQ(test.split_view('x', SplitBehavior::Nothing), Vector({ u"a"sv, u"b"sv, u"c"sv, u"d"sv }));
+        EXPECT_EQ(test.split_view("x"sv, SplitBehavior::Nothing), Vector({ u"a"sv, u"b"sv, u"c"sv, u"d"sv }));
+
+        EXPECT_EQ(test.split_view('x', SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u"b"sv, u"c"sv, u"d"sv }));
+        EXPECT_EQ(test.split_view("x"sv, SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u"b"sv, u"c"sv, u"d"sv }));
+    }
+    {
+        auto test = u"axxbx"sv;
+
+        EXPECT_EQ(test.split_view('x', SplitBehavior::Nothing), Vector({ u"a"sv, u"b"sv }));
+        EXPECT_EQ(test.split_view("x"sv, SplitBehavior::Nothing), Vector({ u"a"sv, u"b"sv }));
+
+        EXPECT_EQ(test.split_view('x', SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u"b"sv, u""sv }));
+        EXPECT_EQ(test.split_view("x"sv, SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u"b"sv, u""sv }));
+    }
+    {
+        auto test = u"axxbcxxdxx"sv;
+        EXPECT_EQ(test.split_view(u"xx"sv, SplitBehavior::Nothing), Vector({ u"a"sv, u"bc"sv, u"d"sv }));
+        EXPECT_EQ(test.split_view(u"xx"sv, SplitBehavior::KeepEmpty), Vector({ u"a"sv, u"bc"sv, u"d"sv, u""sv }));
+    }
+    {
+        auto test = u"a,,,b"sv;
+        EXPECT_EQ(test.split_view(u","sv, SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u""sv, u"b"sv }));
+        EXPECT_EQ(test.split_view(u","sv, SplitBehavior::KeepTrailingSeparator), Vector({ u"a,"sv, u"b"sv }));
+        EXPECT_EQ(test.split_view(u","sv, SplitBehavior::KeepTrailingSeparator | SplitBehavior::KeepEmpty), Vector({ u"a,"sv, u","sv, u","sv, u"b"sv }));
+    }
+    {
+        auto test = u"foo bar baz"sv;
+        EXPECT_EQ(test.split_view(u" "sv, SplitBehavior::Nothing), Vector({ u"foo"sv, u"bar"sv, u"baz"sv }));
+    }
+    {
+        auto test = u"ωΣ2ωΣω"sv;
+        EXPECT_EQ(test.split_view(0x03A3u, SplitBehavior::Nothing), Vector({ u"ω"sv, u"2ω"sv, u"ω"sv }));
+    }
 }
 
 TEST_CASE(find_code_unit_offset)

@@ -220,8 +220,25 @@ public:
     [[nodiscard]] ALWAYS_INLINE bool contains(char16_t needle) const { return find_code_unit_offset(needle).has_value(); }
     [[nodiscard]] ALWAYS_INLINE bool contains(Utf16View const& needle) const { return find_code_unit_offset(needle).has_value(); }
 
+    [[nodiscard]] ALWAYS_INLINE size_t count(Utf16View const& needle) const { return utf16_view().count(needle); }
+
     [[nodiscard]] ALWAYS_INLINE bool starts_with(Utf16View const& needle) const { return utf16_view().starts_with(needle); }
     [[nodiscard]] ALWAYS_INLINE bool ends_with(Utf16View const& needle) const { return utf16_view().ends_with(needle); }
+
+    [[nodiscard]] ALWAYS_INLINE Vector<Utf16View> split_view(char16_t needle, SplitBehavior split_behavior) const { return utf16_view().split_view(needle, split_behavior); }
+    [[nodiscard]] ALWAYS_INLINE Vector<Utf16View> split_view(Utf16View const& needle, SplitBehavior split_behavior) const { return utf16_view().split_view(needle, split_behavior); }
+
+    template<typename Callback>
+    ALWAYS_INLINE void for_each_split_view(char16_t separator, SplitBehavior split_behavior, Callback&& callback) const
+    {
+        utf16_view().for_each_split_view(separator, split_behavior, forward<Callback>(callback));
+    }
+
+    template<typename Callback>
+    ALWAYS_INLINE void for_each_split_view(Utf16View const& separator, SplitBehavior split_behavior, Callback&& callback) const
+    {
+        utf16_view().for_each_split_view(separator, split_behavior, forward<Callback>(callback));
+    }
 
     // This is primarily interesting to unit tests.
     [[nodiscard]] constexpr bool has_short_ascii_storage() const

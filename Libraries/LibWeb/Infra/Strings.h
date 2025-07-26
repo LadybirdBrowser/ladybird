@@ -14,6 +14,7 @@
 namespace Web::Infra {
 
 String normalize_newlines(String const&);
+Utf16String normalize_newlines(Utf16String const&);
 ErrorOr<String> strip_and_collapse_whitespace(StringView string);
 bool is_code_unit_prefix(StringView potential_prefix, StringView input);
 ErrorOr<String> convert_to_scalar_value_string(StringView string);

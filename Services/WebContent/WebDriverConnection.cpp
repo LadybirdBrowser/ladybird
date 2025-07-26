@@ -1951,7 +1951,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is immutable"sv);
 
         // 3. Set a property value to text on element.
-        MUST(input_element.set_value(text));
+        MUST(input_element.set_value(Utf16String::from_utf8(text)));
 
         // FIXME: 4. If element is suffering from bad input return an error with error code invalid argument.
 

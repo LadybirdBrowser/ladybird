@@ -23,8 +23,8 @@ public:
     void set_selected_internal(bool);
     [[nodiscard]] u64 selectedness_update_index() const { return m_selectedness_update_index; }
 
-    String value() const;
-    WebIDL::ExceptionOr<void> set_value(String const&);
+    Utf16String value() const;
+    WebIDL::ExceptionOr<void> set_value(Utf16String const&);
 
     String text() const;
     void set_text(String const&);

@@ -229,6 +229,12 @@ WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String c
     return {};
 }
 
+// https://dom.spec.whatwg.org/#dom-element-setattribute
+WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, Utf16String const& value)
+{
+    return set_attribute(name, value.to_utf8_but_should_be_ported_to_utf16());
+}
+
 // https://dom.spec.whatwg.org/#valid-namespace-prefix
 bool is_valid_namespace_prefix(FlyString const& prefix)
 {
@@ -3594,7 +3600,7 @@ Optional<Element::Directionality> Element::auto_directionality() const
 
         // 1. If element's value contains a character of bidirectional character type AL or R,
         //    and there is no character of bidirectional character type L anywhere before it in the element's value, then return 'rtl'.
-        for (auto code_point : Utf8View(value)) {
+        for (auto code_point : value) {
             auto bidi_class = Unicode::bidirectional_class(code_point);
             if (bidi_class == Unicode::BidiClass::LeftToRight)
                 break;

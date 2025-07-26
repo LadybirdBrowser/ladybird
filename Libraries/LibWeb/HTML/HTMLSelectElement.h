@@ -51,8 +51,8 @@ public:
     WebIDL::Long selected_index() const;
     void set_selected_index(WebIDL::Long);
 
-    virtual String value() const override;
-    WebIDL::ExceptionOr<void> set_value(String const&);
+    virtual Utf16String value() const override;
+    WebIDL::ExceptionOr<void> set_value(Utf16String const&);
 
     bool is_open() const { return m_is_open; }
     void set_is_open(bool);

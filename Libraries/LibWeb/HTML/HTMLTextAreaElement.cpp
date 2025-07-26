@@ -114,10 +114,10 @@ void HTMLTextAreaElement::reset_algorithm()
     m_user_validity = false;
     m_dirty_value = false;
     // and the raw value to its child text content.
-    set_raw_value(child_text_content());
+    set_raw_value(Utf16String::from_utf8(child_text_content()));
 
     if (m_text_node) {
-        m_text_node->set_text_content(m_raw_value);
+        m_text_node->set_text_content(m_raw_value.to_utf8_but_should_be_ported_to_utf16());
         update_placeholder_visibility();
     }
 }
@@ -129,7 +129,7 @@ void HTMLTextAreaElement::clear_algorithm()
     m_dirty_value = false;
 
     // and set the raw value of element to an empty string.
-    set_raw_value(child_text_content());
+    set_raw_value(Utf16String::from_utf8(child_text_content()));
 
     // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
     // changes caused by the user (and thus, e.g. do cause input events to fire).
@@ -169,14 +169,14 @@ void HTMLTextAreaElement::set_default_value(String const& default_value)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-value
-String HTMLTextAreaElement::value() const
+Utf16String HTMLTextAreaElement::value() const
 {
     // The value IDL attribute must, on getting, return the element's API value.
     return api_value();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-value
-void HTMLTextAreaElement::set_value(String const& value)
+void HTMLTextAreaElement::set_value(Utf16String const& value)
 {
     // 1. Let oldAPIValue be this element's API value.
     auto old_api_value = api_value();
@@ -191,7 +191,7 @@ void HTMLTextAreaElement::set_value(String const& value)
     //    the text control, unselecting any selected text and resetting the selection direction to "none".
     if (api_value() != old_api_value) {
         if (m_text_node) {
-            m_text_node->set_data(Utf16String::from_utf8(m_raw_value));
+            m_text_node->set_data(m_raw_value);
             update_placeholder_visibility();
 
             set_the_selection_range(m_text_node->length(), m_text_node->length());
@@ -199,7 +199,7 @@ void HTMLTextAreaElement::set_value(String const& value)
     }
 }
 
-void HTMLTextAreaElement::set_raw_value(String value)
+void HTMLTextAreaElement::set_raw_value(Utf16String value)
 {
     auto old_raw_value = move(m_raw_value);
     m_raw_value = move(value);
@@ -210,7 +210,7 @@ void HTMLTextAreaElement::set_raw_value(String value)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
-String HTMLTextAreaElement::api_value() const
+Utf16String HTMLTextAreaElement::api_value() const
 {
     // The algorithm for obtaining the element's API value is to return the element's raw value, with newlines normalized.
     if (!m_api_value.has_value())
@@ -221,7 +221,7 @@ String HTMLTextAreaElement::api_value() const
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_relevant_value(Utf16String const& value)
 {
-    set_value(value.to_utf8_but_should_be_ported_to_utf16());
+    set_value(value);
     return {};
 }
 
@@ -229,7 +229,7 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_relevant_value(Utf16String co
 u32 HTMLTextAreaElement::text_length() const
 {
     // The textLength IDL attribute must return the length of the element's API value.
-    return AK::utf16_code_unit_length_from_utf8(api_value());
+    return api_value().length_in_code_units();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
@@ -379,7 +379,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
     //       Otherwise, it will get filled in whenever that does get called.
-    m_text_node->set_text_content(m_raw_value);
+    m_text_node->set_text_content(m_raw_value.to_utf8_but_should_be_ported_to_utf16());
     handle_maxlength_attribute();
     MUST(m_inner_text_element->append_child(*m_text_node));
 
@@ -430,9 +430,9 @@ void HTMLTextAreaElement::children_changed(ChildrenChangedMetadata const* metada
     // The children changed steps for textarea elements must, if the element's dirty value flag is false,
     // set the element's raw value to its child text content.
     if (!m_dirty_value) {
-        set_raw_value(child_text_content());
+        set_raw_value(Utf16String::from_utf8(child_text_content()));
         if (m_text_node)
-            m_text_node->set_text_content(m_raw_value);
+            m_text_node->set_text_content(m_raw_value.to_utf8_but_should_be_ported_to_utf16());
         update_placeholder_visibility();
     }
 }
@@ -452,7 +452,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
 void HTMLTextAreaElement::did_edit_text_node()
 {
     VERIFY(m_text_node);
-    set_raw_value(m_text_node->data().to_utf8_but_should_be_ported_to_utf16());
+    set_raw_value(m_text_node->data());
 
     // Any time the user causes the element's raw value to change, the user agent must queue an element task on the user
     // interaction task source given the textarea element to fire an event named input at the textarea element, with the

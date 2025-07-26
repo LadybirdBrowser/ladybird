@@ -1306,7 +1306,7 @@ bool command_insert_image_action(DOM::Document& document, Utf16String const& val
     auto img = MUST(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
 
     // 7. Run setAttribute("src", value) on img.
-    MUST(img->set_attribute(HTML::AttributeNames::src, value.to_utf8_but_should_be_ported_to_utf16()));
+    MUST(img->set_attribute(HTML::AttributeNames::src, value));
 
     // 8. Run insertNode(img) on range.
     MUST(range->insert_node(img));

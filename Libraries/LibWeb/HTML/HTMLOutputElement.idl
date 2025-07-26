@@ -13,7 +13,7 @@ interface HTMLOutputElement : HTMLElement {
 
     readonly attribute DOMString type;
     [CEReactions] attribute DOMString defaultValue;
-    [CEReactions] attribute DOMString value;
+    [CEReactions] attribute Utf16DOMString value;
 
     readonly attribute boolean willValidate;
     readonly attribute ValidityState validity;

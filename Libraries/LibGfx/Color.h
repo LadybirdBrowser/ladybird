@@ -487,6 +487,7 @@ public:
 
     [[nodiscard]] String to_string(HTMLCompatibleSerialization = HTMLCompatibleSerialization::No) const;
     String to_string_without_alpha() const;
+    Utf16String to_utf16_string_without_alpha() const;
 
     ByteString to_byte_string() const;
     ByteString to_byte_string_without_alpha() const;

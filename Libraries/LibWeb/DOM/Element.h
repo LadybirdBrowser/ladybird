@@ -144,6 +144,7 @@ public:
     Optional<String> lang() const;
 
     WebIDL::ExceptionOr<void> set_attribute(FlyString const& name, String const& value);
+    WebIDL::ExceptionOr<void> set_attribute(FlyString const& name, Utf16String const& value);
 
     WebIDL::ExceptionOr<void> set_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& qualified_name, String const& value);
     void set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {});

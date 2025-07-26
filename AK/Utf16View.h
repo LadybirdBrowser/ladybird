@@ -10,6 +10,7 @@
 #include <AK/Error.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
+#include <AK/IterationDecision.h>
 #include <AK/MemMem.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
@@ -419,7 +420,7 @@ public:
 
         if (has_ascii_storage()) {
             if (!AK::is_ascii(needle))
-                return false;
+                return {};
 
             auto byte = static_cast<char>(needle);
             return AK::memmem_optional(m_string.ascii + start_offset, length_in_code_units() - start_offset, &byte, sizeof(byte));
@@ -479,6 +480,20 @@ public:
     [[nodiscard]] constexpr bool contains(char16_t needle) const { return find_code_unit_offset(needle).has_value(); }
     [[nodiscard]] constexpr bool contains(Utf16View const& needle) const { return find_code_unit_offset(needle).has_value(); }
 
+    [[nodiscard]] constexpr size_t count(Utf16View const& needle) const
+    {
+        if (needle.is_empty())
+            return length_in_code_units();
+
+        size_t count = 0;
+        for (size_t i = 0; i < length_in_code_units() - needle.length_in_code_units() + 1; ++i) {
+            if (substring_view(i).starts_with(needle))
+                ++count;
+        }
+
+        return count;
+    }
+
     [[nodiscard]] constexpr bool starts_with(Utf16View const& needle) const
     {
         auto needle_length = needle.length_in_code_units();
@@ -499,6 +514,46 @@ public:
             return false;
 
         return substring_view(length_in_code_units() - needle_length, needle_length) == needle;
+    }
+
+    [[nodiscard]] Vector<Utf16View> split_view(char16_t, SplitBehavior) const;
+    [[nodiscard]] Vector<Utf16View> split_view(Utf16View const&, SplitBehavior) const;
+
+    template<typename Callback>
+    constexpr void for_each_split_view(char16_t separator, SplitBehavior split_behavior, Callback&& callback) const
+    {
+        Utf16View seperator_view { &separator, 1 };
+        for_each_split_view(seperator_view, split_behavior, forward<Callback>(callback));
+    }
+
+    template<typename Callback>
+    constexpr void for_each_split_view(Utf16View const& separator, SplitBehavior split_behavior, Callback&& callback) const
+    {
+        VERIFY(!separator.is_empty());
+
+        if (is_empty())
+            return;
+
+        bool keep_empty = has_flag(split_behavior, SplitBehavior::KeepEmpty);
+        bool keep_separator = has_flag(split_behavior, SplitBehavior::KeepTrailingSeparator);
+
+        auto view { *this };
+
+        for (auto index = view.find_code_unit_offset(separator); index.has_value(); index = view.find_code_unit_offset(separator)) {
+            if (keep_empty || *index > 0) {
+                auto part = keep_separator
+                    ? view.substring_view(0, *index + separator.length_in_code_units())
+                    : view.substring_view(0, *index);
+
+                if (callback(part) == IterationDecision::Break)
+                    return;
+            }
+
+            view = view.substring_view(*index + separator.length_in_code_units());
+        }
+
+        if (keep_empty || !view.is_empty())
+            callback(view);
     }
 
     // https://infra.spec.whatwg.org/#code-unit-less-than

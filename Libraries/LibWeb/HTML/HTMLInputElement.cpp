@@ -404,7 +404,7 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
         if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
             auto weak_element = element.make_weak_ptr<HTMLInputElement>();
             element.set_is_open(true);
-            element.document().browsing_context()->top_level_browsing_context()->page().did_request_color_picker(weak_element, Color::from_string(element.value()).value_or(Color(0, 0, 0)));
+            element.document().browsing_context()->top_level_browsing_context()->page().did_request_color_picker(weak_element, Color::from_utf16_string(element.value()).value_or(Color(0, 0, 0)));
         }
     }
 }
@@ -530,7 +530,7 @@ void HTMLInputElement::did_edit_text_node()
 {
     // An input element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the value.
     auto old_value = move(m_value);
-    m_value = value_sanitization_algorithm(m_text_node->data().to_utf8_but_should_be_ported_to_utf16());
+    m_value = value_sanitization_algorithm(m_text_node->data());
     m_dirty_value = true;
 
     m_has_uncommitted_changes = true;
@@ -547,7 +547,7 @@ void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerU
 {
     if (type_state() == TypeAttributeState::Color && picked_color.has_value()) {
         // then when the user changes the element's value
-        m_value = value_sanitization_algorithm(picked_color.value().to_string_without_alpha());
+        m_value = value_sanitization_algorithm(picked_color->to_utf16_string_without_alpha());
         m_dirty_value = true;
 
         update_color_well_element();
@@ -630,7 +630,7 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files, Multi
     });
 }
 
-String HTMLInputElement::value() const
+Utf16String HTMLInputElement::value() const
 {
     switch (value_attribute_mode()) {
     // https://html.spec.whatwg.org/multipage/input.html#dom-input-value-value
@@ -642,21 +642,23 @@ String HTMLInputElement::value() const
     case ValueAttributeMode::Default:
         // On getting, if the element has a value content attribute, return that attribute's value; otherwise, return
         // the empty string.
-        return get_attribute_value(AttributeNames::value);
+        return Utf16String::from_utf8(get_attribute_value(AttributeNames::value));
 
     // https://html.spec.whatwg.org/multipage/input.html#dom-input-value-default-on
     case ValueAttributeMode::DefaultOn:
         // On getting, if the element has a value content attribute, return that attribute's value; otherwise, return
         // the string "on".
-        return get_attribute(AttributeNames::value).value_or("on"_string);
+        if (auto value = get_attribute(AttributeNames::value); value.has_value())
+            return Utf16String::from_utf8(*value);
+        return "on"_utf16;
 
     // https://html.spec.whatwg.org/multipage/input.html#dom-input-value-filename
     case ValueAttributeMode::Filename:
         // On getting, return the string "C:\fakepath\" followed by the name of the first file in the list of selected
         // files, if any, or the empty string if the list is empty.
         if (m_selected_files && m_selected_files->item(0))
-            return MUST(String::formatted("C:\\fakepath\\{}", m_selected_files->item(0)->name()));
-        return String {};
+            return Utf16String::formatted("C:\\fakepath\\{}", m_selected_files->item(0)->name());
+        return {};
     }
 
     VERIFY_NOT_REACHED();
@@ -674,7 +676,7 @@ Optional<String> HTMLInputElement::optional_value() const
     }
 }
 
-WebIDL::ExceptionOr<void> HTMLInputElement::set_value(String const& value)
+WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16String const& value)
 {
     auto& realm = this->realm();
 
@@ -700,7 +702,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(String const& value)
             relevant_value_was_changed();
 
             if (m_text_node) {
-                m_text_node->set_data(Utf16String::from_utf8(m_value));
+                m_text_node->set_data(m_value);
                 update_placeholder_visibility();
 
                 set_the_selection_range(m_text_node->length(), m_text_node->length());
@@ -796,30 +798,36 @@ void HTMLInputElement::update_placeholder_visibility()
         m_placeholder_element->set_inline_style(placeholder_style_when_hidden());
 }
 
+Utf16String HTMLInputElement::button_label() const
+{
+    auto label = get_attribute(HTML::AttributeNames::value).map([](auto const& label) { return Utf16String::from_utf8(label); });
+
+    if (!label.has_value()) {
+        if (type_state() == TypeAttributeState::ResetButton) {
+            // https://html.spec.whatwg.org/multipage/input.html#reset-button-state-(type=reset)
+            // If the element has a value attribute, the button's label must be the value of that attribute;
+            // otherwise, it must be an implementation-defined string that means "Reset" or some such.
+            label = "Reset"_utf16;
+        } else if (type_state() == TypeAttributeState::SubmitButton) {
+            // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit)
+            // If the element has a value attribute, the button's label must be the value of that attribute;
+            // otherwise, it must be an implementation-defined string that means "Submit" or some such.
+            label = "Submit"_utf16;
+        } else {
+            // https://html.spec.whatwg.org/multipage/input.html#button-state-(type=button)
+            // If the element has a value attribute, the button's label must be the value of that attribute;
+            // otherwise, it must be the empty string.
+            label = value();
+        }
+    }
+
+    return label.release_value();
+}
+
 void HTMLInputElement::update_button_input_shadow_tree()
 {
     if (m_text_node) {
-        Optional<String> label = get_attribute(HTML::AttributeNames::value);
-        if (!label.has_value()) {
-            if (type_state() == TypeAttributeState::ResetButton) {
-                // https://html.spec.whatwg.org/multipage/input.html#reset-button-state-(type=reset)
-                // If the element has a value attribute, the button's label must be the value of that attribute;
-                // otherwise, it must be an implementation-defined string that means "Reset" or some such.
-                label = "Reset"_string;
-            } else if (type_state() == TypeAttributeState::SubmitButton) {
-                // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit)
-                // If the element has a value attribute, the button's label must be the value of that attribute;
-                // otherwise, it must be an implementation-defined string that means "Submit" or some such.
-                label = "Submit"_string;
-            } else {
-                // https://html.spec.whatwg.org/multipage/input.html#button-state-(type=button)
-                // If the element has a value attribute, the button's label must be the value of that attribute;
-                // otherwise, it must be the empty string.
-                label = value();
-            }
-        }
-
-        m_text_node->set_data(Utf16String::from_utf8(label.value()));
+        m_text_node->set_data(button_label());
         update_placeholder_visibility();
     }
 }
@@ -827,7 +835,7 @@ void HTMLInputElement::update_button_input_shadow_tree()
 void HTMLInputElement::update_text_input_shadow_tree()
 {
     if (m_text_node) {
-        m_text_node->set_data(Utf16String::from_utf8(m_value));
+        m_text_node->set_data(m_value);
         update_placeholder_visibility();
     }
 }
@@ -999,26 +1007,8 @@ void HTMLInputElement::create_button_input_shadow_tree()
     set_shadow_root(shadow_root);
     auto text_container = MUST(DOM::create_element(document(), HTML::TagNames::span, Namespace::HTML));
     MUST(text_container->set_attribute(HTML::AttributeNames::style, "display: inline-block; pointer-events: none;"_string));
-    Optional<String> label = get_attribute(HTML::AttributeNames::value);
-    if (!label.has_value()) {
-        if (type_state() == TypeAttributeState::ResetButton) {
-            // https://html.spec.whatwg.org/multipage/input.html#reset-button-state-(type=reset)
-            // If the element has a value attribute, the button's label must be the value of that attribute;
-            // otherwise, it must be an implementation-defined string that means "Reset" or some such.
-            label = "Reset"_string;
-        } else if (type_state() == TypeAttributeState::SubmitButton) {
-            // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit)
-            // If the element has a value attribute, the button's label must be the value of that attribute;
-            // otherwise, it must be an implementation-defined string that means "Submit" or some such.
-            label = "Submit"_string;
-        } else {
-            // https://html.spec.whatwg.org/multipage/input.html#button-state-(type=button)
-            // If the element has a value attribute, the button's label must be the value of that attribute;
-            // otherwise, it must be the empty string.
-            label = value();
-        }
-    }
-    m_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(label.value()));
+
+    m_text_node = realm().create<DOM::Text>(document(), button_label());
     MUST(text_container->append_child(*m_text_node));
     MUST(shadow_root->append_child(*text_container));
 }
@@ -1074,7 +1064,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     }
     MUST(element->append_child(*m_inner_text_element));
 
-    m_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(initial_value));
+    m_text_node = realm().create<DOM::Text>(document(), move(initial_value));
     handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     if (type_state() == TypeAttributeState::Password)
         m_text_node->set_is_password_input({}, true);
@@ -1163,7 +1153,7 @@ void HTMLInputElement::create_color_input_shadow_tree()
         border: 1px solid ButtonBorder;
         box-sizing: border-box;
 )~~~"_string));
-    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, color));
+    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, color.to_utf8_but_should_be_ported_to_utf16()));
 
     MUST(border->append_child(*m_color_well_element));
     MUST(shadow_root->append_child(border));
@@ -1175,7 +1165,7 @@ void HTMLInputElement::update_color_well_element()
     if (!m_color_well_element)
         return;
 
-    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, m_value));
+    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, m_value.to_utf8_but_should_be_ported_to_utf16()));
 }
 
 void HTMLInputElement::create_file_input_shadow_tree()
@@ -1407,11 +1397,11 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
     } else if (name == HTML::AttributeNames::value) {
         if (!m_dirty_value) {
             auto old_value = move(m_value);
-            if (!value.has_value()) {
-                m_value = String {};
-            } else {
-                m_value = value_sanitization_algorithm(*value);
-            }
+
+            if (value.has_value())
+                m_value = value_sanitization_algorithm(Utf16String::from_utf8(*value));
+            else
+                m_value = {};
 
             if (m_value != old_value)
                 relevant_value_was_changed();
@@ -1458,7 +1448,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     //    then set the value of the element to the value of the value content attribute, if there is one, or the empty string
     //    otherwise, and then set the control's dirty value flag to false.
     else if (old_value_attribute_mode != ValueAttributeMode::Value && new_value_attribute_mode == ValueAttributeMode::Value) {
-        m_value = attribute(HTML::AttributeNames::value).value_or({});
+        m_value = Utf16String::from_utf8(attribute(HTML::AttributeNames::value).value_or({}));
         m_dirty_value = false;
     }
 
@@ -1466,7 +1456,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     //    than the filename mode, and the new state of the element's type attribute puts the value IDL attribute in the filename mode,
     //    then set the value of the element to the empty string.
     else if (old_value_attribute_mode != ValueAttributeMode::Filename && new_value_attribute_mode == ValueAttributeMode::Filename) {
-        m_value = String {};
+        m_value = {};
     }
 
     // 4. Update the element's rendering and behavior to the new state's.
@@ -1618,129 +1608,147 @@ bool HTMLInputElement::can_have_text_editing_cursor() const
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-simple-colour
-static bool is_valid_simple_color(StringView value)
+static bool is_valid_simple_color(Utf16View const& value)
 {
     // if it is exactly seven characters long,
-    if (value.length() != 7)
+    if (value.length_in_code_units() != 7)
         return false;
     // and the first character is a U+0023 NUMBER SIGN character (#),
-    if (!value.starts_with('#'))
+    if (!value.starts_with("#"sv))
         return false;
     // and the remaining six characters are all ASCII hex digits
-    for (size_t i = 1; i < value.length(); i++)
-        if (!is_ascii_hex_digit(value[i]))
+    for (size_t i = 1; i < value.length_in_code_units(); i++)
+        if (!is_ascii_hex_digit(value.code_unit_at(i)))
             return false;
 
     return true;
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#value-sanitization-algorithm
-String HTMLInputElement::value_sanitization_algorithm(String const& value) const
+Utf16String HTMLInputElement::value_sanitization_algorithm(Utf16String const& value) const
 {
-    if (type_state() == HTMLInputElement::TypeAttributeState::Text || type_state() == HTMLInputElement::TypeAttributeState::Search || type_state() == HTMLInputElement::TypeAttributeState::Telephone || type_state() == HTMLInputElement::TypeAttributeState::Password) {
+    auto strip_newlines = [&]() {
+        if (!value.contains('\r') && !value.contains('\n'))
+            return value;
+
+        StringBuilder builder(StringBuilder::Mode::UTF16);
+
+        for (size_t i = 0; i < value.length_in_code_units(); ++i) {
+            auto code_unit = value.code_unit_at(i);
+            if (code_unit != '\r' && code_unit != '\n')
+                builder.append_code_unit(code_unit);
+        }
+
+        return builder.to_utf16_string();
+    };
+
+    auto strip_newlines_and_trim = [&]() {
+        auto value_without_newlines = strip_newlines();
+        return Utf16String::from_utf16_without_validation(value_without_newlines.utf16_view().trim(Infra::ASCII_WHITESPACE));
+    };
+
+    // https://html.spec.whatwg.org/multipage/input.html#text-(type=text)-state-and-search-state-(type=search):value-sanitization-algorithm
+    // https://html.spec.whatwg.org/multipage/input.html#telephone-state-(type=tel):value-sanitization-algorithm
+    // https://html.spec.whatwg.org/multipage/input.html#password-state-(type=password):value-sanitization-algorithm
+    if (first_is_one_of(type_state(), HTMLInputElement::TypeAttributeState::Text, HTMLInputElement::TypeAttributeState::Search, HTMLInputElement::TypeAttributeState::Telephone, HTMLInputElement::TypeAttributeState::Password)) {
         // Strip newlines from the value.
-        if (value.bytes_as_string_view().contains('\r') || value.bytes_as_string_view().contains('\n')) {
-            StringBuilder builder;
-            for (auto c : value.bytes_as_string_view()) {
-                if (c != '\r' && c != '\n')
-                    builder.append(c);
-            }
-            return MUST(builder.to_string());
-        }
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::URL) {
+        return strip_newlines();
+    }
+
+    // https://html.spec.whatwg.org/multipage/input.html#url-state-(type=url):value-sanitization-algorithm
+    if (type_state() == HTMLInputElement::TypeAttributeState::URL) {
         // Strip newlines from the value, then strip leading and trailing ASCII whitespace from the value.
-        if (value.bytes_as_string_view().contains('\r') || value.bytes_as_string_view().contains('\n')) {
-            StringBuilder builder;
-            for (auto c : value.bytes_as_string_view()) {
-                if (c != '\r' && c != '\n')
-                    builder.append(c);
-            }
-            return MUST(String::from_utf8(builder.string_view().trim(Infra::ASCII_WHITESPACE)));
-        }
-        return MUST(value.trim(Infra::ASCII_WHITESPACE));
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::Email) {
+        return strip_newlines_and_trim();
+    }
+
+    // https://html.spec.whatwg.org/multipage/input.html#email-state-(type=email):value-sanitization-algorithm
+    // https://html.spec.whatwg.org/multipage/input.html#email-state-(type=email):value-sanitization-algorithm-2
+    if (type_state() == HTMLInputElement::TypeAttributeState::Email) {
         if (!has_attribute(AttributeNames::multiple)) {
-            // https://html.spec.whatwg.org/multipage/input.html#email-state-(type=email):value-sanitization-algorithm
             // Strip newlines from the value, then strip leading and trailing ASCII whitespace from the value.
-            if (value.bytes_as_string_view().contains('\r') || value.bytes_as_string_view().contains('\n')) {
-                StringBuilder builder;
-                for (auto c : value.bytes_as_string_view()) {
-                    if (c != '\r' && c != '\n')
-                        builder.append(c);
-                }
-                return MUST(String::from_utf8(builder.string_view().trim_whitespace()));
-            }
-            return MUST(value.trim_ascii_whitespace());
+            return strip_newlines_and_trim();
         }
 
-        // https://html.spec.whatwg.org/multipage/input.html#email-state-(type=email):value-sanitization-algorithm-2
-        // 1. Split on commas the element's value, strip leading and trailing ASCII whitespace from each resulting token, if any,
-        //    and let the element's values be the (possibly empty) resulting list of (possibly empty) tokens, maintaining the original order.
-        Vector<String> values {};
-        for (auto const& token : MUST(value.split(',', SplitBehavior::KeepEmpty))) {
-            values.append(MUST(token.trim_ascii_whitespace()));
-        }
+        // 1. Split on commas the element's value, strip leading and trailing ASCII whitespace from each resulting token,
+        //    if any, and let the element's values be the (possibly empty) resulting list of (possibly empty) tokens,
+        //    maintaining the original order.
+        auto values = value.split_view(',', SplitBehavior::KeepEmpty);
 
-        // 2. Set the element's value to the result of concatenating the element's values, separating each value
-        //    from the next by a single U+002C COMMA character (,), maintaining the list's order.
-        StringBuilder builder;
-        builder.join(',', values);
-        return MUST(builder.to_string());
+        for (auto& value : values)
+            value = value.trim(Infra::ASCII_WHITESPACE);
 
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::Number) {
-        // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number):value-sanitization-algorithm
-        // If the value of the element is not a valid floating-point number, then set it
-        // to the empty string instead.
+        // 2. Set the element's value to the result of concatenating the element's values, separating each value from
+        //    the next by a single U+002C COMMA character (,), maintaining the list's order.
+        return Utf16String::join(',', values);
+    }
+
+    // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number):value-sanitization-algorithm
+    if (type_state() == HTMLInputElement::TypeAttributeState::Number) {
+        // If the value of the element is not a valid floating-point number, then set it to the empty string instead.
         if (!is_valid_floating_point_number(value))
-            return String {};
-        auto maybe_value = parse_floating_point_number(value);
-        // AD-HOC: The spec doesn’t require these checks — but other engines do them, and
-        // there’s a WPT case which tests that the value is less than Number.MAX_VALUE.
-        if (!maybe_value.has_value() || !isfinite(maybe_value.value()))
-            return String {};
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::Date) {
-        // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):value-sanitization-algorithm
+            return {};
+
+        // AD-HOC: The spec doesn't require these checks - but other engines do them, and there's a WPT case which tests
+        // that the value is less than Number.MAX_VALUE.
+        if (auto maybe_value = parse_floating_point_number(value); !maybe_value.has_value() || !isfinite(maybe_value.value()))
+            return {};
+    }
+    // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):value-sanitization-algorithm
+    else if (type_state() == HTMLInputElement::TypeAttributeState::Date) {
+        // If the value of the element is not a valid date string, then set it to the empty string instead.
         if (!is_valid_date_string(value))
-            return String {};
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::Month) {
-        // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):value-sanitization-algorithm
+            return {};
+    }
+    // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):value-sanitization-algorithm
+    else if (type_state() == HTMLInputElement::TypeAttributeState::Month) {
+        // If the value of the element is not a valid month string, then set it to the empty string instead.
         if (!is_valid_month_string(value))
-            return String {};
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::Week) {
-        // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):value-sanitization-algorithm
+            return {};
+    }
+    // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):value-sanitization-algorithm
+    else if (type_state() == HTMLInputElement::TypeAttributeState::Week) {
         if (!is_valid_week_string(value))
-            return String {};
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::Time) {
-        // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):value-sanitization-algorithm
+            return {};
+    }
+    // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):value-sanitization-algorithm
+    else if (type_state() == HTMLInputElement::TypeAttributeState::Time) {
+        // If the value of the element is not a valid week string, then set it to the empty string instead.
         if (!is_valid_time_string(value))
-            return String {};
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::LocalDateAndTime) {
-        // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):value-sanitization-algorithm
+            return {};
+    }
+    // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):value-sanitization-algorithm
+    else if (type_state() == HTMLInputElement::TypeAttributeState::LocalDateAndTime) {
+        // If the value of the element is a valid local date and time string, then set it to a valid normalized local
+        // date and time string representing the same date and time; otherwise, set it to the empty string instead.
         if (is_valid_local_date_and_time_string(value))
             return normalize_local_date_and_time_string(value);
-        return String {};
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::Range) {
-        // https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range):value-sanitization-algorithm
-        // If the value of the element is not a valid floating-point number, then set it to the best representation, as a floating-point number, of the default value.
-        auto maybe_value = parse_floating_point_number(value);
-        if (!is_valid_floating_point_number(value) ||
-            // AD-HOC: The spec doesn’t require these checks — but other engines do them.
+        return {};
+    }
+    // https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range):value-sanitization-algorithm
+    else if (type_state() == HTMLInputElement::TypeAttributeState::Range) {
+        // If the value of the element is not a valid floating-point number, then set it to the best representation, as
+        // a floating-point number, of the default value.
+        if (auto maybe_value = parse_floating_point_number(value); !is_valid_floating_point_number(value) ||
+            // AD-HOC: The spec doesn't require these checks - but other engines do them.
             !maybe_value.has_value() || !isfinite(maybe_value.value())) {
-            // The default value is the minimum plus half the difference between the minimum and the maximum, unless the maximum is less than the minimum, in which case the default value is the minimum.
+            // The default value is the minimum plus half the difference between the minimum and the maximum, unless the
+            // maximum is less than the minimum, in which case the default value is the minimum.
             auto minimum = *min();
             auto maximum = *max();
             if (maximum < minimum)
-                return JS::number_to_string(minimum);
-            return JS::number_to_string(minimum + (maximum - minimum) / 2);
+                return JS::number_to_utf16_string(minimum);
+            return JS::number_to_utf16_string(minimum + ((maximum - minimum) / 2.0));
         }
-    } else if (type_state() == HTMLInputElement::TypeAttributeState::Color) {
-        // https://html.spec.whatwg.org/multipage/input.html#color-state-(type=color):value-sanitization-algorithm
-        // If the value of the element is a valid simple color, then set it to the value of the element converted to ASCII lowercase;
+    }
+    // https://html.spec.whatwg.org/multipage/input.html#color-state-(type=color):value-sanitization-algorithm
+    else if (type_state() == HTMLInputElement::TypeAttributeState::Color) {
+        // If the value of the element is a valid simple color, then set it to the value of the element converted to
+        // ASCII lowercase; otherwise, set it to the string "#000000".
         if (is_valid_simple_color(value))
             return value.to_ascii_lowercase();
-        // otherwise, set it to the string "#000000".
-        return "#000000"_string;
+        return "#000000"_utf16;
     }
+
     return value;
 }
 
@@ -1754,7 +1762,7 @@ void HTMLInputElement::reset_algorithm()
 
     // set the value of the element to the value of the value content attribute, if there is one, or the empty string otherwise,
     auto old_value = move(m_value);
-    m_value = get_attribute_value(AttributeNames::value);
+    m_value = Utf16String::from_utf8(get_attribute_value(AttributeNames::value));
 
     // set the checkedness of the element to true if the element has a checked content attribute and false if it does not,
     m_checked = has_attribute(AttributeNames::checked);
@@ -1770,7 +1778,7 @@ void HTMLInputElement::reset_algorithm()
         relevant_value_was_changed();
 
     if (m_text_node) {
-        m_text_node->set_data(Utf16String::from_utf8(m_value));
+        m_text_node->set_data(m_value);
         update_placeholder_visibility();
     }
 
@@ -1786,7 +1794,7 @@ void HTMLInputElement::clear_algorithm()
 
     // set the value of the element to an empty string,
     auto old_value = move(m_value);
-    m_value = String {};
+    m_value = {};
 
     // set the checkedness of the element to true if the element has a checked content attribute and false if it does not,
     m_checked = has_attribute(AttributeNames::checked);
@@ -1806,7 +1814,7 @@ void HTMLInputElement::clear_algorithm()
         relevant_value_was_changed();
 
     if (m_text_node) {
-        m_text_node->set_data(Utf16String::from_utf8(m_value));
+        m_text_node->set_data(m_value);
         update_placeholder_visibility();
     }
 
@@ -2310,19 +2318,28 @@ Optional<double> HTMLInputElement::convert_string_to_number(StringView input) co
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
+Optional<double> HTMLInputElement::convert_string_to_number(Utf16String const& input) const
+{
+    // FIXME: Implement a UTF-16 GenericLexer.
+    if (!input.has_ascii_storage())
+        return {};
+    return convert_string_to_number(input.ascii_view());
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-number-string
-static String convert_number_to_month_string(double input)
+static Utf16String convert_number_to_month_string(double input)
 {
     // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid month
     // string that represents the month that has input months between it and January 1970.
     auto months = JS::modulo(input, 12);
     auto year = 1970 + (input - months) / 12;
 
-    return MUST(String::formatted("{:04d}-{:02d}", static_cast<int>(year), static_cast<int>(months) + 1));
+    return Utf16String::formatted("{:04d}-{:02d}", static_cast<int>(year), static_cast<int>(months) + 1);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-value-string-number
-static String convert_number_to_week_string(double input)
+static Utf16String convert_number_to_week_string(double input)
 {
     // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid week string that
     // that represents the week that, in UTC, is current input milliseconds after midnight UTC on the morning of 1970-01-01
@@ -2348,21 +2365,21 @@ static String convert_number_to_week_string(double input)
         week = weeks_in_year(year) + week;
     }
 
-    return MUST(String::formatted("{:04d}-W{:02d}", year, week));
+    return Utf16String::formatted("{:04d}-W{:02d}", year, week);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-number-string
-static String convert_number_to_date_string(double input)
+static Utf16String convert_number_to_date_string(double input)
 {
     // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid
     // date string that represents the date that, in UTC, is current input milliseconds after midnight UTC
     // on the morning of 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0Z").
     auto date = AK::UnixDateTime::from_seconds_since_epoch(input / 1000.);
-    return MUST(date.to_string("%Y-%m-%d"sv, AK::UnixDateTime::LocalTime::No));
+    return date.to_utf16_string("%Y-%m-%d"sv, AK::UnixDateTime::LocalTime::No);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-number-string
-static String convert_number_to_time_string(double input)
+static Utf16String convert_number_to_time_string(double input)
 {
     // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid time
     // string that represents the time that is input milliseconds after midnight on a day with no time changes.
@@ -2370,14 +2387,14 @@ static String convert_number_to_time_string(double input)
     auto milliseconds = JS::ms_from_time(input);
     if (seconds > 0) {
         if (milliseconds > 0)
-            return MUST(String::formatted("{:02d}:{:02d}:{:02d}.{:3d}", JS::hour_from_time(input), JS::min_from_time(input), seconds, milliseconds));
-        return MUST(String::formatted("{:02d}:{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input), seconds));
+            return Utf16String::formatted("{:02d}:{:02d}:{:02d}.{:3d}", JS::hour_from_time(input), JS::min_from_time(input), seconds, milliseconds);
+        return Utf16String::formatted("{:02d}:{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input), seconds);
     }
-    return MUST(String::formatted("{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input)));
+    return Utf16String::formatted("{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input));
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):concept-input-value-number-string
-static String convert_number_to_local_date_and_time_string(double input)
+static Utf16String convert_number_to_local_date_and_time_string(double input)
 {
     // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid
     // normalized local date and time string that represents the date and time that is input milliseconds
@@ -2392,23 +2409,23 @@ static String convert_number_to_local_date_and_time_string(double input)
 
     if (seconds > 0) {
         if (milliseconds > 0)
-            return MUST(String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}", year, month, day, hour, minutes, seconds, milliseconds));
-        return MUST(String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}", year, month, day, hour, minutes, seconds));
+            return Utf16String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}", year, month, day, hour, minutes, seconds, milliseconds);
+        return Utf16String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}", year, month, day, hour, minutes, seconds);
     }
 
-    return MUST(String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}", year, month, day, hour, minutes));
+    return Utf16String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}", year, month, day, hour, minutes);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
-String HTMLInputElement::convert_number_to_string(double input) const
+Utf16String HTMLInputElement::convert_number_to_string(double input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number):concept-input-value-number-string
     if (type_state() == TypeAttributeState::Number)
-        return String::number(input);
+        return Utf16String::number(input);
 
     // https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range):concept-input-value-number-string
     if (type_state() == TypeAttributeState::Range)
-        return String::number(input);
+        return Utf16String::number(input);
 
     if (type_state() == TypeAttributeState::Month)
         return convert_number_to_month_string(input);
@@ -2459,8 +2476,17 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
     return nullptr;
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-date
+WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(Utf16String const& input) const
+{
+    // FIXME: Implement a UTF-16 GenericLexer.
+    if (!input.has_ascii_storage())
+        return nullptr;
+    return convert_string_to_date(input.ascii_view());
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-date-string
-String HTMLInputElement::convert_date_to_string(GC::Ref<JS::Date> input) const
+Utf16String HTMLInputElement::convert_date_to_string(GC::Ref<JS::Date> input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-date-string
     if (type_state() == TypeAttributeState::Date) {
@@ -2665,12 +2691,12 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(Optional<GC::Root<
 
     // otherwise if the new value is null or a Date object representing the NaN time value, then set the value of the element to the empty string;
     if (!value.has_value()) {
-        TRY(set_value(String {}));
+        TRY(set_value({}));
         return {};
     }
     auto& date = static_cast<JS::Date&>(**value);
     if (!isfinite(date.date_value())) {
-        TRY(set_value(String {}));
+        TRY(set_value({}));
         return {};
     }
 
@@ -2704,7 +2730,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_number(double value)
 
     // Otherwise, if the new value is a Not-a-Number (NaN) value, then set the value of the element to the empty string.
     if (value == NAN) {
-        TRY(set_value(String {}));
+        TRY(set_value({}));
         return {};
     }
 
@@ -3301,46 +3327,58 @@ bool HTMLInputElement::suffering_from_a_type_mismatch() const
 {
     auto input = value();
     switch (type_state()) {
+    // https://html.spec.whatwg.org/multipage/input.html#url-state-(type%3Durl)%3Asuffering-from-a-type-mismatch
     case TypeAttributeState::URL:
-        // https://html.spec.whatwg.org/multipage/input.html#url-state-(type%3Durl)%3Asuffering-from-a-type-mismatch
         // While the value of the element is neither the empty string nor a valid absolute URL, the element is suffering from a type mismatch.
         // AD-HOC: https://github.com/whatwg/html/issues/11083 and https://github.com/web-platform-tests/wpt/pull/51011
         //         We intentionally don't check if the value is a "valid absolute URL", because that's not what other
         //         engines actually do. So we instead just implement what matches the behavior in existing engines.
-        return !input.is_empty() && !URL::Parser::basic_parse(input).has_value();
-    case TypeAttributeState::Email:
-        // https://html.spec.whatwg.org/multipage/input.html#email-state-(type%3Demail)%3Asuffering-from-a-type-mismatch
+        return !input.is_empty() && !URL::Parser::basic_parse(input.to_utf8_but_should_be_ported_to_utf16()).has_value();
+
+    // https://html.spec.whatwg.org/multipage/input.html#email-state-(type%3Demail)%3Asuffering-from-a-type-mismatch
+    case TypeAttributeState::Email: {
         // When the multiple attribute is not specified on the element: While the value of the element is neither the
         // empty string nor a single valid email address, the element is suffering from a type mismatch.
         if (!has_attribute(HTML::AttributeNames::multiple))
-            return !input.is_empty() && !valid_email_address_regex.match(input).success;
+            return !input.is_empty() && !valid_email_address_regex.match(input.utf16_view()).success;
+
         // When the multiple attribute is specified on the element: While the value of the element is not a valid email
         // address list, the element is suffering from a type mismatch.
         // https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address-list
         // A valid email address list is a set of comma-separated tokens, where each token is itself a valid email
         // address. To obtain the list of tokens from a valid email address list, an implementation must split the
         // string on commas.
-        for (auto& address : MUST(input.split(','))) {
-            if (!valid_email_address_regex.match(address).success)
-                return true;
-        }
-        break;
+        bool valid = true;
+
+        input.for_each_split_view(',', SplitBehavior::Nothing, [&](auto const& address) {
+            if (valid_email_address_regex.match(address).success)
+                return IterationDecision::Continue;
+
+            valid = false;
+            return IterationDecision::Break;
+        });
+
+        return !valid;
+    }
+
     default:
         break;
     }
+
     return false;
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-pattern-attribute%3Asuffering-from-a-pattern-mismatch
 bool HTMLInputElement::suffering_from_a_pattern_mismatch() const
 {
-    // If the element's value is not the empty string, and either the element's multiple attribute is not specified or it does not apply to the input element given its
-    // type attribute's current state, and the element has a compiled pattern regular expression but that regular expression does not match the element's value, then the element is
+    // If the element's value is not the empty string, and either the element's multiple attribute is not specified or
+    // it does not apply to the input element given its type attribute's current state, and the element has a compiled
+    // pattern regular expression but that regular expression does not match the element's value, then the element is
     // suffering from a pattern mismatch.
 
-    // If the element's value is not the empty string, and the element's multiple attribute is specified and applies to the input element,
-    // and the element has a compiled pattern regular expression but that regular expression does not match each of the element's values,
-    // then the element is suffering from a pattern mismatch.
+    // If the element's value is not the empty string, and the element's multiple attribute is specified and applies to
+    // the input element, and the element has a compiled pattern regular expression but that regular expression does not
+    // match each of the element's values, then the element is suffering from a pattern mismatch.
 
     if (!pattern_applies())
         return false;
@@ -3355,13 +3393,20 @@ bool HTMLInputElement::suffering_from_a_pattern_mismatch() const
 
     if (has_attribute(HTML::AttributeNames::multiple) && multiple_applies()) {
         VERIFY(type_state() == HTMLInputElement::TypeAttributeState::Email);
+        bool valid = true;
 
-        return AK::any_of(MUST(value.split(',')), [&regexp_object](auto const& value) {
-            return !regexp_object->match(value).success;
+        value.for_each_split_view(',', SplitBehavior::Nothing, [&](auto const& value) {
+            if (regexp_object->match(value).success)
+                return IterationDecision::Continue;
+
+            valid = false;
+            return IterationDecision::Break;
         });
+
+        return !valid;
     }
 
-    return !regexp_object->match(value).success;
+    return !regexp_object->match(value.utf16_view()).success;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-underflow

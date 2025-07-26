@@ -207,7 +207,14 @@ String number_to_string(double d, NumberToStringMode mode)
 {
     StringBuilder builder;
     number_to_string_impl(builder, d, mode);
-    return builder.to_string().release_value();
+    return MUST(builder.to_string());
+}
+
+Utf16String number_to_utf16_string(double d, NumberToStringMode mode)
+{
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+    number_to_string_impl(builder, d, mode);
+    return builder.to_utf16_string();
 }
 
 ByteString number_to_byte_string(double d, NumberToStringMode mode)

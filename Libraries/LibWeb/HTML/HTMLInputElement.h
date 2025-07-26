@@ -79,13 +79,13 @@ public:
 
     String default_value() const { return get_attribute_value(HTML::AttributeNames::value); }
 
-    virtual String value() const override;
+    virtual Utf16String value() const override;
     virtual Optional<String> optional_value() const override;
-    WebIDL::ExceptionOr<void> set_value(String const&);
+    WebIDL::ExceptionOr<void> set_value(Utf16String const&);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-    virtual Utf16String relevant_value() override { return Utf16String::from_utf8(value()); }
-    WebIDL::ExceptionOr<void> set_relevant_value(Utf16String const& value) override { return set_value(value.to_utf8_but_should_be_ported_to_utf16()); }
+    virtual Utf16String relevant_value() override { return value(); }
+    WebIDL::ExceptionOr<void> set_relevant_value(Utf16String const& value) override { return set_value(value); }
 
     virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
 
@@ -290,10 +290,12 @@ private:
 
     Optional<double> convert_time_string_to_number(StringView input) const;
     Optional<double> convert_string_to_number(StringView input) const;
-    String convert_number_to_string(double input) const;
+    Optional<double> convert_string_to_number(Utf16String const& input) const;
+    Utf16String convert_number_to_string(double input) const;
 
     WebIDL::ExceptionOr<GC::Ptr<JS::Date>> convert_string_to_date(StringView input) const;
-    String convert_date_to_string(GC::Ref<JS::Date> input) const;
+    WebIDL::ExceptionOr<GC::Ptr<JS::Date>> convert_string_to_date(Utf16String const& input) const;
+    Utf16String convert_date_to_string(GC::Ref<JS::Date> input) const;
 
     Optional<double> min() const;
     Optional<double> max() const;
@@ -304,6 +306,9 @@ private:
     WebIDL::ExceptionOr<void> step_up_or_down(bool is_down, WebIDL::Long n);
 
     static TypeAttributeState parse_type_attribute(StringView);
+
+    Utf16String button_label() const;
+
     void create_shadow_tree_if_needed();
     void update_shadow_tree();
     void create_button_input_shadow_tree();
@@ -321,7 +326,7 @@ private:
     void user_interaction_did_change_input_value();
 
     // https://html.spec.whatwg.org/multipage/input.html#value-sanitization-algorithm
-    String value_sanitization_algorithm(String const&) const;
+    Utf16String value_sanitization_algorithm(Utf16String const&) const;
 
     enum class ValueAttributeMode {
         Value,
@@ -386,7 +391,7 @@ private:
     GC::Ptr<FileAPI::FileList> m_selected_files;
 
     TypeAttributeState m_type { TypeAttributeState::Text };
-    String m_value;
+    Utf16String m_value;
 
     String m_last_src_value;
 
