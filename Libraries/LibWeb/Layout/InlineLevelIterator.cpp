@@ -592,7 +592,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width() + x);
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
-        bool is_generated_empty_string = (is_empty_input_field || text_node.is_generated()) && chunk.length == 0;
+        bool is_generated_empty_string = (is_empty_input_field || text_node.is_generated_for_pseudo_element()) && chunk.length == 0;
 
         Item item {
             .type = Item::Type::Text,
