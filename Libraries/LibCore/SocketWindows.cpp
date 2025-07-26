@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, sin-ack <sin-ack@protonmail.com>
  * Copyright (c) 2025, stasoid <stasoid@yahoo.com>
+ * Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -103,9 +104,21 @@ ErrorOr<void> PosixSocketHelper::set_close_on_exec(bool enabled)
     return System::set_close_on_exec(m_fd, enabled);
 }
 
+ErrorOr<void> PosixSocketHelper::set_receive_timeout(AK::Duration timeout)
+{
+    auto timeout_spec = timeout.to_timespec();
+    return System::setsockopt(m_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout_spec, sizeof(timeout_spec));
+}
+
 ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
 {
-    VERIFY(0 && "Core::PosixSocketHelper::pending_bytes is not implemented");
+    if (!is_open()) {
+        return Error::from_windows_error(WSAENOTCONN);
+    }
+
+    u_long value;
+    TRY(System::ioctl(m_fd, FIONREAD, &value));
+    return value;
 }
 
 void PosixSocketHelper::setup_notifier()
@@ -160,6 +173,19 @@ ErrorOr<int> LocalSocket::release_fd()
     auto fd = m_helper.fd();
     m_helper.set_fd(-1);
     return fd;
+}
+
+ErrorOr<NonnullOwnPtr<LocalSocket>> LocalSocket::connect(ByteString const& path, PreventSIGPIPE prevent_sigpipe)
+{
+    auto socket = TRY(adopt_nonnull_own_or_enomem(new (nothrow) LocalSocket(prevent_sigpipe)));
+
+    auto fd = TRY(create_fd(SocketDomain::Local, SocketType::Stream));
+    socket->m_helper.set_fd(fd);
+
+    TRY(connect_local(fd, path));
+
+    socket->setup_notifier();
+    return socket;
 }
 
 ErrorOr<int> Socket::create_fd(SocketDomain domain, SocketType type)
@@ -251,6 +277,54 @@ ErrorOr<void> Socket::connect_inet(int fd, SocketAddress const& address)
     }
 }
 
+ErrorOr<void> Socket::connect_local(int fd, ByteString const& path)
+{
+    auto address = SocketAddress::local(path);
+    auto maybe_sockaddr = address.to_sockaddr_un();
+    if (!maybe_sockaddr.has_value()) {
+        dbgln("Core::Socket::connect_local: Could not obtain a sockaddr_un");
+        return Error::from_errno(EINVAL);
+    }
+
+    auto addr = maybe_sockaddr.release_value();
+    return System::connect(fd, bit_cast<struct sockaddr*>(&addr), sizeof(addr));
+}
+
+ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(SocketAddress const& address, Optional<AK::Duration> timeout)
+{
+    auto socket = adopt_own(*new UDPSocket);
+
+    auto socket_domain = SocketDomain::Inet6;
+    if (address.type() == SocketAddress::Type::IPv4)
+        socket_domain = SocketDomain::Inet;
+
+    auto fd = TRY(create_fd(socket_domain, SocketType::Datagram));
+    socket->m_helper.set_fd(fd);
+    if (timeout.has_value()) {
+        TRY(socket->m_helper.set_receive_timeout(timeout.value()));
+    }
+
+    TRY(connect_inet(fd, address));
+
+    socket->setup_notifier();
+    return socket;
+}
+
+ErrorOr<Bytes> UDPSocket::read_some(Bytes buffer)
+{
+    auto pending_bytes = TRY(this->pending_bytes());
+    if (pending_bytes > buffer.size()) {
+        // With UDP datagrams, reading a datagram into a buffer that's
+        // smaller than the datagram's size will cause the rest of the
+        // datagram to be discarded. That's not very nice, so let's bail
+        // early, telling the caller that he should allocate a bigger
+        // buffer.
+        return Error::from_errno(WSAEMSGSIZE);
+    }
+
+    return m_helper.read(buffer, default_flags());
+}
+
 ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(ByteString const& host, u16 port)
 {
     auto ip_addresses = TRY(resolve_host(host, SocketType::Stream));
@@ -275,6 +349,17 @@ ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(SocketAddress const& addres
 
     TRY(connect_inet(fd, address));
 
+    socket->setup_notifier();
+    return socket;
+}
+
+ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::adopt_fd(int fd)
+{
+    if (static_cast<SOCKET>(fd) == INVALID_SOCKET)
+        return Error::from_windows_error();
+
+    auto socket = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TCPSocket()));
+    socket->m_helper.set_fd(fd);
     socket->setup_notifier();
     return socket;
 }

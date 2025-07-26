@@ -1,18 +1,18 @@
 set(TEST_SOURCES
     TestLibCoreArgsParser.cpp
-    TestLibCoreDateTime.cpp
     TestLibCoreDeferredInvoke.cpp
-    TestLibCoreFileWatcher.cpp
+    TestLibCoreMappedFile.cpp
     TestLibCoreMimeType.cpp
     TestLibCorePromise.cpp
     TestLibCoreSharedSingleProducerCircularQueue.cpp
+    TestLibCoreStream.cpp
 )
 
 # FIXME: Change these tests to use a portable tempfile directory
 if (NOT WIN32)
     list(APPEND TEST_SOURCES
-        TestLibCoreMappedFile.cpp
-        TestLibCoreStream.cpp
+        TestLibCoreDateTime.cpp
+        TestLibCoreFileWatcher.cpp
     )
 endif()
 
@@ -20,10 +20,12 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibCore)
 endforeach()
 
-target_link_libraries(TestLibCoreDateTime PRIVATE LibUnicode)
+if (TARGET TestLibCoreDateTime)
+    target_link_libraries(TestLibCoreDateTime PRIVATE LibUnicode)
+endif()
 target_link_libraries(TestLibCorePromise PRIVATE LibThreading)
+target_link_libraries(TestLibCoreStream PRIVATE LibThreading)
 if (NOT WIN32)
-    target_link_libraries(TestLibCoreStream PRIVATE LibThreading)
     # These tests use the .txt files in the current directory
     set_tests_properties(TestLibCoreMappedFile TestLibCoreStream PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()

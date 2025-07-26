@@ -1,5 +1,6 @@
 add_subdirectory(AK)
 add_subdirectory(LibCompress)
+add_subdirectory(LibCore)
 add_subdirectory(LibCrypto)
 add_subdirectory(LibDiff)
 add_subdirectory(LibGC)
@@ -22,7 +23,6 @@ if (WIN32 AND ENABLE_WINDOWS_CI)
     return()
 endif()
 
-add_subdirectory(LibCore)
 add_subdirectory(LibDNS)
 add_subdirectory(LibXML)
 
