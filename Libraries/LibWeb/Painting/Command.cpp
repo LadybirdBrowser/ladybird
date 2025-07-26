@@ -93,7 +93,8 @@ void AddClipRect::dump(StringBuilder& builder) const
 
 void PushStackingContext::dump(StringBuilder& builder) const
 {
-    builder.appendff("PushStackingContext");
+    auto affine_transform = extract_2d_affine_transform(transform.matrix);
+    builder.appendff("PushStackingContext opacity={} isolate={} has_clip_path={} transform={}", opacity, isolate, clip_path.has_value(), affine_transform);
 }
 
 void PopStackingContext::dump(StringBuilder& builder) const
@@ -193,7 +194,7 @@ void AddRoundedRectClip::dump(StringBuilder& builder) const
 
 void AddMask::dump(StringBuilder& builder) const
 {
-    builder.appendff("AddMask rect={} has_display_list={}", rect, display_list != nullptr);
+    builder.appendff("AddMask rect={}", rect);
 }
 
 void PaintNestedDisplayList::dump(StringBuilder& builder) const
@@ -223,7 +224,8 @@ void ApplyFilter::dump(StringBuilder& builder) const
 
 void ApplyTransform::dump(StringBuilder& builder) const
 {
-    builder.appendff("ApplyTransform");
+    auto affine_transform = extract_2d_affine_transform(matrix);
+    builder.appendff("ApplyTransform matrix={}", affine_transform);
 }
 
 void ApplyMaskBitmap::dump(StringBuilder& builder) const
