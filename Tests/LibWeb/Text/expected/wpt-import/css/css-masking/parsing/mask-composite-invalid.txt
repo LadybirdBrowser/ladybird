@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	e.style['mask-composite'] = "auto" should not set the property value
+Pass	e.style['mask-composite'] = "add subtract" should not set the property value
+Pass	e.style['mask-composite'] = "clear" should not set the property value
+Pass	e.style['mask-composite'] = "copy" should not set the property value
+Pass	e.style['mask-composite'] = "source-over" should not set the property value
+Pass	e.style['mask-composite'] = "source-in" should not set the property value
+Pass	e.style['mask-composite'] = "source-out" should not set the property value
+Pass	e.style['mask-composite'] = "source-atop" should not set the property value
+Pass	e.style['mask-composite'] = "destination-over" should not set the property value
+Pass	e.style['mask-composite'] = "destination-in" should not set the property value
+Pass	e.style['mask-composite'] = "destination-out" should not set the property value
+Pass	e.style['mask-composite'] = "destination-atop" should not set the property value
+Pass	e.style['mask-composite'] = "xor" should not set the property value
+Pass	e.style['mask-composite'] = "plus-lighter" should not set the property value

@@ -489,6 +489,116 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             return start->to_string(mode);
         return MUST(String::formatted("{} / {}", start->to_string(mode), end->to_string(mode)));
     }
+    case PropertyID::Mask: {
+        StringBuilder builder;
+
+        auto serialize_layer = [mode, &builder](String image_value_string, String position_value_string, String size_value_string, String repeat_value_string, String origin_value_string, String clip_value_string, String composite_value_string, String mode_value_string) {
+            PropertyID canonical_property_order[] = {
+                PropertyID::MaskImage,
+                PropertyID::MaskPosition,
+                // Intentionally skipping MaskSize here, it is handled together with MaskPosition.
+                PropertyID::MaskRepeat,
+                PropertyID::MaskOrigin,
+                PropertyID::MaskClip,
+                PropertyID::MaskComposite,
+                PropertyID::MaskMode,
+            };
+
+            auto property_value = [&](PropertyID property) -> String const& {
+                switch (property) {
+                case PropertyID::MaskImage:
+                    return image_value_string;
+                case PropertyID::MaskPosition:
+                    return position_value_string;
+                case PropertyID::MaskSize:
+                    return size_value_string;
+                case PropertyID::MaskRepeat:
+                    return repeat_value_string;
+                case PropertyID::MaskOrigin:
+                    return origin_value_string;
+                case PropertyID::MaskClip:
+                    return clip_value_string;
+                case PropertyID::MaskComposite:
+                    return composite_value_string;
+                case PropertyID::MaskMode:
+                    return mode_value_string;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            };
+
+            auto is_initial_value = [mode, property_value](PropertyID property) -> bool {
+                return property_value(property) == property_initial_value(property)->to_string(mode);
+            };
+
+            auto can_skip_serializing_initial_value = [is_initial_value, property_value](PropertyID property) -> bool {
+                switch (property) {
+                case PropertyID::MaskPosition:
+                    return is_initial_value(PropertyID::MaskSize);
+                case PropertyID::MaskOrigin:
+                    return is_initial_value(PropertyID::MaskClip) || property_value(PropertyID::MaskClip) == string_from_keyword(Keyword::NoClip);
+                default:
+                    return true;
+                }
+            };
+
+            bool layer_is_empty = true;
+            for (size_t i = 0; i < array_size(canonical_property_order); i++) {
+                auto property = canonical_property_order[i];
+                auto const& value = property_value(property);
+
+                if (is_initial_value(property) && can_skip_serializing_initial_value(property))
+                    continue;
+                if (property == PropertyID::MaskClip && value == property_value(PropertyID::MaskOrigin))
+                    continue;
+
+                if (!layer_is_empty)
+                    builder.append(" "sv);
+                builder.append(value);
+                if (property == PropertyID::MaskPosition && !is_initial_value(PropertyID::MaskSize)) {
+                    builder.append(" / "sv);
+                    builder.append(property_value(PropertyID::MaskSize));
+                }
+                layer_is_empty = false;
+            }
+
+            if (layer_is_empty)
+                builder.append("none"sv);
+        };
+
+        auto get_layer_count = [](auto const& style_value) -> size_t {
+            return style_value->is_value_list() ? style_value->as_value_list().size() : 1;
+        };
+
+        auto mask_image = longhand(PropertyID::MaskImage);
+        auto mask_position = longhand(PropertyID::MaskPosition);
+        auto mask_size = longhand(PropertyID::MaskSize);
+        auto mask_repeat = longhand(PropertyID::MaskRepeat);
+        auto mask_origin = longhand(PropertyID::MaskOrigin);
+        auto mask_clip = longhand(PropertyID::MaskClip);
+        auto mask_composite = longhand(PropertyID::MaskComposite);
+        auto mask_mode = longhand(PropertyID::MaskMode);
+
+        auto layer_count = max(get_layer_count(mask_image), max(get_layer_count(mask_position), max(get_layer_count(mask_size), max(get_layer_count(mask_repeat), max(get_layer_count(mask_origin), max(get_layer_count(mask_clip), max(get_layer_count(mask_composite), get_layer_count(mask_mode))))))));
+
+        if (layer_count == 1) {
+            serialize_layer(mask_image->to_string(mode), mask_position->to_string(mode), mask_size->to_string(mode), mask_repeat->to_string(mode), mask_origin->to_string(mode), mask_clip->to_string(mode), mask_composite->to_string(mode), mask_mode->to_string(mode));
+        } else {
+            auto get_layer_value_string = [mode](ValueComparingRefPtr<CSSStyleValue const> const& style_value, size_t index) {
+                if (style_value->is_value_list())
+                    return style_value->as_value_list().value_at(index, true)->to_string(mode);
+                return style_value->to_string(mode);
+            };
+
+            for (size_t i = 0; i < layer_count; i++) {
+                if (i)
+                    builder.append(", "sv);
+
+                serialize_layer(get_layer_value_string(mask_image, i), get_layer_value_string(mask_position, i), get_layer_value_string(mask_size, i), get_layer_value_string(mask_repeat, i), get_layer_value_string(mask_origin, i), get_layer_value_string(mask_clip, i), get_layer_value_string(mask_composite, i), get_layer_value_string(mask_mode, i));
+            }
+        }
+        return builder.to_string_without_validation();
+    }
     case PropertyID::PlaceContent:
     case PropertyID::PlaceItems:
     case PropertyID::PlaceSelf:
