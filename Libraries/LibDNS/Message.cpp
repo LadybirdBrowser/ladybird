@@ -9,7 +9,6 @@
 #include <AK/MemoryStream.h>
 #include <AK/Stream.h>
 #include <AK/UFixedBigInt.h>
-#include <LibCore/DateTime.h>
 #include <LibDNS/Message.h>
 
 namespace DNS::Messages {
@@ -1237,8 +1236,8 @@ ErrorOr<String> Records::SIG::to_string() const
     builder.appendff("Algorithm: {}, ", DNSSEC::to_string(algorithm));
     builder.appendff("Labels: {}, ", label_count);
     builder.appendff("Original TTL: {}, ", original_ttl);
-    builder.appendff("Signature expiration: {}, ", Core::DateTime::from_timestamp(expiration.truncated_seconds_since_epoch()));
-    builder.appendff("Signature inception: {}, ", Core::DateTime::from_timestamp(inception.truncated_seconds_since_epoch()));
+    builder.appendff("Signature expiration: {}, ", expiration);
+    builder.appendff("Signature inception: {}, ", inception);
     builder.appendff("Key tag: {}, ", key_tag);
     builder.appendff("Signer's name: '{}', ", signers_name.to_string());
     builder.appendff("Signature: {}", TRY(encode_base64(signature)));
