@@ -634,6 +634,47 @@ TEST_CASE(ends_with)
     EXPECT(!emoji.ends_with(u"😀"sv));
 }
 
+TEST_CASE(split_view)
+{
+    {
+        auto test = u"axxbxcxd"sv;
+
+        EXPECT_EQ(test.split_view('x', SplitBehavior::Nothing), Vector({ u"a"sv, u"b"sv, u"c"sv, u"d"sv }));
+        EXPECT_EQ(test.split_view("x"sv, SplitBehavior::Nothing), Vector({ u"a"sv, u"b"sv, u"c"sv, u"d"sv }));
+
+        EXPECT_EQ(test.split_view('x', SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u"b"sv, u"c"sv, u"d"sv }));
+        EXPECT_EQ(test.split_view("x"sv, SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u"b"sv, u"c"sv, u"d"sv }));
+    }
+    {
+        auto test = u"axxbx"sv;
+
+        EXPECT_EQ(test.split_view('x', SplitBehavior::Nothing), Vector({ u"a"sv, u"b"sv }));
+        EXPECT_EQ(test.split_view("x"sv, SplitBehavior::Nothing), Vector({ u"a"sv, u"b"sv }));
+
+        EXPECT_EQ(test.split_view('x', SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u"b"sv, u""sv }));
+        EXPECT_EQ(test.split_view("x"sv, SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u"b"sv, u""sv }));
+    }
+    {
+        auto test = u"axxbcxxdxx"sv;
+        EXPECT_EQ(test.split_view(u"xx"sv, SplitBehavior::Nothing), Vector({ u"a"sv, u"bc"sv, u"d"sv }));
+        EXPECT_EQ(test.split_view(u"xx"sv, SplitBehavior::KeepEmpty), Vector({ u"a"sv, u"bc"sv, u"d"sv, u""sv }));
+    }
+    {
+        auto test = u"a,,,b"sv;
+        EXPECT_EQ(test.split_view(u","sv, SplitBehavior::KeepEmpty), Vector({ u"a"sv, u""sv, u""sv, u"b"sv }));
+        EXPECT_EQ(test.split_view(u","sv, SplitBehavior::KeepTrailingSeparator), Vector({ u"a,"sv, u"b"sv }));
+        EXPECT_EQ(test.split_view(u","sv, SplitBehavior::KeepTrailingSeparator | SplitBehavior::KeepEmpty), Vector({ u"a,"sv, u","sv, u","sv, u"b"sv }));
+    }
+    {
+        auto test = u"foo bar baz"sv;
+        EXPECT_EQ(test.split_view(u" "sv, SplitBehavior::Nothing), Vector({ u"foo"sv, u"bar"sv, u"baz"sv }));
+    }
+    {
+        auto test = u"ωΣ2ωΣω"sv;
+        EXPECT_EQ(test.split_view(0x03A3u, SplitBehavior::Nothing), Vector({ u"ω"sv, u"2ω"sv, u"ω"sv }));
+    }
+}
+
 TEST_CASE(find_code_unit_offset)
 {
     auto conversion_result = Utf16String::from_utf8("😀foo😀bar"sv);
