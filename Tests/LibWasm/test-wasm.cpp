@@ -224,14 +224,16 @@ TESTJS_GLOBAL_FUNCTION(is_canonical_nan64, isCanonicalNaN64)
 
 TESTJS_GLOBAL_FUNCTION(is_arithmetic_nan32, isArithmeticNaN32)
 {
-    auto value = bit_cast<float>(TRY(vm.argument(0).to_u32(vm)));
-    return isnan(value);
+    auto const bits = TRY(vm.argument(0).to_u32(vm));
+    auto const payload = bits & 0x007FFFFF;
+    return (bits & 0x7F800000) == 0x7F800000 && payload >= 0x00400000;
 }
 
 TESTJS_GLOBAL_FUNCTION(is_arithmetic_nan64, isArithmeticNaN64)
 {
-    auto value = bit_cast<double>(TRY(vm.argument(0).to_bigint_uint64(vm)));
-    return isnan(value);
+    auto const bits = TRY(vm.argument(0).to_bigint_uint64(vm));
+    auto const payload = bits & 0x000FFFFFFFFFFFFFULL;
+    return (bits & 0x7FF0000000000000ull) == 0x7FF0000000000000ull && payload >= 0x0008000000000000ull;
 }
 
 TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
