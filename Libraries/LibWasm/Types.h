@@ -10,6 +10,7 @@
 #include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/LEB128.h>
+#include <AK/OwnPtr.h>
 #include <AK/Result.h>
 #include <AK/String.h>
 #include <AK/UFixedBigInt.h>
@@ -461,14 +462,33 @@ public:
     {
     }
 
+    explicit Instruction(OpCode opcode, LocalIndex argument)
+        : m_opcode(opcode)
+        , m_local_index(argument)
+        , m_arguments(static_cast<u8>(0))
+    {
+    }
+
+    template<typename Arg1>
+    explicit Instruction(OpCode opcode, LocalIndex argument0, Arg1&& argument1)
+        : m_opcode(opcode)
+        , m_local_index(argument0)
+        , m_arguments(forward<Arg1>(argument1))
+    {
+    }
+
     static ParseResult<Instruction> parse(Stream& stream);
 
     auto& opcode() const { return m_opcode; }
     auto& arguments() const { return m_arguments; }
     auto& arguments() { return m_arguments; }
 
+    LocalIndex local_index() const { return m_local_index; }
+
 private:
     OpCode m_opcode { 0 };
+    LocalIndex m_local_index;
+
     Variant<
         BlockType,
         DataIndex,
@@ -477,8 +497,8 @@ private:
         GlobalIndex,
         IndirectCallArgs,
         LabelIndex,
+        LocalIndex, // Only used for synthetic_i32_add2local.
         LaneIndex,
-        LocalIndex,
         MemoryArgument,
         MemoryAndLaneArgument,
         MemoryCopyArgs,
@@ -499,6 +519,92 @@ private:
         u128,
         u8> // Empty state
         m_arguments;
+};
+
+struct Dispatch {
+    Instruction const* instruction { nullptr };
+    void* label { nullptr };
+    enum RegisterOrStack : u8 {
+        R0,
+        R1,
+        R2,
+        Stack,
+    };
+
+    RegisterOrStack sources[3] { RegisterOrStack::Stack, RegisterOrStack::Stack, RegisterOrStack::Stack };
+    RegisterOrStack destination { RegisterOrStack::Stack };
+    enum class LivenessOrder : u8 {
+        _012,
+        _021,
+        _102,
+        _120,
+        _201,
+        _210
+    };
+
+    struct LivenessRecord {
+        LivenessOrder order : 5;
+        u8 is_live : 3;
+
+        template<typename F>
+        void in_live_order(F f) const
+        {
+            switch (order) {
+            case LivenessOrder::_012:
+                if ((is_live >> 0) & 1)
+                    f(0);
+                if ((is_live >> 1) & 1)
+                    f(1);
+                if ((is_live >> 2) & 1)
+                    f(2);
+                break;
+            case LivenessOrder::_021:
+                if ((is_live >> 0) & 1)
+                    f(0);
+                if ((is_live >> 2) & 1)
+                    f(2);
+                if ((is_live >> 1) & 1)
+                    f(1);
+                break;
+            case LivenessOrder::_102:
+                if ((is_live >> 1) & 1)
+                    f(1);
+                if ((is_live >> 0) & 1)
+                    f(0);
+                if ((is_live >> 2) & 1)
+                    f(2);
+                break;
+            case LivenessOrder::_120:
+                if ((is_live >> 1) & 1)
+                    f(1);
+                if ((is_live >> 2) & 1)
+                    f(2);
+                if ((is_live >> 0) & 1)
+                    f(0);
+                break;
+            case LivenessOrder::_201:
+                if ((is_live >> 2) & 1)
+                    f(2);
+                if ((is_live >> 0) & 1)
+                    f(0);
+                if ((is_live >> 1) & 1)
+                    f(1);
+                break;
+            case LivenessOrder::_210:
+                if ((is_live >> 2) & 1)
+                    f(2);
+                if ((is_live >> 1) & 1)
+                    f(1);
+                if ((is_live >> 0) & 1)
+                    f(0);
+                break;
+            }
+        }
+    } register_liveness_record { LivenessOrder::_012, 0 };
+};
+struct CompiledInstructions {
+    Vector<Dispatch> dispatches;
+    Vector<Instruction> extra_instruction_storage;
 };
 
 struct SectionId {
@@ -708,9 +814,16 @@ public:
 
     static ParseResult<Expression> parse(Stream& stream, Optional<size_t> size_hint = {});
 
+    void set_stack_usage_hint(size_t value) const { m_stack_usage_hint = value; }
+    auto stack_usage_hint() const { return m_stack_usage_hint; }
+    mutable CompiledInstructions compiled_instructions;
+
 private:
     Vector<Instruction> m_instructions;
+    mutable Optional<size_t> m_stack_usage_hint;
 };
+
+CompiledInstructions try_compile_instructions(Expression const&);
 
 class GlobalSection {
 public:
