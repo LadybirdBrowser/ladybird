@@ -51,15 +51,14 @@ String SimpleBlock::original_source_text() const
     return builder.to_string_without_validation();
 }
 
-bool SimpleBlock::contains_arbitrary_substitution_function() const
+void SimpleBlock::contains_arbitrary_substitution_function(SubstitutionFunctionsPresence& presence) const
 {
     for (auto const& component_value : value) {
-        if (component_value.is_function() && component_value.function().contains_arbitrary_substitution_function())
-            return true;
-        if (component_value.is_block() && component_value.block().contains_arbitrary_substitution_function())
-            return true;
+        if (component_value.is_function())
+            component_value.function().contains_arbitrary_substitution_function(presence);
+        if (component_value.is_block())
+            component_value.block().contains_arbitrary_substitution_function(presence);
     }
-    return false;
 }
 
 String Function::to_string() const
@@ -86,17 +85,18 @@ String Function::original_source_text() const
     return builder.to_string_without_validation();
 }
 
-bool Function::contains_arbitrary_substitution_function() const
+void Function::contains_arbitrary_substitution_function(SubstitutionFunctionsPresence& presence) const
 {
-    if (name.equals_ignoring_ascii_case("var"sv) || name.equals_ignoring_ascii_case("attr"sv))
-        return true;
+    if (name.equals_ignoring_ascii_case("var"sv))
+        presence.var = true;
+    else if (name.equals_ignoring_ascii_case("attr"sv))
+        presence.attr = true;
     for (auto const& component_value : value) {
-        if (component_value.is_function() && component_value.function().contains_arbitrary_substitution_function())
-            return true;
-        if (component_value.is_block() && component_value.block().contains_arbitrary_substitution_function())
-            return true;
+        if (component_value.is_function())
+            component_value.function().contains_arbitrary_substitution_function(presence);
+        if (component_value.is_block())
+            component_value.block().contains_arbitrary_substitution_function(presence);
     }
-    return false;
 }
 
 void AtRule::for_each(AtRuleVisitor&& visit_at_rule, QualifiedRuleVisitor&& visit_qualified_rule, DeclarationVisitor&& visit_declaration) const

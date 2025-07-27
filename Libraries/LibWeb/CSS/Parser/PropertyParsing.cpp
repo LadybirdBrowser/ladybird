@@ -393,7 +393,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
 
     // FIXME: Stop removing whitespace here. It's less helpful than it seems.
     Vector<ComponentValue> component_values;
-    bool contains_arbitrary_substitution_function = false;
+    SubstitutionFunctionsPresence substitution_presence;
     bool const property_accepts_custom_ident = property_accepts_type(property_id, ValueType::CustomIdent);
 
     while (unprocessed_tokens.has_next_token()) {
@@ -412,12 +412,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
                 return ParseError::IncludesIgnoredVendorPrefix;
         }
 
-        if (!contains_arbitrary_substitution_function) {
-            if (token.is_function() && token.function().contains_arbitrary_substitution_function())
-                contains_arbitrary_substitution_function = true;
-            else if (token.is_block() && token.block().contains_arbitrary_substitution_function())
-                contains_arbitrary_substitution_function = true;
-        }
+        if (token.is_function())
+            token.function().contains_arbitrary_substitution_function(substitution_presence);
+        else if (token.is_block())
+            token.block().contains_arbitrary_substitution_function(substitution_presence);
 
         component_values.append(token);
     }
@@ -428,8 +426,8 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
             return parsed_value.release_nonnull();
     }
 
-    if (property_id == PropertyID::Custom || contains_arbitrary_substitution_function)
-        return UnresolvedStyleValue::create(move(component_values), contains_arbitrary_substitution_function, original_source_text);
+    if (property_id == PropertyID::Custom || substitution_presence.has_any())
+        return UnresolvedStyleValue::create(move(component_values), substitution_presence, original_source_text);
 
     if (component_values.is_empty())
         return ParseError::SyntaxError;
