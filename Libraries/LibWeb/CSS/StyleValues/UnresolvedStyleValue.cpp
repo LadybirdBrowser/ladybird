@@ -13,27 +13,25 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Vector<Parser::ComponentValue>&& values, Optional<bool> contains_arbitrary_substitution_function, Optional<String> original_source_text)
+ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Vector<Parser::ComponentValue>&& values, Optional<Parser::SubstitutionFunctionsPresence> substitution_presence, Optional<String> original_source_text)
 {
-    if (!contains_arbitrary_substitution_function.has_value()) {
-        bool found_asf = false;
+    if (!substitution_presence.has_value()) {
+        substitution_presence = Parser::SubstitutionFunctionsPresence {};
         for (auto const& value : values) {
-            if ((value.is_function() && value.function().contains_arbitrary_substitution_function())
-                || (value.is_block() && value.block().contains_arbitrary_substitution_function())) {
-                found_asf = true;
-                break;
-            }
+            if (value.is_function())
+                value.function().contains_arbitrary_substitution_function(*substitution_presence);
+            if (value.is_block())
+                value.block().contains_arbitrary_substitution_function(*substitution_presence);
         }
-        contains_arbitrary_substitution_function = found_asf;
     }
 
-    return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(values), contains_arbitrary_substitution_function.value(), move(original_source_text)));
+    return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(values), *substitution_presence, move(original_source_text)));
 }
 
-UnresolvedStyleValue::UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, bool contains_arbitrary_substitution_function, Optional<String> original_source_text)
+UnresolvedStyleValue::UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<String> original_source_text)
     : CSSStyleValue(Type::Unresolved)
     , m_values(move(values))
-    , m_contains_arbitrary_substitution_function(contains_arbitrary_substitution_function)
+    , m_substitution_functions_presence(substitution_presence)
     , m_original_source_text(move(original_source_text))
 {
 }

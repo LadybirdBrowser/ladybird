@@ -17,22 +17,22 @@ namespace Web::CSS {
 
 class UnresolvedStyleValue final : public CSSStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Optional<bool> contains_arbitrary_substitution_function = {}, Optional<String> original_source_text = {});
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Optional<Parser::SubstitutionFunctionsPresence> = {}, Optional<String> original_source_text = {});
     virtual ~UnresolvedStyleValue() override = default;
 
     virtual String to_string(SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override { return m_values; }
 
     Vector<Parser::ComponentValue> const& values() const { return m_values; }
-    bool contains_arbitrary_substitution_function() const { return m_contains_arbitrary_substitution_function; }
+    bool contains_arbitrary_substitution_function() const { return m_substitution_functions_presence.has_any(); }
 
     virtual bool equals(CSSStyleValue const& other) const override;
 
 private:
-    UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, bool contains_arbitrary_substitution_function, Optional<String> original_source_text);
+    UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text);
 
     Vector<Parser::ComponentValue> m_values;
-    bool m_contains_arbitrary_substitution_function { false };
+    Parser::SubstitutionFunctionsPresence m_substitution_functions_presence {};
     Optional<String> m_original_source_text;
 };
 
