@@ -131,17 +131,17 @@ DecoderErrorOr<ColorConverter> ColorConverter::create(u8 bit_depth, CodingIndepe
 
     // Expand color primaries matrix with identity elements.
     FloatMatrix4x4 color_primaries_matrix_4x4 = {
-        color_primaries_matrix.elements()[0][0],
-        color_primaries_matrix.elements()[0][1],
-        color_primaries_matrix.elements()[0][2],
+        color_primaries_matrix[0, 0],
+        color_primaries_matrix[0, 1],
+        color_primaries_matrix[0, 2],
         0.0f, // y
-        color_primaries_matrix.elements()[1][0],
-        color_primaries_matrix.elements()[1][1],
-        color_primaries_matrix.elements()[1][2],
+        color_primaries_matrix[1, 0],
+        color_primaries_matrix[1, 1],
+        color_primaries_matrix[1, 2],
         0.0f, // u
-        color_primaries_matrix.elements()[2][0],
-        color_primaries_matrix.elements()[2][1],
-        color_primaries_matrix.elements()[2][2],
+        color_primaries_matrix[2, 0],
+        color_primaries_matrix[2, 1],
+        color_primaries_matrix[2, 2],
         0.0f, // v
         0.0f,
         0.0f,

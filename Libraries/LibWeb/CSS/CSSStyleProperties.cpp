@@ -720,18 +720,18 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
             // and m33, m44 are equal to 1.
             // NB: We only care about 4x4 matrices here.
             // NB: Our elements are 0-indexed not 1-indexed, and in the opposite order.
-            if (matrix.elements()[0][2] != 0     // m31
-                || matrix.elements()[1][2] != 0  // m32
-                || matrix.elements()[2][0] != 0  // m13
-                || matrix.elements()[2][1] != 0  // m23
-                || matrix.elements()[2][3] != 0  // m43
-                || matrix.elements()[3][0] != 0  // m14
-                || matrix.elements()[3][1] != 0  // m24
-                || matrix.elements()[3][2] != 0) // m34
+            if (matrix[0, 2] != 0     // m31
+                || matrix[1, 2] != 0  // m32
+                || matrix[2, 0] != 0  // m13
+                || matrix[2, 1] != 0  // m23
+                || matrix[2, 3] != 0  // m43
+                || matrix[3, 0] != 0  // m14
+                || matrix[3, 1] != 0  // m24
+                || matrix[3, 2] != 0) // m34
                 return false;
 
-            if (matrix.elements()[2][2] != 1     // m33
-                || matrix.elements()[3][3] != 1) // m44
+            if (matrix[2, 2] != 1     // m33
+                || matrix[3, 3] != 1) // m44
                 return false;
 
             return true;
@@ -742,12 +742,12 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         //        Serialize transform to a <matrix()> function.
         if (is_2d_matrix(transform)) {
             StyleValueVector parameters {
-                NumberStyleValue::create(transform.elements()[0][0]),
-                NumberStyleValue::create(transform.elements()[1][0]),
-                NumberStyleValue::create(transform.elements()[0][1]),
-                NumberStyleValue::create(transform.elements()[1][1]),
-                NumberStyleValue::create(transform.elements()[0][3]),
-                NumberStyleValue::create(transform.elements()[1][3]),
+                NumberStyleValue::create(transform[0, 0]),
+                NumberStyleValue::create(transform[1, 0]),
+                NumberStyleValue::create(transform[0, 1]),
+                NumberStyleValue::create(transform[1, 1]),
+                NumberStyleValue::create(transform[0, 3]),
+                NumberStyleValue::create(transform[1, 3]),
             };
             return TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix, move(parameters));
         }
@@ -755,22 +755,22 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         //        Serialize transform to a <matrix3d()> function.
         else {
             StyleValueVector parameters {
-                NumberStyleValue::create(transform.elements()[0][0]),
-                NumberStyleValue::create(transform.elements()[1][0]),
-                NumberStyleValue::create(transform.elements()[2][0]),
-                NumberStyleValue::create(transform.elements()[3][0]),
-                NumberStyleValue::create(transform.elements()[0][1]),
-                NumberStyleValue::create(transform.elements()[1][1]),
-                NumberStyleValue::create(transform.elements()[2][1]),
-                NumberStyleValue::create(transform.elements()[3][1]),
-                NumberStyleValue::create(transform.elements()[0][2]),
-                NumberStyleValue::create(transform.elements()[1][2]),
-                NumberStyleValue::create(transform.elements()[2][2]),
-                NumberStyleValue::create(transform.elements()[3][2]),
-                NumberStyleValue::create(transform.elements()[0][3]),
-                NumberStyleValue::create(transform.elements()[1][3]),
-                NumberStyleValue::create(transform.elements()[2][3]),
-                NumberStyleValue::create(transform.elements()[3][3]),
+                NumberStyleValue::create(transform[0, 0]),
+                NumberStyleValue::create(transform[1, 0]),
+                NumberStyleValue::create(transform[2, 0]),
+                NumberStyleValue::create(transform[3, 0]),
+                NumberStyleValue::create(transform[0, 1]),
+                NumberStyleValue::create(transform[1, 1]),
+                NumberStyleValue::create(transform[2, 1]),
+                NumberStyleValue::create(transform[3, 1]),
+                NumberStyleValue::create(transform[0, 2]),
+                NumberStyleValue::create(transform[1, 2]),
+                NumberStyleValue::create(transform[2, 2]),
+                NumberStyleValue::create(transform[3, 2]),
+                NumberStyleValue::create(transform[0, 3]),
+                NumberStyleValue::create(transform[1, 3]),
+                NumberStyleValue::create(transform[2, 3]),
+                NumberStyleValue::create(transform[3, 3]),
             };
             return TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d, move(parameters));
         }

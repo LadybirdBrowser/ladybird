@@ -31,10 +31,9 @@ Layout::SVGSVGBox const& SVGSVGPaintable::layout_box() const
 
 static Gfx::FloatMatrix4x4 matrix_with_scaled_translation(Gfx::FloatMatrix4x4 matrix, float scale)
 {
-    auto* m = matrix.elements();
-    m[0][3] *= scale;
-    m[1][3] *= scale;
-    m[2][3] *= scale;
+    matrix[0, 3] *= scale;
+    matrix[1, 3] *= scale;
+    matrix[2, 3] *= scale;
     return matrix;
 }
 
