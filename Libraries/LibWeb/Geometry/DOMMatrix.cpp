@@ -38,20 +38,20 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::construct_impl(JS::Realm& rea
 
         // 2. Parse init into an abstract matrix, and let matrix and 2dTransform be the result. If the result is failure, then throw a "SyntaxError" DOMException.
         auto result = TRY(parse_dom_matrix_init_string(realm, init_value.get<String>()));
-        auto* elements = result.matrix.elements();
+        auto& m = result.matrix;
 
         // If 2dTransform is true
         if (result.is_2d_transform) {
             // Return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the elements m11, m12, m21, m22, m41 and m42 of matrix.
-            return realm.create<DOMMatrix>(realm, elements[0][0], elements[1][0], elements[0][1], elements[1][1], elements[0][3], elements[1][3]);
+            return realm.create<DOMMatrix>(realm, m[0, 0], m[1, 0], m[0, 1], m[1, 1], m[0, 3], m[1, 3]);
         }
 
         // Otherwise, return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the 16 elements of matrix.
         return realm.create<DOMMatrix>(realm,
-            elements[0][0], elements[1][0], elements[2][0], elements[3][0],
-            elements[0][1], elements[1][1], elements[2][1], elements[3][1],
-            elements[0][2], elements[1][2], elements[2][2], elements[3][2],
-            elements[0][3], elements[1][3], elements[2][3], elements[3][3]);
+            m[0, 0], m[1, 0], m[2, 0], m[3, 0],
+            m[0, 1], m[1, 1], m[2, 1], m[3, 1],
+            m[0, 2], m[1, 2], m[2, 2], m[3, 2],
+            m[0, 3], m[1, 3], m[2, 3], m[3, 3]);
     }
 
     auto const& double_sequence = init_value.get<Vector<double>>();
@@ -212,21 +212,21 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float64_array(JS::VM& vm
 void DOMMatrix::set_m11(double value)
 {
     // For the DOMMatrix interface, setting the m11 or the a attribute must set the m11 element to the new value.
-    m_matrix.elements()[0][0] = value;
+    m_matrix[0, 0] = value;
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-m12
 void DOMMatrix::set_m12(double value)
 {
     // For the DOMMatrix interface, setting the m12 or the b attribute must set the m12 element to the new value.
-    m_matrix.elements()[1][0] = value;
+    m_matrix[1, 0] = value;
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-m13
 void DOMMatrix::set_m13(double value)
 {
     // For the DOMMatrix interface, setting the m13 attribute must set the m13 element to the new value and, if the new value is not 0 or -0, set is 2D to false.
-    m_matrix.elements()[2][0] = value;
+    m_matrix[2, 0] = value;
     if (value != 0.0 && value != -0.0)
         m_is_2d = false;
 }
@@ -235,7 +235,7 @@ void DOMMatrix::set_m13(double value)
 void DOMMatrix::set_m14(double value)
 {
     // For the DOMMatrix interface, setting the m14 attribute must set the m14 element to the new value and, if the new value is not 0 or -0, set is 2D to false.
-    m_matrix.elements()[3][0] = value;
+    m_matrix[3, 0] = value;
     if (value != 0.0 && value != -0.0)
         m_is_2d = false;
 }
@@ -244,21 +244,21 @@ void DOMMatrix::set_m14(double value)
 void DOMMatrix::set_m21(double value)
 {
     // For the DOMMatrix interface, setting the m21 or the c attribute must set the m21 element to the new value.
-    m_matrix.elements()[0][1] = value;
+    m_matrix[0, 1] = value;
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-m22
 void DOMMatrix::set_m22(double value)
 {
     // For the DOMMatrix interface, setting the m22 or the d attribute must set the m22 element to the new value.
-    m_matrix.elements()[1][1] = value;
+    m_matrix[1, 1] = value;
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-m23
 void DOMMatrix::set_m23(double value)
 {
     // For the DOMMatrix interface, setting the m23 attribute must set the m23 element to the new value and, if the new value is not 0 or -0, set is 2D to false.
-    m_matrix.elements()[2][1] = value;
+    m_matrix[2, 1] = value;
     if (value != 0.0 && value != -0.0)
         m_is_2d = false;
 }
@@ -267,7 +267,7 @@ void DOMMatrix::set_m23(double value)
 void DOMMatrix::set_m24(double value)
 {
     // For the DOMMatrix interface, setting the m24 attribute must set the m24 element to the new value and, if the new value is not 0 or -0, set is 2D to false.
-    m_matrix.elements()[3][1] = value;
+    m_matrix[3, 1] = value;
     if (value != 0.0 && value != -0.0)
         m_is_2d = false;
 }
@@ -276,7 +276,7 @@ void DOMMatrix::set_m24(double value)
 void DOMMatrix::set_m31(double value)
 {
     // For the DOMMatrix interface, setting the m31 attribute must set the m31 element to the new value and, if the new value is not 0 or -0, set is 2D to false.
-    m_matrix.elements()[0][2] = value;
+    m_matrix[0, 2] = value;
     if (value != 0.0 && value != -0.0)
         m_is_2d = false;
 }
@@ -285,7 +285,7 @@ void DOMMatrix::set_m31(double value)
 void DOMMatrix::set_m32(double value)
 {
     // For the DOMMatrix interface, setting the m32 attribute must set the m32 element to the new value and, if the new value is not 0 or -0, set is 2D to false.
-    m_matrix.elements()[1][2] = value;
+    m_matrix[1, 2] = value;
     if (value != 0.0 && value != -0.0)
         m_is_2d = false;
 }
@@ -294,7 +294,7 @@ void DOMMatrix::set_m32(double value)
 void DOMMatrix::set_m33(double value)
 {
     // For the DOMMatrix interface, setting the m33 attribute must set the m33 element to the new value and, if the new value is not 1, set is 2D to false.
-    m_matrix.elements()[2][2] = value;
+    m_matrix[2, 2] = value;
     if (value != 1.0)
         m_is_2d = false;
 }
@@ -303,7 +303,7 @@ void DOMMatrix::set_m33(double value)
 void DOMMatrix::set_m34(double value)
 {
     // For the DOMMatrix interface, setting the m34 attribute must set the m34 element to the new value and, if the new value is not 0 or -0, set is 2D to false.
-    m_matrix.elements()[3][2] = value;
+    m_matrix[3, 2] = value;
     if (value != 0.0 && value != -0.0)
         m_is_2d = false;
 }
@@ -312,21 +312,21 @@ void DOMMatrix::set_m34(double value)
 void DOMMatrix::set_m41(double value)
 {
     // For the DOMMatrix interface, setting the m41 or the e attribute must set the m41 element to the new value.
-    m_matrix.elements()[0][3] = value;
+    m_matrix[0, 3] = value;
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-m42
 void DOMMatrix::set_m42(double value)
 {
     // For the DOMMatrix interface, setting the m42 or the f attribute must set the m42 element to the new value.
-    m_matrix.elements()[1][3] = value;
+    m_matrix[1, 3] = value;
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-m43
 void DOMMatrix::set_m43(double value)
 {
     // For the DOMMatrix interface, setting the m43 attribute must set the m43 element to the new value and, if the new value is not 0 or -0, set is 2D to false.
-    m_matrix.elements()[2][3] = value;
+    m_matrix[2, 3] = value;
     if (value != 0.0 && value != -0.0)
         m_is_2d = false;
 }
@@ -335,7 +335,7 @@ void DOMMatrix::set_m43(double value)
 void DOMMatrix::set_m44(double value)
 {
     // For the DOMMatrix interface, setting the m44 attribute must set the m44 element to the new value and, if the new value is not 1, set is 2D to false.
-    m_matrix.elements()[3][3] = value;
+    m_matrix[3, 3] = value;
     if (value != 1.0)
         m_is_2d = false;
 }
@@ -581,7 +581,7 @@ GC::Ref<DOMMatrix> DOMMatrix::invert_self()
     if (!is_invertible) {
         for (u8 i = 0; i < 4; i++) {
             for (u8 j = 0; j < 4; j++)
-                m_matrix.elements()[j][i] = NAN;
+                m_matrix[j, i] = NAN;
         }
         m_is_2d = false;
     }

@@ -49,7 +49,7 @@ public:
         if (is_constant_evaluated()) {
             for (size_t i = 0; i < N; i++) {
                 for (size_t j = 0; j < N; j++) {
-                    m_elements[i][j] = other.elements()[i][j];
+                    (*this)[i, j] = other[i, j];
                 }
             }
             return *this;
@@ -70,26 +70,26 @@ public:
         Matrix product;
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j) {
-                auto& element = product.m_elements[i][j];
+                auto& element = product[i, j];
 
                 if constexpr (N == 4) {
-                    element = m_elements[i][0] * other.m_elements[0][j]
-                        + m_elements[i][1] * other.m_elements[1][j]
-                        + m_elements[i][2] * other.m_elements[2][j]
-                        + m_elements[i][3] * other.m_elements[3][j];
+                    element = (*this)[i, 0] * other[0, j]
+                        + (*this)[i, 1] * other[1, j]
+                        + (*this)[i, 2] * other[2, j]
+                        + (*this)[i, 3] * other[3, j];
                 } else if constexpr (N == 3) {
-                    element = m_elements[i][0] * other.m_elements[0][j]
-                        + m_elements[i][1] * other.m_elements[1][j]
-                        + m_elements[i][2] * other.m_elements[2][j];
+                    element = (*this)[i, 0] * other[0, j]
+                        + (*this)[i, 1] * other[1, j]
+                        + (*this)[i, 2] * other[2, j];
                 } else if constexpr (N == 2) {
-                    element = m_elements[i][0] * other.m_elements[0][j]
-                        + m_elements[i][1] * other.m_elements[1][j];
+                    element = (*this)[i, 0] * other[0, j]
+                        + (*this)[i, 1] * other[1, j];
                 } else if constexpr (N == 1) {
-                    element = m_elements[i][0] * other.m_elements[0][j];
+                    element = (*this)[i, 0] * other[0, j];
                 } else {
                     T value {};
                     for (size_t k = 0; k < N; ++k)
-                        value += m_elements[i][k] * other.m_elements[k][j];
+                        value += (*this)[i, k] * other[k, j];
 
                     element = value;
                 }
@@ -104,7 +104,7 @@ public:
         Matrix sum;
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j)
-                sum.m_elements[i][j] = m_elements[i][j] + other.m_elements[i][j];
+                sum[i, j] = (*this)[i, j] + other[i, j];
         }
         return sum;
     }
@@ -114,7 +114,7 @@ public:
         Matrix division;
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j)
-                division.m_elements[i][j] = m_elements[i][j] / divisor;
+                division[i, j] = (*this)[i, j] / divisor;
         }
         return division;
     }
@@ -124,7 +124,7 @@ public:
         Matrix scaled;
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j)
-                scaled.m_elements[i][j] = matrix.m_elements[i][j] * scalar;
+                scaled[i, j] = matrix[i, j] * scalar;
         }
         return scaled;
     }
@@ -143,7 +143,7 @@ public:
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j) {
                 int sign = (i + j) % 2 == 0 ? 1 : -1;
-                adjugate.m_elements[j][i] = sign * first_minor(i, j);
+                adjugate[j, i] = sign * first_minor(i, j);
             }
         }
         return adjugate;
@@ -152,12 +152,12 @@ public:
     [[nodiscard]] constexpr T determinant() const
     {
         if constexpr (N == 1) {
-            return m_elements[0][0];
+            return (*this)[0, 0];
         } else {
             T result = {};
             int sign = 1;
             for (size_t j = 0; j < N; ++j) {
-                result += sign * m_elements[0][j] * first_minor(0, j);
+                result += sign * (*this)[0, j] * first_minor(0, j);
                 sign *= -1;
             }
             return result;
@@ -179,7 +179,7 @@ public:
                 if (i == skip_row || j == skip_column)
                     continue;
 
-                first_minor.elements()[k / new_size][k % new_size] = m_elements[i][j];
+                first_minor[k / new_size, k % new_size] = (*this)[i, j];
                 ++k;
             }
         }
@@ -193,9 +193,9 @@ public:
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j) {
                 if (i == j)
-                    result.m_elements[i][j] = 1;
+                    result[i, j] = 1;
                 else
-                    result.m_elements[i][j] = 0;
+                    result[i, j] = 0;
             }
         }
         return result;
@@ -211,7 +211,7 @@ public:
         Matrix result;
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j)
-                result.m_elements[i][j] = m_elements[j][i];
+                result[i, j] = (*this)[j, i];
         }
         return result;
     }
@@ -223,7 +223,7 @@ public:
         Matrix<U, T> result;
         for (size_t i = 0; i < U; ++i) {
             for (size_t j = 0; j < U; ++j)
-                result.m_elements[i][j] = m_elements[i][j];
+                result[i, j] = (*this)[i, j];
         }
         return result;
     }

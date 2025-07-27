@@ -39,7 +39,7 @@ ALWAYS_INLINE constexpr FloatMatrix3x3 primaries_matrix(FloatVector2 red, FloatV
 
 ALWAYS_INLINE constexpr FloatVector3 matrix_row(FloatMatrix3x3 matrix, size_t row)
 {
-    return { matrix.elements()[row][0], matrix.elements()[row][1], matrix.elements()[row][2] };
+    return { matrix[row, 0], matrix[row, 1], matrix[row, 2] };
 }
 
 ALWAYS_INLINE constexpr FloatMatrix3x3 generate_rgb_to_xyz_matrix(FloatVector2 red_xy, FloatVector2 green_xy, FloatVector2 blue_xy, FloatVector2 white_xy)

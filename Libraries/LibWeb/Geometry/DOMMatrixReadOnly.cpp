@@ -45,20 +45,20 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::construct_imp
 
         // 2. Parse init into an abstract matrix, and let matrix and 2dTransform be the result. If the result is failure, then throw a "SyntaxError" DOMException.
         auto result = TRY(parse_dom_matrix_init_string(realm, init_value.get<String>()));
-        auto* elements = result.matrix.elements();
+        auto& m = result.matrix;
 
         // If 2dTransform is true
         if (result.is_2d_transform) {
             // Return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the elements m11, m12, m21, m22, m41 and m42 of matrix.
-            return realm.create<DOMMatrixReadOnly>(realm, elements[0][0], elements[1][0], elements[0][1], elements[1][1], elements[0][3], elements[1][3]);
+            return realm.create<DOMMatrixReadOnly>(realm, m[0, 0], m[1, 0], m[0, 1], m[1, 1], m[0, 3], m[1, 3]);
         }
 
         // Otherwise, return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the 16 elements of matrix.
         return realm.create<DOMMatrixReadOnly>(realm,
-            elements[0][0], elements[1][0], elements[2][0], elements[3][0],
-            elements[0][1], elements[1][1], elements[2][1], elements[3][1],
-            elements[0][2], elements[1][2], elements[2][2], elements[3][2],
-            elements[0][3], elements[1][3], elements[2][3], elements[3][3]);
+            m[0, 0], m[1, 0], m[2, 0], m[3, 0],
+            m[0, 1], m[1, 1], m[2, 1], m[3, 1],
+            m[0, 2], m[1, 2], m[2, 2], m[3, 2],
+            m[0, 3], m[1, 3], m[2, 3], m[3, 3]);
     }
 
     auto const& double_sequence = init_value.get<Vector<double>>();
@@ -165,27 +165,26 @@ void DOMMatrixReadOnly::initialize_from_create_2d_matrix(double m11, double m12,
 
     // 1. Let matrix be a new instance of type.
     // 2. Set m11 element, m12 element, m21 element, m22 element, m41 element and m42 element to the values of init in order starting with the first value.
-    auto* elements = m_matrix.elements();
-    elements[0][0] = m11;
-    elements[1][0] = m12;
-    elements[0][1] = m21;
-    elements[1][1] = m22;
-    elements[0][3] = m41;
-    elements[1][3] = m42;
+    m_matrix[0, 0] = m11;
+    m_matrix[1, 0] = m12;
+    m_matrix[0, 1] = m21;
+    m_matrix[1, 1] = m22;
+    m_matrix[0, 3] = m41;
+    m_matrix[1, 3] = m42;
 
     // 3. Set m13 element, m14 element, m23 element, m24 element, m31 element, m32 element, m34 element, and m43 element to 0.
-    elements[2][0] = 0.0;
-    elements[3][0] = 0.0;
-    elements[2][1] = 0.0;
-    elements[3][1] = 0.0;
-    elements[0][2] = 0.0;
-    elements[1][2] = 0.0;
-    elements[3][2] = 0.0;
-    elements[2][3] = 0.0;
+    m_matrix[2, 0] = 0.0;
+    m_matrix[3, 0] = 0.0;
+    m_matrix[2, 1] = 0.0;
+    m_matrix[3, 1] = 0.0;
+    m_matrix[0, 2] = 0.0;
+    m_matrix[1, 2] = 0.0;
+    m_matrix[3, 2] = 0.0;
+    m_matrix[2, 3] = 0.0;
 
     // 4. Set m33 element and m44 element to 1.
-    elements[2][2] = 1.0;
-    elements[3][3] = 1.0;
+    m_matrix[2, 2] = 1.0;
+    m_matrix[3, 3] = 1.0;
 
     // 5. Set is 2D to true.
     m_is_2d = true;
@@ -200,23 +199,22 @@ void DOMMatrixReadOnly::initialize_from_create_3d_matrix(double m11, double m12,
 
     // 1. Let matrix be a new instance of type.
     // 2. Set m11 element to m44 element to the values of init in column-major order.
-    auto* elements = m_matrix.elements();
-    elements[0][0] = m11;
-    elements[1][0] = m12;
-    elements[2][0] = m13;
-    elements[3][0] = m14;
-    elements[0][1] = m21;
-    elements[1][1] = m22;
-    elements[2][1] = m23;
-    elements[3][1] = m24;
-    elements[0][2] = m31;
-    elements[1][2] = m32;
-    elements[2][2] = m33;
-    elements[3][2] = m34;
-    elements[0][3] = m41;
-    elements[1][3] = m42;
-    elements[2][3] = m43;
-    elements[3][3] = m44;
+    m_matrix[0, 0] = m11;
+    m_matrix[1, 0] = m12;
+    m_matrix[2, 0] = m13;
+    m_matrix[3, 0] = m14;
+    m_matrix[0, 1] = m21;
+    m_matrix[1, 1] = m22;
+    m_matrix[2, 1] = m23;
+    m_matrix[3, 1] = m24;
+    m_matrix[0, 2] = m31;
+    m_matrix[1, 2] = m32;
+    m_matrix[2, 2] = m33;
+    m_matrix[3, 2] = m34;
+    m_matrix[0, 3] = m41;
+    m_matrix[1, 3] = m42;
+    m_matrix[2, 3] = m43;
+    m_matrix[3, 3] = m44;
 
     // 3. Set is 2D to false.
     m_is_2d = false;
@@ -990,12 +988,11 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
     }
 
     // 7. Return matrix and 2dTransform.
-    auto* elements = matrix.elements();
     Gfx::DoubleMatrix4x4 double_matrix {
-        static_cast<double>(elements[0][0]), static_cast<double>(elements[0][1]), static_cast<double>(elements[0][2]), static_cast<double>(elements[0][3]),
-        static_cast<double>(elements[1][0]), static_cast<double>(elements[1][1]), static_cast<double>(elements[1][2]), static_cast<double>(elements[1][3]),
-        static_cast<double>(elements[2][0]), static_cast<double>(elements[2][1]), static_cast<double>(elements[2][2]), static_cast<double>(elements[2][3]),
-        static_cast<double>(elements[3][0]), static_cast<double>(elements[3][1]), static_cast<double>(elements[3][2]), static_cast<float>(elements[3][3])
+        static_cast<double>(matrix[0, 0]), static_cast<double>(matrix[0, 1]), static_cast<double>(matrix[0, 2]), static_cast<double>(matrix[0, 3]),
+        static_cast<double>(matrix[1, 0]), static_cast<double>(matrix[1, 1]), static_cast<double>(matrix[1, 2]), static_cast<double>(matrix[1, 3]),
+        static_cast<double>(matrix[2, 0]), static_cast<double>(matrix[2, 1]), static_cast<double>(matrix[2, 2]), static_cast<double>(matrix[2, 3]),
+        static_cast<double>(matrix[3, 0]), static_cast<double>(matrix[3, 1]), static_cast<double>(matrix[3, 2]), static_cast<float>(matrix[3, 3])
     };
     return ParsedMatrix { double_matrix, is_2d_transform };
 }
