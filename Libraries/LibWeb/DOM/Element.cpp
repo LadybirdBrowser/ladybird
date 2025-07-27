@@ -683,10 +683,12 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
     return invalidation;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_change_custom_properties)
 {
     VERIFY(parent());
 
+    m_style_uses_attr_css_function = false;
+    m_style_uses_var_css_function = false;
     m_affected_by_has_pseudo_class_in_subject_position = false;
     m_affected_by_has_pseudo_class_in_non_subject_position = false;
     m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = false;
@@ -697,7 +699,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     m_sibling_invalidation_distance = 0;
 
     auto& style_computer = document().style_computer();
-    auto new_computed_properties = style_computer.compute_style(*this);
+    auto new_computed_properties = style_computer.compute_style(*this, {}, did_change_custom_properties);
 
     // Tables must not inherit -libweb-* values for text-align.
     // FIXME: Find the spec for this.
@@ -737,7 +739,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
         style_computer.push_ancestor(*this);
 
         auto pseudo_element_style = computed_properties(pseudo_element);
-        auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed(*this, pseudo_element);
+        auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed(*this, pseudo_element, did_change_custom_properties);
 
         // TODO: Can we be smarter about invalidation?
         if (pseudo_element_style && new_pseudo_element_style) {
@@ -2472,24 +2474,13 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
 {
     Vector<CSS::InvalidationSet::Property, 1> changed_properties;
     StyleInvalidationOptions style_invalidation_options;
-    if (is_presentational_hint(attribute_name)) {
+    if (is_presentational_hint(attribute_name) || style_uses_attr_css_function()) {
         style_invalidation_options.invalidate_self = true;
-    }
-
-    if (style_uses_css_custom_properties()) {
-        // A css custom property can be hooked on to this element by any attribute
-        // so invalidate elements and rerender them in that scenario
-        style_invalidation_options.invalidate_elements_that_use_css_custom_properties = true;
     }
 
     if (attribute_name == HTML::AttributeNames::style) {
         style_invalidation_options.invalidate_self = true;
-        // even if we don't have custom properties, the new "style" attribute could add one
-        style_invalidation_options.invalidate_elements_that_use_css_custom_properties = true;
     } else if (attribute_name == HTML::AttributeNames::class_) {
-        // adding or removing classes can add new custom properties to this element
-        style_invalidation_options.invalidate_elements_that_use_css_custom_properties = true;
-
         Vector<StringView> old_classes;
         Vector<StringView> new_classes;
         if (old_value.has_value())

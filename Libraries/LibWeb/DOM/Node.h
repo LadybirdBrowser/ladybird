@@ -364,7 +364,6 @@ public:
     void invalidate_style(StyleInvalidationReason);
     struct StyleInvalidationOptions {
         bool invalidate_self { false };
-        bool invalidate_elements_that_use_css_custom_properties { false };
     };
     void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&, StyleInvalidationOptions);
 

@@ -26,15 +26,12 @@ void StyleInvalidator::invalidate(Node& node)
     m_pending_invalidations.clear();
 }
 
-void StyleInvalidator::add_pending_invalidation(GC::Ref<Node> node, CSS::InvalidationSet&& invalidation_set, bool invalidate_elements_that_use_css_custom_properties)
+void StyleInvalidator::add_pending_invalidation(GC::Ref<Node> node, CSS::InvalidationSet&& invalidation_set)
 {
-    auto& pending_invalidation = m_pending_invalidations.ensure(node, [&] {
-        return PendingInvalidation {};
+    auto& pending_invalidation_set = m_pending_invalidations.ensure(node, [&] {
+        return CSS::InvalidationSet {};
     });
-    pending_invalidation.invalidation_set.include_all_from(invalidation_set);
-    if (invalidate_elements_that_use_css_custom_properties) {
-        pending_invalidation.invalidate_elements_that_use_css_custom_properties = true;
-    }
+    pending_invalidation_set.include_all_from(invalidation_set);
 }
 
 // This function makes a full pass over the entire DOM and:
@@ -51,24 +48,17 @@ void StyleInvalidator::perform_pending_style_invalidations(Node& node, bool inva
     }
 
     auto previous_subtree_invalidations_sets_size = m_subtree_invalidation_sets.size();
-    auto previous_invalidate_elements_that_use_css_custom_properties = m_invalidate_elements_that_use_css_custom_properties;
-    ScopeGuard restore_state = [this, previous_subtree_invalidations_sets_size, previous_invalidate_elements_that_use_css_custom_properties] {
+    ScopeGuard restore_state = [this, previous_subtree_invalidations_sets_size] {
         m_subtree_invalidation_sets.shrink(previous_subtree_invalidations_sets_size);
-        m_invalidate_elements_that_use_css_custom_properties = previous_invalidate_elements_that_use_css_custom_properties;
     };
 
     if (!invalidate_entire_subtree) {
-        auto pending_invalidation = m_pending_invalidations.get(node);
-        if (pending_invalidation.has_value()) {
-            m_subtree_invalidation_sets.append(pending_invalidation->invalidation_set);
-            m_invalidate_elements_that_use_css_custom_properties = m_invalidate_elements_that_use_css_custom_properties || pending_invalidation->invalidate_elements_that_use_css_custom_properties;
+        auto invalidation_set = m_pending_invalidations.get(node);
+        if (invalidation_set.has_value()) {
+            m_subtree_invalidation_sets.append(*invalidation_set);
         }
 
         auto affected_by_invalidation_sets_or_invalidation_flags = [this](Element const& element) {
-            if (m_invalidate_elements_that_use_css_custom_properties && element.style_uses_css_custom_properties()) {
-                return true;
-            }
-
             for (auto& invalidation_set : m_subtree_invalidation_sets) {
                 if (element.includes_properties_from_invalidation_set(invalidation_set))
                     return true;

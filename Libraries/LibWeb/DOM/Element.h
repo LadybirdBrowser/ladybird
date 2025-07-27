@@ -201,7 +201,7 @@ public:
 
     void run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
 
-    CSS::RequiredInvalidationAfterStyleChange recompute_style();
+    CSS::RequiredInvalidationAfterStyleChange recompute_style(bool& did_change_custom_properties);
     CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style();
 
     Optional<CSS::PseudoElement> use_pseudo_element() const { return m_use_pseudo_element; }
@@ -256,8 +256,10 @@ public:
     void set_custom_properties(Optional<CSS::PseudoElement>, HashMap<FlyString, CSS::StyleProperty> custom_properties);
     [[nodiscard]] HashMap<FlyString, CSS::StyleProperty> const& custom_properties(Optional<CSS::PseudoElement>) const;
 
-    bool style_uses_css_custom_properties() const { return m_style_uses_css_custom_properties; }
-    void set_style_uses_css_custom_properties(bool value) { m_style_uses_css_custom_properties = value; }
+    bool style_uses_attr_css_function() const { return m_style_uses_attr_css_function; }
+    void set_style_uses_attr_css_function() { m_style_uses_attr_css_function = true; }
+    bool style_uses_var_css_function() const { return m_style_uses_var_css_function; }
+    void set_style_uses_var_css_function() { m_style_uses_var_css_function = true; }
 
     // NOTE: The function is wrapped in a GC::HeapFunction immediately.
     HTML::TaskID queue_an_element_task(HTML::Task::Source, Function<void()>);
@@ -605,7 +607,8 @@ private:
 
     bool m_in_top_layer : 1 { false };
     bool m_rendered_in_top_layer : 1 { false };
-    bool m_style_uses_css_custom_properties : 1 { false };
+    bool m_style_uses_attr_css_function : 1 { false };
+    bool m_style_uses_var_css_function : 1 { false };
     bool m_affected_by_has_pseudo_class_in_subject_position : 1 { false };
     bool m_affected_by_has_pseudo_class_in_non_subject_position : 1 { false };
     bool m_affected_by_direct_sibling_combinator : 1 { false };

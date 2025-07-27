@@ -11,4 +11,11 @@ namespace Web::CSS {
 
 StyleProperty::~StyleProperty() = default;
 
+bool StyleProperty::operator==(StyleProperty const& other) const
+{
+    if (important != other.important || property_id != other.property_id || custom_name != other.custom_name)
+        return false;
+    return value->equals(*other.value);
+}
+
 }

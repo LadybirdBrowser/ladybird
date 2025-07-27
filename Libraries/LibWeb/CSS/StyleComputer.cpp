@@ -2454,17 +2454,17 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     return style;
 }
 
-GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element) const
+GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Optional<bool&> did_change_custom_properties) const
 {
-    return *compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal);
+    return *compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal, did_change_custom_properties);
 }
 
-GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Optional<bool&> did_change_custom_properties) const
 {
-    return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::CreatePseudoElementStyleIfNeeded);
+    return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties);
 }
 
-GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, ComputeStyleMode mode) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties) const
 {
     build_rule_cache_if_needed();
 
@@ -2487,6 +2487,9 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
     bool did_match_any_pseudo_element_rules = false;
     PseudoClassBitmap attempted_pseudo_class_matches;
     auto matching_rule_set = build_matching_rule_set(element, pseudo_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
+
+    DOM::AbstractElement abstract_element { element, pseudo_element };
+    auto old_custom_properties = abstract_element.custom_properties();
 
     // Resolve all the CSS custom properties ("variables") for this element:
     // FIXME: Also resolve !important custom properties, in a second cascade.
@@ -2533,6 +2536,11 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
 
     auto computed_properties = compute_properties(element, pseudo_element, cascaded_properties);
     computed_properties->set_attempted_pseudo_class_matches(attempted_pseudo_class_matches);
+
+    if (did_change_custom_properties.has_value() && abstract_element.custom_properties() != old_custom_properties) {
+        *did_change_custom_properties = true;
+    }
+
     return computed_properties;
 }
 
