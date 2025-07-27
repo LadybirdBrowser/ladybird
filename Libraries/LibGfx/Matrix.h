@@ -62,9 +62,8 @@ public:
     constexpr auto elements() const { return m_elements; }
     constexpr auto elements() { return m_elements; }
 
-    // FIXME: Change to multi-arg operator[] once we upgrade to C++23
-    constexpr auto const& operator()(size_t row, size_t col) const { return m_elements[row][col]; }
-    constexpr auto& operator()(size_t row, size_t col) { return m_elements[row][col]; }
+    constexpr auto const& operator[](size_t row, size_t col) const { return m_elements[row][col]; }
+    constexpr auto& operator[](size_t row, size_t col) { return m_elements[row][col]; }
 
     [[nodiscard]] constexpr Matrix operator*(Matrix const& other) const
     {
