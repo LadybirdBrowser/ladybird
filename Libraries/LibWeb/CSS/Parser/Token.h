@@ -169,6 +169,11 @@ public:
     Position const& end_position() const { return m_end_position; }
     void set_position_range(Badge<Tokenizer>, Position start, Position end);
 
+    bool operator==(Token const& other) const
+    {
+        return m_type == other.m_type && m_value == other.m_value && m_number_value == other.m_number_value && m_hash_type == other.m_hash_type;
+    }
+
 private:
     Type m_type { Type::Invalid };
 

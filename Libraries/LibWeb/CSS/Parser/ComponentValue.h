@@ -48,6 +48,8 @@ public:
     String to_debug_string() const;
     String original_source_text() const;
 
+    bool operator==(ComponentValue const&) const = default;
+
 private:
     Variant<Token, Function, SimpleBlock, GuaranteedInvalidValue> m_value;
 };
