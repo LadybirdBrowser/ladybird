@@ -353,3 +353,18 @@ TEST_CASE(update)
     second.update(first);
     EXPECT_EQ(4u, second.size());
 }
+
+TEST_CASE(compare)
+{
+    HashMap<int, int> first;
+    HashMap<int, int> second;
+
+    EXPECT_EQ(first, second);
+
+    first.set(1, 10);
+    second.set(1, 10);
+    EXPECT_EQ(first, second);
+
+    first.set(2, 20);
+    EXPECT_NE(second, first);
+}

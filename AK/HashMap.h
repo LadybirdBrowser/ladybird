@@ -322,6 +322,27 @@ public:
         return hash_map_clone;
     }
 
+    bool operator==(HashMap const& other) const
+    {
+        if (size() != other.size())
+            return false;
+        if (is_empty())
+            return true;
+        for (auto const& [key, value] : *this) {
+            auto it = other.find(key);
+            if (it == other.end())
+                return false;
+            if (!ValueTraits::equals(value, it->value))
+                return false;
+        }
+        return true;
+    }
+
+    bool operator!=(HashMap const& other) const
+    {
+        return !(*this == other);
+    }
+
 private:
     HashTableType m_table;
 };
