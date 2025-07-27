@@ -40,6 +40,7 @@ public:
 
     bool test_dry_run { false };
     bool rebaseline { false };
+    bool shuffle { false };
 
     int per_test_timeout_in_seconds { 30 };
 

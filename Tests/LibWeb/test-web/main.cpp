@@ -612,6 +612,9 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         return is_support_file || !match_glob;
     });
 
+    if (app.shuffle)
+        shuffle(tests);
+
     if (app.test_dry_run) {
         outln("Found {} tests...", tests.size());
 

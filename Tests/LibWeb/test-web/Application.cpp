@@ -38,6 +38,7 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(dump_gc_graph, "Dump GC graph", "dump-gc-graph", 'G');
     args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
     args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
+    args_parser.add_option(shuffle, "Shuffle the order of tests before running them", "shuffle", 's');
     args_parser.add_option(per_test_timeout_in_seconds, "Per-test timeout (default: 30)", "per-test-timeout", 't', "seconds");
 
     args_parser.add_option(Core::ArgsParser::Option {
