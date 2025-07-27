@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/Layout/FieldSetBox.h>
+#include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Layout/Node.h>
@@ -183,6 +184,78 @@ void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, 
     }
 }
 
+class GeneratedContentImageProvider final
+    : public GC::Cell
+    , public ImageProvider
+    , public CSS::ImageStyleValue::Client {
+    GC_CELL(GeneratedContentImageProvider, GC::Cell);
+    GC_DECLARE_ALLOCATOR(GeneratedContentImageProvider);
+
+public:
+    virtual ~GeneratedContentImageProvider() override = default;
+
+    virtual void finalize() override
+    {
+        Base::finalize();
+        image_style_value_finalize();
+    }
+
+    virtual bool is_image_available() const override { return m_image->is_paintable(); }
+
+    virtual Optional<CSSPixels> intrinsic_width() const override { return m_image->natural_width(); }
+    virtual Optional<CSSPixels> intrinsic_height() const override { return m_image->natural_height(); }
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override { return m_image->natural_aspect_ratio(); }
+
+    virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize size) const override
+    {
+        auto rect = DevicePixelRect { DevicePixelPoint {}, size.to_type<DevicePixels>() };
+        return const_cast<Gfx::ImmutableBitmap*>(m_image->current_frame_bitmap(rect));
+    }
+
+    virtual void set_visible_in_viewport(bool) override { }
+
+    virtual GC::Ptr<DOM::Element const> to_html_element() const override { return nullptr; }
+
+    static GC::Ref<GeneratedContentImageProvider> create(GC::Heap& heap, NonnullRefPtr<CSS::ImageStyleValue> image)
+    {
+        return heap.allocate<GeneratedContentImageProvider>(move(image));
+    }
+
+    void set_layout_node(GC::Ref<Layout::Node> layout_node)
+    {
+        m_layout_node = layout_node;
+    }
+
+private:
+    GeneratedContentImageProvider(NonnullRefPtr<CSS::ImageStyleValue> image)
+        : Client(image)
+        , m_image(move(image))
+    {
+    }
+
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_layout_node);
+    }
+
+    virtual void image_provider_visit_edges(Visitor& visitor) const override
+    {
+        ImageProvider::image_provider_visit_edges(visitor);
+        visitor.visit(*this);
+    }
+
+    virtual void image_style_value_did_update(CSS::ImageStyleValue&) override
+    {
+        m_layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::GeneratedContentImageFinishedLoading);
+    }
+
+    GC::Ptr<Layout::Node> m_layout_node;
+    NonnullRefPtr<CSS::ImageStyleValue> m_image;
+};
+
+GC_DEFINE_ALLOCATOR(GeneratedContentImageProvider);
+
 void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::PseudoElement pseudo_element, AppendOrPrepend mode)
 {
     auto& document = element.document();
@@ -236,18 +309,28 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
     DOM::AbstractElement pseudo_element_reference { element, pseudo_element };
     CSS::resolve_counters(pseudo_element_reference);
     // Now that we have counters, we can compute the content for real. Which is silly.
-    if (pseudo_element_content.type == CSS::ContentData::Type::String) {
+    if (pseudo_element_content.type == CSS::ContentData::Type::List) {
         auto [new_content, _] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
         pseudo_element_node->mutable_computed_values().set_content(new_content);
 
         // FIXME: Handle images, and multiple values
-        if (new_content.type == CSS::ContentData::Type::String) {
-            auto text = document.realm().create<DOM::Text>(document, Utf16String::from_utf8(new_content.data));
-            auto text_node = document.heap().allocate<TextNode>(document, *text);
-            text_node->set_generated_for(pseudo_element, element);
-
+        if (new_content.type == CSS::ContentData::Type::List) {
             push_parent(*pseudo_element_node);
-            insert_node_into_inline_or_block_ancestor(*text_node, text_node->display(), AppendOrPrepend::Append);
+            for (auto& item : new_content.data) {
+                GC::Ptr<Layout::Node> layout_node;
+                if (auto const* string = item.get_pointer<String>()) {
+                    auto text = document.realm().create<DOM::Text>(document, Utf16String::from_utf8(*string));
+                    layout_node = document.heap().allocate<TextNode>(document, *text);
+                } else {
+                    auto& image = *item.get<NonnullRefPtr<CSS::ImageStyleValue>>();
+                    image.load_any_resources(document);
+                    auto image_provider = GeneratedContentImageProvider::create(element.heap(), image);
+                    layout_node = document.heap().allocate<ImageBox>(document, nullptr, *pseudo_element_style, image_provider);
+                    image_provider->set_layout_node(*layout_node);
+                }
+                layout_node->set_generated_for(pseudo_element, element);
+                insert_node_into_inline_or_block_ancestor(*layout_node, layout_node->display(), AppendOrPrepend::Append);
+            }
             pop_parent();
         } else {
             TODO();

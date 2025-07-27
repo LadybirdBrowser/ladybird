@@ -2926,10 +2926,14 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             //    content of the current node. NOTE: The code for handling the ::after pseudo elements case is further below,
             //    following the “iii. For each child node of the current node” code.
             if (auto before = element->get_pseudo_element_node(CSS::PseudoElement::Before)) {
-                if (before->computed_values().content().alt_text.has_value())
+                if (before->computed_values().content().alt_text.has_value()) {
                     total_accumulated_text.append(before->computed_values().content().alt_text.release_value());
-                else
-                    total_accumulated_text.append(before->computed_values().content().data);
+                } else {
+                    for (auto& item : before->computed_values().content().data) {
+                        if (auto const* string = item.get_pointer<String>())
+                            total_accumulated_text.append(*string);
+                    }
+                }
             }
 
             // iii. Determine Child Nodes: Determine the rendered child nodes of the current node:
@@ -2982,10 +2986,14 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 
             // NOTE: See step ii.b above.
             if (auto after = element->get_pseudo_element_node(CSS::PseudoElement::After)) {
-                if (after->computed_values().content().alt_text.has_value())
+                if (after->computed_values().content().alt_text.has_value()) {
                     total_accumulated_text.append(after->computed_values().content().alt_text.release_value());
-                else
-                    total_accumulated_text.append(after->computed_values().content().data);
+                } else {
+                    for (auto& item : after->computed_values().content().data) {
+                        if (auto const* string = item.get_pointer<String>())
+                            total_accumulated_text.append(*string);
+                    }
+                }
             }
 
             // v. Return the accumulated text if it is not the empty string ("").

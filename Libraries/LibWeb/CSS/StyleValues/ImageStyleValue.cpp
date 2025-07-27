@@ -66,6 +66,9 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
                 if (!weak_this || !m_document)
                     return;
 
+                for (auto* client : m_clients)
+                    client->image_style_value_did_update(*this);
+
                 auto image_data = m_resource_request->image_data();
                 if (image_data->is_animated() && image_data->frame_count() > 1) {
                     m_timer = Platform::Timer::create(m_document->heap());
@@ -210,6 +213,33 @@ ValueComparingNonnullRefPtr<CSSStyleValue const> ImageStyleValue::absolutized(CS
     }
 
     return *this;
+}
+
+void ImageStyleValue::register_client(Client& client)
+{
+    auto result = m_clients.set(&client);
+    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+}
+
+void ImageStyleValue::unregister_client(Client& client)
+{
+    auto did_remove = m_clients.remove(&client);
+    VERIFY(did_remove);
+}
+
+ImageStyleValue::Client::Client(ImageStyleValue& image_style_value)
+    : m_image_style_value(image_style_value)
+{
+    m_image_style_value.register_client(*this);
+}
+
+ImageStyleValue::Client::~Client()
+{
+}
+
+void ImageStyleValue::Client::image_style_value_finalize()
+{
+    m_image_style_value.unregister_client(*this);
 }
 
 }

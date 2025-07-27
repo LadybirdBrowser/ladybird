@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 687 tests
 
-659 Pass
-28 Fail
+661 Pass
+26 Fail
 Pass	background-attachment: scroll
 Pass	background-attachment: fixed
 Pass	background-attachment: inherit
@@ -322,8 +322,8 @@ Pass	content: normal
 Pass	content: none
 Pass	content: "string"
 Pass	content: 'string'
-Fail	content: url("http://localhost/")
-Fail	content: url(http://localhost/)
+Pass	content: url("http://localhost/")
+Pass	content: url(http://localhost/)
 Pass	content: counter(par-num)
 Pass	content: counter(par-num, decimal)
 Pass	content: counter(par-num, upper-roman)

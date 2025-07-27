@@ -24,6 +24,18 @@ class ImageStyleValue final
     using Base = AbstractImageStyleValue;
 
 public:
+    class Client {
+    public:
+        Client(ImageStyleValue&);
+        virtual ~Client();
+        virtual void image_style_value_did_update(ImageStyleValue&) = 0;
+
+    protected:
+        void image_style_value_finalize();
+
+        ImageStyleValue& m_image_style_value;
+    };
+
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&);
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(::URL::URL const&);
     virtual ~ImageStyleValue() override;
@@ -50,7 +62,12 @@ public:
     GC::Ptr<HTML::DecodedImageData> image_data() const;
 
 private:
+    friend class Client;
+
     ImageStyleValue(URL const&);
+
+    void register_client(Client&);
+    void unregister_client(Client&);
 
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
     virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
@@ -67,6 +84,8 @@ private:
     size_t m_current_frame_index { 0 };
     size_t m_loops_completed { 0 };
     GC::Ptr<Platform::Timer> m_timer;
+
+    HashTable<Client*> m_clients;
 };
 
 }

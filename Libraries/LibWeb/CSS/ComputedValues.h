@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -30,6 +30,7 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/Transformation.h>
 #include <LibWeb/CSS/URL.h>
@@ -375,11 +376,10 @@ struct ContentData {
     enum class Type {
         Normal,
         None,
-        String,
+        List,
     } type { Type::Normal };
 
-    // FIXME: Data is a list of identifiers, strings and image values.
-    String data {};
+    Vector<Variant<String, NonnullRefPtr<ImageStyleValue>>> data;
     Optional<String> alt_text {};
 };
 

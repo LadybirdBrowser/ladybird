@@ -1308,6 +1308,7 @@
     "__comment": "FIXME: This accepts a whole lot of other types and identifiers!",
     "valid-types": [
       "counter",
+      "image",
       "string"
     ],
     "valid-identifiers": [
