@@ -968,7 +968,7 @@ void BlockFormattingContext::place_block_level_element_in_normal_flow_horizontal
     CSSPixels available_width_within_containing_block = available_space.width.to_px_or_zero();
 
     if ((!m_left_floats.current_boxes.is_empty() || !m_right_floats.current_boxes.is_empty())
-        && creates_block_formatting_context(child_box)) {
+        && box_should_avoid_floats_because_it_establishes_fc(child_box)) {
         auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(box_state, root());
         auto space_and_containing_margin = space_used_and_containing_margin_for_floats(box_in_root_rect.y());
         available_width_within_containing_block -= space_and_containing_margin.left_used_space + space_and_containing_margin.right_used_space;

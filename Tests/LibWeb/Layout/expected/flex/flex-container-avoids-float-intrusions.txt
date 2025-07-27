@@ -1,0 +1,17 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x108 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x50 children: not-inline
+      BlockContainer <div#a> at (8,8) content-size 100x100 floating [BFC] children: not-inline
+      Box <div#b> at (108,8) content-size 684x50 flex-container(row) [FFC] children: not-inline
+      BlockContainer <(anonymous)> at (8,58) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x108]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x50] overflow: [8,8 784x100]
+      PaintableWithLines (BlockContainer<DIV>#a) [8,8 100x100]
+      PaintableBox (Box<DIV>#b) [108,8 684x50]
+      PaintableWithLines (BlockContainer(anonymous)) [8,58 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x108] [children: 0] (z-index: auto)
