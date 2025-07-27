@@ -4339,8 +4339,10 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(Parsin
 NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved)
 {
     // AD-HOC: Report that we might rely on custom properties.
-    // FIXME: This over-invalidates. Find a way of invalidating only when we need to - specifically, when var() is used.
-    element.element().set_style_uses_css_custom_properties(true);
+    if (unresolved.includes_attr_function())
+        element.element().set_style_uses_attr_css_function();
+    if (unresolved.includes_var_function())
+        element.element().set_style_uses_var_css_function();
 
     // To replace substitution functions in a property prop:
     auto const& property_name = property.visit(

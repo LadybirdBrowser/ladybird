@@ -517,11 +517,11 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
         set_needs_style_update(true);
     }
 
-    if (!invalidation_set.has_properties() && !options.invalidate_elements_that_use_css_custom_properties) {
+    if (!invalidation_set.has_properties()) {
         return;
     }
 
-    document().style_invalidator().add_pending_invalidation(*this, move(invalidation_set), options.invalidate_elements_that_use_css_custom_properties);
+    document().style_invalidator().add_pending_invalidation(*this, move(invalidation_set));
 }
 
 String Node::child_text_content() const

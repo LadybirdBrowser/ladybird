@@ -23,6 +23,8 @@ struct StyleProperty {
     CSS::PropertyID property_id;
     NonnullRefPtr<CSSStyleValue const> value;
     FlyString custom_name {};
+
+    bool operator==(StyleProperty const& other) const;
 };
 
 }
