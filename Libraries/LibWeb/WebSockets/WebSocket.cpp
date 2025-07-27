@@ -275,7 +275,7 @@ WebIDL::ExceptionOr<String> WebSocket::protocol() const
 WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<String> reason)
 {
     // 1. If code is present, but is neither an integer equal to 1000 nor an integer in the range 3000 to 4999, inclusive, throw an "InvalidAccessError" DOMException.
-    if (code.has_value() && *code != 1000 && (*code < 3000 || *code > 4099))
+    if (code.has_value() && *code != 1000 && (*code < 3000 || *code > 4999))
         return WebIDL::InvalidAccessError::create(realm(), "The close error code is invalid"_string);
     // 2. If reason is present, then run these substeps:
     if (reason.has_value()) {
