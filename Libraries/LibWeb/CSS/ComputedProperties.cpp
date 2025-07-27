@@ -987,17 +987,13 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
 
         ContentData content_data;
 
-        // FIXME: The content is a list of things: strings, identifiers or functions that return strings, and images.
-        //        So it can't always be represented as a single String, but may have to be multiple boxes.
-        //        For now, we'll just assume strings since that is easiest.
-        StringBuilder builder;
         for (auto const& item : content_style_value.content().values()) {
             if (item->is_string()) {
-                builder.append(item->as_string().string_value());
+                content_data.data.append(item->as_string().string_value().to_string());
             } else if (item->is_keyword()) {
                 switch (item->to_keyword()) {
                 case Keyword::OpenQuote:
-                    builder.append(get_quote_string(true, quote_nesting_level++));
+                    content_data.data.append(get_quote_string(true, quote_nesting_level++).to_string());
                     break;
                 case Keyword::CloseQuote:
                     // A 'close-quote' or 'no-close-quote' that would make the depth negative is in error and is ignored
@@ -1006,7 +1002,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                     // - https://www.w3.org/TR/CSS21/generate.html#quotes-insert
                     // (This is missing from the CONTENT-3 spec.)
                     if (quote_nesting_level > 0)
-                        builder.append(get_quote_string(false, --quote_nesting_level));
+                        content_data.data.append(get_quote_string(false, --quote_nesting_level).to_string());
                     break;
                 case Keyword::NoOpenQuote:
                     quote_nesting_level++;
@@ -1021,14 +1017,15 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                     break;
                 }
             } else if (item->is_counter()) {
-                builder.append(item->as_counter().resolve(element_reference));
+                content_data.data.append(item->as_counter().resolve(element_reference));
+            } else if (item->is_image()) {
+                content_data.data.append(NonnullRefPtr { const_cast<ImageStyleValue&>(item->as_image()) });
             } else {
                 // TODO: Implement images, and other things.
                 dbgln("`{}` is not supported in `content` (yet?)", item->to_string(SerializationMode::Normal));
             }
         }
-        content_data.type = ContentData::Type::String;
-        content_data.data = MUST(builder.to_string());
+        content_data.type = ContentData::Type::List;
 
         if (content_style_value.has_alt_text()) {
             StringBuilder alt_text_builder;
@@ -1049,9 +1046,9 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
 
     switch (value.to_keyword()) {
     case Keyword::None:
-        return { { ContentData::Type::None }, quote_nesting_level };
+        return { { ContentData::Type::None, {} }, quote_nesting_level };
     case Keyword::Normal:
-        return { { ContentData::Type::Normal }, quote_nesting_level };
+        return { { ContentData::Type::Normal, {} }, quote_nesting_level };
     default:
         break;
     }
