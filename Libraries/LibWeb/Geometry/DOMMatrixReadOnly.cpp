@@ -992,7 +992,7 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
         static_cast<double>(matrix[0, 0]), static_cast<double>(matrix[0, 1]), static_cast<double>(matrix[0, 2]), static_cast<double>(matrix[0, 3]),
         static_cast<double>(matrix[1, 0]), static_cast<double>(matrix[1, 1]), static_cast<double>(matrix[1, 2]), static_cast<double>(matrix[1, 3]),
         static_cast<double>(matrix[2, 0]), static_cast<double>(matrix[2, 1]), static_cast<double>(matrix[2, 2]), static_cast<double>(matrix[2, 3]),
-        static_cast<double>(matrix[3, 0]), static_cast<double>(matrix[3, 1]), static_cast<double>(matrix[3, 2]), static_cast<float>(matrix[3, 3])
+        static_cast<double>(matrix[3, 0]), static_cast<double>(matrix[3, 1]), static_cast<double>(matrix[3, 2]), static_cast<double>(matrix[3, 3])
     };
     return ParsedMatrix { double_matrix, is_2d_transform };
 }
