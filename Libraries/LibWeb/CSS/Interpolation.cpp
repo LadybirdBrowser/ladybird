@@ -484,19 +484,19 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
         };
 
         // Normalize the matrix.
-        if (matrix(3, 3) == 0.f)
+        if (matrix[3, 3] == 0.f)
             return {};
 
         for (int i = 0; i < 4; i++)
             for (int j = 0; j < 4; j++)
-                matrix(i, j) /= matrix(3, 3);
+                matrix[i, j] /= matrix[3, 3];
 
         // perspectiveMatrix is used to solve for perspective, but it also provides
         // an easy way to test for singularity of the upper 3x3 component.
         auto perspective_matrix = matrix;
         for (int i = 0; i < 3; i++)
-            perspective_matrix(3, i) = 0.f;
-        perspective_matrix(3, 3) = 1.f;
+            perspective_matrix[3, i] = 0.f;
+        perspective_matrix[3, 3] = 1.f;
 
         if (!perspective_matrix.is_invertible())
             return {};
@@ -504,14 +504,14 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
         DecomposedValues values;
 
         // First, isolate perspective.
-        if (matrix(3, 0) != 0.f || matrix(3, 1) != 0.f || matrix(3, 2) != 0.f) {
+        if (matrix[3, 0] != 0.f || matrix[3, 1] != 0.f || matrix[3, 2] != 0.f) {
             // rightHandSide is the right hand side of the equation.
             // Note: It is the bottom side in a row-major matrix
             FloatVector4 bottom_side = {
-                matrix(3, 0),
-                matrix(3, 1),
-                matrix(3, 2),
-                matrix(3, 3),
+                matrix[3, 0],
+                matrix[3, 1],
+                matrix[3, 2],
+                matrix[3, 3],
             };
 
             // Solve the equation by inverting perspectiveMatrix and multiplying
@@ -526,12 +526,12 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
 
         // Next take care of translation
         for (int i = 0; i < 3; i++)
-            values.translation[i] = matrix(i, 3);
+            values.translation[i] = matrix[i, 3];
 
         // Now get scale and shear. 'row' is a 3 element array of 3 component vectors
         FloatVector3 row[3];
         for (int i = 0; i < 3; i++)
-            row[i] = { matrix(0, i), matrix(1, i), matrix(2, i) };
+            row[i] = { matrix[0, i], matrix[1, i], matrix[2, i] };
 
         // Compute X scale factor and normalize first row.
         values.scale[0] = row[0].length();
@@ -599,12 +599,12 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
 
         // apply perspective
         for (int i = 0; i < 4; i++)
-            matrix(3, i) = values.perspective[i];
+            matrix[3, i] = values.perspective[i];
 
         // apply translation
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 3; j++)
-                matrix(i, 3) += values.translation[j] * matrix(i, j);
+                matrix[i, 3] += values.translation[j] * matrix[i, j];
         }
 
         // apply rotation
@@ -616,15 +616,15 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
         // Construct a composite rotation matrix from the quaternion values
         // rotationMatrix is a identity 4x4 matrix initially
         auto rotation_matrix = FloatMatrix4x4::identity();
-        rotation_matrix(0, 0) = 1.f - 2.f * (y * y + z * z);
-        rotation_matrix(1, 0) = 2.f * (x * y - z * w);
-        rotation_matrix(2, 0) = 2.f * (x * z + y * w);
-        rotation_matrix(0, 1) = 2.f * (x * y + z * w);
-        rotation_matrix(1, 1) = 1.f - 2.f * (x * x + z * z);
-        rotation_matrix(2, 1) = 2.f * (y * z - x * w);
-        rotation_matrix(0, 2) = 2.f * (x * z - y * w);
-        rotation_matrix(1, 2) = 2.f * (y * z + x * w);
-        rotation_matrix(2, 2) = 1.f - 2.f * (x * x + y * y);
+        rotation_matrix[0, 0] = 1.f - 2.f * (y * y + z * z);
+        rotation_matrix[1, 0] = 2.f * (x * y - z * w);
+        rotation_matrix[2, 0] = 2.f * (x * z + y * w);
+        rotation_matrix[0, 1] = 2.f * (x * y + z * w);
+        rotation_matrix[1, 1] = 1.f - 2.f * (x * x + z * z);
+        rotation_matrix[2, 1] = 2.f * (y * z - x * w);
+        rotation_matrix[0, 2] = 2.f * (x * z - y * w);
+        rotation_matrix[1, 2] = 2.f * (y * z + x * w);
+        rotation_matrix[2, 2] = 1.f - 2.f * (x * x + y * y);
 
         matrix = matrix * rotation_matrix;
 
@@ -632,26 +632,26 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
         // temp is a identity 4x4 matrix initially
         auto temp = FloatMatrix4x4::identity();
         if (values.skew[2] != 0.f) {
-            temp(1, 2) = values.skew[2];
+            temp[1, 2] = values.skew[2];
             matrix = matrix * temp;
         }
 
         if (values.skew[1] != 0.f) {
-            temp(1, 2) = 0.f;
-            temp(0, 2) = values.skew[1];
+            temp[1, 2] = 0.f;
+            temp[0, 2] = values.skew[1];
             matrix = matrix * temp;
         }
 
         if (values.skew[0] != 0.f) {
-            temp(0, 2) = 0.f;
-            temp(0, 1) = values.skew[0];
+            temp[0, 2] = 0.f;
+            temp[0, 1] = values.skew[0];
             matrix = matrix * temp;
         }
 
         // apply scale
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 4; j++)
-                matrix(j, i) *= values.scale[i];
+                matrix[j, i] *= values.scale[i];
         }
 
         return matrix;
@@ -681,7 +681,7 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
     StyleValueVector values;
     values.ensure_capacity(16);
     for (int i = 0; i < 16; i++)
-        values.append(NumberStyleValue::create(static_cast<double>(interpolated(i % 4, i / 4))));
+        values.append(NumberStyleValue::create(static_cast<double>(interpolated[i % 4, i / 4])));
     return StyleValueList::create({ TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d, move(values)) }, StyleValueList::Separator::Comma);
 }
 
