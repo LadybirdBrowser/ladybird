@@ -81,6 +81,8 @@ struct SimpleBlock {
     String to_string() const;
     String original_source_text() const;
     void contains_arbitrary_substitution_function(SubstitutionFunctionsPresence&) const;
+
+    bool operator==(SimpleBlock const& other) const { return token == other.token && value == other.value; }
 };
 
 // https://drafts.csswg.org/css-syntax/#function
@@ -93,6 +95,8 @@ struct Function {
     String to_string() const;
     String original_source_text() const;
     void contains_arbitrary_substitution_function(SubstitutionFunctionsPresence&) const;
+
+    bool operator==(Function const& other) const { return name == other.name && value == other.value; }
 };
 
 // https://drafts.csswg.org/css-variables/#guaranteed-invalid-value
@@ -100,6 +104,8 @@ struct GuaranteedInvalidValue {
     GuaranteedInvalidValue() = default;
     String to_string() const { return {}; }
     String original_source_text() const { return {}; }
+
+    bool operator==(GuaranteedInvalidValue const&) const = default;
 };
 
 }

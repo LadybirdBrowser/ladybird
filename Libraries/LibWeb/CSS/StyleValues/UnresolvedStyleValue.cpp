@@ -48,8 +48,7 @@ bool UnresolvedStyleValue::equals(CSSStyleValue const& other) const
 {
     if (type() != other.type())
         return false;
-    // This is a case where comparing the strings actually makes sense.
-    return to_string(SerializationMode::Normal) == other.to_string(SerializationMode::Normal);
+    return values() == other.as_unresolved().values();
 }
 
 }
