@@ -5,11 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "InlineFormattingContext.h"
 #include <AK/QuickSort.h>
 #include <AK/StdLibExtras.h>
-#include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FlexFormattingContext.h>
 #include <LibWeb/Layout/ReplacedBox.h>
