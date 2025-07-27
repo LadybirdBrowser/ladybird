@@ -1,0 +1,153 @@
+<!DOCTYPE HTML>
+<title>CSS Test (Transforms): Hit Testing</title>
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://www.w3.org/TR/css-transforms-1/#transform-property">
+<link rel="help" href="https://www.w3.org/TR/css-transforms-2/#individual-transforms">
+<meta name="flags" content="dom">
+<style>
+
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+body { margin: 50px; }
+
+</style>
+<script>
+
+let body_x_margin = 50;
+let body_y_margin = 50;
+
+</script>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+let simple_tests = [
+  // In this list of tests, test_points_inside and test_points_outside
+  // are relative to the element's untransformed origin (top, left).
+  {
+    description: "rectangle with 'translate' and 'rotate'",
+    styles: "width: 100px; height: 50px; translate: 30px; rotate: 20deg;",
+    test_points_inside: [
+      new Point(28, 32),
+      new Point(44, -10),
+      new Point(133, 22),
+      new Point(117, 64),
+      new Point(65, 27),
+    ],
+    test_points_outside: [
+      new Point(30, 5),
+      new Point(28, 37),
+      new Point(100, 2),
+      new Point(124, 58),
+    ],
+  },
+  {
+    description: "rectangle with 'transform'",
+    styles: "width: 100px; height: 50px; transform: translate(30px) rotate(20deg);",
+    test_points_inside: [
+      new Point(28, 32),
+      new Point(44, -10),
+      new Point(133, 22),
+      new Point(117, 64),
+      new Point(65, 27),
+    ],
+    test_points_outside: [
+      new Point(30, 5),
+      new Point(28, 37),
+      new Point(100, 2),
+      new Point(124, 58),
+    ],
+  },
+  {
+    description: "rectangle with 'translate' and 'rotate' and 'scale' and 'transform'",
+    styles: "width: 100px; height: 50px; translate: 30px; rotate: 40deg; scale: 2; transform: rotate(-20deg) scale(0.5)",
+    test_points_inside: [
+      new Point(28, 32),
+      new Point(44, -10),
+      new Point(133, 22),
+      new Point(117, 64),
+      new Point(65, 27),
+    ],
+    test_points_outside: [
+      new Point(30, 5),
+      new Point(28, 37),
+      new Point(100, 2),
+      new Point(124, 58),
+    ],
+  },
+  {
+    description: "square with 'rotate'",
+    styles: "width: 10px; height: 10px; rotate: 90deg; transform-origin: 0 10px",
+    test_points_inside: [
+      new Point(1, 11),
+      new Point(9, 11),
+      new Point(1, 19),
+      new Point(9, 19),
+    ],
+    test_points_outside: [
+      new Point(1, 9),
+      new Point(9, 9),
+    ],
+  },
+  {
+    description: "square with 'scale'",
+    styles: "width: 10px; height: 10px; scale: 0.2;",
+    test_points_inside: [
+      new Point(4, 4),
+      new Point(5, 4),
+      new Point(4, 5),
+      new Point(5, 5),
+    ],
+    test_points_outside: [
+      new Point(3, 3),
+      new Point(3, 5),
+      new Point(3, 6),
+      new Point(5, 3),
+      new Point(5, 6),
+      new Point(6, 3),
+      new Point(6, 5),
+      new Point(6, 6),
+    ],
+  },
+];
+
+for (let t of simple_tests) {
+  test(function() {
+    let e = document.createElement("div");
+    e.setAttribute("style", t.styles);
+    document.body.appendChild(e);
+
+    for (let p of t.test_points_inside) {
+      let res = document.elementFromPoint(p.x + body_x_margin,
+                                          p.y + body_y_margin);
+      assert_equals(res, e,
+                    `point (${p.x}, ${p.y}) is inside element`);
+    }
+
+    for (let p of t.test_points_outside) {
+      let res = document.elementFromPoint(p.x + body_x_margin,
+                                          p.y + body_y_margin);
+      assert_equals(res, document.body,
+                    `point (${p.x}, ${p.y}) is outside element`);
+    }
+
+    e.remove();
+  }, `hit testing of ${t.description}`);
+}
+</script>

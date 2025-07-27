@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	hit testing of rectangle with 'translate' and 'rotate'
+Pass	hit testing of rectangle with 'transform'
+Pass	hit testing of rectangle with 'translate' and 'rotate' and 'scale' and 'transform'
+Pass	hit testing of square with 'rotate'
+Pass	hit testing of square with 'scale'
