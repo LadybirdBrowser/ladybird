@@ -137,7 +137,7 @@ struct HideCursor {
         [self setWebViewCallbacks];
 
         auto* area = [[NSTrackingArea alloc] initWithRect:[self bounds]
-                                                  options:NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect | NSTrackingMouseMoved
+                                                  options:NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect | NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved
                                                     owner:self
                                                  userInfo:nil];
         [self addTrackingArea:area];
@@ -1572,6 +1572,14 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     // The origin of a NSScrollView is the lower-left corner, with the y-axis extending upwards. Instead,
     // we want the origin to be the top-left corner, with the y-axis extending downward.
     return YES;
+}
+
+- (void)mouseExited:(NSEvent*)event
+{
+    static constexpr Web::DevicePixelPoint point { NumericLimits<Web::DevicePixels::Type>::max(), NumericLimits<Web::DevicePixels::Type>::max() };
+
+    Web::MouseEvent mouse_event { Web::MouseEvent::Type::MouseMove, point, point, Web::UIEvents::MouseButton::None, Web::UIEvents::MouseButton::None, Web::UIEvents::KeyModifier::Mod_None, 0, 0, nullptr };
+    m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
 - (void)mouseMoved:(NSEvent*)event

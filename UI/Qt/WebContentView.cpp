@@ -402,6 +402,16 @@ QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery) const
     return QVariant();
 }
 
+void WebContentView::leaveEvent(QEvent* event)
+{
+    static constexpr QPointF point { NumericLimits<qreal>::max(), NumericLimits<qreal>::max() };
+
+    QMouseEvent mouse_event { QEvent::Type::MouseMove, point, point, Qt::MouseButton::NoButton, Qt::MouseButton::NoButton, Qt::KeyboardModifier::NoModifier };
+    enqueue_native_event(Web::MouseEvent::Type::MouseMove, mouse_event);
+
+    QWidget::leaveEvent(event);
+}
+
 void WebContentView::mouseMoveEvent(QMouseEvent* event)
 {
     if (!m_tooltip_override) {
