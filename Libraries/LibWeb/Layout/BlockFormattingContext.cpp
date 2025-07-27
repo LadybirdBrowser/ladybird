@@ -1298,16 +1298,19 @@ FormattingContext::SpaceUsedByFloats BlockFormattingContext::intrusion_by_floats
     auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(box_used_values, root());
     CSSPixels y_in_root = box_in_root_rect.y() + y_in_box;
     auto space_and_containing_margin = space_used_and_containing_margin_for_floats(y_in_root);
-    auto left_side_floats_limit_to_right = space_and_containing_margin.left_total_containing_margin + space_and_containing_margin.left_used_space;
-    auto right_side_floats_limit_to_right = space_and_containing_margin.right_used_space + space_and_containing_margin.right_total_containing_margin;
 
-    auto left_intrusion = max(CSSPixels(0), left_side_floats_limit_to_right - max(CSSPixels(0), box_in_root_rect.x()));
+    CSSPixels left_intrusion = 0;
+    if (space_and_containing_margin.matching_left_float_box) {
+        auto left_side_floats_limit_to_right = space_and_containing_margin.left_total_containing_margin + space_and_containing_margin.left_used_space;
+        left_intrusion = max(CSSPixels(0), left_side_floats_limit_to_right - box_in_root_rect.x());
+    }
 
     // If we did not match a right float, the right_total_containing_margin will be 0 (as its never set). Since no floats means
     // no intrusion we would instead want it to be exactly equal to offset_from_containing_block_chain_margins_between_here_and_root.
     // Since this is not the case we have to explicitly handle this case.
     CSSPixels right_intrusion = 0;
     if (space_and_containing_margin.matching_right_float_box) {
+        auto right_side_floats_limit_to_right = space_and_containing_margin.right_used_space + space_and_containing_margin.right_total_containing_margin;
         CSSPixels offset_from_containing_block_chain_margins_between_here_and_root = 0;
         for (auto const* containing_block = &box_used_values; containing_block && &containing_block->node() != &root(); containing_block = containing_block->containing_block_used_values()) {
             offset_from_containing_block_chain_margins_between_here_and_root += containing_block->margin_box_right();

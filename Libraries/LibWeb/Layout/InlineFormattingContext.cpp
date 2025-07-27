@@ -45,15 +45,20 @@ CSSPixels InlineFormattingContext::leftmost_inline_offset_at(CSSPixels y) const
     auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, parent().root());
     CSSPixels y_in_root = box_in_root_rect.y() + y;
     auto space_and_containing_margin = parent().space_used_and_containing_margin_for_floats(y_in_root);
-    auto left_side_floats_limit_to_right = space_and_containing_margin.left_total_containing_margin + space_and_containing_margin.left_used_space;
-    if (box_in_root_rect.x() >= left_side_floats_limit_to_right) {
-        // The left edge of the containing block is to the right of the rightmost left-side float.
-        // We start placing inline content at the left edge of the containing block.
+
+    // If there's no float box to take into account, we start at the left edge of the containing block.
+    if (!space_and_containing_margin.matching_left_float_box)
         return 0;
-    }
+
+    // If the left edge of the containing block is to the right of the rightmost left-side float, start placing inline
+    // content at the left edge of the containing block.
+    auto left_side_floats_limit_to_right = space_and_containing_margin.left_total_containing_margin + space_and_containing_margin.left_used_space;
+    if (box_in_root_rect.x() >= left_side_floats_limit_to_right)
+        return 0;
+
     // The left edge of the containing block is to the left of the rightmost left-side float.
     // We adjust the inline content insertion point by the overlap between the containing block and the float.
-    return left_side_floats_limit_to_right - max(CSSPixels(0), box_in_root_rect.x());
+    return left_side_floats_limit_to_right - box_in_root_rect.x();
 }
 
 AvailableSize InlineFormattingContext::available_space_for_line(CSSPixels y) const
