@@ -17,15 +17,33 @@ String ns_string_to_string(NSString* string)
     return MUST(String::from_utf8({ utf8, strlen(utf8) }));
 }
 
+NSString* string_to_ns_string(StringView string)
+{
+    return [[NSString alloc] initWithData:string_to_ns_data(string) encoding:NSUTF8StringEncoding];
+}
+
+Utf16String ns_string_to_utf16_string(NSString* string)
+{
+    // FIXME: There isn't a great way to get the underlying UTF-16 data from an NSString. There is [NSString getCharacters],
+    //        but that requires pre-allocated a separate buffer to hold the code units. We could add a macOS-only factory
+    //        to UTF-16 string to handle that, but it's tricky with inline and ASCII storage.
+    auto const* utf8 = [string UTF8String];
+    return Utf16String::from_utf8({ utf8, strlen(utf8) });
+}
+
+NSString* utf16_string_to_ns_string(Utf16View const& string)
+{
+    if (string.has_ascii_storage())
+        return string_to_ns_string(string.bytes());
+
+    return [[NSString alloc] initWithCharacters:reinterpret_cast<unichar const*>(string.utf16_span().data())
+                                         length:string.length_in_code_units()];
+}
+
 ByteString ns_string_to_byte_string(NSString* string)
 {
     auto const* utf8 = [string UTF8String];
     return ByteString(utf8, strlen(utf8));
-}
-
-NSString* string_to_ns_string(StringView string)
-{
-    return [[NSString alloc] initWithData:string_to_ns_data(string) encoding:NSUTF8StringEncoding];
 }
 
 ByteString ns_data_to_string(NSData* data)

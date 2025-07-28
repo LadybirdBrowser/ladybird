@@ -224,7 +224,7 @@ void PageClient::page_did_request_cursor_change(Gfx::Cursor const& cursor)
     client().async_did_request_cursor_change(m_id, cursor);
 }
 
-void PageClient::page_did_change_title(ByteString const& title)
+void PageClient::page_did_change_title(Utf16String const& title)
 {
     client().async_did_change_title(m_id, title);
 }

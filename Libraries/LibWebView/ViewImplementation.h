@@ -13,6 +13,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/Queue.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Cursor.h>
@@ -45,8 +46,8 @@ public:
     void set_url(Badge<WebContentClient>, URL::URL url) { m_url = move(url); }
     URL::URL const& url() const { return m_url; }
 
-    void set_title(Badge<WebContentClient>, ByteString title) { m_title = move(title); }
-    ByteString const& title() const { return m_title; }
+    void set_title(Badge<WebContentClient>, Utf16String title) { m_title = move(title); }
+    Utf16String const& title() const { return m_title; }
 
     String const& handle() const { return m_client_state.client_handle; }
 
@@ -181,7 +182,7 @@ public:
     Function<void()> on_link_unhover;
     Function<void(URL::URL const&, ByteString const& target, unsigned modifiers)> on_link_click;
     Function<void(URL::URL const&, ByteString const& target, unsigned modifiers)> on_link_middle_click;
-    Function<void(ByteString const&)> on_title_change;
+    Function<void(Utf16String const&)> on_title_change;
     Function<void(URL::URL const&)> on_url_change;
     Function<void(URL::URL const&, bool)> on_load_start;
     Function<void(URL::URL const&)> on_load_finish;
@@ -285,7 +286,7 @@ protected:
     } m_client_state;
 
     URL::URL m_url;
-    ByteString m_title;
+    Utf16String m_title;
 
     float m_zoom_level { 1.0 };
     float m_device_pixel_ratio { 1.0 };

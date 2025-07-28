@@ -162,8 +162,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     QObject::connect(m_location_edit, &QLineEdit::returnPressed, this, &Tab::location_edit_return_pressed);
 
     view().on_title_change = [this](auto const& title) {
-        m_title = qstring_from_ak_string(title);
-
+        m_title = qstring_from_utf16_string(title);
         emit title_changed(tab_index(), m_title);
     };
 

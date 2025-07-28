@@ -41,7 +41,7 @@ void SVGTitleElement::children_changed(ChildrenChangedMetadata const* metadata)
     auto* document_element = document().document_element();
 
     if (document_element == parent() && is<SVGElement>(document_element))
-        page.client().page_did_change_title(document().title().to_byte_string());
+        page.client().page_did_change_title(document().title());
 }
 
 }

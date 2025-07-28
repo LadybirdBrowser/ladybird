@@ -170,17 +170,19 @@ void WebContentClient::did_request_cursor_change(u64 page_id, Gfx::Cursor cursor
     }
 }
 
-void WebContentClient::did_change_title(u64 page_id, ByteString title)
+void WebContentClient::did_change_title(u64 page_id, Utf16String title)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
-        process->set_title(MUST(String::from_byte_string(title)));
+        process->set_title(title);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        auto title_or_url = title.is_empty() ? view->url().to_byte_string() : title;
-        view->set_title({}, title_or_url);
+        if (title.is_empty())
+            title = Utf16String::from_utf8(view->url().serialize());
+
+        view->set_title({}, title);
 
         if (view->on_title_change)
-            view->on_title_change(title_or_url);
+            view->on_title_change(title);
     }
 }
 

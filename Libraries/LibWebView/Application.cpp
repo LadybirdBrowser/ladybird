@@ -324,7 +324,7 @@ void Application::launch_spare_web_content_process()
         m_spare_web_content_process = web_content_client.release_value();
 
         if (auto process = find_process(m_spare_web_content_process->pid()); process.has_value())
-            process->set_title("(spare)"_string);
+            process->set_title("(spare)"_utf16);
     });
 }
 
@@ -594,7 +594,7 @@ Vector<DevTools::TabDescription> Application::tab_list() const
     Vector<DevTools::TabDescription> tabs;
 
     ViewImplementation::for_each_view([&](ViewImplementation& view) {
-        tabs.empend(view.view_id(), MUST(String::from_byte_string(view.title())), view.url().to_string());
+        tabs.empend(view.view_id(), view.title().to_utf8(), view.url().to_string());
         return IterationDecision::Continue;
     });
 

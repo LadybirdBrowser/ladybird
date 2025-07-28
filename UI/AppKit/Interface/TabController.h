@@ -36,8 +36,6 @@ struct TabSettings {
 - (void)onBackNavigationEnabled:(BOOL)back_enabled
        forwardNavigationEnabled:(BOOL)forward_enabled;
 
-- (void)onTitleChange:(ByteString const&)title;
-
 - (void)onCreateNewTab;
 
 - (void)navigateBack:(id)sender;

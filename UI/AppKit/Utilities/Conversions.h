@@ -9,6 +9,7 @@
 #include <AK/ByteString.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Point.h>
@@ -20,8 +21,12 @@
 namespace Ladybird {
 
 String ns_string_to_string(NSString*);
-ByteString ns_string_to_byte_string(NSString*);
 NSString* string_to_ns_string(StringView);
+
+Utf16String ns_string_to_utf16_string(NSString*);
+NSString* utf16_string_to_ns_string(Utf16View const&);
+
+ByteString ns_string_to_byte_string(NSString*);
 
 ByteString ns_data_to_string(NSData*);
 NSData* string_to_ns_data(StringView);
