@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Stream.h>
 #include <AK/TypedTransfer.h>
 #include <AK/Utf16StringData.h>
 #include <AK/Utf32View.h>
@@ -156,6 +157,31 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_string_builder(StringBuilde
     }
 
     return adopt_ref(*new (buffer->buffer.data()) Utf16StringData { storage_type, code_unit_length });
+}
+
+ErrorOr<NonnullRefPtr<Utf16StringData>> Utf16StringData::from_ipc_stream(Stream& stream, size_t length_in_code_units, bool is_ascii)
+{
+    RefPtr<Utf16StringData> string;
+
+    if (is_ascii) {
+        string = create_uninitialized(StorageType::ASCII, length_in_code_units);
+
+        Bytes bytes { string->m_ascii_data, length_in_code_units };
+        TRY(stream.read_until_filled(bytes));
+
+        if (!string->ascii_view().is_ascii())
+            return Error::from_string_literal("Stream contains invalid ASCII data");
+    } else {
+        string = create_uninitialized(StorageType::UTF16, length_in_code_units);
+
+        Bytes bytes { reinterpret_cast<u8*>(string->m_utf16_data), length_in_code_units * sizeof(char16_t) };
+        TRY(stream.read_until_filled(bytes));
+
+        if (!string->utf16_view().validate())
+            return Error::from_string_literal("Stream contains invalid UTF-16 data");
+    }
+
+    return string.release_nonnull();
 }
 
 NonnullRefPtr<Utf16StringData> Utf16StringData::to_well_formed(Utf16View const& utf16_string)

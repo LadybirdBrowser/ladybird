@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Stream.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf32View.h>
 
@@ -83,6 +84,24 @@ Utf16String Utf16String::from_utf32(Utf32View const& utf32_string)
     }
 
     return Utf16String { Detail::Utf16StringData::from_utf32(utf32_string) };
+}
+
+ErrorOr<Utf16String> Utf16String::from_ipc_stream(Stream& stream, size_t length_in_code_units, bool is_ascii)
+{
+    if (is_ascii && length_in_code_units <= Detail::MAX_SHORT_STRING_BYTE_COUNT) {
+        Utf16String string;
+        string.m_value.short_ascii_string = Detail::ShortString::create_with_byte_count(length_in_code_units);
+
+        Bytes bytes { string.m_value.short_ascii_string.storage, length_in_code_units };
+        TRY(stream.read_until_filled(bytes));
+
+        if (!StringView { bytes }.is_ascii())
+            return Error::from_string_literal("Stream contains invalid ASCII data");
+
+        return string;
+    }
+
+    return Utf16String { TRY(Detail::Utf16StringData::from_ipc_stream(stream, length_in_code_units, is_ascii)) };
 }
 
 Utf16String Utf16String::from_string_builder_without_validation(StringBuilder& builder)

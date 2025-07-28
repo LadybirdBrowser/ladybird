@@ -138,6 +138,8 @@ public:
         return from_string_builder_without_validation(builder);
     }
 
+    static ErrorOr<Utf16String> from_ipc_stream(Stream&, size_t length_in_code_units, bool is_ascii);
+
     Utf16String to_well_formed() const;
     String to_well_formed_utf8() const;
 

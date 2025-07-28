@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -86,6 +86,12 @@ ErrorOr<void> encode(Encoder&, String const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, StringView const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Utf16String const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Utf16View const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, ByteString const&);

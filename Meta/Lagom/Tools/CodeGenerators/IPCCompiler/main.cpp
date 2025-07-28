@@ -194,6 +194,8 @@ Vector<Endpoint> parse(ByteBuffer const& file_contents)
                 parameter.type_for_encoding = parameter.type.replace("Vector"sv, "ReadonlySpan"sv, ReplaceMode::FirstOnly);
             } else if (parameter.type.is_one_of("String"sv, "ByteString"sv)) {
                 parameter.type_for_encoding = "StringView"sv;
+            } else if (parameter.type == "Utf16String"sv) {
+                parameter.type_for_encoding = "Utf16View"sv;
             } else if (parameter.type == "ByteBuffer"sv) {
                 parameter.type_for_encoding = "ReadonlyBytes"sv;
             } else {
@@ -518,7 +520,7 @@ private:)~~~");
     message_generator.appendln("\n};");
 }
 
-void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& endpoint, Message const& message, ByteString const& name, Vector<Parameter> const& parameters, bool is_synchronous, bool is_try, bool is_utf8_string_overload = false)
+void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& endpoint, Message const& message, ByteString const& name, Vector<Parameter> const& parameters, bool is_synchronous, bool is_try, bool is_unicode_string_overload = false)
 {
     // FIXME: For String parameters, we want to retain the property that all tranferred String objects are strictly UTF-8.
     //        So instead of generating a single proxy method that accepts StringView parameters, we generate two overloads.
@@ -527,7 +529,7 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
     //
     //        Ideally, we will eventually have separate StringView types for each of String and ByteString, where String's
     //        view internally provides UTF-8 guarantees. Then we won't need these overloads.
-    bool generate_utf8_string_overload = false;
+    bool generate_unicode_string_overload = false;
 
     ByteString return_type = "void";
     if (is_synchronous) {
@@ -554,7 +556,7 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
         ByteString type;
         if (is_synchronous || is_try)
             type = parameter.type;
-        else if (is_utf8_string_overload)
+        else if (is_unicode_string_overload)
             type = make_argument_type(parameter.type);
         else
             type = make_argument_type(parameter.type_for_encoding);
@@ -569,7 +571,7 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
 
     message_generator.append(") {");
 
-    if (!is_synchronous && !is_try && !is_utf8_string_overload) {
+    if (!is_synchronous && !is_try && !is_unicode_string_overload) {
         for (auto const& parameter : parameters) {
             auto const& type = is_synchronous || is_try ? parameter.type : parameter.type_for_encoding;
 
@@ -579,7 +581,14 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
                 argument_generator.append(R"~~~(
         VERIFY(Utf8View { @argument.name@ }.validate());)~~~");
 
-                generate_utf8_string_overload = true;
+                generate_unicode_string_overload = true;
+            } else if (parameter.type == "Utf16String"sv && type == "Utf16View"sv) {
+                auto argument_generator = message_generator.fork();
+                argument_generator.set("argument.name", parameter.name);
+                argument_generator.append(R"~~~(
+        VERIFY(@argument.name@.validate());)~~~");
+
+                generate_unicode_string_overload = true;
             }
         }
     }
@@ -655,8 +664,8 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
     message_generator.appendln(R"~~~(
     })~~~");
 
-    if (generate_utf8_string_overload)
-        generate_proxy_method(message_generator, endpoint, message, message.name, message.inputs, is_synchronous, is_try, generate_utf8_string_overload);
+    if (generate_unicode_string_overload)
+        generate_proxy_method(message_generator, endpoint, message, message.name, message.inputs, is_synchronous, is_try, generate_unicode_string_overload);
 }
 
 void do_message_for_proxy(SourceGenerator message_generator, Endpoint const& endpoint, Message const& message)

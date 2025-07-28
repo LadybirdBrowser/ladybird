@@ -9,6 +9,7 @@
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Enumerate.h>
+#include <AK/MemoryStream.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf32View.h>
@@ -409,6 +410,79 @@ TEST_CASE(repeated)
     }
 
     EXPECT_DEATH("Creating a string from an invalid code point", (void)Utf16String::repeated(0xffffffff, 1));
+}
+
+TEST_CASE(from_ipc_stream)
+{
+    {
+        auto data = "abc"sv;
+        FixedMemoryStream stream { data.bytes() };
+
+        auto string = TRY_OR_FAIL(Utf16String::from_ipc_stream(stream, data.length(), true));
+        EXPECT(string.is_ascii());
+        EXPECT(!string.has_long_ascii_storage());
+        EXPECT(string.has_short_ascii_storage());
+        EXPECT_EQ(string.length_in_code_units(), 3uz);
+        EXPECT_EQ(string, data);
+    }
+    {
+        auto data = "abcdefghijklmnopqrstuvwxyz"sv;
+        FixedMemoryStream stream { data.bytes() };
+
+        auto string = TRY_OR_FAIL(Utf16String::from_ipc_stream(stream, data.length(), true));
+        EXPECT(string.is_ascii());
+        EXPECT(string.has_long_ascii_storage());
+        EXPECT(!string.has_short_ascii_storage());
+        EXPECT_EQ(string.length_in_code_units(), 26uz);
+        EXPECT_EQ(string, data);
+    }
+    {
+        auto data = u"hello 😀 there!"sv;
+
+        StringBuilder builder(StringBuilder::Mode::UTF16);
+        builder.append(data);
+
+        auto buffer = MUST(builder.to_byte_buffer());
+        FixedMemoryStream stream { buffer.bytes() };
+
+        auto string = TRY_OR_FAIL(Utf16String::from_ipc_stream(stream, data.length_in_code_units(), false));
+        EXPECT(!string.is_ascii());
+        EXPECT(!string.has_long_ascii_storage());
+        EXPECT(!string.has_short_ascii_storage());
+        EXPECT_EQ(string.length_in_code_units(), 15uz);
+        EXPECT_EQ(string, data);
+    }
+    {
+        auto data = "abc"sv;
+        FixedMemoryStream stream { data.bytes() };
+
+        auto result = Utf16String::from_ipc_stream(stream, data.length() + 1, true);
+        EXPECT(result.is_error());
+    }
+    {
+        auto data = u"😀"sv;
+
+        StringBuilder builder(StringBuilder::Mode::UTF16);
+        builder.append(data);
+
+        auto buffer = MUST(builder.to_byte_buffer());
+        FixedMemoryStream stream { buffer.bytes() };
+
+        auto result = Utf16String::from_ipc_stream(stream, data.length_in_code_units(), true);
+        EXPECT(result.is_error());
+    }
+    {
+        auto data = u"hello 😀 there!"sv;
+
+        StringBuilder builder(StringBuilder::Mode::UTF16);
+        builder.append(data);
+
+        auto buffer = MUST(builder.to_byte_buffer());
+        FixedMemoryStream stream { buffer.bytes() };
+
+        auto result = Utf16String::from_ipc_stream(stream, data.length_in_code_units(), true);
+        EXPECT(result.is_error());
+    }
 }
 
 TEST_CASE(to_lowercase_unconditional_special_casing)

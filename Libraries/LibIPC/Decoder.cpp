@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/JsonValue.h>
 #include <AK/NumericLimits.h>
+#include <AK/Utf16String.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/DateTime.h>
 #include <LibCore/Proxy.h>
@@ -28,6 +29,15 @@ ErrorOr<String> decode(Decoder& decoder)
 {
     auto length = TRY(decoder.decode_size());
     return String::from_stream(decoder.stream(), length);
+}
+
+template<>
+ErrorOr<Utf16String> decode(Decoder& decoder)
+{
+    auto is_ascii = TRY(decoder.decode<bool>());
+    auto length_in_code_units = TRY(decoder.decode_size());
+
+    return Utf16String::from_ipc_stream(decoder.stream(), length_in_code_units, is_ascii);
 }
 
 template<>

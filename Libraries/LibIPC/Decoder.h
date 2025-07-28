@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -87,6 +87,9 @@ ErrorOr<T> decode(Decoder& decoder)
 
 template<>
 ErrorOr<String> decode(Decoder&);
+
+template<>
+ErrorOr<Utf16String> decode(Decoder&);
 
 template<>
 ErrorOr<ByteString> decode(Decoder&);
