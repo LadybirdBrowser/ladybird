@@ -252,7 +252,7 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
         :host([open]) summary {
             list-style-type: disclosure-open;
         }
-    )~~~"_string);
+    )~~~"_utf16);
     MUST(shadow_root->append_child(style));
 
     m_summary_slot = static_cast<HTML::HTMLSlotElement&>(*summary_slot);

@@ -143,7 +143,7 @@ bool SVGElement::should_include_in_accessibility_tree() const
     bool has_title_or_desc = false;
     auto role = role_from_role_attribute_value();
     for_each_child_of_type<SVGElement>([&has_title_or_desc](auto& child) {
-        if ((is<SVGTitleElement>(child) || is<SVGDescElement>(child)) && !child.text_content()->trim_ascii_whitespace().value().is_empty()) {
+        if ((is<SVGTitleElement>(child) || is<SVGDescElement>(child)) && !child.text_content()->utf16_view().trim_ascii_whitespace().is_empty()) {
             has_title_or_desc = true;
             return IterationDecision::Break;
         }
@@ -152,9 +152,9 @@ bool SVGElement::should_include_in_accessibility_tree() const
     // https://w3c.github.io/svg-aam/#include_elements
     // TODO: Add support for the SVG tabindex attribute, and include a check for it here.
     return has_title_or_desc
-        || (aria_label().has_value() && !aria_label().value().trim_ascii_whitespace().value().is_empty())
-        || (aria_labelled_by().has_value() && !aria_labelled_by().value().trim_ascii_whitespace().value().is_empty())
-        || (aria_described_by().has_value() && !aria_described_by().value().trim_ascii_whitespace().value().is_empty())
+        || (aria_label().has_value() && !aria_label()->bytes_as_string_view().trim_whitespace().is_empty())
+        || (aria_labelled_by().has_value() && !aria_labelled_by()->bytes_as_string_view().trim_whitespace().is_empty())
+        || (aria_described_by().has_value() && !aria_described_by()->bytes_as_string_view().trim_whitespace().is_empty())
         || (role.has_value() && ARIA::is_abstract_role(role.value()) && role != ARIA::Role::none && role != ARIA::Role::presentation);
 }
 

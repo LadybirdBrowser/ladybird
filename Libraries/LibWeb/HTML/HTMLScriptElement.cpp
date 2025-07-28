@@ -188,6 +188,7 @@ void HTMLScriptElement::prepare_script()
 
     // 5. Let source text be el's child text content.
     auto source_text = child_text_content();
+    auto source_text_utf8 = source_text.to_utf8_but_should_be_ported_to_utf16();
 
     // 6. If el has no src attribute, and source text is the empty string, then return.
     if (!has_attribute(HTML::AttributeNames::src) && source_text.is_empty()) {
@@ -278,7 +279,7 @@ void HTMLScriptElement::prepare_script()
     // 19. If el does not have a src content attribute, and the Should element's inline behavior be blocked by Content Security Policy?
     //     algorithm returns "Blocked" when given el, "script", and source text, then return. [CSP]
     if (!has_attribute(AttributeNames::src)
-        && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), *this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), *this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text_utf8) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         dbgln("HTMLScriptElement: Refusing to run inline script because it violates the Content Security Policy.");
         return;
     }
@@ -452,7 +453,7 @@ void HTMLScriptElement::prepare_script()
         if (m_script_type == ScriptType::Classic) {
             // 1. Let script be the result of creating a classic script using source text, settings object's realm, base URL, and options.
             // FIXME: Pass options.
-            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text, settings_object.realm(), base_url, m_source_line_number);
+            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text_utf8, settings_object.realm(), base_url, m_source_line_number);
 
             // 2. Mark as ready el given script.
             mark_as_ready(Result(move(script)));

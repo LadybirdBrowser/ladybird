@@ -77,8 +77,8 @@ public:
     // https://www.w3.org/TR/html-aria/#el-textarea
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::textbox; }
 
-    String default_value() const;
-    void set_default_value(String const&);
+    Utf16String default_value() const;
+    void set_default_value(Utf16String const&);
 
     Utf16String value() const override;
     void set_value(Utf16String const&);

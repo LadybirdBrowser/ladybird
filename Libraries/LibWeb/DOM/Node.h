@@ -268,9 +268,9 @@ public:
 
     virtual Optional<String> alternative_text() const;
 
-    String descendant_text_content() const;
-    Optional<String> text_content() const;
-    void set_text_content(Optional<String> const&);
+    Utf16String descendant_text_content() const;
+    Optional<Utf16String> text_content() const;
+    void set_text_content(Optional<Utf16String> const&);
 
     WebIDL::ExceptionOr<void> normalize();
 
@@ -288,7 +288,7 @@ public:
     const HTML::HTMLElement* enclosing_html_element() const;
     const HTML::HTMLElement* enclosing_html_element_with_attribute(FlyString const&) const;
 
-    String child_text_content() const;
+    Utf16String child_text_content() const;
 
     Node& shadow_including_root();
     Node const& shadow_including_root() const
@@ -399,7 +399,7 @@ public:
     WebIDL::ExceptionOr<void> unsafely_set_html(Element&, StringView);
 
     void replace_all(GC::Ptr<Node>);
-    void string_replace_all(String const&);
+    void string_replace_all(Utf16String);
 
     bool is_same_node(Node const*) const;
     bool is_equal_node(Node const*) const;

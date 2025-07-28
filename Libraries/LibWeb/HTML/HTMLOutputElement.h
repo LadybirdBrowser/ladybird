@@ -31,8 +31,8 @@ public:
         return output;
     }
 
-    String default_value() const;
-    void set_default_value(String const&);
+    Utf16String default_value() const;
+    void set_default_value(Utf16String const&);
 
     Utf16String value() const override;
     void set_value(Utf16String const&);
@@ -69,7 +69,7 @@ private:
 
     GC::Ptr<DOM::DOMTokenList> m_html_for;
 
-    Optional<String> m_default_value_override {};
+    Optional<Utf16String> m_default_value_override;
 };
 
 }

@@ -93,7 +93,9 @@ Utf16String HTMLOptionElement::value() const
 {
     // The value of an option element is the value of the value content attribute, if there is one.
     // ...or, if there is not, the value of the element's text IDL attribute.
-    return Utf16String::from_utf8(attribute(HTML::AttributeNames::value).value_or(text()));
+    if (auto value = attribute(HTML::AttributeNames::value); value.has_value())
+        return Utf16String::from_utf8(*value);
+    return text();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-value
@@ -121,8 +123,7 @@ String HTMLOptionElement::label() const
     // must return that attribute's value; otherwise, it must return the element's label.
     if (auto label = attribute(HTML::AttributeNames::label); label.has_value())
         return label.release_value();
-
-    return text();
+    return text().to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-label
@@ -133,9 +134,9 @@ void HTMLOptionElement::set_label(String const& label)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-text
-String HTMLOptionElement::text() const
+Utf16String HTMLOptionElement::text() const
 {
-    StringBuilder builder;
+    StringBuilder builder(StringBuilder::Mode::UTF16);
 
     // Concatenation of data of all the Text node descendants of the option element, in tree order,
     // excluding any that are descendants of descendants of the option element that are themselves
@@ -146,11 +147,11 @@ String HTMLOptionElement::text() const
     });
 
     // Return the result of stripping and collapsing ASCII whitespace from the above concatenation.
-    return MUST(Infra::strip_and_collapse_whitespace(builder.string_view()));
+    return Infra::strip_and_collapse_whitespace(builder.to_utf16_string());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-text
-void HTMLOptionElement::set_text(String const& text)
+void HTMLOptionElement::set_text(Utf16String const& text)
 {
     string_replace_all(text);
     // Note: this causes children_changed() to be called, which will update the <select>'s label

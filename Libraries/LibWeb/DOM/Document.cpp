@@ -1004,13 +1004,13 @@ String Document::title() const
     //    element that is a child of the document element.
     if (auto const* document_element = this->document_element(); is<SVG::SVGElement>(document_element)) {
         if (auto const* title_element = document_element->first_child_of_type<SVG::SVGTitleElement>())
-            value = title_element->child_text_content();
+            value = title_element->child_text_content().to_utf8_but_should_be_ported_to_utf16();
     }
 
     // 2. Otherwise, let value be the child text content of the title element, or the empty string if the title element
     //    is null.
     else if (auto title_element = this->title_element()) {
-        value = title_element->text_content().value_or(String {});
+        value = title_element->text_content().value_or({}).to_utf8_but_should_be_ported_to_utf16();
     }
 
     // 3. Strip and collapse ASCII whitespace in value.
@@ -1045,7 +1045,7 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
         }
 
         // 3. String replace all with the given value within element.
-        element->string_replace_all(title);
+        element->string_replace_all(Utf16String::from_utf8(title));
     }
 
     // -> If the document element is in the HTML namespace
@@ -1074,7 +1074,7 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
         }
 
         // 4. String replace all with the given value within element.
-        element->string_replace_all(title);
+        element->string_replace_all(Utf16String::from_utf8(title));
     }
 
     // -> Otherwise

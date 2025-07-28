@@ -26,8 +26,8 @@ public:
     Utf16String value() const;
     WebIDL::ExceptionOr<void> set_value(Utf16String const&);
 
-    String text() const;
-    void set_text(String const&);
+    Utf16String text() const;
+    void set_text(Utf16String const&);
 
     [[nodiscard]] String label() const;
     void set_label(String const&);

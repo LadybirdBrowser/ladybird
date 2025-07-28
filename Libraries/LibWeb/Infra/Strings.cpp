@@ -85,6 +85,29 @@ ErrorOr<String> strip_and_collapse_whitespace(StringView string)
     return String::from_utf8(builder.string_view().trim(Infra::ASCII_WHITESPACE));
 }
 
+// https://infra.spec.whatwg.org/#strip-and-collapse-ascii-whitespace
+Utf16String strip_and_collapse_whitespace(Utf16String const& string)
+{
+    // Replace any sequence of one or more consecutive code points that are ASCII whitespace in the string with a single U+0020 SPACE code point.
+    if (!string.contains_any_of(Infra::ASCII_WHITESPACE_CODE_POINTS))
+        return string;
+
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+
+    for (auto code_point : string) {
+        if (Infra::is_ascii_whitespace(code_point)) {
+            if (!builder.utf16_string_view().ends_with(" "sv))
+                builder.append(' ');
+            continue;
+        }
+
+        builder.append_code_point(code_point);
+    }
+
+    // ...and then remove any leading and trailing ASCII whitespace from that string.
+    return Utf16String::from_utf16(builder.utf16_string_view().trim(Infra::ASCII_WHITESPACE));
+}
+
 // https://infra.spec.whatwg.org/#code-unit-prefix
 bool is_code_unit_prefix(StringView potential_prefix_utf8, StringView input_utf8)
 {

@@ -152,7 +152,7 @@ void SVGScriptElement::process_the_script_element()
 
     } else {
         // Inline script content
-        script_content = child_text_content();
+        script_content = child_text_content().to_utf8_but_should_be_ported_to_utf16();
         if (script_content.is_empty())
             return;
     }

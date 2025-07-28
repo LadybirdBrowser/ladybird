@@ -114,10 +114,10 @@ void HTMLTextAreaElement::reset_algorithm()
     m_user_validity = false;
     m_dirty_value = false;
     // and the raw value to its child text content.
-    set_raw_value(Utf16String::from_utf8(child_text_content()));
+    set_raw_value(child_text_content());
 
     if (m_text_node) {
-        m_text_node->set_text_content(m_raw_value.to_utf8_but_should_be_ported_to_utf16());
+        m_text_node->set_text_content(m_raw_value);
         update_placeholder_visibility();
     }
 }
@@ -129,7 +129,7 @@ void HTMLTextAreaElement::clear_algorithm()
     m_dirty_value = false;
 
     // and set the raw value of element to an empty string.
-    set_raw_value(Utf16String::from_utf8(child_text_content()));
+    set_raw_value(child_text_content());
 
     // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
     // changes caused by the user (and thus, e.g. do cause input events to fire).
@@ -155,14 +155,14 @@ void HTMLTextAreaElement::form_associated_element_was_inserted()
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-defaultvalue
-String HTMLTextAreaElement::default_value() const
+Utf16String HTMLTextAreaElement::default_value() const
 {
     // The defaultValue attribute's getter must return the element's child text content.
     return child_text_content();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-defaultvalue
-void HTMLTextAreaElement::set_default_value(String const& default_value)
+void HTMLTextAreaElement::set_default_value(Utf16String const& default_value)
 {
     // The defaultValue attribute's setter must string replace all with the given value within this element.
     string_replace_all(default_value);
@@ -379,7 +379,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
     //       Otherwise, it will get filled in whenever that does get called.
-    m_text_node->set_text_content(m_raw_value.to_utf8_but_should_be_ported_to_utf16());
+    m_text_node->set_text_content(m_raw_value);
     handle_maxlength_attribute();
     MUST(m_inner_text_element->append_child(*m_text_node));
 
@@ -430,9 +430,9 @@ void HTMLTextAreaElement::children_changed(ChildrenChangedMetadata const* metada
     // The children changed steps for textarea elements must, if the element's dirty value flag is false,
     // set the element's raw value to its child text content.
     if (!m_dirty_value) {
-        set_raw_value(Utf16String::from_utf8(child_text_content()));
+        set_raw_value(child_text_content());
         if (m_text_node)
-            m_text_node->set_text_content(m_raw_value.to_utf8_but_should_be_ported_to_utf16());
+            m_text_node->set_text_content(m_raw_value);
         update_placeholder_visibility();
     }
 }

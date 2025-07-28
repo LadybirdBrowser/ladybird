@@ -22,7 +22,7 @@ interface HTMLTextAreaElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString wrap;
 
     readonly attribute DOMString type;
-    [CEReactions] attribute DOMString defaultValue;
+    [CEReactions] attribute Utf16DOMString defaultValue;
     [LegacyNullToEmptyString] attribute Utf16DOMString value;
     readonly attribute unsigned long textLength;
 

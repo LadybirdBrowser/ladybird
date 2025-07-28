@@ -309,7 +309,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         img {
             background-color: #fff;
         }
-    )~~~"_string);
+    )~~~"_utf16);
     TRY(document->head()->append_child(style_element));
 
     auto url_string = document->url_string();
