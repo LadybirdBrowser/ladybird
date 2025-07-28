@@ -139,45 +139,102 @@ TEST_CASE(utf16_literal)
 
 TEST_CASE(iterate_utf16)
 {
-    auto string = Utf16String::from_utf8("Привет 😀"sv);
-    Utf16View view { string };
+    Utf16View view { u"Привет 😀🙃"sv };
     auto iterator = view.begin();
 
-    EXPECT(*iterator == 1055);
+    EXPECT_EQ(*iterator, 0x041fu);
     EXPECT(iterator.length_in_code_units() == 1);
+    EXPECT_EQ(iterator.peek(0), 0x041fu);
+    EXPECT_EQ(iterator.peek(1), 0x0440u);
+    EXPECT_EQ(iterator.peek(2), 0x0438u);
+    EXPECT_EQ(iterator.peek(3), 0x0432u);
+    EXPECT_EQ(iterator.peek(4), 0x0435u);
+    EXPECT_EQ(iterator.peek(5), 0x0442u);
+    EXPECT_EQ(iterator.peek(6), 0x0020u);
+    EXPECT_EQ(iterator.peek(7), 0x1f600u);
+    EXPECT_EQ(iterator.peek(8), 0x1f643u);
+    EXPECT(!iterator.peek(9).has_value());
 
     EXPECT(++iterator != view.end());
-    EXPECT(*iterator == 1088);
+    EXPECT_EQ(*iterator, 0x0440u);
     EXPECT(iterator.length_in_code_units() == 1);
+    EXPECT_EQ(iterator.peek(0), 0x0440u);
+    EXPECT_EQ(iterator.peek(1), 0x0438u);
+    EXPECT_EQ(iterator.peek(2), 0x0432u);
+    EXPECT_EQ(iterator.peek(3), 0x0435u);
+    EXPECT_EQ(iterator.peek(4), 0x0442u);
+    EXPECT_EQ(iterator.peek(5), 0x0020u);
+    EXPECT_EQ(iterator.peek(6), 0x1f600u);
+    EXPECT_EQ(iterator.peek(7), 0x1f643u);
+    EXPECT(!iterator.peek(8).has_value());
 
     EXPECT(++iterator != view.end());
-    EXPECT(*iterator == 1080);
+    EXPECT_EQ(*iterator, 0x0438u);
     EXPECT(iterator.length_in_code_units() == 1);
+    EXPECT_EQ(iterator.peek(0), 0x0438u);
+    EXPECT_EQ(iterator.peek(1), 0x0432u);
+    EXPECT_EQ(iterator.peek(2), 0x0435u);
+    EXPECT_EQ(iterator.peek(3), 0x0442u);
+    EXPECT_EQ(iterator.peek(4), 0x0020u);
+    EXPECT_EQ(iterator.peek(5), 0x1f600u);
+    EXPECT_EQ(iterator.peek(6), 0x1f643u);
+    EXPECT(!iterator.peek(7).has_value());
 
     EXPECT(++iterator != view.end());
-    EXPECT(*iterator == 1074);
+    EXPECT_EQ(*iterator, 0x0432u);
     EXPECT(iterator.length_in_code_units() == 1);
+    EXPECT_EQ(iterator.peek(0), 0x0432u);
+    EXPECT_EQ(iterator.peek(1), 0x0435u);
+    EXPECT_EQ(iterator.peek(2), 0x0442u);
+    EXPECT_EQ(iterator.peek(3), 0x0020u);
+    EXPECT_EQ(iterator.peek(4), 0x1f600u);
+    EXPECT_EQ(iterator.peek(5), 0x1f643u);
+    EXPECT(!iterator.peek(6).has_value());
 
     EXPECT(++iterator != view.end());
-    EXPECT(*iterator == 1077);
+    EXPECT_EQ(*iterator, 0x0435u);
     EXPECT(iterator.length_in_code_units() == 1);
+    EXPECT_EQ(iterator.peek(0), 0x0435u);
+    EXPECT_EQ(iterator.peek(1), 0x0442u);
+    EXPECT_EQ(iterator.peek(2), 0x0020u);
+    EXPECT_EQ(iterator.peek(3), 0x1f600u);
+    EXPECT_EQ(iterator.peek(4), 0x1f643u);
+    EXPECT(!iterator.peek(5).has_value());
 
     EXPECT(++iterator != view.end());
-    EXPECT(*iterator == 1090);
+    EXPECT_EQ(*iterator, 0x0442u);
     EXPECT(iterator.length_in_code_units() == 1);
+    EXPECT_EQ(iterator.peek(0), 0x0442u);
+    EXPECT_EQ(iterator.peek(1), 0x0020u);
+    EXPECT_EQ(iterator.peek(2), 0x1f600u);
+    EXPECT_EQ(iterator.peek(3), 0x1f643u);
+    EXPECT(!iterator.peek(4).has_value());
 
     EXPECT(++iterator != view.end());
-    EXPECT(*iterator == 32);
+    EXPECT(*iterator == ' ');
     EXPECT(iterator.length_in_code_units() == 1);
+    EXPECT_EQ(iterator.peek(0), 0x0020u);
+    EXPECT_EQ(iterator.peek(1), 0x1f600u);
+    EXPECT_EQ(iterator.peek(2), 0x1f643u);
+    EXPECT(!iterator.peek(3).has_value());
 
     EXPECT(++iterator != view.end());
-    EXPECT(*iterator == 128512);
+    EXPECT_EQ(*iterator, 0x1f600u);
     EXPECT(iterator.length_in_code_units() == 2);
+    EXPECT_EQ(iterator.peek(0), 0x1f600u);
+    EXPECT_EQ(iterator.peek(1), 0x1f643u);
+    EXPECT(!iterator.peek(2).has_value());
+
+    EXPECT(++iterator != view.end());
+    EXPECT_EQ(*iterator, 0x1f643u);
+    EXPECT(iterator.length_in_code_units() == 2);
+    EXPECT_EQ(iterator.peek(0), 0x1f643u);
+    EXPECT(!iterator.peek(1).has_value());
 
     EXPECT(++iterator == view.end());
+    EXPECT(!iterator.peek(0).has_value());
 
     EXPECT_DEATH("Dereferencing Utf16CodePointIterator which is at its end.", *iterator);
-
     EXPECT_DEATH("Incrementing Utf16CodePointIterator which is at its end.", ++iterator);
 }
 

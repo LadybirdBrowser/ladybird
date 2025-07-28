@@ -88,6 +88,25 @@ public:
         return static_cast<u32>(code_unit);
     }
 
+    constexpr Optional<u32> peek(size_t code_point_offset) const
+    {
+        if (code_point_offset == 0) {
+            if (remaining_code_units() == 0)
+                return {};
+            return this->operator*();
+        }
+
+        auto it = *this;
+
+        for (size_t index = 0; index < code_point_offset; ++index) {
+            ++it;
+            if (it.remaining_code_units() == 0)
+                return {};
+        }
+
+        return *it;
+    }
+
     [[nodiscard]] constexpr bool operator==(Utf16CodePointIterator const& other) const
     {
         // Note that this also protects against iterators with different underlying storage.
