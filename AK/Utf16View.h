@@ -366,14 +366,14 @@ public:
         if (has_ascii_storage()) {
             VERIFY(it.has_ascii_storage());
             VERIFY(it.m_iterator.ascii >= m_string.ascii);
-            VERIFY(it.m_iterator.ascii <= m_string.ascii);
+            VERIFY(it.m_iterator.ascii <= m_string.ascii + length_in_code_units());
 
             return it.m_iterator.ascii - m_string.ascii;
         }
 
         VERIFY(!it.has_ascii_storage());
         VERIFY(it.m_iterator.utf16 >= m_string.utf16);
-        VERIFY(it.m_iterator.utf16 <= m_string.utf16);
+        VERIFY(it.m_iterator.utf16 <= m_string.utf16 + length_in_code_units());
 
         return it.m_iterator.utf16 - m_string.utf16;
     }

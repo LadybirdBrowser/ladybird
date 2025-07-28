@@ -495,6 +495,19 @@ TEST_CASE(code_point_offset_of)
     EXPECT_EQ(view.code_point_offset_of(13), 11uz);
 }
 
+TEST_CASE(iterator_offset)
+{
+    Utf16View view { u"😂 foo 😀 bar"sv };
+    size_t expected_offset = 0;
+
+    for (auto it = view.begin(); it != view.end(); ++it) {
+        EXPECT_EQ(view.iterator_offset(it), expected_offset);
+        expected_offset += it.length_in_code_units();
+    }
+
+    EXPECT_EQ(view.iterator_offset(view.end()), view.length_in_code_units());
+}
+
 TEST_CASE(replace)
 {
     auto result = u""sv.replace({}, {}, ReplaceMode::FirstOnly);
