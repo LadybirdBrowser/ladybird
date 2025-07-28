@@ -194,7 +194,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_e
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#set-the-inner-text-steps
-void HTMLElement::set_inner_text(StringView text)
+void HTMLElement::set_inner_text(Utf16View const& text)
 {
     // 1. Let fragment be the rendered text fragment for value given element's node document.
     auto fragment = rendered_text_fragment(text);
@@ -223,7 +223,7 @@ static void merge_with_the_next_text_node(DOM::Text& node)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#the-innertext-idl-attribute:dom-outertext-2
-WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(String const& value)
+WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(Utf16View const& value)
 {
     // 1. If this's parent is null, then throw a "NoModificationAllowedError" DOMException.
     if (!parent())
@@ -258,39 +258,46 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#rendered-text-fragment
-GC::Ref<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(StringView input)
+GC::Ref<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(Utf16View const& input)
 {
     // 1. Let fragment be a new DocumentFragment whose node document is document.
     auto fragment = realm().create<DOM::DocumentFragment>(document());
 
     // 2. Let position be a position variable for input, initially pointing at the start of input.
+    size_t position = 0;
+
     // 3. Let text be the empty string.
     // 4. While position is not past the end of input:
-    while (!input.is_empty()) {
-        // 1. Collect a sequence of code points that are not U+000A LF or U+000D CR from input given position, and set text to the result.
-        auto newline_index = input.find_any_of("\n\r"sv);
-        size_t const sequence_end_index = newline_index.value_or(input.length());
-        StringView const text = input.substring_view(0, sequence_end_index);
-        input = input.substring_view_starting_after_substring(text);
+    while (position < input.length_in_code_units()) {
+        auto start = position;
 
-        // 2. If text is not the empty string, then append a new Text node whose data is text and node document is document to fragment.
+        // 1. Collect a sequence of code points that are not U+000A LF or U+000D CR from input given position, and set
+        //    text to the result.
+        while (position < input.length_in_code_units() && !first_is_one_of(input.code_unit_at(position), u'\n', u'\r'))
+            ++position;
+
+        auto text = input.substring_view(start, position - start);
+
+        // 2. If text is not the empty string, then append a new Text node whose data is text and node document is
+        //    document to fragment.
         if (!text.is_empty()) {
-            MUST(fragment->append_child(document().create_text_node(Utf16String::from_utf8(text))));
+            MUST(fragment->append_child(document().create_text_node(Utf16String::from_utf16_without_validation(text))));
         }
 
         // 3. While position is not past the end of input, and the code point at position is either U+000A LF or U+000D CR:
-        while (input.starts_with('\n') || input.starts_with('\r')) {
-            // 1. If the code point at position is U+000D CR and the next code point is U+000A LF, then advance position to the next code point in input.
-            if (input.starts_with("\r\n"sv)) {
-                // 2. Advance position to the next code point in input.
-                input = input.substring_view(2);
-            } else {
-                // 2. Advance position to the next code point in input.
-                input = input.substring_view(1);
+        while (position < input.length_in_code_units() && first_is_one_of(input.code_unit_at(position), u'\n', u'\r')) {
+            // 1. If the code point at position is U+000D CR and the next code point is U+000A LF, then advance position
+            //    to the next code point in input.
+            if (input.code_unit_at(position) == '\r') {
+                if (position + 1 < input.length_in_code_units() && input.code_unit_at(position + 1) == '\n')
+                    ++position;
             }
 
+            // 2. Advance position to the next code point in input.
+            ++position;
+
             // 3. Append the result of creating an element given document, "br", and the HTML namespace to fragment.
-            auto br_element = DOM::create_element(document(), HTML::TagNames::br, Namespace::HTML).release_value();
+            auto br_element = MUST(DOM::create_element(document(), HTML::TagNames::br, Namespace::HTML));
             MUST(fragment->append_child(br_element));
         }
     }
@@ -304,10 +311,10 @@ struct RequiredLineBreakCount {
 };
 
 // https://html.spec.whatwg.org/multipage/dom.html#rendered-text-collection-steps
-static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_steps(DOM::Node const& node)
+static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collection_steps(DOM::Node const& node)
 {
     // 1. Let items be the result of running the rendered text collection steps with each child node of node in tree order, and then concatenating the results to a single list.
-    Vector<Variant<String, RequiredLineBreakCount>> items;
+    Vector<Variant<Utf16String, RequiredLineBreakCount>> items;
     node.for_each_child([&](auto const& child) {
         auto child_items = rendered_text_collection_steps(child);
         items.extend(move(child_items));
@@ -347,13 +354,13 @@ static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_
 
     if (is<DOM::Text>(node)) {
         auto const* layout_text_node = as<Layout::TextNode>(layout_node);
-        items.append(layout_text_node->text_for_rendering().to_utf8_but_should_be_ported_to_utf16());
+        items.append(layout_text_node->text_for_rendering());
         return items;
     }
 
     // 5. If node is a br element, then append a string containing a single U+000A LF code point to items.
     if (is<HTML::HTMLBRElement>(node)) {
-        items.append("\n"_string);
+        items.append("\n"_utf16);
         return items;
     }
 
@@ -361,11 +368,11 @@ static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_
 
     // 6. If node's computed value of 'display' is 'table-cell', and node's CSS box is not the last 'table-cell' box of its enclosing 'table-row' box, then append a string containing a single U+0009 TAB code point to items.
     if (display.is_table_cell() && node.next_sibling())
-        items.append("\t"_string);
+        items.append("\t"_utf16);
 
     // 7. If node's computed value of 'display' is 'table-row', and node's CSS box is not the last 'table-row' box of the nearest ancestor 'table' box, then append a string containing a single U+000A LF code point to items.
     if (display.is_table_row() && node.next_sibling())
-        items.append("\n"_string);
+        items.append("\n"_utf16);
 
     // 8. If node is a p element, then append 2 (a required line break count) at the beginning and end of items.
     if (is<HTML::HTMLParagraphElement>(node)) {
@@ -384,15 +391,15 @@ static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#get-the-text-steps
-String HTMLElement::get_the_text_steps()
+Utf16String HTMLElement::get_the_text_steps()
 {
     // 1. If element is not being rendered or if the user agent is a non-CSS user agent, then return element's descendant text content.
     document().update_layout(DOM::UpdateLayoutReason::HTMLElementGetTheTextSteps);
     if (!layout_node())
-        return descendant_text_content().to_utf8_but_should_be_ported_to_utf16();
+        return descendant_text_content();
 
     // 2. Let results be a new empty list.
-    Vector<Variant<String, RequiredLineBreakCount>> results;
+    Vector<Variant<Utf16String, RequiredLineBreakCount>> results;
 
     // 3. For each child node node of element:
     for_each_child([&](Node const& node) {
@@ -408,7 +415,7 @@ String HTMLElement::get_the_text_steps()
     // 4. Remove any items from results that are the empty string.
     results.remove_all_matching([](auto& item) {
         return item.visit(
-            [](String const& string) { return string.is_empty(); },
+            [](Utf16String const& string) { return string.is_empty(); },
             [](RequiredLineBreakCount const&) { return false; });
     });
 
@@ -421,10 +428,10 @@ String HTMLElement::get_the_text_steps()
     // 6. Replace each remaining run of consecutive required line break count items
     //    with a string consisting of as many U+000A LF code points as the maximum of the values
     //    in the required line break count items.
-    StringBuilder builder;
+    StringBuilder builder(StringBuilder::Mode::UTF16);
     for (size_t i = 0; i < results.size(); ++i) {
         results[i].visit(
-            [&](String const& string) {
+            [&](Utf16String const& string) {
                 builder.append(string);
             },
             [&](RequiredLineBreakCount const& line_break_count) {
@@ -443,18 +450,18 @@ String HTMLElement::get_the_text_steps()
     }
 
     // 7. Return the concatenation of the string items in results.
-    return builder.to_string_without_validation();
+    return builder.to_utf16_string_without_validation();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-innertext
-String HTMLElement::inner_text()
+Utf16String HTMLElement::inner_text()
 {
     // The innerText and outerText getter steps are to return the result of running get the text steps with this.
     return get_the_text_steps();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-outertext
-String HTMLElement::outer_text()
+Utf16String HTMLElement::outer_text()
 {
     // The innerText and outerText getter steps are to return the result of running get the text steps with this.
     return get_the_text_steps();
