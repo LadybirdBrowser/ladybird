@@ -564,6 +564,28 @@ TEST_CASE(contains)
     EXPECT(u"ab😀"sv.contains(u"😀"sv));
 }
 
+TEST_CASE(contains_any_of)
+{
+    EXPECT(!u""sv.contains_any_of({}));
+    EXPECT(!u"a"sv.contains_any_of({}));
+
+    EXPECT(u"a"sv.contains_any_of({ { 'a' } }));
+    EXPECT(u"a"sv.contains_any_of({ { 'a', 'b' } }));
+    EXPECT(u"b"sv.contains_any_of({ { 'a', 'b' } }));
+    EXPECT(!u"a"sv.contains_any_of({ { 'b' } }));
+    EXPECT(!u"b"sv.contains_any_of({ { 'a' } }));
+
+    EXPECT(u"ab"sv.contains_any_of({ { 'a' } }));
+    EXPECT(u"ab"sv.contains_any_of({ { 'b' } }));
+    EXPECT(u"ab"sv.contains_any_of({ { 'a', 'b' } }));
+    EXPECT(!u"ab"sv.contains_any_of({ { 'c' } }));
+
+    EXPECT(!u"😀"sv.contains_any_of({ { 0xd83d } }));
+    EXPECT(!u"😀"sv.contains_any_of({ { 0xde00 } }));
+    EXPECT(u"😀"sv.contains_any_of({ { 0x1f600 } }));
+    EXPECT(u"ab😀"sv.contains_any_of({ { 0x1f600 } }));
+}
+
 TEST_CASE(count)
 {
     EXPECT_EQ(u""sv.count({}), 0uz);

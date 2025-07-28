@@ -480,6 +480,16 @@ public:
     [[nodiscard]] constexpr bool contains(char16_t needle) const { return find_code_unit_offset(needle).has_value(); }
     [[nodiscard]] constexpr bool contains(Utf16View const& needle) const { return find_code_unit_offset(needle).has_value(); }
 
+    [[nodiscard]] constexpr bool contains_any_of(ReadonlySpan<u32> needles) const
+    {
+        for (auto code_point : *this) {
+            if (needles.contains_slow(code_point))
+                return true;
+        }
+
+        return false;
+    }
+
     [[nodiscard]] constexpr size_t count(Utf16View const& needle) const
     {
         if (needle.is_empty())
