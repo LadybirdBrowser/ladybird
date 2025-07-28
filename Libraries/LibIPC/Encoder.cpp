@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, kleines Filmröllchen <filmroellchen@serenityos.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,6 +14,8 @@
 #include <AK/NumericLimits.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/DateTime.h>
 #include <LibCore/Proxy.h>
@@ -55,6 +57,26 @@ ErrorOr<void> encode(Encoder& encoder, StringView const& value)
 {
     TRY(encoder.encode_size(value.length()));
     TRY(encoder.append(reinterpret_cast<u8 const*>(value.characters_without_null_termination()), value.length()));
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Utf16String const& value)
+{
+    return encoder.encode(value.utf16_view());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Utf16View const& value)
+{
+    TRY(encoder.encode(value.has_ascii_storage()));
+    TRY(encoder.encode_size(value.length_in_code_units()));
+
+    if (value.has_ascii_storage())
+        TRY(encoder.append(value.bytes().data(), value.length_in_code_units()));
+    else
+        TRY(encoder.append(reinterpret_cast<u8 const*>(value.utf16_span().data()), value.length_in_code_units() * sizeof(char16_t)));
+
     return {};
 }
 
