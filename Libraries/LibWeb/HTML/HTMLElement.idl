@@ -28,8 +28,8 @@ interface HTMLElement : Element {
     [FIXME, CEReactions] attribute DOMString autocapitalize;
     [FIXME, CEReactions] attribute boolean autocorrect;
 
-    [LegacyNullToEmptyString, CEReactions] attribute DOMString innerText;
-    [LegacyNullToEmptyString, CEReactions] attribute DOMString outerText;
+    [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString innerText;
+    [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString outerText;
 
     ElementInternals attachInternals();
 

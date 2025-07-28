@@ -94,11 +94,11 @@ public:
     ContentEditableState content_editable_state() const { return m_content_editable_state; }
     WebIDL::ExceptionOr<void> set_content_editable(StringView);
 
-    String inner_text();
-    void set_inner_text(StringView);
+    Utf16String inner_text();
+    void set_inner_text(Utf16View const&);
 
-    [[nodiscard]] String outer_text();
-    WebIDL::ExceptionOr<void> set_outer_text(String const&);
+    [[nodiscard]] Utf16String outer_text();
+    WebIDL::ExceptionOr<void> set_outer_text(Utf16View const&);
 
     int offset_top() const;
     int offset_left() const;
@@ -195,8 +195,8 @@ private:
     virtual void did_receive_focus() override;
     virtual void did_lose_focus() override;
 
-    [[nodiscard]] String get_the_text_steps();
-    GC::Ref<DOM::DocumentFragment> rendered_text_fragment(StringView input);
+    [[nodiscard]] Utf16String get_the_text_steps();
+    GC::Ref<DOM::DocumentFragment> rendered_text_fragment(Utf16View const& input);
 
     GC::Ptr<DOM::NodeList> m_labels;
 
