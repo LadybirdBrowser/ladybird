@@ -417,23 +417,6 @@ bool HTMLSelectElement::has_activation_behavior() const
     return true;
 }
 
-static String strip_newlines(Optional<String> string)
-{
-    // FIXME: Move this to a more general function
-    if (!string.has_value())
-        return {};
-
-    StringBuilder builder;
-    for (auto c : string.value().bytes_as_string_view()) {
-        if (c == '\r' || c == '\n') {
-            builder.append(' ');
-        } else {
-            builder.append(c);
-        }
-    }
-    return MUST(Infra::strip_and_collapse_whitespace(MUST(builder.to_string())));
-}
-
 // https://html.spec.whatwg.org/multipage/input.html#show-the-picker,-if-applicable
 void HTMLSelectElement::show_the_picker_if_applicable()
 {
@@ -478,7 +461,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
                 for (auto const& child : opt_group_element->children_as_vector()) {
                     if (auto const& option_element = as_if<HTMLOptionElement>(*child)) {
                         if (!option_element->has_attribute(Web::HTML::AttributeNames::hidden))
-                            option_group_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, strip_newlines(option_element->label()), option_element->value().to_utf8_but_should_be_ported_to_utf16() });
+                            option_group_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, MUST(Infra::strip_and_collapse_whitespace(option_element->label())), option_element->value().to_utf8_but_should_be_ported_to_utf16() });
                     }
                 }
                 m_select_items.append(SelectItemOptionGroup { opt_group_element->get_attribute(AttributeNames::label).value_or(String {}), option_group_items });
@@ -487,7 +470,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
 
         if (auto const& option_element = as_if<HTMLOptionElement>(*child)) {
             if (!option_element->has_attribute(Web::HTML::AttributeNames::hidden))
-                m_select_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, strip_newlines(option_element->label()), option_element->value().to_utf8_but_should_be_ported_to_utf16() });
+                m_select_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, MUST(Infra::strip_and_collapse_whitespace(option_element->label())), option_element->value().to_utf8_but_should_be_ported_to_utf16() });
         }
 
         if (auto const* hr_element = as_if<HTMLHRElement>(*child)) {
@@ -649,7 +632,7 @@ void HTMLSelectElement::update_inner_text_element()
     // Update inner text element to the label of the selected option
     for (auto const& option_element : m_cached_list_of_options) {
         if (option_element->selected()) {
-            m_inner_text_element->set_text_content(strip_newlines(option_element->label()));
+            m_inner_text_element->set_text_content(MUST(Infra::strip_and_collapse_whitespace(option_element->label())));
             return;
         }
     }
