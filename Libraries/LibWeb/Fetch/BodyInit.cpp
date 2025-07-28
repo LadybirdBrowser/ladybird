@@ -145,24 +145,24 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
 
     // 12. If action is non-null, then run these steps in parallel:
     if (action) {
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, stream, action = move(action)] {
-            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        // AD-HOC: There is a race condition between document population(Ex: load_html_document->fully_read->read_all_bytes->readable_stream_default_reader_read)
+        // and stream population. So currently we run stream population synchronously.
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-            // 1. Run action.
-            auto bytes = action();
+        // 1. Run action.
+        auto bytes = action();
 
-            // Whenever one or more bytes are available and stream is not errored, enqueue the result of creating a
-            // Uint8Array from the available bytes into stream.
-            if (!bytes.is_empty() && !stream->is_errored()) {
-                auto array_buffer = JS::ArrayBuffer::create(stream->realm(), move(bytes));
-                auto chunk = JS::Uint8Array::create(stream->realm(), array_buffer->byte_length(), *array_buffer);
+        // Whenever one or more bytes are available and stream is not errored, enqueue the result of creating a
+        // Uint8Array from the available bytes into stream.
+        if (!bytes.is_empty() && !stream->is_errored()) {
+            auto array_buffer = JS::ArrayBuffer::create(stream->realm(), move(bytes));
+            auto chunk = JS::Uint8Array::create(stream->realm(), array_buffer->byte_length(), *array_buffer);
 
-                stream->enqueue(chunk).release_value_but_fixme_should_propagate_errors();
-            }
+            stream->enqueue(chunk).release_value_but_fixme_should_propagate_errors();
+        }
 
-            // When running action is done, close stream.
-            stream->close();
-        }));
+        // When running action is done, close stream.
+        stream->close();
     }
 
     // 13. Let body be a body whose stream is stream, source is source, and length is length.
