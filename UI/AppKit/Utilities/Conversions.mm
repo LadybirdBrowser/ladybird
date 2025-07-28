@@ -6,6 +6,7 @@
  */
 
 #include <LibGfx/ImageFormats/PNGWriter.h>
+#include <LibURL/Parser.h>
 
 #import <Utilities/Conversions.h>
 
@@ -146,6 +147,14 @@ NSImage* gfx_bitmap_to_ns_image(Gfx::Bitmap const& bitmap)
                                 length:png.value().size()];
 
     return [[NSImage alloc] initWithData:data];
+}
+
+URL::URL ns_url_to_url(NSURL* url)
+{
+    auto absolute_string = ns_string_to_string([url absoluteString]);
+    auto converted_url = URL::Parser::basic_parse(absolute_string);
+    VERIFY(converted_url.has_value());
+    return converted_url.release_value();
 }
 
 }
