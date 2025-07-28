@@ -1367,3 +1367,15 @@ TEST_CASE(zero_width_backreference)
         EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), ""sv);
     }
 }
+
+TEST_CASE(account_for_opcode_size_calculating_incoming_jump_edges)
+{
+    {
+        // The optimizer should not optimize the initial ForkStay for these alternatives as they are jumped to from different locations.
+        Regex<ECMA262> re(".*a|.*b", ECMAScriptFlags::Global);
+        auto result = re.match("aa"sv);
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "aa"sv);
+    }
+}

@@ -1372,34 +1372,48 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
             auto opcode_bytes = alternative_bytes.slice(state.instruction_position, opcode.size());
 
             switch (opcode.opcode_id()) {
-            case OpCodeId::Jump:
-                incoming_jump_edges.ensure(static_cast<OpCode_Jump const&>(opcode).offset() + state.instruction_position).append({ opcode_bytes });
-                has_any_backwards_jump |= static_cast<OpCode_Jump const&>(opcode).offset() < 0;
+            case OpCodeId::Jump: {
+                auto const& cast_opcode = static_cast<OpCode_Jump const&>(opcode);
+                incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
+                has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
-            case OpCodeId::JumpNonEmpty:
-                incoming_jump_edges.ensure(static_cast<OpCode_JumpNonEmpty const&>(opcode).offset() + state.instruction_position).append({ opcode_bytes });
-                has_any_backwards_jump |= static_cast<OpCode_JumpNonEmpty const&>(opcode).offset() < 0;
+            }
+            case OpCodeId::JumpNonEmpty: {
+                auto const& cast_opcode = static_cast<OpCode_JumpNonEmpty const&>(opcode);
+                incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
+                has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
-            case OpCodeId::ForkJump:
-                incoming_jump_edges.ensure(static_cast<OpCode_ForkJump const&>(opcode).offset() + state.instruction_position).append({ opcode_bytes });
-                has_any_backwards_jump |= static_cast<OpCode_ForkJump const&>(opcode).offset() < 0;
+            }
+            case OpCodeId::ForkJump: {
+                auto const& cast_opcode = static_cast<OpCode_ForkJump const&>(opcode);
+                incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
+                has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
-            case OpCodeId::ForkStay:
-                incoming_jump_edges.ensure(static_cast<OpCode_ForkStay const&>(opcode).offset() + state.instruction_position).append({ opcode_bytes });
-                has_any_backwards_jump |= static_cast<OpCode_ForkStay const&>(opcode).offset() < 0;
+            }
+            case OpCodeId::ForkStay: {
+                auto const& cast_opcode = static_cast<OpCode_ForkStay const&>(opcode);
+                incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
+                has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
-            case OpCodeId::ForkReplaceJump:
-                incoming_jump_edges.ensure(static_cast<OpCode_ForkReplaceJump const&>(opcode).offset() + state.instruction_position).append({ opcode_bytes });
-                has_any_backwards_jump |= static_cast<OpCode_ForkReplaceJump const&>(opcode).offset() < 0;
+            }
+            case OpCodeId::ForkReplaceJump: {
+                auto const& cast_opcode = static_cast<OpCode_ForkReplaceJump const&>(opcode);
+                incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
+                has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
-            case OpCodeId::ForkReplaceStay:
-                incoming_jump_edges.ensure(static_cast<OpCode_ForkReplaceStay const&>(opcode).offset() + state.instruction_position).append({ opcode_bytes });
-                has_any_backwards_jump |= static_cast<OpCode_ForkReplaceStay const&>(opcode).offset() < 0;
+            }
+            case OpCodeId::ForkReplaceStay: {
+                auto const& cast_opcode = static_cast<OpCode_ForkReplaceStay const&>(opcode);
+                incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
+                has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
-            case OpCodeId::Repeat:
-                incoming_jump_edges.ensure(state.instruction_position - static_cast<OpCode_Repeat const&>(opcode).offset()).append({ opcode_bytes });
+            }
+            case OpCodeId::Repeat: {
+                auto const& cast_opcode = static_cast<OpCode_Repeat const&>(opcode);
+                incoming_jump_edges.ensure(state.instruction_position - cast_opcode.offset()).append({ opcode_bytes });
                 has_any_backwards_jump = true;
                 break;
+            }
             default:
                 break;
             }
