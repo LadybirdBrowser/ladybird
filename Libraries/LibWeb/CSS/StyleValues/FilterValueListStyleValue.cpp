@@ -108,4 +108,13 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
     return MUST(builder.to_string());
 }
 
+bool FilterValueListStyleValue::contains_url() const
+{
+    for (auto const& filter_value : m_filter_value_list) {
+        if (filter_value.has<URL>())
+            return true;
+    }
+    return false;
+}
+
 }

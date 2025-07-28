@@ -66,6 +66,9 @@ public:
     }
 
     Vector<FilterValue> const& filter_value_list() const { return m_filter_value_list; }
+    size_t size() const { return m_filter_value_list.size(); }
+
+    bool contains_url() const;
 
     virtual String to_string(SerializationMode) const override;
 

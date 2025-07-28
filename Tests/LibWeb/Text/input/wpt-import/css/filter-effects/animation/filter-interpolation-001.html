@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>filter interpolation</title>
+    <link rel="help" href="https://drafts.fxtf.org/filter-effects/#FilterProperty">
+    <meta name="assert" content="Matching lists interpolate.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+    <style>
+      .parent {
+        filter: hue-rotate(30deg);
+      }
+      .target {
+        display: inline-block;
+        width: 50px;
+        height: 50px;
+        background-color: green;
+        color: white;
+        margin-right: 2px;
+        filter: hue-rotate(10deg);
+      }
+      .expected {
+        margin-right: 20px;
+      }
+      .test {
+        padding-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      test_interpolation({
+        property: 'filter',
+        from: 'hue-rotate(0deg) blur(6px)',
+        to: 'hue-rotate(180deg) blur(10px)'
+      }, [
+        {at: -0.5, expect: 'hue-rotate(-90deg) blur(4px)'},
+        {at: 0, expect: 'hue-rotate(0deg) blur(6px)'},
+        {at: 0.25, expect: 'hue-rotate(45deg) blur(7px)'},
+        {at: 0.5, expect: 'hue-rotate(90deg) blur(8px)'},
+        {at: 1, expect: 'hue-rotate(180deg) blur(10px)'},
+        {at: 1.5, expect: 'hue-rotate(270deg) blur(12px)'}
+      ]);
+
+      // Matching lists with differing units:
+      test_interpolation({
+        property: 'filter',
+        from: 'hue-rotate(80deg) blur(6mm)',
+        to: 'hue-rotate(100grad) blur(1cm)'
+      }, [
+        {at: -0.5, expect: 'hue-rotate(75deg) blur(4mm)'},
+        {at: 0, expect: 'hue-rotate(80deg) blur(6mm)'},
+        {at: 0.25, expect: 'hue-rotate(82.5deg) blur(7mm)'},
+        {at: 0.5, expect: 'hue-rotate(85deg) blur(8mm)'},
+        {at: 1, expect: 'hue-rotate(90deg) blur(10mm)'},
+        {at: 1.5, expect: 'hue-rotate(95deg) blur(12mm)'}
+      ]);
+
+      test_interpolation({
+        property: 'filter',
+        from: neutralKeyframe,
+        to: 'hue-rotate(20deg)',
+      }, [
+        {at: -0.5, expect: 'hue-rotate(5deg)'},
+        {at: 0, expect: 'hue-rotate(10deg)'},
+        {at: 0.3, expect: 'hue-rotate(13deg)'},
+        {at: 0.6, expect: 'hue-rotate(16deg)'},
+        {at: 1, expect: 'hue-rotate(20deg)'},
+        {at: 1.5, expect: 'hue-rotate(25deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'filter',
+        from: 'initial',
+        to: 'hue-rotate(20deg)',
+      }, [
+        {at: -0.5, expect: 'hue-rotate(-10deg)'},
+        {at: 0, expect: 'hue-rotate(0deg)'},
+        {at: 0.3, expect: 'hue-rotate(6deg)'},
+        {at: 0.6, expect: 'hue-rotate(12deg)'},
+        {at: 1, expect: 'hue-rotate(20deg)'},
+        {at: 1.5, expect: 'hue-rotate(30deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'filter',
+        from: 'inherit',
+        to: 'hue-rotate(20deg)',
+      }, [
+        {at: -0.5, expect: 'hue-rotate(35deg)'},
+        {at: 0, expect: 'hue-rotate(30deg)'},
+        {at: 0.3, expect: 'hue-rotate(27deg)'},
+        {at: 0.6, expect: 'hue-rotate(24deg)'},
+        {at: 1, expect: 'hue-rotate(20deg)'},
+        {at: 1.5, expect: 'hue-rotate(15deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'filter',
+        from: 'unset',
+        to: 'hue-rotate(20deg)',
+      }, [
+        {at: -0.5, expect: 'hue-rotate(-10deg)'},
+        {at: 0, expect: 'hue-rotate(0deg)'},
+        {at: 0.3, expect: 'hue-rotate(6deg)'},
+        {at: 0.6, expect: 'hue-rotate(12deg)'},
+        {at: 1, expect: 'hue-rotate(20deg)'},
+        {at: 1.5, expect: 'hue-rotate(30deg)'},
+      ]);
+    </script>
+  </body>
+</html>

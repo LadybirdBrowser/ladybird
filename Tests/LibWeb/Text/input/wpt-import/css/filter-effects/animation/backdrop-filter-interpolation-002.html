@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>backdrop-filter interpolation</title>
+    <link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+    <meta name="assert" content="Partially matching lists interpolate.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+    <style>
+      body {
+        color: blue;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'none',
+        to: 'opacity(0.5) hue-rotate(180deg)',
+      }, [
+        {at: -0.5, expect: 'opacity(1) hue-rotate(-90deg)'},
+        {at: 0.25, expect: 'opacity(0.875) hue-rotate(45deg)'},
+        {at: 0.5, expect: 'opacity(0.75) hue-rotate(90deg)'},
+        {at: 1, expect: 'opacity(0.5) hue-rotate(180deg)'},
+        {at: 1.5, expect: 'opacity(0.25) hue-rotate(270deg)'},
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'blur(6px)',
+        to: 'blur(10px) hue-rotate(180deg)'
+      }, [
+        {at: -0.5, expect: 'blur(4px) hue-rotate(-90deg)'},
+        {at: 0.25, expect: 'blur(7px) hue-rotate(45deg)'},
+        {at: 0.5, expect: 'blur(8px) hue-rotate(90deg)'},
+        {at: 1, expect: 'blur(10px) hue-rotate(180deg)'},
+        {at: 1.5, expect: 'blur(12px) hue-rotate(270deg)'},
+      ]);
+
+      // Mismatched lists:
+      test_no_interpolation({
+        property: 'backdrop-filter',
+        from: 'grayscale(0) blur(0px)',
+        to: 'blur(10px)'
+      });
+    </script>
+  </body>
+</html>
