@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>backdrop-filter interpolation</title>
+    <link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+    <meta name="assert" content="lacuna matches spec.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+    <style>
+      body {
+        color: blue;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'none', // lacuna is 0px
+        to: 'blur(10px)'
+      }, [
+        {at: -1, expect: 'blur(0px)'}, // Negative values are not allowed.
+        {at: 0.5, expect: 'blur(5px)'},
+        {at: 1, expect: 'blur(10px)'},
+        {at: 1.5, expect: 'blur(15px)'}
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'brightness(0)',
+        to: 'none' // lacuna is 1
+      }, [
+        {at: -1, expect: 'brightness(0)'}, // Negative values are not allowed.
+        {at: 0, expect: 'brightness(0)'},
+        {at: 0.5, expect: 'brightness(0.5)'},
+        {at: 1.5, expect: 'brightness(1.5)'}
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'contrast(0)',
+        to: 'none' // lacuna is 1
+      }, [
+        {at: -1, expect: 'contrast(0)'}, // Negative values are not allowed.
+        {at: 0, expect: 'contrast(0)'},
+        {at: 0.5, expect: 'contrast(0.5)'},
+        {at: 1.5, expect: 'contrast(1.5)'}
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'none', // lacuna is drop-shadow(0px 0px 0px transparent)
+        to: 'drop-shadow(20px 10px green)'
+      }, [
+        {at: -1, expect: 'drop-shadow(-20px -10px transparent)'},
+        {at: 0.5, expect: 'drop-shadow(10px 5px rgba(0, 128, 0, 0.5))'},
+        {at: 1, expect: 'drop-shadow(20px 10px green)'},
+        {at: 1.5, expect: 'drop-shadow(30px 15px #00C000)'}
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'none', // lacuna is 0
+        to: 'grayscale(1)'
+      }, [
+        {at: -1, expect: 'grayscale(0)'}, // Negative values are not allowed.
+        {at: 0.5, expect: 'grayscale(0.5)'},
+        {at: 1, expect: 'grayscale(1)'},
+        {at: 1.5, expect: 'grayscale(1)'} // Should clamp values to 1.
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'none', // lacuna is 0deg
+        to: 'hue-rotate(360deg)'
+      }, [
+        {at: -1, expect: 'hue-rotate(-360deg)'},
+        {at: 0.5, expect: 'hue-rotate(180deg)'},
+        {at: 1, expect: 'hue-rotate(360deg)'},
+        {at: 1.5, expect: 'hue-rotate(540deg)'}
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'none', // lacuna is 0
+        to: 'invert(1)'
+      }, [
+        {at: -1, expect: 'invert(0)'}, // Negative values are not allowed.
+        {at: 0.5, expect: 'invert(0.5)'},
+        {at: 1, expect: 'invert(1)'},
+        {at: 1.5, expect: 'invert(1)'} // Should clamp values to 1.
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'opacity(0)',
+        to: 'none' // lacuna is 1
+      }, [
+        {at: -1, expect: 'opacity(0)'}, // Negative values are not allowed.
+        {at: 0, expect: 'opacity(0)'},
+        {at: 0.5, expect: 'opacity(0.5)'},
+        {at: 1.5, expect: 'opacity(1)'} // Should clamp values to 1.
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'saturate(0)',
+        to: 'none' // lacuna is 1
+      }, [
+        {at: -1, expect: 'saturate(0)'}, // Negative values are not allowed.
+        {at: 0, expect: 'saturate(0)'},
+        {at: 0.5, expect: 'saturate(0.5)'},
+        {at: 1.5, expect: 'saturate(1.5)'}
+      ]);
+
+      test_interpolation({
+        property: 'backdrop-filter',
+        from: 'none', // lacuna is 0
+        to: 'sepia(1)'
+      }, [
+        {at: -1, expect: 'sepia(0)'}, // Negative values are not allowed.
+        {at: 0.5, expect: 'sepia(0.5)'},
+        {at: 1, expect: 'sepia(1)'},
+        {at: 1.5, expect: 'sepia(1)'} // Should clamp values to 1.
+      ]);
+
+      test_no_interpolation({
+        property: 'backdrop-filter',
+        from: 'url("#svgfilter")',
+        to: 'none', // lacuna is not defined
+      });
+    </script>
+  </body>
+</html>

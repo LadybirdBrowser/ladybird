@@ -3,6 +3,7 @@
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
+ * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -118,6 +119,194 @@ static RefPtr<CSSStyleValue const> interpolate_scale(DOM::Element& element, Calc
         PropertyID::Scale,
         new_values.size() == 3 ? TransformFunction::Scale3d : TransformFunction::Scale,
         move(new_values));
+}
+
+// https://drafts.fxtf.org/filter-effects/#interpolation-of-filter-functions
+static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, CalculationContext calculation_context, FilterValue const& from, FilterValue const& to, float delta, AllowDiscrete allow_discrete)
+{
+    VERIFY(!from.has<URL>());
+    VERIFY(!to.has<URL>());
+
+    if (from.index() != to.index()) {
+        return {};
+    }
+
+    auto result = from.visit(
+        [&](FilterOperation::Blur const& from_value) -> Optional<FilterValue> {
+            auto const& to_value = to.get<FilterOperation::Blur>();
+
+            if (auto interpolated_style_value = interpolate_value(element, calculation_context, from_value.radius.as_style_value(), to_value.radius.as_style_value(), delta, allow_discrete)) {
+                LengthOrCalculated interpolated_radius = interpolated_style_value->is_length() ? LengthOrCalculated { interpolated_style_value->as_length().length() } : LengthOrCalculated { interpolated_style_value->as_calculated() };
+                return FilterOperation::Blur {
+                    .radius = interpolated_radius
+                };
+            }
+            return {};
+        },
+        [&](FilterOperation::HueRotate const& from_value) -> Optional<FilterValue> {
+            auto const& to_value = to.get<FilterOperation::HueRotate>();
+            auto const& from_style_value = from_value.angle.has<FilterOperation::HueRotate::Zero>() ? AngleStyleValue::create(Angle::make_degrees(0)) : from_value.angle.get<AngleOrCalculated>().as_style_value();
+            auto const& to_style_value = to_value.angle.has<FilterOperation::HueRotate::Zero>() ? AngleStyleValue::create(Angle::make_degrees(0)) : to_value.angle.get<AngleOrCalculated>().as_style_value();
+            if (auto interpolated_style_value = interpolate_value(element, calculation_context, from_style_value, to_style_value, delta, allow_discrete)) {
+                AngleOrCalculated interpolated_angle = interpolated_style_value->is_angle() ? AngleOrCalculated { interpolated_style_value->as_angle().angle() } : AngleOrCalculated { interpolated_style_value->as_calculated() };
+                return FilterOperation::HueRotate {
+                    .angle = interpolated_angle,
+                };
+            }
+            return {};
+        },
+        [&](FilterOperation::Color const& from_value) -> Optional<FilterValue> {
+            auto resolve_number_percentage = [](NumberPercentage const& amount) -> ValueComparingNonnullRefPtr<CSSStyleValue const> {
+                if (amount.is_number())
+                    return NumberStyleValue::create(amount.number().value());
+                if (amount.is_percentage())
+                    return NumberStyleValue::create(amount.percentage().as_fraction());
+                if (amount.is_calculated())
+                    return amount.calculated();
+                VERIFY_NOT_REACHED();
+            };
+            auto const& to_value = to.get<FilterOperation::Color>();
+            auto from_style_value = resolve_number_percentage(from_value.amount);
+            auto to_style_value = resolve_number_percentage(to_value.amount);
+            if (auto interpolated_style_value = interpolate_value(element, calculation_context, from_style_value, to_style_value, delta, allow_discrete)) {
+                auto to_number_percentage = [&](CSSStyleValue const& style_value) -> NumberPercentage {
+                    if (style_value.is_number())
+                        return Number {
+                            Number::Type::Number,
+                            style_value.as_number().number(),
+                        };
+                    if (style_value.is_percentage())
+                        return Percentage { style_value.as_percentage().percentage() };
+                    if (style_value.is_calculated())
+                        return NumberPercentage { style_value.as_calculated() };
+                    VERIFY_NOT_REACHED();
+                };
+                return FilterOperation::Color {
+                    .operation = delta >= 0.5f ? to_value.operation : from_value.operation,
+                    .amount = to_number_percentage(*interpolated_style_value)
+                };
+            }
+            return {};
+        },
+        [](auto const&) -> Optional<FilterValue> {
+            // FIXME: Handle interpolating shadow list values
+            return {};
+        });
+
+    return result;
+}
+
+// https://drafts.fxtf.org/filter-effects/#interpolation-of-filters
+static RefPtr<CSSStyleValue const> interpolate_filter_value_list(DOM::Element& element, CalculationContext calculation_context, CSSStyleValue const& a_from, CSSStyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
+{
+    auto is_filter_value_list_without_url = [](CSSStyleValue const& value) {
+        if (!value.is_filter_value_list())
+            return false;
+        auto const& filter_value_list = value.as_filter_value_list();
+        return !filter_value_list.contains_url();
+    };
+
+    auto initial_value_for = [&](FilterValue value) {
+        return value.visit([&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur {}; },
+            [&](FilterOperation::DropShadow const&) -> FilterValue {
+                return FilterOperation::DropShadow {
+                    .offset_x = Length::make_px(0),
+                    .offset_y = Length::make_px(0),
+                    .radius = Length::make_px(0),
+                    .color = Color::Transparent
+                };
+            },
+            [&](FilterOperation::HueRotate const&) -> FilterValue {
+                return FilterOperation::HueRotate {};
+            },
+            [&](FilterOperation::Color const& color) -> FilterValue {
+                auto default_value_for_interpolation = [&]() {
+                    switch (color.operation) {
+                    case Gfx::ColorFilterType::Grayscale:
+                    case Gfx::ColorFilterType::Invert:
+                    case Gfx::ColorFilterType::Sepia:
+                        return 0.0;
+                    case Gfx::ColorFilterType::Brightness:
+                    case Gfx::ColorFilterType::Contrast:
+                    case Gfx::ColorFilterType::Opacity:
+                    case Gfx::ColorFilterType::Saturate:
+                        return 1.0;
+                    }
+                    VERIFY_NOT_REACHED();
+                }();
+                return FilterOperation::Color { .operation = color.operation, .amount = NumberPercentage { Number { Number::Type::Integer, default_value_for_interpolation } } };
+            },
+            [&](auto&) -> FilterValue {
+                VERIFY_NOT_REACHED();
+            });
+    };
+
+    auto interpolate_filter_values = [&](CSSStyleValue const& from, CSSStyleValue const& to) -> RefPtr<FilterValueListStyleValue const> {
+        auto const& from_filter_values = from.as_filter_value_list().filter_value_list();
+        auto const& to_filter_values = to.as_filter_value_list().filter_value_list();
+        Vector<FilterValue> interpolated_filter_values;
+        for (size_t i = 0; i < from.as_filter_value_list().size(); ++i) {
+            auto const& from_value = from_filter_values[i];
+            auto const& to_value = to_filter_values[i];
+
+            auto interpolated_value = interpolate_filter_function(element, calculation_context, from_value, to_value, delta, allow_discrete);
+            if (!interpolated_value.has_value())
+                return {};
+            interpolated_filter_values.append(interpolated_value.release_value());
+        }
+        return FilterValueListStyleValue::create(move(interpolated_filter_values));
+    };
+
+    if (is_filter_value_list_without_url(a_from) && is_filter_value_list_without_url(a_to)) {
+        auto const& from_list = a_from.as_filter_value_list();
+        auto const& to_list = a_to.as_filter_value_list();
+        // If both filters have a <filter-value-list> of same length without <url> and for each <filter-function> for which there is a corresponding item in each list
+        if (from_list.size() == to_list.size()) {
+            // Interpolate each <filter-function> pair following the rules in section Interpolation of Filter Functions.
+            return interpolate_filter_values(a_from, a_to);
+        }
+
+        // If both filters have a <filter-value-list> of different length without <url> and for each <filter-function> for which there is a corresponding item in each list
+
+        // 1. Append the missing equivalent <filter-function>s from the longer list to the end of the shorter list. The new added <filter-function>s must be initialized to their initial values for interpolation.
+        auto append_missing_values_to = [&](FilterValueListStyleValue const& short_list, FilterValueListStyleValue const& longer_list) -> ValueComparingNonnullRefPtr<FilterValueListStyleValue const> {
+            Vector<FilterValue> new_filter_list = short_list.filter_value_list();
+            for (size_t i = new_filter_list.size(); i < longer_list.size(); ++i) {
+                auto const& filter_value = longer_list.filter_value_list()[i];
+                new_filter_list.append(initial_value_for(filter_value));
+            }
+            return FilterValueListStyleValue::create(move(new_filter_list));
+        };
+        ValueComparingNonnullRefPtr<CSSStyleValue const> from = from_list.size() < to_list.size() ? append_missing_values_to(from_list, to_list) : a_from;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> to = to_list.size() < from_list.size() ? append_missing_values_to(to_list, from_list) : a_to;
+
+        // 2. Interpolate each <filter-function> pair following the rules in section Interpolation of Filter Functions.
+        return interpolate_filter_values(from, to);
+    }
+
+    // If one filter is none and the other is a <filter-value-list> without <url>
+    if ((is_filter_value_list_without_url(a_from) && a_to.to_keyword() == Keyword::None)
+        || (is_filter_value_list_without_url(a_to) && a_from.to_keyword() == Keyword::None)) {
+
+        // 1. Replace none with the corresponding <filter-value-list> of the other filter. The new <filter-function>s must be initialized to their initial values for interpolation.
+        auto replace_none_with_initial_filter_list_values = [&](FilterValueListStyleValue const& filter_value_list) {
+            Vector<FilterValue> initial_values;
+            for (auto const& filter_value : filter_value_list.filter_value_list()) {
+                initial_values.append(initial_value_for(filter_value));
+            }
+            return FilterValueListStyleValue::create(move(initial_values));
+        };
+
+        ValueComparingNonnullRefPtr<CSSStyleValue const> from = a_from.is_keyword() ? replace_none_with_initial_filter_list_values(a_to.as_filter_value_list()) : a_from;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> to = a_to.is_keyword() ? replace_none_with_initial_filter_list_values(a_from.as_filter_value_list()) : a_to;
+
+        // 2. Interpolate each <filter-function> pair following the rules in section Interpolation of Filter Functions.
+        return interpolate_filter_values(from, to);
+    }
+
+    // Otherwise:
+    // Use discrete interpolation
+    return {};
 }
 
 static RefPtr<CSSStyleValue const> interpolate_translate(DOM::Element& element, CalculationContext calculation_context, CSSStyleValue const& a_from, CSSStyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
@@ -358,6 +547,12 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
 
         if (property_id == PropertyID::Rotate) {
             if (auto result = interpolate_rotate(element, calculation_context, from, to, delta, allow_discrete))
+                return result;
+            return interpolate_discrete(from, to, delta, allow_discrete);
+        }
+
+        if (property_id == PropertyID::Filter || property_id == PropertyID::BackdropFilter) {
+            if (auto result = interpolate_filter_value_list(element, calculation_context, from, to, delta, allow_discrete))
                 return result;
             return interpolate_discrete(from, to, delta, allow_discrete);
         }
