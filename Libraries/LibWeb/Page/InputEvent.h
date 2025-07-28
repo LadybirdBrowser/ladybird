@@ -44,6 +44,7 @@ struct MouseEvent {
         MouseDown,
         MouseUp,
         MouseMove,
+        MouseLeave,
         MouseWheel,
         DoubleClick,
     };

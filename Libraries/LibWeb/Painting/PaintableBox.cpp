@@ -979,6 +979,19 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHan
     return Paintable::DispatchEventOfSameName::Yes;
 }
 
+void PaintableBox::handle_mouseleave(Badge<EventHandler>)
+{
+    auto previous_draw_enlarged_horizontal_scrollbar = m_draw_enlarged_horizontal_scrollbar;
+    m_draw_enlarged_horizontal_scrollbar = false;
+    if (previous_draw_enlarged_horizontal_scrollbar != m_draw_enlarged_horizontal_scrollbar)
+        set_needs_display();
+
+    auto previous_draw_enlarged_vertical_scrollbar = m_draw_enlarged_vertical_scrollbar;
+    m_draw_enlarged_vertical_scrollbar = false;
+    if (previous_draw_enlarged_vertical_scrollbar != m_draw_enlarged_vertical_scrollbar)
+        set_needs_display();
+}
+
 bool PaintableBox::scrollbar_contains_mouse_position(ScrollDirection direction, CSSPixelPoint position)
 {
     TemporaryChange force_enlarged_horizontal_scrollbar { m_draw_enlarged_horizontal_scrollbar, true };

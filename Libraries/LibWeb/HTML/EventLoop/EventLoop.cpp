@@ -279,6 +279,8 @@ void EventLoop::process_input_events() const
                         return page.handle_mouseup(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
                     case MouseEvent::Type::MouseMove:
                         return page.handle_mousemove(mouse_event.position, mouse_event.screen_position, mouse_event.buttons, mouse_event.modifiers);
+                    case MouseEvent::Type::MouseLeave:
+                        return page.handle_mouseleave();
                     case MouseEvent::Type::MouseWheel:
                         return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y);
                     case MouseEvent::Type::DoubleClick:
