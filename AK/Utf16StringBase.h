@@ -219,6 +219,7 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE bool contains(char16_t needle) const { return find_code_unit_offset(needle).has_value(); }
     [[nodiscard]] ALWAYS_INLINE bool contains(Utf16View const& needle) const { return find_code_unit_offset(needle).has_value(); }
+    [[nodiscard]] ALWAYS_INLINE bool contains_any_of(ReadonlySpan<u32> needles) const { return utf16_view().contains_any_of(needles); }
 
     [[nodiscard]] ALWAYS_INLINE size_t count(Utf16View const& needle) const { return utf16_view().count(needle); }
 
