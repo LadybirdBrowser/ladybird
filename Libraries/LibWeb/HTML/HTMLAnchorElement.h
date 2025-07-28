@@ -26,8 +26,8 @@ public:
 
     GC::Ref<DOM::DOMTokenList> rel_list();
 
-    String text() const;
-    void set_text(String const&);
+    Utf16String text() const;
+    void set_text(Utf16String const&);
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-a-element

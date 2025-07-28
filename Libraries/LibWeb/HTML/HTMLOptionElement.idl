@@ -12,6 +12,6 @@ interface HTMLOptionElement : HTMLElement {
     attribute boolean selected;
     [CEReactions] attribute Utf16DOMString value;
 
-    [CEReactions] attribute DOMString text;
+    [CEReactions] attribute Utf16DOMString text;
     readonly attribute long index;
 };

@@ -389,7 +389,7 @@ String HTMLElement::get_the_text_steps()
     // 1. If element is not being rendered or if the user agent is a non-CSS user agent, then return element's descendant text content.
     document().update_layout(DOM::UpdateLayoutReason::HTMLElementGetTheTextSteps);
     if (!layout_node())
-        return descendant_text_content();
+        return descendant_text_content().to_utf8_but_should_be_ported_to_utf16();
 
     // 2. Let results be a new empty list.
     Vector<Variant<String, RequiredLineBreakCount>> results;

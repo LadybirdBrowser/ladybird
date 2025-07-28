@@ -17,8 +17,8 @@ class HTMLTitleElement final : public HTMLElement {
 public:
     virtual ~HTMLTitleElement() override;
 
-    String text() const;
-    void set_text(String const& value);
+    Utf16String text() const;
+    void set_text(Utf16String const& value);
 
 private:
     HTMLTitleElement(DOM::Document&, DOM::QualifiedName);

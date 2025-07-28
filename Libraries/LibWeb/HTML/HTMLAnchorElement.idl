@@ -16,7 +16,7 @@ interface HTMLAnchorElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString hreflang;
     [CEReactions, Reflect] attribute DOMString type;
 
-    [CEReactions] attribute DOMString text;
+    [CEReactions] attribute Utf16DOMString text;
 
     [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
 

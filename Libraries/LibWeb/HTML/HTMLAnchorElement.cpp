@@ -164,14 +164,14 @@ GC::Ref<DOM::DOMTokenList> HTMLAnchorElement::rel_list()
 }
 
 // https://html.spec.whatwg.org/multipage/text-level-semantics.html#dom-a-text
-String HTMLAnchorElement::text() const
+Utf16String HTMLAnchorElement::text() const
 {
     // The text attribute's getter must return this element's descendant text content.
     return descendant_text_content();
 }
 
 // https://html.spec.whatwg.org/multipage/text-level-semantics.html#dom-a-text
-void HTMLAnchorElement::set_text(String const& text)
+void HTMLAnchorElement::set_text(Utf16String const& text)
 {
     // The text attribute's setter must string replace all with the given value within this element.
     string_replace_all(text);

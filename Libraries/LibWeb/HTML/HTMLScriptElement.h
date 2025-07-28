@@ -57,8 +57,8 @@ public:
     void unmark_as_already_started(Badge<DOM::Range>);
     void unmark_as_parser_inserted(Badge<DOM::Range>);
 
-    String text() { return child_text_content(); }
-    void set_text(String const& text) { string_replace_all(text); }
+    Utf16String text() { return child_text_content(); }
+    void set_text(Utf16String const& text) { string_replace_all(text); }
 
     [[nodiscard]] bool async() const;
     void set_async(bool);

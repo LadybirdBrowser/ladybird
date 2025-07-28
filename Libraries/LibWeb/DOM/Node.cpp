@@ -165,18 +165,20 @@ Optional<String> Node::alternative_text() const
 }
 
 // https://dom.spec.whatwg.org/#concept-descendant-text-content
-String Node::descendant_text_content() const
+Utf16String Node::descendant_text_content() const
 {
-    StringBuilder builder;
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+
     for_each_in_subtree_of_type<Text>([&](auto& text_node) {
         builder.append(text_node.data());
         return TraversalDecision::Continue;
     });
-    return builder.to_string_without_validation();
+
+    return builder.to_utf16_string_without_validation();
 }
 
 // https://dom.spec.whatwg.org/#dom-node-textcontent
-Optional<String> Node::text_content() const
+Optional<Utf16String> Node::text_content() const
 {
     // The textContent getter steps are to return the following, switching on the interface this implements:
 
@@ -185,23 +187,23 @@ Optional<String> Node::text_content() const
         return descendant_text_content();
 
     // If CharacterData, return this’s data.
-    if (is<CharacterData>(this))
-        return static_cast<CharacterData const&>(*this).data().to_utf8_but_should_be_ported_to_utf16();
+    if (auto const* character_data = as_if<CharacterData>(*this))
+        return character_data->data();
 
     // If Attr node, return this's value.
-    if (is<Attr>(*this))
-        return static_cast<Attr const&>(*this).value();
+    if (auto const* attribute = as_if<Attr>(*this))
+        return Utf16String::from_utf8(attribute->value());
 
     // Otherwise, return null
     return {};
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dom-node-textcontent%E2%91%A0
-void Node::set_text_content(Optional<String> const& maybe_content)
+void Node::set_text_content(Optional<Utf16String> const& maybe_content)
 {
     // The textContent setter steps are to, if the given value is null, act as if it was the empty string instead,
     // and then do as described below, switching on the interface this implements:
-    auto content = maybe_content.value_or(String {});
+    auto content = maybe_content.value_or({});
 
     // If DocumentFragment or Element, string replace all with the given value within this.
     if (is<DocumentFragment>(this) || is<Element>(this)) {
@@ -213,17 +215,13 @@ void Node::set_text_content(Optional<String> const& maybe_content)
     }
 
     // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
-    else if (is<CharacterData>(this)) {
-        auto* character_data_node = as<CharacterData>(this);
-        character_data_node->set_data(Utf16String::from_utf8(content));
-
-        // FIXME: CharacterData::set_data is not spec compliant. Make this match the spec when set_data becomes spec compliant.
-        //        Do note that this will make this function able to throw an exception.
+    else if (auto* character_data = as_if<CharacterData>(*this)) {
+        MUST(character_data->replace_data(0, character_data->length_in_utf16_code_units(), content));
     }
 
     // If Attr, set an existing attribute value with this and the given value.
-    if (is<Attr>(*this)) {
-        static_cast<Attr&>(*this).set_value(content);
+    else if (auto* attribute = as_if<Attr>(*this)) {
+        attribute->set_value(content.to_utf8_but_should_be_ported_to_utf16());
     }
 
     // Otherwise, do nothing.
@@ -524,21 +522,21 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
     document().style_invalidator().add_pending_invalidation(*this, move(invalidation_set), options.invalidate_elements_that_use_css_custom_properties);
 }
 
-String Node::child_text_content() const
+Utf16String Node::child_text_content() const
 {
-    if (!is<ParentNode>(*this))
-        return String {};
+    auto const* parent_node = as_if<ParentNode>(*this);
+    if (!parent_node)
+        return {};
 
-    StringBuilder builder;
-    as<ParentNode>(*this).for_each_child([&](auto& child) {
-        if (is<Text>(child)) {
-            auto maybe_content = as<Text>(child).text_content();
-            if (maybe_content.has_value())
-                builder.append(maybe_content.value());
-        }
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+
+    parent_node->for_each_child_of_type<Text>([&](auto const& child) {
+        if (auto content = child.text_content(); content.has_value())
+            builder.append(*content);
         return IterationDecision::Continue;
     });
-    return MUST(builder.to_string());
+
+    return builder.to_utf16_string();
 }
 
 // https://dom.spec.whatwg.org/#concept-shadow-including-root
@@ -2045,14 +2043,14 @@ void Node::replace_all(GC::Ptr<Node> node)
 }
 
 // https://dom.spec.whatwg.org/#string-replace-all
-void Node::string_replace_all(String const& string)
+void Node::string_replace_all(Utf16String string)
 {
     // 1. Let node be null.
     GC::Ptr<Node> node;
 
     // 2. If string is not the empty string, then set node to a new Text node whose data is string and node document is parent’s node document.
     if (!string.is_empty())
-        node = realm().create<Text>(document(), Utf16String::from_utf8(string));
+        node = realm().create<Text>(document(), move(string));
 
     // 3. Replace all with node within parent.
     replace_all(node);
@@ -2862,7 +2860,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             // If the current node has at least one direct child title element, select the appropriate title based on
             // the language rules for the SVG specification, and return the title text alternative as a flat string.
             element->for_each_child_of_type<SVG::SVGTitleElement>([&](SVG::SVGTitleElement const& title) mutable {
-                title_element_text = title.text_content();
+                title_element_text = title.text_content().map([](auto const& title) { return title.to_utf8_but_should_be_ported_to_utf16(); });
                 return IterationDecision::Break;
             });
             if (title_element_text.has_value())
@@ -2879,7 +2877,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         //    then use the subtree of the first such element.
         if (is<HTML::HTMLTableElement>(*element))
             if (auto& table = (const_cast<HTML::HTMLTableElement&>(static_cast<HTML::HTMLTableElement const&>(*element))); table.caption())
-                return table.caption()->text_content().release_value();
+                return table.caption()->text_content()->to_utf8_but_should_be_ported_to_utf16();
 
         // https://w3c.github.io/html-aam/#fieldset-element-accessible-name-computation
         // 2. If the accessible name is still empty, then: if the fieldset element has a child that is a legend element,
@@ -2888,7 +2886,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             Optional<String> legend;
             auto& fieldset = (const_cast<HTML::HTMLFieldSetElement&>(static_cast<HTML::HTMLFieldSetElement const&>(*element)));
             fieldset.for_each_child_of_type<HTML::HTMLLegendElement>([&](HTML::HTMLLegendElement const& element) mutable {
-                legend = element.text_content().release_value();
+                legend = element.text_content()->to_utf8_but_should_be_ported_to_utf16();
                 return IterationDecision::Break;
             });
             if (legend.has_value())
@@ -3010,7 +3008,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
     if (is_text() && (!parent_element() || (parent_element()->is_referenced() || !parent_element()->is_hidden() || !parent_element()->has_hidden_ancestor() || parent_element()->has_referenced_and_hidden_ancestor()))) {
         if (layout_node() && layout_node()->is_text_node())
             return as<Layout::TextNode>(layout_node())->text_for_rendering().to_utf8_but_should_be_ported_to_utf16();
-        return text_content().release_value();
+        return text_content()->to_utf8_but_should_be_ported_to_utf16();
     }
 
     // H. Otherwise, if the current node is a descendant of an element whose Accessible Name or Accessible Description

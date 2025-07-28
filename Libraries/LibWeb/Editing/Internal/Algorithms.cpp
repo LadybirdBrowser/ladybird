@@ -383,11 +383,10 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
         if (is<DOM::Text>(*start_node) && start_offset != 0) {
             auto parent_white_space_collapse = resolved_keyword(*start_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
 
-            // FIXME: Find a way to get code points directly from the UTF-8 string
-            auto start_node_data = Utf16String::from_utf8(*start_node->text_content());
-            auto offset_minus_one_code_point = start_node_data.code_point_at(start_offset - 1);
+            auto start_node_data = start_node->text_content().release_value();
+            auto offset_minus_one_code_unit = start_node_data.code_unit_at(start_offset - 1);
 
-            if (parent_white_space_collapse != CSS::Keyword::Preserve && (offset_minus_one_code_point == 0x20 || offset_minus_one_code_point == 0xA0)) {
+            if (parent_white_space_collapse != CSS::Keyword::Preserve && (offset_minus_one_code_unit == 0x20 || offset_minus_one_code_unit == 0xA0)) {
                 --start_offset;
                 continue;
             }
@@ -436,22 +435,21 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
         if (is<DOM::Text>(*end_node) && end_offset != end_node->length()) {
             auto parent_white_space_collapse = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
 
-            // FIXME: Find a way to get code points directly from the UTF-8 string
-            auto end_node_data = Utf16String::from_utf8(*end_node->text_content());
-            auto offset_code_point = end_node_data.code_point_at(end_offset);
+            auto end_node_data = end_node->text_content().release_value();
+            auto offset_code_unit = end_node_data.code_unit_at(end_offset);
 
-            if (parent_white_space_collapse != CSS::Keyword::Preserve && (offset_code_point == 0x20 || offset_code_point == 0xA0)) {
+            if (parent_white_space_collapse != CSS::Keyword::Preserve && (offset_code_unit == 0x20 || offset_code_unit == 0xA0)) {
                 // 1. If fix collapsed space is true, and collapse spaces is true, and the end offsetth
                 //    code unit of end node's data is a space (0x0020): call deleteData(end offset, 1)
                 //    on end node, then continue this loop from the beginning.
-                if (fix_collapsed_space && collapse_spaces && offset_code_point == 0x20) {
+                if (fix_collapsed_space && collapse_spaces && offset_code_unit == 0x20) {
                     MUST(static_cast<DOM::CharacterData&>(*end_node).delete_data(end_offset, 1));
                     continue;
                 }
 
                 // 2. Set collapse spaces to true if the end offsetth code unit of end node's data is a
                 //    space (0x0020), false otherwise.
-                collapse_spaces = offset_code_point == 0x20;
+                collapse_spaces = offset_code_unit == 0x20;
 
                 // 3. Add one to end offset.
                 ++end_offset;
@@ -500,7 +498,7 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
             // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand: https://github.com/w3c/editing/issues/486.
             if (is<DOM::Text>(*end_node) && end_offset == end_node->length() && precedes_a_line_break(end_node)) {
                 auto parent_white_space_collapse = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
-                if (parent_white_space_collapse != CSS::Keyword::Preserve && end_node->text_content().value().ends_with_bytes(" "sv)) {
+                if (parent_white_space_collapse != CSS::Keyword::Preserve && end_node->text_content()->ends_with(" "sv)) {
                     // 1. Subtract one from end offset.
                     --end_offset;
 
@@ -560,10 +558,10 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
             replacement_whitespace_view = replacement_whitespace_view.substring_view(1);
 
             // 2. If element is not the same as the start offsetth code unit of start node's data:
-            auto start_node_data = Utf16String::from_utf8(*start_node->text_content());
-            auto start_node_code_point = start_node_data.code_point_at(start_offset);
+            auto start_node_data = start_node->text_content().release_value();
+            auto start_node_code_unit = start_node_data.code_unit_at(start_offset);
 
-            if (element != start_node_code_point) {
+            if (element != start_node_code_unit) {
                 // 1. Call insertData(start offset, element) on start node.
                 auto& start_node_character_data = static_cast<DOM::CharacterData&>(*start_node);
                 MUST(start_node_character_data.insert_data(start_offset, Utf16String::from_code_point(element)));
@@ -1695,7 +1693,7 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
             HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr);
         if (parent_is_table_like && is<DOM::Text>(child_node.ptr())) {
             auto child_text_content = child_node->text_content().release_value();
-            if (!all_of(child_text_content.bytes_as_string_view(), Infra::is_ascii_whitespace))
+            if (!all_of(child_text_content, Infra::is_ascii_whitespace))
                 return false;
         }
 
@@ -2907,7 +2905,8 @@ void normalize_sublists_in_node(GC::Ref<DOM::Node> item)
         // 2. If child is an ol or ul, or new item is null and child is a Text node whose data
         //    consists of zero of more space characters:
         auto child_text = child->text_content();
-        auto text_is_all_whitespace = child_text.has_value() && all_of(child_text.value().bytes_as_string_view(), Infra::is_ascii_whitespace);
+        auto text_is_all_whitespace = child_text.has_value() && all_of(*child_text, Infra::is_ascii_whitespace);
+
         if ((is<HTML::HTMLOListElement>(*child) || is<HTML::HTMLUListElement>(*child))
             || (!new_item && is<DOM::Text>(*child) && text_is_all_whitespace)) {
             // 1. Set new item to null.

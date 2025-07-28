@@ -17,8 +17,8 @@ interface HTMLScriptElement : HTMLElement {
     [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
     [CEReactions, Reflect] attribute DOMString integrity;
     [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
-    
-    [CEReactions] attribute DOMString text;
+
+    [CEReactions] attribute Utf16DOMString text;
 
     static boolean supports(DOMString type);
 

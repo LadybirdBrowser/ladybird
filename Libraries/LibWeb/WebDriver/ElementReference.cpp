@@ -520,7 +520,7 @@ String element_rendered_text(DOM::Node& node)
     // FIXME: The spec does not define how to get the element's rendered text, other than to do exactly as Selenium does.
     //        This implementation is not sufficient, as we must also at least consider the shadow DOM.
     if (!is<HTML::HTMLElement>(node))
-        return node.text_content().value_or(String {});
+        return node.text_content().value_or({}).to_utf8_but_should_be_ported_to_utf16();
 
     auto& element = static_cast<HTML::HTMLElement&>(node);
     return element.inner_text();

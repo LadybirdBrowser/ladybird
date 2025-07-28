@@ -38,7 +38,7 @@ interface Node : EventTarget {
     // FIXME: [LegacyNullToEmptyString] is not allowed on nullable types as per the Web IDL spec.
     //        However, we only apply it to setters, so this works as a stop gap.
     //        Replace this with something like a special cased [LegacyNullToEmptyString].
-    [LegacyNullToEmptyString, CEReactions] attribute DOMString? textContent;
+    [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString? textContent;
     [CEReactions] undefined normalize();
 
     [ImplementedAs=clone_node_binding, CEReactions] Node cloneNode(optional boolean deep = false);
