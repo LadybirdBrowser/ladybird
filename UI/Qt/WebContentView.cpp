@@ -404,10 +404,8 @@ QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery) const
 
 void WebContentView::leaveEvent(QEvent* event)
 {
-    static constexpr QPointF point { NumericLimits<qreal>::max(), NumericLimits<qreal>::max() };
-
-    QMouseEvent mouse_event { QEvent::Type::MouseMove, point, point, Qt::MouseButton::NoButton, Qt::MouseButton::NoButton, Qt::KeyboardModifier::NoModifier };
-    enqueue_native_event(Web::MouseEvent::Type::MouseMove, mouse_event);
+    static QMouseEvent mouse_event { QEvent::Type::Leave, {}, {}, Qt::MouseButton::NoButton, Qt::MouseButton::NoButton, Qt::KeyboardModifier::NoModifier };
+    enqueue_native_event(Web::MouseEvent::Type::MouseLeave, mouse_event);
 
     QWidget::leaveEvent(event);
 }

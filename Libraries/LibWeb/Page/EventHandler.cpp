@@ -861,6 +861,44 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
     return EventResult::Handled;
 }
 
+EventResult EventHandler::handle_mouseleave()
+{
+    if (should_ignore_device_input_event())
+        return EventResult::Dropped;
+
+    if (!m_navigable->active_document())
+        return EventResult::Dropped;
+    if (!m_navigable->active_document()->is_fully_active())
+        return EventResult::Dropped;
+
+    m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+
+    if (!paint_root())
+        return EventResult::Dropped;
+
+    auto& document = *m_navigable->active_document();
+    auto& page = m_navigable->page();
+
+    if (auto* hovered_node = document.hovered_node()) {
+        if (auto* paintable = hovered_node->paintable(); paintable && paintable->wants_mouse_events())
+            paintable->handle_mouseleave({});
+
+        document.set_hovered_node(nullptr);
+    }
+
+    if (page.is_in_tooltip_area()) {
+        page.set_is_in_tooltip_area(false);
+        page.client().page_did_leave_tooltip_area();
+    }
+
+    if (page.is_hovering_link()) {
+        page.set_is_hovering_link(false);
+        page.client().page_did_unhover_link();
+    }
+
+    return EventResult::Handled;
+}
+
 EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     if (should_ignore_device_input_event())

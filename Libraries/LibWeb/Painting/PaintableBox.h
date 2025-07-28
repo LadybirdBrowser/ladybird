@@ -301,6 +301,7 @@ private:
     virtual DispatchEventOfSameName handle_mousedown(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
+    virtual void handle_mouseleave(Badge<EventHandler>) override;
 
     bool scrollbar_contains_mouse_position(ScrollDirection, CSSPixelPoint);
     void scroll_to_mouse_position(CSSPixelPoint);

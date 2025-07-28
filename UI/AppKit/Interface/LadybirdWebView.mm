@@ -1576,9 +1576,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
 - (void)mouseExited:(NSEvent*)event
 {
-    static constexpr Web::DevicePixelPoint point { NumericLimits<Web::DevicePixels::Type>::max(), NumericLimits<Web::DevicePixels::Type>::max() };
-
-    Web::MouseEvent mouse_event { Web::MouseEvent::Type::MouseMove, point, point, Web::UIEvents::MouseButton::None, Web::UIEvents::MouseButton::None, Web::UIEvents::KeyModifier::Mod_None, 0, 0, nullptr };
+    Web::MouseEvent mouse_event { Web::MouseEvent::Type::MouseLeave, {}, {}, Web::UIEvents::MouseButton::None, Web::UIEvents::MouseButton::None, Web::UIEvents::KeyModifier::Mod_None, 0, 0, nullptr };
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
