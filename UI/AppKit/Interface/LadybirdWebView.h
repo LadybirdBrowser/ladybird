@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -39,7 +39,7 @@
 - (void)onBackNavigationEnabled:(BOOL)back_enabled
        forwardNavigationEnabled:(BOOL)forward_enabled;
 
-- (void)onTitleChange:(ByteString const&)title;
+- (void)onTitleChange:(Utf16String const&)title;
 - (void)onFaviconChange:(Gfx::Bitmap const&)bitmap;
 - (void)onAudioPlayStateChange:(Web::HTML::AudioPlayState)play_state;
 

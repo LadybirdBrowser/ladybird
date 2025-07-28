@@ -994,32 +994,32 @@ WebIDL::ExceptionOr<void> Document::set_body(HTML::HTMLElement* new_body)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#document.title
-String Document::title() const
+Utf16String Document::title() const
 {
-    String value;
+    Utf16String value;
 
     // 1. If the document element is an SVG svg element, then let value be the child text content of the first SVG title
     //    element that is a child of the document element.
     if (auto const* document_element = this->document_element(); is<SVG::SVGElement>(document_element)) {
         if (auto const* title_element = document_element->first_child_of_type<SVG::SVGTitleElement>())
-            value = title_element->child_text_content().to_utf8_but_should_be_ported_to_utf16();
+            value = title_element->child_text_content();
     }
 
     // 2. Otherwise, let value be the child text content of the title element, or the empty string if the title element
     //    is null.
     else if (auto title_element = this->title_element()) {
-        value = title_element->text_content().value_or({}).to_utf8_but_should_be_ported_to_utf16();
+        value = title_element->text_content().value_or({});
     }
 
     // 3. Strip and collapse ASCII whitespace in value.
-    auto title = Infra::strip_and_collapse_whitespace(value).release_value_but_fixme_should_propagate_errors();
+    auto title = Infra::strip_and_collapse_whitespace(value);
 
     // 4. Return value.
     return title;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#document.title
-WebIDL::ExceptionOr<void> Document::set_title(String const& title)
+WebIDL::ExceptionOr<void> Document::set_title(Utf16String const& title)
 {
     auto* document_element = this->document_element();
 
@@ -1043,7 +1043,7 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
         }
 
         // 3. String replace all with the given value within element.
-        element->string_replace_all(Utf16String::from_utf8(title));
+        element->string_replace_all(title);
     }
 
     // -> If the document element is in the HTML namespace
@@ -1072,7 +1072,7 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
         }
 
         // 4. String replace all with the given value within element.
-        element->string_replace_all(Utf16String::from_utf8(title));
+        element->string_replace_all(title);
     }
 
     // -> Otherwise

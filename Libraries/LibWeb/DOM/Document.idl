@@ -124,7 +124,7 @@ interface Document : Node {
     readonly attribute DOMString lastModified;
     readonly attribute DOMString readyState;
 
-    [CEReactions] attribute DOMString title;
+    [CEReactions] attribute Utf16DOMString title;
 
     readonly attribute boolean hidden;
     readonly attribute DOMString visibilityState;

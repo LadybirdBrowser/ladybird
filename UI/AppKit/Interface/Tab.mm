@@ -1,10 +1,9 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteString.h>
 #include <AK/String.h>
 #include <LibCore/Resource.h>
 #include <LibGfx/ShareableBitmap.h>
@@ -293,11 +292,9 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
                          forwardNavigationEnabled:forward_enabled];
 }
 
-- (void)onTitleChange:(ByteString const&)title
+- (void)onTitleChange:(Utf16String const&)title
 {
-    [[self tabController] onTitleChange:title];
-
-    self.title = Ladybird::string_to_ns_string(title);
+    self.title = Ladybird::utf16_string_to_ns_string(title);
     [self updateTabTitleAndFavicon];
 }
 

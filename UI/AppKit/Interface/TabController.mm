@@ -55,8 +55,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 {
     u64 m_page_index;
 
-    ByteString m_title;
-
     TabSettings m_settings;
 
     OwnPtr<WebView::Autocomplete> m_autocomplete;
@@ -178,11 +176,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     m_can_navigate_back = back_enabled;
     m_can_navigate_forward = forward_enabled;
     [self updateNavigationButtonStates];
-}
-
-- (void)onTitleChange:(ByteString const&)title
-{
-    m_title = title;
 }
 
 - (void)onCreateNewTab

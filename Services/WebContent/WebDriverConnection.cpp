@@ -522,7 +522,7 @@ Messages::WebDriverClient::GetTitleResponse WebDriverConnection::get_title()
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
         // 3. Let title be the initial value of the title IDL attribute of the current top-level browsing context's active document.
-        auto title = current_top_level_browsing_context()->active_document()->title();
+        auto title = current_top_level_browsing_context()->active_document()->title().to_utf8();
 
         // 4. Return success with data title.
         async_driver_execution_complete({ move(title) });

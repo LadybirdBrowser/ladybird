@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <LibURL/URL.h>
 
 #include <QByteArray>
@@ -22,6 +23,10 @@ AK::ByteString ak_byte_string_from_qbytearray(QByteArray const&);
 
 String ak_string_from_qstring(QString const&);
 QString qstring_from_ak_string(StringView);
+
+Utf16String utf16_string_from_qstring(QString const&);
+QString qstring_from_utf16_string(Utf16View const&);
+
 QByteArray qbytearray_from_ak_string(StringView);
 
 Optional<URL::URL> ak_url_from_qstring(QString const&);
