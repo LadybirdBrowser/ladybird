@@ -1,0 +1,106 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x1098 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 400x990 children: not-inline
+      BlockContainer <(anonymous)> at (8,8) content-size 400x18 children: inline
+        BreakNode <br>
+        BlockContainer <div.a> at (8,26) content-size 100x100 floating [BFC] children: not-inline
+      Box <div.c> at (8,126) content-size 400x100 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> at (8,126) content-size 257.3125x100 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 31, rect: [8,126 257.3125x18] baseline: 13.796875
+              "This should clear the blue box."
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,226) content-size 400x0 children: inline
+        TextNode <#text>
+      BlockContainer <hr> at (9,235) content-size 398x0 [BFC] children: not-inline
+      BlockContainer <div.a> at (8,244) content-size 100x100 floating [BFC] children: not-inline
+      BlockContainer <div.b> at (358,244) content-size 50x200 floating [BFC] children: not-inline
+      Box <div.c> at (8,444) content-size 400x100 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> at (8,444) content-size 268.5625x100 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 32, rect: [8,444 268.5625x18] baseline: 13.796875
+              "This should clear the green box."
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,544) content-size 400x0 children: inline
+        TextNode <#text>
+      BlockContainer <hr> at (9,553) content-size 398x0 [BFC] children: not-inline
+      BlockContainer <div.a> at (8,562) content-size 100x100 floating [BFC] children: not-inline
+      BlockContainer <div.b> at (358,562) content-size 50x200 floating [BFC] children: not-inline
+      Box <div.d> at (58,662) content-size 300x100 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> at (58,662) content-size 300x100 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 34, rect: [58,662 287.78125x18] baseline: 13.796875
+              "This should clear the blue box and"
+          frag 1 from TextNode start: 35, length: 32, rect: [58,680 258.65625x18] baseline: 13.796875
+              "sit flush against the green box."
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,762) content-size 400x0 children: inline
+        TextNode <#text>
+      BlockContainer <hr> at (9,771) content-size 398x0 [BFC] children: not-inline
+      BlockContainer <div.a> at (8,780) content-size 100x100 floating [BFC] children: not-inline
+      Box <div.e> at (148,780) content-size 150x100 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> at (148,780) content-size 150x100 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 15, rect: [148,780 123.125x18] baseline: 13.796875
+              "This should sit"
+          frag 1 from TextNode start: 16, length: 17, rect: [148,798 136.578125x18] baseline: 13.796875
+              "flush against the"
+          frag 2 from TextNode start: 34, length: 14, rect: [148,816 114.703125x18] baseline: 13.796875
+              "blue box, with"
+          frag 3 from TextNode start: 49, length: 15, rect: [148,834 125.484375x18] baseline: 13.796875
+              "40px of padding"
+          frag 4 from TextNode start: 65, length: 12, rect: [148,852 88.6875x18] baseline: 13.796875
+              "to the left."
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,880) content-size 400x0 children: inline
+        TextNode <#text>
+      BlockContainer <hr> at (9,889) content-size 398x0 [BFC] children: not-inline
+      BlockContainer <div.a> at (8,898) content-size 100x100 floating [BFC] children: not-inline
+      BlockContainer <div.b> at (358,898) content-size 50x200 floating [BFC] children: not-inline
+      Box <div.f> at (133,898) content-size 200x100 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> at (133,898) content-size 200x100 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 23, rect: [133,898 196.75x18] baseline: 13.796875
+              "This should be centered"
+          frag 1 from TextNode start: 24, length: 20, rect: [133,916 171.1875x18] baseline: 13.796875
+              "between the blue and"
+          frag 2 from TextNode start: 45, length: 12, rect: [133,934 103.375x18] baseline: 13.796875
+              "green boxes."
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,998) content-size 400x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1098]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x1098]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 400x990] overflow: [8,8 400x1090]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 400x18] overflow: [8,8 400x118]
+        PaintableWithLines (BlockContainer<DIV>.a) [8,26 100x100]
+      PaintableBox (Box<DIV>.c) [8,126 400x100]
+        PaintableWithLines (BlockContainer(anonymous)) [8,126 257.3125x100]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,226 400x0]
+      PaintableWithLines (BlockContainer<HR>) [8,234 400x2]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,244 100x100]
+      PaintableWithLines (BlockContainer<DIV>.b) [358,244 50x200]
+      PaintableBox (Box<DIV>.c) [8,444 400x100]
+        PaintableWithLines (BlockContainer(anonymous)) [8,444 268.5625x100]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,544 400x0]
+      PaintableWithLines (BlockContainer<HR>) [8,552 400x2]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,562 100x100]
+      PaintableWithLines (BlockContainer<DIV>.b) [358,562 50x200]
+      PaintableBox (Box<DIV>.d) [58,662 300x100]
+        PaintableWithLines (BlockContainer(anonymous)) [58,662 300x100]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,762 400x0]
+      PaintableWithLines (BlockContainer<HR>) [8,770 400x2]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,780 100x100]
+      PaintableBox (Box<DIV>.e) [108,780 190x100]
+        PaintableWithLines (BlockContainer(anonymous)) [148,780 150x100]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,880 400x0]
+      PaintableWithLines (BlockContainer<HR>) [8,888 400x2]
+      PaintableWithLines (BlockContainer<DIV>.a) [8,898 100x100]
+      PaintableWithLines (BlockContainer<DIV>.b) [358,898 50x200]
+      PaintableBox (Box<DIV>.f) [133,898 200x100]
+        PaintableWithLines (BlockContainer(anonymous)) [133,898 200x100]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,998 400x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1098] [children: 0] (z-index: auto)

@@ -31,6 +31,7 @@ public:
 
     bool box_should_avoid_floats_because_it_establishes_fc(Box const&);
     void compute_width(Box const&, AvailableSpace const&);
+    void avoid_float_intrusions(Box const&, AvailableSpace const&);
 
     // https://www.w3.org/TR/css-display/#block-formatting-context-root
     BlockContainer const& root() const { return static_cast<BlockContainer const&>(context_box()); }
