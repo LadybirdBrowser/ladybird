@@ -150,31 +150,38 @@ void BlockFormattingContext::parent_context_did_dimension_child_root_box()
 
 bool BlockFormattingContext::box_should_avoid_floats_because_it_establishes_fc(Box const& box)
 {
-    if (auto formatting_context_type = formatting_context_type_created_by_box(box); formatting_context_type.has_value()) {
-        if (formatting_context_type.value() == Type::Block)
-            return true;
-        if (formatting_context_type.value() == Type::Flex)
-            return true;
-        if (formatting_context_type.value() == Type::Grid)
-            return true;
-    }
-    return false;
+    // https://drafts.csswg.org/css2/#floats
+    // The border box of a table, a block-level replaced element, or an element in the normal flow that establishes
+    // a new block formatting context (such as an element with 'overflow' other than 'visible') must not overlap the
+    // margin box of any floats in the same block formatting context as the element itself. If necessary,
+    // implementations should clear the said element by placing it below any preceding floats, but may place it
+    // adjacent to such floats if there is sufficient space. They may even make the border box of said element
+    // narrower than defined by section 10.3.3. CSS2 does not define when a UA may put said element next to the
+    // float or by how much said element may become narrower.
+
+    // https://drafts.csswg.org/css-flexbox/#flex-containers
+    // A flex container establishes a new flex formatting context for its contents. This is the same as establishing
+    // a block formatting context, except that flex layout is used instead of block layout. For example, floats do
+    // not intrude into the flex container, and the flex container’s margins do not collapse with the margins of its
+    // contents.
+
+    // https://drafts.csswg.org/css-grid/#grid-containers
+    // A grid container that is not a subgrid establishes an independent grid formatting context for its contents.
+    // This is the same as establishing an independent block formatting context, except that grid layout is used
+    // instead of block layout: floats do not intrude into the grid container, and the grid container’s margins do
+    // not collapse with the margins of its contents.
+
+    auto formatting_context_type = formatting_context_type_created_by_box(box);
+    return formatting_context_type.has_value()
+        && first_is_one_of(formatting_context_type.value(), Type::Block, Type::Flex, Type::Grid);
 }
 
 void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const& available_space)
 {
     auto remaining_available_space = available_space;
+
+    // Certain formatting contexts do not allow float intrusions, so reduce the available space for them.
     if (available_space.width.is_definite() && box_should_avoid_floats_because_it_establishes_fc(box)) {
-        // NOTE: Although CSS 2.2 specification says that only block formatting contexts should avoid floats,
-        //       we also do this for flex and grid formatting contexts, because that how other engines behave.
-        // 9.5 Floats
-        // The border box of a table, a block-level replaced element, or an element in the normal flow that establishes a
-        // new block formatting context (such as an element with 'overflow' other than 'visible') must not overlap the margin
-        // box of any floats in the same block formatting context as the element itself. If necessary, implementations should
-        // clear the said element by placing it below any preceding floats, but may place it adjacent to such floats if there is
-        // sufficient space. They may even make the border box of said element narrower than defined by section 10.3.3.
-        // CSS2 does not define when a UA may put said element next to the float or by how much said element may
-        // become narrower.
         auto intrusion = intrusion_by_floats_into_box(box, 0);
         auto remaining_width = available_space.width.to_px_or_zero() - intrusion.left - intrusion.right;
         remaining_available_space.width = AvailableSize::make_definite(remaining_width);
@@ -238,7 +245,10 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
 
         if (!box.is_inline()) {
             // 10.3.3 Block-level, non-replaced elements in normal flow
-            // If 'width' is not 'auto' and 'border-left-width' + 'padding-left' + 'width' + 'padding-right' + 'border-right-width' (plus any of 'margin-left' or 'margin-right' that are not 'auto') is larger than the width of the containing block, then any 'auto' values for 'margin-left' or 'margin-right' are, for the following rules, treated as zero.
+            // If 'width' is not 'auto' and 'border-left-width' + 'padding-left' + 'width' + 'padding-right' +
+            // 'border-right-width' (plus any of 'margin-left' or 'margin-right' that are not 'auto') is larger than the
+            // width of the containing block, then any 'auto' values for 'margin-left' or 'margin-right' are, for the
+            // following rules, treated as zero.
             if (!width.is_auto() && total_px > width_of_containing_block) {
                 if (margin_left.is_auto())
                     margin_left = zero_value;
