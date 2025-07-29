@@ -288,7 +288,7 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
             // such a state, the transformed element is not rendered.
             return {};
         }
-        if (property_id == PropertyID::BoxShadow) {
+        if (property_id == PropertyID::BoxShadow || property_id == PropertyID::TextShadow) {
             if (auto interpolated_box_shadow = interpolate_box_shadow(element, calculation_context, from, to, delta, allow_discrete))
                 return *interpolated_box_shadow;
             return interpolate_discrete(from, to, delta, allow_discrete);
