@@ -560,7 +560,7 @@ WebIDL::ExceptionOr<void> Animation::play()
     return play_an_animation(AutoRewind::Yes);
 }
 
-// https://www.w3.org/TR/web-animations-1/#play-an-animation
+// https://drafts.csswg.org/web-animations-1/#playing-an-animation-section
 WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
 {
     // 1. Let aborted pause be a boolean flag that is true if animation has a pending pause task, and false otherwise.
@@ -666,16 +666,17 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
 
     // 12. Schedule a task to run as soon as animation is ready. The task shall perform the following steps:
     //
-    //         Note: Steps omitted, set run_pending_play_task()
+    //         Note: Steps omitted, see run_pending_play_task()
     //
     //     So long as the above task is scheduled but has yet to run, animation is described as having a pending play
     //     task. While the task is running, however, animation does not have a pending play task.
     //
     //     If a user agent determines that animation is immediately ready, it may schedule the above task as a microtask
     //     such that it runs at the next microtask checkpoint, but it must not perform the task synchronously.
+    // FIXME: Below actions should only happen when the animation is actually ready.
     m_pending_play_task = TaskState::Scheduled;
     if (m_timeline)
-        m_saved_play_time = m_timeline->current_time().value();
+        m_saved_play_time = m_timeline->current_time();
 
     // 13. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //     and the synchronously notify flag set to false.
