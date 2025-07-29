@@ -42,7 +42,7 @@ static T interpolate_raw(T from, T to, float delta)
     } else if constexpr (AK::Detail::IsIntegral<T>) {
         auto from_float = static_cast<float>(from);
         auto to_float = static_cast<float>(to);
-        auto unclamped_result = from_float + (to_float - from_float) * delta;
+        auto unclamped_result = roundf(from_float + (to_float - from_float) * delta);
         return static_cast<AK::Detail::RemoveCVReference<T>>(clamp(unclamped_result, NumericLimits<T>::min(), NumericLimits<T>::max()));
     }
     return static_cast<AK::Detail::RemoveCVReference<T>>(from + (to - from) * delta);
