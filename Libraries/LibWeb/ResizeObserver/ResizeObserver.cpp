@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -29,7 +29,6 @@ ResizeObserver::ResizeObserver(JS::Realm& realm, WebIDL::CallbackType* callback)
 {
     auto navigable = as<HTML::Window>(HTML::relevant_global_object(*this)).navigable();
     m_document = navigable->active_document().ptr();
-    m_document->register_resize_observer({}, *this);
 }
 
 ResizeObserver::~ResizeObserver() = default;
@@ -51,7 +50,7 @@ void ResizeObserver::visit_edges(JS::Cell::Visitor& visitor)
 
 void ResizeObserver::finalize()
 {
-    if (m_document)
+    if (m_document && m_list_node.is_in_list())
         m_document->unregister_resize_observer({}, *this);
 }
 
@@ -71,6 +70,10 @@ void ResizeObserver::observe(DOM::Element& target, ResizeObserverOptions options
 
     // 4. Add the resizeObservation to the [[observationTargets]] slot.
     m_observation_targets.append(resize_observation);
+
+    if (!m_list_node.is_in_list()) {
+        m_document->register_resize_observer({}, *this);
+    }
 }
 
 // https://drafts.csswg.org/resize-observer-1/#dom-resizeobserver-unobserve
@@ -85,6 +88,8 @@ void ResizeObserver::unobserve(DOM::Element& target)
 
     // 3. Remove observation from [[observationTargets]].
     m_observation_targets.remove(observation.index());
+
+    unregister_observer_if_needed();
 }
 
 // https://drafts.csswg.org/resize-observer-1/#dom-resizeobserver-disconnect
@@ -95,6 +100,8 @@ void ResizeObserver::disconnect()
 
     // 2. Clear the [[activeTargets]] list.
     m_active_targets.clear();
+
+    unregister_observer_if_needed();
 }
 
 void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries) const
@@ -110,6 +117,21 @@ void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> 
     }
 
     (void)WebIDL::invoke_callback(callback, JS::js_undefined(), WebIDL::ExceptionBehavior::Report, { { wrapped_records } });
+}
+
+void ResizeObserver::unregister_observer_if_needed()
+{
+    // https://drafts.csswg.org/resize-observer/#lifetime
+    // A ResizeObserver will remain alive until both of these conditions are met:
+    // - there are no scripting references to the observer.
+    // - the observer is not observing any targets.
+
+    // The first condition from the spec is handled by visiting ResizeObserver from
+    // JS environment that holds a reference to ResizeObserver.
+    // Here we handle the second condition.
+    if (m_observation_targets.is_empty() && m_list_node.is_in_list() && m_document) {
+        m_document->unregister_resize_observer({}, *this);
+    }
 }
 
 }

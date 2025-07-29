@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -44,6 +44,8 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
     virtual void finalize() override;
 
+    void unregister_observer_if_needed();
+
     GC::Ptr<WebIDL::CallbackType> m_callback;
     Vector<GC::Ref<ResizeObservation>> m_observation_targets;
     Vector<GC::Ref<ResizeObservation>> m_active_targets;
@@ -51,6 +53,11 @@ private:
 
     // AD-HOC: This is the document where we've registered the observer.
     WeakPtr<DOM::Document> m_document;
+
+    IntrusiveListNode<ResizeObserver> m_list_node;
+
+public:
+    using ResizeObserversList = IntrusiveList<&ResizeObserver::m_list_node>;
 };
 
 }
