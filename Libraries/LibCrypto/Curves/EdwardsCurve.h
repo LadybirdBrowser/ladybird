@@ -11,18 +11,27 @@
 
 namespace Crypto::Curves {
 
+enum class EdwardsCurveType : u8 {
+    Ed25519,
+    Ed448,
+    X25519,
+    X448
+};
+
 class EdwardsCurve {
 public:
     ErrorOr<ByteBuffer> generate_private_key();
     ErrorOr<ByteBuffer> generate_public_key(ReadonlyBytes private_key);
 
 protected:
-    EdwardsCurve(char const* curve_name)
-        : m_curve_name(curve_name)
+    EdwardsCurve(EdwardsCurveType curve_type)
+        : m_curve_type(curve_type)
     {
     }
 
-    char const* m_curve_name;
+    static char const* curve_type_to_openssl_name(EdwardsCurveType curve_type);
+
+    EdwardsCurveType m_curve_type;
 };
 
 class SignatureEdwardsCurve : public EdwardsCurve {
@@ -31,8 +40,8 @@ public:
     ErrorOr<bool> verify(ReadonlyBytes public_key, ReadonlyBytes signature, ReadonlyBytes message, ReadonlyBytes context = {});
 
 protected:
-    explicit SignatureEdwardsCurve(char const* curve_name)
-        : EdwardsCurve(curve_name)
+    explicit SignatureEdwardsCurve(EdwardsCurveType curve_type)
+        : EdwardsCurve(curve_type)
     {
     }
 };
@@ -42,8 +51,8 @@ public:
     ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes private_key, ReadonlyBytes public_key);
 
 protected:
-    explicit ExchangeEdwardsCurve(char const* curve_name)
-        : EdwardsCurve(curve_name)
+    explicit ExchangeEdwardsCurve(EdwardsCurveType curve_type)
+        : EdwardsCurve(curve_type)
     {
     }
 };
@@ -51,7 +60,7 @@ protected:
 class Ed448 : public SignatureEdwardsCurve {
 public:
     Ed448()
-        : SignatureEdwardsCurve("ED448")
+        : SignatureEdwardsCurve(EdwardsCurveType::Ed448)
     {
     }
 };
@@ -59,7 +68,7 @@ public:
 class X448 : public ExchangeEdwardsCurve {
 public:
     X448()
-        : ExchangeEdwardsCurve("X448")
+        : ExchangeEdwardsCurve(EdwardsCurveType::X448)
     {
     }
 };
@@ -67,7 +76,7 @@ public:
 class Ed25519 : public SignatureEdwardsCurve {
 public:
     Ed25519()
-        : SignatureEdwardsCurve("ED25519")
+        : SignatureEdwardsCurve(EdwardsCurveType::Ed25519)
     {
     }
 };
@@ -75,7 +84,7 @@ public:
 class X25519 : public ExchangeEdwardsCurve {
 public:
     X25519()
-        : ExchangeEdwardsCurve("X25519")
+        : ExchangeEdwardsCurve(EdwardsCurveType::X25519)
     {
     }
 };
