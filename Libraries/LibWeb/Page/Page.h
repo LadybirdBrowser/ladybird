@@ -107,9 +107,6 @@ public:
     CSS::PreferredContrast preferred_contrast() const;
     CSS::PreferredMotion preferred_motion() const;
 
-    bool is_same_origin_policy_enabled() const { return m_same_origin_policy_enabled; }
-    void set_same_origin_policy_enabled(bool b) { m_same_origin_policy_enabled = b; }
-
     bool is_scripting_enabled() const { return m_is_scripting_enabled; }
     void set_is_scripting_enabled(bool b) { m_is_scripting_enabled = b; }
 
@@ -248,9 +245,6 @@ private:
     WeakPtr<HTML::Navigable> m_focused_navigable;
 
     GC::Ptr<HTML::TraversableNavigable> m_top_level_traversable;
-
-    // FIXME: Enable this by default once CORS preflight checks are supported.
-    bool m_same_origin_policy_enabled { false };
 
     bool m_is_scripting_enabled { true };
 

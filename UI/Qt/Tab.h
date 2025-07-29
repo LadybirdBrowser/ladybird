@@ -82,7 +82,6 @@ public:
 
     void set_block_popups(bool);
     void set_line_box_borders(bool);
-    void set_same_origin_policy(bool);
     void set_scripting(bool);
     void set_content_filtering(bool);
     void set_user_agent_string(ByteString const&);
