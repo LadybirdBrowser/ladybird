@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html id="html">
+<head id="head">
+<style id="style">
+
+body { counter-reset: item; }
+div {
+    counter-increment: item;
+    display: list-item;
+}
+
+div.numbers::marker { content: counter( item ) ':'; }
+div.bullets::marker { content: '• '; }
+
+</style>
+</head>
+<body id="body">
+<div class="numbers">one</div>
+<div class="bullets">bullet</div>
+<div class="numbers">three</div>
+<div class="bullets">bullet</div>
+<div class="numbers">five</div>
+</body>
+</html>
