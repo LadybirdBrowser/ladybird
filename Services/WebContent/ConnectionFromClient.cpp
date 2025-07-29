@@ -378,11 +378,6 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
     }
 
-    if (request == "same-origin-policy") {
-        page->page().set_same_origin_policy_enabled(argument == "on");
-        return;
-    }
-
     if (request == "scripting") {
         page->page().set_is_scripting_enabled(argument == "on");
         return;

@@ -938,11 +938,6 @@ void Tab::set_line_box_borders(bool enabled)
     debug_request("set-line-box-borders", enabled ? "on" : "off");
 }
 
-void Tab::set_same_origin_policy(bool enabled)
-{
-    debug_request("same-origin-policy", enabled ? "on" : "off");
-}
-
 void Tab::set_scripting(bool enabled)
 {
     debug_request("scripting", enabled ? "on" : "off");

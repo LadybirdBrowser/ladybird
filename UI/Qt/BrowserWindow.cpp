@@ -597,16 +597,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         });
     });
 
-    m_enable_same_origin_policy_action = new QAction("Enable Same-Origin Policy", this);
-    m_enable_same_origin_policy_action->setCheckable(true);
-    debug_menu->addAction(m_enable_same_origin_policy_action);
-    QObject::connect(m_enable_same_origin_policy_action, &QAction::triggered, this, [this] {
-        bool state = m_enable_same_origin_policy_action->isChecked();
-        for_each_tab([state](auto& tab) {
-            tab.set_same_origin_policy(state);
-        });
-    });
-
     auto* help_menu = m_hamburger_menu->addMenu("&Help");
     menuBar()->addMenu(help_menu);
 
@@ -852,7 +842,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
     tab->set_scripting(m_enable_scripting_action->isChecked());
     tab->set_content_filtering(m_enable_content_filtering_action->isChecked());
     tab->set_block_popups(m_block_pop_ups_action->isChecked());
-    tab->set_same_origin_policy(m_enable_same_origin_policy_action->isChecked());
     tab->set_user_agent_string(user_agent_string());
     tab->set_navigator_compatibility_mode(navigator_compatibility_mode());
     tab->view().set_preferred_color_scheme(m_preferred_color_scheme);

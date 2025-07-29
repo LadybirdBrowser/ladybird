@@ -730,9 +730,6 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Block Pop-ups"
                                                 action:@selector(togglePopupBlocking:)
                                          keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Enable Same-Origin Policy"
-                                                action:@selector(toggleSameOriginPolicy:)
-                                         keyEquivalent:@""]];
 
     [menu setSubmenu:submenu];
     return menu;

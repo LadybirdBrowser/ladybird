@@ -431,12 +431,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self debugRequest:"block-pop-ups" argument:block_popups ? "on" : "off"];
 }
 
-- (void)toggleSameOriginPolicy:(id)sender
-{
-    m_settings.same_origin_policy_enabled = !m_settings.same_origin_policy_enabled;
-    [self debugRequest:"same-origin-policy" argument:m_settings.same_origin_policy_enabled ? "on" : "off"];
-}
-
 - (void)setUserAgentSpoof:(NSMenuItem*)sender
 {
     ByteString const user_agent_name = [[sender title] UTF8String];
@@ -673,8 +667,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [item setState:m_settings.scripting_enabled ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(togglePopupBlocking:)) {
         [item setState:m_settings.block_popups ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(toggleSameOriginPolicy:)) {
-        [item setState:m_settings.same_origin_policy_enabled ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setUserAgentSpoof:)) {
         [item setState:(m_settings.user_agent_name == [[item title] UTF8String]) ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setNavigatorCompatibilityMode:)) {
