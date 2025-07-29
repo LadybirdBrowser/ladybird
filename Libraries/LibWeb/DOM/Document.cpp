@@ -581,7 +581,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_scripts_to_execute_in_order_as_soon_as_possible);
     visitor.visit(m_scripts_to_execute_as_soon_as_possible);
     visitor.visit(m_node_iterators);
-    visitor.visit(m_document_observers);
     visitor.visit(m_document_observers_being_notified);
     visitor.visit(m_pending_scroll_event_targets);
     visitor.visit(m_pending_scrollend_event_targets);

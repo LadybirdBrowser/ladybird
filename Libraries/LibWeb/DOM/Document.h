@@ -1081,7 +1081,9 @@ private:
 
     HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
 
-    HashTable<GC::Ref<DocumentObserver>> m_document_observers;
+    // Document should not visit DocumentObserver to avoid leaks.
+    // It's responsibility of object that requires DocumentObserver to keep it alive.
+    HashTable<GC::RawRef<DocumentObserver>> m_document_observers;
     Vector<GC::Ref<DocumentObserver>> m_document_observers_being_notified;
 
     // https://html.spec.whatwg.org/multipage/dom.html#is-initial-about:blank
