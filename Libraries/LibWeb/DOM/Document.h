@@ -1200,6 +1200,8 @@ private:
 
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 
+    // Document should not visit ShadowRoot list to avoid leaks.
+    // It's responsibility of object that allocated ShadowRoot to keep it alive.
     ShadowRoot::DocumentShadowRootList m_shadow_roots;
 
     Optional<AK::UnixDateTime> m_last_modified;
