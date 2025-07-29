@@ -1,0 +1,103 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html#html> at (0,0) content-size 800x106 [BFC] children: not-inline
+    BlockContainer <(anonymous)> at (0,0) content-size 800x0 children: inline
+      TextNode <#text>
+    BlockContainer <body#body> at (8,8) content-size 784x90 children: not-inline
+      BlockContainer <(anonymous)> at (8,8) content-size 784x0 children: inline
+        TextNode <#text>
+      ListItemBox <div.numbers> at (8,8) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [18.125,8 28.6875x18] baseline: 13.796875
+            "one"
+        InlineNode <(anonymous)>
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x18] baseline: 13.796875
+              "1"
+          frag 1 from TextNode start: 0, length: 1, rect: [14.34375,8 3.78125x18] baseline: 13.796875
+              ":"
+          TextNode <#text>
+          TextNode <#text>
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,26) content-size 784x0 children: inline
+        TextNode <#text>
+      ListItemBox <div.bullets> at (8,26) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [21.84375,26 43.28125x18] baseline: 13.796875
+            "bullet"
+        InlineNode <(anonymous)>
+          frag 0 from TextNode start: 0, length: 2, rect: [8,26 13.84375x18] baseline: 13.796875
+              "• "
+          TextNode <#text>
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,44) content-size 784x0 children: inline
+        TextNode <#text>
+      ListItemBox <div.numbers> at (8,44) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [20.875,44 42.421875x18] baseline: 13.796875
+            "three"
+        InlineNode <(anonymous)>
+          frag 0 from TextNode start: 0, length: 1, rect: [8,44 9.09375x18] baseline: 13.796875
+              "3"
+          frag 1 from TextNode start: 0, length: 1, rect: [17.09375,44 3.78125x18] baseline: 13.796875
+              ":"
+          TextNode <#text>
+          TextNode <#text>
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,62) content-size 784x0 children: inline
+        TextNode <#text>
+      ListItemBox <div.bullets> at (8,62) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [21.84375,62 43.28125x18] baseline: 13.796875
+            "bullet"
+        InlineNode <(anonymous)>
+          frag 0 from TextNode start: 0, length: 2, rect: [8,62 13.84375x18] baseline: 13.796875
+              "• "
+          TextNode <#text>
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,80) content-size 784x0 children: inline
+        TextNode <#text>
+      ListItemBox <div.numbers> at (8,80) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [20.234375,80 27.921875x18] baseline: 13.796875
+            "five"
+        InlineNode <(anonymous)>
+          frag 0 from TextNode start: 0, length: 1, rect: [8,80 8.453125x18] baseline: 13.796875
+              "5"
+          frag 1 from TextNode start: 0, length: 1, rect: [16.453125,80 3.78125x18] baseline: 13.796875
+              ":"
+          TextNode <#text>
+          TextNode <#text>
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,98) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>#html) [0,0 800x106]
+    PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
+    PaintableWithLines (BlockContainer<BODY>#body) [8,8 784x90]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
+      PaintableWithLines (ListItemBox<DIV>.numbers) [8,8 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,8 10.125x18]
+          TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
+      PaintableWithLines (ListItemBox<DIV>.bullets) [8,26 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,26 13.84375x18]
+          TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
+      PaintableWithLines (ListItemBox<DIV>.numbers) [8,44 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,44 12.875x18]
+          TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,62 784x0]
+      PaintableWithLines (ListItemBox<DIV>.bullets) [8,62 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,62 13.84375x18]
+          TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,80 784x0]
+      PaintableWithLines (ListItemBox<DIV>.numbers) [8,80 784x18]
+        PaintableWithLines (InlineNode(anonymous)) [8,80 12.234375x18]
+          TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,98 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML>#html [0,0 800x106] [children: 0] (z-index: auto)
