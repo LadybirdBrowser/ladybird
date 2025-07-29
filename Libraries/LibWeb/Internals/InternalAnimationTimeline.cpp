@@ -29,6 +29,7 @@ InternalAnimationTimeline::InternalAnimationTimeline(JS::Realm& realm)
     : AnimationTimeline(realm)
 {
     m_current_time = 0.0;
+    m_is_monotonically_increasing = true;
 
     auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     document.associate_with_timeline(*this);

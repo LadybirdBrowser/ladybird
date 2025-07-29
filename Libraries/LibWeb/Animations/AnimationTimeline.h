@@ -16,7 +16,7 @@ class AnimationTimeline : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(AnimationTimeline);
 
 public:
-    Optional<double> current_time() const { return m_current_time; }
+    Optional<double> current_time() const;
     virtual void set_current_time(Optional<double>);
 
     GC::Ptr<DOM::Document> associated_document() const { return m_associated_document; }
@@ -43,8 +43,8 @@ protected:
     // https://www.w3.org/TR/web-animations-1/#dom-animationtimeline-currenttime
     Optional<double> m_current_time {};
 
-    // https://www.w3.org/TR/web-animations-1/#monotonically-increasing-timeline
-    bool m_is_monotonically_increasing { true };
+    // https://drafts.csswg.org/web-animations-1/#monotonically-increasing-timeline
+    bool m_is_monotonically_increasing { false };
 
     // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
     GC::Ptr<DOM::Document> m_associated_document {};
