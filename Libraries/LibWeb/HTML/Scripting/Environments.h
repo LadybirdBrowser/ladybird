@@ -11,6 +11,7 @@
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/ModuleMap.h>
@@ -116,7 +117,7 @@ public:
     EventLoop& responsible_event_loop();
 
     // https://fetch.spec.whatwg.org/#concept-fetch-group
-    Vector<GC::Ref<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
+    auto& fetch_group() { return m_fetch_group; }
 
     SerializedEnvironmentSettingsObject serialize();
 
@@ -146,7 +147,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-fetch-record
     // A fetch group holds an ordered list of fetch records
-    Vector<GC::Ref<Fetch::Infrastructure::FetchRecord>> m_fetch_group;
+    Fetch::Infrastructure::FetchRecord::List m_fetch_group;
 
     // https://storage.spec.whatwg.org/#api
     // Each environment settings object has an associated StorageManager object.

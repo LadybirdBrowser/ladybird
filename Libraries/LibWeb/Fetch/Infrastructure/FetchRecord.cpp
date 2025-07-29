@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -36,6 +37,12 @@ void FetchRecord::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_request);
     visitor.visit(m_fetch_controller);
+}
+
+void FetchRecord::finalize()
+{
+    Base::finalize();
+    m_list_node.remove();
 }
 
 }
