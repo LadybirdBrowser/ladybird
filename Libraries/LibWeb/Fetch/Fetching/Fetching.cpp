@@ -1789,9 +1789,9 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
             auto& group = http_request->client()->fetch_group();
 
             // 3. Let inflightRecords be the set of fetch records in group whose request’s keepalive is true and done flag is unset.
-            Vector<GC::Ref<Infrastructure::FetchRecord>> in_flight_records;
-            for (auto const& fetch_record : group) {
-                if (fetch_record->request()->keepalive() && !fetch_record->request()->done())
+            GC::RootVector<GC::Ref<Infrastructure::FetchRecord>> in_flight_records(vm.heap());
+            for (auto& fetch_record : group) {
+                if (fetch_record.request()->keepalive() && !fetch_record.request()->done())
                     in_flight_records.append(fetch_record);
             }
 

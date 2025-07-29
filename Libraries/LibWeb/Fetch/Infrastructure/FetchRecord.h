@@ -7,12 +7,11 @@
 #pragma once
 
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#concept-fetch-record
-class FetchRecord : public JS::Cell {
+class FetchRecord final : public JS::Cell {
     GC_CELL(FetchRecord, JS::Cell);
     GC_DECLARE_ALLOCATOR(FetchRecord);
 
@@ -31,6 +30,7 @@ private:
     FetchRecord(GC::Ref<Infrastructure::Request>, GC::Ptr<FetchController>);
 
     virtual void visit_edges(Visitor&) override;
+    virtual void finalize() override;
 
     // https://fetch.spec.whatwg.org/#concept-request
     // A fetch record has an associated request (a request)
@@ -39,6 +39,11 @@ private:
     // https://fetch.spec.whatwg.org/#fetch-controller
     // A fetch record has an associated controller (a fetch controller or null)
     GC::Ptr<FetchController> m_fetch_controller { nullptr };
+
+    IntrusiveListNode<FetchRecord> m_list_node;
+
+public:
+    using List = IntrusiveList<&FetchRecord::m_list_node>;
 };
 
 }

@@ -62,7 +62,6 @@ void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_responsible_event_loop);
     visitor.visit(m_module_map);
     m_realm_execution_context->visit_edges(visitor);
-    visitor.visit(m_fetch_group);
     visitor.visit(m_storage_manager);
     visitor.visit(m_service_worker_registration_object_map);
     visitor.visit(m_service_worker_object_map);
