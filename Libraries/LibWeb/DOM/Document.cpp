@@ -605,9 +605,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_adopted_style_sheets);
     visitor.visit(m_script_blocking_style_sheet_set);
 
-    for (auto& shadow_root : m_shadow_roots)
-        visitor.visit(shadow_root);
-
     visitor.visit(m_top_layer_elements);
     visitor.visit(m_top_layer_pending_removals);
     visitor.visit(m_showing_auto_popover_list);
