@@ -584,7 +584,9 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_observers_being_notified);
     visitor.visit(m_pending_scroll_event_targets);
     visitor.visit(m_pending_scrollend_event_targets);
-    visitor.visit(m_resize_observers);
+    for (auto& resize_observer : m_resize_observers) {
+        visitor.visit(resize_observer);
+    }
 
     visitor.visit(m_shared_resource_requests);
 
@@ -4595,9 +4597,7 @@ void Document::register_resize_observer(Badge<ResizeObserver::ResizeObserver>, R
 
 void Document::unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver& observer)
 {
-    m_resize_observers.remove_first_matching([&](auto& registered_observer) {
-        return registered_observer.ptr() == &observer;
-    });
+    m_resize_observers.remove(observer);
 }
 
 // https://www.w3.org/TR/intersection-observer/#queue-an-intersection-observer-task
@@ -5787,13 +5787,13 @@ void Document::gather_active_observations_at_depth(size_t depth)
     // 1. Let depth be the depth passed in.
 
     // 2. For each observer in [[resizeObservers]] run these steps:
-    for (auto const& observer : m_resize_observers) {
+    for (auto& observer : m_resize_observers) {
         // 1. Clear observer’s [[activeTargets]], and [[skippedTargets]].
-        observer->active_targets().clear();
-        observer->skipped_targets().clear();
+        observer.active_targets().clear();
+        observer.skipped_targets().clear();
 
         // 2. For each observation in observer.[[observationTargets]] run this step:
-        for (auto const& observation : observer->observation_targets()) {
+        for (auto& observation : observer.observation_targets()) {
             // 1. If observation.isActive() is true
             if (observation->is_active()) {
                 // 1. Let targetDepth be result of calculate depth for node for observation.target.
@@ -5801,10 +5801,10 @@ void Document::gather_active_observations_at_depth(size_t depth)
 
                 // 2. If targetDepth is greater than depth then add observation to [[activeTargets]].
                 if (target_depth > depth) {
-                    observer->active_targets().append(observation);
+                    observer.active_targets().append(observation);
                 } else {
                     // 3. Else add observation to [[skippedTargets]].
-                    observer->skipped_targets().append(observation);
+                    observer.skipped_targets().append(observation);
                 }
             }
         }
@@ -5820,7 +5820,10 @@ size_t Document::broadcast_active_resize_observations()
     // 2. For each observer in document.[[resizeObservers]] run these steps:
 
     // NOTE: We make a copy of the resize observers list to avoid modifying it while iterating.
-    auto resize_observers = GC::RootVector { heap(), m_resize_observers };
+    auto resize_observers = GC::RootVector<GC::Ref<ResizeObserver::ResizeObserver>> { heap() };
+    for (auto& observer : m_resize_observers)
+        resize_observers.append(observer);
+
     for (auto const& observer : resize_observers) {
         // 1. If observer.[[activeTargets]] slot is empty, continue.
         if (observer->active_targets().is_empty()) {
@@ -5878,9 +5881,9 @@ size_t Document::broadcast_active_resize_observations()
 bool Document::has_active_resize_observations()
 {
     // 1. For each observer in [[resizeObservers]] run this step:
-    for (auto const& observer : m_resize_observers) {
+    for (auto& observer : m_resize_observers) {
         // 1. If observer.[[activeTargets]] is not empty, return true.
-        if (!observer->active_targets().is_empty())
+        if (!observer.active_targets().is_empty())
             return true;
     }
 
@@ -5892,9 +5895,9 @@ bool Document::has_active_resize_observations()
 bool Document::has_skipped_resize_observations()
 {
     // 1. For each observer in [[resizeObservers]] run this step:
-    for (auto const& observer : m_resize_observers) {
+    for (auto& observer : m_resize_observers) {
         // 1. If observer.[[skippedTargets]] is not empty, return true.
-        if (!observer->skipped_targets().is_empty())
+        if (!observer.skipped_targets().is_empty())
             return true;
     }
 

@@ -39,6 +39,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
@@ -1157,7 +1158,7 @@ private:
     // Each Document has a lazy load intersection observer, initially set to null but can be set to an IntersectionObserver instance.
     GC::Ptr<IntersectionObserver::IntersectionObserver> m_lazy_load_intersection_observer;
 
-    Vector<GC::Ref<ResizeObserver::ResizeObserver>> m_resize_observers;
+    ResizeObserver::ResizeObserver::ResizeObserversList m_resize_observers;
 
     // https://html.spec.whatwg.org/multipage/semantics.html#will-declaratively-refresh
     // A Document object has an associated will declaratively refresh (a boolean). It is initially false.
