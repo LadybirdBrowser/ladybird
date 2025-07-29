@@ -119,7 +119,7 @@ if (ENABLE_INSTALL_FREEDESKTOP_FILES)
         OUTPUT_VARIABLE GIT_HASH
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-    configure_file(${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.metainfo.xml.in org.ladybird.Ladybird.metainfo.xml @ONLY)
+    configure_file("${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.metainfo.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/org.ladybird.Ladybird.metainfo.xml" @ONLY)
     install(FILES
         "${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.svg"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps"
@@ -136,7 +136,7 @@ if (ENABLE_INSTALL_FREEDESKTOP_FILES)
         COMPONENT ladybird_Runtime
     )
     install(FILES
-        "org.ladybird.Ladybird.metainfo.xml"
+        "${CMAKE_CURRENT_BINARY_DIR}/org.ladybird.Ladybird.metainfo.xml"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo"
         COMPONENT ladybird_Runtime
     )
