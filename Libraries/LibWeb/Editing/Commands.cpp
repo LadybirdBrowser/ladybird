@@ -240,7 +240,7 @@ bool command_delete_action(DOM::Document& document, Utf16String const&)
 
         // 3. Record the values of the one-node list consisting of node, and let values be the
         //    result.
-        auto values = record_the_values_of_nodes({ *node });
+        auto values = record_the_values_of_nodes(document.heap(), { *node });
 
         // 4. Split the parent of the one-node list consisting of node.
         split_the_parent_of_nodes({ *node });
@@ -666,7 +666,7 @@ bool command_format_block_action(DOM::Document& document, Utf16String const& val
     });
 
     // 7. Record the values of node list, and let values be the result.
-    auto values = record_the_values_of_nodes(node_list);
+    auto values = record_the_values_of_nodes(document.heap(), node_list);
 
     // 8. For each node in node list, while node is the descendant of an editable HTML element in the same editing host,
     //    whose local name is a formattable block name, and which is not the ancestor of a prohibited paragraph child,
@@ -714,7 +714,7 @@ bool command_format_block_action(DOM::Document& document, Utf16String const& val
             });
 
             // 2. Record the values of sublist, and let values be the result.
-            auto values = record_the_values_of_nodes(sublist);
+            auto values = record_the_values_of_nodes(document.heap(), sublist);
 
             // 3. Remove the first member of node list from its parent, preserving its descendants.
             remove_node_preserving_its_descendants(node_list.first());
@@ -2141,7 +2141,7 @@ bool command_outdent_action(DOM::Document& document, Utf16String const&)
             sublist.append(node_list.take_first());
 
         // 6. Record the values of sublist, and let values be the result.
-        auto values = record_the_values_of_nodes(sublist);
+        auto values = record_the_values_of_nodes(document.heap(), sublist);
 
         // 7. Split the parent of sublist.
         split_the_parent_of_nodes(sublist);
