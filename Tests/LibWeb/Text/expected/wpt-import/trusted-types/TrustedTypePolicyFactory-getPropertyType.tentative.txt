@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	sanity check trustedTypes.getPropertyType for the HTML script element.
+Pass	sanity check trustedTypes.getAttributeType.
+Pass	getPropertyType tests adapted from w3c/trusted-types polyfill
+Pass	getAttributeType tests adapted from w3c/trusted-types polyfill
+Pass	iframe[srcDoc] is defined
+Pass	iframe.srcDoc is maybe defined
+Pass	IFRAME[srcDoc] is defined
+Pass	IFRAME.srcDoc is maybe defined
+Pass	iFrAmE[srcDoc] is defined
+Pass	iFrAmE.srcDoc is maybe defined
+Pass	iframe[SRCDOC] is defined
+Pass	iframe.SRCDOC is maybe defined
+Pass	IFRAME[SRCDOC] is defined
+Pass	IFRAME.SRCDOC is maybe defined
+Pass	iFrAmE[SRCDOC] is defined
+Pass	iFrAmE.SRCDOC is maybe defined
+Pass	iframe[srcdoc] is defined
+Pass	iframe.srcdoc is maybe defined
+Pass	IFRAME[srcdoc] is defined
+Pass	IFRAME.srcdoc is maybe defined
+Pass	iFrAmE[srcdoc] is defined
+Pass	iFrAmE.srcdoc is maybe defined
+Pass	getPropertyType vs getAttributeType for event handler.
+Pass	ASCII case-insensitivity of tag name and attribute parameters
+Pass	getPropertyType with an explicit elementNs parameter
+Pass	getAttributeType with explicit elementNs and attrNs parameters
+Pass	getAttributeType with qualified attribute name
+Pass	getPropertyType/getAttributeType with explicit null elementNs/attrNs
