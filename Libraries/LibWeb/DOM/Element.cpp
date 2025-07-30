@@ -1365,6 +1365,10 @@ void Element::removed_from(Node* old_parent, Node& old_root)
 
     play_or_cancel_animations_after_display_property_change();
     remove_animations_from_timeline();
+
+    for (auto& resize_observer : document().resize_observers({})) {
+        resize_observer.unobserve(*this);
+    }
 }
 
 void Element::moved_from(GC::Ptr<Node> old_parent)
