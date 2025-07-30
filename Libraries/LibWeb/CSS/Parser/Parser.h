@@ -396,6 +396,7 @@ private:
     RefPtr<StringStyleValue const> parse_opentype_tag_value(TokenStream<ComponentValue>&);
     RefPtr<FontSourceStyleValue const> parse_font_source_value(TokenStream<ComponentValue>&);
 
+    RefPtr<CSSStyleValue const> parse_anchor_size(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_angle_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_angle_percentage_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_flex_value(TokenStream<ComponentValue>&);

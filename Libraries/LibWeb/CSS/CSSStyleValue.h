@@ -87,6 +87,7 @@ public:
     virtual ~CSSStyleValue() = default;
 
     enum class Type {
+        AnchorSize,
         Angle,
         BackgroundRepeat,
         BackgroundSize,
@@ -153,6 +154,10 @@ public:
     }
     AbstractImageStyleValue const& as_abstract_image() const;
     AbstractImageStyleValue& as_abstract_image() { return const_cast<AbstractImageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_abstract_image()); }
+
+    bool is_anchor_size() const { return type() == Type::AnchorSize; }
+    AnchorSizeStyleValue const& as_anchor_size() const;
+    AnchorSizeStyleValue& as_anchor_size() { return const_cast<AnchorSizeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_anchor_size()); }
 
     bool is_angle() const { return type() == Type::Angle; }
     AngleStyleValue const& as_angle() const;

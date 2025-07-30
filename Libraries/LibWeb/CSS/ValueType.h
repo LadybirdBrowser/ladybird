@@ -12,6 +12,7 @@
 namespace Web::CSS {
 
 enum class ValueType : u8 {
+    AnchorSize,
     Angle,
     BackgroundPosition,
     BasicShape,

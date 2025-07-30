@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -81,6 +82,12 @@ AbstractImageStyleValue const& CSSStyleValue::as_abstract_image() const
 {
     VERIFY(is_abstract_image());
     return static_cast<AbstractImageStyleValue const&>(*this);
+}
+
+AnchorSizeStyleValue const& CSSStyleValue::as_anchor_size() const
+{
+    VERIFY(is_anchor_size());
+    return static_cast<AnchorSizeStyleValue const&>(*this);
 }
 
 AngleStyleValue const& CSSStyleValue::as_angle() const
