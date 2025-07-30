@@ -56,6 +56,8 @@ class Paintable
 public:
     virtual ~Paintable();
 
+    void detach_from_layout_node();
+
     [[nodiscard]] bool is_visible() const { return m_visible; }
     [[nodiscard]] bool is_positioned() const { return m_positioned; }
     [[nodiscard]] bool is_fixed_position() const { return m_fixed_position; }
