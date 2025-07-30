@@ -86,21 +86,19 @@ JS_DEFINE_NATIVE_FUNCTION(ProxyConstructor::revocable)
     auto* proxy = TRY(proxy_create(vm, target, handler));
 
     // 2. Let revokerClosure be a new Abstract Closure with no parameters that captures nothing and performs the following steps when called:
-    auto revoker_closure = [proxy_handle = make_root(proxy)](auto&) -> ThrowCompletionOr<Value> {
+    auto revoker_closure = [proxy](auto&) -> ThrowCompletionOr<Value> {
         // a. Let F be the active function object.
 
         // b. Let p be F.[[RevocableProxy]].
-        auto& proxy = const_cast<ProxyObject&>(*proxy_handle.cell());
-
         // c. If p is null, return undefined.
-        if (proxy.is_revoked())
+        if (proxy->is_revoked())
             return js_undefined();
 
         // d. Set F.[[RevocableProxy]] to null.
         // e. Assert: p is a Proxy object.
         // f. Set p.[[ProxyTarget]] to null.
         // g. Set p.[[ProxyHandler]] to null.
-        proxy.revoke();
+        proxy->revoke();
 
         // h. Return undefined.
         return js_undefined();
