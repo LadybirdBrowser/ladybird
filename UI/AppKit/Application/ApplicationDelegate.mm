@@ -210,6 +210,9 @@
 
     [self.managed_tabs addObject:controller];
     [controller onCreateNewTab];
+
+    // Ensure location bar is focused for new tabs
+    [controller focusLocationToolbarItem];
 }
 
 - (void)openSettings:(id)sender
