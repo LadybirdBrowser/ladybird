@@ -72,6 +72,55 @@ Optional<String> TrustedTypePolicyFactory::get_attribute_type(String const& tag_
     return expected_type;
 }
 
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-getpropertytype
+Optional<String> TrustedTypePolicyFactory::get_property_type(String const& tag_name, String const& property, Optional<String> element_ns)
+{
+    // 1. Set localName to tagName in ASCII lowercase.
+    auto const local_name = tag_name.to_ascii_lowercase();
+
+    // 2. If elementNs is null or an empty string, set elementNs to HTML namespace.
+    if (!element_ns.has_value() || element_ns.value().is_empty())
+        element_ns = String { Namespace::HTML };
+
+    // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
+    // we care about in the table in get_trusted_type_data_for_attribute function
+    // 3. Let interface be the element interface for localName and elementNs.
+    String interface;
+    if (local_name == HTML::TagNames::iframe && element_ns == Namespace::HTML) {
+        interface = "HTMLIFrameElement"_string;
+    } else if (local_name == HTML::TagNames::script && element_ns == Namespace::HTML) {
+        interface = "HTMLScriptElement"_string;
+    } else {
+        interface = "Element"_string;
+    }
+
+    // 4. Let expectedType be null.
+    Optional<String> expected_type;
+
+    static Vector<Array<String, 3>> const table {
+        { "HTMLIFrameElement"_string, "srcdoc"_string, "TrustedHTML"_string },
+        { "HTMLScriptElement"_string, "innerText"_string, "TrustedScript"_string },
+        { "HTMLScriptElement"_string, "src"_string, "TrustedScriptURL"_string },
+        { "HTMLScriptElement"_string, "text"_string, "TrustedScript"_string },
+        { "HTMLScriptElement"_string, "textContent"_string, "TrustedScript"_string },
+        { "*"_string, "innerHTML"_string, "TrustedHTML"_string },
+        { "*"_string, "outerHTML"_string, "TrustedHTML"_string },
+    };
+
+    // 5. Find the row in the following table, where the first column is "*" or interface’s name, and property is in the second column.
+    // If a matching row is found, set expectedType to the interface’s name of the value of the third column.
+    auto const matching_row = table.first_matching([&interface, &property](auto const& row) {
+        return (row[0] == interface || row[0] == "*"sv) && row[1] == property;
+    });
+
+    if (matching_row.has_value()) {
+        expected_type = matching_row.value()[2];
+    }
+
+    // 6. Return expectedType.
+    return expected_type;
+}
+
 TrustedTypePolicyFactory::TrustedTypePolicyFactory(JS::Realm& realm)
     : PlatformObject(realm)
 {

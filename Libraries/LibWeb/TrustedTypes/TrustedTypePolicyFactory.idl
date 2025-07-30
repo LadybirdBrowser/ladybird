@@ -13,7 +13,7 @@ interface TrustedTypePolicyFactory {
         DOMString attribute,
         optional DOMString? elementNs = "",
         optional DOMString? attrNs = "");
-    [FIXME] DOMString? getPropertyType(
+    DOMString? getPropertyType(
         DOMString tagName,
         DOMString property,
         optional DOMString? elementNs = "");

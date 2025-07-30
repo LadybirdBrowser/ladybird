@@ -22,6 +22,7 @@ public:
     virtual ~TrustedTypePolicyFactory() override { }
 
     Optional<String> get_attribute_type(String const& tag_name, String& attribute, Optional<String> element_ns, Optional<String> attr_ns);
+    Optional<String> get_property_type(String const& tag_name, String const& property, Optional<String> element_ns);
 
 private:
     explicit TrustedTypePolicyFactory(JS::Realm&);
