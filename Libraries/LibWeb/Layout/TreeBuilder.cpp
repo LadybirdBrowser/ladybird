@@ -279,7 +279,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
 
     auto initial_quote_nesting_level = m_quote_nesting_level;
     DOM::AbstractElement element_reference { element, pseudo_element };
-    auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
+    auto [pseudo_element_content, final_quote_nesting_level, _] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
     m_quote_nesting_level = final_quote_nesting_level;
     auto pseudo_element_display = pseudo_element_style->display();
 
@@ -346,21 +346,31 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
     insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, mode);
     pseudo_element_node->mutable_computed_values().set_content(pseudo_element_content);
 
-    DOM::AbstractElement pseudo_element_reference { element, pseudo_element };
+    DOM::AbstractElement pseudo_element_reference(element, pseudo_element);
+
     CSS::resolve_counters(pseudo_element_reference);
     // Now that we have counters, we can compute the content for real. Which is silly.
     if (pseudo_element_content.type == CSS::ContentData::Type::List) {
-        auto [new_content, _] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
+        auto [new_content, ignore_final_quote_nesting_level, needs_reversed_counter_fixup] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
         pseudo_element_node->mutable_computed_values().set_content(new_content);
 
         // FIXME: Handle images, and multiple values
         if (new_content.type == CSS::ContentData::Type::List) {
+            OwnPtr<Vector<GC::Weak<DOM::Text>>> text_nodes_needing_fixup;
+            if (needs_reversed_counter_fixup)
+                text_nodes_needing_fixup = make<Vector<GC::Weak<DOM::Text>>>();
+
             push_parent(*pseudo_element_node);
             for (auto& item : new_content.data) {
                 GC::Ptr<Layout::Node> layout_node;
+
                 if (auto const* string = item.get_pointer<String>()) {
                     auto text = document.realm().create<DOM::Text>(document, Utf16String::from_utf8(*string));
                     layout_node = document.heap().allocate<TextNode>(document, *text);
+                    // Text nodes from a pseudo-element with content containing reversed counters need fixup.
+                    // Remember them in this list.
+                    if (needs_reversed_counter_fixup)
+                        text_nodes_needing_fixup->append(*text);
                 } else {
                     auto& image = *item.get<NonnullRefPtr<CSS::ImageStyleValue>>();
                     image.load_any_resources(document);
@@ -372,6 +382,9 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
                 insert_node_into_inline_or_block_ancestor(*layout_node, layout_node->display(), AppendOrPrepend::Append);
             }
             pop_parent();
+
+            if (needs_reversed_counter_fixup)
+                ensure_content_with_reverse_counter_fixup_queue().append({ pseudo_element_reference, text_nodes_needing_fixup.release_nonnull(), initial_quote_nesting_level });
         } else {
             TODO();
         }
@@ -874,6 +887,9 @@ GC::Ptr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
     if (auto* root = dom_node.document().layout_node())
         fixup_tables(*root);
 
+    if (m_content_with_reversed_counters_fixup_queue)
+        fixup_reversed_counters_content();
+
     return m_layout_root;
 }
 
@@ -939,6 +955,39 @@ void TreeBuilder::remove_irrelevant_boxes(NodeWithStyle& root)
 
     for (auto& box : to_remove)
         box->parent()->remove_child(*box);
+}
+
+// Fixup pseudo-elements with content containing reversed counters.
+// Why?
+//   - The final value for an uninitialized reversed counter cannot be calculated
+//     in one pass, since it depends on the number of counter-increment occurrences.
+// WARNING: Before this call, values of reversed counters will be incorrect (exception: values after a counter-set).
+void TreeBuilder::fixup_reversed_counters_content()
+{
+    VERIFY(!m_content_with_reversed_counters_fixup_queue->is_empty());
+
+    for (auto const& fixup_item : *m_content_with_reversed_counters_fixup_queue) {
+        auto const& pseudo_element_reference = fixup_item.pseudo_element_reference;
+        VERIFY(pseudo_element_reference.pseudo_element().has_value());
+
+        // Will eventually resolve all reversed counters used in content.
+        auto pseudo_element_style = pseudo_element_reference.computed_properties();
+        auto [pseudo_element_content, final_quote_nesting_level, has_reversed_counters] = pseudo_element_style->content(pseudo_element_reference, fixup_item.intial_quote_nesting_level);
+        VERIFY(pseudo_element_content.type == CSS::ContentData::Type::List);
+
+        auto pseudo_element_node = pseudo_element_reference.element().get_pseudo_element_node(pseudo_element_reference.pseudo_element().value());
+        pseudo_element_node->mutable_computed_values().set_content(pseudo_element_content); // Set the content of the pseudo-element.
+
+        unsigned i = 0;
+        for (auto& item : pseudo_element_content.data) {
+            auto* string = item.get_pointer<String>();
+            if (!string) // This item is an image
+                continue;
+
+            if (auto& text_node = fixup_item.list_of_text_nodes->at(i++))
+                text_node->set_text_content(Utf16String::from_utf8(*string));
+        }
+    }
 }
 
 static bool is_table_track(CSS::Display display)

@@ -51,8 +51,8 @@ public:
     void set_cascaded_properties(GC::Ptr<CSS::CascadedProperties>);
 
     bool has_non_empty_counters_set() const;
-    Optional<CSS::CountersSet const&> counters_set() const;
-    CSS::CountersSet& ensure_counters_set();
+    Optional<CSS::CountersSet&> counters_set() const;
+    CSS::CountersSet& ensure_counters_set() const;
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
     void visit(GC::Cell::Visitor& visitor) const;

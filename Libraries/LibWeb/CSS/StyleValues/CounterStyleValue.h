@@ -34,7 +34,7 @@ public:
     auto counter_style() const { return m_properties.counter_style; }
     auto join_string() const { return m_properties.join_string; }
 
-    String resolve(DOM::AbstractElement&) const;
+    String resolve(DOM::AbstractElement const& element_reference, bool& return_element_needs_reversed_counters_fixup) const;
 
     virtual String to_string(SerializationMode) const override;
 
