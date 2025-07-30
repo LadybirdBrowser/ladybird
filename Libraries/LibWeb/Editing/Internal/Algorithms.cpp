@@ -961,7 +961,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         }
 
         // 9. Record the values of children, and let values be the result.
-        values = record_the_values_of_nodes(children);
+        values = record_the_values_of_nodes(document.heap(), children);
 
         // 10. While children's first member's parent is not start block, split the parent of children.
         while (children.first()->parent() != start_block)
@@ -1005,7 +1005,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
             nodes_to_move.append(*nodes_to_move.last()->next_sibling());
 
         // 8. Record the values of nodes to move, and let values be the result.
-        values = record_the_values_of_nodes(nodes_to_move);
+        values = record_the_values_of_nodes(document.heap(), nodes_to_move);
 
         // 9. For each node in nodes to move, append node as the last child of start block, preserving ranges.
         auto new_position = start_block->length();
@@ -1032,7 +1032,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
             end_block_children.append(child);
             return IterationDecision::Continue;
         });
-        values = record_the_values_of_nodes(end_block_children);
+        values = record_the_values_of_nodes(document.heap(), end_block_children);
 
         // 4. While end block has children, append the first child of end block to start block, preserving ranges.
         auto new_position = start_block->length();
@@ -1328,7 +1328,7 @@ void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
                 return IterationDecision::Continue;
 
             // 1. Record the values of the one-node list consisting of child, and let values be the result.
-            auto values = record_the_values_of_nodes({ child });
+            auto values = record_the_values_of_nodes(child.heap(), { child });
 
             // 2. Split the parent of the one-node list consisting of child.
             split_the_parent_of_nodes({ child });
@@ -1344,7 +1344,7 @@ void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
     }
 
     // 3. Record the values of the one-node list consisting of node, and let values be the result.
-    auto values = record_the_values_of_nodes({ node });
+    auto values = record_the_values_of_nodes(node->heap(), { node });
 
     // 4. While node is not an allowed child of its parent, split the parent of the one-node list consisting of node.
     while (!is_allowed_child_of_node(node, GC::Ref { *node->parent() }))
@@ -3026,7 +3026,7 @@ void outdent(GC::Ref<DOM::Node> node)
         // 4. Otherwise:
         else {
             // 1. Record the values of node's children, and let values be the result.
-            auto values = record_the_values_of_nodes(children);
+            auto values = record_the_values_of_nodes(node->heap(), children);
 
             // 2. Remove node, preserving its descendants.
             remove_node_preserving_its_descendants(node);
@@ -3314,10 +3314,10 @@ Vector<RecordedOverride> record_current_states_and_values(DOM::Document const& d
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#record-the-values
-Vector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
+GC::ConservativeVector<RecordedNodeValue> record_the_values_of_nodes(GC::Heap& heap, Vector<GC::Ref<DOM::Node>> const& node_list)
 {
     // 1. Let values be a list of (node, command, specified command value) triples, initially empty.
-    Vector<RecordedNodeValue> values;
+    GC::ConservativeVector<RecordedNodeValue> values { heap };
 
     // 2. For each node in node list, for each command in the list "subscript", "bold", "fontName",
     //    "fontSize", "foreColor", "hiliteColor", "italic", "strikethrough", and "underline" in that
@@ -4126,7 +4126,7 @@ void toggle_lists(DOM::Document& document, FlyString const& tag_name)
                 });
 
                 // 2. Record the values of children, and let values be the result.
-                auto values = record_the_values_of_nodes(children);
+                auto values = record_the_values_of_nodes(document.heap(), children);
 
                 // 3. Split the parent of children.
                 split_the_parent_of_nodes(children);
@@ -4201,7 +4201,7 @@ void toggle_lists(DOM::Document& document, FlyString const& tag_name)
                 sublist.append(node_list.take_first());
 
             // 5. Record the values of sublist, and let values be the result.
-            auto values = record_the_values_of_nodes(sublist);
+            auto values = record_the_values_of_nodes(document.heap(), sublist);
 
             // 6. Split the parent of sublist.
             split_the_parent_of_nodes(sublist);
@@ -4282,7 +4282,7 @@ void toggle_lists(DOM::Document& document, FlyString const& tag_name)
             if (!sublist.is_empty() && is<HTML::HTMLElement>(sublist.first()->parent())
                 && static_cast<DOM::Element&>(*sublist.first()->parent()).local_name() == other_tag_name) {
                 // 1. Record the values of sublist, and let values be the result.
-                auto values = record_the_values_of_nodes(sublist);
+                auto values = record_the_values_of_nodes(document.heap(), sublist);
 
                 // 2. Split the parent of sublist.
                 split_the_parent_of_nodes(sublist);

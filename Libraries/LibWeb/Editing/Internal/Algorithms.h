@@ -106,7 +106,7 @@ Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint);
 void push_down_values(FlyString const&, GC::Ref<DOM::Node>, Optional<Utf16String const&>);
 Vector<RecordedOverride> record_current_overrides(DOM::Document const&);
 Vector<RecordedOverride> record_current_states_and_values(DOM::Document const&);
-Vector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::Ref<DOM::Node>> const&);
+GC::ConservativeVector<RecordedNodeValue> record_the_values_of_nodes(GC::Heap&, Vector<GC::Ref<DOM::Node>> const&);
 void remove_extraneous_line_breaks_at_the_end_of_node(GC::Ref<DOM::Node>);
 void remove_extraneous_line_breaks_before_node(GC::Ref<DOM::Node>);
 void remove_extraneous_line_breaks_from_a_node(GC::Ref<DOM::Node>);
