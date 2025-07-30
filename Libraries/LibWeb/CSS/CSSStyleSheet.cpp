@@ -128,6 +128,7 @@ void CSSStyleSheet::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_namespace_rules);
     visitor.visit(m_import_rules);
     visitor.visit(m_owning_documents_or_shadow_roots);
+    visitor.visit(m_associated_font_loaders);
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-insertrule

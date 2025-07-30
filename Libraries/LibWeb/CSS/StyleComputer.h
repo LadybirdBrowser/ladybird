@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -126,7 +126,10 @@ struct RuleCache {
 
 class FontLoader;
 
-class StyleComputer {
+class StyleComputer final : public GC::Cell {
+    GC_CELL(StyleComputer, GC::Cell);
+    GC_DECLARE_ALLOCATOR(StyleComputer);
+
 public:
     static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
     static NonnullRefPtr<CSSStyleValue const> get_inherit_value(CSS::PropertyID, DOM::Element const*, Optional<CSS::PseudoElement> = {});
@@ -162,7 +165,7 @@ public:
 
     void did_load_font(FlyString const& family_name);
 
-    Optional<FontLoader&> load_font_face(ParsedFontFace const&, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
+    GC::Ptr<FontLoader> load_font_face(ParsedFontFace const&, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
 
     void load_fonts_from_sheet(CSSStyleSheet&);
     void unload_fonts_from_sheet(CSSStyleSheet&);
@@ -196,6 +199,8 @@ public:
     static NonnullRefPtr<CSSStyleValue const> compute_value_of_custom_property(DOM::AbstractElement, FlyString const& custom_property, Optional<Parser::GuardedSubstitutionContexts&> = {});
 
 private:
+    virtual void visit_edges(Visitor&) override;
+
     enum class ComputeStyleMode {
         Normal,
         CreatePseudoElementStyleIfNeeded,
@@ -283,9 +288,9 @@ private:
     OwnPtr<RuleCachesForDocumentAndShadowRoots> m_author_rule_cache;
     OwnPtr<RuleCachesForDocumentAndShadowRoots> m_user_rule_cache;
     OwnPtr<RuleCachesForDocumentAndShadowRoots> m_user_agent_rule_cache;
-    GC::Root<CSSStyleSheet> m_user_style_sheet;
+    GC::Ptr<CSSStyleSheet> m_user_style_sheet;
 
-    using FontLoaderList = Vector<NonnullOwnPtr<FontLoader>>;
+    using FontLoaderList = Vector<GC::Ref<FontLoader>>;
     HashMap<OwnFontFaceKey, FontLoaderList> m_loaded_fonts;
 
     [[nodiscard]] Length::FontMetrics const& root_element_font_metrics_for_element(GC::Ptr<DOM::Element const>) const;
@@ -295,10 +300,13 @@ private:
 
     CSSPixelRect m_viewport_rect;
 
-    CountingBloomFilter<u8, 14> m_ancestor_filter;
+    OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
 };
 
-class FontLoader : public Weakable<FontLoader> {
+class FontLoader final : public GC::Cell {
+    GC_CELL(FontLoader, GC::Cell);
+    GC_DECLARE_ALLOCATOR(FontLoader);
+
 public:
     FontLoader(StyleComputer& style_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
 
@@ -313,17 +321,19 @@ public:
     bool is_loading() const;
 
 private:
+    virtual void visit_edges(Visitor&) override;
+
     ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_font(Fetch::Infrastructure::Response const&, ByteBuffer const&);
 
     void font_did_load_or_fail(RefPtr<Gfx::Typeface const>);
 
-    StyleComputer& m_style_computer;
+    GC::Ref<StyleComputer> m_style_computer;
     GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
     FlyString m_family_name;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
     RefPtr<Gfx::Typeface const> m_vector_font;
     Vector<URL> m_urls;
-    GC::Root<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Function<void(RefPtr<Gfx::Typeface const>)> m_on_load;
 };
 
@@ -332,7 +342,7 @@ inline bool StyleComputer::should_reject_with_ancestor_filter(Selector const& se
     for (u32 hash : selector.ancestor_hashes()) {
         if (hash == 0)
             break;
-        if (!m_ancestor_filter.may_contain(hash))
+        if (!m_ancestor_filter->may_contain(hash))
             return true;
     }
     return false;

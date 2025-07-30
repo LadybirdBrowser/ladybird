@@ -499,7 +499,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                 {},                // FIXME: feature_settings
                 {},                // FIXME: variation_settings
             };
-            if (auto loader = style_computer.load_font_face(parsed_font_face, move(on_load)); loader.has_value())
+            if (auto loader = style_computer.load_font_face(parsed_font_face, move(on_load)))
                 loader->start_loading_next_url();
         } else {
             // FIXME: Don't know how to load fonts in workers! They don't have a StyleComputer

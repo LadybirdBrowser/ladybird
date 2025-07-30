@@ -459,7 +459,7 @@ GC::Ref<Document> Document::create_for_fragment_parsing(JS::Realm& realm)
 Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
     : ParentNode(realm, *this, NodeType::DOCUMENT_NODE)
     , m_page(Bindings::principal_host_defined_page(realm))
-    , m_style_computer(make<CSS::StyleComputer>(*this))
+    , m_style_computer(realm.heap().allocate<CSS::StyleComputer>(*this))
     , m_url(url)
     , m_temporary_document_for_fragment_parsing(temporary_document_for_fragment_parsing)
     , m_editing_host_manager(EditingHostManager::create(realm, *this))
@@ -557,7 +557,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_appropriate_template_contents_owner_document);
     visitor.visit(m_pending_parsing_blocking_script);
     visitor.visit(m_history);
-
+    visitor.visit(m_style_computer);
     visitor.visit(m_browsing_context);
 
     visitor.visit(m_applets);

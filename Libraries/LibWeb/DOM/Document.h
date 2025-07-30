@@ -965,7 +965,7 @@ private:
     void run_csp_initialization() const;
 
     GC::Ref<Page> m_page;
-    OwnPtr<CSS::StyleComputer> m_style_computer;
+    GC::Ptr<CSS::StyleComputer> m_style_computer;
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
     GC::Ptr<Node> m_active_favicon;
     GC::Ptr<HTML::BrowsingContext> m_browsing_context;
