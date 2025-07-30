@@ -40,6 +40,14 @@
     "stretch",
     "unsafe"
   ],
+  "anchor-size": [
+    "block",
+    "height",
+    "inline",
+    "self-block",
+    "self-inline",
+    "width"
+  ],
   "animation-direction": [
     "alternate",
     "alternate-reverse",

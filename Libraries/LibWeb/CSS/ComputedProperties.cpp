@@ -182,7 +182,10 @@ Size ComputedProperties::size_value(PropertyID id) const
         return Size::make_length(length);
     }
 
-    // FIXME: Support `fit-content(<length>)`
+    // FIXME: Support `anchor-size(..)`
+    if (value.is_anchor_size())
+        return Size::make_none();
+
     dbgln("FIXME: Unsupported size value: `{}`, treating as `auto`", value.to_string(SerializationMode::Normal));
     return Size::make_auto();
 }

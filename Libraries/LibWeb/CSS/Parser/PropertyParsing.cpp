@@ -293,7 +293,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         auto transaction = tokens.begin_transaction();
         if (property_accepts_type(*property, ValueType::Percentage)) {
             if (auto value = parse_length_percentage_value(tokens)) {
-                if (value->is_calculated()) {
+                if (value->is_calculated() || value->is_anchor_size()) {
                     transaction.commit();
                     return PropertyAndValue { *property, value };
                 }
@@ -308,7 +308,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
             }
         }
         if (auto value = parse_length_value(tokens)) {
-            if (value->is_calculated()) {
+            if (value->is_calculated() || value->is_anchor_size()) {
                 transaction.commit();
                 return PropertyAndValue { *property, value };
             }

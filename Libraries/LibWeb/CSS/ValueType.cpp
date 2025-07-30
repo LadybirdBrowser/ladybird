@@ -11,6 +11,8 @@ namespace Web::CSS {
 
 Optional<ValueType> value_type_from_string(StringView string)
 {
+    if (string.equals_ignoring_ascii_case("anchor-size"sv))
+        return ValueType::AnchorSize;
     if (string.equals_ignoring_ascii_case("angle"sv))
         return ValueType::Angle;
     if (string.equals_ignoring_ascii_case("background-position"sv))

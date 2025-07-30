@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	e.style['font-size'] = "anchor-size(--foo width)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo, width)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo width,)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo width height)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo width, 10px 20%)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo width, 10px, 20%)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo,)" should not set the property value
+Pass	e.style['width'] = "anchor-size(, 10px)" should not set the property value
+Pass	e.style['width'] = "anchor-size(foo width)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo top)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo 10em)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo 100s)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo 50%)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo width, 1)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo width, 100s)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo width, height)" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo width, anchor-size(bar width))" should not set the property value
+Pass	e.style['width'] = "anchor-size(--foo width, anchor(--bar top))" should not set the property value
+Pass	e.style['width'] = "calc(anchor-size(foo width) + 10px + 10%)" should not set the property value
+Pass	e.style['width'] = "calc(10px + 100 * anchor-size(--foo width, anchor-size(bar bottom)))" should not set the property value
+Pass	e.style['width'] = "min(anchor-size(--foo width), anchor-size(--bar height), anchor(--baz top))" should not set the property value

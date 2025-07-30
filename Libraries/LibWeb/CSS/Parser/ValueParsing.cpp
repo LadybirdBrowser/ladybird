@@ -9,6 +9,7 @@
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,6 +22,7 @@
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -266,6 +268,7 @@ Optional<LengthOrCalculated> Parser::parse_length(TokenStream<ComponentValue>& t
             return value->as_length().length();
         if (value->is_calculated())
             return LengthOrCalculated { value->as_calculated() };
+        // FIXME: Deal with ->is_anchor_size()
     }
     return {};
 }
@@ -279,6 +282,7 @@ Optional<LengthPercentage> Parser::parse_length_percentage(TokenStream<Component
             return value->as_percentage().percentage();
         if (value->is_calculated())
             return LengthPercentage { value->as_calculated() };
+        // FIXME: Deal with ->is_anchor_size()
     }
     return {};
 }
@@ -791,6 +795,112 @@ RefPtr<CSSStyleValue const> Parser::parse_percentage_value(TokenStream<Component
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-anchor-position-1/#sizing
+RefPtr<CSSStyleValue const> Parser::parse_anchor_size(TokenStream<ComponentValue>& tokens)
+{
+    // anchor-size() = anchor-size( [ <anchor-name> || <anchor-size> ]? , <length-percentage>? )
+
+    auto transaction = tokens.begin_transaction();
+    auto const& function_token = tokens.consume_a_token();
+    if (!function_token.is_function("anchor-size"sv))
+        return {};
+
+    // It is only allowed in the accepted @position-try properties (and is otherwise invalid).
+    static Array allowed_property_ids = {
+        // inset properties
+        PropertyID::Inset,
+        PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left,
+        PropertyID::InsetBlock, PropertyID::InsetBlockStart, PropertyID::InsetBlockEnd,
+        PropertyID::InsetInline, PropertyID::InsetInlineStart, PropertyID::InsetInlineEnd,
+        // margin properties
+        PropertyID::Margin,
+        PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft,
+        PropertyID::MarginBlock, PropertyID::MarginBlockStart, PropertyID::MarginBlockEnd,
+        PropertyID::MarginInline, PropertyID::MarginInlineStart, PropertyID::MarginInlineEnd,
+        // sizing properties
+        PropertyID::Width, PropertyID::MinWidth, PropertyID::MaxWidth,
+        PropertyID::Height, PropertyID::MinHeight, PropertyID::MaxHeight,
+        PropertyID::BlockSize, PropertyID::MinBlockSize, PropertyID::MaxBlockSize,
+        PropertyID::InlineSize, PropertyID::MinInlineSize, PropertyID::MaxInlineSize,
+        // self-alignment properties
+        PropertyID::AlignSelf, PropertyID::JustifySelf, PropertyID::PlaceSelf,
+        // FIXME: position-anchor
+        // FIXME: position-area
+    };
+    bool valid_property_context = false;
+    for (auto& value_context : m_value_context) {
+        if (!value_context.has<PropertyID>())
+            continue;
+        if (!allowed_property_ids.contains_slow(value_context.get<PropertyID>())) {
+            valid_property_context = false;
+            break;
+        }
+        valid_property_context = true;
+    }
+    if (!valid_property_context)
+        return {};
+
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
+    auto argument_tokens = TokenStream { function_token.function().value };
+
+    Optional<FlyString> anchor_name;
+    Optional<AnchorSize> anchor_size;
+    ValueComparingRefPtr<CSSStyleValue const> fallback_value;
+
+    // Parse optional anchor name and anchor size in arbitrary order.
+    for (auto i = 0; i < 2; ++i) {
+        argument_tokens.discard_whitespace();
+        auto const& peek_token = argument_tokens.next_token();
+        if (!peek_token.is(Token::Type::Ident))
+            break;
+
+        // <anchor-name> = <dashed-ident>
+        if (auto dashed_ident = parse_dashed_ident(argument_tokens); dashed_ident.has_value()) {
+            if (anchor_name.has_value())
+                return {};
+            anchor_name = dashed_ident.value();
+            continue;
+        }
+
+        // <anchor-size> = width | height | block | inline | self-block | self-inline
+        auto keyword = keyword_from_string(peek_token.token().ident());
+        if (!keyword.has_value())
+            return {};
+        auto maybe_anchor_size = keyword_to_anchor_size(keyword.value());
+        if (!maybe_anchor_size.has_value() || anchor_size.has_value())
+            return {};
+        argument_tokens.discard_a_token();
+        anchor_size = maybe_anchor_size.release_value();
+    }
+
+    argument_tokens.discard_whitespace();
+    auto has_name_or_size = anchor_name.has_value() || anchor_size.has_value();
+    auto comma_present = false;
+    if (argument_tokens.next_token().is(Token::Type::Comma)) {
+        if (!has_name_or_size)
+            return {};
+        comma_present = true;
+        argument_tokens.discard_a_token();
+        argument_tokens.discard_whitespace();
+    }
+
+    // FIXME: Nested anchor sizes should actually be handled by parse_length_percentage()
+    if (auto nested_anchor_size = parse_anchor_size(argument_tokens))
+        fallback_value = nested_anchor_size.release_nonnull();
+    else if (auto length_percentage = parse_length_percentage_value(argument_tokens))
+        fallback_value = length_percentage.release_nonnull();
+
+    if (!fallback_value && comma_present)
+        return {};
+    if (fallback_value && !comma_present && has_name_or_size)
+        return {};
+    if (argument_tokens.has_next_token())
+        return {};
+
+    transaction.commit();
+    return AnchorSizeStyleValue::create(anchor_name, anchor_size, fallback_value);
+}
+
 RefPtr<CSSStyleValue const> Parser::parse_angle_value(TokenStream<ComponentValue>& tokens)
 {
     if (tokens.next_token().is(Token::Type::Dimension)) {
@@ -959,6 +1069,9 @@ RefPtr<CSSStyleValue const> Parser::parse_length_value(TokenStream<ComponentValu
         }
     }
 
+    if (tokens.next_token().is_function("anchor-size"sv))
+        return parse_anchor_size(tokens);
+
     auto transaction = tokens.begin_transaction();
     if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
         && (calc->is_length() || (calc->is_calculated() && calc->as_calculated().resolves_to_length()))) {
@@ -1005,6 +1118,9 @@ RefPtr<CSSStyleValue const> Parser::parse_length_percentage_value(TokenStream<Co
             return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(numeric_value)));
         }
     }
+
+    if (tokens.next_token().is_function("anchor-size"sv))
+        return parse_anchor_size(tokens);
 
     auto transaction = tokens.begin_transaction();
     if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
@@ -4391,6 +4507,8 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::A
 RefPtr<CSSStyleValue const> Parser::parse_value(ValueType value_type, TokenStream<ComponentValue>& tokens)
 {
     switch (value_type) {
+    case ValueType::AnchorSize:
+        return parse_anchor_size(tokens);
     case ValueType::Angle:
         return parse_angle_value(tokens);
     case ValueType::BackgroundPosition:
