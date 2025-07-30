@@ -246,3 +246,23 @@ struct AK::Formatter<Web::CSS::CSSStyleValue> : Formatter<StringView> {
         return Formatter<StringView>::format(builder, style_value.to_string(Web::CSS::SerializationMode::Normal));
     }
 };
+
+template<>
+struct AK::Formatter<Web::CSS::CSSStyleValue::Type> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSStyleValue::Type type)
+    {
+        StringView type_name;
+        switch (type) {
+#define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
+    case Web::CSS::CSSStyleValue::Type::title_case:                                      \
+        type_name = #title_case##sv;                                                     \
+        break;
+            ENUMERATE_CSS_STYLE_VALUE_TYPES
+#undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
+        default:
+            VERIFY_NOT_REACHED();
+        }
+
+        return Formatter<StringView>::format(builder, type_name);
+    }
+};
