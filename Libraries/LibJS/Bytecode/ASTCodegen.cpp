@@ -2892,11 +2892,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
     if (m_super_class)
         super_class = TRY(m_super_class->generate_bytecode(generator)).value();
 
-    generator.emit<Op::CreatePrivateEnvironment>();
-
+    bool did_emit_private_environment_allocation = false;
     for (auto const& element : m_elements) {
         auto opt_private_name = element->private_bound_identifier();
         if (opt_private_name.has_value()) {
+            if (!did_emit_private_environment_allocation) {
+                generator.emit<Op::CreatePrivateEnvironment>();
+                did_emit_private_environment_allocation = true;
+            }
             generator.emit<Op::AddPrivateName>(generator.intern_identifier(*opt_private_name));
         }
     }
@@ -2920,7 +2923,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::genera
     auto dst = choose_dst(generator, preferred_dst);
     generator.emit_with_extra_slots<Op::NewClass, Optional<Operand>>(elements.size(), dst, super_class.has_value() ? super_class->operand() : Optional<Operand> {}, *this, lhs_name, elements);
 
-    generator.emit<Op::LeavePrivateEnvironment>();
+    if (did_emit_private_environment_allocation) {
+        generator.emit<Op::LeavePrivateEnvironment>();
+    }
 
     return dst;
 }
