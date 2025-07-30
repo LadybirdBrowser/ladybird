@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
@@ -94,6 +94,9 @@
 
 namespace Web::CSS {
 
+GC_DEFINE_ALLOCATOR(StyleComputer);
+GC_DEFINE_ALLOCATOR(FontLoader);
+
 struct FontFaceKey {
     NonnullRawPtr<FlyString const> family_name;
     int weight { 0 };
@@ -184,10 +187,19 @@ StyleComputer::StyleComputer(DOM::Document& document)
     , m_default_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics())
     , m_root_element_font_metrics(m_default_font_metrics)
 {
+    m_ancestor_filter = make<CountingBloomFilter<u8, 14>>();
     m_qualified_layer_names_in_order.append({});
 }
 
 StyleComputer::~StyleComputer() = default;
+
+void StyleComputer::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_document);
+    visitor.visit(m_loaded_fonts);
+    visitor.visit(m_user_style_sheet);
+}
 
 FontLoader::FontLoader(StyleComputer& style_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
     : m_style_computer(style_computer)
@@ -200,6 +212,14 @@ FontLoader::FontLoader(StyleComputer& style_computer, GC::Ptr<CSSStyleSheet> par
 }
 
 FontLoader::~FontLoader() = default;
+
+void FontLoader::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_style_computer);
+    visitor.visit(m_parent_style_sheet);
+    visitor.visit(m_fetch_controller);
+}
 
 bool FontLoader::is_loading() const
 {
@@ -228,34 +248,29 @@ void FontLoader::start_loading_next_url()
     // To fetch a font given a selected <url> url for @font-face rule, fetch url, with stylesheet being rule’s parent
     // CSS style sheet, destination "font", CORS mode "cors", and processResponse being the following steps given
     // response res and null, failure or a byte stream stream:
-    auto style_sheet_or_document = m_parent_style_sheet ? StyleSheetOrDocument { *m_parent_style_sheet } : StyleSheetOrDocument { m_style_computer.document() };
+    auto style_sheet_or_document = m_parent_style_sheet ? StyleSheetOrDocument { *m_parent_style_sheet } : StyleSheetOrDocument { m_style_computer->document() };
     auto maybe_fetch_controller = fetch_a_style_resource(m_urls.take_first(), style_sheet_or_document, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
-        [weak_loader = make_weak_ptr()](auto response, auto stream) {
-            // NB: If the FontLoader died before this fetch completed, nobody wants the data.
-            if (weak_loader.is_null())
-                return;
-            auto& loader = *weak_loader;
-
+        [loader = this](auto response, auto stream) {
             // 1. If stream is null, return.
             // 2. Load a font from stream according to its type.
 
             // NB: We need to fetch the next source if this one fails to fetch OR decode. So, first try to decode it.
             RefPtr<Gfx::Typeface const> typeface;
             if (auto* bytes = stream.template get_pointer<ByteBuffer>()) {
-                if (auto maybe_typeface = loader.try_load_font(response, *bytes); !maybe_typeface.is_error())
+                if (auto maybe_typeface = loader->try_load_font(response, *bytes); !maybe_typeface.is_error())
                     typeface = maybe_typeface.release_value();
             }
 
             if (!typeface) {
                 // NB: If we have other sources available, try the next one.
-                if (loader.m_urls.is_empty()) {
-                    loader.font_did_load_or_fail(nullptr);
+                if (loader->m_urls.is_empty()) {
+                    loader->font_did_load_or_fail(nullptr);
                 } else {
-                    loader.m_fetch_controller = nullptr;
-                    loader.start_loading_next_url();
+                    loader->m_fetch_controller = nullptr;
+                    loader->start_loading_next_url();
                 }
             } else {
-                loader.font_did_load_or_fail(move(typeface));
+                loader->font_did_load_or_fail(move(typeface));
             }
         });
 
@@ -270,7 +285,7 @@ void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
 {
     if (typeface) {
         m_vector_font = typeface.release_nonnull();
-        m_style_computer.did_load_font(m_family_name);
+        m_style_computer->did_load_font(m_family_name);
         if (m_on_load)
             m_on_load(m_vector_font);
     } else {
@@ -3088,7 +3103,7 @@ void StyleComputer::did_load_font(FlyString const&)
     document().invalidate_style(DOM::StyleInvalidationReason::CSSFontLoaded);
 }
 
-Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_face, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
+GC::Ptr<FontLoader> StyleComputer::load_font_face(ParsedFontFace const& font_face, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
 {
     if (font_face.sources().is_empty()) {
         if (on_load)
@@ -3116,14 +3131,14 @@ Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_f
         return {};
     }
 
-    auto loader = make<FontLoader>(*this, font_face.parent_style_sheet(), font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
+    auto loader = heap().allocate<FontLoader>(*this, font_face.parent_style_sheet(), font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
     auto& loader_ref = *loader;
     auto maybe_font_loaders_list = m_loaded_fonts.get(key);
     if (maybe_font_loaders_list.has_value()) {
         maybe_font_loaders_list->append(move(loader));
     } else {
         FontLoaderList loaders;
-        loaders.append(move(loader));
+        loaders.append(loader);
         m_loaded_fonts.set(OwnFontFaceKey(key), move(loaders));
     }
     // Actual object owned by font loader list inside m_loaded_fonts, this isn't use-after-move/free
@@ -3138,8 +3153,8 @@ void StyleComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
         auto const& font_face_rule = static_cast<CSSFontFaceRule const&>(*rule);
         if (!font_face_rule.is_valid())
             continue;
-        if (auto font_loader = load_font_face(font_face_rule.font_face()); font_loader.has_value()) {
-            sheet.add_associated_font_loader(font_loader.value());
+        if (auto font_loader = load_font_face(font_face_rule.font_face())) {
+            sheet.add_associated_font_loader(*font_loader);
         }
     }
 }
@@ -3276,20 +3291,20 @@ static void for_each_element_hash(DOM::Element const& element, auto callback)
 
 void StyleComputer::reset_ancestor_filter()
 {
-    m_ancestor_filter.clear();
+    m_ancestor_filter->clear();
 }
 
 void StyleComputer::push_ancestor(DOM::Element const& element)
 {
     for_each_element_hash(element, [&](u32 hash) {
-        m_ancestor_filter.increment(hash);
+        m_ancestor_filter->increment(hash);
     });
 }
 
 void StyleComputer::pop_ancestor(DOM::Element const& element)
 {
     for_each_element_hash(element, [&](u32 hash) {
-        m_ancestor_filter.decrement(hash);
+        m_ancestor_filter->decrement(hash);
     });
 }
 
