@@ -21,6 +21,8 @@ public:
 
     virtual ~TrustedTypePolicyFactory() override { }
 
+    bool is_html(JS::Value);
+
     Optional<String> get_attribute_type(String const& tag_name, String& attribute, Optional<String> element_ns, Optional<String> attr_ns);
     Optional<String> get_property_type(String const& tag_name, String const& property, Optional<String> element_ns);
 
