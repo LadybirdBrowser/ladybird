@@ -3305,18 +3305,24 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
         Optional<CalculatedStyleValue::CalculationResult> accumulated_result;
         bool is_valid = true;
 
-        auto accumulate = [&accumulated_result, &resolution_context, &context](NumericCalculationNode const& numeric_child, bool invert) {
+        auto accumulate = [&accumulated_result, &resolution_context](NumericCalculationNode const& numeric_child, bool invert) {
             auto child_type = numeric_child.numeric_type();
 
             if (!child_type.has_value())
                 return false;
 
-            // FIXME: The spec doesn't handle unresolved percentages here, but if we don't exit when we see one,
-            //        we'll get a wrongly-typed value after multiplying the types.
-            //        Same goes for other numerics with non-canonical units.
-            //        Spec bug: https://github.com/w3c/csswg-drafts/issues/11588
-            if ((numeric_child.value().has<Percentage>() && context.percentages_resolve_as.has_value()) || !numeric_child.is_in_canonical_unit())
+            // FIXME: The spec doesn't cover how to handle values in non-canonical units
+            if (!numeric_child.is_in_canonical_unit())
                 return false;
+
+            // AD-HOC: The spec doesn't cover how to handle unresolved percentages, to handle this we force percentages
+            //         back to the percent type (e.g. { hint: None, "percent" → 1 } rather than
+            //         { hint: length, "length" → 1 }), this avoids a situation calling make_calculation_node below
+            //         where we would treat the value as an absolute value expressed in canonical units rather than a
+            //         percent. `make_calculation_node` will still calculate the correct numeric type for the
+            //         simplified node. See spec issue: https://github.com/w3c/csswg-drafts/issues/11588
+            if (numeric_child.value().has<Percentage>())
+                child_type = CSSNumericType { CSSNumericType::BaseType::Percent, 1 };
 
             auto child_value = CalculatedStyleValue::CalculationResult::from_value(numeric_child.value(), resolution_context, child_type);
 
