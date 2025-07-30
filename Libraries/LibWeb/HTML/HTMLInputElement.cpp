@@ -2855,6 +2855,59 @@ WebIDL::ExceptionOr<bool> HTMLInputElement::report_validity()
     return report_validity_steps();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validationmessage
+String HTMLInputElement::format_validation_message()
+{
+    if (suffering_from_being_missing()) {
+        return "Please input a value."_string;
+    }
+    if (suffering_from_a_type_mismatch()) {
+        switch (type_state()) {
+        case TypeAttributeState::Color:
+            return "Please input a valid color. (#rrggbb)"_string;
+        case TypeAttributeState::Date:
+            return "Please input a valid date. (yy-mm-dd)"_string;
+        case TypeAttributeState::Email:
+            return "Please input a valid email. (username@example.com)"_string;
+        case TypeAttributeState::Number:
+        case TypeAttributeState::Range:
+            return "Please input a valid number."_string;
+        case TypeAttributeState::Password:
+            return "Please input a valid password."_string;
+        case TypeAttributeState::Month:
+            return "Please input a valid month."_string;
+        case TypeAttributeState::Week:
+            return "Please input a valid week."_string;
+        case TypeAttributeState::Telephone:
+            return "Please input a valid phone number."_string;
+        case TypeAttributeState::URL:
+            return "Please input a valid URL. (https://example.com)"_string;
+        default:
+            return "Please input a valid value."_string;
+        }
+    }
+    if (suffering_from_a_pattern_mismatch() || suffering_from_bad_input()) {
+        return "Please input a valid value."_string;
+    }
+    if (suffering_from_being_too_long()) {
+        return MUST(String::formatted("Please limit your character count to {} characters.", max_length()));
+    }
+    if (suffering_from_being_too_short()) {
+        return MUST(String::formatted("Please increase your character count to {} characters.", min_length()));
+    }
+    if (suffering_from_an_underflow()) {
+        return MUST(String::formatted("Please select a number at or above {}.", min()));
+    }
+    if (suffering_from_an_overflow()) {
+        return MUST(String::formatted("Please select a number at or below {}.", max()));
+    }
+    if (suffering_from_a_step_mismatch()) {
+        return "Please input a valid number."_string;
+    }
+
+    return {};
+}
+
 Optional<ARIA::Role> HTMLInputElement::default_role() const
 {
     // http://wpt.live/html-aam/roles-dynamic-switch.tentative.window.html "Disconnected <input type=checkbox switch>"

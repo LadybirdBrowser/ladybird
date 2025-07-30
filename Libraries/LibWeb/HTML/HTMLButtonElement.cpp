@@ -280,6 +280,19 @@ bool HTMLButtonElement::will_validate()
     return is_candidate_for_constraint_validation();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validationmessage
+String HTMLButtonElement::format_validation_message()
+{
+    if (suffering_from_being_missing()) {
+        return "Please input a value."_string;
+    }
+    if (suffering_from_bad_input()) {
+        return "Please input a valid value."_string;
+    }
+
+    return {};
+}
+
 bool HTMLButtonElement::is_focusable() const
 {
     return enabled();

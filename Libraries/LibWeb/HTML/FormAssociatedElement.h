@@ -142,6 +142,9 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
     GC::Ref<ValidityState const> validity() const;
 
+    virtual String format_validation_message() { return {}; }
+    String validation_message();
+
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
     void set_custom_validity(String& error);
 
