@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Bytecode/Instructions.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Register.h>
 #include <LibJS/Export.h>
@@ -57,8 +58,15 @@ public:
         return m_registers_and_constants_and_locals_arguments.data()[r.index()];
     }
 
-    [[nodiscard]] Value get(Operand) const;
-    void set(Operand, Value);
+    [[nodiscard]] ALWAYS_INLINE Value get(Operand op) const
+    {
+        return m_registers_and_constants_and_locals_arguments.data()[op.index()];
+    }
+
+    ALWAYS_INLINE void set(Operand op, Value value)
+    {
+        m_registers_and_constants_and_locals_arguments.data()[op.index()] = value;
+    }
 
     Value do_yield(Value value, Optional<Label> continuation);
     void do_return(Value value)
@@ -85,14 +93,14 @@ public:
 
     ExecutionContext& running_execution_context() { return *m_running_execution_context; }
 
-private:
-    void run_bytecode(size_t entry_point);
-
     enum class HandleExceptionResponse {
         ExitFromExecutable,
         ContinueInThisExecutable,
     };
     [[nodiscard]] HandleExceptionResponse handle_exception(size_t& program_counter, Value exception);
+
+private:
+    void run_bytecode(size_t entry_point);
 
     VM& m_vm;
     Optional<size_t> m_scheduled_jump;
@@ -103,6 +111,24 @@ private:
     Span<Value> m_registers_and_constants_and_locals_arguments;
     Vector<Value> m_argument_values_buffer;
     ExecutionContext* m_running_execution_context { nullptr };
+
+#define DECLARE_INSTRUCTION_HANDLER(Name) \
+    void handle_##Name(u8 const* bytecode, size_t& program_counter);
+    ENUMERATE_BYTECODE_OPS(DECLARE_INSTRUCTION_HANDLER);
+#undef DECLARE_INSTRUCTION_HANDLER
+
+    static constexpr void (Interpreter::* dispatch_instruction_table[])(u8 const*, size_t&) = {
+#define __BYTECODE_OP(op) &Interpreter::handle_##op,
+        ENUMERATE_BYTECODE_OPS(__BYTECODE_OP)
+#undef __BYTECODE_OP
+    };
+    // Helpers for the instruction handlers
+    template<typename OP>
+    void handle_with_exception_check(u8 const* bytecode, size_t& program_counter);
+    template<typename OP>
+    void handle_without_exception_check(u8 const* bytecode, size_t& program_counter);
+    template<typename OP, ThrowCompletionOr<bool> (*op)(VM&, Value, Value), bool (*numeric_operator)(Value, Value)>
+    void handle_comparison(u8 const* bytecode, size_t& program_counter);
 };
 
 JS_API extern bool g_dump_bytecode;
