@@ -3307,6 +3307,19 @@ RefPtr<CustomIdentStyleValue const> Parser::parse_custom_ident_value(TokenStream
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-values-4/#typedef-dashed-ident
+Optional<FlyString> Parser::parse_dashed_ident(TokenStream<ComponentValue>& tokens)
+{
+    // The <dashed-ident> production is a <custom-ident>, with all the case-sensitivity that implies, with the
+    // additional restriction that it must start with two dashes (U+002D HYPHEN-MINUS).
+    auto transaction = tokens.begin_transaction();
+    auto custom_ident = parse_custom_ident(tokens, {});
+    if (!custom_ident.has_value() || !custom_ident->starts_with_bytes("--"sv))
+        return {};
+    transaction.commit();
+    return custom_ident;
+}
+
 // https://www.w3.org/TR/css-grid-2/#typedef-track-breadth
 Optional<GridSize> Parser::parse_grid_track_breadth(TokenStream<ComponentValue>& tokens)
 {
