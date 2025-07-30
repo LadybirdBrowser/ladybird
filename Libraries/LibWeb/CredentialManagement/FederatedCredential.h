@@ -34,6 +34,7 @@ public:
 
 private:
     explicit FederatedCredential(JS::Realm&);
+    FederatedCredential(JS::Realm&, FederatedCredentialInit const&);
     virtual void initialize(JS::Realm&) override;
 
     String m_provider;
