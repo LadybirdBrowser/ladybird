@@ -1,0 +1,23 @@
+<!DOCTYPE HTML>
+<title>:valid and :invalid pseudo-class on output element</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<output id='output_test'></output>
+
+<script>
+
+test(() => {
+  let output = document.getElementById("output_test");
+  assert_false(output.matches(":valid"), "should not match :valid pseudo-class");
+  assert_false(output.matches(":invalid"), "should not match :invalid pseudo-class");
+
+  output.setCustomValidity("custom error");
+  assert_equals(output.validationMessage, "", "should not have a validation message");
+  assert_true(output.validity.customError, "should have a custom error");
+  assert_false(output.validity.valid, "should not be valid with a custom error");
+  assert_false(output.matches(":valid"), "should still not match :valid pseudo-class");
+  assert_false(output.matches(":invalid"), "should still not match :invalid pseudo-class");
+}, ":valid and :invalid pseudo-class on output element")
+
+</script>

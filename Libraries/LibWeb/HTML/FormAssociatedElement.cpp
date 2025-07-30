@@ -58,6 +58,26 @@ GC::Ref<ValidityState const> FormAssociatedElement::validity() const
     return realm.create<ValidityState>(realm, *this);
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validationmessage
+String FormAssociatedElement::validation_message()
+{
+    // 1. If this element is not a candidate for constraint validation
+    //   or if this element satisfies its constraints, then return the empty string.
+    if (!is_candidate_for_constraint_validation() || satisfies_its_constraints()) {
+        return {};
+    }
+
+    // 2b. If the element is a candidate for constraint validation
+    //   and is suffering from a custom error, then the custom validity error message
+    //   should be present in the return value.
+    if (suffering_from_a_custom_error()) {
+        return m_custom_validity_error_message;
+    }
+
+    // (the rest of the errors should be handled in derived classes)
+    return format_validation_message();
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
 void FormAssociatedElement::set_custom_validity(String& error)
 {

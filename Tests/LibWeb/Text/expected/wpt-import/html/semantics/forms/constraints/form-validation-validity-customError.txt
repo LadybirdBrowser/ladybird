@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	[input]  The validity.customError must be true if the custom validity error message is not empty
+Pass	[input]  The validity.customError must be false if the custom validity error message is empty
+Pass	[button]  The validity.customError must be true if the custom validity error message is not empty
+Pass	[button]  The validity.customError must be false if the custom validity error message is empty
+Pass	[select]  The validity.customError must be true if the custom validity error message is not empty
+Pass	[select]  The validity.customError must be false if the custom validity error message is empty
+Pass	[textarea]  The validity.customError must be true if the custom validity error message is not empty
+Pass	[textarea]  The validity.customError must be false if the custom validity error message is empty
