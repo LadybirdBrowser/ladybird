@@ -21,22 +21,25 @@ class FederatedCredential final
     GC_DECLARE_ALLOCATOR(FederatedCredential);
 
 public:
-    [[nodiscard]] static GC::Ref<FederatedCredential> create(JS::Realm&);
-    static WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> construct_impl(JS::Realm&, FederatedCredentialInit const&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> construct_impl(JS::Realm&, FederatedCredentialInit const&);
 
     virtual ~FederatedCredential() override;
 
     String const& provider() { return m_provider; }
     Optional<String> const& protocol() { return m_protocol; }
+    URL::Origin const& origin() { return m_origin; }
 
     String type() override { return "federated"_string; }
 
 private:
-    explicit FederatedCredential(JS::Realm&);
+    FederatedCredential(JS::Realm&, FederatedCredentialInit const&, URL::Origin);
     virtual void initialize(JS::Realm&) override;
 
     String m_provider;
     Optional<String> m_protocol;
+
+    // https://www.w3.org/TR/credential-management-1/#dom-credential-origin-slot
+    URL::Origin m_origin;
 };
 
 struct FederatedCredentialRequestOptions {
