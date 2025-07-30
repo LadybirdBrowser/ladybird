@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Format.h>
 #include <AK/Optional.h>
 #include <AK/Types.h>
 
@@ -41,6 +42,15 @@ enum class ValueType : u8 {
     Url,
 };
 
+StringView value_type_to_string(ValueType);
 Optional<ValueType> value_type_from_string(StringView);
 
 }
+
+template<>
+struct AK::Formatter<Web::CSS::ValueType> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::ValueType type)
+    {
+        return Formatter<StringView>::format(builder, Web::CSS::value_type_to_string(type));
+    }
+};

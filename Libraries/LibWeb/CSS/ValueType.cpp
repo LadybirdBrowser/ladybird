@@ -66,4 +66,66 @@ Optional<ValueType> value_type_from_string(StringView string)
     return {};
 }
 
+StringView value_type_to_string(ValueType value_type)
+{
+    switch (value_type) {
+    case Web::CSS::ValueType::Anchor:
+        return "Anchor"sv;
+    case Web::CSS::ValueType::AnchorSize:
+        return "AnchorSize"sv;
+    case Web::CSS::ValueType::Angle:
+        return "Angle"sv;
+    case Web::CSS::ValueType::BackgroundPosition:
+        return "BackgroundPosition"sv;
+    case Web::CSS::ValueType::BasicShape:
+        return "BasicShape"sv;
+    case Web::CSS::ValueType::Color:
+        return "Color"sv;
+    case Web::CSS::ValueType::Counter:
+        return "Counter"sv;
+    case Web::CSS::ValueType::CustomIdent:
+        return "CustomIdent"sv;
+    case Web::CSS::ValueType::EasingFunction:
+        return "EasingFunction"sv;
+    case Web::CSS::ValueType::FilterValueList:
+        return "FilterValueList"sv;
+    case Web::CSS::ValueType::FitContent:
+        return "FitContent"sv;
+    case Web::CSS::ValueType::Flex:
+        return "Flex"sv;
+    case Web::CSS::ValueType::Frequency:
+        return "Frequency"sv;
+    case Web::CSS::ValueType::Image:
+        return "Image"sv;
+    case Web::CSS::ValueType::Integer:
+        return "Integer"sv;
+    case Web::CSS::ValueType::Length:
+        return "Length"sv;
+    case Web::CSS::ValueType::Number:
+        return "Number"sv;
+    case Web::CSS::ValueType::OpenTypeTag:
+        return "OpenTypeTag"sv;
+    case Web::CSS::ValueType::Paint:
+        return "Paint"sv;
+    case Web::CSS::ValueType::Percentage:
+        return "Percentage"sv;
+    case Web::CSS::ValueType::Position:
+        return "Position"sv;
+    case Web::CSS::ValueType::Ratio:
+        return "Ratio"sv;
+    case Web::CSS::ValueType::Rect:
+        return "Rect"sv;
+    case Web::CSS::ValueType::Resolution:
+        return "Resolution"sv;
+    case Web::CSS::ValueType::String:
+        return "String"sv;
+    case Web::CSS::ValueType::Time:
+        return "Time"sv;
+    case Web::CSS::ValueType::Url:
+        return "Url"sv;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 }
