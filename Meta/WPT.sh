@@ -672,6 +672,8 @@ list_tests_wpt()
 
 import_wpt()
 {
+    ensure_wpt_repository
+
     pushd "${WPT_SOURCE_DIR}" > /dev/null
        if ! git fetch origin > /dev/null; then
             echo "Failed to fetch the WPT repository, please check your network connection."
