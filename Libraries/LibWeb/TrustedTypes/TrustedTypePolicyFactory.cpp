@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/TagNames.h>
+#include <LibWeb/TrustedTypes/TrustedHTML.h>
 
 namespace Web::TrustedTypes {
 
@@ -130,6 +131,12 @@ void TrustedTypePolicyFactory::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TrustedTypePolicyFactory);
     Base::initialize(realm);
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-ishtml
+bool TrustedTypePolicyFactory::is_html(const JS::Value& value)
+{
+    return value.is_object() && is<TrustedHTML>(value.as_object()) && as<TrustedHTML>(value.as_object()).data_is_set();
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute

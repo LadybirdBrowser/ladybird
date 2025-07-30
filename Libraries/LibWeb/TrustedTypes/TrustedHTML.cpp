@@ -33,12 +33,14 @@ void TrustedHTML::initialize(JS::Realm& realm)
 
 String TrustedHTML::to_string() const
 {
-    return m_data;
+    if (m_data.has_value())
+        return m_data.value();
+    return ""_string;
 }
 
 String TrustedHTML::to_json() const
 {
-    return m_data;
+    return to_string();
 }
 
 }

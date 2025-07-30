@@ -24,11 +24,13 @@ public:
     String to_string() const;
     String to_json() const;
 
+    bool data_is_set() const { return m_data.has_value(); }
+
 private:
     explicit TrustedHTML(JS::Realm&, String const&);
     virtual void initialize(JS::Realm&) override;
 
-    String const m_data;
+    Optional<String> const m_data;
 };
 
 }
