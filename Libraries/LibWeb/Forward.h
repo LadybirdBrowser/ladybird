@@ -1220,6 +1220,7 @@ ErrorOr<Web::UniqueNodeID> decode(Decoder&);
 
 namespace Web::TrustedTypes {
 
+class TrustedHTML;
 class TrustedTypePolicyFactory;
 
 }

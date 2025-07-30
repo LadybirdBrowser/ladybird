@@ -432,6 +432,7 @@ TransformStream
 TransformStreamDefaultController
 TransitionEvent
 TreeWalker
+TrustedHTML
 TrustedTypePolicyFactory
 TypeError
 UIEvent
