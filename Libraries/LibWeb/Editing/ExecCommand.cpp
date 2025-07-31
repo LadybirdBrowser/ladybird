@@ -59,11 +59,11 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
         //
         // NOTE: Because either the start or end node of the range could be inside an editing host that is part of the
         //       other node's editing host, we can probe both and see if either one is the other's ancestor.
-        // NOTE: We can reuse Editing::editing_host_of_node() here since query_command_enabled() above already checked
-        //       that both the start and end nodes are either editable or an editing host.
+        // NOTE: We can reuse ->editing_host() here since query_command_enabled() above already checked that both the
+        //       start and end nodes are either editable or an editing host.
         auto range = Editing::active_range(*this);
-        auto& start_node_editing_host = *Editing::editing_host_of_node(range->start_container());
-        auto& end_node_editing_host = *Editing::editing_host_of_node(range->end_container());
+        auto& start_node_editing_host = *range->start_container()->editing_host();
+        auto& end_node_editing_host = *range->end_container()->editing_host();
         affected_editing_host = start_node_editing_host.is_ancestor_of(end_node_editing_host)
             ? end_node_editing_host
             : start_node_editing_host;
@@ -174,7 +174,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
         return false;
 
     // FIXME: the editing host of its start node is not an EditContext editing host,
-    [[maybe_unused]] auto start_node_editing_host = Editing::editing_host_of_node(start_node);
+    [[maybe_unused]] auto start_node_editing_host = start_node->editing_host();
 
     // its end node is either editable or an editing host,
     auto& end_node = *active_range->end_container();
@@ -182,7 +182,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
         return false;
 
     // FIXME: the editing host of its end node is not an EditContext editing host,
-    [[maybe_unused]] auto end_node_editing_host = Editing::editing_host_of_node(end_node);
+    [[maybe_unused]] auto end_node_editing_host = end_node.editing_host();
 
     // and there is some editing host that is an inclusive ancestor of both its start node and its end node.
     GC::Ptr<Node> inclusive_ancestor_editing_host;

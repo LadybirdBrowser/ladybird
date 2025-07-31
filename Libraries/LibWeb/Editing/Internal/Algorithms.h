@@ -59,7 +59,6 @@ void canonicalize_whitespace(DOM::BoundaryPoint, bool fix_collapsed_space = true
 Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const&, GC::Ref<DOM::Element>);
 void delete_the_selection(Selection&, bool block_merging = true, bool strip_wrappers = true,
     Selection::Direction direction = Selection::Direction::Forwards);
-GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node>);
 Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node>, FlyString const& command);
 DOM::BoundaryPoint first_equivalent_point(DOM::BoundaryPoint);
 void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node>);

@@ -1319,7 +1319,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
             // If the editing host is contenteditable="plaintext-only", we force a line break.
             if (focused_element) {
-                if (auto editing_host = Editing::editing_host_of_node(*focused_element); editing_host
+                if (auto editing_host = focused_element->editing_host(); editing_host
                     && as<HTML::HTMLElement>(*editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly)
                     input_type = UIEvents::InputTypes::insertLineBreak;
             }
