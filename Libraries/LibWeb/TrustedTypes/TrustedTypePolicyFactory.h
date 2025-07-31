@@ -29,6 +29,7 @@ public:
     Optional<String> get_attribute_type(String const& tag_name, String& attribute, Optional<String> element_ns, Optional<String> attr_ns);
     Optional<String> get_property_type(String const& tag_name, String& property, Optional<String> element_ns);
 
+    Vector<String> const& created_policy_names() const { return m_created_policy_names; }
     void append_policy_name(String const& policy_name) { m_created_policy_names.append(policy_name); }
     void set_default_policy(GC::Ptr<TrustedTypePolicy> const& policy)
     {

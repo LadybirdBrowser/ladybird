@@ -27,6 +27,8 @@ public:
 
     virtual ~TrustedTypePolicy() override { }
 
+    String name() const { return m_name; }
+
 private:
     explicit TrustedTypePolicy(JS::Realm&, String const&, TrustedTypePolicyOptions const&);
     virtual void initialize(JS::Realm&) override;
@@ -35,6 +37,8 @@ private:
     TrustedTypePolicyOptions const m_options;
 };
 
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(TrustedTypePolicyFactory*, String const&, TrustedTypePolicyOptions const&, const JS::Object&);
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(TrustedTypePolicyFactory*, String const&, TrustedTypePolicyOptions const&, JS::Object&);
+
+String should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object&, String const&, Vector<String> const&);
 
 }
