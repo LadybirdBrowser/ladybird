@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 45 tests
 
-24 Pass
-21 Fail
+26 Pass
+19 Fail
 Pass	Property width value 'calc(NaN * 1px)'
 Pass	Property width value 'calc(NaN * 1%)'
 Pass	Property width value 'calc(infinity * 1px)'
@@ -11,11 +11,11 @@ Pass	Property width value 'calc(infinity * 1%)'
 Pass	Property width value 'calc(infinity * 1cm)'
 Pass	Property width value 'calc(NaN * 1rem)'
 Pass	Property width value 'calc(10.135262721212548pc - 199pt / NaN)'
-Fail	Property width value 'max(15px, NaN * 1px)'
+Pass	Property width value 'max(15px, NaN * 1px)'
 Pass	Property width value 'max(NaN * 1px, 15px)'
 Pass	Property width value 'max(-15px, NaN * 1px)'
 Pass	Property width value 'max(NaN * 1px, -15px)'
-Fail	Property width value 'min(15px, NaN * 1px)'
+Pass	Property width value 'min(15px, NaN * 1px)'
 Pass	Property width value 'min(NaN * 1px, 15px)'
 Pass	Property width value 'min(-15px, NaN * 1px)'
 Pass	Property width value 'min(NaN * 1px, -15px)'
