@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Creating an empty policy name works.
+Pass	Creating policy names made of a single ASCII character works.
+Pass	Creating policy names made of multiple ASCII characters works.
+Pass	Creating policy names containing a non-ASCII BMP character works.
+Pass	Creating policy names containing a non-BMP character works.

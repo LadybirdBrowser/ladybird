@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Can create policy with name 'SomeName'
+Pass	Cannot create policy with name 'default' - policy creation throws
