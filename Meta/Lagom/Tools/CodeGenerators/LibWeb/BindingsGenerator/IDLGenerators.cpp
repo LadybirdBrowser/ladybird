@@ -117,6 +117,7 @@ static bool is_platform_object(Type const& type)
         "TextTrack"sv,
         "TimeRanges"sv,
         "TrustedHTML"sv,
+        "TrustedScript"sv,
         "TrustedTypePolicy"sv,
         "TrustedTypePolicyFactory"sv,
         "URLSearchParams"sv,
