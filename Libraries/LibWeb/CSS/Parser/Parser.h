@@ -548,7 +548,10 @@ private:
         AtRuleID at_rule;
         DescriptorID descriptor;
     };
-    using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext>;
+    enum SpecialContext : u8 {
+        TranslateZArgument
+    };
+    using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
     Vector<ValueParsingContext> m_value_context;
     auto push_temporary_value_parsing_context(ValueParsingContext&& context)
     {

@@ -3447,7 +3447,12 @@
     "inherited": false,
     "initial": "none",
     "affects-layout": false,
-    "affects-stacking-context": true
+    "affects-stacking-context": true,
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length"
   },
   "unicode-bidi": {
     "animation-type": "none",

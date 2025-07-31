@@ -1685,7 +1685,7 @@ bool Parser::context_allows_quirky_length() const
             [top_level_property](FunctionContext const& function_context) {
                 return function_context.name == "rect"sv && top_level_property == PropertyID::Clip;
             },
-            [](DescriptorContext const&) { return false; });
+            [](auto const&) { return false; });
     }
 
     return unitless_length_allowed;
