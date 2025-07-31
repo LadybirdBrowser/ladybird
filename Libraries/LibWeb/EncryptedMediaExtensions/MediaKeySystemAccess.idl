@@ -30,3 +30,8 @@ dictionary MediaKeySystemMediaCapability {
     Utf16DOMString? encryptionScheme = null;
     Utf16DOMString robustness = "";
 };
+
+enum MediaKeySessionType {
+    "temporary",
+    "persistent-license"
+};
