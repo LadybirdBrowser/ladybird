@@ -1,0 +1,5 @@
+Range: [object Text] 1 [object Text] 2
+document.activeElement: [object HTMLDivElement]
+Selection must be the same as above:
+Range: [object Text] 1 [object Text] 2
+document.activeElement: [object HTMLDivElement]

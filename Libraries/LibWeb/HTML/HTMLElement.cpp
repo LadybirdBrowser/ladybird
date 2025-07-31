@@ -18,6 +18,7 @@
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/LiveNodeList.h>
 #include <LibWeb/DOM/Position.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CloseWatcher.h>
@@ -41,6 +42,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -2038,6 +2040,12 @@ void HTMLElement::did_receive_focus()
 
     auto editing_host = document().editing_host_manager();
     editing_host->set_active_contenteditable_element(this);
+
+    // Don't update the selection if we're already part of the active range.
+    if (auto range = document().get_selection()->range()) {
+        if (is_inclusive_ancestor_of(range->start_container()) || is_inclusive_ancestor_of(range->end_container()))
+            return;
+    }
 
     DOM::Text* text = nullptr;
     for_each_in_inclusive_subtree_of_type<DOM::Text>([&](auto& node) {
