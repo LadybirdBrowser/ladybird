@@ -525,25 +525,36 @@ GC::Ptr<DOM::Range> Selection::range() const
 
 void Selection::set_range(GC::Ptr<DOM::Range> range)
 {
-    if (m_range == range)
+    auto old_range = m_range;
+    if (old_range == range)
         return;
 
-    if (m_range)
-        m_range->set_associated_selection({}, nullptr);
+    if (old_range)
+        old_range->set_associated_selection({}, nullptr);
 
-    auto range_changed = ((m_range == nullptr) != (range == nullptr)) || (m_range && *m_range != *range);
     m_range = range;
 
-    if (m_range)
-        m_range->set_associated_selection({}, this);
+    if (range)
+        range->set_associated_selection({}, this);
 
     // https://w3c.github.io/editing/docs/execCommand/#state-override
     // Whenever the number of ranges in the selection changes to something different, and whenever a boundary point of
     // the range at a given index in the selection changes to something different, the state override and value override
     // must be unset for every command.
-    if (range_changed) {
+    if (((old_range == nullptr) != (range == nullptr)) || (old_range && *old_range != *range)) {
         m_document->reset_command_state_overrides();
         m_document->reset_command_value_overrides();
+    }
+
+    // https://developer.mozilla.org/en-US/docs/Web/API/Selection#behavior_of_selection_api_in_terms_of_editing_host_focus_changes
+    // AD-HOC: Focus editing host if the previous selection was outside of it. There seems to be no spec for this.
+    if (range && range->start_container()->is_editable_or_editing_host()) {
+        GC::Ptr old_editing_host = old_range ? old_range->start_container()->editing_host() : nullptr;
+        GC::Ref new_editing_host = *range->start_container()->editing_host();
+        if (new_editing_host != old_editing_host && document()->focused_element() != new_editing_host) {
+            // FIXME: Determine and propagate the right focus trigger.
+            HTML::run_focusing_steps(new_editing_host, nullptr, HTML::FocusTrigger::Other);
+        }
     }
 }
 

@@ -1,0 +1,2 @@
+Range: [object Text] 1 [object Text] 2
+document.activeElement: [object HTMLDivElement]
