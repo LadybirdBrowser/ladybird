@@ -1845,6 +1845,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 {
     auto scoped_generator = generator.fork();
     scoped_generator.set("value", value);
+    scoped_generator.set("value_cpp_name", value.replace("."sv, "_"sv));
     if (!libweb_interface_namespaces.span().contains_slow(type.name())) {
         if (is_javascript_builtin(type))
             scoped_generator.set("type", ByteString::formatted("JS::{}", type.name()));
@@ -1916,9 +1917,9 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
         if (type.is_nullable() || is_optional) {
             scoped_generator.append(R"~~~(
-    auto& @value@_non_optional = @value@.value();
-    for (size_t i@recursion_depth@ = 0; i@recursion_depth@ < @value@_non_optional.size(); ++i@recursion_depth@) {
-        auto& element@recursion_depth@ = @value@_non_optional.at(i@recursion_depth@);
+    auto& @value_cpp_name@_non_optional = @value@.value();
+    for (size_t i@recursion_depth@ = 0; i@recursion_depth@ < @value_cpp_name@_non_optional.size(); ++i@recursion_depth@) {
+        auto& element@recursion_depth@ = @value_cpp_name@_non_optional.at(i@recursion_depth@);
 )~~~");
         } else {
             scoped_generator.append(R"~~~(
