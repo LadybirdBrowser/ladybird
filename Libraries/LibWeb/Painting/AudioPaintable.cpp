@@ -39,7 +39,7 @@ Layout::AudioBox const& AudioPaintable::layout_box() const
     return static_cast<Layout::AudioBox const&>(layout_node());
 }
 
-void AudioPaintable::paint(PaintContext& context, PaintPhase phase) const
+void AudioPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Painting/PaintContext.h>
 #include <LibWeb/PixelUnits.h>
 
 #pragma once
@@ -19,7 +18,7 @@ public:
 
     Optional<CSSPixelRect> get_masking_area_of_svg() const;
     Optional<Gfx::Bitmap::MaskKind> get_mask_type_of_svg() const;
-    RefPtr<Gfx::ImmutableBitmap> calculate_mask_of_svg(PaintContext&, CSSPixelRect const& masking_area) const;
+    RefPtr<Gfx::ImmutableBitmap> calculate_mask_of_svg(DisplayListRecordingContext&, CSSPixelRect const& masking_area) const;
 };
 
 }

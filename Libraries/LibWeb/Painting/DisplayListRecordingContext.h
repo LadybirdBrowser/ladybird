@@ -16,9 +16,9 @@
 
 namespace Web {
 
-class PaintContext {
+class DisplayListRecordingContext {
 public:
-    PaintContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel);
+    DisplayListRecordingContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel);
 
     Painting::DisplayListRecorder& display_list_recorder() const { return m_display_list_recorder; }
     Palette const& palette() const { return m_palette; }
@@ -67,9 +67,9 @@ public:
     CSSPixelSize scale_to_css_size(DevicePixelSize) const;
     CSSPixelRect scale_to_css_rect(DevicePixelRect) const;
 
-    PaintContext clone(Painting::DisplayListRecorder& painter) const
+    DisplayListRecordingContext clone(Painting::DisplayListRecorder& painter) const
     {
-        auto clone = PaintContext(painter, m_palette, m_device_pixel_converter.device_pixels_per_css_pixel());
+        auto clone = DisplayListRecordingContext(painter, m_palette, m_device_pixel_converter.device_pixels_per_css_pixel());
         clone.m_device_viewport_rect = m_device_viewport_rect;
         clone.m_should_show_line_box_borders = m_should_show_line_box_borders;
         clone.m_should_paint_overlay = m_should_paint_overlay;

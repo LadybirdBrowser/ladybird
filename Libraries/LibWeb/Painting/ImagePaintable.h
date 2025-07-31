@@ -22,7 +22,7 @@ public:
     static GC::Ref<ImagePaintable> create(Layout::ImageBox const& layout_box);
     static GC::Ref<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
 private:
     // ^JS::Cell

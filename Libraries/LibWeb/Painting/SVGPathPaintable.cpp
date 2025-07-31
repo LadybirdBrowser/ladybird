@@ -51,7 +51,7 @@ static Gfx::WindingRule to_gfx_winding_rule(SVG::FillRule fill_rule)
     }
 }
 
-void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
+void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible() || !computed_path().has_value())
         return;

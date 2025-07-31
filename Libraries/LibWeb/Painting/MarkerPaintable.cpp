@@ -30,7 +30,7 @@ Layout::ListItemMarkerBox const& MarkerPaintable::layout_box() const
 
 constexpr float sin_60_deg = 0.866025403f;
 
-void MarkerPaintable::paint(PaintContext& context, PaintPhase phase) const
+void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

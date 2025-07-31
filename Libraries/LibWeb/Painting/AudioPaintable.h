@@ -18,7 +18,7 @@ class AudioPaintable final : public MediaPaintable {
 public:
     static GC::Ref<AudioPaintable> create(Layout::AudioBox const&);
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
     Layout::AudioBox& layout_box();
     Layout::AudioBox const& layout_box() const;

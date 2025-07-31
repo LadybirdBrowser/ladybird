@@ -18,7 +18,7 @@ class MarkerPaintable final : public PaintableBox {
 public:
     static GC::Ref<MarkerPaintable> create(Layout::ListItemMarkerBox const&);
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
     Layout::ListItemMarkerBox const& layout_box() const;
 

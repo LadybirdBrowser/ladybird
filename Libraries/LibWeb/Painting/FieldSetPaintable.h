@@ -7,8 +7,6 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Layout/FieldSetBox.h>
-#include <LibWeb/Painting/PaintContext.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
@@ -20,7 +18,7 @@ class FieldSetPaintable final : public PaintableBox {
 public:
     static GC::Ref<FieldSetPaintable> create(Layout::FieldSetBox const&);
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
 private:
     Layout::FieldSetBox& layout_box();

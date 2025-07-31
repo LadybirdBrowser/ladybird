@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/LegendBox.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/FieldSetPaintable.h>
@@ -32,7 +33,7 @@ Layout::FieldSetBox const& FieldSetPaintable::layout_box() const
     return static_cast<Layout::FieldSetBox const&>(layout_node());
 }
 
-void FieldSetPaintable::paint(PaintContext& context, PaintPhase phase) const
+void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

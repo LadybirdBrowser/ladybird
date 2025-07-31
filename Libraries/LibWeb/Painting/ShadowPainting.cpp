@@ -9,14 +9,14 @@
 #include <LibWeb/Painting/BorderPainting.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
-#include <LibWeb/Painting/PaintContext.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {
 
-void paint_box_shadow(PaintContext& context,
+void paint_box_shadow(DisplayListRecordingContext& context,
     CSSPixelRect const& bordered_content_rect,
     CSSPixelRect const& borderless_content_rect,
     BordersData const& borders_data,
@@ -64,7 +64,7 @@ void paint_box_shadow(PaintContext& context,
     }
 }
 
-void paint_text_shadow(PaintContext& context, PaintableFragment const& fragment, Vector<ShadowData> const& shadow_layers)
+void paint_text_shadow(DisplayListRecordingContext& context, PaintableFragment const& fragment, Vector<ShadowData> const& shadow_layers)
 {
     if (shadow_layers.is_empty())
         return;

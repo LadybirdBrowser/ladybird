@@ -31,10 +31,10 @@ public:
         FocusAndOverlay,
     };
 
-    static void paint_node_as_stacking_context(Paintable const&, PaintContext&);
-    static void paint_descendants(PaintContext&, Paintable const&, StackingContextPaintPhase);
-    static void paint_svg(PaintContext&, PaintableBox const&, PaintPhase);
-    void paint(PaintContext&) const;
+    static void paint_node_as_stacking_context(Paintable const&, DisplayListRecordingContext&);
+    static void paint_descendants(DisplayListRecordingContext&, Paintable const&, StackingContextPaintPhase);
+    static void paint_svg(DisplayListRecordingContext&, PaintableBox const&, PaintPhase);
+    void paint(DisplayListRecordingContext&) const;
 
     [[nodiscard]] TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const;
 
@@ -56,8 +56,8 @@ private:
     Vector<GC::Ref<PaintableBox const>> m_positioned_descendants_and_stacking_contexts_with_stack_level_0;
     Vector<GC::Ref<PaintableBox const>> m_non_positioned_floating_descendants;
 
-    static void paint_child(PaintContext&, StackingContext const&);
-    void paint_internal(PaintContext&) const;
+    static void paint_child(DisplayListRecordingContext&, StackingContext const&);
+    void paint_internal(DisplayListRecordingContext&) const;
 };
 
 }

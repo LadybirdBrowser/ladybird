@@ -52,7 +52,7 @@ public:
 
     virtual String to_string(SerializationMode) const override;
 
-    void paint(PaintContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
+    void paint(DisplayListRecordingContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 
     virtual bool equals(CSSStyleValue const& other) const override;
 

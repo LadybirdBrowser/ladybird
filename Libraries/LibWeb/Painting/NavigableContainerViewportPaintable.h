@@ -20,7 +20,7 @@ public:
 
     static GC::Ref<NavigableContainerViewportPaintable> create(Layout::NavigableContainerViewport const&);
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
     Layout::NavigableContainerViewport const& layout_box() const;
 

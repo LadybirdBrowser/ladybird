@@ -6,7 +6,7 @@
  */
 
 #include <LibWeb/Painting/BorderRadiiData.h>
-#include <LibWeb/Painting/PaintContext.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 
 namespace Web::Painting {
 

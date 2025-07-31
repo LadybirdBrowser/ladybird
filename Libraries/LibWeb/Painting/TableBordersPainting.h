@@ -6,10 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Painting/PaintContext.h>
-
 namespace Web::Painting {
 
-void paint_table_borders(PaintContext&, PaintableBox const& table_paintable);
+void paint_table_borders(DisplayListRecordingContext&, PaintableBox const& table_paintable);
 
 }

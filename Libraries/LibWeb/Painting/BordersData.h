@@ -34,7 +34,7 @@ struct BordersData {
     CSS::BorderData bottom;
     CSS::BorderData left;
 
-    BordersDataDevicePixels to_device_pixels(PaintContext const& context) const;
+    BordersDataDevicePixels to_device_pixels(DisplayListRecordingContext const& context) const;
 };
 
 }

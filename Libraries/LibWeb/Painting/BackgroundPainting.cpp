@@ -18,7 +18,7 @@
 
 namespace Web::Painting {
 
-static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Paintable const& paintable, CSSPixelPoint containing_block_location)
+static RefPtr<DisplayList> compute_text_clip_paths(DisplayListRecordingContext& context, Paintable const& paintable, CSSPixelPoint containing_block_location)
 {
     auto text_clip_paths = DisplayList::create(context.device_pixels_per_css_pixel());
     DisplayListRecorder display_list_recorder(*text_clip_paths);
@@ -75,7 +75,7 @@ static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_b
 }
 
 // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
-void paint_background(PaintContext& context, PaintableBox const& paintable_box, CSS::ImageRendering image_rendering, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
+void paint_background(DisplayListRecordingContext& context, PaintableBox const& paintable_box, CSS::ImageRendering image_rendering, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
 {
     auto& display_list_recorder = context.display_list_recorder();
 

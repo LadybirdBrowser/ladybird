@@ -61,7 +61,7 @@ void ViewportPaintable::build_stacking_context_tree()
     stacking_context()->sort();
 }
 
-void ViewportPaintable::paint_all_phases(PaintContext& context)
+void ViewportPaintable::paint_all_phases(DisplayListRecordingContext& context)
 {
     build_stacking_context_tree_if_needed();
     context.display_list_recorder().save_layer();

@@ -70,10 +70,10 @@ public:
     bool has_stacking_context() const;
     StackingContext* enclosing_stacking_context();
 
-    virtual void before_paint(PaintContext&, PaintPhase) const { }
-    virtual void after_paint(PaintContext&, PaintPhase) const { }
+    virtual void before_paint(DisplayListRecordingContext&, PaintPhase) const { }
+    virtual void after_paint(DisplayListRecordingContext&, PaintPhase) const { }
 
-    virtual void paint(PaintContext&, PaintPhase) const { }
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const { }
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const;
 

@@ -5,12 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Bitmap.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/Layout/CheckBox.h>
-#include <LibWeb/Layout/Label.h>
 #include <LibWeb/Painting/CheckBoxPaintable.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/InputColors.h>
@@ -58,7 +55,7 @@ Layout::CheckBox& CheckBoxPaintable::layout_box()
     return static_cast<Layout::CheckBox&>(layout_node());
 }
 
-void CheckBoxPaintable::paint(PaintContext& context, PaintPhase phase) const
+void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;
