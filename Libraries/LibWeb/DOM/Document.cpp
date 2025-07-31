@@ -4450,6 +4450,7 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
             return true;
         break;
     case PolicyControlledFeature::FocusWithoutUserActivation:
+    case PolicyControlledFeature::EncryptedMedia:
         // FIXME: Implement allowlist for this.
         return true;
     }
