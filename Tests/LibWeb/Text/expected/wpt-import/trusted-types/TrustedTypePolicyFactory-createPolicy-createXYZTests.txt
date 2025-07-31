@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	html = identity function
+Pass	html = null
+Pass	html = string + global string
+Pass	html = identity function, global string changed
+Pass	html = callback that throws
+Pass	html = this bound to an object
+Pass	html = this without bind
+Pass	html - calling undefined callback throws
+Pass	createHTML defined - calling undefined callbacks throws
+Pass	script = identity function
+Pass	script = null
+Pass	script = string + global string
+Pass	script = identity function, global string changed
+Pass	script = callback that throws
+Pass	script = this bound to an object
+Pass	script = this without bind
+Pass	script - calling undefined callback throws
+Pass	createScript defined - calling undefined callbacks throws
+Pass	script_url = identity function
+Pass	script_url = null
+Pass	script_url = string + global string
+Pass	script_url = identity function, global string changed
+Pass	script_url = callback that throws
+Pass	script_url = this bound to an object
+Pass	script_url = this without bind
+Pass	script_url - calling undefined callback throws
+Pass	createScriptURL defined - calling undefined callbacks throws
+Pass	Arbitrary number of arguments
