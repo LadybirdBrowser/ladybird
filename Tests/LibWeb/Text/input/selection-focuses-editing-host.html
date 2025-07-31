@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<div contenteditable>foo</div>
+<script src="include.js"></script>
+<script>
+test(() => {
+    const divElm = document.querySelector('div[contenteditable]');
+    const range = document.createRange();
+    range.setStart(divElm.childNodes[0], 1);
+    range.setEnd(divElm.childNodes[0], 2);
+    window.getSelection().addRange(range);
+
+    println(`Range: ${range.startContainer} ${range.startOffset} ${range.endContainer} ${range.endOffset}`);
+    println(`document.activeElement: ${document.activeElement}`);
+});
+</script>
