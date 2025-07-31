@@ -425,6 +425,7 @@ TransformStreamDefaultController
 TransitionEvent
 TreeWalker
 TrustedHTML
+TrustedScript
 TrustedTypePolicy
 TrustedTypePolicyFactory
 TypeError
