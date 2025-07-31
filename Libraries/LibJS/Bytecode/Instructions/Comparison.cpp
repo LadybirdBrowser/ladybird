@@ -76,7 +76,7 @@ ALWAYS_INLINE FLATTEN void Interpreter::handle_comparison(u8 const* bytecode, si
 #define HANDLE_COMPARISON_OP(op_TitleCase, op_snake_case, numeric_operator)                  \
     void Interpreter::handle_Jump##op_TitleCase(u8 const* bytecode, size_t& program_counter) \
     {                                                                                        \
-        return handle_comparison<Op::Jump##op_TitleCase, op_snake_case,                      \
+        [[clang::musttail]] return handle_comparison<Op::Jump##op_TitleCase, op_snake_case,  \
             [] [[gnu::always_inline]] (Value lhs, Value rhs) static -> bool {                \
                 if (lhs.is_int32() && rhs.is_int32())                                        \
                     return lhs.as_i32() numeric_operator rhs.as_i32();                       \

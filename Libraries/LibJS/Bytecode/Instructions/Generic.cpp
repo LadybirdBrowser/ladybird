@@ -24,24 +24,21 @@
 
 namespace JS::Bytecode {
 
-template<typename OP>
-ALWAYS_INLINE FLATTEN void Interpreter::handle_with_exception_check(u8 const* bytecode, size_t& program_counter)
+//  bool has_exception_check = IsSame<decltype(declval<OP>().execute_impl(declval<Interpreter&>())), ThrowCompletionOr<void>>
+template<typename OP, bool has_exception_check>
+ALWAYS_INLINE FLATTEN void Interpreter::handle_generic(u8 const* bytecode, size_t& program_counter)
 {
     auto const& instruction = *reinterpret_cast<OP const*>(&bytecode[program_counter]);
-    auto result = instruction.execute_impl(*this);
-    if (result.is_error()) [[unlikely]] {
-        if (handle_exception(program_counter, result.error_value()) == HandleExceptionResponse::ExitFromExecutable)
-            return;
-        DISPATCH_NEXT();
+    if constexpr (has_exception_check) {
+        auto result = instruction.execute_impl(*this);
+        if (result.is_error()) [[unlikely]] {
+            if (handle_exception(program_counter, result.error_value()) == HandleExceptionResponse::ExitFromExecutable)
+                return;
+            DISPATCH_NEXT();
+        }
+    } else {
+        instruction.execute_impl(*this);
     }
-    increment_program_counter(program_counter, instruction);
-    DISPATCH_NEXT();
-}
-template<typename OP>
-ALWAYS_INLINE FLATTEN void Interpreter::handle_without_exception_check(u8 const* bytecode, size_t& program_counter)
-{
-    auto const& instruction = *reinterpret_cast<OP const*>(&bytecode[program_counter]);
-    instruction.execute_impl(*this);
     increment_program_counter(program_counter, instruction);
     DISPATCH_NEXT();
 }
@@ -49,38 +46,32 @@ ALWAYS_INLINE FLATTEN void Interpreter::handle_without_exception_check(u8 const*
 #define HANDLE_INSTRUCTION(name)                                                         \
     FLATTEN void Interpreter::handle_##name(u8 const* bytecode, size_t& program_counter) \
     {                                                                                    \
-        return handle_with_exception_check<Op::name>(bytecode, program_counter);         \
-    }
-
-#define HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(name)                                 \
-    FLATTEN void Interpreter::handle_##name(u8 const* bytecode, size_t& program_counter) \
-    {                                                                                    \
-        return handle_without_exception_check<Op::name>(bytecode, program_counter);      \
+        [[clang::musttail]] return handle_generic<Op::name>(bytecode, program_counter);  \
     }
 
 HANDLE_INSTRUCTION(Add);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(AddPrivateName);
+HANDLE_INSTRUCTION(AddPrivateName);
 HANDLE_INSTRUCTION(ArrayAppend);
 HANDLE_INSTRUCTION(AsyncIteratorClose);
 HANDLE_INSTRUCTION(BitwiseAnd);
 HANDLE_INSTRUCTION(BitwiseNot);
 HANDLE_INSTRUCTION(BitwiseOr);
 HANDLE_INSTRUCTION(BitwiseXor);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(BlockDeclarationInstantiation);
+HANDLE_INSTRUCTION(BlockDeclarationInstantiation);
 HANDLE_INSTRUCTION(Call);
 HANDLE_INSTRUCTION(CallBuiltin);
 HANDLE_INSTRUCTION(CallConstruct);
 HANDLE_INSTRUCTION(CallDirectEval);
 HANDLE_INSTRUCTION(CallWithArgumentArray);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Catch);
+HANDLE_INSTRUCTION(Catch);
 HANDLE_INSTRUCTION(ConcatString);
 HANDLE_INSTRUCTION(CopyObjectExcludingProperties);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateLexicalEnvironment);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateVariableEnvironment);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreatePrivateEnvironment);
+HANDLE_INSTRUCTION(CreateLexicalEnvironment);
+HANDLE_INSTRUCTION(CreateVariableEnvironment);
+HANDLE_INSTRUCTION(CreatePrivateEnvironment);
 HANDLE_INSTRUCTION(CreateVariable);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateRestParams);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateArguments);
+HANDLE_INSTRUCTION(CreateRestParams);
+HANDLE_INSTRUCTION(CreateArguments);
 HANDLE_INSTRUCTION(Decrement);
 HANDLE_INSTRUCTION(DeleteById);
 HANDLE_INSTRUCTION(DeleteByIdWithThis);
@@ -88,7 +79,7 @@ HANDLE_INSTRUCTION(DeleteByValue);
 HANDLE_INSTRUCTION(DeleteByValueWithThis);
 HANDLE_INSTRUCTION(DeleteVariable);
 HANDLE_INSTRUCTION(Div);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Dump);
+HANDLE_INSTRUCTION(Dump);
 HANDLE_INSTRUCTION(EnterObjectEnvironment);
 HANDLE_INSTRUCTION(Exp);
 HANDLE_INSTRUCTION(GetById);
@@ -96,16 +87,16 @@ HANDLE_INSTRUCTION(GetByIdWithThis);
 HANDLE_INSTRUCTION(GetByValue);
 HANDLE_INSTRUCTION(GetByValueWithThis);
 HANDLE_INSTRUCTION(GetCalleeAndThisFromEnvironment);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetCompletionFields);
+HANDLE_INSTRUCTION(GetCompletionFields);
 HANDLE_INSTRUCTION(GetGlobal);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetImportMeta);
+HANDLE_INSTRUCTION(GetImportMeta);
 HANDLE_INSTRUCTION(GetIterator);
 HANDLE_INSTRUCTION(GetLength);
 HANDLE_INSTRUCTION(GetLengthWithThis);
 HANDLE_INSTRUCTION(GetMethod);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetNewTarget);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetNextMethodFromIteratorRecord);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetObjectFromIteratorRecord);
+HANDLE_INSTRUCTION(GetNewTarget);
+HANDLE_INSTRUCTION(GetNextMethodFromIteratorRecord);
+HANDLE_INSTRUCTION(GetObjectFromIteratorRecord);
 HANDLE_INSTRUCTION(GetObjectPropertyIterator);
 HANDLE_INSTRUCTION(GetPrivateById);
 HANDLE_INSTRUCTION(GetBinding);
@@ -123,10 +114,10 @@ HANDLE_INSTRUCTION(IteratorClose);
 HANDLE_INSTRUCTION(IteratorNext);
 HANDLE_INSTRUCTION(IteratorNextUnpack);
 HANDLE_INSTRUCTION(IteratorToArray);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveFinally);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveLexicalEnvironment);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeavePrivateEnvironment);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeaveUnwindContext);
+HANDLE_INSTRUCTION(LeaveFinally);
+HANDLE_INSTRUCTION(LeaveLexicalEnvironment);
+HANDLE_INSTRUCTION(LeavePrivateEnvironment);
+HANDLE_INSTRUCTION(LeaveUnwindContext);
 HANDLE_INSTRUCTION(LeftShift);
 HANDLE_INSTRUCTION(LessThan);
 HANDLE_INSTRUCTION(LessThanEquals);
@@ -134,13 +125,13 @@ HANDLE_INSTRUCTION(LooselyEquals);
 HANDLE_INSTRUCTION(LooselyInequals);
 HANDLE_INSTRUCTION(Mod);
 HANDLE_INSTRUCTION(Mul);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewArray);
+HANDLE_INSTRUCTION(NewArray);
 HANDLE_INSTRUCTION(NewClass);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewFunction);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewObject);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewPrimitiveArray);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewRegExp);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewTypeError);
+HANDLE_INSTRUCTION(NewFunction);
+HANDLE_INSTRUCTION(NewObject);
+HANDLE_INSTRUCTION(NewPrimitiveArray);
+HANDLE_INSTRUCTION(NewRegExp);
+HANDLE_INSTRUCTION(NewTypeError);
 HANDLE_INSTRUCTION(Not);
 HANDLE_INSTRUCTION(PostfixDecrement);
 HANDLE_INSTRUCTION(PostfixIncrement);
@@ -152,9 +143,9 @@ HANDLE_INSTRUCTION(PutByValueWithThis);
 HANDLE_INSTRUCTION(PutPrivateById);
 HANDLE_INSTRUCTION(ResolveSuperBase);
 HANDLE_INSTRUCTION(ResolveThisBinding);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(RestoreScheduledJump);
+HANDLE_INSTRUCTION(RestoreScheduledJump);
 HANDLE_INSTRUCTION(RightShift);
-HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(SetCompletionType);
+HANDLE_INSTRUCTION(SetCompletionType);
 HANDLE_INSTRUCTION(SetGlobal);
 HANDLE_INSTRUCTION(SetLexicalBinding);
 HANDLE_INSTRUCTION(SetVariableBinding);

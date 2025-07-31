@@ -123,10 +123,8 @@ private:
 #undef __BYTECODE_OP
     };
     // Helpers for the instruction handlers
-    template<typename OP>
-    void handle_with_exception_check(u8 const* bytecode, size_t& program_counter);
-    template<typename OP>
-    void handle_without_exception_check(u8 const* bytecode, size_t& program_counter);
+    template<typename OP, bool has_exception_check = IsSame<decltype(declval<OP>().execute_impl(declval<Interpreter&>())), ThrowCompletionOr<void>>>
+    void handle_generic(u8 const* bytecode, size_t& program_counter);
     template<typename OP, ThrowCompletionOr<bool> (*op)(VM&, Value, Value), bool (*numeric_operator)(Value, Value)>
     void handle_comparison(u8 const* bytecode, size_t& program_counter);
 };
