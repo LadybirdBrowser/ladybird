@@ -1,8 +1,10 @@
+#import <TrustedTypes/TrustedHTML.idl>
+
 // https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy
 [Exposed=(Window,Worker)]
 interface TrustedTypePolicy {
     readonly attribute DOMString name;
-    [FIXME] TrustedHTML createHTML(DOMString input, any... arguments);
+    TrustedHTML createHTML(DOMString input, any... arguments);
     [FIXME] TrustedScript createScript(DOMString input, any... arguments);
     [FIXME] TrustedScriptURL createScriptURL(DOMString input, any... arguments);
 };

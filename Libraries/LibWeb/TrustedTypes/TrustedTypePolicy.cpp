@@ -10,7 +10,9 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
+#include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::TrustedTypes {
@@ -33,6 +35,79 @@ void TrustedTypePolicy::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TrustedTypePolicy);
     Base::initialize(realm);
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createhtml
+JS::ThrowCompletionOr<GC::Ref<TrustedHTML>> TrustedTypePolicy::create_html(String const& input, Vector<JS::Value> const& arguments)
+{
+    return create_a_trusted_type("TrustedHTML"_string, input, arguments);
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
+JS::ThrowCompletionOr<GC::Ref<TrustedHTML>> TrustedTypePolicy::create_a_trusted_type(String const& trusted_type_name, String const& value, Vector<JS::Value> const& arguments)
+{
+    // 1. Let policyValue be the result of executing Get Trusted Type policy value with the same arguments
+    // as this algorithm and additionally true as throwIfMissing.
+    auto policy_value = get_trusted_type_policy_value(trusted_type_name, value, arguments, true);
+
+    // 2. If the algorithm threw an error, rethrow the error and abort the following steps.
+    if (policy_value.is_error()) {
+        return policy_value.release_error();
+    }
+
+    // 3. Let dataString be the result of stringifying policyValue.
+    auto value_or_error = policy_value.value().to_string(vm());
+    ASSERT(!value_or_error.is_error());
+    auto dataString = value_or_error.release_value();
+
+    // 4. If policyValue is null or undefined, set dataString to the empty string.
+    if (policy_value.value().is_null() || policy_value.value().is_undefined()) {
+        dataString = ""_string;
+    }
+
+    // 5. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
+    return realm().create<TrustedHTML>(realm(), dataString);
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-policy-value
+JS::Completion TrustedTypePolicy::get_trusted_type_policy_value(String const& trusted_type_name, String const& value, Vector<JS::Value> const& values, bool throw_if_missing)
+{
+    // 1. Let functionName be a function name for the given trustedTypeName, based on the following table:
+    // 2. Let function be policy’s options[functionName].
+    Optional<GC::Ptr<WebIDL::CallbackType>> function;
+    if (trusted_type_name == "TrustedHTML"_string) {
+        function = m_options.create_html;
+    } else if (trusted_type_name == "TrustedScript"_string) {
+        function = m_options.create_script;
+    } else if (trusted_type_name == "TrustedScriptURL"_string) {
+        function = m_options.create_script_url;
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
+    // 3. If function is null, then:
+    if (!function.has_value()) {
+        // 1. If throwIfMissing throw a TypeError.
+        if (throw_if_missing)
+            return vm().throw_completion<JS::TypeError>(JS::ErrorType::TrustedTypesMissingCallback, trusted_type_name);
+
+        // 2. Else return null
+        return {};
+    }
+
+    // 4. Let args be << value >>.
+    Vector<JS::Value> args { JS::PrimitiveString::create(vm(), value) };
+
+    // 5. Append each item in arguments to args.
+    for (auto const& item : values) {
+        args.append(item);
+    }
+
+    // 6. Let policyValue be the result of invoking function with args and "rethrow".
+    auto const policy_value = WebIDL::invoke_callback(*function.value(), JS::js_undefined(), WebIDL::ExceptionBehavior::Rethrow, args);
+
+    // 7. Return policyValue.
+    return policy_value;
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
