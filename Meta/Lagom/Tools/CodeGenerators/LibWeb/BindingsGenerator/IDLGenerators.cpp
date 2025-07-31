@@ -1827,7 +1827,7 @@ void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& ge
 )~~~");
 }
 
-static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, IDL::Interface const& interface, StringView result_expression, size_t recursion_depth = 0, bool is_optional = false)
+static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, IDL::Interface const& interface, StringView result_expression, size_t recursion_depth = 0, bool is_optional = false, size_t iteration_index = 0)
 {
     auto scoped_generator = generator.fork();
     scoped_generator.set("value", value);
@@ -1847,6 +1847,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     }
     scoped_generator.set("result_expression", result_expression);
     scoped_generator.set("recursion_depth", ByteString::number(recursion_depth));
+    scoped_generator.set("iteration_index", ByteString::number(iteration_index));
 
     if (type.name() == "undefined") {
         scoped_generator.append(R"~~~(
@@ -1894,7 +1895,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         auto& sequence_generic_type = as<IDL::ParameterizedType>(type);
 
         scoped_generator.append(R"~~~(
-    auto new_array@recursion_depth@ = MUST(JS::Array::create(realm, 0));
+    auto new_array@recursion_depth@_@iteration_index@ = MUST(JS::Array::create(realm, 0));
 )~~~");
 
         if (type.is_nullable() || is_optional) {
@@ -1924,18 +1925,18 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
         scoped_generator.append(R"~~~(
         auto property_index@recursion_depth@ = JS::PropertyKey { i@recursion_depth@ };
-        MUST(new_array@recursion_depth@->create_data_property(property_index@recursion_depth@, wrapped_element@recursion_depth@));
+        MUST(new_array@recursion_depth@_@iteration_index@->create_data_property(property_index@recursion_depth@, wrapped_element@recursion_depth@));
     }
 )~~~");
 
         if (type.name() == "FrozenArray"sv) {
             scoped_generator.append(R"~~~(
-    TRY(new_array@recursion_depth@->set_integrity_level(IntegrityLevel::Frozen));
+    TRY(new_array@recursion_depth@_@iteration_index@->set_integrity_level(IntegrityLevel::Frozen));
 )~~~");
         }
 
         scoped_generator.append(R"~~~(
-    @result_expression@ new_array@recursion_depth@;
+    @result_expression@ new_array@recursion_depth@_@iteration_index@;
 )~~~");
     } else if (type.name() == "record") {
         // https://webidl.spec.whatwg.org/#es-record
@@ -2078,6 +2079,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         auto dictionary_object@recursion_depth@ = JS::Object::create(realm, realm.intrinsics().object_prototype());
 )~~~");
 
+        auto next_iteration_index = iteration_index + 1;
         auto* current_dictionary = &interface.dictionaries.find(type.name())->value;
         while (true) {
             for (auto& member : current_dictionary->members) {
@@ -2106,7 +2108,9 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         JS::Value @wrapped_value_name@;
 )~~~");
                 }
-                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), recursion_depth + 1, is_optional);
+
+                next_iteration_index++;
+                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), recursion_depth + 1, is_optional, next_iteration_index);
 
                 if (is_optional) {
                     dictionary_generator.append(R"~~~(
