@@ -159,7 +159,7 @@ TEST_CASE(determine_computed_mime_type_in_both_none_and_browsing_sniffing_contex
 
     mime_type_to_headers_map.set("application/x-gzip"sv, { "\x1F\x8B\x08"sv });
     mime_type_to_headers_map.set("application/zip"sv, { "PK\x03\x04"sv });
-    mime_type_to_headers_map.set("application/x-rar-compressed"sv, { "Rar\x20\x1A\x07\x00"sv });
+    mime_type_to_headers_map.set("application/x-rar-compressed"sv, { "Rar!\x1A\x07\x00"sv });
 
     for (auto const& mime_type_to_headers : mime_type_to_headers_map) {
         auto mime_type = mime_type_to_headers.key;

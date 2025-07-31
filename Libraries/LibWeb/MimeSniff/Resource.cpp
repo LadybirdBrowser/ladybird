@@ -498,8 +498,8 @@ Optional<MimeType> match_an_archive_type_pattern(ReadonlyBytes input)
         // The string "PK" followed by ETX EOT, the ZIP archive signature.
         BytePatternTableRow { "\x50\x4B\x03\x04"sv, "\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "application/zip"sv },
 
-        // The string "Rar " followed by SUB BEL NUL, the RAR archive signature.
-        BytePatternTableRow { "\x52\x61\x72\x20\x1A\x07\x00"sv, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "application/x-rar-compressed"sv },
+        // The string "Rar!" followed by SUB BEL NUL, the RAR 4.x archive signature.
+        BytePatternTableRow { "\x52\x61\x72\x21\x1A\x07\x00"sv, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "application/x-rar-compressed"sv },
     };
 
     for (auto const& row : pattern_table) {
