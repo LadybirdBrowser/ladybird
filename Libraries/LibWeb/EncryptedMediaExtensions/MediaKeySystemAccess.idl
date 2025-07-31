@@ -1,0 +1,32 @@
+// https://w3c.github.io/encrypted-media/#mediakeysystemaccess-interface
+[Exposed=Window, SecureContext] 
+interface MediaKeySystemAccess {
+    readonly attribute Utf16DOMString keySystem;
+    MediaKeySystemConfiguration getConfiguration();
+    [FIXME] Promise<MediaKeys> createMediaKeys();
+};
+
+// https://w3c.github.io/encrypted-media/#dom-mediakeysrequirement
+enum MediaKeysRequirement {
+    "required",
+    "optional",
+    "not-allowed"
+};
+
+// https://w3c.github.io/encrypted-media/#dom-mediakeysystemconfiguration
+dictionary MediaKeySystemConfiguration {
+    Utf16DOMString                          label = "";
+    sequence<Utf16DOMString>                initDataTypes = [];
+    sequence<MediaKeySystemMediaCapability> audioCapabilities = [];
+    sequence<MediaKeySystemMediaCapability> videoCapabilities = [];
+    MediaKeysRequirement                    distinctiveIdentifier = "optional";
+    MediaKeysRequirement                    persistentState = "optional";
+    sequence<Utf16DOMString>                sessionTypes;
+};
+
+// https://w3c.github.io/encrypted-media/#dom-mediakeysystemmediacapability
+dictionary MediaKeySystemMediaCapability {
+    Utf16DOMString contentType = "";
+    Utf16DOMString? encryptionScheme = null;
+    Utf16DOMString robustness = "";
+};

@@ -1,4 +1,4 @@
-#import <EncryptedMediaExtensions/EncryptedMediaExtensions.idl>
+#import <EncryptedMediaExtensions/MediaKeySystemAccess.idl>
 
 // https://w3c.github.io/media-capabilities/#mediaconfiguration
 dictionary MediaConfiguration {
