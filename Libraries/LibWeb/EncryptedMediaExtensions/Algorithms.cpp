@@ -363,4 +363,24 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(RefPtr<Ke
     return ConsentConfiguration { consent_status, accumulated_configuration };
 }
 
+// https://w3c.github.io/encrypted-media/#get-supported-configuration
+Optional<ConsentConfiguration> get_supported_configuration(RefPtr<KeySystem> implementation, Bindings::MediaKeySystemConfiguration const& candidate_configuration, URL::Origin const& origin)
+{
+    // 1. Let supported configuration be ConsentDenied.
+    Optional<ConsentConfiguration> supported_configuration = ConsentConfiguration { ConsentStatus::ConsentDenied, {} };
+
+    // 2. Initialize restrictions to indicate that no configurations have had user consent denied.
+    MediaKeyRestrictions restrictions;
+
+    // 3. Repeat the following step while supported configuration is ConsentDenied:
+    while (supported_configuration.has_value() && supported_configuration->status == ConsentStatus::ConsentDenied) {
+        // 1. Let supported configuration and, if provided, restrictions be the result of executing
+        // the Get Supported Configuration and Consent algorithm with implementation, candidate configuration, restrictions and origin.
+        supported_configuration = get_supported_configuration_and_consent(implementation, candidate_configuration, restrictions, origin);
+    }
+
+    // 4. Return supported configuration.
+    return supported_configuration;
+}
+
 }

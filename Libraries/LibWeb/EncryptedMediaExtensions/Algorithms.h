@@ -20,5 +20,6 @@ bool is_persistent_session_type(String const& session_type);
 Vector<Bindings::MediaKeySystemMediaCapability> get_supported_capabilities_for_audio_video_type(RefPtr<KeySystem>, CapabilitiesType, Vector<Bindings::MediaKeySystemMediaCapability>, Bindings::MediaKeySystemConfiguration, MediaKeyRestrictions);
 ConsentStatus get_consent_status(Bindings::MediaKeySystemConfiguration const&, MediaKeyRestrictions&, URL::Origin const&);
 Optional<ConsentConfiguration> get_supported_configuration_and_consent(RefPtr<KeySystem>, Bindings::MediaKeySystemConfiguration const&, MediaKeyRestrictions&, URL::Origin const&);
+Optional<ConsentConfiguration> get_supported_configuration(RefPtr<KeySystem>, Bindings::MediaKeySystemConfiguration const&, URL::Origin const&);
 
 }
