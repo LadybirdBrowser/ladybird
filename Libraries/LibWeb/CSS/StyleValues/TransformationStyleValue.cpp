@@ -147,11 +147,12 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
     }
     if (m_properties.property == PropertyID::Translate) {
         auto resolve_to_string = [mode](CSSStyleValue const& value) -> Optional<String> {
-            if (value.is_length()) {
-                if (value.as_length().length().raw_value() == 0 && value.as_length().length().type() == Length::Type::Px)
-                    return {};
-            }
-            return value.to_string(mode);
+            auto string_value = value.to_string(mode);
+
+            if (string_value == "0px"_string)
+                return {};
+
+            return string_value;
         };
 
         auto x_value = resolve_to_string(m_properties.values[0]);

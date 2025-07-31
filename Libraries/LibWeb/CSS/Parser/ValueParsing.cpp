@@ -2231,14 +2231,12 @@ RefPtr<CSSStyleValue const> Parser::parse_color_value(TokenStream<ComponentValue
         if (!m_value_context.is_empty()) {
             quirky_color_allowed = m_value_context.first().visit(
                 [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::HashlessHexColor); },
-                [](FunctionContext const&) { return false; },
-                [](DescriptorContext const&) { return false; });
+                [](auto const&) { return false; });
         }
         for (auto i = 1u; i < m_value_context.size() && quirky_color_allowed; i++) {
             quirky_color_allowed = m_value_context[i].visit(
                 [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::HashlessHexColor); },
-                [](FunctionContext const&) { return false; },
-                [](DescriptorContext const&) { return false; });
+                [](auto const&) { return false; });
         }
         if (quirky_color_allowed) {
             // NOTE: This algorithm is no longer in the spec, since the concept got moved and renamed. However, it works,
@@ -4108,6 +4106,14 @@ RefPtr<CSSStyleValue const> Parser::parse_calculated_value(ComponentValue const&
             [](DescriptorContext const&) -> Optional<CalculationContext> {
                 // FIXME: If any descriptors have `<*-percentage>` or `<integer>` types, add them here.
                 return CalculationContext {};
+            },
+            [](SpecialContext special_context) -> Optional<CalculationContext> {
+                switch (special_context) {
+                case SpecialContext::TranslateZArgument:
+                    // Percentages are disallowed for the Z axis
+                    return CalculationContext {};
+                }
+                VERIFY_NOT_REACHED();
             });
         if (maybe_context.has_value()) {
             context = maybe_context.release_value();

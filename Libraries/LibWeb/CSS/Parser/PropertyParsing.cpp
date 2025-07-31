@@ -4626,6 +4626,7 @@ RefPtr<CSSStyleValue const> Parser::parse_translate_value(TokenStream<ComponentV
         return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
     }
 
+    auto context_guard = push_temporary_value_parsing_context(SpecialContext::TranslateZArgument);
     auto maybe_z = parse_length_value(tokens);
     if (!maybe_z)
         return nullptr;
