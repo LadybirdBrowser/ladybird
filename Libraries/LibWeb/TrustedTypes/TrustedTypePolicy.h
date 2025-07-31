@@ -26,8 +26,11 @@ public:
     virtual ~TrustedTypePolicy() override = default;
 
 private:
-    explicit TrustedTypePolicy(JS::Realm&);
+    explicit TrustedTypePolicy(JS::Realm&, String const&, TrustedTypePolicyOptions const&);
     virtual void initialize(JS::Realm&) override;
+
+    String const m_name;
+    TrustedTypePolicyOptions const m_options;
 };
 
 }
