@@ -44,4 +44,15 @@ enum CapabilitiesType {
     Video
 };
 
+enum ConsentStatus {
+    ConsentDenied,
+    InformUser,
+    Allowed
+};
+
+struct ConsentConfiguration {
+    ConsentStatus status { ConsentStatus::ConsentDenied };
+    Optional<Bindings::MediaKeySystemConfiguration> configuration;
+};
+
 }
