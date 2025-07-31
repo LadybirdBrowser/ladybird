@@ -311,6 +311,7 @@ set(SOURCES
     Encoding/TextEncoderStream.cpp
     EncryptedMediaExtensions/Algorithms.cpp
     EncryptedMediaExtensions/MediaKeySystemAccess.cpp
+    EncryptedMediaExtensions/NavigatorEncryptedMediaExtensionsPartial.cpp
     EntriesAPI/FileSystemEntry.cpp
     EventTiming/PerformanceEventTiming.cpp
     Fetch/Body.cpp
