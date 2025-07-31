@@ -14,7 +14,8 @@ namespace Web::TrustedTypes {
 
 using TrustedTypesVariants = JS::ThrowCompletionOr<Variant<
     GC::Ref<TrustedHTML>,
-    GC::Ref<TrustedScript>>>;
+    GC::Ref<TrustedScript>,
+    GC::Ref<TrustedScriptURL>>>;
 
 struct TrustedTypePolicyOptions {
     Optional<GC::Ptr<WebIDL::CallbackType>> create_html;
@@ -35,6 +36,7 @@ public:
 
     JS::ThrowCompletionOr<GC::Ref<TrustedHTML>> create_html(String const&, Vector<JS::Value> const&);
     JS::ThrowCompletionOr<GC::Ref<TrustedScript>> create_script(String const&, Vector<JS::Value> const&);
+    JS::ThrowCompletionOr<GC::Ref<TrustedScriptURL>> create_script_url(String const&, Vector<JS::Value> const&);
 
 private:
     explicit TrustedTypePolicy(JS::Realm&, String const&, TrustedTypePolicyOptions const&);

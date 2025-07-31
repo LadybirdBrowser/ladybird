@@ -18,6 +18,7 @@
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
+#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -159,6 +160,12 @@ bool TrustedTypePolicyFactory::is_html(const JS::Value& value)
 bool TrustedTypePolicyFactory::is_script(const JS::Value& value)
 {
     return value.is_object() && is<TrustedScript>(value.as_object()) && as<TrustedScript>(value.as_object()).data_is_set();
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-isscripturl
+bool TrustedTypePolicyFactory::is_script_url(const JS::Value& value)
+{
+    return value.is_object() && is<TrustedScriptURL>(value.as_object()) && as<TrustedScriptURL>(value.as_object()).data_is_set();
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute

@@ -12,6 +12,7 @@
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
+#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -57,6 +58,16 @@ JS::ThrowCompletionOr<GC::Ref<TrustedScript>> TrustedTypePolicy::create_script(S
     return trusted_type.value().get<GC::Ref<TrustedScript>>();
 }
 
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createscripturl
+JS::ThrowCompletionOr<GC::Ref<TrustedScriptURL>> TrustedTypePolicy::create_script_url(String const& input, Vector<JS::Value> const& arguments)
+{
+    auto const trusted_type = create_a_trusted_type("TrustedScriptURL"_string, input, arguments);
+    if (trusted_type.is_error())
+        return trusted_type.error();
+
+    return trusted_type.value().get<GC::Ref<TrustedScriptURL>>();
+}
+
 // https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
 TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(String const& trusted_type_name, String const& value, Vector<JS::Value> const& arguments)
 {
@@ -82,8 +93,12 @@ TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(String const& trus
     // 5. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
     if (trusted_type_name == "TrustedHTML"_string) {
         return TrustedTypesVariants(realm().create<TrustedHTML>(realm(), dataString));
-    } else {
+    } else if (trusted_type_name == "TrustedScript"_string) {
         return TrustedTypesVariants(realm().create<TrustedScript>(realm(), dataString));
+    } else if (trusted_type_name == "TrustedScriptURL"_string) {
+        return TrustedTypesVariants(realm().create<TrustedScriptURL>(realm(), dataString));
+    } else {
+        VERIFY_NOT_REACHED();
     }
 }
 
