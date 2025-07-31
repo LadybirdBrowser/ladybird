@@ -9,6 +9,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/TrustedTypePolicyFactoryPrototype.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::TrustedTypes {
@@ -41,6 +42,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(String const&, TrustedTypePolicyOptions const&, JS::Object&);
+    ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object&, String const&, Vector<String> const&);
 
     // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory-created-policy-names
     Vector<String> m_created_policy_names;

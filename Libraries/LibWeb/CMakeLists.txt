@@ -56,6 +56,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/FrameSourceDirective.cpp
     ContentSecurityPolicy/Directives/ImageSourceDirective.cpp
     ContentSecurityPolicy/Directives/KeywordSources.cpp
+    ContentSecurityPolicy/Directives/KeywordTrustedTypes.cpp
     ContentSecurityPolicy/Directives/ManifestSourceDirective.cpp
     ContentSecurityPolicy/Directives/MediaSourceDirective.cpp
     ContentSecurityPolicy/Directives/Names.cpp

@@ -25,6 +25,8 @@ class TrustedTypePolicy final : public Bindings::PlatformObject {
 public:
     virtual ~TrustedTypePolicy() override = default;
 
+    String const& name() const { return m_name; }
+
 private:
     explicit TrustedTypePolicy(JS::Realm&, String const&, TrustedTypePolicyOptions const&);
     virtual void initialize(JS::Realm&) override;

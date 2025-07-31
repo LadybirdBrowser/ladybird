@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/KeywordTrustedTypes.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/HTML/AttributeNames.h>
@@ -164,13 +165,12 @@ bool TrustedTypePolicyFactory::is_html(JS::Value value)
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(String const& policy_name, TrustedTypePolicyOptions const& options, JS::Object&)
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(String const& policy_name, TrustedTypePolicyOptions const& options, JS::Object& global)
 {
     auto& realm = this->realm();
 
-    // TODO
     // 1. Let allowedByCSP be the result of executing Should Trusted Type policy creation be blocked by Content Security Policy? algorithm with global, policyName and factory’s created policy names value.
-    auto const allowed_by_csp = ContentSecurityPolicy::Directives::Directive::Result::Blocked;
+    auto const allowed_by_csp = should_trusted_type_policy_be_blocked_by_content_security_policy(global, policy_name, m_created_policy_names);
 
     // 2. If allowedByCSP is "Blocked", throw a TypeError and abort further steps.
     if (allowed_by_csp == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
@@ -194,6 +194,68 @@ WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create
 
     // 9. Return policy.
     return policy;
+}
+
+// https://www.w3.org/TR/trusted-types/#should-block-create-policy
+ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object& global, String const& policy_name, Vector<String> const& created_policy_names)
+{
+    // 1. Let result be "Allowed".
+    auto result = ContentSecurityPolicy::Directives::Directive::Result::Allowed;
+
+    // 2. For each policy in global’s CSP list:
+    for (auto const policy : ContentSecurityPolicy::PolicyList::from_object(global)->policies()) {
+        // 1. Let createViolation be false.
+        bool create_violation = false;
+
+        // 2. If policy’s directive set does not contain a directive which name is "trusted-types", skip to the next policy.
+        if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::TrustedTypes))
+            continue;
+
+        // 3. Let directive be the policy’s directive set’s directive which name is "trusted-types"
+        auto const directive = policy->get_directive_by_name(ContentSecurityPolicy::Directives::Names::TrustedTypes);
+
+        // 4. If directive’s value only contains a tt-keyword which is a match for a value 'none', set createViolation to true.
+        if (directive->value().size() == 1 && directive->value().first().equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::None))
+            create_violation = true;
+
+        // 5. If createdPolicyNames contains policyName and directive’s value does not contain a tt-keyword which is a match for a value 'allow-duplicates', set createViolation to true.
+        auto created_policy_names_iterator = created_policy_names.find(policy_name);
+        if (!created_policy_names_iterator.is_end()) {
+            auto maybe_allow_duplicates = directive->value().find_if([](auto const& directive_value) {
+                return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::AllowDuplicates);
+            });
+            if (maybe_allow_duplicates.is_end())
+                create_violation = true;
+        }
+
+        // 6. If directive’s value does not contain a tt-policy-name, which value is policyName, and directive’s value does not contain a tt-wildcard, set createViolation to true.
+        auto directive_value_iterator = directive->value().find(policy_name);
+        if (directive_value_iterator.is_end()) {
+            auto maybe_wild_card = directive->value().find_if([](auto const& directive_value) {
+                return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::WildCard);
+            });
+
+            if (maybe_wild_card.is_end())
+                create_violation = true;
+        }
+
+        // 7. If createViolation is false, skip to the next policy.
+        if (!create_violation)
+            continue;
+
+        // FIXME
+        // 8. Let violation be the result of executing Create a violation object for global, policy, and directive on global, policy and "trusted-types"
+        // 9. Set violation’s resource to "trusted-types-policy".
+        // 10. Set violation’s sample to the substring of policyName, containing its first 40 characters.
+        // 11. Execute Report a violation on violation.
+
+        // 12. If policy’s disposition is "enforce", then set result to "Blocked".
+        if (policy->disposition() == ContentSecurityPolicy::Policy::Disposition::Enforce)
+            result = ContentSecurityPolicy::Directives::Directive::Result::Blocked;
+    }
+
+    // 3. Return result.
+    return result;
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute
