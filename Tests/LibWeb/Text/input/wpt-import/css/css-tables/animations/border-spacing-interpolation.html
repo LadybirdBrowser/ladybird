@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>boder-spacing interpolation</title>
+<link rel="help" href="https://www.w3.org/TR/CSS2/tables.html#separated-borders">
+<meta name="assert" content="border-spacing supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  border-spacing: 30px;
+}
+
+.target {
+  width: 50px;
+  height: 50px;
+  background-color: black;
+  display: inline-block;
+  margin: 18px;
+  border-collapse: separate;
+  border-spacing: 10px;
+}
+
+.target td {
+  background-color: white;
+  border: 1px solid orange;
+  width: 10px;
+  height: 10px;
+}
+
+.expected {
+  background-color: green;
+}
+</style>
+
+<body>
+<template id="target-template">
+  <table>
+    <tbody>
+      <tr>
+        <td></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</template>
+
+<script>
+test_interpolation({
+  property: 'border-spacing',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px 7px'},
+  {at: 0, expect: '10px 10px'},
+  {at: 0.3, expect: '13px 13px'},
+  {at: 0.6, expect: '16px 16px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '25px 25px'},
+]);
+
+test_interpolation({
+  property: 'border-spacing',
+  from: 'initial',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px 0px'},
+  {at: 0, expect: '0px 0px'},
+  {at: 0.3, expect: '6px 6px'},
+  {at: 0.6, expect: '12px 12px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '30px 30px'},
+]);
+
+test_interpolation({
+  property: 'border-spacing',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '33px 33px'},
+  {at: 0, expect: '30px 30px'},
+  {at: 0.3, expect: '27px 27px'},
+  {at: 0.6, expect: '24px 24px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '15px 15px'},
+]);
+
+test_interpolation({
+  property: 'border-spacing',
+  from: 'unset',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '33px 33px'},
+  {at: 0, expect: '30px 30px'},
+  {at: 0.3, expect: '27px 27px'},
+  {at: 0.6, expect: '24px 24px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '15px 15px'},
+]);
+
+test_interpolation({
+  property: 'border-spacing',
+  from: '0px',
+  to: '10px'
+}, [
+  {at: -0.3, expect: '0px 0px'}, // Can't be negative.
+  {at: 0, expect: '0px 0px'},
+  {at: 0.3, expect: '3px 3px'},
+  {at: 0.6, expect: '6px 6px'},
+  {at: 1, expect: '10px 10px'},
+  {at: 1.5, expect: '15px 15px'}
+]);
+</script>
+</body>
