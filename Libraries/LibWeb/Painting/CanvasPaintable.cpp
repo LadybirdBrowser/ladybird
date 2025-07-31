@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/CanvasPaintable.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
@@ -27,7 +26,7 @@ Layout::CanvasBox const& CanvasPaintable::layout_box() const
     return static_cast<Layout::CanvasBox const&>(layout_node());
 }
 
-void CanvasPaintable::paint(PaintContext& context, PaintPhase phase) const
+void CanvasPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

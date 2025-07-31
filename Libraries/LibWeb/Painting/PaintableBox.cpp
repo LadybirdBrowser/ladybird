@@ -321,7 +321,7 @@ bool PaintableBox::wants_mouse_events() const
     return false;
 }
 
-void PaintableBox::before_paint(PaintContext& context, PaintPhase phase) const
+void PaintableBox::before_paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;
@@ -334,7 +334,7 @@ void PaintableBox::before_paint(PaintContext& context, PaintPhase phase) const
     apply_scroll_offset(context);
 }
 
-void PaintableBox::after_paint(PaintContext& context, PaintPhase phase) const
+void PaintableBox::after_paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;
@@ -432,7 +432,7 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
     return scrollbar_data;
 }
 
-void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
+void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;
@@ -563,7 +563,7 @@ BordersData PaintableBox::remove_element_kind_from_borders_data(PaintableBox::Bo
     };
 }
 
-void PaintableBox::paint_border(PaintContext& context) const
+void PaintableBox::paint_border(DisplayListRecordingContext& context) const
 {
     auto borders_data = m_override_borders_data.has_value() ? remove_element_kind_from_borders_data(m_override_borders_data.value()) : BordersData {
         .top = box_model().border.top == 0 ? CSS::BorderData() : computed_values().border_top(),
@@ -574,7 +574,7 @@ void PaintableBox::paint_border(PaintContext& context) const
     paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(absolute_border_box_rect()), normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
 }
 
-void PaintableBox::paint_backdrop_filter(PaintContext& context) const
+void PaintableBox::paint_backdrop_filter(DisplayListRecordingContext& context) const
 {
     auto const& backdrop_filter = computed_values().backdrop_filter();
     if (!backdrop_filter.has_value()) {
@@ -587,7 +587,7 @@ void PaintableBox::paint_backdrop_filter(PaintContext& context) const
     context.display_list_recorder().apply_backdrop_filter(backdrop_region.to_type<int>(), border_radii_data, backdrop_filter.value());
 }
 
-void PaintableBox::paint_background(PaintContext& context) const
+void PaintableBox::paint_background(DisplayListRecordingContext& context) const
 {
     // If the body's background properties were propagated to the root element, do no re-paint the body's background.
     if (layout_node_with_style_and_box_metrics().is_body() && document().html_element()->should_use_body_background_properties())
@@ -596,7 +596,7 @@ void PaintableBox::paint_background(PaintContext& context) const
     Painting::paint_background(context, *this, computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
 }
 
-void PaintableBox::paint_box_shadow(PaintContext& context) const
+void PaintableBox::paint_box_shadow(DisplayListRecordingContext& context) const
 {
     auto const& resolved_box_shadow_data = box_shadow_data();
     if (resolved_box_shadow_data.is_empty())
@@ -647,21 +647,21 @@ Optional<CSSPixelRect> PaintableBox::clip_rect_for_hit_testing() const
     return {};
 }
 
-void PaintableBox::apply_scroll_offset(PaintContext& context) const
+void PaintableBox::apply_scroll_offset(DisplayListRecordingContext& context) const
 {
     if (scroll_frame_id().has_value()) {
         context.display_list_recorder().push_scroll_frame_id(scroll_frame_id().value());
     }
 }
 
-void PaintableBox::reset_scroll_offset(PaintContext& context) const
+void PaintableBox::reset_scroll_offset(DisplayListRecordingContext& context) const
 {
     if (scroll_frame_id().has_value()) {
         context.display_list_recorder().pop_scroll_frame_id();
     }
 }
 
-void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
+void PaintableBox::apply_clip_overflow_rect(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!enclosing_clip_frame())
         return;
@@ -672,7 +672,7 @@ void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase ph
     context.display_list_recorder().push_clip_frame(enclosing_clip_frame());
 }
 
-void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
+void PaintableBox::clear_clip_overflow_rect(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!enclosing_clip_frame())
         return;
@@ -683,7 +683,7 @@ void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase ph
     context.display_list_recorder().pop_clip_frame();
 }
 
-void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
+void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
 {
     auto const& navigable = *paintable.navigable();
     auto const& document = paintable.document();
@@ -734,7 +734,7 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
     context.display_list_recorder().fill_rect(cursor_device_rect, caret_color);
 }
 
-void paint_text_decoration(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
+void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
 {
     auto& painter = context.display_list_recorder();
     auto& font = fragment.layout_node().first_available_font();
@@ -847,7 +847,7 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
     }
 }
 
-void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment, PaintPhase phase)
+void paint_text_fragment(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment const& fragment, PaintPhase phase)
 {
     if (!paintable.is_visible())
         return;
@@ -885,7 +885,7 @@ void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, 
     }
 }
 
-void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
+void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

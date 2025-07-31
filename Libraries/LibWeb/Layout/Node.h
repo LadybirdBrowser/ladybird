@@ -13,7 +13,7 @@
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/PaintContext.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/TreeNode.h>
 
@@ -152,7 +152,7 @@ public:
     bool can_contain_boxes_with_position_absolute() const;
 
     Gfx::Font const& first_available_font() const;
-    Gfx::Font const& font(PaintContext&) const;
+    Gfx::Font const& font(DisplayListRecordingContext&) const;
     Gfx::Font const& font(float scale_factor) const;
 
     CSS::ImmutableComputedValues const& computed_values() const;
@@ -320,7 +320,7 @@ inline Gfx::Font const& Node::first_available_font() const
     return parent()->first_available_font();
 }
 
-inline Gfx::Font const& Node::font(PaintContext& context) const
+inline Gfx::Font const& Node::font(DisplayListRecordingContext& context) const
 {
     return font(context.device_pixels_per_css_pixel());
 }

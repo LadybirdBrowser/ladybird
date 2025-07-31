@@ -31,7 +31,7 @@ TraversalDecision SVGForeignObjectPaintable::hit_test(CSSPixelPoint position, Hi
     return PaintableWithLines::hit_test(position, type, callback);
 }
 
-void SVGForeignObjectPaintable::paint(PaintContext& context, PaintPhase phase) const
+void SVGForeignObjectPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

@@ -14,13 +14,13 @@
 
 namespace Web {
 
+class DisplayListRecordingContext;
 class DragAndDropEventHandler;
 class EventHandler;
 class InputEventsTarget;
 class LoadRequest;
 class Page;
 class PageClient;
-class PaintContext;
 class Resource;
 class ResourceLoader;
 class XMLDocumentBuilder;

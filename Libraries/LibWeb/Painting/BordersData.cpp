@@ -5,11 +5,11 @@
  */
 
 #include <LibWeb/Painting/BordersData.h>
-#include <LibWeb/Painting/PaintContext.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 
 namespace Web::Painting {
 
-BordersDataDevicePixels BordersData::to_device_pixels(PaintContext const& context) const
+BordersDataDevicePixels BordersData::to_device_pixels(DisplayListRecordingContext const& context) const
 {
     return BordersDataDevicePixels {
         BorderDataDevicePixels {

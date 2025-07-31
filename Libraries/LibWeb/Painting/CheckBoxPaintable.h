@@ -21,7 +21,7 @@ public:
     Layout::CheckBox const& layout_box() const;
     Layout::CheckBox& layout_box();
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
 private:
     CheckBoxPaintable(Layout::CheckBox const&);

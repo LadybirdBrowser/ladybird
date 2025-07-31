@@ -33,7 +33,7 @@ Layout::NavigableContainerViewport const& NavigableContainerViewportPaintable::l
     return static_cast<Layout::NavigableContainerViewport const&>(layout_node());
 }
 
-void NavigableContainerViewportPaintable::paint(PaintContext& context, PaintPhase phase) const
+void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

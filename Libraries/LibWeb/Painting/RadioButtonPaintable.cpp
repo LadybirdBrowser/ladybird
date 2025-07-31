@@ -28,7 +28,7 @@ RadioButtonPaintable::RadioButtonPaintable(Layout::RadioButton const& layout_box
 {
 }
 
-void RadioButtonPaintable::paint(PaintContext& context, PaintPhase phase) const
+void RadioButtonPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

@@ -8,20 +8,20 @@
 
 #include <LibGfx/Color.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
-#include <LibWeb/Painting/PaintContext.h>
 #include <LibWeb/Painting/PaintableFragment.h>
 #include <LibWeb/Painting/ShadowData.h>
 
 namespace Web::Painting {
 
 void paint_box_shadow(
-    PaintContext&,
+    DisplayListRecordingContext&,
     CSSPixelRect const& bordered_content_rect,
     CSSPixelRect const& borderless_content_rect,
     BordersData const& borders_data,
     BorderRadiiData const&,
     Vector<ShadowData> const&);
-void paint_text_shadow(PaintContext&, PaintableFragment const&, Vector<ShadowData> const&);
+void paint_text_shadow(DisplayListRecordingContext&, PaintableFragment const&, Vector<ShadowData> const&);
 
 }

@@ -18,7 +18,7 @@ class CanvasPaintable final : public PaintableBox {
 public:
     static GC::Ref<CanvasPaintable> create(Layout::CanvasBox const&);
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
     Layout::CanvasBox const& layout_box() const;
 

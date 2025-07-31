@@ -24,7 +24,7 @@
 
 namespace Web::Painting {
 
-static void paint_node(Paintable const& paintable, PaintContext& context, PaintPhase phase)
+static void paint_node(Paintable const& paintable, DisplayListRecordingContext& context, PaintPhase phase)
 {
     TemporaryChange save_nesting_level(context.display_list_recorder().m_save_nesting_level, 0);
 
@@ -84,7 +84,7 @@ static PaintPhase to_paint_phase(StackingContext::StackingContextPaintPhase phas
     }
 }
 
-void StackingContext::paint_node_as_stacking_context(Paintable const& paintable, PaintContext& context)
+void StackingContext::paint_node_as_stacking_context(Paintable const& paintable, DisplayListRecordingContext& context)
 {
     if (paintable.layout_node().is_svg_svg_box()) {
         paint_svg(context, static_cast<PaintableBox const&>(paintable), PaintPhase::Foreground);
@@ -103,7 +103,7 @@ void StackingContext::paint_node_as_stacking_context(Paintable const& paintable,
     paint_descendants(context, paintable, StackingContextPaintPhase::FocusAndOverlay);
 }
 
-void StackingContext::paint_svg(PaintContext& context, PaintableBox const& paintable, PaintPhase phase)
+void StackingContext::paint_svg(DisplayListRecordingContext& context, PaintableBox const& paintable, PaintPhase phase)
 {
     if (phase != PaintPhase::Foreground)
         return;
@@ -115,7 +115,7 @@ void StackingContext::paint_svg(PaintContext& context, PaintableBox const& paint
     paintable.after_paint(context, PaintPhase::Foreground);
 }
 
-void StackingContext::paint_descendants(PaintContext& context, Paintable const& paintable, StackingContextPaintPhase phase)
+void StackingContext::paint_descendants(DisplayListRecordingContext& context, Paintable const& paintable, StackingContextPaintPhase phase)
 {
     paintable.for_each_child([&context, phase](auto& child) {
         if (child.has_stacking_context())
@@ -196,14 +196,14 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
     });
 }
 
-void StackingContext::paint_child(PaintContext& context, StackingContext const& child)
+void StackingContext::paint_child(DisplayListRecordingContext& context, StackingContext const& child)
 {
     VERIFY(!child.paintable_box().layout_node().is_svg_box());
     const_cast<StackingContext&>(child).set_last_paint_generation_id(context.paint_generation_id());
     child.paint(context);
 }
 
-void StackingContext::paint_internal(PaintContext& context) const
+void StackingContext::paint_internal(DisplayListRecordingContext& context) const
 {
     VERIFY(!paintable_box().layout_node().is_svg_box());
     if (paintable_box().layout_node().is_svg_svg_box()) {
@@ -299,7 +299,7 @@ static Gfx::FloatMatrix4x4 matrix_with_scaled_translation(Gfx::FloatMatrix4x4 ma
     return matrix;
 }
 
-void StackingContext::paint(PaintContext& context) const
+void StackingContext::paint(DisplayListRecordingContext& context) const
 {
     auto opacity = paintable_box().computed_values().opacity();
     if (opacity == 0.0f)

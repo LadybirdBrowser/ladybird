@@ -48,7 +48,7 @@ Layout::VideoBox const& VideoPaintable::layout_box() const
     return static_cast<Layout::VideoBox const&>(layout_node());
 }
 
-void VideoPaintable::paint(PaintContext& context, PaintPhase phase) const
+void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;
@@ -179,7 +179,7 @@ void VideoPaintable::paint(PaintContext& context, PaintPhase phase) const
     }
 }
 
-void VideoPaintable::paint_placeholder_video_controls(PaintContext& context, DevicePixelRect video_rect, Optional<DevicePixelPoint> const& mouse_position) const
+void VideoPaintable::paint_placeholder_video_controls(DisplayListRecordingContext& context, DevicePixelRect video_rect, Optional<DevicePixelPoint> const& mouse_position) const
 {
     auto maximum_control_box_size = context.rounded_device_pixels(100);
     auto maximum_playback_button_size = context.rounded_device_pixels(40);

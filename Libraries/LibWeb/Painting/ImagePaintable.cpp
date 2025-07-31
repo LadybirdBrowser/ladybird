@@ -57,7 +57,7 @@ void ImagePaintable::finalize()
     document().unregister_viewport_client(*this);
 }
 
-void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
+void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

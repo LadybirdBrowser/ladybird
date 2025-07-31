@@ -32,10 +32,10 @@ public:
     static GC::Ref<PaintableBox> create(Layout::InlineNode const&);
     virtual ~PaintableBox();
 
-    virtual void before_paint(PaintContext&, PaintPhase) const override;
-    virtual void after_paint(PaintContext&, PaintPhase) const override;
+    virtual void before_paint(DisplayListRecordingContext&, PaintPhase) const override;
+    virtual void after_paint(DisplayListRecordingContext&, PaintPhase) const override;
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
     StackingContext* stacking_context() { return m_stacking_context; }
     StackingContext const* stacking_context() const { return m_stacking_context; }
@@ -44,7 +44,7 @@ public:
 
     virtual Optional<CSSPixelRect> get_masking_area() const;
     virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const { return {}; }
-    virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(PaintContext&, CSSPixelRect const&) const { return {}; }
+    virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
 
     Layout::NodeWithStyleAndBoxModelMetrics& layout_node_with_style_and_box_metrics() { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics&>(Paintable::layout_node()); }
     Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(Paintable::layout_node()); }
@@ -134,11 +134,11 @@ public:
 
     virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
 
-    void apply_scroll_offset(PaintContext&) const;
-    void reset_scroll_offset(PaintContext&) const;
+    void apply_scroll_offset(DisplayListRecordingContext&) const;
+    void reset_scroll_offset(DisplayListRecordingContext&) const;
 
-    void apply_clip_overflow_rect(PaintContext&, PaintPhase) const;
-    void clear_clip_overflow_rect(PaintContext&, PaintPhase) const;
+    void apply_clip_overflow_rect(DisplayListRecordingContext&, PaintPhase) const;
+    void clear_clip_overflow_rect(DisplayListRecordingContext&, PaintPhase) const;
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType) const;
@@ -265,10 +265,10 @@ protected:
     explicit PaintableBox(Layout::Box const&);
     explicit PaintableBox(Layout::InlineNode const&);
 
-    virtual void paint_border(PaintContext&) const;
-    virtual void paint_backdrop_filter(PaintContext&) const;
-    virtual void paint_background(PaintContext&) const;
-    virtual void paint_box_shadow(PaintContext&) const;
+    virtual void paint_border(DisplayListRecordingContext&) const;
+    virtual void paint_backdrop_filter(DisplayListRecordingContext&) const;
+    virtual void paint_background(DisplayListRecordingContext&) const;
+    virtual void paint_box_shadow(DisplayListRecordingContext&) const;
 
     virtual CSSPixelRect compute_absolute_rect() const;
     virtual CSSPixelRect compute_absolute_paint_rect() const;
@@ -379,7 +379,7 @@ public:
         }
     }
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
 
@@ -406,8 +406,8 @@ private:
     size_t m_line_index { 0 };
 };
 
-void paint_text_decoration(PaintContext&, TextPaintable const&, PaintableFragment const&);
-void paint_cursor_if_needed(PaintContext&, TextPaintable const&, PaintableFragment const&);
-void paint_text_fragment(PaintContext&, TextPaintable const&, PaintableFragment const&, PaintPhase);
+void paint_text_decoration(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
+void paint_cursor_if_needed(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
+void paint_text_fragment(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&, PaintPhase);
 
 }

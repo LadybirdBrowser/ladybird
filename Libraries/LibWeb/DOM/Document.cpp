@@ -6461,7 +6461,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         VERIFY_NOT_REACHED();
     }
 
-    Web::PaintContext context(display_list_recorder, page().palette(), page().client().device_pixels_per_css_pixel());
+    Web::DisplayListRecordingContext context(display_list_recorder, page().palette(), page().client().device_pixels_per_css_pixel());
     context.set_device_viewport_rect(viewport_rect);
     context.set_should_show_line_box_borders(config.should_show_line_box_borders);
     context.set_should_paint_overlay(config.paint_overlay);

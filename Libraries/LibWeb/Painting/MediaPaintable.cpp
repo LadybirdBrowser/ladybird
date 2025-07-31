@@ -35,7 +35,7 @@ MediaPaintable::MediaPaintable(Layout::ReplacedBox const& layout_box)
 {
 }
 
-Optional<DevicePixelPoint> MediaPaintable::mouse_position(PaintContext& context, HTML::HTMLMediaElement const& media_element)
+Optional<DevicePixelPoint> MediaPaintable::mouse_position(DisplayListRecordingContext& context, HTML::HTMLMediaElement const& media_element)
 {
     auto const& layout_mouse_position = media_element.layout_mouse_position({});
 
@@ -59,7 +59,7 @@ void MediaPaintable::fill_triangle(DisplayListRecorder& painter, Gfx::IntPoint l
     });
 }
 
-void MediaPaintable::paint_media_controls(PaintContext& context, HTML::HTMLMediaElement const& media_element, DevicePixelRect media_rect, Optional<DevicePixelPoint> const& mouse_position) const
+void MediaPaintable::paint_media_controls(DisplayListRecordingContext& context, HTML::HTMLMediaElement const& media_element, DevicePixelRect media_rect, Optional<DevicePixelPoint> const& mouse_position) const
 {
     auto components = compute_control_bar_components(context, media_element, media_rect);
     context.display_list_recorder().fill_rect(components.control_box_rect.to_type<int>(), CONTROL_BOX_COLOR.with_alpha(0xd0));
@@ -71,7 +71,7 @@ void MediaPaintable::paint_media_controls(PaintContext& context, HTML::HTMLMedia
     paint_control_bar_volume(context, media_element, components, mouse_position);
 }
 
-MediaPaintable::Components MediaPaintable::compute_control_bar_components(PaintContext& context, HTML::HTMLMediaElement const& media_element, DevicePixelRect media_rect) const
+MediaPaintable::Components MediaPaintable::compute_control_bar_components(DisplayListRecordingContext& context, HTML::HTMLMediaElement const& media_element, DevicePixelRect media_rect) const
 {
     auto maximum_control_box_height = context.rounded_device_pixels(40);
     auto component_padding = context.rounded_device_pixels(5);
@@ -138,7 +138,7 @@ MediaPaintable::Components MediaPaintable::compute_control_bar_components(PaintC
     return components;
 }
 
-void MediaPaintable::paint_control_bar_playback_button(PaintContext& context, HTML::HTMLMediaElement const& media_element, Components const& components, Optional<DevicePixelPoint> const& mouse_position)
+void MediaPaintable::paint_control_bar_playback_button(DisplayListRecordingContext& context, HTML::HTMLMediaElement const& media_element, Components const& components, Optional<DevicePixelPoint> const& mouse_position)
 {
     auto playback_button_size = components.playback_button_rect.width() * 4 / 10;
 
@@ -172,7 +172,7 @@ void MediaPaintable::paint_control_bar_playback_button(PaintContext& context, HT
     }
 }
 
-void MediaPaintable::paint_control_bar_timeline(PaintContext& context, HTML::HTMLMediaElement const& media_element, Components const& components)
+void MediaPaintable::paint_control_bar_timeline(DisplayListRecordingContext& context, HTML::HTMLMediaElement const& media_element, Components const& components)
 {
     if (components.timeline_rect.is_empty())
         return;
@@ -190,7 +190,7 @@ void MediaPaintable::paint_control_bar_timeline(PaintContext& context, HTML::HTM
     context.display_list_recorder().fill_rect(timeline_future_rect.to_type<int>(), Color::Black);
 }
 
-void MediaPaintable::paint_control_bar_timestamp(PaintContext& context, Components const& components)
+void MediaPaintable::paint_control_bar_timestamp(DisplayListRecordingContext& context, Components const& components)
 {
     if (components.timestamp_rect.is_empty())
         return;
@@ -198,7 +198,7 @@ void MediaPaintable::paint_control_bar_timestamp(PaintContext& context, Componen
     context.display_list_recorder().draw_text(components.timestamp_rect.to_type<int>(), components.timestamp, *components.timestamp_font, Gfx::TextAlignment::CenterLeft, Color::White);
 }
 
-void MediaPaintable::paint_control_bar_speaker(PaintContext& context, HTML::HTMLMediaElement const& media_element, Components const& components, Optional<DevicePixelPoint> const& mouse_position)
+void MediaPaintable::paint_control_bar_speaker(DisplayListRecordingContext& context, HTML::HTMLMediaElement const& media_element, Components const& components, Optional<DevicePixelPoint> const& mouse_position)
 {
     if (components.speaker_button_rect.is_empty())
         return;
@@ -252,7 +252,7 @@ void MediaPaintable::paint_control_bar_speaker(PaintContext& context, HTML::HTML
     }
 }
 
-void MediaPaintable::paint_control_bar_volume(PaintContext& context, HTML::HTMLMediaElement const& media_element, Components const& components, Optional<DevicePixelPoint> const& mouse_position)
+void MediaPaintable::paint_control_bar_volume(DisplayListRecordingContext& context, HTML::HTMLMediaElement const& media_element, Components const& components, Optional<DevicePixelPoint> const& mouse_position)
 {
     if (components.volume_rect.is_empty())
         return;

@@ -37,7 +37,7 @@ public:
             return Gfx::AffineTransform {}.multiply(svg_to_viewbox_transform()).multiply(additional_svg_transform.value_or(Gfx::AffineTransform {})).multiply(svg_transform());
         }
 
-        Gfx::AffineTransform svg_to_device_pixels_transform(PaintContext const& context) const
+        Gfx::AffineTransform svg_to_device_pixels_transform(DisplayListRecordingContext const& context) const
         {
             auto css_scale = context.device_pixels_per_css_pixel();
             return Gfx::AffineTransform {}.scale({ css_scale, css_scale }).multiply(svg_to_css_pixels_transform(context.svg_transform()));
@@ -55,7 +55,7 @@ public:
     virtual GC::Ptr<DOM::Node const> dom_node_of_svg() const override { return dom_node(); }
     virtual Optional<CSSPixelRect> get_masking_area() const override { return get_masking_area_of_svg(); }
     virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const override { return get_mask_type_of_svg(); }
-    virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(PaintContext& paint_context, CSSPixelRect const& masking_area) const override { return calculate_mask_of_svg(paint_context, masking_area); }
+    virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(DisplayListRecordingContext& paint_context, CSSPixelRect const& masking_area) const override { return calculate_mask_of_svg(paint_context, masking_area); }
 
     void set_computed_transforms(ComputedTransforms computed_transforms)
     {

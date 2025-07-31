@@ -37,7 +37,7 @@ public:
     virtual void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const { }
 
     virtual bool is_paintable() const = 0;
-    virtual void paint(PaintContext& context, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
+    virtual void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const { return {}; }
 };

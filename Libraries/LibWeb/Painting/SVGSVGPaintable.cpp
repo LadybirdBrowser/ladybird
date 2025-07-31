@@ -37,7 +37,7 @@ static Gfx::FloatMatrix4x4 matrix_with_scaled_translation(Gfx::FloatMatrix4x4 ma
     return matrix;
 }
 
-void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& svg_box, PaintPhase phase)
+void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, PaintableBox const& svg_box, PaintPhase phase)
 {
     auto const& computed_values = svg_box.computed_values();
 
@@ -107,7 +107,7 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
     }
 }
 
-void SVGSVGPaintable::paint_descendants(PaintContext& context, PaintableBox const& paintable, PaintPhase phase)
+void SVGSVGPaintable::paint_descendants(DisplayListRecordingContext& context, PaintableBox const& paintable, PaintPhase phase)
 {
     if (phase != PaintPhase::Foreground)
         return;

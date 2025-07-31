@@ -18,7 +18,7 @@ class RadioButtonPaintable final : public LabelablePaintable {
 public:
     static GC::Ref<RadioButtonPaintable> create(Layout::RadioButton const&);
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
 private:
     RadioButtonPaintable(Layout::RadioButton const&);

@@ -18,7 +18,7 @@ class VideoPaintable final : public MediaPaintable {
 public:
     static GC::Ref<VideoPaintable> create(Layout::VideoBox const&);
 
-    virtual void paint(PaintContext&, PaintPhase) const override;
+    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
     Layout::VideoBox& layout_box();
     Layout::VideoBox const& layout_box() const;
@@ -26,7 +26,7 @@ public:
 private:
     VideoPaintable(Layout::VideoBox const&);
 
-    void paint_placeholder_video_controls(PaintContext&, DevicePixelRect video_rect, Optional<DevicePixelPoint> const& mouse_position) const;
+    void paint_placeholder_video_controls(DisplayListRecordingContext&, DevicePixelRect video_rect, Optional<DevicePixelPoint> const& mouse_position) const;
 };
 
 }
