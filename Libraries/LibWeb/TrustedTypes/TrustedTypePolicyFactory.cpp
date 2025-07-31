@@ -11,11 +11,14 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::TrustedTypes {
 
@@ -131,6 +134,18 @@ void TrustedTypePolicyFactory::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TrustedTypePolicyFactory);
     Base::initialize(realm);
+}
+
+void TrustedTypePolicyFactory::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_default_policy);
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(String const& policy_name, TrustedTypePolicyOptions const& policy_options)
+{
+    return create_a_trusted_type_policy(this, policy_name, policy_options, HTML::relevant_global_object(*this));
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-ishtml

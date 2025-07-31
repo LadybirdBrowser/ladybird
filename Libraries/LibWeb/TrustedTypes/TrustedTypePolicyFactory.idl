@@ -1,7 +1,9 @@
+#import <TrustedTypes/TrustedTypePolicy.idl>
+
 // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory
 [Exposed=(Window,Worker)]
 interface TrustedTypePolicyFactory {
-    [FIXME] TrustedTypePolicy createPolicy(
+    TrustedTypePolicy createPolicy(
         DOMString policyName, optional TrustedTypePolicyOptions policyOptions = {});
     boolean isHTML(any value);
     [FIXME] boolean isScript(any value);
@@ -17,5 +19,5 @@ interface TrustedTypePolicyFactory {
         DOMString tagName,
         DOMString property,
         optional DOMString? elementNs = "");
-    [FIXME] readonly attribute TrustedTypePolicy? defaultPolicy;
+    readonly attribute TrustedTypePolicy? defaultPolicy;
 };
