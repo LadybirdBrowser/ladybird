@@ -169,6 +169,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)onURLChange:(URL::URL const&)url
 {
     [self setLocationFieldText:url.serialize()];
+    [self.window makeFirstResponder:[self tab].web_view];
 }
 
 - (void)onBackNavigationEnabled:(BOOL)back_enabled
