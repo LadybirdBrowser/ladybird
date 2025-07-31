@@ -19,6 +19,9 @@ bool StyleValueList::Properties::operator==(Properties const& other) const
 
 String StyleValueList::to_string(SerializationMode mode) const
 {
+    if (m_properties.values.is_empty())
+        return {};
+
     auto separator = ""sv;
     switch (m_properties.separator) {
     case Separator::Space:
@@ -30,6 +33,10 @@ String StyleValueList::to_string(SerializationMode mode) const
     default:
         VERIFY_NOT_REACHED();
     }
+
+    auto first_value = m_properties.values.first();
+    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }))
+        return first_value->to_string(mode);
 
     StringBuilder builder;
     for (size_t i = 0; i < m_properties.values.size(); ++i) {

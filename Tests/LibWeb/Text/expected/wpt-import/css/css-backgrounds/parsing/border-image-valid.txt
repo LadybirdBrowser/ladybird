@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 30 tests
 
-29 Pass
-1 Fail
+30 Pass
 Pass	e.style['border-image'] = "none" should set the property value
 Pass	e.style['border-image'] = "stretch" should set the property value
 Pass	e.style['border-image'] = "none 100% / 1 / 0 stretch" should set the property value
@@ -13,7 +12,7 @@ Pass	e.style['border-image'] = "url(\"http://www.example.com/\")" should set the
 Pass	e.style['border-image'] = "repeat round" should set the property value
 Pass	e.style['border-image'] = "none repeat round" should set the property value
 Pass	e.style['border-image'] = "space" should set the property value
-Fail	e.style['border-image'] = "none space space" should set the property value
+Pass	e.style['border-image'] = "none space space" should set the property value
 Pass	e.style['border-image'] = "none 100% / 1 / 0 space" should set the property value
 Pass	e.style['border-image'] = "1" should set the property value
 Pass	e.style['border-image'] = "none 1 1 1 1" should set the property value
