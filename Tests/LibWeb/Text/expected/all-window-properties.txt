@@ -434,6 +434,7 @@ TransitionEvent
 TreeWalker
 TrustedHTML
 TrustedScript
+TrustedScriptURL
 TrustedTypePolicy
 TrustedTypePolicyFactory
 TypeError
