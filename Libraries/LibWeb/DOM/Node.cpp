@@ -1579,6 +1579,31 @@ bool Node::is_editing_host() const
     return is<Document>(parent()) && static_cast<Document const&>(*parent()).design_mode_enabled_state();
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#editing-host-of
+GC::Ptr<Node> Node::editing_host()
+{
+    // node itself, if node is an editing host;
+    if (is_editing_host())
+        return *this;
+
+    // or the nearest ancestor of node that is an editing host, if node is editable.
+    if (is_editable()) {
+        GC::Ptr<Node> result;
+        for_each_ancestor([&result](GC::Ref<Node> ancestor) {
+            if (ancestor->is_editing_host()) {
+                result = ancestor;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
+        });
+        VERIFY(result);
+        return result;
+    }
+
+    // The editing host of node is null if node is neither editable nor an editing host;
+    return {};
+}
+
 void Node::set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node> layout_node)
 {
     m_layout_node = layout_node;

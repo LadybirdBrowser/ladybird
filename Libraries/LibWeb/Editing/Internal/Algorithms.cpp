@@ -1106,31 +1106,6 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     restore_states_and_values(document, overrides);
 }
 
-// https://w3c.github.io/editing/docs/execCommand/#editing-host-of
-GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node> node)
-{
-    // node itself, if node is an editing host;
-    if (node->is_editing_host())
-        return node;
-
-    // or the nearest ancestor of node that is an editing host, if node is editable.
-    if (node->is_editable()) {
-        GC::Ptr<DOM::Node> result;
-        node->for_each_ancestor([&result](GC::Ref<DOM::Node> ancestor) {
-            if (ancestor->is_editing_host()) {
-                result = ancestor;
-                return IterationDecision::Break;
-            }
-            return IterationDecision::Continue;
-        });
-        VERIFY(result);
-        return result;
-    }
-
-    // The editing host of node is null if node is neither editable nor an editing host;
-    return {};
-}
-
 // https://w3c.github.io/editing/docs/execCommand/#effective-command-value
 Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString const& command)
 {
@@ -1308,7 +1283,7 @@ void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
         }
 
         // 2. If "p" is not an allowed child of the editing host of node, abort these steps.
-        if (!is_allowed_child_of_node(HTML::TagNames::p, GC::Ref { *editing_host_of_node(node) }))
+        if (!is_allowed_child_of_node(HTML::TagNames::p, GC::Ref { *node->editing_host() }))
             return;
 
         // 3. If node is not a prohibited paragraph child, abort these steps.
@@ -2145,8 +2120,8 @@ bool is_in_same_editing_host(GC::Ref<DOM::Node> node_a, GC::Ref<DOM::Node> node_
 {
     // Two nodes are in the same editing host if the editing host of the first is non-null and the
     // same as the editing host of the second.
-    auto editing_host_a = editing_host_of_node(node_a);
-    auto editing_host_b = editing_host_of_node(node_b);
+    auto editing_host_a = node_a->editing_host();
+    auto editing_host_b = node_b->editing_host();
     return editing_host_a && editing_host_a == editing_host_b;
 }
 
