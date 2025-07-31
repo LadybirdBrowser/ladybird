@@ -2600,7 +2600,7 @@ CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult:
                 return 0.0;
 
             if (length.is_absolute())
-                return length.absolute_length_to_px().to_double();
+                return length.absolute_length_to_px_without_rounding();
 
             // If we don't have a context, we cant resolve the length, so return NAN
             if (!context.length_resolution_context.has_value()) {
@@ -2751,7 +2751,7 @@ Optional<Length> CalculatedStyleValue::resolve_length_deprecated(CalculationReso
 {
     auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_length(m_context.percentages_resolve_as))
-        return Length::make_px(CSSPixels { result.value() });
+        return Length::make_px(result.value());
     return {};
 }
 
