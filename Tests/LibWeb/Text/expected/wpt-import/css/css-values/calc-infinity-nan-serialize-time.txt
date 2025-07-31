@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 29 tests
 
-25 Pass
-4 Fail
+27 Pass
+2 Fail
 Pass	'calc(1s * NaN)' as a specified value should serialize as 'calc(NaN * 1s)'.
 Pass	'calc(1s * nan)' as a specified value should serialize as 'calc(NaN * 1s)'.
 Pass	'calc(1ms * NaN)' as a specified value should serialize as 'calc(NaN * 1s)'.
@@ -27,9 +27,9 @@ Pass	'calc(1 * min(nan*3s, 0s))' as a specified value should serialize as 'calc(
 Pass	'calc(1 * clamp(-INFINITY*20s, 0s, infiniTY*10s))' as a specified value should serialize as 'calc(0s)'.
 Pass	'calc(1s * max(NaN, min(0,10)))' as a specified value should serialize as 'calc(NaN * 1s)'.
 Pass	'calc(1s * clamp(NaN, 0, 10))' as a specified value should serialize as 'calc(NaN * 1s)'.
-Fail	'calc(1s * max(0, min(10, NaN)))' as a specified value should serialize as 'calc(NaN * 1s)'.
+Pass	'calc(1s * max(0, min(10, NaN)))' as a specified value should serialize as 'calc(NaN * 1s)'.
 Fail	'calc(1s * clamp(0, 10, NaN))' as a specified value should serialize as 'calc(NaN * 1s)'.
-Fail	'calc(1s * max(0, min(NaN, 10)))' as a specified value should serialize as 'calc(NaN * 1s)'.
+Pass	'calc(1s * max(0, min(NaN, 10)))' as a specified value should serialize as 'calc(NaN * 1s)'.
 Fail	'calc(1s * clamp(0, NaN, 10))' as a specified value should serialize as 'calc(NaN * 1s)'.
 Pass	'calc(1s * clamp(-Infinity, 0, infinity))' as a specified value should serialize as 'calc(0s)'.
 Pass	'calc(1s * clamp(-inFinity, infinity, 10))' as a specified value should serialize as 'calc(10s)'.

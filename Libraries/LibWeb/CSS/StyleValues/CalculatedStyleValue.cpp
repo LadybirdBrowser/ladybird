@@ -1052,6 +1052,13 @@ static Optional<CalculatedStyleValue::CalculationResult> run_min_or_max_operatio
             if (!consistent_type.has_value())
                 return {};
 
+            // https://drafts.csswg.org/css-values-4/#calc-ieee
+            // Any operation with at least one NaN argument produces NaN.
+            if (isnan(child_value->value()) || isnan(result->value())) {
+                result = CalculatedStyleValue::CalculationResult { AK::NaN<double>, consistent_type };
+                continue;
+            }
+
             if (min_or_max == MinOrMax::Min) {
                 if (child_value->value() < result->value()) {
                     result = CalculatedStyleValue::CalculationResult { child_value->value(), consistent_type };
