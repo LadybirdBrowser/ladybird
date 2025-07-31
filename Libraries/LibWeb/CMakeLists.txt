@@ -309,6 +309,7 @@ set(SOURCES
     Encoding/TextEncoder.cpp
     Encoding/TextEncoderCommon.cpp
     Encoding/TextEncoderStream.cpp
+    EncryptedMediaExtensions/Algorithms.cpp
     EncryptedMediaExtensions/MediaKeySystemAccess.cpp
     EntriesAPI/FileSystemEntry.cpp
     EventTiming/PerformanceEventTiming.cpp
