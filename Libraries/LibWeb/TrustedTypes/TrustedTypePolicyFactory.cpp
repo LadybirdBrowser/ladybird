@@ -9,13 +9,19 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::TrustedTypes {
 
@@ -133,11 +139,61 @@ void TrustedTypePolicyFactory::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void TrustedTypePolicyFactory::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_default_policy);
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(String const& policy_name, TrustedTypePolicyOptions const& policy_options)
+{
+    // 1. Returns the result of executing a Create a Trusted Type Policy algorithm, with the following arguments:
+    //      factory: this value
+    //      policyName: policyName
+    //      options: policyOptions
+    //      global: this value’s relevant global object
+    return create_a_trusted_type_policy(policy_name, policy_options, HTML::relevant_global_object(*this));
+}
+
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-ishtml
 bool TrustedTypePolicyFactory::is_html(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedHTML and has an associated data value set, false otherwise.
     return value.is_object() && is<TrustedHTML>(value.as_object());
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(String const& policy_name, TrustedTypePolicyOptions const& options, JS::Object&)
+{
+    auto& realm = this->realm();
+
+    // TODO
+    // 1. Let allowedByCSP be the result of executing Should Trusted Type policy creation be blocked by Content Security Policy? algorithm with global, policyName and factory’s created policy names value.
+    auto const allowed_by_csp = ContentSecurityPolicy::Directives::Directive::Result::Blocked;
+
+    // 2. If allowedByCSP is "Blocked", throw a TypeError and abort further steps.
+    if (allowed_by_csp == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Content Security Policy blocked the creation of the policy {}", policy_name)) };
+
+    // 3. If policyName is default and the factory’s default policy value is not null, throw a TypeError and abort further steps.
+    if (policy_name == "default"sv && m_default_policy)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Policy Factory already has a default value defined"_string };
+
+    // 4. Let policy be a new TrustedTypePolicy object.
+    // 5. Set policy’s name property value to policyName.
+    // 6. Set policy’s options value to «[ "createHTML" -> options["createHTML", "createScript" -> options["createScript", "createScriptURL" -> options["createScriptURL" ]».
+    auto const policy = realm.create<TrustedTypePolicy>(realm, policy_name, options);
+
+    // 7. If the policyName is default, set the factory’s default policy value to policy.
+    if (policy_name == "default"sv)
+        m_default_policy = policy;
+
+    // 8. Append policyName to factory’s created policy names.
+    m_created_policy_names.append(policy_name);
+
+    // 9. Return policy.
+    return policy;
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute

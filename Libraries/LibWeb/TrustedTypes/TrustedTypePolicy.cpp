@@ -9,13 +9,16 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedTypePolicy);
 
-TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm)
+TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm, String const& name, TrustedTypePolicyOptions const& options)
     : PlatformObject(realm)
+    , m_name(name)
+    , m_options(options)
 {
 }
 
