@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
+#include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -40,11 +41,24 @@ void TrustedTypePolicy::initialize(JS::Realm& realm)
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createhtml
 JS::ThrowCompletionOr<GC::Ref<TrustedHTML>> TrustedTypePolicy::create_html(String const& input, Vector<JS::Value> const& arguments)
 {
-    return create_a_trusted_type("TrustedHTML"_string, input, arguments);
+    auto const trusted_type = create_a_trusted_type("TrustedHTML"_string, input, arguments);
+    if (trusted_type.is_error())
+        return trusted_type.error();
+    return trusted_type.value().get<GC::Ref<TrustedHTML>>();
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createscript
+JS::ThrowCompletionOr<GC::Ref<TrustedScript>> TrustedTypePolicy::create_script(String const& input, Vector<JS::Value> const& arguments)
+{
+    auto const trusted_type = create_a_trusted_type("TrustedScript"_string, input, arguments);
+    if (trusted_type.is_error())
+        return trusted_type.error();
+
+    return trusted_type.value().get<GC::Ref<TrustedScript>>();
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
-JS::ThrowCompletionOr<GC::Ref<TrustedHTML>> TrustedTypePolicy::create_a_trusted_type(String const& trusted_type_name, String const& value, Vector<JS::Value> const& arguments)
+TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(String const& trusted_type_name, String const& value, Vector<JS::Value> const& arguments)
 {
     // 1. Let policyValue be the result of executing Get Trusted Type policy value with the same arguments
     // as this algorithm and additionally true as throwIfMissing.
@@ -66,7 +80,11 @@ JS::ThrowCompletionOr<GC::Ref<TrustedHTML>> TrustedTypePolicy::create_a_trusted_
     }
 
     // 5. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
-    return realm().create<TrustedHTML>(realm(), dataString);
+    if (trusted_type_name == "TrustedHTML"_string) {
+        return TrustedTypesVariants(realm().create<TrustedHTML>(realm(), dataString));
+    } else {
+        return TrustedTypesVariants(realm().create<TrustedScript>(realm(), dataString));
+    }
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-policy-value

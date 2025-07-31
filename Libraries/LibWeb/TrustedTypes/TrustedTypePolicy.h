@@ -12,6 +12,10 @@
 
 namespace Web::TrustedTypes {
 
+using TrustedTypesVariants = JS::ThrowCompletionOr<Variant<
+    GC::Ref<TrustedHTML>,
+    GC::Ref<TrustedScript>>>;
+
 struct TrustedTypePolicyOptions {
     Optional<GC::Ptr<WebIDL::CallbackType>> create_html;
     Optional<GC::Ptr<WebIDL::CallbackType>> create_script;
@@ -30,12 +34,13 @@ public:
     String name() const { return m_name; }
 
     JS::ThrowCompletionOr<GC::Ref<TrustedHTML>> create_html(String const&, Vector<JS::Value> const&);
+    JS::ThrowCompletionOr<GC::Ref<TrustedScript>> create_script(String const&, Vector<JS::Value> const&);
 
 private:
     explicit TrustedTypePolicy(JS::Realm&, String const&, TrustedTypePolicyOptions const&);
     virtual void initialize(JS::Realm&) override;
 
-    JS::ThrowCompletionOr<GC::Ref<TrustedHTML>> create_a_trusted_type(String const&, String const&, Vector<JS::Value> const& values);
+    TrustedTypesVariants create_a_trusted_type(String const&, String const&, Vector<JS::Value> const& values);
 
     JS::Completion get_trusted_type_policy_value(String const& trusted_type_name, String const& value, Vector<JS::Value> const& values, bool throw_if_missing);
 
