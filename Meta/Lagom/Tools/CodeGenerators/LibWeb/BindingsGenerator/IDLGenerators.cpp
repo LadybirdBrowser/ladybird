@@ -79,6 +79,7 @@ static bool is_platform_object(Type const& type)
         "Instance"sv,
         "IntersectionObserverEntry"sv,
         "KeyframeEffect"sv,
+        "MediaKeySystemAccess"sv,
         "MediaList"sv,
         "Memory"sv,
         "MessagePort"sv,
@@ -4822,6 +4823,7 @@ using namespace Web::CSS;
 using namespace Web::DOM;
 using namespace Web::DOMURL;
 using namespace Web::Encoding;
+using namespace Web::EncryptedMediaExtensions;
 using namespace Web::EntriesAPI;
 using namespace Web::EventTiming;
 using namespace Web::Fetch;
