@@ -1,5 +1,6 @@
 #import <Clipboard/Clipboard.idl>
 #import <CredentialManagement/CredentialsContainer.idl>
+#import <EncryptedMediaExtensions/MediaKeySystemAccess.idl>
 #import <Gamepad/Gamepad.idl>
 #import <Geolocation/Geolocation.idl>
 #import <HTML/MimeTypeArray.idl>

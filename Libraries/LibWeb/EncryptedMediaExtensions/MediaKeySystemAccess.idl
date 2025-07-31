@@ -35,3 +35,12 @@ enum MediaKeySessionType {
     "temporary",
     "persistent-license"
 };
+
+// https://w3c.github.io/encrypted-media/#navigator-extension-requestmediakeysystemaccess
+[Exposed=Window]
+partial interface Navigator {
+    [SecureContext] Promise<MediaKeySystemAccess> requestMediaKeySystemAccess(
+        Utf16DOMString keySystem, 
+        sequence<MediaKeySystemConfiguration> supportedConfigurations
+    );
+};
