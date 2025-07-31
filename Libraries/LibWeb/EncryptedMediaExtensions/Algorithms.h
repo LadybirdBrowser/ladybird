@@ -17,6 +17,8 @@ namespace Web::EncryptedMediaExtensions {
 
 bool supports_container(Utf16String const& container);
 bool is_persistent_session_type(Utf16String const& session_type);
+bool is_supported_key_system(Utf16String const& key_system);
+NonnullOwnPtr<KeySystem> key_system_from_string(Utf16String const& key_system);
 ConsentStatus get_consent_status(Bindings::MediaKeySystemConfiguration const&, MediaKeyRestrictions&, URL::Origin const&);
 Optional<Vector<Bindings::MediaKeySystemMediaCapability>> get_supported_capabilities_for_audio_video_type(KeySystem const&, CapabilitiesType, Vector<Bindings::MediaKeySystemMediaCapability>, Bindings::MediaKeySystemConfiguration, MediaKeyRestrictions);
 Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem const&, Bindings::MediaKeySystemConfiguration const&, MediaKeyRestrictions&, URL::Origin const&);
