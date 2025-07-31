@@ -39,4 +39,9 @@ struct MediaKeyRestrictions {
     bool persist_state { true };
 };
 
+enum CapabilitiesType {
+    Audio,
+    Video
+};
+
 }
