@@ -1,0 +1,18 @@
+// https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy
+[Exposed=(Window,Worker)]
+interface TrustedTypePolicy {
+    [FIXME] readonly attribute DOMString name;
+    [FIXME] TrustedHTML createHTML(DOMString input, any... arguments);
+    [FIXME] TrustedScript createScript(DOMString input, any... arguments);
+    [FIXME] TrustedScriptURL createScriptURL(DOMString input, any... arguments);
+};
+
+// https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy-options
+dictionary TrustedTypePolicyOptions {
+    CreateHTMLCallback createHTML;
+    CreateScriptCallback createScript;
+    CreateScriptURLCallback createScriptURL;
+};
+callback CreateHTMLCallback = DOMString? (DOMString input, any... arguments);
+callback CreateScriptCallback = DOMString? (DOMString input, any... arguments);
+callback CreateScriptURLCallback = USVString? (DOMString input, any... arguments);
