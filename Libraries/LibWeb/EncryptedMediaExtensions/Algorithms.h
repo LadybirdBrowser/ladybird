@@ -15,6 +15,8 @@
 
 namespace Web::EncryptedMediaExtensions {
 
+bool is_supported_key_system(String const& key_system);
+RefPtr<KeySystem> key_system_from_string(String const& key_system);
 bool supports_container(String const& container);
 bool is_persistent_session_type(String const& session_type);
 Vector<Bindings::MediaKeySystemMediaCapability> get_supported_capabilities_for_audio_video_type(RefPtr<KeySystem>, CapabilitiesType, Vector<Bindings::MediaKeySystemMediaCapability>, Bindings::MediaKeySystemConfiguration, MediaKeyRestrictions);

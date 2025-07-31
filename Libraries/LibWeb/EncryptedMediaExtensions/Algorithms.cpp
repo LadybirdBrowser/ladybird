@@ -383,4 +383,24 @@ Optional<ConsentConfiguration> get_supported_configuration(RefPtr<KeySystem> imp
     return supported_configuration;
 }
 
+// https://w3c.github.io/encrypted-media/#dfn-common-key-systems
+bool is_supported_key_system(String const& key_system)
+{
+    constexpr Array<StringView, 1> supported_key_systems = {
+        // https://w3c.github.io/encrypted-media/#clear-key
+        "org.w3.clearkey"sv,
+    };
+
+    return supported_key_systems.contains_slow(key_system);
+}
+
+RefPtr<KeySystem> key_system_from_string(String const& key_system)
+{
+    if (key_system == "org.w3.clearkey"_string) {
+        return adopt_ref(*new ClearKeySystem());
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 }
