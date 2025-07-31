@@ -12,6 +12,17 @@
 
 namespace Web::TrustedTypes {
 
+enum class TrustedTypeName {
+    TrustedHTML,
+    TrustedScript,
+    TrustedScriptURL,
+};
+
+enum class ThrowIfCallbackMissing {
+    Yes,
+    No
+};
+
 struct TrustedTypePolicyOptions {
     GC::Root<WebIDL::CallbackType> create_html;
     GC::Root<WebIDL::CallbackType> create_script;
@@ -27,9 +38,15 @@ public:
 
     String const& name() const { return m_name; }
 
+    WebIDL::ExceptionOr<GC::Root<TrustedHTML>> create_html(String const&, GC::RootVector<JS::Value> const&);
+
 private:
     explicit TrustedTypePolicy(JS::Realm&, String const&, TrustedTypePolicyOptions const&);
     virtual void initialize(JS::Realm&) override;
+
+    WebIDL::ExceptionOr<GC::Root<TrustedHTML>> create_a_trusted_type(TrustedTypeName, String const&, GC::RootVector<JS::Value> const& values);
+
+    WebIDL::ExceptionOr<JS::Value> get_trusted_type_policy_value(TrustedTypeName, String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing);
 
     String const m_name;
     TrustedTypePolicyOptions const m_options;
