@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -662,10 +662,6 @@ void DisplayListPlayerSkia::fill_path_using_paint_style(FillPathUsingPaintStyle 
 
 void DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& command)
 {
-    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
-    if (!command.thickness)
-        return;
-
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -683,10 +679,6 @@ void DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& 
 
 void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintStyle const& command)
 {
-    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
-    if (!command.thickness)
-        return;
-
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
@@ -703,10 +695,6 @@ void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintSt
 
 void DisplayListPlayerSkia::draw_ellipse(DrawEllipse const& command)
 {
-    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
-    if (!command.thickness)
-        return;
-
     auto const& rect = command.rect;
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -729,10 +717,6 @@ void DisplayListPlayerSkia::fill_ellipse(FillEllipse const& command)
 
 void DisplayListPlayerSkia::draw_line(DrawLine const& command)
 {
-    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
-    if (!command.thickness)
-        return;
-
     auto from = to_skia_point(command.from);
     auto to = to_skia_point(command.to);
     auto& canvas = surface().canvas();
@@ -890,10 +874,6 @@ void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& comma
 
 void DisplayListPlayerSkia::draw_triangle_wave(DrawTriangleWave const& command)
 {
-    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
-    if (!command.thickness)
-        return;
-
     // FIXME: Support more than horizontal waves
     if (command.p1.y() != command.p2.y()) {
         dbgln("FIXME: Support more than horizontal waves");
@@ -972,9 +952,6 @@ void DisplayListPlayerSkia::add_rounded_rect_clip(AddRoundedRectClip const& comm
 void DisplayListPlayerSkia::add_mask(AddMask const& command)
 {
     auto const& rect = command.rect;
-    if (rect.is_empty())
-        return;
-
     auto mask_surface = Gfx::PaintingSurface::create_with_size(m_context, rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
 
     ScrollStateSnapshot scroll_state_snapshot;

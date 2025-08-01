@@ -41,6 +41,8 @@ void DisplayListRecorder::add_rounded_rect_clip(CornerRadii corner_radii, Gfx::I
 
 void DisplayListRecorder::add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
 {
+    if (rect.is_empty())
+        return;
     APPEND(AddMask { move(display_list), rect });
 }
 
@@ -88,6 +90,9 @@ void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
 
 void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
 {
+    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
+    if (!params.thickness)
+        return;
     if (params.color.alpha() == 0)
         return;
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
@@ -113,6 +118,9 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
 
 void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
 {
+    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
+    if (!params.thickness)
+        return;
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
     // Increase path bounding box by `thickness` to account for stroke.
@@ -137,7 +145,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
 
 void DisplayListRecorder::draw_ellipse(Gfx::IntRect const& a_rect, Color color, int thickness)
 {
-    if (a_rect.is_empty() || color.alpha() == 0)
+    if (a_rect.is_empty() || color.alpha() == 0 || !thickness)
         return;
     APPEND(DrawEllipse {
         .rect = a_rect,
@@ -228,7 +236,7 @@ void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, 
 
 void DisplayListRecorder::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color color, int thickness, Gfx::LineStyle style, Color alternate_color)
 {
-    if (color.alpha() == 0)
+    if (color.alpha() == 0 || !thickness)
         return;
     APPEND(DrawLine {
         .color = color,
@@ -419,6 +427,9 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_r
 
 void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a_p2, Color color, int amplitude, int thickness = 1)
 {
+    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
+    if (!thickness)
+        return;
     if (color.alpha() == 0)
         return;
     APPEND(DrawTriangleWave {
