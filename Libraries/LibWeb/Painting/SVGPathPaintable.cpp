@@ -66,8 +66,6 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
     auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
     auto svg_element_rect = svg_node->paintable_box()->absolute_rect();
 
-    DisplayListRecorderStateSaver save_painter { context.display_list_recorder() };
-
     auto offset = context.rounded_device_point(svg_element_rect.location()).to_type<int>().to_type<float>();
     auto maybe_view_box = svg_node->dom_node().view_box();
 
