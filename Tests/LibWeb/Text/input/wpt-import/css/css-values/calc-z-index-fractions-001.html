@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Values and Units Test: computed value of 'z-index' when specified with calc() function and fractional values</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-values-4/#calc-range">
+
+  <meta content="This test verifies how 2 calc() functions are computed for 'z-index' when involved expressions end up being numbers halfway between adjacent integers." name="assert">
+
+  <script src="../../resources/testharness.js"></script>
+
+  <script src="../../resources/testharnessreport.js"></script>
+
+  <div id="target"></div>
+
+  <script>
+  function startTesting()
+  {
+
+  var targetElement = document.getElementById("target");
+
+    function verifyComputedStyle(property_name, initial_value, specified_value, expected_value)
+    {
+
+    test(function()
+      {
+
+      targetElement.style.setProperty(property_name, initial_value);
+
+      /*
+      The purpose of the initial_value is to act as a fallback
+      value in case the calc() function in the specified value
+      fails or in case it generates an invalid value. Since we
+      are running 2 consecutive tests on the same element,
+      then it is necessary to reset its property to an initial
+      value.
+      */
+
+      targetElement.style.setProperty(property_name, specified_value);
+
+      assert_equals(getComputedStyle(targetElement)[property_name], expected_value);
+
+      }, `testing ${property_name}: ${specified_value}`);
+    }
+
+ /* verifyComputedStyle(property_name, initial_value, specified_value, expected_value) */
+    verifyComputedStyle("z-index", "auto", "calc(2.5 / 2)", "1");
+    verifyComputedStyle("z-index", "auto", "calc(3 / 2)", "2");
+    verifyComputedStyle("z-index", "auto", "calc(3.5 / 2)", "2");
+    verifyComputedStyle("z-index", "auto", "calc(-2.5 / 2)", "-1");
+    verifyComputedStyle("z-index", "auto", "calc(-3 / 2)", "-1");
+    verifyComputedStyle("z-index", "auto", "calc(-3.5 / 2)", "-2");
+  }
+
+  startTesting();
+
+  </script>

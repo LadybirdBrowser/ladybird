@@ -338,7 +338,7 @@ Optional<int> ComputedProperties::z_index() const
         return {};
 
     // Clamp z-index to the range of a signed 32-bit integer for consistency with other engines.
-    auto clamp = [](auto number) -> int {
+    auto clamp = [](long number) -> int {
         if (number >= NumericLimits<int>::max())
             return NumericLimits<int>::max();
         if (number <= NumericLimits<int>::min())
@@ -352,7 +352,8 @@ Optional<int> ComputedProperties::z_index() const
     if (value.is_calculated()) {
         auto maybe_double = value.as_calculated().resolve_number_deprecated({});
         if (maybe_double.has_value()) {
-            return clamp(maybe_double.value());
+            // Round up on half
+            return clamp(floor(maybe_double.value() + 0.5f));
         }
     }
     return {};
