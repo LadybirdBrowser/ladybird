@@ -27,7 +27,7 @@ public:
         return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasPatternPaintStyle(move(image), repetition));
     }
 
-    virtual void paint(Gfx::IntRect physical_bounding_box, PaintFunction paint) const override;
+    Repetition repetition() const { return m_repetition; }
 
 private:
     CanvasPatternPaintStyle(CanvasImageSource image, Repetition repetition)

@@ -22,8 +22,6 @@ struct ColorStop {
 
 float color_stop_step(ColorStop const& previous_stop, ColorStop const& next_stop, float position);
 
-class GradientLine;
-
 inline float normalized_gradient_angle_radians(float gradient_angle)
 {
     // Adjust angle so 0 degrees is bottom
