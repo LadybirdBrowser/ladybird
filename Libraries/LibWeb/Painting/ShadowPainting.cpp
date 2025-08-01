@@ -56,10 +56,10 @@ void paint_box_shadow(DisplayListRecordingContext& context,
             auto shrinked_border_radii = border_radii;
             shrinked_border_radii.shrink(borders_data.top.width, borders_data.right.width, borders_data.bottom.width, borders_data.left.width);
             ScopedCornerRadiusClip corner_clipper { context, device_content_rect, shrinked_border_radii, CornerClip::Outside };
-            context.display_list_recorder().paint_inner_box_shadow_params(params);
+            context.display_list_recorder().paint_inner_box_shadow(params);
         } else {
             ScopedCornerRadiusClip corner_clipper { context, device_content_rect, border_radii, CornerClip::Inside };
-            context.display_list_recorder().paint_outer_box_shadow_params(params);
+            context.display_list_recorder().paint_outer_box_shadow(params);
         }
     }
 }
