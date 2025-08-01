@@ -23,8 +23,8 @@ public:
         m_node = m_node->next;
         return *this;
     }
-    ElementType& operator*() { return m_node->value; }
-    ElementType* operator->() { return &m_node->value; }
+    ElementType& operator*() { return m_node->value(); }
+    ElementType* operator->() { return &m_node->value(); }
     [[nodiscard]] bool is_end() const { return !m_node; }
     static DoublyLinkedListIterator universal_end() { return DoublyLinkedListIterator(nullptr); }
 
@@ -43,14 +43,20 @@ private:
     struct Node {
         template<typename U>
         explicit Node(U&& v)
-            : value(forward<U>(v))
         {
+            new (m_value) T(forward<U>(v));
             static_assert(
                 requires { T(v); }, "Conversion operator is missing.");
         }
-        T value;
+
+        T const& value() const { return *bit_cast<T const*>(&m_value); }
+        T& value() { return *bit_cast<T*>(&m_value); }
+
         Node* next { nullptr };
         Node* prev { nullptr };
+
+    private:
+        alignas(T) u8 m_value[sizeof(T)];
     };
 
 public:
@@ -81,22 +87,31 @@ public:
     [[nodiscard]] T& first()
     {
         VERIFY(m_head);
-        return m_head->value;
+        return m_head->value();
     }
     [[nodiscard]] T const& first() const
     {
         VERIFY(m_head);
-        return m_head->value;
+        return m_head->value();
     }
     [[nodiscard]] T& last()
     {
         VERIFY(m_head);
-        return m_tail->value;
+        return m_tail->value();
     }
     [[nodiscard]] T const& last() const
     {
         VERIFY(m_head);
-        return m_tail->value;
+        return m_tail->value();
+    }
+
+    [[nodiscard]] T& unchecked_last()
+    {
+        return m_tail->value();
+    }
+    [[nodiscard]] T const& unchecked_last() const
+    {
+        return m_tail->value();
     }
 
     template<typename U>
@@ -206,7 +221,7 @@ public:
     T take_first()
     {
         VERIFY(m_head);
-        auto value = move(m_head->value);
+        auto value = move(m_head->value());
         auto* old_head = m_head;
         m_head = m_head->next;
         if (m_head)
@@ -221,7 +236,7 @@ public:
     T take_last()
     {
         VERIFY(m_tail);
-        auto value = move(m_tail->value);
+        auto value = move(m_tail->value());
         auto* old_tail = m_tail;
         m_tail = m_tail->prev;
         if (m_tail)
@@ -252,8 +267,8 @@ private:
     void drop_node(Node* node)
     {
         if constexpr (node_cache_size > 0) {
-            if (m_node_cache.used_count < node_cache_size) {
-                node->value.~T();
+            if (m_node_cache.used_count + 1 < node_cache_size) {
+                node->value().~T();
                 m_node_cache.nodes[m_node_cache.used_count++] = node;
                 return;
             }
