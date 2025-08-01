@@ -47,9 +47,7 @@ static void apply_paint_style(SkPaint& paint, Gfx::PaintStyle const& style)
 {
     if (is<Gfx::SolidColorPaintStyle>(style)) {
         auto const& solid_color = static_cast<Gfx::SolidColorPaintStyle const&>(style);
-        auto color = solid_color.sample_color(Gfx::IntPoint(0, 0));
-
-        paint.setColor(to_skia_color(color));
+        paint.setColor(to_skia_color(solid_color.color()));
     } else if (is<Gfx::CanvasLinearGradientPaintStyle>(style)) {
         auto const& linear_gradient = static_cast<Gfx::CanvasLinearGradientPaintStyle const&>(style);
         auto const& color_stops = linear_gradient.color_stops();

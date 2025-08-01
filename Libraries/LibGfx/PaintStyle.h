@@ -6,11 +6,9 @@
 
 #pragma once
 
-#include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/RefCounted.h>
-#include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
@@ -22,20 +20,6 @@ namespace Gfx {
 class PaintStyle : public RefCounted<PaintStyle> {
 public:
     virtual ~PaintStyle() = default;
-    using SamplerFunction = Function<Color(IntPoint)>;
-    using PaintFunction = Function<void(SamplerFunction)>;
-
-    // Paint styles that have paint time dependent state (e.g. based on the paint size) may find it easier to override paint().
-    // If paint() is overridden sample_color() is unused.
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const
-    {
-        (void)physical_bounding_box;
-        paint([this](IntPoint point) { return sample_color(point); });
-    }
-
-private:
-    // Simple paint styles can simply override sample_color() if they can easily generate a color from a coordinate.
-    virtual Color sample_color(IntPoint) const { return Color(); }
 };
 
 class SolidColorPaintStyle : public PaintStyle {
@@ -45,7 +29,7 @@ public:
         return adopt_nonnull_ref_or_enomem(new (nothrow) SolidColorPaintStyle(color));
     }
 
-    virtual Color sample_color(IntPoint) const override { return m_color; }
+    Color const& color() const { return m_color; }
 
 private:
     SolidColorPaintStyle(Color color)
@@ -101,8 +85,6 @@ public:
     FloatPoint end_point() const { return m_p1; }
 
 private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
-
     CanvasLinearGradientPaintStyle(FloatPoint p0, FloatPoint p1)
         : m_p0(p0)
         , m_p1(p1)
@@ -120,9 +102,10 @@ public:
         return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasConicGradientPaintStyle(center, start_angle));
     }
 
-private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
+    FloatPoint center() const { return m_center; }
+    float start_angle() const { return m_start_angle; }
 
+private:
     CanvasConicGradientPaintStyle(FloatPoint center, float start_angle)
         : m_center(center)
         , m_start_angle(start_angle)
@@ -146,8 +129,6 @@ public:
     float end_radius() const { return m_end_radius; }
 
 private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
-
     CanvasRadialGradientPaintStyle(FloatPoint start_center, float start_radius, FloatPoint end_center, float end_radius)
         : m_start_center(start_center)
         , m_start_radius(start_radius)
@@ -214,8 +195,6 @@ public:
     }
 
 private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
-
     FloatPoint m_p0;
     FloatPoint m_p1;
 };
@@ -256,8 +235,6 @@ public:
     }
 
 private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
-
     FloatPoint m_start_center;
     float m_start_radius { 0.0f };
     FloatPoint m_end_center;
