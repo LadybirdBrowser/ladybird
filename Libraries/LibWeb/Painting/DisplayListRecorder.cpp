@@ -363,12 +363,12 @@ void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_reg
     });
 }
 
-void DisplayListRecorder::paint_outer_box_shadow_params(PaintBoxShadowParams params)
+void DisplayListRecorder::paint_outer_box_shadow(PaintBoxShadowParams params)
 {
     APPEND(PaintOuterBoxShadow { .box_shadow_params = params });
 }
 
-void DisplayListRecorder::paint_inner_box_shadow_params(PaintBoxShadowParams params)
+void DisplayListRecorder::paint_inner_box_shadow(PaintBoxShadowParams params)
 {
     APPEND(PaintInnerBoxShadow { .box_shadow_params = params });
 }
