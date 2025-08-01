@@ -1050,6 +1050,11 @@ ThrowCompletionOr<i8> Value::to_i8(VM& vm) const
 // 7.1.11 ToUint8 ( argument ), https://tc39.es/ecma262/#sec-touint8
 ThrowCompletionOr<u8> Value::to_u8(VM& vm) const
 {
+    // OPTIMIZATION: Fast path for the common case of an int32.
+    if (is_int32()) {
+        return static_cast<u8>(as_i32() & NumericLimits<u8>::max());
+    }
+
     // 1. Let number be ? ToNumber(argument).
     double number = TRY(to_number(vm)).as_double();
 
