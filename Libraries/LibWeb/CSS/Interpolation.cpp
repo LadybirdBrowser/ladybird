@@ -111,9 +111,8 @@ static RefPtr<CSSStyleValue const> interpolate_scale(DOM::Element& element, Calc
     }
 
     StyleValueVector new_values = { *interpolated_x, *interpolated_y };
-    if (interpolated_z && interpolated_z->is_number() && interpolated_z->as_number().number() != 1) {
+    if (interpolated_z)
         new_values.append(*interpolated_z);
-    }
 
     return TransformationStyleValue::create(
         PropertyID::Scale,

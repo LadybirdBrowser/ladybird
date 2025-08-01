@@ -118,13 +118,27 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
     }
     if (m_properties.property == PropertyID::Scale) {
         auto resolve_to_string = [mode](CSSStyleValue const& value) -> String {
-            if (value.is_number()) {
-                return MUST(String::formatted("{}", value.as_number().number()));
+            Optional<double> raw_value;
+
+            if (value.is_number())
+                raw_value = value.as_number().number();
+            if (value.is_percentage())
+                raw_value = value.as_percentage().percentage().as_fraction();
+            if (value.is_calculated()) {
+                if (value.as_calculated().resolves_to_number()) {
+                    if (auto resolved = value.as_calculated().resolve_number({}); resolved.has_value())
+                        raw_value = *resolved;
+                }
+                if (value.as_calculated().resolves_to_percentage()) {
+                    if (auto resolved = value.as_calculated().resolve_percentage({}); resolved.has_value())
+                        raw_value = resolved->as_fraction();
+                }
             }
-            if (value.is_percentage()) {
-                return MUST(String::formatted("{}", value.as_percentage().percentage().as_fraction()));
-            }
-            return value.to_string(mode);
+
+            if (!raw_value.has_value())
+                return value.to_string(mode);
+
+            return MUST(String::formatted("{:.6}", *raw_value));
         };
 
         auto x_value = resolve_to_string(m_properties.values[0]);
@@ -135,11 +149,11 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
 
         StringBuilder builder;
         builder.append(x_value);
-        if (x_value != y_value || z_value.has_value()) {
+        if (x_value != y_value || (z_value.has_value() && *z_value != "1"sv)) {
             builder.append(" "sv);
             builder.append(y_value);
         }
-        if (z_value.has_value()) {
+        if (z_value.has_value() && *z_value != "1"sv) {
             builder.append(" "sv);
             builder.append(z_value.value());
         }
