@@ -1,0 +1,11 @@
+classic: Error
+    at Error
+    at blob:file:///[flaky-uuid-replaced]:3:36
+
+module: Error
+    at Error
+    at blob:file:///[flaky-uuid-replaced]:3:36
+    at <unknown>
+    at <unknown>
+    at <unknown>
+
