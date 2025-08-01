@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 229 tests
 
-195 Pass
-34 Fail
+211 Pass
+18 Fail
 Pass	round(10,10) should be used-value-equivalent to 10
 Pass	mod(1,1) should be used-value-equivalent to 0
 Pass	rem(1,1) should be used-value-equivalent to 0
@@ -202,31 +202,31 @@ Pass	round(to-zero, -Infinity, 4) should be used-value-equivalent to calc(-Infin
 Pass	round(to-zero, Infinity, -4) should be used-value-equivalent to calc(Infinity)
 Pass	round(to-zero, -Infinity, -4) should be used-value-equivalent to calc(-Infinity)
 Pass	round(nearest, 0, Infinity) should be used-value-equivalent to 0
-Fail	round(nearest, 4, Infinity) should be used-value-equivalent to 0
-Fail	round(nearest, -0, Infinity) should be used-value-equivalent to calc(-0)
-Fail	round(nearest, -4, Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(nearest, 4, Infinity) should be used-value-equivalent to 0
+Pass	round(nearest, -0, Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(nearest, -4, Infinity) should be used-value-equivalent to calc(-0)
 Pass	round(nearest, 0, -Infinity) should be used-value-equivalent to 0
-Fail	round(nearest, 4, -Infinity) should be used-value-equivalent to 0
-Fail	round(nearest, -0, -Infinity) should be used-value-equivalent to calc(-0)
-Fail	round(nearest, -4, -Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(nearest, 4, -Infinity) should be used-value-equivalent to 0
+Pass	round(nearest, -0, -Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(nearest, -4, -Infinity) should be used-value-equivalent to calc(-0)
 Pass	round(to-zero, 0, Infinity) should be used-value-equivalent to 0
-Fail	round(to-zero, 4, Infinity) should be used-value-equivalent to 0
-Fail	round(to-zero, -0, Infinity) should be used-value-equivalent to calc(-0)
-Fail	round(to-zero, -4, Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(to-zero, 4, Infinity) should be used-value-equivalent to 0
+Pass	round(to-zero, -0, Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(to-zero, -4, Infinity) should be used-value-equivalent to calc(-0)
 Pass	round(to-zero, 0, -Infinity) should be used-value-equivalent to 0
-Fail	round(to-zero, 4, -Infinity) should be used-value-equivalent to 0
-Fail	round(to-zero, -0, -Infinity) should be used-value-equivalent to calc(-0)
-Fail	round(to-zero, -4, -Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(to-zero, 4, -Infinity) should be used-value-equivalent to 0
+Pass	round(to-zero, -0, -Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(to-zero, -4, -Infinity) should be used-value-equivalent to calc(-0)
 Fail	round(up, 1, Infinity) should be used-value-equivalent to calc(Infinity)
 Pass	round(up, 0, Infinity) should be used-value-equivalent to 0
-Fail	round(up, -1, Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(up, -1, Infinity) should be used-value-equivalent to calc(-0)
 Fail	round(up, 1, -Infinity) should be used-value-equivalent to calc(Infinity)
 Pass	round(up, 0, -Infinity) should be used-value-equivalent to 0
-Fail	round(up, -1, -Infinity) should be used-value-equivalent to calc(-0)
-Fail	round(down, 1, Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(up, -1, -Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(down, 1, Infinity) should be used-value-equivalent to calc(-0)
 Pass	round(down, 0, Infinity) should be used-value-equivalent to 0
 Fail	round(down, -1, Infinity) should be used-value-equivalent to calc(-Infinity)
-Fail	round(down, 1, -Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(down, 1, -Infinity) should be used-value-equivalent to calc(-0)
 Pass	round(down, 0, -Infinity) should be used-value-equivalent to 0
 Fail	round(down, -1, -Infinity) should be used-value-equivalent to calc(-Infinity)
 Pass	mod(-0, Infinity) should be used-value-equivalent to calc(NaN)
