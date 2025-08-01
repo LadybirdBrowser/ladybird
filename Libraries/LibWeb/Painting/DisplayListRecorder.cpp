@@ -12,7 +12,7 @@
 namespace Web::Painting {
 
 DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
-    : m_command_list(command_list)
+    : m_display_list(command_list)
 {
 }
 
@@ -26,7 +26,7 @@ DisplayListRecorder::~DisplayListRecorder() = default;
         RefPtr<ClipFrame const> _clip_frame;                               \
         if (!m_clip_frame_stack.is_empty())                                \
             _clip_frame = m_clip_frame_stack.last();                       \
-        m_command_list.append(__VA_ARGS__, _scroll_frame_id, _clip_frame); \
+        m_display_list.append(__VA_ARGS__, _scroll_frame_id, _clip_frame); \
     } while (false)
 
 void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect)

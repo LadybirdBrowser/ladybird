@@ -157,14 +157,14 @@ public:
     DisplayListRecorder(DisplayList&);
     ~DisplayListRecorder();
 
-    DisplayList const& display_list() const { return m_command_list; }
+    DisplayList const& display_list() const { return m_display_list; }
 
     int m_save_nesting_level { 0 };
 
 private:
     Vector<Optional<i32>> m_scroll_frame_id_stack;
     Vector<RefPtr<ClipFrame const>> m_clip_frame_stack;
-    DisplayList& m_command_list;
+    DisplayList& m_display_list;
 };
 
 class DisplayListRecorderStateSaver {
