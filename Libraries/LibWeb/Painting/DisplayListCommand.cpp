@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Painting/Command.h>
+#include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {

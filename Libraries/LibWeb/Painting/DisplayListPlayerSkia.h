@@ -7,8 +7,8 @@
 #pragma once
 
 #include <LibGfx/SkiaBackendContext.h>
-#include <LibWeb/Painting/Command.h>
 #include <LibWeb/Painting/DisplayList.h>
+#include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
 class GrDirectContext;
