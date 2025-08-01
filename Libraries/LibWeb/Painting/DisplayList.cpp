@@ -10,7 +10,7 @@
 
 namespace Web::Painting {
 
-void DisplayList::append(Command&& command, Optional<i32> scroll_frame_id, RefPtr<ClipFrame const> clip_frame)
+void DisplayList::append(DisplayListCommand&& command, Optional<i32> scroll_frame_id, RefPtr<ClipFrame const> clip_frame)
 {
     m_commands.append({ scroll_frame_id, clip_frame, move(command) });
 }
@@ -25,7 +25,7 @@ String DisplayList::dump() const
     return builder.to_string_without_validation();
 }
 
-static Optional<Gfx::IntRect> command_bounding_rectangle(Command const& command)
+static Optional<Gfx::IntRect> command_bounding_rectangle(DisplayListCommand const& command)
 {
     return command.visit(
         [&](auto const& command) -> Optional<Gfx::IntRect> {
@@ -36,7 +36,7 @@ static Optional<Gfx::IntRect> command_bounding_rectangle(Command const& command)
         });
 }
 
-static bool command_is_clip_or_mask(Command const& command)
+static bool command_is_clip_or_mask(DisplayListCommand const& command)
 {
     return command.visit(
         [&](auto const& command) -> bool {

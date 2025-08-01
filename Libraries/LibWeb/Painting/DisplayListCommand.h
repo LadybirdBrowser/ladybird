@@ -482,7 +482,7 @@ struct ApplyMaskBitmap {
     void dump(StringBuilder&) const;
 };
 
-using Command = Variant<
+using DisplayListCommand = Variant<
     DrawGlyphRun,
     FillRect,
     DrawPaintingSurface,

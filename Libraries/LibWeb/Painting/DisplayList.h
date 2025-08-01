@@ -17,7 +17,7 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ClipFrame.h>
-#include <LibWeb/Painting/Command.h>
+#include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
@@ -89,15 +89,15 @@ public:
         return adopt_ref(*new DisplayList(device_pixels_per_css_pixel));
     }
 
-    void append(Command&& command, Optional<i32> scroll_frame_id, RefPtr<ClipFrame const>);
+    void append(DisplayListCommand&& command, Optional<i32> scroll_frame_id, RefPtr<ClipFrame const>);
 
-    struct CommandListItem {
+    struct DisplayListCommandWithScrollAndClip {
         Optional<i32> scroll_frame_id;
         RefPtr<ClipFrame const> clip_frame;
-        Command command;
+        DisplayListCommand command;
     };
 
-    AK::SegmentedVector<CommandListItem, 512> const& commands() const { return m_commands; }
+    AK::SegmentedVector<DisplayListCommandWithScrollAndClip, 512> const& commands() const { return m_commands; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
 
     String dump() const;
@@ -108,7 +108,7 @@ private:
     {
     }
 
-    AK::SegmentedVector<CommandListItem, 512> m_commands;
+    AK::SegmentedVector<DisplayListCommandWithScrollAndClip, 512> m_commands;
     double m_device_pixels_per_css_pixel;
 };
 
