@@ -56,7 +56,7 @@ static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paint
     return nullptr;
 }
 
-static DOM::Node* input_control_associated_with_ancestor_label_element(Painting::Paintable& paintable)
+static GC::Ptr<DOM::Node> input_control_associated_with_ancestor_label_element(Painting::Paintable& paintable)
 {
     if (is<Layout::Label>(paintable.layout_node())) {
         auto const& label = as<Layout::Label>(paintable.layout_node());
@@ -67,7 +67,7 @@ static DOM::Node* input_control_associated_with_ancestor_label_element(Painting:
     return nullptr;
 }
 
-static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC::Ptr<DOM::Node>& node, Layout::Node*& layout_node)
+static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC::Ptr<DOM::Node>& node, GC::Ptr<Layout::Node>& layout_node)
 {
     layout_node = &paintable.layout_node();
     if (layout_node->is_generated_for_backdrop_pseudo_element()
@@ -364,14 +364,14 @@ EventHandler::EventHandler(Badge<HTML::Navigable>, HTML::Navigable& navigable)
 
 EventHandler::~EventHandler() = default;
 
-Painting::PaintableBox* EventHandler::paint_root()
+GC::Ptr<Painting::PaintableBox> EventHandler::paint_root()
 {
     if (!m_navigable->active_document())
         return nullptr;
     return m_navigable->active_document()->paintable_box();
 }
 
-Painting::PaintableBox const* EventHandler::paint_root() const
+GC::Ptr<Painting::PaintableBox const> EventHandler::paint_root() const
 {
     if (!m_navigable->active_document())
         return nullptr;
@@ -427,7 +427,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
             }
 
             // Search for the first parent of the hit target that's an element.
-            Layout::Node* layout_node;
+            GC::Ptr<Layout::Node> layout_node;
             if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
                 return EventResult::Dropped;
 
@@ -490,7 +490,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
             // Search for the first parent of the hit target that's an element.
             // "The click event type MUST be dispatched on the topmost event target indicated by the pointer." (https://www.w3.org/TR/uievents/#event-type-click)
             // "The topmost event target MUST be the element highest in the rendering order which is capable of being an event target." (https://www.w3.org/TR/uievents/#topmost-event-target)
-            Layout::Node* layout_node;
+            GC::Ptr<Layout::Node> layout_node;
             if (!parent_element_for_event_dispatch(*paintable, node, layout_node)) {
                 // FIXME: This is pretty ugly but we need to bail out here.
                 goto after_node_use;
@@ -574,7 +574,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                 }
             }
 
-            if (auto* input_control = input_control_associated_with_ancestor_label_element(*paintable)) {
+            if (auto input_control = input_control_associated_with_ancestor_label_element(*paintable)) {
                 if (button == UIEvents::MouseButton::Primary && input_control != node) {
                     input_control->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::click, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
                 }
@@ -641,7 +641,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
         // Search for the first parent of the hit target that's an element.
         // "The click event type MUST be dispatched on the topmost event target indicated by the pointer." (https://www.w3.org/TR/uievents/#event-type-click)
         // "The topmost event target MUST be the element highest in the rendering order which is capable of being an event target." (https://www.w3.org/TR/uievents/#topmost-event-target)
-        Layout::Node* layout_node;
+        GC::Ptr<Layout::Node> layout_node;
         if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
             return EventResult::Dropped;
 
@@ -665,7 +665,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
             if (dom_node) {
                 // See if we want to focus something.
                 GC::Ptr<DOM::Node> focus_candidate;
-                if (auto* input_control = input_control_associated_with_ancestor_label_element(*paintable)) {
+                if (auto input_control = input_control_associated_with_ancestor_label_element(*paintable)) {
                     focus_candidate = input_control;
                 } else {
                     for (auto candidate = node; candidate; candidate = candidate->parent_or_shadow_host()) {
@@ -745,7 +745,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
         start_index = result->index_in_node;
     }
 
-    const HTML::HTMLAnchorElement* hovered_link_element = nullptr;
+    GC::Ptr<HTML::HTMLAnchorElement const> hovered_link_element;
     if (paintable) {
         if (paintable->wants_mouse_events()) {
             document.set_hovered_node(paintable->dom_node());
@@ -772,7 +772,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
         // Search for the first parent of the hit target that's an element.
         // "The click event type MUST be dispatched on the topmost event target indicated by the pointer." (https://www.w3.org/TR/uievents/#event-type-click)
         // "The topmost event target MUST be the element highest in the rendering order which is capable of being an event target." (https://www.w3.org/TR/uievents/#topmost-event-target)
-        Layout::Node* layout_node;
+        GC::Ptr<Layout::Node> layout_node;
         bool found_parent_element = parent_element_for_event_dispatch(*paintable, node, layout_node);
         hovered_node_changed = node.ptr() != document.hovered_node();
         document.set_hovered_node(node);
@@ -944,7 +944,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
 
     // Search for the first parent of the hit target that's an element.
     // "The topmost event target MUST be the element highest in the rendering order which is capable of being an event target." (https://www.w3.org/TR/uievents/#topmost-event-target)
-    Layout::Node* layout_node;
+    GC::Ptr<Layout::Node> layout_node;
     if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
         return EventResult::Dropped;
 
@@ -1430,7 +1430,7 @@ EventResult EventHandler::handle_paste(String const& text)
     return EventResult::Handled;
 }
 
-void EventHandler::set_mouse_event_tracking_paintable(Painting::Paintable* paintable)
+void EventHandler::set_mouse_event_tracking_paintable(GC::Ptr<Painting::Paintable> paintable)
 {
     m_mouse_event_tracking_paintable = paintable;
 }

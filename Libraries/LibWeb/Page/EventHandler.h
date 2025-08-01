@@ -38,7 +38,7 @@ public:
     EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
-    void set_mouse_event_tracking_paintable(Painting::Paintable*);
+    void set_mouse_event_tracking_paintable(GC::Ptr<Painting::Paintable>);
 
     EventResult handle_paste(String const& text);
 
@@ -62,8 +62,8 @@ private:
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
 
-    Painting::PaintableBox* paint_root();
-    Painting::PaintableBox const* paint_root() const;
+    GC::Ptr<Painting::PaintableBox> paint_root();
+    GC::Ptr<Painting::PaintableBox const> paint_root() const;
 
     bool should_ignore_device_input_event() const;
 
