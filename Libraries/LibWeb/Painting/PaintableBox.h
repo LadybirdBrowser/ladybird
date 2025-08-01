@@ -370,15 +370,6 @@ public:
 
     void set_fragments(Vector<PaintableFragment>&& fragments) { m_fragments = move(fragments); }
 
-    template<typename Callback>
-    void for_each_fragment(Callback callback) const
-    {
-        for (auto& fragment : m_fragments) {
-            if (callback(fragment) == IterationDecision::Break)
-                return;
-        }
-    }
-
     virtual void paint(PaintContext&, PaintPhase) const override;
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
