@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,15 +19,25 @@ DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
 
 DisplayListRecorder::~DisplayListRecorder() = default;
 
-#define APPEND(...)                                                        \
-    do {                                                                   \
-        Optional<i32> _scroll_frame_id;                                    \
-        if (!m_scroll_frame_id_stack.is_empty())                           \
-            _scroll_frame_id = m_scroll_frame_id_stack.last();             \
-        RefPtr<ClipFrame const> _clip_frame;                               \
-        if (!m_clip_frame_stack.is_empty())                                \
-            _clip_frame = m_clip_frame_stack.last();                       \
-        m_display_list.append(__VA_ARGS__, _scroll_frame_id, _clip_frame); \
+template<typename T>
+consteval static int command_nesting_level_change(T const& command)
+{
+    if constexpr (requires { command.nesting_level_change; })
+        return command.nesting_level_change;
+    return 0;
+}
+
+#define APPEND(...)                                                          \
+    do {                                                                     \
+        auto command = __VA_ARGS__;                                          \
+        Optional<i32> _scroll_frame_id;                                      \
+        if (!m_scroll_frame_id_stack.is_empty())                             \
+            _scroll_frame_id = m_scroll_frame_id_stack.last();               \
+        RefPtr<ClipFrame const> _clip_frame;                                 \
+        if (!m_clip_frame_stack.is_empty())                                  \
+            _clip_frame = m_clip_frame_stack.last();                         \
+        m_save_nesting_level += command_nesting_level_change(command);       \
+        m_display_list.append(move(command), _scroll_frame_id, _clip_frame); \
     } while (false)
 
 void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
@@ -296,19 +307,16 @@ void DisplayListRecorder::translate(Gfx::IntPoint delta)
 
 void DisplayListRecorder::save()
 {
-    ++m_save_nesting_level;
     APPEND(Save {});
 }
 
 void DisplayListRecorder::save_layer()
 {
-    ++m_save_nesting_level;
     APPEND(SaveLayer {});
 }
 
 void DisplayListRecorder::restore()
 {
-    --m_save_nesting_level;
     APPEND(Restore {});
 }
 
@@ -454,22 +462,16 @@ void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutt
 
 void DisplayListRecorder::apply_opacity(float opacity)
 {
-    // Implementation of this item does saveLayer(), so we need to increment the nesting level.
-    ++m_save_nesting_level;
     APPEND(ApplyOpacity { .opacity = opacity });
 }
 
 void DisplayListRecorder::apply_compositing_and_blending_operator(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
 {
-    // Implementation of this item does saveLayer(), so we need to increment the nesting level.
-    ++m_save_nesting_level;
     APPEND(ApplyCompositeAndBlendingOperator { .compositing_and_blending_operator = compositing_and_blending_operator });
 }
 
 void DisplayListRecorder::apply_filter(Gfx::Filter filter)
 {
-    // Implementation of this item does saveLayer(), so we need to increment the nesting level.
-    ++m_save_nesting_level;
     APPEND(ApplyFilter { .filter = move(filter) });
 }
 
