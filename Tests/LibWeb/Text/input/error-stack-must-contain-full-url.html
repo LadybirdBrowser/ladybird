@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="script-container"></div>
+<script>
+    asyncTest(async (done) => {
+        const scriptContainer = document.getElementById("script-container");
+
+        const createScript = (type) => {
+            return new Promise((resolve) => {
+                const scriptSource = `
+                    try {
+                        throw Error();
+                    } catch (e) {
+                        const uuidRegex = /[a-zA-Z0-9]+-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[a-zA-Z0-9]+/g;
+                        globalThis.println("${type}: " + e.stack.replace(uuidRegex, "[flaky-uuid-replaced]"));
+                    }
+                `;
+
+                const scriptBlob = new Blob([scriptSource], { type: "text/javascript" });
+                const scriptBlobUrl = URL.createObjectURL(scriptBlob);
+
+                const script = document.createElement("script");
+                script.onload = () => {
+                    resolve();
+                };
+                script.src = scriptBlobUrl;
+
+                if (type !== "classic")
+                    script.type = type;
+
+                scriptContainer.appendChild(script);
+            });
+        };
+
+        const scriptPromises = [
+            createScript("classic"),
+            createScript("module"),
+        ];
+
+        await Promise.all(scriptPromises);
+        done();
+    });
+</script>
