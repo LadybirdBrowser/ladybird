@@ -455,6 +455,7 @@ struct PaintScrollBar {
 };
 
 struct ApplyOpacity {
+    // Implementation of this item does saveLayer(), so we need to increment the nesting level.
     static constexpr int nesting_level_change = 1;
 
     float opacity;
@@ -462,6 +463,7 @@ struct ApplyOpacity {
 };
 
 struct ApplyCompositeAndBlendingOperator {
+    // Implementation of this item does saveLayer(), so we need to increment the nesting level.
     static constexpr int nesting_level_change = 1;
 
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
@@ -469,6 +471,7 @@ struct ApplyCompositeAndBlendingOperator {
 };
 
 struct ApplyFilter {
+    // Implementation of this item does saveLayer(), so we need to increment the nesting level.
     static constexpr int nesting_level_change = 1;
 
     Gfx::Filter filter;
