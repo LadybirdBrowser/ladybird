@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 BackgroundSizeStyleValue::BackgroundSizeStyleValue(LengthPercentage size_x, LengthPercentage size_y)
     : StyleValueWithDefaultOperators(Type::BackgroundSize)
-    , m_properties { .size_x = size_x, .size_y = size_y }
+    , m_properties { .size_x = move(size_x), .size_y = move(size_y) }
 {
 }
 
