@@ -40,9 +40,20 @@ struct CanBePlacedInsideVectorHelper<StorageType, false> {
     static constexpr bool value = requires(U&& u) { StorageType(forward<U>(u)); };
 };
 
+template<bool want_fast_last_access, typename StorageType>
+struct VectorMetadata {
+    StorageType* outline_buffer { nullptr };
+};
+
+template<typename StorageType>
+struct VectorMetadata<true, StorageType> {
+    StorageType* last_slot { nullptr };
+    StorageType* outline_buffer { nullptr };
+};
+
 }
 
-template<typename T, size_t inline_capacity>
+template<typename T, size_t inline_capacity, FastLastAccess requested_fast_last_access>
 requires(!IsRvalueReference<T>) class Vector {
 private:
     static constexpr bool contains_reference = IsLvalueReference<T>;
@@ -52,6 +63,7 @@ private:
 
     template<typename U>
     static constexpr bool CanBePlacedInsideVector = Detail::CanBePlacedInsideVectorHelper<StorageType, contains_reference>::template value<U>;
+    static constexpr auto want_fast_last_access = requested_fast_last_access == FastLastAccess::Yes;
 
 public:
     using ValueType = T;
@@ -70,15 +82,16 @@ public:
     Vector(Vector&& other)
         : m_size(other.m_size)
         , m_capacity(other.m_capacity)
-        , m_outline_buffer(other.m_outline_buffer)
+        , m_metadata(other.m_metadata)
     {
         if constexpr (inline_capacity > 0) {
-            if (!m_outline_buffer) {
+            if (!m_metadata.outline_buffer) {
                 TypedTransfer<T>::move(inline_buffer(), other.inline_buffer(), m_size);
                 TypedTransfer<T>::delete_(other.inline_buffer(), m_size);
+                update_metadata();
             }
         }
-        other.m_outline_buffer = nullptr;
+        other.m_metadata = {};
         other.m_size = 0;
         other.reset_capacity();
     }
@@ -88,6 +101,7 @@ public:
         ensure_capacity(other.size());
         TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
         m_size = other.size();
+        update_metadata();
     }
 
     explicit Vector(ReadonlySpan<T> other)
@@ -96,14 +110,16 @@ public:
         ensure_capacity(other.size());
         TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
         m_size = other.size();
+        update_metadata();
     }
 
-    template<size_t other_inline_capacity>
-    Vector(Vector<T, other_inline_capacity> const& other)
+    template<size_t other_inline_capacity, FastLastAccess other_requested_fast_last_access>
+    Vector(Vector<T, other_inline_capacity, other_requested_fast_last_access> const& other)
     {
         ensure_capacity(other.size());
         TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
         m_size = other.size();
+        update_metadata();
     }
 
     ~Vector()
@@ -124,15 +140,15 @@ public:
     ALWAYS_INLINE StorageType* data()
     {
         if constexpr (inline_capacity > 0)
-            return m_outline_buffer ? m_outline_buffer : inline_buffer();
-        return m_outline_buffer;
+            return m_metadata.outline_buffer ? m_metadata.outline_buffer : inline_buffer();
+        return m_metadata.outline_buffer;
     }
 
     ALWAYS_INLINE StorageType const* data() const
     {
         if constexpr (inline_capacity > 0)
-            return m_outline_buffer ? m_outline_buffer : inline_buffer();
-        return m_outline_buffer;
+            return m_metadata.outline_buffer ? m_metadata.outline_buffer : inline_buffer();
+        return m_metadata.outline_buffer;
     }
 
     ALWAYS_INLINE VisibleType const& at(size_t i) const
@@ -173,8 +189,41 @@ public:
     VisibleType const& first() const { return at(0); }
     VisibleType& first() { return at(0); }
 
-    VisibleType const& last() const { return at(size() - 1); }
-    VisibleType& last() { return at(size() - 1); }
+    VisibleType const& last() const
+    {
+        if constexpr (want_fast_last_access) {
+            VERIFY(m_metadata.last_slot);
+            if constexpr (contains_reference)
+                return **m_metadata.last_slot;
+            else
+                return *m_metadata.last_slot;
+        } else {
+            return at(m_size - 1);
+        }
+    }
+    VisibleType& last()
+    {
+        if constexpr (want_fast_last_access) {
+            VERIFY(m_metadata.last_slot);
+            if constexpr (contains_reference)
+                return **m_metadata.last_slot;
+            else
+                return *m_metadata.last_slot;
+        } else {
+            return at(m_size - 1);
+        }
+    }
+
+    VisibleType const& unsafe_last() const
+    requires(want_fast_last_access)
+    {
+        return *m_metadata.last_slot;
+    }
+    VisibleType& unsafe_last()
+    requires(want_fast_last_access)
+    {
+        return *m_metadata.last_slot;
+    }
 
     template<typename TUnaryPredicate>
     Optional<VisibleType&> first_matching(TUnaryPredicate const& predicate)
@@ -288,12 +337,30 @@ public:
     ALWAYS_INLINE void unchecked_append(U&& value)
     requires(CanBePlacedInsideVector<U>)
     {
-        VERIFY((size() + 1) <= capacity());
-        if constexpr (contains_reference)
-            new (slot(m_size)) StorageType(&value);
+        VERIFY(m_size < capacity());
+        if constexpr (want_fast_last_access) {
+            if (m_size == 0) {
+                m_metadata.last_slot = slot(0);
+                m_size = 1;
+            } else {
+                ++m_metadata.last_slot;
+                ++m_size;
+            }
+        } else {
+            ++m_size;
+        }
+
+        StorageType* last_slot;
+        if constexpr (want_fast_last_access)
+            last_slot = m_metadata.last_slot;
         else
-            new (slot(m_size)) StorageType(forward<U>(value));
-        ++m_size;
+            last_slot = slot(m_size - 1);
+
+        if constexpr (contains_reference) {
+            new (last_slot) StorageType(&value);
+        } else {
+            new (last_slot) StorageType(forward<U>(value));
+        }
     }
 
     ALWAYS_INLINE void unchecked_append(StorageType const* values, size_t count)
@@ -303,6 +370,7 @@ public:
         VERIFY((size() + count) <= capacity());
         TypedTransfer<StorageType>::copy(slot(m_size), values, count);
         m_size += count;
+        update_metadata();
     }
 
     template<class... Args>
@@ -336,16 +404,17 @@ public:
             clear();
             m_size = other.m_size;
             m_capacity = other.m_capacity;
-            m_outline_buffer = other.m_outline_buffer;
+            m_metadata = other.m_metadata;
             if constexpr (inline_capacity > 0) {
-                if (!m_outline_buffer) {
+                if (!m_metadata.outline_buffer) {
                     for (size_t i = 0; i < m_size; ++i) {
                         new (&inline_buffer()[i]) StorageType(move(other.inline_buffer()[i]));
                         other.inline_buffer()[i].~StorageType();
                     }
+                    update_metadata();
                 }
             }
-            other.m_outline_buffer = nullptr;
+            other.m_metadata = {};
             other.m_size = 0;
             other.reset_capacity();
         }
@@ -359,26 +428,28 @@ public:
             ensure_capacity(other.size());
             TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
             m_size = other.size();
+            update_metadata();
         }
         return *this;
     }
 
-    template<size_t other_inline_capacity>
-    Vector& operator=(Vector<T, other_inline_capacity> const& other)
+    template<size_t other_inline_capacity, FastLastAccess other_requested_fast_last_access>
+    Vector& operator=(Vector<T, other_inline_capacity, other_requested_fast_last_access> const& other)
     {
         clear();
         ensure_capacity(other.size());
         TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
         m_size = other.size();
+        update_metadata();
         return *this;
     }
 
     void clear()
     {
         clear_with_capacity();
-        if (m_outline_buffer) {
-            kfree_sized(m_outline_buffer, m_capacity * sizeof(StorageType));
-            m_outline_buffer = nullptr;
+        if (m_metadata.outline_buffer) {
+            kfree_sized(m_metadata.outline_buffer, m_capacity * sizeof(StorageType));
+            m_metadata.outline_buffer = nullptr;
         }
         reset_capacity();
     }
@@ -388,6 +459,8 @@ public:
         for (size_t i = 0; i < m_size; ++i)
             data()[i].~StorageType();
         m_size = 0;
+        if constexpr (want_fast_last_access)
+            m_metadata.last_slot = nullptr;
     }
 
     void remove(size_t index)
@@ -405,6 +478,7 @@ public:
         }
 
         --m_size;
+        update_metadata();
     }
 
     void remove(size_t index, size_t count)
@@ -426,6 +500,7 @@ public:
         }
 
         m_size -= count;
+        update_metadata();
     }
 
     template<typename TUnaryPredicate>
@@ -456,12 +531,44 @@ public:
     }
 
     ALWAYS_INLINE T take_last()
+    requires(want_fast_last_access)
+    {
+        VERIFY(m_metadata.last_slot);
+        auto value = move(*m_metadata.last_slot);
+        if constexpr (!contains_reference)
+            last().~T();
+        --m_size;
+        update_metadata();
+
+        if constexpr (contains_reference)
+            return *value;
+        else
+            return value;
+    }
+
+    ALWAYS_INLINE T take_last()
+    requires(!want_fast_last_access)
     {
         VERIFY(!is_empty());
         auto value = move(raw_last());
         if constexpr (!contains_reference)
             last().~T();
         --m_size;
+        if constexpr (contains_reference)
+            return *value;
+        else
+            return value;
+    }
+
+    ALWAYS_INLINE T unsafe_take_last()
+    requires(want_fast_last_access)
+    {
+        auto value = move(*m_metadata.last_slot);
+        if constexpr (!contains_reference)
+            m_metadata.last_slot->~T();
+        --m_size;
+        update_metadata();
+
         if constexpr (contains_reference)
             return *value;
         else
@@ -518,6 +625,7 @@ public:
             new (slot(index)) StorageType(&value);
         else
             new (slot(index)) StorageType(forward<U>(value));
+        update_metadata();
         return {};
     }
 
@@ -550,6 +658,7 @@ public:
         TRY(try_grow_capacity(size() + other_size));
         TypedTransfer<StorageType>::move(data() + m_size, tmp.data(), other_size);
         m_size += other_size;
+        update_metadata();
         return {};
     }
 
@@ -558,6 +667,7 @@ public:
         TRY(try_grow_capacity(size() + other.size()));
         TypedTransfer<StorageType>::copy(data() + m_size, other.data(), other.size());
         m_size += other.m_size;
+        update_metadata();
         return {};
     }
 
@@ -569,6 +679,7 @@ public:
         else
             new (slot(m_size)) StorageType(move(value));
         ++m_size;
+        update_metadata();
         return {};
     }
 
@@ -585,6 +696,7 @@ public:
         TRY(try_grow_capacity(size() + count));
         TypedTransfer<StorageType>::copy(slot(m_size), values, count);
         m_size += count;
+        update_metadata();
         return {};
     }
 
@@ -595,6 +707,7 @@ public:
         TRY(try_grow_capacity(m_size + 1));
         new (slot(m_size)) StorageType { forward<Args>(args)... };
         ++m_size;
+        update_metadata();
         return {};
     }
 
@@ -626,6 +739,7 @@ public:
         Vector tmp = move(other);
         TypedTransfer<StorageType>::move(slot(0), tmp.data(), tmp.size());
         m_size += other_size;
+        update_metadata();
         return {};
     }
 
@@ -637,6 +751,7 @@ public:
         TypedTransfer<StorageType>::move(slot(count), slot(0), m_size);
         TypedTransfer<StorageType>::copy(slot(0), values, count);
         m_size += count;
+        update_metadata();
         return {};
     }
 
@@ -664,10 +779,11 @@ public:
                 at(i).~StorageType();
             }
         }
-        if (m_outline_buffer)
-            kfree_sized(m_outline_buffer, m_capacity * sizeof(StorageType));
-        m_outline_buffer = new_buffer;
+        if (m_metadata.outline_buffer)
+            kfree_sized(m_metadata.outline_buffer, m_capacity * sizeof(StorageType));
+        m_metadata.outline_buffer = new_buffer;
         m_capacity = new_capacity;
+        update_metadata();
         return {};
     }
 
@@ -684,6 +800,7 @@ public:
         for (size_t i = size(); i < new_size; ++i)
             new (slot(i)) StorageType {};
         m_size = new_size;
+        update_metadata();
         return {};
     }
 
@@ -700,6 +817,7 @@ public:
         for (size_t i = size(); i < new_size; ++i)
             new (slot(i)) StorageType { default_value };
         m_size = new_size;
+        update_metadata();
         return {};
     }
 
@@ -736,6 +854,7 @@ public:
         for (size_t i = new_size; i < size(); ++i)
             at(i).~StorageType();
         m_size = new_size;
+        update_metadata();
     }
 
     void resize(size_t new_size, bool keep_capacity = false)
@@ -880,6 +999,16 @@ private:
     StorageType& raw_first() { return raw_at(0); }
     StorageType& raw_at(size_t index) { return *slot(index); }
 
+    ALWAYS_INLINE void update_metadata()
+    {
+        if constexpr (want_fast_last_access) {
+            if (m_size > 0)
+                m_metadata.last_slot = slot(m_size - 1);
+            else
+                m_metadata.last_slot = nullptr;
+        }
+    }
+
     size_t m_size { 0 };
     size_t m_capacity { inline_capacity };
 
@@ -899,8 +1028,8 @@ private:
             return alignof(StorageType);
     }
 
+    Detail::VectorMetadata<want_fast_last_access, StorageType> m_metadata;
     alignas(storage_alignment()) unsigned char m_inline_buffer_storage[storage_size()];
-    StorageType* m_outline_buffer { nullptr };
 };
 
 template<class... Args>

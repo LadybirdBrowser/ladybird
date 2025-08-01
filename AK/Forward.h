@@ -144,7 +144,11 @@ class OwnPtr;
 template<typename T>
 class WeakPtr;
 
-template<typename T, size_t inline_capacity = 0>
+enum class FastLastAccess : u8 {
+    No,
+    Yes,
+};
+template<typename T, size_t inline_capacity = 0, FastLastAccess = FastLastAccess::No>
 requires(!IsRvalueReference<T>) class Vector;
 
 template<typename T, typename ErrorType = Error>
@@ -169,6 +173,7 @@ using AK::CountingStream;
 using AK::DoublyLinkedList;
 using AK::Error;
 using AK::ErrorOr;
+using AK::FastLastAccess;
 using AK::FixedArray;
 using AK::FlyString;
 using AK::Function;
