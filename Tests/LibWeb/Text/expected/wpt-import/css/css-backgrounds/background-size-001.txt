@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	background-size_initial
+Pass	background-size_auto
+Pass	background-size_cover
+Pass	background-size_contain
+Pass	background-size_length_zero
+Pass	background-size_length_negative_zero
+Pass	background-size_length_positive_zero
+Pass	background-size_length_normal
+Pass	background-size_percentage_min
+Pass	background-size_percentage_normal
+Pass	background-size_percentage_max
+Pass	background-size_auto_auto
+Pass	background-size_auto_length
+Pass	background-size_auto_percentage
+Pass	background-size_length_auto
+Pass	background-size_length_length
+Pass	background-size_length_percentage
+Pass	background-size_percentage_auto
+Pass	background-size_percentage_length
+Pass	background-size_percentage_percentage
