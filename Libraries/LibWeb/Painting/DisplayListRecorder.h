@@ -169,19 +169,19 @@ private:
 
 class DisplayListRecorderStateSaver {
 public:
-    explicit DisplayListRecorderStateSaver(DisplayListRecorder& painter)
-        : m_painter(painter)
+    explicit DisplayListRecorderStateSaver(DisplayListRecorder& recorder)
+        : m_recorder(recorder)
     {
-        m_painter.save();
+        m_recorder.save();
     }
 
     ~DisplayListRecorderStateSaver()
     {
-        m_painter.restore();
+        m_recorder.restore();
     }
 
 private:
-    DisplayListRecorder& m_painter;
+    DisplayListRecorder& m_recorder;
 };
 
 }
