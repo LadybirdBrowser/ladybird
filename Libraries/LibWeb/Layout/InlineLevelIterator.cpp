@@ -528,7 +528,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
 
         CSS::CalculationResolutionContext calculation_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node) };
         auto letter_spacing = text_node.computed_values().letter_spacing().resolved(calculation_context).map([&](auto& it) { return it.to_px(text_node); }).value_or(0);
-        auto word_spacing = text_node.computed_values().word_spacing().resolved(calculation_context).map([&](auto& it) { return it.to_px(text_node); }).value_or(0);
+        // FIXME: We should apply word spacing to all word-separator characters not just breaking tabs
+        auto word_spacing = text_node.computed_values().word_spacing().resolved(text_node, CSS::Length::make_px(chunk.font->glyph_width(' ')).to_px(text_node)).absolute_length_to_px();
 
         auto x = 0.0f;
         if (chunk.has_breaking_tab) {

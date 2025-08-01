@@ -109,7 +109,7 @@ public:
     static CursorData cursor() { return { CSS::CursorPredefined::Auto }; }
     static CSS::WhiteSpaceCollapse white_space_collapse() { return CSS::WhiteSpaceCollapse::Collapse; }
     static CSS::WordBreak word_break() { return CSS::WordBreak::Normal; }
-    static CSS::LengthOrCalculated word_spacing() { return CSS::Length::make_px(0); }
+    static LengthPercentage word_spacing() { return CSS::Length::make_px(0); }
     static LengthOrCalculated letter_spacing() { return CSS::Length::make_px(0); }
     static Variant<LengthOrCalculated, NumberOrCalculated> tab_size() { return NumberOrCalculated(8.0f); }
     static CSS::TextAlign text_align() { return CSS::TextAlign::Start; }
@@ -451,7 +451,7 @@ public:
     CSS::Positioning position() const { return m_noninherited.position; }
     CSS::WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
     WhiteSpaceTrimData white_space_trim() const { return m_noninherited.white_space_trim; }
-    CSS::LengthOrCalculated word_spacing() const { return m_inherited.word_spacing; }
+    LengthPercentage const& word_spacing() const { return m_inherited.word_spacing; }
     LengthOrCalculated letter_spacing() const { return m_inherited.letter_spacing; }
     CSS::FlexDirection flex_direction() const { return m_noninherited.flex_direction; }
     CSS::FlexWrap flex_wrap() const { return m_noninherited.flex_wrap; }
@@ -654,7 +654,7 @@ protected:
         CSS::TextRendering text_rendering { InitialValues::text_rendering() };
         CSS::WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
         CSS::WordBreak word_break { InitialValues::word_break() };
-        CSS::LengthOrCalculated word_spacing { InitialValues::word_spacing() };
+        LengthPercentage word_spacing { InitialValues::word_spacing() };
         LengthOrCalculated letter_spacing { InitialValues::letter_spacing() };
         CSS::ListStyleType list_style_type { InitialValues::list_style_type() };
         CSS::ListStylePosition list_style_position { InitialValues::list_style_position() };
@@ -866,7 +866,7 @@ public:
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
     void set_white_space_collapse(CSS::WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
     void set_white_space_trim(WhiteSpaceTrimData value) { m_noninherited.white_space_trim = value; }
-    void set_word_spacing(CSS::LengthOrCalculated value) { m_inherited.word_spacing = move(value); }
+    void set_word_spacing(CSS::LengthPercentage value) { m_inherited.word_spacing = move(value); }
     void set_word_break(CSS::WordBreak value) { m_inherited.word_break = value; }
     void set_letter_spacing(CSS::LengthOrCalculated value) { m_inherited.letter_spacing = value; }
     void set_width(CSS::Size const& width) { m_noninherited.width = width; }

@@ -839,20 +839,22 @@ WordBreak ComputedProperties::word_break() const
     return keyword_to_word_break(value.to_keyword()).release_value();
 }
 
-Optional<LengthOrCalculated> ComputedProperties::word_spacing() const
+Optional<LengthPercentage> ComputedProperties::word_spacing() const
 {
     auto const& value = property(PropertyID::WordSpacing);
-    if (value.is_calculated()) {
-        auto& math_value = value.as_calculated();
-        if (math_value.resolves_to_length()) {
-            return LengthOrCalculated { math_value };
-        }
-    }
+    if (value.is_keyword() && value.to_keyword() == Keyword::Normal)
+        return LengthPercentage { Length::make_px(0) };
 
     if (value.is_length())
-        return LengthOrCalculated { value.as_length().length() };
+        return LengthPercentage(value.as_length().length());
 
-    return {};
+    if (value.is_percentage())
+        return LengthPercentage(value.as_percentage().percentage());
+
+    if (value.is_calculated())
+        return LengthPercentage { value.as_calculated() };
+
+    VERIFY_NOT_REACHED();
 }
 
 WhiteSpaceCollapse ComputedProperties::white_space_collapse() const
