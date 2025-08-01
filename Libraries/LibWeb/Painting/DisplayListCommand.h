@@ -99,14 +99,20 @@ struct DrawRepeatedImmutableBitmap {
 };
 
 struct Save {
+    static constexpr int nesting_level_change = 1;
+
     void dump(StringBuilder&) const;
 };
 
 struct SaveLayer {
+    static constexpr int nesting_level_change = 1;
+
     void dump(StringBuilder&) const;
 };
 
 struct Restore {
+    static constexpr int nesting_level_change = -1;
+
     void dump(StringBuilder&) const;
 };
 
@@ -127,6 +133,8 @@ struct AddClipRect {
 };
 
 struct PushStackingContext {
+    static constexpr int nesting_level_change = 1;
+
     float opacity;
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
     bool isolate;
@@ -145,6 +153,8 @@ struct PushStackingContext {
 };
 
 struct PopStackingContext {
+    static constexpr int nesting_level_change = -1;
+
     void dump(StringBuilder&) const;
 };
 
@@ -445,16 +455,22 @@ struct PaintScrollBar {
 };
 
 struct ApplyOpacity {
+    static constexpr int nesting_level_change = 1;
+
     float opacity;
     void dump(StringBuilder&) const;
 };
 
 struct ApplyCompositeAndBlendingOperator {
+    static constexpr int nesting_level_change = 1;
+
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
     void dump(StringBuilder&) const;
 };
 
 struct ApplyFilter {
+    static constexpr int nesting_level_change = 1;
+
     Gfx::Filter filter;
     void dump(StringBuilder&) const;
 };

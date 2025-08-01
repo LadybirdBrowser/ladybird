@@ -462,7 +462,7 @@ void DisplayListRecorder::apply_opacity(float opacity)
 void DisplayListRecorder::apply_compositing_and_blending_operator(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
 {
     // Implementation of this item does saveLayer(), so we need to increment the nesting level.
-    m_save_nesting_level++;
+    ++m_save_nesting_level;
     APPEND(ApplyCompositeAndBlendingOperator { .compositing_and_blending_operator = compositing_and_blending_operator });
 }
 
