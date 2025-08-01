@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Backgrounds and Borders Test: background-size - initial and supported values</title>
+    <link rel="author" title="Intel" href="http://www.intel.com" />
+    <link rel="help" href="http://www.w3.org/TR/css3-background/#the-background-size" />
+    <meta name="flags" content="dom" />
+    <meta name="assert" content="Check if background-size initial value is auto and supports values auto, cover and contain" />
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="log"></div>
+    <div id="test"></div>
+    <script>
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "auto", "background-size initial value");
+        }, "background-size_initial");
+
+        document.getElementById("test").style.backgroundSize = "auto";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "auto", "background-size supporting value");
+        }, "background-size_auto");
+
+        document.getElementById("test").style.backgroundSize = "cover";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "cover", "background-size supporting value");
+        }, "background-size_cover");
+
+        document.getElementById("test").style.backgroundSize = "contain";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "contain", "background-size supporting value");
+        }, "background-size_contain");
+
+        document.getElementById("test").style.backgroundSize = "0px";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "0px auto", "background-size supporting value");
+        }, "background-size_length_zero");
+
+        document.getElementById("test").style.backgroundSize = "-0px";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "0px auto", "background-size supporting value");
+        }, "background-size_length_negative_zero");
+
+        document.getElementById("test").style.backgroundSize = "+0px";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "0px auto", "background-size supporting value");
+        }, "background-size_length_positive_zero");
+
+        document.getElementById("test").style.backgroundSize = "15px";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "15px auto", "background-size supporting value");
+        }, "background-size_length_normal");
+
+        document.getElementById("test").style.backgroundSize = "0%";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "0% auto", "background-size supporting value");
+        }, "background-size_percentage_min");
+
+        document.getElementById("test").style.backgroundSize = "50%";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "50% auto", "background-size supporting value");
+        }, "background-size_percentage_normal");
+
+        document.getElementById("test").style.backgroundSize = "100%";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "100% auto", "background-size supporting value");
+        }, "background-size_percentage_max");
+
+        document.getElementById("test").style.backgroundSize = "auto auto";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "auto", "background-size supporting value");
+        }, "background-size_auto_auto");
+
+        document.getElementById("test").style.backgroundSize = "auto 15px";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "auto 15px", "background-size supporting value");
+        }, "background-size_auto_length");
+
+        document.getElementById("test").style.backgroundSize = "auto 50%";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "auto 50%", "background-size supporting value");
+        }, "background-size_auto_percentage");
+
+        document.getElementById("test").style.backgroundSize = "15px auto";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "15px auto", "background-size supporting value");
+        }, "background-size_length_auto");
+
+        document.getElementById("test").style.backgroundSize = "15px 15px";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "15px 15px", "background-size supporting value");
+        }, "background-size_length_length");
+
+        document.getElementById("test").style.backgroundSize = "15px 50%";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "15px 50%", "background-size supporting value");
+        }, "background-size_length_percentage");
+
+        document.getElementById("test").style.backgroundSize = "50% auto";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "50% auto", "background-size supporting value");
+        }, "background-size_percentage_auto");
+
+        document.getElementById("test").style.backgroundSize = "50% 15px";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "50% 15px", "background-size supporting value");
+        }, "background-size_percentage_length");
+
+        document.getElementById("test").style.backgroundSize = "50% 50%";
+        test(function() {
+            assert_equals(getComputedStyle(document.getElementById("test"), null).getPropertyValue("background-size"),
+                "50% 50%", "background-size supporting value");
+        }, "background-size_percentage_percentage");
+    </script>
+  </body>
+</html>

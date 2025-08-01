@@ -1,0 +1,69 @@
+Harness status: OK
+
+Found 64 tests
+
+64 Pass
+Pass	Property background-attachment has initial value scroll
+Pass	Property background-attachment does not inherit
+Pass	Property background-clip has initial value border-box
+Pass	Property background-clip does not inherit
+Pass	Property background-color has initial value rgba(0, 0, 0, 0)
+Pass	Property background-color does not inherit
+Pass	Property background-image has initial value none
+Pass	Property background-image does not inherit
+Pass	Property background-origin has initial value padding-box
+Pass	Property background-origin does not inherit
+Pass	Property background-position has initial value 0% 0%
+Pass	Property background-position does not inherit
+Pass	Property background-position-x has initial value 0%
+Pass	Property background-position-x does not inherit
+Pass	Property background-position-y has initial value 0%
+Pass	Property background-position-y does not inherit
+Pass	Property background-repeat has initial value repeat
+Pass	Property background-repeat does not inherit
+Pass	Property background-size has initial value auto
+Pass	Property background-size does not inherit
+Pass	Property border-bottom-color has initial value rgb(2, 3, 4)
+Pass	Property border-bottom-color does not inherit
+Pass	Property border-bottom-left-radius has initial value 0px
+Pass	Property border-bottom-left-radius does not inherit
+Pass	Property border-bottom-right-radius has initial value 0px
+Pass	Property border-bottom-right-radius does not inherit
+Pass	Property border-bottom-style has initial value none
+Pass	Property border-bottom-style does not inherit
+Pass	Property border-bottom-width has initial value 3px
+Pass	Property border-bottom-width does not inherit
+Pass	Property border-image-outset has initial value 0
+Pass	Property border-image-outset does not inherit
+Pass	Property border-image-repeat has initial value stretch
+Pass	Property border-image-repeat does not inherit
+Pass	Property border-image-slice has initial value 100%
+Pass	Property border-image-slice does not inherit
+Pass	Property border-image-source has initial value none
+Pass	Property border-image-source does not inherit
+Pass	Property border-image-width has initial value 1
+Pass	Property border-image-width does not inherit
+Pass	Property border-left-color has initial value rgb(2, 3, 4)
+Pass	Property border-left-color does not inherit
+Pass	Property border-left-style has initial value none
+Pass	Property border-left-style does not inherit
+Pass	Property border-left-width has initial value 3px
+Pass	Property border-left-width does not inherit
+Pass	Property border-right-color has initial value rgb(2, 3, 4)
+Pass	Property border-right-color does not inherit
+Pass	Property border-right-style has initial value none
+Pass	Property border-right-style does not inherit
+Pass	Property border-right-width has initial value 3px
+Pass	Property border-right-width does not inherit
+Pass	Property border-top-color has initial value rgb(2, 3, 4)
+Pass	Property border-top-color does not inherit
+Pass	Property border-top-left-radius has initial value 0px
+Pass	Property border-top-left-radius does not inherit
+Pass	Property border-top-right-radius has initial value 0px
+Pass	Property border-top-right-radius does not inherit
+Pass	Property border-top-style has initial value none
+Pass	Property border-top-style does not inherit
+Pass	Property border-top-width has initial value 3px
+Pass	Property border-top-width does not inherit
+Pass	Property box-shadow has initial value none
+Pass	Property box-shadow does not inherit
