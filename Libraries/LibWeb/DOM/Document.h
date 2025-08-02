@@ -695,6 +695,7 @@ public:
     void register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserver&);
     void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserver&);
 
+    auto& resize_observers(Badge<Element>) { return m_resize_observers; }
     void register_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver&);
     void unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver&);
 
