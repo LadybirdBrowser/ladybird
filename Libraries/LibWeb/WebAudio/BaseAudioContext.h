@@ -49,6 +49,7 @@ public:
     double current_time() const { return m_current_time; }
     GC::Ref<AudioListener> listener() const { return m_listener; }
     Bindings::AudioContextState state() const { return m_control_thread_state; }
+    WebIDL::UnsignedLong render_quantum_size() const { return s_render_quantum_size; }
 
     // https://webaudio.github.io/web-audio-api/#--nyquist-frequency
     float nyquist_frequency() const { return m_sample_rate / 2; }
@@ -94,6 +95,9 @@ protected:
     Vector<GC::Ref<WebIDL::Promise>> m_pending_promises;
 
 private:
+    // https://webaudio.github.io/web-audio-api/#render-quantum-size
+    static constexpr WebIDL::UnsignedLong s_render_quantum_size { 128 };
+
     void queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>, GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
     float m_sample_rate { 0 };
