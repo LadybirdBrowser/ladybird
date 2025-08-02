@@ -5,35 +5,43 @@
  */
 
 #include <LibWeb/CredentialManagement/PasswordCredential.h>
+#include <LibWeb/CredentialManagement/PasswordCredentialOperations.h>
 
 namespace Web::CredentialManagement {
 
 GC_DEFINE_ALLOCATOR(PasswordCredential);
 
-GC::Ref<PasswordCredential> PasswordCredential::create(JS::Realm& realm)
-{
-    return realm.create<PasswordCredential>(realm);
-}
-
 // https://www.w3.org/TR/credential-management-1/#dom-passwordcredential-passwordcredential
-WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, HTML::HTMLFormElement const&)
+WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> const& form)
 {
-    return realm.vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "construct"sv);
+    // 1. Let origin be the current settings object's origin.
+    auto origin = HTML::current_principal_settings_object().origin();
+
+    // 2. Let r be the result of executing Create a PasswordCredential from an HTMLFormElement given form and origin.
+    // 3. If r is an exception, throw r. Otherwise, return r.
+    return create_password_credential(realm, form, origin);
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-passwordcredential-passwordcredential-data
-WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, PasswordCredentialData const&)
+WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, PasswordCredentialData const& data)
 {
-    return realm.vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "construct"sv);
+    // 1. Let r be the result of executing Create a PasswordCredential from PasswordCredentialData on data.
+    // 2. If r is an exception, throw r.
+    return create_password_credential(realm, data);
 }
 
 PasswordCredential::~PasswordCredential()
 {
 }
 
-PasswordCredential::PasswordCredential(JS::Realm& realm)
+PasswordCredential::PasswordCredential(JS::Realm& realm, PasswordCredentialData const& data)
     : Credential(realm)
+    , m_password(data.password)
+    , m_origin(data.origin)
 {
+    m_id = data.id;
+    m_icon_url = data.icon_url.value_or(String {});
+    m_name = data.name.value_or(String {});
 }
 
 void PasswordCredential::initialize(JS::Realm& realm)
