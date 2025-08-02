@@ -37,6 +37,10 @@
                              activateTab:(Web::HTML::ActivateTab)activate_tab
                                pageIndex:(u64)page_index;
 
+- (void)createTabGroup:(Vector<URL::URL> const&)urls
+               fromTab:(nullable Tab*)tab
+      activateFirstTab:(Web::HTML::ActivateTab)activate_first_tab;
+
 - (void)setActiveTab:(nonnull Tab*)tab;
 - (nullable Tab*)activeTab;
 
