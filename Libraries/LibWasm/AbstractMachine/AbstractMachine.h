@@ -193,6 +193,7 @@ public:
 private:
     u128 m_value;
 };
+static_assert(IsTriviallyDestructible<Value>);
 
 struct ExternallyManagedTrap {
     Array<u8, 64> data;

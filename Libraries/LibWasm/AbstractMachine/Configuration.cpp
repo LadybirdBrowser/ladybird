@@ -13,9 +13,10 @@ namespace Wasm {
 
 void Configuration::unwind(Badge<CallFrameHandle>, CallFrameHandle const& frame_handle)
 {
-    auto frame = m_frame_stack.take_last();
+    m_frame_stack.take_last();
     m_depth--;
-    m_ip = frame_handle.ip;
+    m_ip = frame_handle.ip.value();
+    m_locals_base = m_frame_stack.is_empty() ? nullptr : m_frame_stack.unchecked_last().locals().data();
 }
 
 Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Vector<Value> arguments)
@@ -52,10 +53,9 @@ Result Configuration::execute(Interpreter& interpreter)
     if (interpreter.did_trap())
         return interpreter.trap();
 
-    Vector<Value> results;
-    results.ensure_capacity(frame().arity());
-    for (size_t i = 0; i < frame().arity(); ++i)
-        results.unchecked_append(value_stack().take_last());
+    Vector<Value> results { value_stack().span().slice_from_end(frame().arity()) };
+    value_stack().shrink(value_stack().size() - results.size(), true);
+    results.reverse();
 
     label_stack().take_last();
     return Result { move(results) };

@@ -12,28 +12,6 @@
 
 namespace AK {
 
-ErrorOr<void> Stream::read_until_filled(Bytes buffer)
-{
-    size_t nread = 0;
-    while (nread < buffer.size()) {
-        if (is_eof())
-            return Error::from_string_literal("Reached end-of-file before filling the entire buffer");
-
-        auto result = read_some(buffer.slice(nread));
-        if (result.is_error()) {
-            if (result.error().is_errno() && result.error().code() == EINTR) {
-                continue;
-            }
-
-            return result.release_error();
-        }
-
-        nread += result.value().size();
-    }
-
-    return {};
-}
-
 ErrorOr<ByteBuffer> Stream::read_until_eof(size_t block_size)
 {
     return read_until_eof_impl(block_size);

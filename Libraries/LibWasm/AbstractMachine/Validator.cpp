@@ -1337,7 +1337,7 @@ VALIDATE_INSTRUCTION(select_typed)
 // https://webassembly.github.io/spec/core/bikeshed/#variable-instructions%E2%91%A2
 VALIDATE_INSTRUCTION(local_get)
 {
-    auto index = instruction.arguments().get<LocalIndex>();
+    auto index = instruction.local_index();
     TRY(validate(index));
 
     stack.append(m_context.locals[index.value()]);
@@ -1346,7 +1346,7 @@ VALIDATE_INSTRUCTION(local_get)
 
 VALIDATE_INSTRUCTION(local_set)
 {
-    auto index = instruction.arguments().get<LocalIndex>();
+    auto index = instruction.local_index();
     TRY(validate(index));
 
     auto& value_type = m_context.locals[index.value()];
@@ -1357,7 +1357,7 @@ VALIDATE_INSTRUCTION(local_set)
 
 VALIDATE_INSTRUCTION(local_tee)
 {
-    auto index = instruction.arguments().get<LocalIndex>();
+    auto index = instruction.local_index();
     TRY(validate(index));
 
     auto& value_type = m_context.locals[index.value()];
@@ -3699,7 +3699,7 @@ VALIDATE_INSTRUCTION(f64x2_convert_low_i32x4_u)
 ErrorOr<void, ValidationError> Validator::validate(Instruction const& instruction, Stack& stack, bool& is_constant)
 {
     switch (instruction.opcode().value()) {
-#define M(name, integer_value)                                                   \
+#define M(name, integer_value, ...)                                              \
     case Instructions::name.value():                                             \
         dbgln_if(WASM_VALIDATOR_DEBUG, "checking {}, stack = {}", #name, stack); \
         return validate_instruction<integer_value>(instruction, stack, is_constant);
@@ -3735,6 +3735,11 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
         stack.append(type);
     m_frames.take_last();
     VERIFY(m_frames.is_empty());
+
+    expression.set_stack_usage_hint(stack.max_known_size());
+
+    // Now that we're in happy land, try to compile the expression down to a list of labels to help dispatch.
+    expression.compiled_instructions = try_compile_instructions(expression, m_context.functions.span());
 
     return ExpressionTypeResult { stack.release_vector(), is_constant_expression };
 }
