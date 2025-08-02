@@ -47,8 +47,8 @@ ThrowCompletionOr<Value> SymbolConstructor::call()
     // 2. If description is undefined, let descString be undefined.
     // 3. Else, let descString be ? ToString(description).
     auto description_string = description.is_undefined()
-        ? Optional<String> {}
-        : TRY(description.to_string(vm));
+        ? Optional<Utf16String> {}
+        : TRY(description.to_utf16_string(vm));
 
     // 4. Return a new Symbol whose [[Description]] is descString.
     return Symbol::create(vm, move(description_string), false);
@@ -65,7 +65,7 @@ ThrowCompletionOr<GC::Ref<Object>> SymbolConstructor::construct(FunctionObject&)
 JS_DEFINE_NATIVE_FUNCTION(SymbolConstructor::for_)
 {
     // 1. Let stringKey be ? ToString(key).
-    auto string_key = TRY(vm.argument(0).to_string(vm));
+    auto string_key = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 2. For each element e of the GlobalSymbolRegistry List, do
     auto result = vm.global_symbol_registry().get(string_key);

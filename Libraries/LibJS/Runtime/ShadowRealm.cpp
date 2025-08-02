@@ -87,7 +87,7 @@ ThrowCompletionOr<void> copy_name_and_length(VM& vm, FunctionObject& function, F
         target_name = PrimitiveString::create(vm, String {});
 
     // 8. Perform SetFunctionName(F, targetName, prefix).
-    function.set_function_name({ target_name.as_string().utf8_string() }, move(prefix));
+    function.set_function_name({ target_name.as_string().utf16_string() }, move(prefix));
 
     return {};
 }
@@ -149,7 +149,7 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
     // 5. If runningContext is not already suspended, suspend runningContext.
     // NOTE: This would be unused due to step 9 and is omitted for that reason.
 
-    auto maybe_executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_fly_string);
+    auto maybe_executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
     if (maybe_executable.is_error())
         return vm.throw_completion<TypeError>(ErrorType::ShadowRealmEvaluateAbruptCompletion);
     auto executable = maybe_executable.release_value();
@@ -242,7 +242,7 @@ ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, String specifier_stri
     // NOTE: We don't support this concept yet.
 
     // 9. Let steps be the steps of an ExportGetter function as described below.
-    auto steps = [string = move(export_name_string)](auto& vm) -> ThrowCompletionOr<Value> {
+    auto steps = [string = Utf16String::from_utf8(export_name_string)](auto& vm) -> ThrowCompletionOr<Value> {
         // 1. Assert: exports is a module namespace exotic object.
         VERIFY(vm.argument(0).is_object());
         auto& exports = vm.argument(0).as_object();
@@ -274,7 +274,7 @@ ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, String specifier_stri
 
     // 10. Let onFulfilled be CreateBuiltinFunction(steps, 1, "", « [[ExportNameString]] », callerRealm).
     // 11. Set onFulfilled.[[ExportNameString]] to exportNameString.
-    auto on_fulfilled = NativeFunction::create(realm, move(steps), 1, FlyString {}, &caller_realm);
+    auto on_fulfilled = NativeFunction::create(realm, move(steps), 1, Utf16FlyString {}, &caller_realm);
 
     // 12. Let promiseCapability be ! NewPromiseCapability(%Promise%).
     auto promise_capability = MUST(new_promise_capability(vm, realm.intrinsics().promise_constructor()));

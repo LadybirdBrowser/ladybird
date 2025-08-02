@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/DistinctNumeric.h>
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 
 namespace JS::Bytecode {
@@ -25,13 +25,13 @@ class IdentifierTable {
 public:
     IdentifierTable() = default;
 
-    IdentifierTableIndex insert(FlyString);
-    FlyString const& get(IdentifierTableIndex) const;
+    IdentifierTableIndex insert(Utf16FlyString);
+    Utf16FlyString const& get(IdentifierTableIndex) const;
     void dump() const;
     bool is_empty() const { return m_identifiers.is_empty(); }
 
 private:
-    Vector<FlyString> m_identifiers;
+    Vector<Utf16FlyString> m_identifiers;
 };
 
 }

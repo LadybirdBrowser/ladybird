@@ -2712,7 +2712,7 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
             if (connected_callback)
                 (void)WebIDL::invoke_callback(*connected_callback, this, WebIDL::ExceptionBehavior::Report, no_arguments);
 
-            return JS::js_undefined(); }, 0, FlyString {}, &realm());
+            return JS::js_undefined(); }, 0, Utf16FlyString {}, &realm());
         callback = realm().heap().allocate<WebIDL::CallbackType>(steps, realm());
     }
 

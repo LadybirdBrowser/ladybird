@@ -26,8 +26,8 @@ public:
 
     Program const& parse_node() const { return *m_ecmascript_code; }
 
-    virtual Vector<FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) override;
-    virtual ResolvedBinding resolve_export(VM& vm, FlyString const& export_name, Vector<ResolvedBinding> resolve_set = {}) override;
+    virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) override;
+    virtual ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set = {}) override;
 
     Object* import_meta() { return m_import_meta; }
     void set_import_meta(Badge<VM>, Object* import_meta) { m_import_meta = import_meta; }

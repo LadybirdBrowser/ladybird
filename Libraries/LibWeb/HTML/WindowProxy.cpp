@@ -117,7 +117,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
 
     // 6. If property is undefined and P is in W's document-tree child navigable target name property set, then:
     auto navigable_property_set = m_window->document_tree_child_navigable_target_name_property_set();
-    auto property_key_string = property_key.to_string();
+    auto property_key_string = property_key.to_string().to_utf8_but_should_be_ported_to_utf16();
 
     if (auto navigable = navigable_property_set.get(property_key_string); navigable.has_value()) {
         // 1. Let value be the active WindowProxy of the named object of W with the name P.

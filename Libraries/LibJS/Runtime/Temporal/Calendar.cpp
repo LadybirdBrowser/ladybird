@@ -78,7 +78,7 @@ static Vector<CalendarFieldData> sorted_calendar_fields(VM& vm, CalendarFieldLis
         result.unchecked_append(data_for_field(field));
 
     quick_sort(result, [](auto const& lhs, auto const& rhs) {
-        return StringView { lhs.property->as_string() } < StringView { rhs.property->as_string() };
+        return lhs.property->as_string() < rhs.property->as_string();
     });
 
     return result;

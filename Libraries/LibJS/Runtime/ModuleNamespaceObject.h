@@ -33,12 +33,12 @@ public:
     virtual void initialize(Realm&) override;
 
 private:
-    ModuleNamespaceObject(Realm&, Module* module, Vector<FlyString> exports);
+    ModuleNamespaceObject(Realm&, Module* module, Vector<Utf16FlyString> exports);
 
     virtual void visit_edges(Visitor&) override;
 
-    GC::Ptr<Module> m_module;    // [[Module]]
-    Vector<FlyString> m_exports; // [[Exports]]
+    GC::Ptr<Module> m_module;         // [[Module]]
+    Vector<Utf16FlyString> m_exports; // [[Exports]]
 };
 
 }

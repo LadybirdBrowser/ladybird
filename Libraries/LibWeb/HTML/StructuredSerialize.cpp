@@ -223,7 +223,7 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Trans
     if constexpr (IsSame<ViewType, JS::DataView>) {
         data_holder.encode(ValueTag::ArrayBufferView);
         data_holder.append(move(buffer_serialized)); // [[ArrayBufferSerialized]]
-        data_holder.encode("DataView"_string);       // [[Constructor]]
+        data_holder.encode("DataView"_utf16);        // [[Constructor]]
         data_holder.encode(JS::get_view_byte_length(view_record));
         data_holder.encode(view.byte_offset());
     }
@@ -235,8 +235,8 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Trans
         //    [[ArrayBufferSerialized]]: bufferSerialized, [[ByteLength]]: value.[[ByteLength]],
         //    [[ByteOffset]]: value.[[ByteOffset]], [[ArrayLength]]: value.[[ArrayLength]] }.
         data_holder.encode(ValueTag::ArrayBufferView);
-        data_holder.append(move(buffer_serialized));         // [[ArrayBufferSerialized]]
-        data_holder.encode(view.element_name().to_string()); // [[Constructor]]
+        data_holder.append(move(buffer_serialized));               // [[ArrayBufferSerialized]]
+        data_holder.encode(view.element_name().to_utf16_string()); // [[Constructor]]
         data_holder.encode(JS::typed_array_byte_length(view_record));
         data_holder.encode(view.byte_offset());
         data_holder.encode(JS::typed_array_length(view_record));
@@ -542,7 +542,7 @@ public:
                         auto output_value = TRY(structured_serialize_internal(m_vm, input_value, m_for_storage, m_memory));
 
                         // 3. Append { [[Key]]: key, [[Value]]: outputValue } to serialized.[[Properties]].
-                        serialized.encode(key.as_string().utf8_string());
+                        serialized.encode(key.as_string().utf16_string());
                         serialized.append(move(output_value));
 
                         ++property_count;
@@ -724,7 +724,7 @@ public:
             auto array_buffer_value = TRY(deserialize());
             auto& array_buffer = as<JS::ArrayBuffer>(array_buffer_value.as_object());
 
-            auto constructor_name = m_serialized.decode<String>();
+            auto constructor_name = m_serialized.decode<Utf16String>();
             auto byte_length = m_serialized.decode<u32>();
             auto byte_offset = m_serialized.decode<u32>();
 
@@ -884,7 +884,7 @@ public:
 
                 // 1. For each Record { [[Key]], [[Value]] } entry of serialized.[[Properties]]:
                 for (u64 i = 0u; i < length; ++i) {
-                    auto key = m_serialized.decode<String>();
+                    auto key = m_serialized.decode<Utf16String>();
 
                     // 1. Let deserializedValue be ? StructuredDeserialize(entry.[[Value]], targetRealm, memory).
                     auto deserialized_value = TRY(deserialize());

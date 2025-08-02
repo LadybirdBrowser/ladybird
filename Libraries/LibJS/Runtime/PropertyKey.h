@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Symbol.h>
@@ -28,7 +28,7 @@ public:
             return PropertyKey { value.as_symbol() };
         if (value.is_integral_number() && value.as_double() >= 0 && value.as_double() < NumericLimits<u32>::max())
             return static_cast<u32>(value.as_double());
-        return TRY(value.to_string(vm));
+        return TRY(value.to_utf16_string(vm));
     }
 
     static constexpr uintptr_t NORMAL_STRING_FLAG = 0;
@@ -45,7 +45,7 @@ public:
     PropertyKey(PropertyKey const& other)
     {
         if (other.is_string())
-            new (&m_string) FlyString(other.m_string);
+            new (&m_string) Utf16FlyString(other.m_string);
         else
             m_bits = other.m_bits;
     }
@@ -53,7 +53,7 @@ public:
     PropertyKey(PropertyKey&& other) noexcept
     {
         if (other.is_string())
-            new (&m_string) FlyString(move(other.m_string));
+            new (&m_string) Utf16FlyString(move(other.m_string));
         else
             m_bits = exchange(other.m_bits, 0);
     }
@@ -66,30 +66,30 @@ public:
         VERIFY(index >= 0);
         if constexpr (NumericLimits<T>::max() >= NumericLimits<u32>::max()) {
             if (index >= NumericLimits<u32>::max()) {
-                new (&m_string) FlyString { String::number(index) };
+                new (&m_string) Utf16FlyString { Utf16String::number(index) };
                 return;
             }
         }
         m_number = static_cast<u64>(index) << 2 | NUMBER_FLAG;
     }
 
-    PropertyKey(FlyString string, StringMayBeNumber string_may_be_number = StringMayBeNumber::Yes)
+    PropertyKey(Utf16FlyString string, StringMayBeNumber string_may_be_number = StringMayBeNumber::Yes)
     {
         if (string_may_be_number == StringMayBeNumber::Yes) {
-            auto view = string.bytes_as_string_view();
-            if (!view.is_empty() && !(view[0] == '0' && view.length() > 1)) {
-                auto property_index = view.to_number<u32>(TrimWhitespace::No);
+            if (!string.is_empty() && !(string.code_unit_at(0) == '0' && string.length_in_code_units() > 1)) {
+                auto property_index = string.to_number<u32>(TrimWhitespace::No);
                 if (property_index.has_value() && property_index.value() < NumericLimits<u32>::max()) {
                     m_number = static_cast<u64>(property_index.release_value()) << 2 | NUMBER_FLAG;
                     return;
                 }
             }
         }
-        new (&m_string) FlyString(move(string));
+
+        new (&m_string) Utf16FlyString(move(string));
     }
 
-    PropertyKey(String const& string)
-        : PropertyKey(FlyString(string))
+    PropertyKey(Utf16String const& string)
+        : PropertyKey(Utf16FlyString { string })
     {
     }
 
@@ -102,7 +102,7 @@ public:
     {
         if (this != &other) {
             if (is_string())
-                m_string.~FlyString();
+                m_string.~Utf16FlyString();
             new (this) PropertyKey(other);
         }
         return *this;
@@ -112,7 +112,7 @@ public:
     {
         if (this != &other) {
             if (is_string())
-                m_string.~FlyString();
+                m_string.~Utf16FlyString();
             new (this) PropertyKey(move(other));
         }
         return *this;
@@ -121,7 +121,7 @@ public:
     ~PropertyKey()
     {
         if (is_string())
-            m_string.~FlyString();
+            m_string.~Utf16FlyString();
     }
 
     u32 as_number() const
@@ -130,7 +130,7 @@ public:
         return m_number >> 2;
     }
 
-    FlyString const& as_string() const
+    Utf16FlyString const& as_string() const
     {
         VERIFY(is_string());
         return m_string;
@@ -151,13 +151,13 @@ public:
         return Value { PrimitiveString::create(vm, String::number(as_number())) };
     }
 
-    String to_string() const
+    Utf16String to_string() const
     {
         if (is_string())
-            return as_string().to_string();
+            return as_string().to_utf16_string();
         if (is_symbol())
-            return MUST(as_symbol()->descriptive_string());
-        return String::number(as_number());
+            return as_symbol()->descriptive_string();
+        return Utf16String::number(as_number());
     }
 
     void visit_edges(Cell::Visitor& visitor) const
@@ -181,7 +181,7 @@ private:
     friend Traits<PropertyKey>;
 
     union {
-        FlyString m_string;
+        Utf16FlyString m_string;
         u64 m_number;
         Symbol const* m_symbol;
         uintptr_t m_bits;
@@ -220,12 +220,12 @@ struct Traits<JS::PropertyKey> : public DefaultTraits<JS::PropertyKey> {
 };
 
 template<>
-struct Formatter<JS::PropertyKey> : Formatter<StringView> {
+struct Formatter<JS::PropertyKey> : Formatter<Utf16String> {
     ErrorOr<void> format(FormatBuilder& builder, JS::PropertyKey const& property_key)
     {
         if (property_key.is_number())
             return builder.put_u64(property_key.as_number());
-        return builder.put_string(property_key.to_string());
+        return Formatter<Utf16String>::format(builder, property_key.to_string());
     }
 };
 

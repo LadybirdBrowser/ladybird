@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/WeakPtr.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
@@ -67,7 +67,7 @@ public:
 
     virtual ~Executable() override;
 
-    FlyString name;
+    Utf16FlyString name;
     Vector<u8> bytecode;
     Vector<PropertyLookupCache> property_lookup_caches;
     Vector<GlobalVariableCache> global_variable_caches;
@@ -99,9 +99,9 @@ public:
     Optional<IdentifierTableIndex> length_identifier;
 
     String const& get_string(StringTableIndex index) const { return string_table->get(index); }
-    FlyString const& get_identifier(IdentifierTableIndex index) const { return identifier_table->get(index); }
+    Utf16FlyString const& get_identifier(IdentifierTableIndex index) const { return identifier_table->get(index); }
 
-    Optional<FlyString const&> get_identifier(Optional<IdentifierTableIndex> const& index) const
+    Optional<Utf16FlyString const&> get_identifier(Optional<IdentifierTableIndex> const& index) const
     {
         if (!index.has_value())
             return {};

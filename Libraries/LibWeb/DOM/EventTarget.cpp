@@ -516,7 +516,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
 
         //  6. Return scope. (NOTE: Not necessary)
 
-        auto function = JS::ECMAScriptFunctionObject::create(realm, name, builder.to_byte_string(), program->body(), program->parameters(), program->function_length(), program->local_variables_names(), scope, nullptr, JS::FunctionKind::Normal, program->is_strict_mode(),
+        auto function = JS::ECMAScriptFunctionObject::create(realm, Utf16FlyString::from_utf8(name), builder.to_byte_string(), program->body(), program->parameters(), program->function_length(), program->local_variables_names(), scope, nullptr, JS::FunctionKind::Normal, program->is_strict_mode(),
             program->parsing_insights(), is_arrow_function);
 
         // 10. Remove settings object's realm execution context from the JavaScript execution context stack.
@@ -617,7 +617,7 @@ void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandl
             TRY(event_target->process_event_handler_for_event(name, event));
             return JS::js_undefined();
         },
-        0, FlyString {}, &realm);
+        0, Utf16FlyString {}, &realm);
 
     // NOTE: As per the spec, the callback context is arbitrary.
     auto callback = realm.heap().allocate<WebIDL::CallbackType>(*callback_function, realm);

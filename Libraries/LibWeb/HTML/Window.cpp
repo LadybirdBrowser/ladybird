@@ -748,7 +748,7 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
     WindowOrWorkerGlobalScopeMixin::initialize(realm);
 
     if (s_internals_object_exposed)
-        define_direct_property("internals"_fly_string, realm.create<Internals::Internals>(realm), JS::default_attributes);
+        define_direct_property("internals"_utf16_fly_string, realm.create<Internals::Internals>(realm), JS::default_attributes);
 
     return {};
 }

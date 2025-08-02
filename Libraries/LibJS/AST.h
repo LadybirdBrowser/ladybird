@@ -797,7 +797,7 @@ public:
     bool uses_this_from_environment() const { return m_parsing_insights.uses_this_from_environment; }
 
     virtual bool has_name() const = 0;
-    virtual Value instantiate_ordinary_function_expression(VM&, FlyString given_name) const = 0;
+    virtual Value instantiate_ordinary_function_expression(VM&, Utf16FlyString given_name) const = 0;
 
     RefPtr<SharedFunctionInstanceData> shared_data() const;
     void set_shared_data(RefPtr<SharedFunctionInstanceData>) const;
@@ -847,7 +847,7 @@ public:
     void set_should_do_additional_annexB_steps() { m_is_hoisted = true; }
 
     bool has_name() const override { return true; }
-    Value instantiate_ordinary_function_expression(VM&, FlyString) const override { VERIFY_NOT_REACHED(); }
+    Value instantiate_ordinary_function_expression(VM&, Utf16FlyString) const override { VERIFY_NOT_REACHED(); }
 
     virtual ~FunctionDeclaration() { }
 
@@ -874,7 +874,7 @@ public:
 
     bool has_name() const override { return !name().is_empty(); }
 
-    Value instantiate_ordinary_function_expression(VM&, FlyString given_name) const override;
+    Value instantiate_ordinary_function_expression(VM&, Utf16FlyString given_name) const override;
 
     virtual ~FunctionExpression() { }
 
@@ -1518,7 +1518,7 @@ public:
 
     bool has_name() const { return m_name; }
 
-    ThrowCompletionOr<ECMAScriptFunctionObject*> create_class_constructor(VM&, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<FlyString> const& binding_name = {}, FlyString const& class_name = {}) const;
+    ThrowCompletionOr<ECMAScriptFunctionObject*> create_class_constructor(VM&, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<Utf16FlyString> const& binding_name = {}, Utf16FlyString const& class_name = {}) const;
 
 private:
     virtual bool is_class_expression() const override { return true; }

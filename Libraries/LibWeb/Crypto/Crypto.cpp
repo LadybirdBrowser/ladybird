@@ -52,7 +52,7 @@ WebIDL::ExceptionOr<GC::Root<WebIDL::ArrayBufferView>> Crypto::get_random_values
         return WebIDL::TypeMismatchError::create(realm(), "array must be one of Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, BigInt64Array, or BigUint64Array"_string);
 
     auto const& typed_array = *array->bufferable_object().get<GC::Ref<JS::TypedArrayBase>>();
-    if (!typed_array.element_name().is_one_of("Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array", "Int32Array", "Uint32Array", "BigInt64Array", "BigUint64Array"))
+    if (!typed_array.element_name().is_one_of("Int8Array"sv, "Uint8Array"sv, "Uint8ClampedArray"sv, "Int16Array"sv, "Uint16Array"sv, "Int32Array"sv, "Uint32Array"sv, "BigInt64Array"sv, "BigUint64Array"sv))
         return WebIDL::TypeMismatchError::create(realm(), "array must be one of Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, BigInt64Array, or BigUint64Array"_string);
 
     auto typed_array_record = JS::make_typed_array_with_buffer_witness_record(typed_array, JS::ArrayBuffer::Order::SeqCst);

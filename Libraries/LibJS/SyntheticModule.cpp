@@ -18,7 +18,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(SyntheticModule);
 
-SyntheticModule::SyntheticModule(Realm& realm, Vector<FlyString> export_names, SyntheticModule::EvaluationFunction evaluation_steps, ByteString filename)
+SyntheticModule::SyntheticModule(Realm& realm, Vector<Utf16FlyString> export_names, SyntheticModule::EvaluationFunction evaluation_steps, ByteString filename)
     : Module(realm, move(filename))
     , m_export_names(move(export_names))
     , m_evaluation_steps(evaluation_steps)
@@ -40,14 +40,14 @@ GC::Ref<SyntheticModule> SyntheticModule::create_default_export_synthetic_module
     //    performs the following steps when called:
     auto set_default_export = GC::create_function(realm.heap(), [default_export](SyntheticModule& module) -> ThrowCompletionOr<void> {
         // a. Perform SetSyntheticModuleExport(module, "default", defaultExport).
-        TRY(module.set_synthetic_module_export("default"_fly_string, default_export));
+        TRY(module.set_synthetic_module_export("default"_utf16_fly_string, default_export));
 
         // b. Return NormalCompletion(UNUSED).
         return {};
     });
 
     // 2. Return the Synthetic Module Record { [[Realm]]: realm, [[Environment]]: empty, [[Namespace]]: empty, [[HostDefined]]: undefined, [[ExportNames]]: « "default" », [[EvaluationSteps]]: setDefaultExport }.
-    return realm.heap().allocate<SyntheticModule>(realm, Vector<FlyString> { "default"_fly_string }, set_default_export, move(filename));
+    return realm.heap().allocate<SyntheticModule>(realm, Vector<Utf16FlyString> { "default"_utf16_fly_string }, set_default_export, move(filename));
 }
 
 // 16.2.1.8.2 ParseJSONModule ( source ), https://tc39.es/ecma262/#sec-create-default-export-synthetic-module
@@ -63,7 +63,7 @@ ThrowCompletionOr<GC::Ref<Module>> parse_json_module(Realm& realm, StringView so
 }
 
 // 16.2.1.8.3 SetSyntheticModuleExport ( module, exportName, exportValue ), https://tc39.es/ecma262/#sec-setsyntheticmoduleexport
-ThrowCompletionOr<void> SyntheticModule::set_synthetic_module_export(FlyString const& export_name, Value export_value)
+ThrowCompletionOr<void> SyntheticModule::set_synthetic_module_export(Utf16FlyString const& export_name, Value export_value)
 {
     auto& vm = this->vm();
 
@@ -99,14 +99,14 @@ PromiseCapability& SyntheticModule::load_requested_modules(GC::Ptr<GraphLoadingS
 }
 
 // 16.2.1.8.4.2 GetExportedNames ( ), https://tc39.es/ecma262/#sec-smr-getexportednames
-Vector<FlyString> SyntheticModule::get_exported_names(VM&, HashTable<Module const*>&)
+Vector<Utf16FlyString> SyntheticModule::get_exported_names(VM&, HashTable<Module const*>&)
 {
     // 1. Return module.[[ExportNames]].
     return m_export_names;
 }
 
 // 16.2.1.8.4.3 ResolveExport ( exportName ), https://tc39.es/ecma262/#sec-smr-resolveexport
-ResolvedBinding SyntheticModule::resolve_export(VM&, FlyString const& export_name, Vector<ResolvedBinding>)
+ResolvedBinding SyntheticModule::resolve_export(VM&, Utf16FlyString const& export_name, Vector<ResolvedBinding>)
 {
     // 1. If module.[[ExportNames]] does not contain exportName, return null.
     if (!m_export_names.contains_slow(export_name))

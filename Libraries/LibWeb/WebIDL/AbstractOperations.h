@@ -20,7 +20,7 @@ bool is_buffer_source_type(JS::Value);
 GC::Ptr<JS::ArrayBuffer> underlying_buffer_source(JS::Object& buffer_source);
 ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_source);
 
-JS::Completion call_user_object_operation(CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args);
+JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args);
 
 JS::ThrowCompletionOr<String> to_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM&, JS::Value);

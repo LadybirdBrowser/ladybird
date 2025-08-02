@@ -181,7 +181,7 @@ ThrowCompletionOr<bool> ArgumentsObject::internal_define_own_property(PropertyKe
 
 void ArgumentsObject::delete_from_parameter_map(PropertyKey const& property_key)
 {
-    m_mapped_names[property_key.as_number()] = FlyString {};
+    m_mapped_names[property_key.as_number()] = Utf16FlyString {};
 }
 
 Value ArgumentsObject::get_from_parameter_map(PropertyKey const& property_key) const

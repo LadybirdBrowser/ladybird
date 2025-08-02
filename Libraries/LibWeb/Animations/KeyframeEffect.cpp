@@ -105,13 +105,13 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         return keyframe_output;
 
     auto& keyframe_object = keyframe_input.as_object();
-    auto composite = TRY(keyframe_object.get("composite"_fly_string));
+    auto composite = TRY(keyframe_object.get("composite"_utf16_fly_string));
     if (composite.is_undefined())
         composite = JS::PrimitiveString::create(vm, "auto"_string);
-    auto easing = TRY(keyframe_object.get("easing"_fly_string));
+    auto easing = TRY(keyframe_object.get("easing"_utf16_fly_string));
     if (easing.is_undefined())
         easing = JS::PrimitiveString::create(vm, "linear"_string);
-    auto offset = TRY(keyframe_object.get("offset"_fly_string));
+    auto offset = TRY(keyframe_object.get("offset"_utf16_fly_string));
 
     if constexpr (AL == AllowLists::Yes) {
         keyframe_output.composite = TRY(convert_value_to_maybe_list(realm, composite, to_composite_operation));
@@ -186,7 +186,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         // 1. Let raw value be the result of calling the [[Get]] internal method on keyframe input, with property name
         //    as the property key and keyframe input as the receiver.
         // 2. Check the completion record of raw value.
-        JS::PropertyKey key { property_name, JS::PropertyKey::StringMayBeNumber::No };
+        JS::PropertyKey key { Utf16FlyString::from_utf8(property_name), JS::PropertyKey::StringMayBeNumber::No };
         auto raw_value = TRY(keyframe_object.has_property(key)) ? TRY(keyframe_object.get(key)) : *all_value;
 
         using PropertyValuesType = Conditional<AL == AllowLists::Yes, Vector<String>, String>;
@@ -841,8 +841,9 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
             }
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {
+                auto key = Utf16FlyString::from_utf8(CSS::camel_case_string_from_property_id(id));
                 auto value_string = JS::PrimitiveString::create(vm, value->to_string(CSS::SerializationMode::Normal));
-                TRY(object->set(JS::PropertyKey { CSS::camel_case_string_from_property_id(id), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
+                TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
             }
 
             m_keyframe_objects.append(object);

@@ -35,13 +35,13 @@ public:
 
     virtual Object* with_base_object() const { return nullptr; }
 
-    virtual ThrowCompletionOr<bool> has_binding([[maybe_unused]] FlyString const& name, [[maybe_unused]] Optional<size_t>* out_index = nullptr) const = 0;
-    virtual ThrowCompletionOr<void> create_mutable_binding(VM&, [[maybe_unused]] FlyString const& name, [[maybe_unused]] bool can_be_deleted) = 0;
-    virtual ThrowCompletionOr<void> create_immutable_binding(VM&, [[maybe_unused]] FlyString const& name, [[maybe_unused]] bool strict) = 0;
-    virtual ThrowCompletionOr<void> initialize_binding(VM&, [[maybe_unused]] FlyString const& name, Value, InitializeBindingHint) = 0;
-    virtual ThrowCompletionOr<void> set_mutable_binding(VM&, [[maybe_unused]] FlyString const& name, Value, [[maybe_unused]] bool strict) = 0;
-    virtual ThrowCompletionOr<Value> get_binding_value(VM&, [[maybe_unused]] FlyString const& name, [[maybe_unused]] bool strict) = 0;
-    virtual ThrowCompletionOr<bool> delete_binding(VM&, [[maybe_unused]] FlyString const& name) = 0;
+    virtual ThrowCompletionOr<bool> has_binding([[maybe_unused]] Utf16FlyString const& name, [[maybe_unused]] Optional<size_t>* out_index = nullptr) const = 0;
+    virtual ThrowCompletionOr<void> create_mutable_binding(VM&, [[maybe_unused]] Utf16FlyString const& name, [[maybe_unused]] bool can_be_deleted) = 0;
+    virtual ThrowCompletionOr<void> create_immutable_binding(VM&, [[maybe_unused]] Utf16FlyString const& name, [[maybe_unused]] bool strict) = 0;
+    virtual ThrowCompletionOr<void> initialize_binding(VM&, [[maybe_unused]] Utf16FlyString const& name, Value, InitializeBindingHint) = 0;
+    virtual ThrowCompletionOr<void> set_mutable_binding(VM&, [[maybe_unused]] Utf16FlyString const& name, Value, [[maybe_unused]] bool strict) = 0;
+    virtual ThrowCompletionOr<Value> get_binding_value(VM&, [[maybe_unused]] Utf16FlyString const& name, [[maybe_unused]] bool strict) = 0;
+    virtual ThrowCompletionOr<bool> delete_binding(VM&, [[maybe_unused]] Utf16FlyString const& name) = 0;
 
     // [[OuterEnv]]
     Environment* outer_environment() { return m_outer_environment; }

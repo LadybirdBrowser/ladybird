@@ -28,7 +28,7 @@ GC::Ref<PrimitiveString> FunctionObject::make_function_name(Variant<PropertyKey,
 {
     auto& vm = this->vm();
 
-    String name;
+    Utf16String name;
 
     // 2. If Type(name) is Symbol, then
     if (auto const* property_key = name_arg.get_pointer<PropertyKey>(); property_key && property_key->is_symbol()) {
@@ -37,15 +37,15 @@ GC::Ref<PrimitiveString> FunctionObject::make_function_name(Variant<PropertyKey,
 
         // b. If description is undefined, set name to the empty String.
         if (!description.has_value())
-            name = ""_string;
+            name = {};
         // c. Else, set name to the string-concatenation of "[", description, and "]".
         else
-            name = MUST(String::formatted("[{}]", *description));
+            name = Utf16String::formatted("[{}]", *description);
     }
     // 3. Else if name is a Private Name, then
     else if (auto const* private_name = name_arg.get_pointer<PrivateName>()) {
         // a. Set name to name.[[Description]].
-        name = private_name->description.to_string();
+        name = private_name->description.to_utf16_string();
     }
     // NOTE: This is necessary as we use a different parameter name.
     else {
@@ -61,7 +61,7 @@ GC::Ref<PrimitiveString> FunctionObject::make_function_name(Variant<PropertyKey,
     // 5. If prefix is present, then
     if (prefix.has_value()) {
         // a. Set name to the string-concatenation of prefix, the code unit 0x0020 (SPACE), and name.
-        name = MUST(String::formatted("{} {}", *prefix, name));
+        name = Utf16String::formatted("{} {}", *prefix, name);
 
         // b. If F has an [[InitialName]] internal slot, then
         if (is<NativeFunction>(this)) {

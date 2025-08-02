@@ -179,7 +179,7 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
             auto& module_object = static_cast<WebAssemblyModule&>(value.as_object());
             for (auto& entry : module_object.module_instance().exports()) {
                 // FIXME: Don't pretend that everything is a function
-                imports.set({ property.key.as_string().to_string().to_byte_string(), entry.name(), Wasm::TypeIndex(0) }, entry.value());
+                imports.set({ property.key.as_string().to_utf16_string().to_byte_string(), entry.name(), Wasm::TypeIndex(0) }, entry.value());
             }
         }
     }
@@ -246,7 +246,7 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
     if (!is<JS::TypedArrayBase>(*got))
         return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
     auto& got_array = static_cast<JS::TypedArrayBase&>(*got);
-    auto element_size = 128 / TRY(TRY(expected_array.get("length"_fly_string)).to_u32(vm));
+    auto element_size = 128 / TRY(TRY(expected_array.get("length"_utf16_fly_string)).to_u32(vm));
     size_t i = 0;
     for (auto it = expected_array.indexed_properties().begin(false); it != expected_array.indexed_properties().end(); ++it) {
         auto got_value = TRY(got_array.get(i++));
@@ -280,8 +280,8 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
 void WebAssemblyModule::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    define_native_function(realm, "getExport"_fly_string, get_export, 1, JS::default_attributes);
-    define_native_function(realm, "invoke"_fly_string, wasm_invoke, 1, JS::default_attributes);
+    define_native_function(realm, "getExport"_utf16_fly_string, get_export, 1, JS::default_attributes);
+    define_native_function(realm, "invoke"_utf16_fly_string, wasm_invoke, 1, JS::default_attributes);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)

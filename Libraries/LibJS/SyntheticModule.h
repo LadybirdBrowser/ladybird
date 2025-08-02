@@ -22,20 +22,20 @@ public:
 
     static GC::Ref<SyntheticModule> create_default_export_synthetic_module(Realm& realm, Value default_export, ByteString filename);
 
-    ThrowCompletionOr<void> set_synthetic_module_export(FlyString const& export_name, Value export_value);
+    ThrowCompletionOr<void> set_synthetic_module_export(Utf16FlyString const& export_name, Value export_value);
 
     virtual PromiseCapability& load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>) override;
-    virtual Vector<FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) override;
-    virtual ResolvedBinding resolve_export(VM& vm, FlyString const& export_name, Vector<ResolvedBinding> resolve_set) override;
+    virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) override;
+    virtual ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set) override;
     virtual ThrowCompletionOr<void> link(VM& vm) override;
     virtual ThrowCompletionOr<GC::Ref<Promise>> evaluate(VM& vm) override;
 
 private:
-    SyntheticModule(Realm& realm, Vector<FlyString> export_names, EvaluationFunction evaluation_steps, ByteString filename);
+    SyntheticModule(Realm& realm, Vector<Utf16FlyString> export_names, EvaluationFunction evaluation_steps, ByteString filename);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Vector<FlyString> m_export_names;      // [[ExportNames]]
+    Vector<Utf16FlyString> m_export_names; // [[ExportNames]]
     EvaluationFunction m_evaluation_steps; // [[EvaluationSteps]]
 };
 

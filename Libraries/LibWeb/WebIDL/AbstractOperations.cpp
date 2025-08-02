@@ -141,7 +141,7 @@ inline JS::Completion clean_up_on_return(JS::Realm& stored_realm, JS::Realm& rel
 
 // https://webidl.spec.whatwg.org/#call-a-user-objects-operation
 // https://whatpr.org/webidl/1437.html#call-a-user-objects-operation
-JS::Completion call_user_object_operation(CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args)
+JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;

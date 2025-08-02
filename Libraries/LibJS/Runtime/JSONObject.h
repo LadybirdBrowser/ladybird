@@ -34,14 +34,14 @@ private:
         HashTable<GC::Ptr<Object>> seen_objects;
         String indent;
         String gap;
-        Optional<Vector<String>> property_list;
+        Optional<Vector<Utf16String>> property_list;
     };
 
     // Stringify helpers
     static ThrowCompletionOr<Optional<String>> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, Object* holder);
     static ThrowCompletionOr<String> serialize_json_object(VM&, StringifyState&, Object&);
     static ThrowCompletionOr<String> serialize_json_array(VM&, StringifyState&, Object&);
-    static String quote_json_string(String);
+    static String quote_json_string(Utf16View const&);
 
     // Parse helpers
     static Object* parse_json_object(VM&, JsonObject const&);

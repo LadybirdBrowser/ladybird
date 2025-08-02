@@ -55,9 +55,9 @@
         }                                                                                                                                       \
     } __testjs_register_##fn {};
 
-#define TESTJS_GLOBAL_FUNCTION(function, exposed_name, ...)                             \
-    JS_DECLARE_NATIVE_FUNCTION(function);                                               \
-    __TESTJS_REGISTER_GLOBAL_FUNCTION(#exposed_name##_string, function, ##__VA_ARGS__); \
+#define TESTJS_GLOBAL_FUNCTION(function, exposed_name, ...)                            \
+    JS_DECLARE_NATIVE_FUNCTION(function);                                              \
+    __TESTJS_REGISTER_GLOBAL_FUNCTION(#exposed_name##_utf16, function, ##__VA_ARGS__); \
     JS_DEFINE_NATIVE_FUNCTION(function)
 
 #define TESTJS_MAIN_HOOK()                  \
@@ -114,7 +114,7 @@ struct FunctionWithLength {
     JS::ThrowCompletionOr<JS::Value> (*function)(JS::VM&);
     size_t length { 0 };
 };
-extern HashMap<String, FunctionWithLength> s_exposed_global_functions;
+extern HashMap<Utf16String, FunctionWithLength> s_exposed_global_functions;
 extern ByteString g_test_root_fragment;
 extern ByteString g_test_root;
 extern int g_test_argc;
@@ -182,11 +182,12 @@ inline void TestRunnerGlobalObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_direct_property("global"_fly_string, this, JS::Attribute::Enumerable);
+    define_direct_property("global"_utf16_fly_string, this, JS::Attribute::Enumerable);
     for (auto& entry : s_exposed_global_functions) {
         define_native_function(
             realm,
-            entry.key, [fn = entry.value.function](auto& vm) {
+            entry.key,
+            [fn = entry.value.function](auto& vm) {
                 return fn(vm);
             },
             entry.value.length, JS::default_attributes);
@@ -239,7 +240,7 @@ inline AK::Result<GC::Ref<JS::SourceTextModule>, ParserError> parse_module(Strin
 
 inline ErrorOr<JsonValue> get_test_results(JS::Realm& realm)
 {
-    auto results = MUST(realm.global_object().get("__TestResults__"_fly_string));
+    auto results = MUST(realm.global_object().get("__TestResults__"_utf16_fly_string));
     auto maybe_json_string = MUST(JS::JSONObject::stringify_impl(*g_vm, results, JS::js_undefined(), JS::js_undefined()));
     if (maybe_json_string.has_value())
         return JsonValue::from_string(*maybe_json_string);
@@ -359,7 +360,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     JSFileResult file_result { test_path.substring(m_test_root.length() + 1, test_path.length() - m_test_root.length() - 1) };
 
     // Collect logged messages
-    auto user_output = MUST(realm->global_object().get("__UserOutput__"_fly_string));
+    auto user_output = MUST(realm->global_object().get("__UserOutput__"_utf16_fly_string));
 
     auto& arr = user_output.as_array();
     for (auto& entry : arr.indexed_properties()) {

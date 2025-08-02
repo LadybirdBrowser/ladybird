@@ -196,14 +196,14 @@ public:
 
     StackInfo const& stack_info() const { return m_stack_info; }
 
-    HashMap<String, GC::Ref<Symbol>> const& global_symbol_registry() const { return m_global_symbol_registry; }
-    HashMap<String, GC::Ref<Symbol>>& global_symbol_registry() { return m_global_symbol_registry; }
+    HashMap<Utf16String, GC::Ref<Symbol>> const& global_symbol_registry() const { return m_global_symbol_registry; }
+    HashMap<Utf16String, GC::Ref<Symbol>>& global_symbol_registry() { return m_global_symbol_registry; }
 
     u32 execution_generation() const { return m_execution_generation; }
     void finish_execution_generation() { ++m_execution_generation; }
 
-    ThrowCompletionOr<Reference> resolve_binding(FlyString const&, Environment* = nullptr);
-    ThrowCompletionOr<Reference> get_identifier_reference(Environment*, FlyString, bool strict, size_t hops = 0);
+    ThrowCompletionOr<Reference> resolve_binding(Utf16FlyString const&, Environment* = nullptr);
+    ThrowCompletionOr<Reference> get_identifier_reference(Environment*, Utf16FlyString, bool strict, size_t hops = 0);
 
     // 5.2.3.2 Throw an Exception, https://tc39.es/ecma262/#sec-throw-an-exception
     template<typename T, typename... Args>
@@ -333,7 +333,7 @@ private:
     StackInfo m_stack_info;
 
     // GlobalSymbolRegistry, https://tc39.es/ecma262/#table-globalsymbolregistry-record-fields
-    HashMap<String, GC::Ref<Symbol>> m_global_symbol_registry;
+    HashMap<Utf16String, GC::Ref<Symbol>> m_global_symbol_registry;
 
     Vector<GC::Ref<GC::Function<ThrowCompletionOr<Value>()>>> m_promise_jobs;
 

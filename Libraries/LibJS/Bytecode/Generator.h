@@ -212,7 +212,12 @@ public:
         return m_regex_table->insert(move(regex));
     }
 
-    IdentifierTableIndex intern_identifier(FlyString string)
+    IdentifierTableIndex intern_identifier(FlyString const& string)
+    {
+        return intern_identifier(Utf16FlyString::from_utf8(string));
+    }
+
+    IdentifierTableIndex intern_identifier(Utf16FlyString string)
     {
         return m_identifier_table->insert(move(string));
     }

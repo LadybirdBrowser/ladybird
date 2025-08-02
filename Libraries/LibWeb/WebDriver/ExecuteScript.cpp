@@ -84,7 +84,7 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     //    The result of parsing strict above.
     auto function = JS::ECMAScriptFunctionObject::create_from_function_node(
         function_expression,
-        ""_fly_string,
+        Utf16FlyString {},
         realm,
         &global_scope,
         nullptr);

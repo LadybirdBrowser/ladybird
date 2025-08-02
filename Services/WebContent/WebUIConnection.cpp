@@ -17,7 +17,7 @@
 
 namespace WebContent {
 
-static auto LADYBIRD_PROPERTY = JS::PropertyKey { "ladybird"_fly_string };
+static auto LADYBIRD_PROPERTY = JS::PropertyKey { "ladybird"_utf16_fly_string };
 static auto WEB_UI_LOADED_EVENT = "WebUILoaded"_fly_string;
 static auto WEB_UI_MESSAGE_EVENT = "WebUIMessage"_fly_string;
 

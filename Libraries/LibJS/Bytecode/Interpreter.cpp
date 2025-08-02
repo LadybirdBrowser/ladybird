@@ -821,7 +821,7 @@ void Interpreter::enter_object_environment(Object& object)
     running_execution_context().lexical_environment = new_object_environment(object, true, old_environment);
 }
 
-ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, FlyString const& name)
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, Utf16FlyString const& name)
 {
     auto executable_result = Bytecode::Generator::generate_from_ast_node(vm, node, kind);
     if (executable_result.is_error())
@@ -1201,7 +1201,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
     return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, identifier);
 }
 
-inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<FlyString const&> const& base_identifier, PropertyKey name, Op::PropertyKind kind, PropertyLookupCache* caches = nullptr)
+inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const& base_identifier, PropertyKey name, Op::PropertyKind kind, PropertyLookupCache* caches = nullptr)
 {
     // Better error message than to_object would give
     if (vm.in_strict_mode() && base.is_nullish())
@@ -1221,14 +1221,14 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     case Op::PropertyKind::Getter: {
         auto& function = value.as_function();
         if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
-            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(MUST(String::formatted("get {}", name)));
+            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(Utf16String::formatted("get {}", name));
         object->define_direct_accessor(name, &function, nullptr, Attribute::Configurable | Attribute::Enumerable);
         break;
     }
     case Op::PropertyKind::Setter: {
         auto& function = value.as_function();
         if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
-            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(MUST(String::formatted("set {}", name)));
+            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(Utf16String::formatted("set {}", name));
         object->define_direct_accessor(name, nullptr, &function, Attribute::Configurable | Attribute::Enumerable);
         break;
     }
@@ -1354,14 +1354,14 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
     Value value;
 
     if (!function_node.has_name()) {
-        FlyString name;
+        Utf16FlyString name;
         if (lhs_name.has_value())
             name = vm.bytecode_interpreter().current_executable().get_identifier(lhs_name.value());
         value = function_node.instantiate_ordinary_function_expression(vm, name);
     } else {
         value = ECMAScriptFunctionObject::create_from_function_node(
             function_node,
-            function_node.name(),
+            Utf16FlyString::from_utf8(function_node.name()),
             *vm.current_realm(),
             vm.lexical_environment(),
             vm.running_execution_context().private_environment);
@@ -1375,7 +1375,7 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
     return value;
 }
 
-inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<FlyString const&> const& base_identifier, Value property_key_value, Value value, Op::PropertyKind kind)
+inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const& base_identifier, Value property_key_value, Value value, Op::PropertyKind kind)
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
     if ((kind == Op::PropertyKind::KeyValue || kind == Op::PropertyKind::DirectKeyValue)
@@ -1496,7 +1496,7 @@ struct CalleeAndThis {
     Value this_value;
 };
 
-inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Bytecode::Interpreter& interpreter, FlyString const& name, EnvironmentCoordinate& cache)
+inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Bytecode::Interpreter& interpreter, Utf16FlyString const& name, EnvironmentCoordinate& cache)
 {
     auto& vm = interpreter.vm();
 
@@ -1583,7 +1583,7 @@ inline Span<Value> argument_list_evaluation(Interpreter& interpreter, Value argu
     return argument_values;
 }
 
-inline ThrowCompletionOr<void> create_variable(VM& vm, FlyString const& name, Op::EnvironmentMode mode, bool is_global, bool is_immutable, bool is_strict)
+inline ThrowCompletionOr<void> create_variable(VM& vm, Utf16FlyString const& name, Op::EnvironmentMode mode, bool is_global, bool is_immutable, bool is_strict)
 {
     if (mode == Op::EnvironmentMode::Lexical) {
         VERIFY(!is_global);
@@ -1612,17 +1612,17 @@ inline ThrowCompletionOr<void> create_variable(VM& vm, FlyString const& name, Op
 inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value super_class, ClassExpression const& class_expression, Optional<IdentifierTableIndex> const& lhs_name, ReadonlySpan<Value> element_keys)
 {
     auto& interpreter = vm.bytecode_interpreter();
-    auto name = class_expression.name();
 
     // NOTE: NewClass expects classEnv to be active lexical environment
     auto* class_environment = vm.lexical_environment();
     vm.running_execution_context().lexical_environment = vm.running_execution_context().saved_lexical_environments.take_last();
 
-    Optional<FlyString> binding_name;
-    FlyString class_name;
+    Optional<Utf16FlyString> binding_name;
+    Utf16FlyString class_name;
     if (!class_expression.has_name() && lhs_name.has_value()) {
         class_name = interpreter.current_executable().get_identifier(lhs_name.value());
     } else {
+        auto name = Utf16FlyString::from_utf8(class_expression.name());
         binding_name = name;
         class_name = name;
     }

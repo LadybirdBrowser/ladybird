@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Export.h>
 #include <LibJS/ModuleLoading.h>
@@ -39,7 +39,7 @@ struct ResolvedBinding {
 
     Type type { Null };
     GC::Ptr<Module> module;
-    FlyString export_name;
+    Utf16FlyString export_name;
 
     bool is_valid() const
     {
@@ -110,10 +110,10 @@ public:
     virtual ThrowCompletionOr<void> link(VM& vm) = 0;
     virtual ThrowCompletionOr<GC::Ref<Promise>> evaluate(VM& vm) = 0;
 
-    Vector<FlyString> get_exported_names(VM& vm);
-    virtual Vector<FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) = 0;
+    Vector<Utf16FlyString> get_exported_names(VM& vm);
+    virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) = 0;
 
-    virtual ResolvedBinding resolve_export(VM& vm, FlyString const& export_name, Vector<ResolvedBinding> resolve_set = {}) = 0;
+    virtual ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set = {}) = 0;
 
     virtual ThrowCompletionOr<u32> inner_module_linking(VM& vm, Vector<Module*>& stack, u32 index);
     virtual ThrowCompletionOr<u32> inner_module_evaluation(VM& vm, Vector<Module*>& stack, u32 index);
@@ -131,7 +131,7 @@ protected:
     }
 
 private:
-    GC::Ref<Object> module_namespace_create(Vector<FlyString> unambiguous_names);
+    GC::Ref<Object> module_namespace_create(Vector<Utf16FlyString> unambiguous_names);
     ThrowCompletionOr<void> evaluate_module_sync(VM&);
 
     // These handles are only safe as long as the VM they live in is valid.

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/String.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>

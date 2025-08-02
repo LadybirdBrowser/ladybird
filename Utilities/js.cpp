@@ -266,9 +266,9 @@ static JS::ThrowCompletionOr<JS::Value> load_ini_impl(JS::VM& vm)
         auto group_object = JS::Object::create(realm, realm.intrinsics().object_prototype());
         for (auto const& key : config_file->keys(group)) {
             auto entry = config_file->read_entry(group, key);
-            group_object->define_direct_property(MUST(String::from_byte_string(key)), JS::PrimitiveString::create(vm, move(entry)), JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
+            group_object->define_direct_property(Utf16String::from_utf8(key), JS::PrimitiveString::create(vm, move(entry)), JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
         }
-        object->define_direct_property(MUST(String::from_byte_string(group)), group_object, JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
+        object->define_direct_property(Utf16String::from_utf8(group), group_object, JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
     }
     return object;
 }
@@ -295,18 +295,18 @@ void ReplObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_direct_property("global"_fly_string, this, JS::Attribute::Enumerable);
+    define_direct_property("global"_utf16_fly_string, this, JS::Attribute::Enumerable);
     u8 attr = JS::Attribute::Configurable | JS::Attribute::Writable | JS::Attribute::Enumerable;
-    define_native_function(realm, "exit"_fly_string, exit_interpreter, 0, attr);
-    define_native_function(realm, "help"_fly_string, repl_help, 0, attr);
-    define_native_function(realm, "save"_fly_string, save_to_file, 1, attr);
-    define_native_function(realm, "loadINI"_fly_string, load_ini, 1, attr);
-    define_native_function(realm, "loadJSON"_fly_string, load_json, 1, attr);
-    define_native_function(realm, "print"_fly_string, print, 1, attr);
+    define_native_function(realm, "exit"_utf16_fly_string, exit_interpreter, 0, attr);
+    define_native_function(realm, "help"_utf16_fly_string, repl_help, 0, attr);
+    define_native_function(realm, "save"_utf16_fly_string, save_to_file, 1, attr);
+    define_native_function(realm, "loadINI"_utf16_fly_string, load_ini, 1, attr);
+    define_native_function(realm, "loadJSON"_utf16_fly_string, load_json, 1, attr);
+    define_native_function(realm, "print"_utf16_fly_string, print, 1, attr);
 
     define_native_accessor(
         realm,
-        "_"_fly_string,
+        "_"_utf16_fly_string,
         [](JS::VM&) {
             return g_last_value.value();
         },
@@ -380,11 +380,11 @@ void ScriptObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_direct_property("global"_fly_string, this, JS::Attribute::Enumerable);
+    define_direct_property("global"_utf16_fly_string, this, JS::Attribute::Enumerable);
     u8 attr = JS::Attribute::Configurable | JS::Attribute::Writable | JS::Attribute::Enumerable;
-    define_native_function(realm, "loadINI"_fly_string, load_ini, 1, attr);
-    define_native_function(realm, "loadJSON"_fly_string, load_json, 1, attr);
-    define_native_function(realm, "print"_fly_string, print, 1, attr);
+    define_native_function(realm, "loadINI"_utf16_fly_string, load_ini, 1, attr);
+    define_native_function(realm, "loadJSON"_utf16_fly_string, load_json, 1, attr);
+    define_native_function(realm, "print"_utf16_fly_string, print, 1, attr);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ScriptObject::load_ini)
@@ -744,11 +744,12 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
             for (auto const& descriptor : shape.property_table()) {
                 if (!descriptor.key.is_string())
                     continue;
-                auto key = descriptor.key.as_string();
+
+                auto key = descriptor.key.as_string().to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
                 if (key.bytes_as_string_view().starts_with(property_pattern)) {
                     Line::CompletionSuggestion completion { key, Line::CompletionSuggestion::ForSearch };
                     if (!results.contains_slow(completion)) { // hide duplicates
-                        results.append(key.to_string().to_byte_string());
+                        results.append(key.to_byte_string());
                         results.last().invariant_offset = property_pattern.length();
                     }
                 }
@@ -758,9 +759,11 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
             }
         };
 
+        auto variable_name_utf16 = Utf16FlyString::from_utf8(variable_name);
+
         switch (mode) {
         case CompleteProperty: {
-            auto reference_or_error = g_vm->resolve_binding(variable_name, &global_environment);
+            auto reference_or_error = g_vm->resolve_binding(variable_name_utf16, &global_environment);
             if (reference_or_error.is_error())
                 return {};
             auto value_or_error = reference_or_error.value().get_value(*g_vm);
@@ -782,8 +785,8 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
             list_all_properties(variable.shape(), variable_name);
 
             for (auto const& name : global_environment.declarative_record().bindings()) {
-                if (name.bytes_as_string_view().starts_with(variable_name)) {
-                    results.empend(name);
+                if (name.view().starts_with(variable_name_utf16.view())) {
+                    results.empend(name.view().to_utf8_but_should_be_ported_to_utf16().to_byte_string());
                     results.last().invariant_offset = variable_name.bytes().size();
                 }
             }

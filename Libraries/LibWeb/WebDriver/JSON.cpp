@@ -135,7 +135,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
                 if (result.is_array() && name.is_number())
                     result.as_array().set(name.as_number(), cloned_property_result.value());
                 else if (result.is_object())
-                    result.as_object().set(name.to_string(), cloned_property_result.value());
+                    result.as_object().set(name.to_string().to_utf8(), cloned_property_result.value());
             } else {
                 (void)result->set(name, cloned_property_result.value(), JS::Object::ShouldThrowExceptions::No);
             }
