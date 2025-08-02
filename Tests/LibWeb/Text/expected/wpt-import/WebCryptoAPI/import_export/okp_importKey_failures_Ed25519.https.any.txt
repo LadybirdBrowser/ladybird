@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 270 tests
 
-256 Pass
-14 Fail
+260 Pass
+10 Fail
 Pass	Bad usages: importKey(spki, {name: Ed25519}, true, [encrypt])
 Pass	Bad usages: importKey(spki, {name: Ed25519}, false, [encrypt])
 Pass	Bad usages: importKey(spki, {name: Ed25519}, true, [verify, encrypt])
@@ -270,7 +270,7 @@ Pass	Invalid 'use' field: importKey(jwk(private), {name: Ed25519}, true, [sign])
 Pass	Invalid 'use' field: importKey(jwk (public) , {name: Ed25519}, true, [verify])
 Pass	Invalid 'crv' field: importKey(jwk(private), {name: Ed25519}, true, [sign])
 Pass	Invalid 'crv' field: importKey(jwk (public) , {name: Ed25519}, true, [verify])
-Fail	Invalid 'alg' field 'ed25519': importKey(jwk(private), {name: Ed25519}, true, [sign])
-Fail	Invalid 'alg' field 'ED25519': importKey(jwk(private), {name: Ed25519}, true, [sign])
-Fail	Invalid 'alg' field 'ed25519': importKey(jwk (public) , {name: Ed25519}, true, [verify])
-Fail	Invalid 'alg' field 'ED25519': importKey(jwk (public) , {name: Ed25519}, true, [verify])
+Pass	Invalid 'alg' field 'ed25519': importKey(jwk(private), {name: Ed25519}, true, [sign])
+Pass	Invalid 'alg' field 'ED25519': importKey(jwk(private), {name: Ed25519}, true, [sign])
+Pass	Invalid 'alg' field 'ed25519': importKey(jwk (public) , {name: Ed25519}, true, [verify])
+Pass	Invalid 'alg' field 'ED25519': importKey(jwk (public) , {name: Ed25519}, true, [verify])
