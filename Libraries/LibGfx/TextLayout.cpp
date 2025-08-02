@@ -117,10 +117,9 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
         glyph_run.unchecked_append({ position, glyph_info[i].codepoint });
         point += FloatPoint { positions[i].x_advance, positions[i].y_advance } / text_shaping_resolution;
 
-        // don't apply spacing to last glyph
-        // https://drafts.csswg.org/css-text/#example-7880704e
-        if (i != (glyph_count - 1))
-            point.translate_by(letter_spacing, 0);
+        // NOTE: The spec says that we "really should not" apply letter-spacing to the trailing edge of a line but
+        //       other browsers do so we will as well. https://drafts.csswg.org/css-text/#example-7880704e
+        point.translate_by(letter_spacing, 0);
     }
 
     return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
