@@ -5951,19 +5951,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
         if (jwk.crv != "Ed25519"sv)
             return WebIDL::DataError::create(m_realm, "Invalid curve"_string);
 
-        // 5. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
+        // 5. If the alg field of jwk is present and is not "Ed25519" or "EdDSA", then throw a DataError.
+        if (jwk.alg.has_value() && !jwk.alg.value().is_one_of("Ed25519"sv, "EdDSA"sv))
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+
+        // 6. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && jwk.use.value() != "sig")
             return WebIDL::DataError::create(m_realm, "Invalid key usage"_string);
 
-        // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
+        // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
         //    or it does not contain all of the specified usages values, then throw a DataError.
         TRY(validate_jwk_key_ops(m_realm, jwk, usages));
 
-        // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+        // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !jwk.ext.value() && extractable)
             return WebIDL::DataError::create(m_realm, "Invalid extractable"_string);
 
-        // 8. If the d field is present:
+        // 9. If the d field is present:
         if (jwk.d.has_value()) {
             // 1. If jwk does not meet the requirements of the JWK private key format described in Section 2 of [RFC8037],
             //    then throw a DataError.
@@ -6031,13 +6035,13 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
             key->set_type(Bindings::KeyType::Public);
         }
 
-        // 9. Let algorithm be a new instance of a KeyAlgorithm object.
+        // 10. Let algorithm be a new instance of a KeyAlgorithm object.
         auto algorithm = KeyAlgorithm::create(m_realm);
 
-        // 10. Set the name attribute of algorithm to "Ed25519".
+        // 11. Set the name attribute of algorithm to "Ed25519".
         algorithm->set_name("Ed25519"_string);
 
-        // 11. Set the [[algorithm]] internal slot of key to algorithm.
+        // 12. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(algorithm);
     }
 
@@ -6140,10 +6144,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         // 2. Set the kty attribute of jwk to "OKP".
         jwk.kty = "OKP"_string;
 
-        // 3. Set the crv attribute of jwk to "Ed25519".
+        // 3. Set the alg attribute of jwk to "Ed25519".
+        jwk.alg = "Ed25519"_string;
+
+        // 4. Set the crv attribute of jwk to "Ed25519".
         jwk.crv = "Ed25519"_string;
 
-        // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
+        // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
         if (key->type() == Bindings::KeyType::Public) {
             jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         } else {
@@ -6156,22 +6163,22 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
             jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(public_key, AK::OmitPadding::Yes));
         }
 
-        // 5. If the [[type]] internal slot of key is "private"
+        // 6. If the [[type]] internal slot of key is "private"
         if (key->type() == Bindings::KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
             jwk.d = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         }
 
-        // 6. Set the key_ops attribute of jwk to the usages attribute of key.
+        // 7. Set the key_ops attribute of jwk to the usages attribute of key.
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
             jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
 
-        // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+        // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
-        // 8. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+        // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
         return TRY(jwk.to_object(m_realm));
     }
 
@@ -6451,19 +6458,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
         if (jwk.crv != "Ed448"sv)
             return WebIDL::DataError::create(m_realm, "Invalid curve"_string);
 
-        // 5. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
+        // 5. If the alg field of jwk is present and is not "Ed448" or "EdDSA", then throw a DataError.
+        if (jwk.alg.has_value() && (jwk.alg.value() != "Ed448"sv && jwk.alg.value() != "EdDSA"sv))
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+
+        // 6. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && jwk.use.value() != "sig")
             return WebIDL::DataError::create(m_realm, "Invalid key usage"_string);
 
-        // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
+        // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
         //    or it does not contain all of the specified usages values, then throw a DataError.
         TRY(validate_jwk_key_ops(m_realm, jwk, usages));
 
-        // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+        // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !jwk.ext.value() && extractable)
             return WebIDL::DataError::create(m_realm, "Invalid extractable"_string);
 
-        // 8. If the d field is present:
+        // 9. If the d field is present:
         if (jwk.d.has_value()) {
             // 1. If jwk does not meet the requirements of the JWK private key format described in Section 2 of [RFC8037],
             //    then throw a DataError.
@@ -6531,13 +6542,13 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
             key->set_type(Bindings::KeyType::Public);
         }
 
-        // 9. Let algorithm be a new instance of a KeyAlgorithm object.
+        // 10. Let algorithm be a new instance of a KeyAlgorithm object.
         auto algorithm = KeyAlgorithm::create(m_realm);
 
-        // 10. Set the name attribute of algorithm to "Ed448".
+        // 11. Set the name attribute of algorithm to "Ed448".
         algorithm->set_name("Ed448"_string);
 
-        // 11. Set the [[algorithm]] internal slot of key to algorithm.
+        // 12. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(algorithm);
     }
 
@@ -6639,10 +6650,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(Bindings::KeyFormat f
         // 2. Set the kty attribute of jwk to "OKP".
         jwk.kty = "OKP"_string;
 
-        // 3. Set the crv attribute of jwk to "Ed448".
+        // 3. Set the alg attribute of jwk to "Ed448".
+        jwk.alg = "Ed448"_string;
+
+        // 4. Set the crv attribute of jwk to "Ed448".
         jwk.crv = "Ed448"_string;
 
-        // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
+        // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
         if (key->type() == Bindings::KeyType::Public) {
             jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         } else {
@@ -6655,22 +6669,22 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(Bindings::KeyFormat f
             jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(public_key, AK::OmitPadding::Yes));
         }
 
-        // 5. If the [[type]] internal slot of key is "private"
+        // 6. If the [[type]] internal slot of key is "private"
         if (key->type() == Bindings::KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
             jwk.d = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         }
 
-        // 6. Set the key_ops attribute of jwk to the usages attribute of key.
+        // 7. Set the key_ops attribute of jwk to the usages attribute of key.
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
             jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
 
-        // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+        // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
-        // 8. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+        // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
         return TRY(jwk.to_object(m_realm));
     }
 
