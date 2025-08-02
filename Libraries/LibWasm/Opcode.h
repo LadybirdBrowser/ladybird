@@ -455,7 +455,17 @@ namespace Instructions {
     M(i32x4_trunc_sat_f64x2_s_zero, 0xfd000000000000fcull, 1, 1)  \
     M(i32x4_trunc_sat_f64x2_u_zero, 0xfd000000000000fdull, 1, 1)  \
     M(f64x2_convert_low_i32x4_s, 0xfd000000000000feull, 1, 1)     \
-    M(f64x2_convert_low_i32x4_u, 0xfd000000000000ffull, 1, 1)
+    M(f64x2_convert_low_i32x4_u, 0xfd000000000000ffull, 1, 1)     \
+    /* Synthetic fused insns */                                   \
+    ENUMERATE_SYNTHETIC_INSTRUCTION_OPCODES(M)
+
+#define ENUMERATE_SYNTHETIC_INSTRUCTION_OPCODES(M)              \
+    M(synthetic_i32_add2local, 0xfe00000000000000ull, 0, 1)     \
+    M(synthetic_i32_addconstlocal, 0xfe00000000000001ull, 0, 1) \
+    M(synthetic_i32_andconstlocal, 0xfe00000000000002ull, 0, 1) \
+    M(synthetic_i32_storelocal, 0xfe00000000000003ull, 1, 0)    \
+    M(synthetic_i64_storelocal, 0xfe00000000000004ull, 1, 0)    \
+    M(synthetic_local_seti32_const, 0xfe00000000000005ull, 0, 0)
 
 #define ENUMERATE_WASM_OPCODES(M)         \
     ENUMERATE_SINGLE_BYTE_WASM_OPCODES(M) \
@@ -464,6 +474,9 @@ namespace Instructions {
 #define M(name, value, ...) static constexpr OpCode name = value;
 ENUMERATE_WASM_OPCODES(M)
 #undef M
+
+static constexpr inline OpCode SyntheticInstructionBase = 0xfe00000000000000ull;
+static constexpr inline size_t SyntheticInstructionCount = 6;
 
 }
 

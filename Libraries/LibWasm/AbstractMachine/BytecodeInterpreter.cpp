@@ -137,6 +137,26 @@ void BytecodeInterpreter::interpret_impl(Configuration& configuration, Expressio
             case Instructions::i32_const.value():
                 configuration.push_to_destination(Value(instruction->arguments().get<i32>()));
                 RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
+            case Instructions::synthetic_i32_add2local.value():
+                configuration.push_to_destination(Value(static_cast<i32>(Operators::Add {}(configuration.local(instruction->local_index()).to<u32>(), configuration.local(instruction->arguments().get<LocalIndex>()).to<u32>()))));
+                RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
+            case Instructions::synthetic_i32_addconstlocal.value():
+                configuration.push_to_destination(Value(static_cast<i32>(Operators::Add {}(configuration.local(instruction->local_index()).to<u32>(), instruction->arguments().get<i32>()))));
+                RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
+            case Instructions::synthetic_i32_andconstlocal.value():
+                configuration.push_to_destination(Value(Operators::BitAnd {}(configuration.local(instruction->local_index()).to<i32>(), instruction->arguments().get<i32>())));
+                RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
+            case Instructions::synthetic_i32_storelocal.value():
+                if (store_value(configuration, *instruction, ConvertToRaw<i32> {}(configuration.local(instruction->local_index()).to<i32>()), 0))
+                    return;
+                RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
+            case Instructions::synthetic_i64_storelocal.value():
+                if (store_value(configuration, *instruction, ConvertToRaw<i64> {}(configuration.local(instruction->local_index()).to<i64>()), 0))
+                    return;
+                RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
+            case Instructions::synthetic_local_seti32_const.value():
+                configuration.local(instruction->local_index()) = Value(instruction->arguments().get<i32>());
+                RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
             case Instructions::unreachable.value():
                 m_trap = Trap::from_string("Unreachable");
                 return;
@@ -2519,10 +2539,204 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 {
     CompiledInstructions result;
     result.dispatches.ensure_capacity(expression.instructions().size());
+    result.extra_instruction_storage.ensure_capacity(ceil_div(expression.instructions().size(), 2ul)); // At most half of the instructions can be replaced with synthetic instructions, as the detected sequences are 3 long.
+    i32 i32_const_value { 0 };
+    LocalIndex local_index_0 { 0 };
+    LocalIndex local_index_1 { 0 };
+    enum class InsnPatternState {
+        Nothing,
+        GetLocal,
+        GetLocalI32Const,
+        GetLocalx2,
+        I32Const,
+        I32ConstGetLocal,
+    } pattern_state { InsnPatternState::Nothing };
+    static Instruction nop { Instructions::nop };
+    constexpr auto default_dispatch = [](Instruction const& instruction) {
+        return Dispatch {
+            &instruction,
+            { .sources = { Dispatch::Stack, Dispatch::Stack, Dispatch::Stack }, .destination = Dispatch::Stack }
+        };
+    };
 
-    for (auto& instruction : expression.instructions())
-        result.dispatches.unchecked_append({ &instruction, { .sources = { Dispatch::Stack, Dispatch::Stack, Dispatch::Stack }, .destination = Dispatch::Stack } });
+    for (auto& instruction : expression.instructions()) {
+        switch (pattern_state) {
+        case InsnPatternState::Nothing:
+            if (instruction.opcode() == Instructions::local_get) {
+                local_index_0 = instruction.local_index();
+                pattern_state = InsnPatternState::GetLocal;
+            } else if (instruction.opcode() == Instructions::i32_const) {
+                i32_const_value = instruction.arguments().get<i32>();
+                pattern_state = InsnPatternState::I32Const;
+            }
+            break;
+        case InsnPatternState::GetLocal:
+            if (instruction.opcode() == Instructions::local_get) {
+                local_index_1 = instruction.local_index();
+                pattern_state = InsnPatternState::GetLocalx2;
+            } else if (instruction.opcode() == Instructions::i32_const) {
+                i32_const_value = instruction.arguments().get<i32>();
+                pattern_state = InsnPatternState::GetLocalI32Const;
+            } else if (instruction.opcode() == Instructions::i32_store) {
+                // `local.get a; i32.store m` -> `i32.storelocal a m`.
+                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
+                result.extra_instruction_storage.append(Instruction(
+                    Instructions::synthetic_i32_storelocal,
+                    local_index_0,
+                    instruction.arguments()));
 
+                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            } else if (instruction.opcode() == Instructions::i64_store) {
+                // `local.get a; i64.store m` -> `i64.storelocal a m`.
+                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
+                result.extra_instruction_storage.append(Instruction(
+                    Instructions::synthetic_i64_storelocal,
+                    local_index_0,
+                    instruction.arguments()));
+
+                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            } else {
+                pattern_state = InsnPatternState::Nothing;
+            }
+            break;
+        case InsnPatternState::GetLocalx2:
+            if (instruction.opcode() == Instructions::i32_add) {
+                // `local.get a; local.get b; i32.add` -> `i32.add_2local a b`.
+                // Replace the previous two ops with noops, and add i32.add_2local.
+                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
+                result.dispatches[result.dispatches.size() - 2] = default_dispatch(nop);
+                result.extra_instruction_storage.append(Instruction {
+                    Instructions::synthetic_i32_add2local,
+                    local_index_0,
+                    local_index_1,
+                });
+                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_store) {
+                // `local.get a; i32.store m` -> `i32.storelocal a m`.
+                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
+                result.extra_instruction_storage.append(Instruction(
+                    Instructions::synthetic_i32_storelocal,
+                    local_index_1,
+                    instruction.arguments()));
+
+                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_store) {
+                // `local.get a; i64.store m` -> `i64.storelocal a m`.
+                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
+                result.extra_instruction_storage.append(Instruction(
+                    Instructions::synthetic_i64_storelocal,
+                    local_index_1,
+                    instruction.arguments()));
+
+                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_const) {
+                swap(local_index_0, local_index_1);
+                i32_const_value = instruction.arguments().get<i32>();
+                pattern_state = InsnPatternState::GetLocalI32Const;
+            } else {
+                pattern_state = InsnPatternState::Nothing;
+            }
+            break;
+        case InsnPatternState::I32Const:
+            if (instruction.opcode() == Instructions::local_get) {
+                local_index_0 = instruction.local_index();
+                pattern_state = InsnPatternState::I32ConstGetLocal;
+            } else if (instruction.opcode() == Instructions::i32_const) {
+                i32_const_value = instruction.arguments().get<i32>();
+            } else if (instruction.opcode() == Instructions::local_set) {
+                // `i32.const a; local.set b` -> `local.seti32_const b a`.
+                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
+                result.extra_instruction_storage.append(Instruction(
+                    Instructions::synthetic_local_seti32_const,
+                    instruction.local_index(),
+                    i32_const_value));
+                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            } else {
+                pattern_state = InsnPatternState::Nothing;
+            }
+            break;
+        case InsnPatternState::GetLocalI32Const:
+            if (instruction.opcode() == Instructions::local_set) {
+                // `i32.const a; local.set b` -> `local.seti32_const b a`.
+                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
+                result.extra_instruction_storage.append(Instruction(
+                    Instructions::synthetic_local_seti32_const,
+                    instruction.local_index(),
+                    i32_const_value));
+                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_const) {
+                i32_const_value = instruction.arguments().get<i32>();
+                pattern_state = InsnPatternState::I32Const;
+                break;
+            }
+            if (instruction.opcode() == Instructions::local_get) {
+                local_index_0 = instruction.local_index();
+                pattern_state = InsnPatternState::I32ConstGetLocal;
+                break;
+            }
+            [[fallthrough]];
+        case InsnPatternState::I32ConstGetLocal:
+            if (instruction.opcode() == Instructions::i32_const) {
+                i32_const_value = instruction.arguments().get<i32>();
+                pattern_state = InsnPatternState::GetLocalI32Const;
+            } else if (instruction.opcode() == Instructions::local_get) {
+                swap(local_index_0, local_index_1);
+                local_index_1 = instruction.local_index();
+                pattern_state = InsnPatternState::GetLocalx2;
+            } else if (instruction.opcode() == Instructions::i32_add) {
+                // `i32.const a; local.get b; i32.add` -> `i32.add_constlocal b a`.
+                // Replace the previous two ops with noops, and add i32.add_constlocal.
+                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
+                result.dispatches[result.dispatches.size() - 2] = default_dispatch(nop);
+                result.extra_instruction_storage.append(Instruction(
+                    Instructions::synthetic_i32_addconstlocal,
+                    local_index_0,
+                    i32_const_value));
+
+                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_and) {
+                // `i32.const a; local.get b; i32.add` -> `i32.and_constlocal b a`.
+                // Replace the previous two ops with noops, and add i32.and_constlocal.
+                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
+                result.dispatches[result.dispatches.size() - 2] = default_dispatch(nop);
+                result.extra_instruction_storage.append(Instruction(
+                    Instructions::synthetic_i32_andconstlocal,
+                    local_index_0,
+                    i32_const_value));
+
+                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            }
+            pattern_state = InsnPatternState::Nothing;
+            break;
+        }
+        result.dispatches.unchecked_append(default_dispatch(instruction));
+    }
+
+    // Remove all nops (that were either added by the above patterns or were already present in the original instructions),
+    // and adjust jumps accordingly.
     Vector<size_t> nops_to_remove;
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
         if (result.dispatches[i].instruction->opcode() == Instructions::nop)
