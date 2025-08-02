@@ -460,6 +460,59 @@ TEST_CASE(equals_utf8)
     EXPECT_NE(u"foo 😂 bar"sv, "foo 😀 bar"sv);
 }
 
+TEST_CASE(comparison)
+{
+    EXPECT(!(u""sv < u""sv));
+    EXPECT(!(u""sv > u""sv));
+    EXPECT(u""sv <= u""sv);
+    EXPECT(u""sv >= u""sv);
+
+    EXPECT(!(u"a"sv < u"a"sv));
+    EXPECT(!(u"a"sv > u"a"sv));
+    EXPECT(u"a"sv <= u"a"sv);
+    EXPECT(u"a"sv >= u"a"sv);
+
+    EXPECT(!(u"😀"sv < u"😀"sv));
+    EXPECT(!(u"😀"sv > u"😀"sv));
+    EXPECT(u"😀"sv <= u"😀"sv);
+    EXPECT(u"😀"sv >= u"😀"sv);
+
+    EXPECT(u"a"sv < u"b"sv);
+    EXPECT(!(u"a"sv > u"b"sv));
+    EXPECT(u"a"sv <= u"b"sv);
+    EXPECT(!(u"a"sv >= u"b"sv));
+
+    EXPECT(Utf16View { "a"sv } < u"b"sv);
+    EXPECT(!(Utf16View { "a"sv } > u"b"sv));
+    EXPECT(Utf16View { "a"sv } <= u"b"sv);
+    EXPECT(!(Utf16View { "a"sv } >= u"b"sv));
+
+    EXPECT(u"a"sv < u"aa"sv);
+    EXPECT(!(u"a"sv > u"aa"sv));
+    EXPECT(u"a"sv <= u"aa"sv);
+    EXPECT(!(u"a"sv >= u"aa"sv));
+
+    EXPECT(Utf16View { "a"sv } < u"aa"sv);
+    EXPECT(!(Utf16View { "a"sv } > u"aa"sv));
+    EXPECT(Utf16View { "a"sv } <= u"aa"sv);
+    EXPECT(!(Utf16View { "a"sv } >= u"aa"sv));
+
+    EXPECT(!(u"b"sv < u"a"sv));
+    EXPECT(u"b"sv > u"a"sv);
+    EXPECT(!(u"b"sv <= u"a"sv));
+    EXPECT(u"b"sv >= u"a"sv);
+
+    EXPECT(u"😀"sv < u"😂"sv);
+    EXPECT(!(u"😀"sv > u"😂"sv));
+    EXPECT(u"😀"sv <= u"😂"sv);
+    EXPECT(!(u"😀"sv >= u"😂"sv));
+
+    EXPECT(!(u"😂"sv < u"😀"sv));
+    EXPECT(u"😂"sv > u"😀"sv);
+    EXPECT(!(u"😂"sv <= u"😀"sv));
+    EXPECT(u"😂"sv >= u"😀"sv);
+}
+
 TEST_CASE(equals_ignoring_case)
 {
     auto string1 = Utf16String::from_utf8("foobar"sv);

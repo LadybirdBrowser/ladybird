@@ -151,6 +151,9 @@ public:
     [[nodiscard]] ALWAYS_INLINE bool operator==(Utf16View const& other) const { return utf16_view() == other; }
     [[nodiscard]] ALWAYS_INLINE bool operator==(StringView other) const { return utf16_view() == other; }
 
+    [[nodiscard]] ALWAYS_INLINE int operator<=>(Utf16StringBase const& other) const { return utf16_view().operator<=>(other.utf16_view()); }
+    [[nodiscard]] ALWAYS_INLINE int operator<=>(Utf16View const& other) const { return utf16_view().operator<=>(other); }
+
     [[nodiscard]] ALWAYS_INLINE bool equals_ignoring_ascii_case(Utf16View const& other) const { return utf16_view().equals_ignoring_ascii_case(other); }
     [[nodiscard]] ALWAYS_INLINE bool equals_ignoring_ascii_case(Utf16StringBase const& other) const { return utf16_view().equals_ignoring_ascii_case(other.utf16_view()); }
 

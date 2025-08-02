@@ -250,6 +250,45 @@ public:
         return this_it == end() && other_it == other_utf8.end();
     }
 
+    [[nodiscard]] constexpr int operator<=>(Utf16View const& other) const
+    {
+        if (is_empty() && other.is_empty())
+            return 0;
+
+        size_t length = min(length_in_code_units(), other.length_in_code_units());
+        int result = 0;
+
+        if (has_ascii_storage() && other.has_ascii_storage()) {
+            result = __builtin_memcmp(m_string.ascii, other.m_string.ascii, length);
+        } else if (!has_ascii_storage() && !other.has_ascii_storage()) {
+            result = __builtin_memcmp(m_string.utf16, other.m_string.utf16, length * sizeof(char16_t));
+        } else {
+            for (size_t i = 0; i < length; ++i) {
+                auto this_code_unit = code_unit_at(i);
+                auto other_code_unit = other.code_unit_at(i);
+
+                if (this_code_unit < other_code_unit) {
+                    result = -1;
+                    break;
+                }
+                if (this_code_unit > other_code_unit) {
+                    result = 1;
+                    break;
+                }
+            }
+        }
+
+        if (result == 0) {
+            if (length_in_code_units() == other.length_in_code_units())
+                return 0;
+            if (length_in_code_units() < other.length_in_code_units())
+                return -1;
+            return 1;
+        }
+
+        return result;
+    }
+
     [[nodiscard]] constexpr bool equals_ignoring_case(Utf16View const& other) const
     {
         // FIXME: Handle non-ASCII case insensitive comparisons.
