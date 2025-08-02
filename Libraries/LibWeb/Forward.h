@@ -1187,6 +1187,11 @@ ErrorOr<Web::UniqueNodeID> decode(Decoder&);
 
 namespace Web::TrustedTypes {
 
+class TrustedHTML;
+class TrustedScript;
+class TrustedScriptURL;
+class TrustedTypePolicy;
 class TrustedTypePolicyFactory;
+struct TrustedTypePolicyOptions;
 
 }

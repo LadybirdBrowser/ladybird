@@ -1,0 +1,57 @@
+/*
+ * Copyright (c) 2025, Miguel Sacristán Izcue <miguel_tete17@hotmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <LibJS/Forward.h>
+#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/TrustedTypePolicyPrototype.h>
+
+namespace Web::TrustedTypes {
+
+using TrustedTypesVariants = JS::ThrowCompletionOr<Variant<
+    GC::Ref<TrustedHTML>,
+    GC::Ref<TrustedScript>,
+    GC::Ref<TrustedScriptURL>>>;
+
+struct TrustedTypePolicyOptions {
+    Optional<GC::Ptr<WebIDL::CallbackType>> create_html;
+    Optional<GC::Ptr<WebIDL::CallbackType>> create_script;
+    Optional<GC::Ptr<WebIDL::CallbackType>> create_script_url;
+};
+
+class TrustedTypePolicy final : public Bindings::PlatformObject {
+    WEB_PLATFORM_OBJECT(TrustedTypePolicy, Bindings::PlatformObject);
+    GC_DECLARE_ALLOCATOR(TrustedTypePolicy);
+
+public:
+    [[nodiscard]] static GC::Ref<TrustedTypePolicy> create(JS::Realm&, String const&, TrustedTypePolicyOptions const&);
+
+    virtual ~TrustedTypePolicy() override { }
+
+    String name() const { return m_name; }
+
+    JS::ThrowCompletionOr<GC::Ref<TrustedHTML>> create_html(String const&, Vector<JS::Value> const&);
+    JS::ThrowCompletionOr<GC::Ref<TrustedScript>> create_script(String const&, Vector<JS::Value> const&);
+    JS::ThrowCompletionOr<GC::Ref<TrustedScriptURL>> create_script_url(String const&, Vector<JS::Value> const&);
+
+private:
+    explicit TrustedTypePolicy(JS::Realm&, String const&, TrustedTypePolicyOptions const&);
+    virtual void initialize(JS::Realm&) override;
+
+    TrustedTypesVariants create_a_trusted_type(String const&, String const&, Vector<JS::Value> const& values);
+
+    JS::Completion get_trusted_type_policy_value(String const& trusted_type_name, String const& value, Vector<JS::Value> const& values, bool throw_if_missing);
+
+    String const m_name;
+    TrustedTypePolicyOptions const m_options;
+};
+
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(TrustedTypePolicyFactory*, String const&, TrustedTypePolicyOptions const&, JS::Object&);
+
+String should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object&, String const&, Vector<String> const&);
+
+}

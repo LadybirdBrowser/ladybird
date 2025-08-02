@@ -36,6 +36,7 @@
     M(ClassIsAbstract, "Abstract class {} cannot be constructed directly")                                                          \
     M(ConstructorWithoutNew, "{} constructor must be called with 'new'")                                                            \
     M(Convert, "Cannot convert {} to {}")                                                                                           \
+    M(CSPDissallowsIt, "Content Security Policy blocked the creation of the policy {}")                                             \
     M(DataViewOutOfRangeByteOffset, "Data view byte offset {} is out of range for buffer with length {}")                           \
     M(DerivedConstructorReturningInvalidValue, "Derived constructor return invalid value")                                          \
     M(DescWriteNonWritable, "Cannot write to non-writable property '{}'")                                                           \
@@ -135,6 +136,7 @@
     M(OptionIsNotValidValue, "{} is not a valid value for option {}")                                                               \
     M(OutOfMemory, "Out of memory")                                                                                                 \
     M(OverloadResolutionFailed, "Overload resolution failed")                                                                       \
+    M(PolicyFactoryAlreadyHasDefaultPolicy, "Policy Factory already has a default value defined")                                   \
     M(PrivateFieldAlreadyDeclared, "Private field '{}' has already been declared")                                                  \
     M(PrivateFieldDoesNotExistOnObject, "Private field '{}' does not exist on object")                                              \
     M(PrivateFieldGetAccessorWithoutGetter, "Cannot get private field '{}' as accessor without getter")                             \
@@ -286,6 +288,7 @@
     M(ToObjectNullOrUndefinedWithPropertyAndName, "Cannot access property \"{}\" on {} object \"{}\"")                              \
     M(TopLevelVariableAlreadyDeclared, "Redeclaration of top level variable '{}'")                                                  \
     M(ToPrimitiveReturnedObject, "Can't convert {} to primitive with hint \"{}\", its @@toPrimitive method returned an object")     \
+    M(TrustedTypesMissingCallback, "Trying to create a {} without a callback")                                                      \
     M(TypedArrayContentTypeMismatch, "Can't create {} from {}")                                                                     \
     M(TypedArrayInvalidBufferLength, "Invalid buffer length for {}: must be a multiple of {}, got {}")                              \
     M(TypedArrayInvalidByteOffset, "Invalid byte offset for {}: must be a multiple of {}, got {}")                                  \
