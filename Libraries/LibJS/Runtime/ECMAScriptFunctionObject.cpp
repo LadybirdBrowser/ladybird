@@ -33,7 +33,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(ECMAScriptFunctionObject);
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     Object* prototype = nullptr;
     switch (kind) {
@@ -73,7 +73,7 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm,
         *prototype);
 }
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     auto shared_data = adopt_ref(*new SharedFunctionInstanceData(
         realm.vm(),
@@ -97,7 +97,7 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm,
 
 GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function_node(
     FunctionNode const& function_node,
-    FlyString name,
+    Utf16FlyString name,
     GC::Ref<Realm> realm,
     GC::Ptr<Environment> parent_environment,
     GC::Ptr<PrivateEnvironment> private_environment)
@@ -145,7 +145,7 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function
 SharedFunctionInstanceData::SharedFunctionInstanceData(
     VM& vm,
     FunctionKind kind,
-    FlyString name,
+    Utf16FlyString name,
     i32 function_length,
     NonnullRefPtr<FunctionParameters const> formal_parameters,
     NonnullRefPtr<Statement const> ecmascript_code,
@@ -210,7 +210,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
         parameter.binding.visit(
             [&](Identifier const& identifier) {
-                if (m_parameter_names.set(identifier.string(), identifier.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) != AK::HashSetResult::InsertedNewEntry)
+                if (m_parameter_names.set(Utf16FlyString::from_utf8(identifier.string()), identifier.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) != AK::HashSetResult::InsertedNewEntry)
                     m_has_duplicates = true;
                 else if (!identifier.is_local())
                     ++parameters_in_environment;
@@ -221,7 +221,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
                 // NOTE: Nothing in the callback throws an exception.
                 MUST(pattern->for_each_bound_identifier([&](auto& identifier) {
-                    if (m_parameter_names.set(identifier.string(), identifier.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) != AK::HashSetResult::InsertedNewEntry)
+                    if (m_parameter_names.set(Utf16FlyString::from_utf8(identifier.string()), identifier.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) != AK::HashSetResult::InsertedNewEntry)
                         m_has_duplicates = true;
                     else if (!identifier.is_local())
                         ++parameters_in_environment;
@@ -244,7 +244,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
         m_arguments_object_needed = false;
     }
 
-    HashTable<FlyString> function_names;
+    HashTable<Utf16FlyString> function_names;
 
     // 18. Else if hasParameterExpressions is false, then
     //     a. If functionNames contains "arguments" or lexicalNames contains "arguments", then
@@ -253,7 +253,9 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     if (scope_body) {
         // NOTE: Nothing in the callback throws an exception.
         MUST(scope_body->for_each_var_function_declaration_in_reverse_order([&](FunctionDeclaration const& function) {
-            if (function_names.set(function.name()) == AK::HashSetResult::InsertedNewEntry)
+            auto name = Utf16FlyString::from_utf8(function.name());
+
+            if (function_names.set(name) == AK::HashSetResult::InsertedNewEntry)
                 m_functions_to_initialize.append(function);
         }));
 
@@ -293,7 +295,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
     *environment_size += parameters_in_environment;
 
-    HashMap<FlyString, ParameterIsLocal> parameter_bindings;
+    HashMap<Utf16FlyString, ParameterIsLocal> parameter_bindings;
 
     auto arguments_object_needs_binding = m_arguments_object_needed && !m_local_variables_names.first_matching([](auto const& local) { return local.declaration_kind == LocalVariable::DeclarationKind::ArgumentsObject; }).has_value();
 
@@ -310,7 +312,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
         // a. Let parameterBindings be parameterNames.
     }
 
-    HashMap<FlyString, ParameterIsLocal> instantiated_var_names;
+    HashMap<Utf16FlyString, ParameterIsLocal> instantiated_var_names;
 
     size_t* var_environment_size = nullptr;
 
@@ -321,9 +323,9 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
         if (scope_body) {
             // c. For each element n of varNames, do
-            MUST(scope_body->for_each_var_declared_identifier([&](auto const& id) {
+            MUST(scope_body->for_each_var_declared_identifier([&](Identifier const& id) {
                 // i. If instantiatedVarNames does not contain n, then
-                if (instantiated_var_names.set(id.string(), id.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) == AK::HashSetResult::InsertedNewEntry) {
+                if (instantiated_var_names.set(Utf16FlyString::from_utf8(id.string()), id.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) == AK::HashSetResult::InsertedNewEntry) {
                     // 1. Append n to instantiatedVarNames.
                     // Following steps will be executed in function_declaration_instantiation:
                     // 2. Perform ! env.CreateMutableBinding(n, false).
@@ -353,16 +355,18 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
         // NOTE: Steps a, b, c and d are executed in function_declaration_instantiation.
         // e. For each element n of varNames, do
         if (scope_body) {
-            MUST(scope_body->for_each_var_declared_identifier([&](auto const& id) {
+            MUST(scope_body->for_each_var_declared_identifier([&](Identifier const& id) {
+                auto name = Utf16FlyString::from_utf8(id.string());
+
                 // 1. Append n to instantiatedVarNames.
                 // Following steps will be executed in function_declaration_instantiation:
                 // 2. Perform ! env.CreateMutableBinding(n, false).
                 // 3. Perform ! env.InitializeBinding(n, undefined).
-                if (instantiated_var_names.set(id.string(), id.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) == AK::HashSetResult::InsertedNewEntry) {
+                if (instantiated_var_names.set(name, id.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) == AK::HashSetResult::InsertedNewEntry) {
                     m_var_names_to_initialize_binding.append({
                         .identifier = id,
-                        .parameter_binding = parameter_bindings.contains(id.string()),
-                        .function_name = function_names.contains(id.string()),
+                        .parameter_binding = parameter_bindings.contains(name),
+                        .function_name = function_names.contains(name),
                     });
 
                     if (!id.is_local())
@@ -376,7 +380,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     // B.3.2.1 Changes to FunctionDeclarationInstantiation, https://tc39.es/ecma262/#sec-web-compat-functiondeclarationinstantiation
     if (!m_strict && scope_body) {
         MUST(scope_body->for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) {
-            auto function_name = function_declaration.name();
+            auto function_name = Utf16FlyString::from_utf8(function_declaration.name());
             if (parameter_bindings.contains(function_name))
                 return;
 
@@ -826,7 +830,7 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
     auto& running_context = vm.running_execution_context();
 
     // 2. Let closure be a new Abstract Closure with no parameters that captures promiseCapability and asyncBody and performs the following steps when called:
-    auto closure = NativeFunction::create(realm, ""_fly_string, [&async_body, &promise_capability](auto& vm) -> ThrowCompletionOr<Value> {
+    auto closure = NativeFunction::create(realm, {}, [&async_body, &promise_capability](auto& vm) -> ThrowCompletionOr<Value> {
         Completion result;
 
         // a. Let acAsyncContext be the running execution context.
@@ -834,7 +838,7 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
         // b. If asyncBody is a Parse Node, then
         if constexpr (!IsSame<T, GC::Function<Completion()>>) {
             // i. Let result be Completion(Evaluation of asyncBody).
-            auto maybe_executable = Bytecode::compile(vm, async_body, FunctionKind::Async, "AsyncBlockStart"_fly_string);
+            auto maybe_executable = Bytecode::compile(vm, async_body, FunctionKind::Async, "AsyncBlockStart"_utf16_fly_string);
             if (maybe_executable.is_error())
                 result = maybe_executable.release_error();
             else
@@ -931,7 +935,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
     return generator_object;
 }
 
-void ECMAScriptFunctionObject::set_name(FlyString const& name)
+void ECMAScriptFunctionObject::set_name(Utf16FlyString const& name)
 {
     auto& vm = this->vm();
     const_cast<SharedFunctionInstanceData&>(shared_data()).m_name = name;

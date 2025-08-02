@@ -383,7 +383,7 @@ String Value::to_string_without_side_effects() const
     case STRING_TAG:
         return as_string().utf8_string();
     case SYMBOL_TAG:
-        return as_symbol().descriptive_string().release_value();
+        return as_symbol().descriptive_string().to_utf8_but_should_be_ported_to_utf16();
     case BIGINT_TAG:
         return as_bigint().to_string().release_value();
     case OBJECT_TAG:
@@ -909,7 +909,7 @@ ThrowCompletionOr<PropertyKey> Value::to_property_key(VM& vm) const
 
     // OPTIMIZATION: If this is already a string, we can skip all the ceremony.
     if (is_string())
-        return PropertyKey { as_string().utf8_string() };
+        return PropertyKey { as_string().utf16_string() };
 
     // 1. Let key be ? ToPrimitive(argument, string).
     auto key = TRY(to_primitive(vm, PreferredType::String));
@@ -921,7 +921,7 @@ ThrowCompletionOr<PropertyKey> Value::to_property_key(VM& vm) const
     }
 
     // 3. Return ! ToString(key).
-    return MUST(key.to_string(vm));
+    return MUST(key.to_utf16_string(vm));
 }
 
 // 7.1.6 ToInt32 ( argument ), https://tc39.es/ecma262/#sec-toint32

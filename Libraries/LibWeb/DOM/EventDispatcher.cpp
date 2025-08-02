@@ -91,7 +91,7 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
         // FIXME: These should be wrapped for us in call_user_object_operation, but it currently doesn't do that.
         auto* this_value = event.current_target().ptr();
         auto* wrapped_event = &event;
-        auto result = WebIDL::call_user_object_operation(callback, "handleEvent"_string, this_value, { { wrapped_event } });
+        auto result = WebIDL::call_user_object_operation(callback, "handleEvent"_utf16_fly_string, this_value, { { wrapped_event } });
 
         // If this throws an exception, then:
         if (result.is_error()) {

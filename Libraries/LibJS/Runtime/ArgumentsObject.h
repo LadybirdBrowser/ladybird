@@ -26,7 +26,7 @@ public:
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata*, PropertyLookupPhase) override;
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
 
-    void set_mapped_names(Vector<FlyString> mapped_names) { m_mapped_names = move(mapped_names); }
+    void set_mapped_names(Vector<Utf16FlyString> mapped_names) { m_mapped_names = move(mapped_names); }
 
 private:
     ArgumentsObject(Realm&, Environment&);
@@ -39,7 +39,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<Environment> m_environment;
-    Vector<FlyString> m_mapped_names;
+    Vector<Utf16FlyString> m_mapped_names;
 };
 
 }

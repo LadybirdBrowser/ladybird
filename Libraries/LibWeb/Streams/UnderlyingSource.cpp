@@ -21,14 +21,14 @@ JS::ThrowCompletionOr<UnderlyingSource> UnderlyingSource::from_value(JS::VM& vm,
     auto& object = value.as_object();
 
     UnderlyingSource underlying_source {
-        .start = TRY(WebIDL::property_to_callback(vm, value, "start"_fly_string, WebIDL::OperationReturnsPromise::No)),
-        .pull = TRY(WebIDL::property_to_callback(vm, value, "pull"_fly_string, WebIDL::OperationReturnsPromise::Yes)),
-        .cancel = TRY(WebIDL::property_to_callback(vm, value, "cancel"_fly_string, WebIDL::OperationReturnsPromise::Yes)),
+        .start = TRY(WebIDL::property_to_callback(vm, value, "start"_utf16_fly_string, WebIDL::OperationReturnsPromise::No)),
+        .pull = TRY(WebIDL::property_to_callback(vm, value, "pull"_utf16_fly_string, WebIDL::OperationReturnsPromise::Yes)),
+        .cancel = TRY(WebIDL::property_to_callback(vm, value, "cancel"_utf16_fly_string, WebIDL::OperationReturnsPromise::Yes)),
         .type = {},
         .auto_allocate_chunk_size = {},
     };
 
-    auto type_value = TRY(object.get("type"_fly_string));
+    auto type_value = TRY(object.get("type"_utf16_fly_string));
     if (!type_value.is_undefined()) {
         auto type_string = TRY(type_value.to_string(vm));
         if (type_string == "bytes"sv)
@@ -37,8 +37,8 @@ JS::ThrowCompletionOr<UnderlyingSource> UnderlyingSource::from_value(JS::VM& vm,
             return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Unknown stream type '{}'", type_value)));
     }
 
-    if (TRY(object.has_property("autoAllocateChunkSize"_fly_string))) {
-        auto value = TRY(object.get("autoAllocateChunkSize"_fly_string));
+    if (TRY(object.has_property("autoAllocateChunkSize"_utf16_fly_string))) {
+        auto value = TRY(object.get("autoAllocateChunkSize"_utf16_fly_string));
         underlying_source.auto_allocate_chunk_size = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLongLong>(vm, value, WebIDL::EnforceRange::Yes));
     }
 

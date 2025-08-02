@@ -18,15 +18,15 @@ JS::ThrowCompletionOr<UnderlyingSink> UnderlyingSink::from_value(JS::VM& vm, JS:
     auto& object = value.as_object();
 
     UnderlyingSink underlying_sink {
-        .start = TRY(WebIDL::property_to_callback(vm, value, "start"_fly_string, WebIDL::OperationReturnsPromise::No)),
-        .write = TRY(WebIDL::property_to_callback(vm, value, "write"_fly_string, WebIDL::OperationReturnsPromise::Yes)),
-        .close = TRY(WebIDL::property_to_callback(vm, value, "close"_fly_string, WebIDL::OperationReturnsPromise::Yes)),
-        .abort = TRY(WebIDL::property_to_callback(vm, value, "abort"_fly_string, WebIDL::OperationReturnsPromise::Yes)),
+        .start = TRY(WebIDL::property_to_callback(vm, value, "start"_utf16_fly_string, WebIDL::OperationReturnsPromise::No)),
+        .write = TRY(WebIDL::property_to_callback(vm, value, "write"_utf16_fly_string, WebIDL::OperationReturnsPromise::Yes)),
+        .close = TRY(WebIDL::property_to_callback(vm, value, "close"_utf16_fly_string, WebIDL::OperationReturnsPromise::Yes)),
+        .abort = TRY(WebIDL::property_to_callback(vm, value, "abort"_utf16_fly_string, WebIDL::OperationReturnsPromise::Yes)),
         .type = {},
     };
 
-    if (TRY(object.has_property("type"_fly_string)))
-        underlying_sink.type = TRY(object.get("type"_fly_string));
+    if (TRY(object.has_property("type"_utf16_fly_string)))
+        underlying_sink.type = TRY(object.get("type"_utf16_fly_string));
 
     return underlying_sink;
 }

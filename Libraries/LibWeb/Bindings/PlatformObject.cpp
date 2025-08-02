@@ -41,7 +41,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
 
     // 1. If P is not a supported property name of O, then return false.
     // NOTE: This is in it's own variable to enforce the type.
-    if (!is_supported_property_name(property_key.to_string()))
+    if (!is_supported_property_name(property_key.to_string().to_utf8_but_should_be_ported_to_utf16()))
         return false;
 
     // 2. If O has an own property named P, then return false.
@@ -118,7 +118,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
         // 1. If the result of running the named property visibility algorithm with property name P and object O is true, then:
         if (TRY(is_named_property_exposed_on_object(property_name))) {
             // FIXME: It's unfortunate that this is done twice, once in is_named_property_exposed_on_object and here.
-            auto property_name_string = property_name.to_string();
+            auto property_name_string = property_name.to_string().to_utf8_but_should_be_ported_to_utf16();
 
             // 1. Let operation be the operation used to declare the named property getter.
             // 2. Let value be an uninitialized variable.
@@ -236,7 +236,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
         // 2. If O implements an interface with a named property setter and P is a String, then:
         if (m_legacy_platform_object_flags->has_named_property_setter && property_name.is_string()) {
             // 1. Invoke the named property setter on O with P and V.
-            TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(property_name.as_string(), value); }));
+            TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(property_name.as_string().view().to_utf8_but_should_be_ported_to_utf16(), value); }));
 
             // 2. Return true.
             return true;
@@ -282,7 +282,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
     // 2. If O supports named properties, O does not implement an interface with the [Global] extended attribute, P is a String, and P is not an unforgeable property name of O, then:
     // FIXME: Check if P is not an unforgeable property name of O
     if (m_legacy_platform_object_flags->supports_named_properties && !m_legacy_platform_object_flags->has_global_interface_extended_attribute && property_name.is_string()) {
-        auto const property_name_as_string = property_name.as_string();
+        auto const property_name_as_string = property_name.as_string().view().to_utf8_but_should_be_ported_to_utf16();
 
         // 1. Let creating be true if P is not a supported property name, and false otherwise.
         bool creating = !is_supported_property_name(property_name_as_string);
@@ -351,7 +351,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey cons
             return false;
 
         // FIXME: It's unfortunate that this is done twice, once in is_named_property_exposed_on_object and here.
-        auto property_name_string = property_name.to_string();
+        auto property_name_string = property_name.to_string().to_utf8_but_should_be_ported_to_utf16();
 
         // 2. Let operation be the operation used to declare the named property deleter.
         // 3. If operation was defined without an identifier, then:
@@ -423,7 +423,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     // 3. If O supports named properties, then for each P of O’s supported property names that is visible according to the named property visibility algorithm, append P to keys.
     if (m_legacy_platform_object_flags->supports_named_properties) {
         for (auto& named_property : supported_property_names()) {
-            if (TRY(is_named_property_exposed_on_object(named_property)))
+            if (TRY(is_named_property_exposed_on_object(Utf16FlyString::from_utf8(named_property))))
                 keys.append(JS::PrimitiveString::create(vm, named_property));
         }
     }

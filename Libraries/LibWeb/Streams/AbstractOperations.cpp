@@ -97,7 +97,7 @@ static void add_message_event_listener(JS::Realm& realm, HTML::MessagePort& port
         return JS::js_undefined();
     };
 
-    auto function = JS::NativeFunction::create(realm, move(behavior), 1, FlyString {}, &realm);
+    auto function = JS::NativeFunction::create(realm, move(behavior), 1, Utf16FlyString {}, &realm);
     auto callback = realm.heap().allocate<WebIDL::CallbackType>(function, realm);
     auto listener = DOM::IDLEventListener::create(realm, callback);
 

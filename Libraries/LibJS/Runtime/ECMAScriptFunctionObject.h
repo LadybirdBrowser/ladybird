@@ -39,7 +39,7 @@ public:
     SharedFunctionInstanceData(
         VM& vm,
         FunctionKind,
-        FlyString name,
+        Utf16FlyString name,
         i32 function_length,
         NonnullRefPtr<FunctionParameters const>,
         NonnullRefPtr<Statement const> ecmascript_code,
@@ -52,7 +52,7 @@ public:
     RefPtr<FunctionParameters const> m_formal_parameters; // [[FormalParameters]]
     RefPtr<Statement const> m_ecmascript_code;            // [[ECMAScriptCode]]
 
-    FlyString m_name;
+    Utf16FlyString m_name;
     ByteString m_source_text; // [[SourceText]]
 
     Vector<LocalVariable> m_local_variables_names;
@@ -81,13 +81,13 @@ public:
         No,
         Yes,
     };
-    HashMap<FlyString, ParameterIsLocal> m_parameter_names;
+    HashMap<Utf16FlyString, ParameterIsLocal> m_parameter_names;
     Vector<FunctionDeclaration const&> m_functions_to_initialize;
     bool m_arguments_object_needed { false };
     bool m_function_environment_needed { false };
     bool m_uses_this { false };
     Vector<VariableNameToInitialize> m_var_names_to_initialize_binding;
-    Vector<FlyString> m_function_names_to_initialize_binding;
+    Vector<Utf16FlyString> m_function_names_to_initialize_binding;
 
     size_t m_function_environment_bindings_count { 0 };
     size_t m_var_environment_bindings_count { 0 };
@@ -104,12 +104,12 @@ class JS_API ECMAScriptFunctionObject final : public FunctionObject {
     GC_DECLARE_ALLOCATOR(ECMAScriptFunctionObject);
 
 public:
-    static GC::Ref<ECMAScriptFunctionObject> create(Realm&, FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
-    static GC::Ref<ECMAScriptFunctionObject> create(Realm&, FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
+    static GC::Ref<ECMAScriptFunctionObject> create(Realm&, Utf16FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
+    static GC::Ref<ECMAScriptFunctionObject> create(Realm&, Utf16FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
 
     [[nodiscard]] static GC::Ref<ECMAScriptFunctionObject> create_from_function_node(
         FunctionNode const&,
-        FlyString name,
+        Utf16FlyString name,
         GC::Ref<Realm>,
         GC::Ptr<Environment> parent_environment,
         GC::Ptr<PrivateEnvironment>);
@@ -129,8 +129,8 @@ public:
     Statement const& ecmascript_code() const { return *shared_data().m_ecmascript_code; }
     [[nodiscard]] virtual FunctionParameters const& formal_parameters() const override { return *shared_data().m_formal_parameters; }
 
-    FlyString const& name() const { return shared_data().m_name; }
-    void set_name(FlyString const& name);
+    Utf16FlyString const& name() const { return shared_data().m_name; }
+    void set_name(Utf16FlyString const& name);
 
     void set_is_class_constructor() { const_cast<SharedFunctionInstanceData&>(shared_data()).m_is_class_constructor = true; }
 

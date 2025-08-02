@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/StringView.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
@@ -16,14 +16,14 @@ namespace JS {
 
 struct PrivateName {
     PrivateName() = default;
-    PrivateName(u64 unique_id, FlyString description)
+    PrivateName(u64 unique_id, Utf16FlyString description)
         : unique_id(unique_id)
         , description(move(description))
     {
     }
 
     u64 unique_id { 0 };
-    FlyString description;
+    Utf16FlyString description;
 
     bool operator==(PrivateName const& rhs) const;
 };
@@ -33,9 +33,9 @@ class PrivateEnvironment : public Cell {
     GC_DECLARE_ALLOCATOR(PrivateEnvironment);
 
 public:
-    PrivateName resolve_private_identifier(FlyString const& identifier) const;
+    PrivateName resolve_private_identifier(Utf16FlyString const& identifier) const;
 
-    void add_private_name(FlyString description);
+    void add_private_name(Utf16FlyString description);
 
     PrivateEnvironment* outer_environment() { return m_outer_environment; }
     PrivateEnvironment const* outer_environment() const { return m_outer_environment; }
@@ -45,7 +45,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    auto find_private_name(FlyString const& description) const
+    auto find_private_name(Utf16FlyString const& description) const
     {
         return m_private_names.find_if([&](PrivateName const& private_name) {
             return private_name.description == description;

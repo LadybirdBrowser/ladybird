@@ -22,13 +22,13 @@ JS::ThrowCompletionOr<Web::HTML::CanvasRenderingContext2DSettings> Web::HTML::Ca
 
     auto& value_object = value.as_object();
 
-    JS::Value alpha = TRY(value_object.get("alpha"_fly_string));
+    JS::Value alpha = TRY(value_object.get("alpha"_utf16_fly_string));
     settings.alpha = alpha.is_undefined() ? true : alpha.to_boolean();
 
-    JS::Value desynchronized = TRY(value_object.get("desynchronized"_fly_string));
+    JS::Value desynchronized = TRY(value_object.get("desynchronized"_utf16_fly_string));
     settings.desynchronized = desynchronized.is_undefined() ? false : desynchronized.to_boolean();
 
-    JS::Value color_space = TRY(value_object.get("colorSpace"_fly_string));
+    JS::Value color_space = TRY(value_object.get("colorSpace"_utf16_fly_string));
     if (!color_space.is_undefined()) {
         auto color_space_string = TRY(color_space.to_string(vm));
         if (color_space_string == "srgb"sv)
@@ -39,7 +39,7 @@ JS::ThrowCompletionOr<Web::HTML::CanvasRenderingContext2DSettings> Web::HTML::Ca
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, color_space_string, "colorSpace");
     }
 
-    JS::Value color_type = TRY(value_object.get("colorType"_fly_string));
+    JS::Value color_type = TRY(value_object.get("colorType"_utf16_fly_string));
     if (!color_type.is_undefined()) {
         auto color_type_string = TRY(color_type.to_string(vm));
         if (color_type_string == "unorm8"sv)
@@ -50,7 +50,7 @@ JS::ThrowCompletionOr<Web::HTML::CanvasRenderingContext2DSettings> Web::HTML::Ca
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, color_type_string, "colorType");
     }
 
-    JS::Value will_read_frequently = TRY(value_object.get("willReadFrequently"_fly_string));
+    JS::Value will_read_frequently = TRY(value_object.get("willReadFrequently"_utf16_fly_string));
     settings.will_read_frequently = will_read_frequently.is_undefined() ? false : will_read_frequently.to_boolean();
 
     return settings;

@@ -449,6 +449,7 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
     GC_DEFINE_ALLOCATOR(ClassName);                                                                                         \
     GC_DEFINE_ALLOCATOR(PrototypeName);                                                                                     \
     GC_DEFINE_ALLOCATOR(ConstructorName);                                                                                   \
+                                                                                                                            \
     ThrowCompletionOr<GC::Ref<ClassName>> ClassName::create(Realm& realm, u32 length, FunctionObject& new_target)           \
     {                                                                                                                       \
         auto* prototype = TRY(get_prototype_from_constructor(realm.vm(), new_target, &Intrinsics::snake_name##_prototype)); \
@@ -480,7 +481,7 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
     {                                                                                                                       \
     }                                                                                                                       \
                                                                                                                             \
-    FlyString const& ClassName::element_name() const                                                                        \
+    Utf16FlyString const& ClassName::element_name() const                                                                   \
     {                                                                                                                       \
         return vm().names.ClassName.as_string();                                                                            \
     }                                                                                                                       \

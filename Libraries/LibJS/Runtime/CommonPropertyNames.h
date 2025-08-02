@@ -607,35 +607,35 @@ namespace JS {
     P(zonedDateTimeISO)
 
 struct CommonPropertyNames {
-    PropertyKey and_ { "and"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey catch_ { "catch"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey delete_ { "delete"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey for_ { "for"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey or_ { "or"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey register_ { "register"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey return_ { "return"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey throw_ { "throw"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey try_ { "try"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey union_ { "union"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey xor_ { "xor"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey inputAlias { "$_"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey lastMatchAlias { "$&"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey lastParenAlias { "$+"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey leftContextAlias { "$`"_fly_string, PropertyKey::StringMayBeNumber::No };
-    PropertyKey rightContextAlias { "$'"_fly_string, PropertyKey::StringMayBeNumber::No };
-#define __ENUMERATE(x) PropertyKey x { #x##_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey and_ { "and"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey catch_ { "catch"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey delete_ { "delete"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey for_ { "for"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey or_ { "or"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey register_ { "register"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey return_ { "return"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey throw_ { "throw"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey try_ { "try"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey union_ { "union"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey xor_ { "xor"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey inputAlias { "$_"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey lastMatchAlias { "$&"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey lastParenAlias { "$+"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey leftContextAlias { "$`"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey rightContextAlias { "$'"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+#define __ENUMERATE(x) PropertyKey x { #x##_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     ENUMERATE_STANDARD_PROPERTY_NAMES(__ENUMERATE)
 #undef __ENUMERATE
-#define __JS_ENUMERATE(x, a, b, c, t) PropertyKey x { #x##_fly_string, PropertyKey::StringMayBeNumber::No };
+#define __JS_ENUMERATE(x, a, b, c, t) PropertyKey x { #x##_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     JS_ENUMERATE_BUILTIN_TYPES
 #undef __JS_ENUMERATE
-#define __JS_ENUMERATE(x, a, b, c) PropertyKey x { #x##_fly_string, PropertyKey::StringMayBeNumber::No };
+#define __JS_ENUMERATE(x, a, b, c) PropertyKey x { #x##_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     JS_ENUMERATE_INTL_OBJECTS
 #undef __JS_ENUMERATE
-#define __JS_ENUMERATE(x, a, b, c) PropertyKey x { #x##_fly_string, PropertyKey::StringMayBeNumber::No };
+#define __JS_ENUMERATE(x, a, b, c) PropertyKey x { #x##_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     JS_ENUMERATE_TEMPORAL_OBJECTS
 #undef __JS_ENUMERATE
-#define __JS_ENUMERATE(x, a) PropertyKey x { #x##_fly_string, PropertyKey::StringMayBeNumber::No };
+#define __JS_ENUMERATE(x, a) PropertyKey x { #x##_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     JS_ENUMERATE_WELL_KNOWN_SYMBOLS
 #undef __JS_ENUMERATE
 };

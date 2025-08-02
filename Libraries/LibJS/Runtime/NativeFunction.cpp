@@ -68,7 +68,7 @@ GC::Ref<NativeFunction> NativeFunction::create(Realm& allocating_realm, Function
     return function;
 }
 
-GC::Ref<NativeFunction> NativeFunction::create(Realm& realm, FlyString const& name, Function<ThrowCompletionOr<Value>(VM&)> function)
+GC::Ref<NativeFunction> NativeFunction::create(Realm& realm, Utf16FlyString const& name, Function<ThrowCompletionOr<Value>(VM&)> function)
 {
     return realm.create<NativeFunction>(name, move(function), realm.intrinsics().function_prototype());
 }
@@ -91,7 +91,7 @@ NativeFunction::NativeFunction(Object& prototype)
 {
 }
 
-NativeFunction::NativeFunction(FlyString name, AK::Function<ThrowCompletionOr<Value>(VM&)> native_function, Object& prototype)
+NativeFunction::NativeFunction(Utf16FlyString name, AK::Function<ThrowCompletionOr<Value>(VM&)> native_function, Object& prototype)
     : FunctionObject(prototype)
     , m_name(move(name))
     , m_native_function(move(native_function))
@@ -99,7 +99,7 @@ NativeFunction::NativeFunction(FlyString name, AK::Function<ThrowCompletionOr<Va
 {
 }
 
-NativeFunction::NativeFunction(FlyString name, Object& prototype)
+NativeFunction::NativeFunction(Utf16FlyString name, Object& prototype)
     : FunctionObject(prototype)
     , m_name(move(name))
     , m_realm(&prototype.shape().realm())

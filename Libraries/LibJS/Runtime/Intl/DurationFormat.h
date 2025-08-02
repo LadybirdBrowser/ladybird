@@ -179,7 +179,7 @@ static constexpr auto duration_instances_components = to_array<DurationInstanceC
 struct DurationFormatPart {
     StringView type;
     Utf16String value;
-    StringView unit;
+    Utf16View unit;
 };
 
 ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options(VM&, DurationFormat::Unit unit, Object const& options, DurationFormat::Style base_style, ReadonlySpan<StringView> styles_list, DurationFormat::ValueStyle digital_base, Optional<DurationFormat::ValueStyle> previous_style, bool two_digit_hours);

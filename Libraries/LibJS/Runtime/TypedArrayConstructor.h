@@ -23,7 +23,7 @@ public:
     virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 protected:
-    TypedArrayConstructor(FlyString const& name, Object& prototype);
+    TypedArrayConstructor(Utf16FlyString const& name, Object& prototype);
 
 private:
     virtual bool has_constructor() const override { return true; }

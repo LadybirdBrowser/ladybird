@@ -78,7 +78,7 @@ static JsonValue serialize_js_value(JS::Realm& realm, JS::Value value)
     }
 
     if (value.is_symbol())
-        return MUST(value.as_symbol().descriptive_string());
+        return value.as_symbol().descriptive_string().to_utf8();
 
     // FIXME: Handle serialization of object grips. For now, we stringify the object.
     if (value.is_object()) {

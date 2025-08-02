@@ -54,7 +54,7 @@ ThrowCompletionOr<Value> StringConstructor::call()
     // 2. Else,
     // a. If NewTarget is undefined and value is a Symbol, return SymbolDescriptiveString(value).
     if (value.is_symbol())
-        return PrimitiveString::create(vm, MUST(value.as_symbol().descriptive_string()));
+        return PrimitiveString::create(vm, value.as_symbol().descriptive_string());
 
     // b. Let s be ? ToString(value).
     // 3. If NewTarget is undefined, return s.

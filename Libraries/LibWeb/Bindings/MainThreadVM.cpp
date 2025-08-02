@@ -411,8 +411,8 @@ void initialize_main_thread_vm(AgentType type)
 
         // 5. Return « Record { [[Key]]: "url", [[Value]]: urlString }, Record { [[Key]]: "resolve", [[Value]]: resolveFunction } ».
         HashMap<JS::PropertyKey, JS::Value> meta;
-        meta.set("url"_fly_string, JS::PrimitiveString::create(vm, move(url_string)));
-        meta.set("resolve"_fly_string, resolve_function);
+        meta.set("url"_utf16_fly_string, JS::PrimitiveString::create(vm, move(url_string)));
+        meta.set("resolve"_utf16_fly_string, resolve_function);
 
         return meta;
     };

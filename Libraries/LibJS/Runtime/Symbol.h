@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Export.h>
 #include <LibJS/Heap/Cell.h>
@@ -19,20 +19,20 @@ class JS_API Symbol final : public Cell {
     GC_DECLARE_ALLOCATOR(Symbol);
 
 public:
-    [[nodiscard]] static GC::Ref<Symbol> create(VM&, Optional<String> description, bool is_global);
+    [[nodiscard]] static GC::Ref<Symbol> create(VM&, Optional<Utf16String> description, bool is_global);
 
     virtual ~Symbol() = default;
 
-    Optional<String> const& description() const { return m_description; }
+    Optional<Utf16String> const& description() const { return m_description; }
     bool is_global() const { return m_is_global; }
 
-    ErrorOr<String> descriptive_string() const;
-    Optional<String> key() const;
+    Utf16String descriptive_string() const;
+    Optional<Utf16String> key() const;
 
 private:
-    Symbol(Optional<String>, bool);
+    Symbol(Optional<Utf16String>, bool);
 
-    Optional<String> m_description;
+    Optional<Utf16String> m_description;
     bool m_is_global;
 };
 

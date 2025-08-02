@@ -87,9 +87,9 @@ void initialize(JS::Object& self, JS::Realm&)
     // 2.2. ! DefineMethodProperty(namespaceObject, error, constructor, false).
     u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
 
-#define __WASM_ENUMERATE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)               \
-    namespace_object.define_intrinsic_accessor(#ClassName##_fly_string, attr, [](auto& realm) -> JS::Value { \
-        return &Bindings::ensure_web_constructor<PrototypeName>(realm, FullClassName##_fly_string);          \
+#define __WASM_ENUMERATE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)                     \
+    namespace_object.define_intrinsic_accessor(#ClassName##_utf16_fly_string, attr, [](auto& realm) -> JS::Value { \
+        return &Bindings::ensure_web_constructor<PrototypeName>(realm, FullClassName##_fly_string);                \
     });
     WASM_ENUMERATE_NATIVE_ERRORS
 #undef __WASM_ENUMERATE
@@ -233,7 +233,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
             dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import_name.module, import_name.name);
 
             // 3.1. Let o be ? Get(importObject, moduleName).
-            auto value = TRY(import_object->get(MUST(String::from_byte_string(import_name.module))));
+            auto value = TRY(import_object->get(Utf16FlyString::from_utf8(import_name.module)));
 
             // 3.2. If o is not an Object, throw a TypeError exception.
             if (!value.is_object())
@@ -241,7 +241,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
             auto const& object = value.as_object();
 
             // 3.3. Let v be ? Get(o, componentName).
-            auto import_ = TRY(object.get(MUST(String::from_byte_string(import_name.name))));
+            auto import_ = TRY(object.get(Utf16FlyString::from_utf8(import_name.name)));
 
             TRY(import_name.type.visit(
                 // 3.4. If externtype is of the form func functype,
@@ -439,23 +439,23 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
 
 GC_DEFINE_ALLOCATOR(ExportedWasmFunction);
 
-GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, FlyString const& name, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address)
+GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, Utf16FlyString name, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address)
 {
     auto prototype = realm.intrinsics().function_prototype();
     return realm.create<ExportedWasmFunction>(
-        name,
+        move(name),
         move(behavior),
         exported_address,
         prototype);
 }
 
-ExportedWasmFunction::ExportedWasmFunction(FlyString name, AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address, JS::Object& prototype)
+ExportedWasmFunction::ExportedWasmFunction(Utf16FlyString name, AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address, JS::Object& prototype)
     : NativeFunction(move(name), move(behavior), prototype)
     , m_exported_address(exported_address)
 {
 }
 
-JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress address, String const& name, Instance* instance)
+JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress address, Utf16FlyString name, Instance* instance)
 {
     auto& realm = *vm.current_realm();
     Optional<Wasm::FunctionType> type;
@@ -466,7 +466,7 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
 
     auto function = ExportedWasmFunction::create(
         realm,
-        name,
+        move(name),
         [address, type = type.release_value(), instance](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             (void)instance;
             auto& realm = *vm.current_realm();
@@ -619,7 +619,7 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
             [](Wasm::HostFunction& host_function) {
                 return host_function.name();
             });
-        return create_native_function(vm, address, MUST(String::from_byte_string(name)));
+        return create_native_function(vm, address, Utf16FlyString::from_utf8(name));
     }
     case Wasm::ValueType::ExternReference: {
         auto ref_ = wasm_value.to<Wasm::Reference>();
@@ -760,8 +760,8 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebID
 
             // 1. Let result be the WebAssemblyInstantiatedSource value «[ "module" → module, "instance" → instance ]».
             auto result = JS::Object::create(realm, nullptr);
-            result->define_direct_property("module"_fly_string, module, JS::default_attributes);
-            result->define_direct_property("instance"_fly_string, instance, JS::default_attributes);
+            result->define_direct_property("module"_utf16_fly_string, module, JS::default_attributes);
+            result->define_direct_property("instance"_utf16_fly_string, instance, JS::default_attributes);
 
             // 2. Resolve promise with result.
             WebIDL::resolve_promise(realm, promise, result);
@@ -966,7 +966,7 @@ static JS::ThrowCompletionOr<GC::Ref<ClassName>> wasm_ordinary_create_from_const
 #define DEFINE_WASM_NATIVE_ERROR_CONSTRUCTOR(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)                        \
     GC_DEFINE_ALLOCATOR(ConstructorName);                                                                                                 \
     ConstructorName::ConstructorName(JS::Realm& realm)                                                                                    \
-        : NativeFunction(#ClassName##_string, *realm.intrinsics().error_constructor())                                                    \
+        : NativeFunction(#ClassName##_utf16_fly_string, *realm.intrinsics().error_constructor())                                          \
     {                                                                                                                                     \
     }                                                                                                                                     \
                                                                                                                                           \

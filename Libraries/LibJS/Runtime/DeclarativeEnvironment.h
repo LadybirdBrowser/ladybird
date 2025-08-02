@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/HashMap.h>
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Environment.h>
@@ -20,7 +20,7 @@ class DeclarativeEnvironment : public Environment {
     GC_DECLARE_ALLOCATOR(DeclarativeEnvironment);
 
     struct Binding {
-        FlyString name;
+        Utf16FlyString name;
         Value value;
         bool strict { false };
         bool mutable_ { false };
@@ -33,21 +33,21 @@ public:
 
     virtual ~DeclarativeEnvironment() override = default;
 
-    virtual ThrowCompletionOr<bool> has_binding(FlyString const& name, Optional<size_t>* = nullptr) const override final;
-    virtual ThrowCompletionOr<void> create_mutable_binding(VM&, FlyString const& name, bool can_be_deleted) override final;
-    virtual ThrowCompletionOr<void> create_immutable_binding(VM&, FlyString const& name, bool strict) override final;
-    virtual ThrowCompletionOr<void> initialize_binding(VM&, FlyString const& name, Value, InitializeBindingHint) override final;
-    virtual ThrowCompletionOr<void> set_mutable_binding(VM&, FlyString const& name, Value, bool strict) override final;
-    virtual ThrowCompletionOr<Value> get_binding_value(VM&, FlyString const& name, bool strict) override;
-    virtual ThrowCompletionOr<bool> delete_binding(VM&, FlyString const& name) override;
+    virtual ThrowCompletionOr<bool> has_binding(Utf16FlyString const& name, Optional<size_t>* = nullptr) const override final;
+    virtual ThrowCompletionOr<void> create_mutable_binding(VM&, Utf16FlyString const& name, bool can_be_deleted) override final;
+    virtual ThrowCompletionOr<void> create_immutable_binding(VM&, Utf16FlyString const& name, bool strict) override final;
+    virtual ThrowCompletionOr<void> initialize_binding(VM&, Utf16FlyString const& name, Value, InitializeBindingHint) override final;
+    virtual ThrowCompletionOr<void> set_mutable_binding(VM&, Utf16FlyString const& name, Value, bool strict) override final;
+    virtual ThrowCompletionOr<Value> get_binding_value(VM&, Utf16FlyString const& name, bool strict) override;
+    virtual ThrowCompletionOr<bool> delete_binding(VM&, Utf16FlyString const& name) override;
 
-    void initialize_or_set_mutable_binding(Badge<ScopeNode>, VM&, FlyString const& name, Value value);
-    ThrowCompletionOr<void> initialize_or_set_mutable_binding(VM&, FlyString const& name, Value value);
+    void initialize_or_set_mutable_binding(Badge<ScopeNode>, VM&, Utf16FlyString const& name, Value value);
+    ThrowCompletionOr<void> initialize_or_set_mutable_binding(VM&, Utf16FlyString const& name, Value value);
 
     // This is not a method defined in the spec! Do not use this in any LibJS (or other spec related) code.
-    [[nodiscard]] Vector<FlyString> bindings() const
+    [[nodiscard]] Vector<Utf16FlyString> bindings() const
     {
-        Vector<FlyString> names;
+        Vector<Utf16FlyString> names;
         names.ensure_capacity(m_bindings.size());
 
         for (auto const& binding : m_bindings)
@@ -114,7 +114,7 @@ protected:
 
     friend class ModuleEnvironment;
 
-    virtual Optional<BindingAndIndex> find_binding_and_index(FlyString const& name) const
+    virtual Optional<BindingAndIndex> find_binding_and_index(Utf16FlyString const& name) const
     {
         if (auto it = m_bindings_assoc.find(name); it != m_bindings_assoc.end()) {
             return BindingAndIndex { const_cast<Binding*>(&m_bindings.at(it->value)), it->value };
@@ -125,7 +125,7 @@ protected:
 
 private:
     Vector<Binding> m_bindings;
-    HashMap<FlyString, size_t> m_bindings_assoc;
+    HashMap<Utf16FlyString, size_t> m_bindings_assoc;
     DisposeCapability m_dispose_capability;
 
     u64 m_environment_serial_number { 0 };

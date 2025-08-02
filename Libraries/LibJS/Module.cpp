@@ -155,7 +155,7 @@ GC::Ref<Object> Module::get_module_namespace(VM& vm)
         auto exported_names = get_exported_names(vm);
 
         // b. Let unambiguousNames be a new empty List.
-        Vector<FlyString> unambiguous_names;
+        Vector<Utf16FlyString> unambiguous_names;
 
         // c. For each element name of exportedNames, do
         for (auto& name : exported_names) {
@@ -175,14 +175,14 @@ GC::Ref<Object> Module::get_module_namespace(VM& vm)
     return *namespace_;
 }
 
-Vector<FlyString> Module::get_exported_names(VM& vm)
+Vector<Utf16FlyString> Module::get_exported_names(VM& vm)
 {
     HashTable<Module const*> export_star_set;
     return get_exported_names(vm, export_star_set);
 }
 
 // 10.4.6.12 ModuleNamespaceCreate ( module, exports ), https://tc39.es/ecma262/#sec-modulenamespacecreate
-GC::Ref<Object> Module::module_namespace_create(Vector<FlyString> unambiguous_names)
+GC::Ref<Object> Module::module_namespace_create(Vector<Utf16FlyString> unambiguous_names)
 {
     auto& realm = this->realm();
 

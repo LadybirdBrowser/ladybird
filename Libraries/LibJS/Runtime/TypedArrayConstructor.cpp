@@ -13,7 +13,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(TypedArrayConstructor);
 
-TypedArrayConstructor::TypedArrayConstructor(FlyString const& name, Object& prototype)
+TypedArrayConstructor::TypedArrayConstructor(Utf16FlyString const& name, Object& prototype)
     : NativeFunction(name, prototype)
 {
 }

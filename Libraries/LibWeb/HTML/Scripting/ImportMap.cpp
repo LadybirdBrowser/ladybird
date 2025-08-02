@@ -34,8 +34,8 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
     ModuleSpecifierMap sorted_and_normalized_imports;
 
     // 4. If parsed["imports"] exists, then:
-    if (TRY(parsed_object.has_property("imports"_fly_string))) {
-        auto imports = TRY(parsed_object.get("imports"_fly_string));
+    if (TRY(parsed_object.has_property("imports"_utf16_fly_string))) {
+        auto imports = TRY(parsed_object.get("imports"_utf16_fly_string));
 
         // If parsed["imports"] is not an ordered map, then throw a TypeError indicating that the value for the "imports" top-level key needs to be a JSON object.
         if (!imports.is_object())
@@ -49,8 +49,8 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
     HashMap<URL::URL, ModuleSpecifierMap> sorted_and_normalized_scopes;
 
     // 6. If parsed["scopes"] exists, then:
-    if (TRY(parsed_object.has_property("scopes"_fly_string))) {
-        auto scopes = TRY(parsed_object.get("scopes"_fly_string));
+    if (TRY(parsed_object.has_property("scopes"_utf16_fly_string))) {
+        auto scopes = TRY(parsed_object.get("scopes"_utf16_fly_string));
 
         // If parsed["scopes"] is not an ordered map, then throw a TypeError indicating that the value for the "scopes" top-level key needs to be a JSON object.
         if (!scopes.is_object())
@@ -64,8 +64,8 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
     ModuleIntegrityMap normalized_integrity;
 
     // 8. If parsed["integrity"] exists, then:
-    if (TRY(parsed_object.has_property("integrity"_fly_string))) {
-        auto integrity = TRY(parsed_object.get("integrity"_fly_string));
+    if (TRY(parsed_object.has_property("integrity"_utf16_fly_string))) {
+        auto integrity = TRY(parsed_object.get("integrity"_utf16_fly_string));
 
         // 1. If parsed["integrity"] is not an ordered map, then throw a TypeError indicating that the value for the "integrity" top-level key needs to be a JSON object.
         if (!integrity.is_object())
@@ -77,7 +77,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
 
     // 9. If parsed's keys contains any items besides "imports", "scopes", or "integrity", then the user agent should report a warning to the console indicating that an invalid top-level key was present in the import map.
     for (auto& key : parsed_object.shape().property_table().keys()) {
-        if (key.as_string().is_one_of("imports", "scopes", "integrity"))
+        if (key.as_string().is_one_of("imports"sv, "scopes"sv, "integrity"sv))
             continue;
 
         auto& console = realm.intrinsics().console_object()->console();
@@ -127,7 +127,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         auto value = TRY(original_map.get(specifier_key.as_string()));
 
         // 1. Let normalizedSpecifierKey be the result of normalizing a specifier key given specifierKey and baseURL.
-        auto normalized_specifier_key = normalize_specifier_key(realm, specifier_key.as_string(), base_url);
+        auto normalized_specifier_key = normalize_specifier_key(realm, specifier_key.as_string().view().to_utf8_but_should_be_ported_to_utf16(), base_url);
 
         // 2. If normalizedSpecifierKey is null, then continue.
         if (!normalized_specifier_key.has_value())
@@ -163,7 +163,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         }
 
         // 6. If specifierKey ends with U+002F (/), and the serialization of addressURL does not end with U+002F (/), then:
-        if (specifier_key.as_string().bytes_as_string_view().ends_with("/"sv) && !address_url->serialize().ends_with('/')) {
+        if (specifier_key.as_string().view().ends_with("/"sv) && !address_url->serialize().ends_with('/')) {
             // 1. The user agent may report a warning to the console indicating that an invalid address was given for the specifier key specifierKey; since specifierKey ends with a slash, the address needs to as well.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
@@ -199,7 +199,7 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, String::formatted("The value of the scope with the prefix '{}' needs to be a JSON object.", scope_prefix.as_string()).release_value_but_fixme_should_propagate_errors() };
 
         // 2. Let scopePrefixURL be the result of URL parsing scopePrefix with baseURL.
-        auto scope_prefix_url = DOMURL::parse(scope_prefix.as_string(), base_url);
+        auto scope_prefix_url = DOMURL::parse(scope_prefix.as_string().view().to_utf8_but_should_be_ported_to_utf16(), base_url);
 
         // 3. If scopePrefixURL is failure, then:
         if (!scope_prefix_url.has_value()) {
@@ -232,7 +232,7 @@ WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm
         auto value = TRY(original_map.get(key.as_string()));
 
         // 1. Let resolvedURL be the result of resolving a URL-like module specifier given key and baseURL.
-        auto resolved_url = resolve_url_like_module_specifier(key.as_string().to_string().to_byte_string(), base_url);
+        auto resolved_url = resolve_url_like_module_specifier(key.as_string().view().to_utf8_but_should_be_ported_to_utf16(), base_url);
 
         // 2. If resolvedURL is null, then:
         if (!resolved_url.has_value()) {

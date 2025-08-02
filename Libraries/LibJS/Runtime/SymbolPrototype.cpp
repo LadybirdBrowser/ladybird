@@ -79,7 +79,7 @@ JS_DEFINE_NATIVE_FUNCTION(SymbolPrototype::to_string)
     auto symbol = TRY(this_symbol_value(vm, vm.this_value()));
 
     // 2. Return SymbolDescriptiveString(sym).
-    return PrimitiveString::create(vm, TRY_OR_THROW_OOM(vm, symbol->descriptive_string()));
+    return PrimitiveString::create(vm, symbol->descriptive_string());
 }
 
 // 20.4.3.4 Symbol.prototype.valueOf ( ), https://tc39.es/ecma262/#sec-symbol.prototype.valueof

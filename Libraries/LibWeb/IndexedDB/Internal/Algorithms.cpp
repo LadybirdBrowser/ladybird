@@ -963,7 +963,7 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
             if (!value.is_object())
                 return Error::from_string_literal("Value is not an object during key path evaluation");
 
-            auto identifier_property = String::from_utf8_without_validation(identifier.bytes());
+            auto identifier_property = Utf16String::from_utf8_without_validation(identifier.bytes());
 
             // 2. Let hop be ! HasOwnProperty(value, identifier).
             auto hop = MUST(value.as_object().has_own_property(identifier_property));
@@ -1020,19 +1020,21 @@ bool check_that_a_key_could_be_injected_into_a_value(JS::Realm& realm, JS::Value
 
     // 4. For each remaining identifier of identifiers, if any:
     for (auto const& identifier : identifiers) {
+        auto identifier_utf16 = Utf16FlyString::from_utf8(identifier);
+
         // 1. If value is not an Object or an Array, return false.
         if (!(value.is_object() || MUST(value.is_array(realm.vm()))))
             return false;
 
         // 2. Let hop be ! HasOwnProperty(value, identifier).
-        auto hop = MUST(value.as_object().has_own_property(identifier));
+        auto hop = MUST(value.as_object().has_own_property(identifier_utf16));
 
         // 3. If hop is false, return true.
         if (!hop)
             return true;
 
         // 4. Let value be ! Get(value, identifier).
-        value = MUST(value.as_object().get(identifier));
+        value = MUST(value.as_object().get(identifier_utf16));
     }
 
     // 5. Return true if value is an Object or an Array, or false otherwise.
@@ -1277,11 +1279,13 @@ void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value valu
 
     // 4. For each remaining identifier of identifiers:
     for (auto const& identifier : identifiers) {
+        auto identifier_utf16 = Utf16FlyString::from_utf8(identifier);
+
         // 1. Assert: value is an Object or an Array.
         VERIFY(value.is_object() || MUST(value.is_array(realm.vm())));
 
         // 2. Let hop be ! HasOwnProperty(value, identifier).
-        auto hop = MUST(value.as_object().has_own_property(identifier));
+        auto hop = MUST(value.as_object().has_own_property(identifier_utf16));
 
         // 3. If hop is false, then:
         if (!hop) {
@@ -1289,14 +1293,14 @@ void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value valu
             auto o = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
             // 2. Let status be CreateDataProperty(value, identifier, o).
-            auto status = MUST(value.as_object().create_data_property(identifier, o));
+            auto status = MUST(value.as_object().create_data_property(identifier_utf16, o));
 
             // 3. Assert: status is true.
             VERIFY(status);
         }
 
         // 4. Let value be ! Get(value, identifier).
-        value = MUST(value.as_object().get(identifier));
+        value = MUST(value.as_object().get(identifier_utf16));
     }
 
     // 5. Assert: value is an Object or an Array.
@@ -1306,7 +1310,7 @@ void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value valu
     auto key_value = convert_a_key_to_a_value(realm, key);
 
     // 7. Let status be CreateDataProperty(value, last, keyValue).
-    auto status = MUST(value.as_object().create_data_property(last, key_value));
+    auto status = MUST(value.as_object().create_data_property(Utf16FlyString::from_utf8(last), key_value));
 
     // 8. Assert: status is true.
     VERIFY(status);

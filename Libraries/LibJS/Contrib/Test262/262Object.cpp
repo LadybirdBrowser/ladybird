@@ -36,15 +36,15 @@ void $262Object::initialize(Realm& realm)
     m_is_htmldda = realm.create<IsHTMLDDA>(realm);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
-    define_native_function(realm, "clearKeptObjects"_fly_string, clear_kept_objects, 0, attr);
-    define_native_function(realm, "createRealm"_fly_string, create_realm, 0, attr);
-    define_native_function(realm, "detachArrayBuffer"_fly_string, detach_array_buffer, 1, attr);
-    define_native_function(realm, "evalScript"_fly_string, eval_script, 1, attr);
+    define_native_function(realm, "clearKeptObjects"_utf16_fly_string, clear_kept_objects, 0, attr);
+    define_native_function(realm, "createRealm"_utf16_fly_string, create_realm, 0, attr);
+    define_native_function(realm, "detachArrayBuffer"_utf16_fly_string, detach_array_buffer, 1, attr);
+    define_native_function(realm, "evalScript"_utf16_fly_string, eval_script, 1, attr);
 
-    define_direct_property("agent"_fly_string, m_agent, attr);
-    define_direct_property("gc"_fly_string, realm.global_object().get_without_side_effects("gc"_fly_string), attr);
-    define_direct_property("global"_fly_string, &realm.global_object(), attr);
-    define_direct_property("IsHTMLDDA"_fly_string, m_is_htmldda, attr);
+    define_direct_property("agent"_utf16_fly_string, m_agent, attr);
+    define_direct_property("gc"_utf16_fly_string, realm.global_object().get_without_side_effects("gc"_utf16_fly_string), attr);
+    define_direct_property("global"_utf16_fly_string, &realm.global_object(), attr);
+    define_direct_property("IsHTMLDDA"_utf16_fly_string, m_is_htmldda, attr);
 }
 
 void $262Object::visit_edges(Cell::Visitor& visitor)

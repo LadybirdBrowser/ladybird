@@ -64,24 +64,24 @@ ThrowCompletionOr<Optional<String>> JSONObject::stringify_impl(VM& vm, Value val
             if (is_array) {
                 auto& replacer_object = replacer.as_object();
                 auto replacer_length = TRY(length_of_array_like(vm, replacer_object));
-                Vector<String> list;
+                Vector<Utf16String> list;
                 for (size_t i = 0; i < replacer_length; ++i) {
                     auto replacer_value = TRY(replacer_object.get(i));
-                    Optional<String> item;
+                    Optional<Utf16String> item;
                     if (replacer_value.is_string()) {
-                        item = replacer_value.as_string().utf8_string();
+                        item = replacer_value.as_string().utf16_string();
                     } else if (replacer_value.is_number()) {
-                        item = MUST(replacer_value.to_string(vm));
+                        item = MUST(replacer_value.to_utf16_string(vm));
                     } else if (replacer_value.is_object()) {
                         auto& value_object = replacer_value.as_object();
                         if (is<StringObject>(value_object) || is<NumberObject>(value_object))
-                            item = TRY(replacer_value.to_string(vm));
+                            item = TRY(replacer_value.to_utf16_string(vm));
                     }
                     if (item.has_value() && !list.contains_slow(*item)) {
                         list.append(*item);
                     }
                 }
-                state.property_list = list;
+                state.property_list = move(list);
             }
         }
     }
@@ -109,8 +109,8 @@ ThrowCompletionOr<Optional<String>> JSONObject::stringify_impl(VM& vm, Value val
     }
 
     auto wrapper = Object::create(realm, realm.intrinsics().object_prototype());
-    MUST(wrapper->create_data_property_or_throw(String {}, value));
-    return serialize_json_property(vm, state, String {}, wrapper);
+    MUST(wrapper->create_data_property_or_throw(Utf16String {}, value));
+    return serialize_json_property(vm, state, Utf16String {}, wrapper);
 }
 
 // 25.5.2 JSON.stringify ( value [ , replacer [ , space ] ] ), https://tc39.es/ecma262/#sec-json.stringify
@@ -197,7 +197,7 @@ ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, 
 
     // 8. If Type(value) is String, return QuoteJSONString(value).
     if (value.is_string())
-        return quote_json_string(value.as_string().utf8_string());
+        return quote_json_string(value.as_string().utf16_string_view());
 
     // 9. If Type(value) is Number, then
     if (value.is_number()) {
@@ -262,7 +262,7 @@ ThrowCompletionOr<String> JSONObject::serialize_json_object(VM& vm, StringifySta
     } else {
         auto property_list = TRY(object.enumerable_own_property_names(PropertyKind::Key));
         for (auto& property : property_list)
-            TRY(process_property(property.as_string().utf8_string()));
+            TRY(process_property(property.as_string().utf16_string()));
     }
     StringBuilder builder;
     if (property_strings.is_empty()) {
@@ -360,15 +360,14 @@ ThrowCompletionOr<String> JSONObject::serialize_json_array(VM& vm, StringifyStat
 }
 
 // 25.5.2.2 QuoteJSONString ( value ), https://tc39.es/ecma262/#sec-quotejsonstring
-String JSONObject::quote_json_string(String string)
+String JSONObject::quote_json_string(Utf16View const& string)
 {
     // 1. Let product be the String value consisting solely of the code unit 0x0022 (QUOTATION MARK).
     StringBuilder builder;
     builder.append('"');
 
     // 2. For each code point C of StringToCodePoints(value), do
-    auto utf_view = Utf8View(string);
-    for (auto code_point : utf_view) {
+    for (auto code_point : string) {
         // a. If C is listed in the “Code Point” column of Table 70, then
         // i. Set product to the string-concatenation of product and the escape sequence for C as specified in the “Escape Sequence” column of the corresponding row.
         switch (code_point) {
@@ -407,6 +406,7 @@ String JSONObject::quote_json_string(String string)
             }
         }
     }
+
     // 3. Set product to the string-concatenation of product and the code unit 0x0022 (QUOTATION MARK).
     builder.append('"');
 
@@ -434,7 +434,7 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::parse)
         auto root = Object::create(realm, realm.intrinsics().object_prototype());
 
         // b. Let rootName be the empty String.
-        String root_name;
+        Utf16String root_name;
 
         // c. Perform ! CreateDataPropertyOrThrow(root, rootName, unfiltered).
         MUST(root->create_data_property_or_throw(root_name, unfiltered));
@@ -492,7 +492,7 @@ Object* JSONObject::parse_json_object(VM& vm, JsonObject const& json_object)
     auto& realm = *vm.current_realm();
     auto object = Object::create(realm, realm.intrinsics().object_prototype());
     json_object.for_each_member([&](auto& key, auto& value) {
-        object->define_direct_property(key, parse_json_value(vm, value), default_attributes);
+        object->define_direct_property(Utf16String::from_utf8(key), parse_json_value(vm, value), default_attributes);
     });
     return object;
 }
@@ -532,7 +532,7 @@ ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, Object* h
         } else {
             auto property_list = TRY(value_object.enumerable_own_property_names(Object::PropertyKind::Key));
             for (auto& property_key : property_list)
-                TRY(process_property(property_key.as_string().utf8_string()));
+                TRY(process_property(property_key.as_string().utf16_string()));
         }
     }
 
