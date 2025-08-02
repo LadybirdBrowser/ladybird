@@ -51,7 +51,7 @@ protected:
 // https://drafts.css-houdini.org/css-typed-om-1/#cssoklab
 class CSSOKLab final : public CSSLabLike {
 public:
-    virtual Optional<Color> to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const&) const override;
+    virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 
     CSSOKLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
@@ -63,7 +63,7 @@ public:
 // https://drafts.css-houdini.org/css-typed-om-1/#csslab
 class CSSLab final : public CSSLabLike {
 public:
-    virtual Optional<Color> to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const&) const override;
+    virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 
     CSSLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)

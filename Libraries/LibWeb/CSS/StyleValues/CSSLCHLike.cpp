@@ -27,12 +27,12 @@ bool CSSLCHLike::equals(CSSStyleValue const& other) const
     return m_properties == other_oklch_like.m_properties;
 }
 
-Optional<Color> CSSLCH::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSLCH::to_color(ColorResolutionContext color_resolution_context) const
 {
-    auto raw_l_val = resolve_with_reference_value(m_properties.l, 100, resolution_context);
-    auto c_val = resolve_with_reference_value(m_properties.c, 150, resolution_context);
-    auto raw_h_val = resolve_hue(m_properties.h, resolution_context);
-    auto alpha_val = resolve_alpha(m_properties.alpha, resolution_context);
+    auto raw_l_val = resolve_with_reference_value(m_properties.l, 100, color_resolution_context.calculation_resolution_context);
+    auto c_val = resolve_with_reference_value(m_properties.c, 150, color_resolution_context.calculation_resolution_context);
+    auto raw_h_val = resolve_hue(m_properties.h, color_resolution_context.calculation_resolution_context);
+    auto alpha_val = resolve_alpha(m_properties.alpha, color_resolution_context.calculation_resolution_context);
 
     if (!raw_l_val.has_value() || !c_val.has_value() || !raw_h_val.has_value() || !alpha_val.has_value())
         return {};
@@ -63,12 +63,12 @@ String CSSLCH::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-Optional<Color> CSSOKLCH::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSOKLCH::to_color(ColorResolutionContext color_resolution_context) const
 {
-    auto raw_l_val = resolve_with_reference_value(m_properties.l, 1.0, resolution_context);
-    auto raw_c_val = resolve_with_reference_value(m_properties.c, 0.4, resolution_context);
-    auto raw_h_val = resolve_hue(m_properties.h, resolution_context);
-    auto alpha_val = resolve_alpha(m_properties.alpha, resolution_context);
+    auto raw_l_val = resolve_with_reference_value(m_properties.l, 1.0, color_resolution_context.calculation_resolution_context);
+    auto raw_c_val = resolve_with_reference_value(m_properties.c, 0.4, color_resolution_context.calculation_resolution_context);
+    auto raw_h_val = resolve_hue(m_properties.h, color_resolution_context.calculation_resolution_context);
+    auto alpha_val = resolve_alpha(m_properties.alpha, color_resolution_context.calculation_resolution_context);
 
     if (!raw_l_val.has_value() || !raw_c_val.has_value() || !raw_h_val.has_value() || !alpha_val.has_value())
         return {};

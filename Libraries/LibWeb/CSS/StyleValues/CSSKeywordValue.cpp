@@ -135,18 +135,13 @@ bool CSSKeywordValue::has_color() const
     return is_color(keyword());
 }
 
-Optional<Color> CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node, CalculationResolutionContext const&) const
+Optional<Color> CSSKeywordValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     if (keyword() == Keyword::Currentcolor) {
-        if (!node.has_value() || !node->has_style())
-            return Color::Black;
-        return node->computed_values().color();
+        return color_resolution_context.current_color.value_or(Color::Black);
     }
 
-    PreferredColorScheme scheme = PreferredColorScheme::Light;
-    if (node.has_value()) {
-        scheme = node->computed_values().color_scheme();
-    }
+    PreferredColorScheme scheme = color_resolution_context.color_scheme.value_or(PreferredColorScheme::Light);
 
     // First, handle <system-color>s, since they don't strictly require a node.
     // https://www.w3.org/TR/css-color-4/#css-system-colors
@@ -215,26 +210,24 @@ Optional<Color> CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&>
         break;
     }
 
-    if (!node.has_value()) {
-        // FIXME: Can't resolve palette colors without layout node.
+    if (!color_resolution_context.document) {
+        // FIXME: Can't resolve palette colors without a document.
         return Color::Black;
     }
-
-    auto const& document = node->document();
 
     switch (keyword()) {
     case Keyword::LibwebLink:
     case Keyword::Linktext:
-        return document.normal_link_color().value_or(SystemColor::link_text(scheme));
+        return color_resolution_context.document->normal_link_color().value_or(SystemColor::link_text(scheme));
     case Keyword::Visitedtext:
-        return document.visited_link_color().value_or(SystemColor::visited_text(scheme));
+        return color_resolution_context.document->visited_link_color().value_or(SystemColor::visited_text(scheme));
     case Keyword::Activetext:
-        return document.active_link_color().value_or(SystemColor::active_text(scheme));
+        return color_resolution_context.document->active_link_color().value_or(SystemColor::active_text(scheme));
     default:
         break;
     }
 
-    auto palette = document.page().palette();
+    auto palette = color_resolution_context.document->page().palette();
     switch (keyword()) {
     case Keyword::LibwebPaletteDesktopBackground:
         return palette.color(ColorRole::DesktopBackground);
