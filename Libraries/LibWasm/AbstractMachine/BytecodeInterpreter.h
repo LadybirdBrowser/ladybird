@@ -52,54 +52,62 @@ struct BytecodeInterpreter final : public Interpreter {
         IndirectCall,
     };
 
+    template<bool HasCompiledList, bool HasDynamicInsnLimit>
+    void interpret_impl(Configuration&, Expression const&);
+
 protected:
-    void interpret_instruction(Configuration&, InstructionPointer&, Instruction const&);
     void branch_to_label(Configuration&, LabelIndex);
     template<typename ReadT, typename PushT>
-    void load_and_push(Configuration&, Instruction const&);
+    bool load_and_push(Configuration&, Instruction const&);
     template<typename PopT, typename StoreT>
-    void pop_and_store(Configuration&, Instruction const&);
+    bool pop_and_store(Configuration&, Instruction const&);
+    template<typename StoreT>
+    bool store_value(Configuration&, Instruction const&, StoreT, size_t address_source);
     template<size_t N>
-    void pop_and_store_lane_n(Configuration&, Instruction const&);
+    bool pop_and_store_lane_n(Configuration&, Instruction const&);
     template<size_t M, size_t N, template<typename> typename SetSign>
-    void load_and_push_mxn(Configuration&, Instruction const&);
+    bool load_and_push_mxn(Configuration&, Instruction const&);
     template<size_t N>
-    void load_and_push_lane_n(Configuration&, Instruction const&);
+    bool load_and_push_lane_n(Configuration&, Instruction const&);
     template<size_t N>
-    void load_and_push_zero_n(Configuration&, Instruction const&);
+    bool load_and_push_zero_n(Configuration&, Instruction const&);
     template<size_t M>
-    void load_and_push_m_splat(Configuration&, Instruction const&);
+    bool load_and_push_m_splat(Configuration&, Instruction const&);
     template<size_t M, template<size_t> typename NativeType>
     void set_top_m_splat(Configuration&, NativeType<M>);
     template<size_t M, template<size_t> typename NativeType>
     void pop_and_push_m_splat(Configuration&, Instruction const&);
     template<typename M, template<typename> typename SetSign, typename VectorType = Native128ByteVectorOf<M, SetSign>>
-    VectorType pop_vector(Configuration&);
-    void store_to_memory(Configuration&, Instruction::MemoryArgument const&, ReadonlyBytes data, u32 base);
-    void call_address(Configuration&, FunctionAddress, CallAddressSource = CallAddressSource::DirectCall);
+    VectorType pop_vector(Configuration&, size_t source);
+    bool store_to_memory(Configuration&, Instruction::MemoryArgument const&, ReadonlyBytes data, u32 base);
+    bool call_address(Configuration&, FunctionAddress, CallAddressSource = CallAddressSource::DirectCall);
 
     template<typename PopTypeLHS, typename PushType, typename Operator, typename PopTypeRHS = PopTypeLHS, typename... Args>
-    void binary_numeric_operation(Configuration&, Args&&...);
+    bool binary_numeric_operation(Configuration&, Args&&...);
 
     template<typename PopType, typename PushType, typename Operator, typename... Args>
-    void unary_operation(Configuration&, Args&&...);
+    bool unary_operation(Configuration&, Args&&...);
 
     template<typename T>
     T read_value(ReadonlyBytes data);
 
     ALWAYS_INLINE bool trap_if_not(bool value, StringView reason)
     {
-        if (!value)
+        if (!value) [[unlikely]] {
             m_trap = Trap { ByteString(reason) };
-        return !m_trap.has<Empty>();
+            return true;
+        }
+        return false;
     }
 
     template<typename... Rest>
     ALWAYS_INLINE bool trap_if_not(bool value, StringView reason, CheckedFormatString<StringView, Rest...> format, Rest const&... args)
     {
-        if (!value)
+        if (!value) [[unlikely]] {
             m_trap = Trap { ByteString::formatted(move(format), reason, args...) };
-        return !m_trap.has<Empty>();
+            return true;
+        }
+        return false;
     }
 
     Variant<Trap, Empty> m_trap;

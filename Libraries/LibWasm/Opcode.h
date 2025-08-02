@@ -14,453 +14,454 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, OpCode);
 
 namespace Instructions {
 
+// name, opcode, pops, pushes
 #define ENUMERATE_SINGLE_BYTE_WASM_OPCODES(M) \
-    M(unreachable, 0x00)                      \
-    M(nop, 0x01)                              \
-    M(block, 0x02)                            \
-    M(loop, 0x03)                             \
-    M(if_, 0x04)                              \
-    M(structured_else, 0x05)                  \
-    M(structured_end, 0x0b)                   \
-    M(br, 0x0c)                               \
-    M(br_if, 0x0d)                            \
-    M(br_table, 0x0e)                         \
-    M(return_, 0x0f)                          \
-    M(call, 0x10)                             \
-    M(call_indirect, 0x11)                    \
-    M(drop, 0x1a)                             \
-    M(select, 0x1b)                           \
-    M(select_typed, 0x1c)                     \
-    M(local_get, 0x20)                        \
-    M(local_set, 0x21)                        \
-    M(local_tee, 0x22)                        \
-    M(global_get, 0x23)                       \
-    M(global_set, 0x24)                       \
-    M(table_get, 0x25)                        \
-    M(table_set, 0x26)                        \
-    M(i32_load, 0x28)                         \
-    M(i64_load, 0x29)                         \
-    M(f32_load, 0x2a)                         \
-    M(f64_load, 0x2b)                         \
-    M(i32_load8_s, 0x2c)                      \
-    M(i32_load8_u, 0x2d)                      \
-    M(i32_load16_s, 0x2e)                     \
-    M(i32_load16_u, 0x2f)                     \
-    M(i64_load8_s, 0x30)                      \
-    M(i64_load8_u, 0x31)                      \
-    M(i64_load16_s, 0x32)                     \
-    M(i64_load16_u, 0x33)                     \
-    M(i64_load32_s, 0x34)                     \
-    M(i64_load32_u, 0x35)                     \
-    M(i32_store, 0x36)                        \
-    M(i64_store, 0x37)                        \
-    M(f32_store, 0x38)                        \
-    M(f64_store, 0x39)                        \
-    M(i32_store8, 0x3a)                       \
-    M(i32_store16, 0x3b)                      \
-    M(i64_store8, 0x3c)                       \
-    M(i64_store16, 0x3d)                      \
-    M(i64_store32, 0x3e)                      \
-    M(memory_size, 0x3f)                      \
-    M(memory_grow, 0x40)                      \
-    M(i32_const, 0x41)                        \
-    M(i64_const, 0x42)                        \
-    M(f32_const, 0x43)                        \
-    M(f64_const, 0x44)                        \
-    M(i32_eqz, 0x45)                          \
-    M(i32_eq, 0x46)                           \
-    M(i32_ne, 0x47)                           \
-    M(i32_lts, 0x48)                          \
-    M(i32_ltu, 0x49)                          \
-    M(i32_gts, 0x4a)                          \
-    M(i32_gtu, 0x4b)                          \
-    M(i32_les, 0x4c)                          \
-    M(i32_leu, 0x4d)                          \
-    M(i32_ges, 0x4e)                          \
-    M(i32_geu, 0x4f)                          \
-    M(i64_eqz, 0x50)                          \
-    M(i64_eq, 0x51)                           \
-    M(i64_ne, 0x52)                           \
-    M(i64_lts, 0x53)                          \
-    M(i64_ltu, 0x54)                          \
-    M(i64_gts, 0x55)                          \
-    M(i64_gtu, 0x56)                          \
-    M(i64_les, 0x57)                          \
-    M(i64_leu, 0x58)                          \
-    M(i64_ges, 0x59)                          \
-    M(i64_geu, 0x5a)                          \
-    M(f32_eq, 0x5b)                           \
-    M(f32_ne, 0x5c)                           \
-    M(f32_lt, 0x5d)                           \
-    M(f32_gt, 0x5e)                           \
-    M(f32_le, 0x5f)                           \
-    M(f32_ge, 0x60)                           \
-    M(f64_eq, 0x61)                           \
-    M(f64_ne, 0x62)                           \
-    M(f64_lt, 0x63)                           \
-    M(f64_gt, 0x64)                           \
-    M(f64_le, 0x65)                           \
-    M(f64_ge, 0x66)                           \
-    M(i32_clz, 0x67)                          \
-    M(i32_ctz, 0x68)                          \
-    M(i32_popcnt, 0x69)                       \
-    M(i32_add, 0x6a)                          \
-    M(i32_sub, 0x6b)                          \
-    M(i32_mul, 0x6c)                          \
-    M(i32_divs, 0x6d)                         \
-    M(i32_divu, 0x6e)                         \
-    M(i32_rems, 0x6f)                         \
-    M(i32_remu, 0x70)                         \
-    M(i32_and, 0x71)                          \
-    M(i32_or, 0x72)                           \
-    M(i32_xor, 0x73)                          \
-    M(i32_shl, 0x74)                          \
-    M(i32_shrs, 0x75)                         \
-    M(i32_shru, 0x76)                         \
-    M(i32_rotl, 0x77)                         \
-    M(i32_rotr, 0x78)                         \
-    M(i64_clz, 0x79)                          \
-    M(i64_ctz, 0x7a)                          \
-    M(i64_popcnt, 0x7b)                       \
-    M(i64_add, 0x7c)                          \
-    M(i64_sub, 0x7d)                          \
-    M(i64_mul, 0x7e)                          \
-    M(i64_divs, 0x7f)                         \
-    M(i64_divu, 0x80)                         \
-    M(i64_rems, 0x81)                         \
-    M(i64_remu, 0x82)                         \
-    M(i64_and, 0x83)                          \
-    M(i64_or, 0x84)                           \
-    M(i64_xor, 0x85)                          \
-    M(i64_shl, 0x86)                          \
-    M(i64_shrs, 0x87)                         \
-    M(i64_shru, 0x88)                         \
-    M(i64_rotl, 0x89)                         \
-    M(i64_rotr, 0x8a)                         \
-    M(f32_abs, 0x8b)                          \
-    M(f32_neg, 0x8c)                          \
-    M(f32_ceil, 0x8d)                         \
-    M(f32_floor, 0x8e)                        \
-    M(f32_trunc, 0x8f)                        \
-    M(f32_nearest, 0x90)                      \
-    M(f32_sqrt, 0x91)                         \
-    M(f32_add, 0x92)                          \
-    M(f32_sub, 0x93)                          \
-    M(f32_mul, 0x94)                          \
-    M(f32_div, 0x95)                          \
-    M(f32_min, 0x96)                          \
-    M(f32_max, 0x97)                          \
-    M(f32_copysign, 0x98)                     \
-    M(f64_abs, 0x99)                          \
-    M(f64_neg, 0x9a)                          \
-    M(f64_ceil, 0x9b)                         \
-    M(f64_floor, 0x9c)                        \
-    M(f64_trunc, 0x9d)                        \
-    M(f64_nearest, 0x9e)                      \
-    M(f64_sqrt, 0x9f)                         \
-    M(f64_add, 0xa0)                          \
-    M(f64_sub, 0xa1)                          \
-    M(f64_mul, 0xa2)                          \
-    M(f64_div, 0xa3)                          \
-    M(f64_min, 0xa4)                          \
-    M(f64_max, 0xa5)                          \
-    M(f64_copysign, 0xa6)                     \
-    M(i32_wrap_i64, 0xa7)                     \
-    M(i32_trunc_sf32, 0xa8)                   \
-    M(i32_trunc_uf32, 0xa9)                   \
-    M(i32_trunc_sf64, 0xaa)                   \
-    M(i32_trunc_uf64, 0xab)                   \
-    M(i64_extend_si32, 0xac)                  \
-    M(i64_extend_ui32, 0xad)                  \
-    M(i64_trunc_sf32, 0xae)                   \
-    M(i64_trunc_uf32, 0xaf)                   \
-    M(i64_trunc_sf64, 0xb0)                   \
-    M(i64_trunc_uf64, 0xb1)                   \
-    M(f32_convert_si32, 0xb2)                 \
-    M(f32_convert_ui32, 0xb3)                 \
-    M(f32_convert_si64, 0xb4)                 \
-    M(f32_convert_ui64, 0xb5)                 \
-    M(f32_demote_f64, 0xb6)                   \
-    M(f64_convert_si32, 0xb7)                 \
-    M(f64_convert_ui32, 0xb8)                 \
-    M(f64_convert_si64, 0xb9)                 \
-    M(f64_convert_ui64, 0xba)                 \
-    M(f64_promote_f32, 0xbb)                  \
-    M(i32_reinterpret_f32, 0xbc)              \
-    M(i64_reinterpret_f64, 0xbd)              \
-    M(f32_reinterpret_i32, 0xbe)              \
-    M(f64_reinterpret_i64, 0xbf)              \
-    M(i32_extend8_s, 0xc0)                    \
-    M(i32_extend16_s, 0xc1)                   \
-    M(i64_extend8_s, 0xc2)                    \
-    M(i64_extend16_s, 0xc3)                   \
-    M(i64_extend32_s, 0xc4)                   \
-    M(ref_null, 0xd0)                         \
-    M(ref_is_null, 0xd1)                      \
-    M(ref_func, 0xd2)
+    M(unreachable, 0x00, 0, 0)                \
+    M(nop, 0x01, 0, 0)                        \
+    M(block, 0x02, 0, -1)                     \
+    M(loop, 0x03, 0, -1)                      \
+    M(if_, 0x04, 1, -1)                       \
+    M(structured_else, 0x05, -1, -1)          \
+    M(structured_end, 0x0b, -1, -1)           \
+    M(br, 0x0c, 0, -1)                        \
+    M(br_if, 0x0d, 1, -1)                     \
+    M(br_table, 0x0e, 1, -1)                  \
+    M(return_, 0x0f, -1, -1)                  \
+    M(call, 0x10, -1, -1)                     \
+    M(call_indirect, 0x11, -1, -1)            \
+    M(drop, 0x1a, 1, 0)                       \
+    M(select, 0x1b, 3, 1)                     \
+    M(select_typed, 0x1c, 3, 1)               \
+    M(local_get, 0x20, 0, 1)                  \
+    M(local_set, 0x21, 1, 0)                  \
+    M(local_tee, 0x22, 1, 1)                  \
+    M(global_get, 0x23, 0, 1)                 \
+    M(global_set, 0x24, 1, 0)                 \
+    M(table_get, 0x25, 1, 1)                  \
+    M(table_set, 0x26, 2, 0)                  \
+    M(i32_load, 0x28, 1, 1)                   \
+    M(i64_load, 0x29, 1, 1)                   \
+    M(f32_load, 0x2a, 1, 1)                   \
+    M(f64_load, 0x2b, 1, 1)                   \
+    M(i32_load8_s, 0x2c, 1, 1)                \
+    M(i32_load8_u, 0x2d, 1, 1)                \
+    M(i32_load16_s, 0x2e, 1, 1)               \
+    M(i32_load16_u, 0x2f, 1, 1)               \
+    M(i64_load8_s, 0x30, 1, 1)                \
+    M(i64_load8_u, 0x31, 1, 1)                \
+    M(i64_load16_s, 0x32, 1, 1)               \
+    M(i64_load16_u, 0x33, 1, 1)               \
+    M(i64_load32_s, 0x34, 1, 1)               \
+    M(i64_load32_u, 0x35, 1, 1)               \
+    M(i32_store, 0x36, 2, 0)                  \
+    M(i64_store, 0x37, 2, 0)                  \
+    M(f32_store, 0x38, 2, 0)                  \
+    M(f64_store, 0x39, 2, 0)                  \
+    M(i32_store8, 0x3a, 2, 0)                 \
+    M(i32_store16, 0x3b, 2, 0)                \
+    M(i64_store8, 0x3c, 2, 0)                 \
+    M(i64_store16, 0x3d, 2, 0)                \
+    M(i64_store32, 0x3e, 2, 0)                \
+    M(memory_size, 0x3f, 0, 1)                \
+    M(memory_grow, 0x40, 1, 1)                \
+    M(i32_const, 0x41, 0, 1)                  \
+    M(i64_const, 0x42, 0, 1)                  \
+    M(f32_const, 0x43, 0, 1)                  \
+    M(f64_const, 0x44, 0, 1)                  \
+    M(i32_eqz, 0x45, 1, 1)                    \
+    M(i32_eq, 0x46, 2, 1)                     \
+    M(i32_ne, 0x47, 2, 1)                     \
+    M(i32_lts, 0x48, 2, 1)                    \
+    M(i32_ltu, 0x49, 2, 1)                    \
+    M(i32_gts, 0x4a, 2, 1)                    \
+    M(i32_gtu, 0x4b, 2, 1)                    \
+    M(i32_les, 0x4c, 2, 1)                    \
+    M(i32_leu, 0x4d, 2, 1)                    \
+    M(i32_ges, 0x4e, 2, 1)                    \
+    M(i32_geu, 0x4f, 2, 1)                    \
+    M(i64_eqz, 0x50, 1, 1)                    \
+    M(i64_eq, 0x51, 2, 1)                     \
+    M(i64_ne, 0x52, 2, 1)                     \
+    M(i64_lts, 0x53, 2, 1)                    \
+    M(i64_ltu, 0x54, 2, 1)                    \
+    M(i64_gts, 0x55, 2, 1)                    \
+    M(i64_gtu, 0x56, 2, 1)                    \
+    M(i64_les, 0x57, 2, 1)                    \
+    M(i64_leu, 0x58, 2, 1)                    \
+    M(i64_ges, 0x59, 2, 1)                    \
+    M(i64_geu, 0x5a, 2, 1)                    \
+    M(f32_eq, 0x5b, 2, 1)                     \
+    M(f32_ne, 0x5c, 2, 1)                     \
+    M(f32_lt, 0x5d, 2, 1)                     \
+    M(f32_gt, 0x5e, 2, 1)                     \
+    M(f32_le, 0x5f, 2, 1)                     \
+    M(f32_ge, 0x60, 2, 1)                     \
+    M(f64_eq, 0x61, 2, 1)                     \
+    M(f64_ne, 0x62, 2, 1)                     \
+    M(f64_lt, 0x63, 2, 1)                     \
+    M(f64_gt, 0x64, 2, 1)                     \
+    M(f64_le, 0x65, 2, 1)                     \
+    M(f64_ge, 0x66, 2, 1)                     \
+    M(i32_clz, 0x67, 1, 1)                    \
+    M(i32_ctz, 0x68, 1, 1)                    \
+    M(i32_popcnt, 0x69, 1, 1)                 \
+    M(i32_add, 0x6a, 2, 1)                    \
+    M(i32_sub, 0x6b, 2, 1)                    \
+    M(i32_mul, 0x6c, 2, 1)                    \
+    M(i32_divs, 0x6d, 2, 1)                   \
+    M(i32_divu, 0x6e, 2, 1)                   \
+    M(i32_rems, 0x6f, 2, 1)                   \
+    M(i32_remu, 0x70, 2, 1)                   \
+    M(i32_and, 0x71, 2, 1)                    \
+    M(i32_or, 0x72, 2, 1)                     \
+    M(i32_xor, 0x73, 2, 1)                    \
+    M(i32_shl, 0x74, 2, 1)                    \
+    M(i32_shrs, 0x75, 2, 1)                   \
+    M(i32_shru, 0x76, 2, 1)                   \
+    M(i32_rotl, 0x77, 2, 1)                   \
+    M(i32_rotr, 0x78, 2, 1)                   \
+    M(i64_clz, 0x79, 1, 1)                    \
+    M(i64_ctz, 0x7a, 1, 1)                    \
+    M(i64_popcnt, 0x7b, 1, 1)                 \
+    M(i64_add, 0x7c, 2, 1)                    \
+    M(i64_sub, 0x7d, 2, 1)                    \
+    M(i64_mul, 0x7e, 2, 1)                    \
+    M(i64_divs, 0x7f, 2, 1)                   \
+    M(i64_divu, 0x80, 2, 1)                   \
+    M(i64_rems, 0x81, 2, 1)                   \
+    M(i64_remu, 0x82, 2, 1)                   \
+    M(i64_and, 0x83, 2, 1)                    \
+    M(i64_or, 0x84, 2, 1)                     \
+    M(i64_xor, 0x85, 2, 1)                    \
+    M(i64_shl, 0x86, 2, 1)                    \
+    M(i64_shrs, 0x87, 2, 1)                   \
+    M(i64_shru, 0x88, 2, 1)                   \
+    M(i64_rotl, 0x89, 2, 1)                   \
+    M(i64_rotr, 0x8a, 2, 1)                   \
+    M(f32_abs, 0x8b, 1, 1)                    \
+    M(f32_neg, 0x8c, 1, 1)                    \
+    M(f32_ceil, 0x8d, 1, 1)                   \
+    M(f32_floor, 0x8e, 1, 1)                  \
+    M(f32_trunc, 0x8f, 1, 1)                  \
+    M(f32_nearest, 0x90, 1, 1)                \
+    M(f32_sqrt, 0x91, 1, 1)                   \
+    M(f32_add, 0x92, 2, 1)                    \
+    M(f32_sub, 0x93, 2, 1)                    \
+    M(f32_mul, 0x94, 2, 1)                    \
+    M(f32_div, 0x95, 2, 1)                    \
+    M(f32_min, 0x96, 2, 1)                    \
+    M(f32_max, 0x97, 2, 1)                    \
+    M(f32_copysign, 0x98, 2, 1)               \
+    M(f64_abs, 0x99, 1, 1)                    \
+    M(f64_neg, 0x9a, 1, 1)                    \
+    M(f64_ceil, 0x9b, 1, 1)                   \
+    M(f64_floor, 0x9c, 1, 1)                  \
+    M(f64_trunc, 0x9d, 1, 1)                  \
+    M(f64_nearest, 0x9e, 1, 1)                \
+    M(f64_sqrt, 0x9f, 1, 1)                   \
+    M(f64_add, 0xa0, 2, 1)                    \
+    M(f64_sub, 0xa1, 2, 1)                    \
+    M(f64_mul, 0xa2, 2, 1)                    \
+    M(f64_div, 0xa3, 2, 1)                    \
+    M(f64_min, 0xa4, 2, 1)                    \
+    M(f64_max, 0xa5, 2, 1)                    \
+    M(f64_copysign, 0xa6, 2, 1)               \
+    M(i32_wrap_i64, 0xa7, 1, 1)               \
+    M(i32_trunc_sf32, 0xa8, 1, 1)             \
+    M(i32_trunc_uf32, 0xa9, 1, 1)             \
+    M(i32_trunc_sf64, 0xaa, 1, 1)             \
+    M(i32_trunc_uf64, 0xab, 1, 1)             \
+    M(i64_extend_si32, 0xac, 1, 1)            \
+    M(i64_extend_ui32, 0xad, 1, 1)            \
+    M(i64_trunc_sf32, 0xae, 1, 1)             \
+    M(i64_trunc_uf32, 0xaf, 1, 1)             \
+    M(i64_trunc_sf64, 0xb0, 1, 1)             \
+    M(i64_trunc_uf64, 0xb1, 1, 1)             \
+    M(f32_convert_si32, 0xb2, 1, 1)           \
+    M(f32_convert_ui32, 0xb3, 1, 1)           \
+    M(f32_convert_si64, 0xb4, 1, 1)           \
+    M(f32_convert_ui64, 0xb5, 1, 1)           \
+    M(f32_demote_f64, 0xb6, 1, 1)             \
+    M(f64_convert_si32, 0xb7, 1, 1)           \
+    M(f64_convert_ui32, 0xb8, 1, 1)           \
+    M(f64_convert_si64, 0xb9, 1, 1)           \
+    M(f64_convert_ui64, 0xba, 1, 1)           \
+    M(f64_promote_f32, 0xbb, 1, 1)            \
+    M(i32_reinterpret_f32, 0xbc, 1, 1)        \
+    M(i64_reinterpret_f64, 0xbd, 1, 1)        \
+    M(f32_reinterpret_i32, 0xbe, 1, 1)        \
+    M(f64_reinterpret_i64, 0xbf, 1, 1)        \
+    M(i32_extend8_s, 0xc0, 1, 1)              \
+    M(i32_extend16_s, 0xc1, 1, 1)             \
+    M(i64_extend8_s, 0xc2, 1, 1)              \
+    M(i64_extend16_s, 0xc3, 1, 1)             \
+    M(i64_extend32_s, 0xc4, 1, 1)             \
+    M(ref_null, 0xd0, 0, 1)                   \
+    M(ref_is_null, 0xd1, 1, 1)                \
+    M(ref_func, 0xd2, 0, 1)
 
 // These are synthetic opcodes, they are _not_ seen in wasm with these values.
-#define ENUMERATE_MULTI_BYTE_WASM_OPCODES(M)                \
-    M(i32_trunc_sat_f32_s, 0xfc00000000000000ull)           \
-    M(i32_trunc_sat_f32_u, 0xfc00000000000001ull)           \
-    M(i32_trunc_sat_f64_s, 0xfc00000000000002ull)           \
-    M(i32_trunc_sat_f64_u, 0xfc00000000000003ull)           \
-    M(i64_trunc_sat_f32_s, 0xfc00000000000004ull)           \
-    M(i64_trunc_sat_f32_u, 0xfc00000000000005ull)           \
-    M(i64_trunc_sat_f64_s, 0xfc00000000000006ull)           \
-    M(i64_trunc_sat_f64_u, 0xfc00000000000007ull)           \
-    M(memory_init, 0xfc00000000000008ull)                   \
-    M(data_drop, 0xfc00000000000009ull)                     \
-    M(memory_copy, 0xfc0000000000000aull)                   \
-    M(memory_fill, 0xfc0000000000000bull)                   \
-    M(table_init, 0xfc0000000000000cull)                    \
-    M(elem_drop, 0xfc0000000000000dull)                     \
-    M(table_copy, 0xfc0000000000000eull)                    \
-    M(table_grow, 0xfc0000000000000full)                    \
-    M(table_size, 0xfc00000000000010ull)                    \
-    M(table_fill, 0xfc00000000000011ull)                    \
-    M(v128_load, 0xfd00000000000000ull)                     \
-    M(v128_load8x8_s, 0xfd00000000000001ull)                \
-    M(v128_load8x8_u, 0xfd00000000000002ull)                \
-    M(v128_load16x4_s, 0xfd00000000000003ull)               \
-    M(v128_load16x4_u, 0xfd00000000000004ull)               \
-    M(v128_load32x2_s, 0xfd00000000000005ull)               \
-    M(v128_load32x2_u, 0xfd00000000000006ull)               \
-    M(v128_load8_splat, 0xfd00000000000007ull)              \
-    M(v128_load16_splat, 0xfd00000000000008ull)             \
-    M(v128_load32_splat, 0xfd00000000000009ull)             \
-    M(v128_load64_splat, 0xfd0000000000000aull)             \
-    M(v128_store, 0xfd0000000000000bull)                    \
-    M(v128_const, 0xfd0000000000000cull)                    \
-    M(i8x16_shuffle, 0xfd0000000000000dull)                 \
-    M(i8x16_swizzle, 0xfd0000000000000eull)                 \
-    M(i8x16_splat, 0xfd0000000000000full)                   \
-    M(i16x8_splat, 0xfd00000000000010ull)                   \
-    M(i32x4_splat, 0xfd00000000000011ull)                   \
-    M(i64x2_splat, 0xfd00000000000012ull)                   \
-    M(f32x4_splat, 0xfd00000000000013ull)                   \
-    M(f64x2_splat, 0xfd00000000000014ull)                   \
-    M(i8x16_extract_lane_s, 0xfd00000000000015ull)          \
-    M(i8x16_extract_lane_u, 0xfd00000000000016ull)          \
-    M(i8x16_replace_lane, 0xfd00000000000017ull)            \
-    M(i16x8_extract_lane_s, 0xfd00000000000018ull)          \
-    M(i16x8_extract_lane_u, 0xfd00000000000019ull)          \
-    M(i16x8_replace_lane, 0xfd0000000000001aull)            \
-    M(i32x4_extract_lane, 0xfd0000000000001bull)            \
-    M(i32x4_replace_lane, 0xfd0000000000001cull)            \
-    M(i64x2_extract_lane, 0xfd0000000000001dull)            \
-    M(i64x2_replace_lane, 0xfd0000000000001eull)            \
-    M(f32x4_extract_lane, 0xfd0000000000001full)            \
-    M(f32x4_replace_lane, 0xfd00000000000020ull)            \
-    M(f64x2_extract_lane, 0xfd00000000000021ull)            \
-    M(f64x2_replace_lane, 0xfd00000000000022ull)            \
-    M(i8x16_eq, 0xfd00000000000023ull)                      \
-    M(i8x16_ne, 0xfd00000000000024ull)                      \
-    M(i8x16_lt_s, 0xfd00000000000025ull)                    \
-    M(i8x16_lt_u, 0xfd00000000000026ull)                    \
-    M(i8x16_gt_s, 0xfd00000000000027ull)                    \
-    M(i8x16_gt_u, 0xfd00000000000028ull)                    \
-    M(i8x16_le_s, 0xfd00000000000029ull)                    \
-    M(i8x16_le_u, 0xfd0000000000002aull)                    \
-    M(i8x16_ge_s, 0xfd0000000000002bull)                    \
-    M(i8x16_ge_u, 0xfd0000000000002cull)                    \
-    M(i16x8_eq, 0xfd0000000000002dull)                      \
-    M(i16x8_ne, 0xfd0000000000002eull)                      \
-    M(i16x8_lt_s, 0xfd0000000000002full)                    \
-    M(i16x8_lt_u, 0xfd00000000000030ull)                    \
-    M(i16x8_gt_s, 0xfd00000000000031ull)                    \
-    M(i16x8_gt_u, 0xfd00000000000032ull)                    \
-    M(i16x8_le_s, 0xfd00000000000033ull)                    \
-    M(i16x8_le_u, 0xfd00000000000034ull)                    \
-    M(i16x8_ge_s, 0xfd00000000000035ull)                    \
-    M(i16x8_ge_u, 0xfd00000000000036ull)                    \
-    M(i32x4_eq, 0xfd00000000000037ull)                      \
-    M(i32x4_ne, 0xfd00000000000038ull)                      \
-    M(i32x4_lt_s, 0xfd00000000000039ull)                    \
-    M(i32x4_lt_u, 0xfd0000000000003aull)                    \
-    M(i32x4_gt_s, 0xfd0000000000003bull)                    \
-    M(i32x4_gt_u, 0xfd0000000000003cull)                    \
-    M(i32x4_le_s, 0xfd0000000000003dull)                    \
-    M(i32x4_le_u, 0xfd0000000000003eull)                    \
-    M(i32x4_ge_s, 0xfd0000000000003full)                    \
-    M(i32x4_ge_u, 0xfd00000000000040ull)                    \
-    M(f32x4_eq, 0xfd00000000000041ull)                      \
-    M(f32x4_ne, 0xfd00000000000042ull)                      \
-    M(f32x4_lt, 0xfd00000000000043ull)                      \
-    M(f32x4_gt, 0xfd00000000000044ull)                      \
-    M(f32x4_le, 0xfd00000000000045ull)                      \
-    M(f32x4_ge, 0xfd00000000000046ull)                      \
-    M(f64x2_eq, 0xfd00000000000047ull)                      \
-    M(f64x2_ne, 0xfd00000000000048ull)                      \
-    M(f64x2_lt, 0xfd00000000000049ull)                      \
-    M(f64x2_gt, 0xfd0000000000004aull)                      \
-    M(f64x2_le, 0xfd0000000000004bull)                      \
-    M(f64x2_ge, 0xfd0000000000004cull)                      \
-    M(v128_not, 0xfd0000000000004dull)                      \
-    M(v128_and, 0xfd0000000000004eull)                      \
-    M(v128_andnot, 0xfd0000000000004full)                   \
-    M(v128_or, 0xfd00000000000050ull)                       \
-    M(v128_xor, 0xfd00000000000051ull)                      \
-    M(v128_bitselect, 0xfd00000000000052ull)                \
-    M(v128_any_true, 0xfd00000000000053ull)                 \
-    M(v128_load8_lane, 0xfd00000000000054ull)               \
-    M(v128_load16_lane, 0xfd00000000000055ull)              \
-    M(v128_load32_lane, 0xfd00000000000056ull)              \
-    M(v128_load64_lane, 0xfd00000000000057ull)              \
-    M(v128_store8_lane, 0xfd00000000000058ull)              \
-    M(v128_store16_lane, 0xfd00000000000059ull)             \
-    M(v128_store32_lane, 0xfd0000000000005aull)             \
-    M(v128_store64_lane, 0xfd0000000000005bull)             \
-    M(v128_load32_zero, 0xfd0000000000005cull)              \
-    M(v128_load64_zero, 0xfd0000000000005dull)              \
-    M(f32x4_demote_f64x2_zero, 0xfd0000000000005eull)       \
-    M(f64x2_promote_low_f32x4, 0xfd0000000000005full)       \
-    M(i8x16_abs, 0xfd00000000000060ull)                     \
-    M(i8x16_neg, 0xfd00000000000061ull)                     \
-    M(i8x16_popcnt, 0xfd00000000000062ull)                  \
-    M(i8x16_all_true, 0xfd00000000000063ull)                \
-    M(i8x16_bitmask, 0xfd00000000000064ull)                 \
-    M(i8x16_narrow_i16x8_s, 0xfd00000000000065ull)          \
-    M(i8x16_narrow_i16x8_u, 0xfd00000000000066ull)          \
-    M(f32x4_ceil, 0xfd00000000000067ull)                    \
-    M(f32x4_floor, 0xfd00000000000068ull)                   \
-    M(f32x4_trunc, 0xfd00000000000069ull)                   \
-    M(f32x4_nearest, 0xfd0000000000006aull)                 \
-    M(i8x16_shl, 0xfd0000000000006bull)                     \
-    M(i8x16_shr_s, 0xfd0000000000006cull)                   \
-    M(i8x16_shr_u, 0xfd0000000000006dull)                   \
-    M(i8x16_add, 0xfd0000000000006eull)                     \
-    M(i8x16_add_sat_s, 0xfd0000000000006full)               \
-    M(i8x16_add_sat_u, 0xfd00000000000070ull)               \
-    M(i8x16_sub, 0xfd00000000000071ull)                     \
-    M(i8x16_sub_sat_s, 0xfd00000000000072ull)               \
-    M(i8x16_sub_sat_u, 0xfd00000000000073ull)               \
-    M(f64x2_ceil, 0xfd00000000000074ull)                    \
-    M(f64x2_floor, 0xfd00000000000075ull)                   \
-    M(i8x16_min_s, 0xfd00000000000076ull)                   \
-    M(i8x16_min_u, 0xfd00000000000077ull)                   \
-    M(i8x16_max_s, 0xfd00000000000078ull)                   \
-    M(i8x16_max_u, 0xfd00000000000079ull)                   \
-    M(f64x2_trunc, 0xfd0000000000007aull)                   \
-    M(i8x16_avgr_u, 0xfd0000000000007bull)                  \
-    M(i16x8_extadd_pairwise_i8x16_s, 0xfd0000000000007cull) \
-    M(i16x8_extadd_pairwise_i8x16_u, 0xfd0000000000007dull) \
-    M(i32x4_extadd_pairwise_i16x8_s, 0xfd0000000000007eull) \
-    M(i32x4_extadd_pairwise_i16x8_u, 0xfd0000000000007full) \
-    M(i16x8_abs, 0xfd00000000000080ull)                     \
-    M(i16x8_neg, 0xfd00000000000081ull)                     \
-    M(i16x8_q15mulr_sat_s, 0xfd00000000000082ull)           \
-    M(i16x8_all_true, 0xfd00000000000083ull)                \
-    M(i16x8_bitmask, 0xfd00000000000084ull)                 \
-    M(i16x8_narrow_i32x4_s, 0xfd00000000000085ull)          \
-    M(i16x8_narrow_i32x4_u, 0xfd00000000000086ull)          \
-    M(i16x8_extend_low_i8x16_s, 0xfd00000000000087ull)      \
-    M(i16x8_extend_high_i8x16_s, 0xfd00000000000088ull)     \
-    M(i16x8_extend_low_i8x16_u, 0xfd00000000000089ull)      \
-    M(i16x8_extend_high_i8x16_u, 0xfd0000000000008aull)     \
-    M(i16x8_shl, 0xfd0000000000008bull)                     \
-    M(i16x8_shr_s, 0xfd0000000000008cull)                   \
-    M(i16x8_shr_u, 0xfd0000000000008dull)                   \
-    M(i16x8_add, 0xfd0000000000008eull)                     \
-    M(i16x8_add_sat_s, 0xfd0000000000008full)               \
-    M(i16x8_add_sat_u, 0xfd00000000000090ull)               \
-    M(i16x8_sub, 0xfd00000000000091ull)                     \
-    M(i16x8_sub_sat_s, 0xfd00000000000092ull)               \
-    M(i16x8_sub_sat_u, 0xfd00000000000093ull)               \
-    M(f64x2_nearest, 0xfd00000000000094ull)                 \
-    M(i16x8_mul, 0xfd00000000000095ull)                     \
-    M(i16x8_min_s, 0xfd00000000000096ull)                   \
-    M(i16x8_min_u, 0xfd00000000000097ull)                   \
-    M(i16x8_max_s, 0xfd00000000000098ull)                   \
-    M(i16x8_max_u, 0xfd00000000000099ull)                   \
-    M(i16x8_avgr_u, 0xfd0000000000009bull)                  \
-    M(i16x8_extmul_low_i8x16_s, 0xfd0000000000009cull)      \
-    M(i16x8_extmul_high_i8x16_s, 0xfd0000000000009dull)     \
-    M(i16x8_extmul_low_i8x16_u, 0xfd0000000000009eull)      \
-    M(i16x8_extmul_high_i8x16_u, 0xfd0000000000009full)     \
-    M(i32x4_abs, 0xfd000000000000a0ull)                     \
-    M(i32x4_neg, 0xfd000000000000a1ull)                     \
-    M(i32x4_all_true, 0xfd000000000000a3ull)                \
-    M(i32x4_bitmask, 0xfd000000000000a4ull)                 \
-    M(i32x4_extend_low_i16x8_s, 0xfd000000000000a7ull)      \
-    M(i32x4_extend_high_i16x8_s, 0xfd000000000000a8ull)     \
-    M(i32x4_extend_low_i16x8_u, 0xfd000000000000a9ull)      \
-    M(i32x4_extend_high_i16x8_u, 0xfd000000000000aaull)     \
-    M(i32x4_shl, 0xfd000000000000abull)                     \
-    M(i32x4_shr_s, 0xfd000000000000acull)                   \
-    M(i32x4_shr_u, 0xfd000000000000adull)                   \
-    M(i32x4_add, 0xfd000000000000aeull)                     \
-    M(i32x4_sub, 0xfd000000000000b1ull)                     \
-    M(i32x4_mul, 0xfd000000000000b5ull)                     \
-    M(i32x4_min_s, 0xfd000000000000b6ull)                   \
-    M(i32x4_min_u, 0xfd000000000000b7ull)                   \
-    M(i32x4_max_s, 0xfd000000000000b8ull)                   \
-    M(i32x4_max_u, 0xfd000000000000b9ull)                   \
-    M(i32x4_dot_i16x8_s, 0xfd000000000000baull)             \
-    M(i32x4_extmul_low_i16x8_s, 0xfd000000000000bcull)      \
-    M(i32x4_extmul_high_i16x8_s, 0xfd000000000000bdull)     \
-    M(i32x4_extmul_low_i16x8_u, 0xfd000000000000beull)      \
-    M(i32x4_extmul_high_i16x8_u, 0xfd000000000000bfull)     \
-    M(i64x2_abs, 0xfd000000000000c0ull)                     \
-    M(i64x2_neg, 0xfd000000000000c1ull)                     \
-    M(i64x2_all_true, 0xfd000000000000c3ull)                \
-    M(i64x2_bitmask, 0xfd000000000000c4ull)                 \
-    M(i64x2_extend_low_i32x4_s, 0xfd000000000000c7ull)      \
-    M(i64x2_extend_high_i32x4_s, 0xfd000000000000c8ull)     \
-    M(i64x2_extend_low_i32x4_u, 0xfd000000000000c9ull)      \
-    M(i64x2_extend_high_i32x4_u, 0xfd000000000000caull)     \
-    M(i64x2_shl, 0xfd000000000000cbull)                     \
-    M(i64x2_shr_s, 0xfd000000000000ccull)                   \
-    M(i64x2_shr_u, 0xfd000000000000cdull)                   \
-    M(i64x2_add, 0xfd000000000000ceull)                     \
-    M(i64x2_sub, 0xfd000000000000d1ull)                     \
-    M(i64x2_mul, 0xfd000000000000d5ull)                     \
-    M(i64x2_eq, 0xfd000000000000d6ull)                      \
-    M(i64x2_ne, 0xfd000000000000d7ull)                      \
-    M(i64x2_lt_s, 0xfd000000000000d8ull)                    \
-    M(i64x2_gt_s, 0xfd000000000000d9ull)                    \
-    M(i64x2_le_s, 0xfd000000000000daull)                    \
-    M(i64x2_ge_s, 0xfd000000000000dbull)                    \
-    M(i64x2_extmul_low_i32x4_s, 0xfd000000000000dcull)      \
-    M(i64x2_extmul_high_i32x4_s, 0xfd000000000000ddull)     \
-    M(i64x2_extmul_low_i32x4_u, 0xfd000000000000deull)      \
-    M(i64x2_extmul_high_i32x4_u, 0xfd000000000000dfull)     \
-    M(f32x4_abs, 0xfd000000000000e0ull)                     \
-    M(f32x4_neg, 0xfd000000000000e1ull)                     \
-    M(f32x4_sqrt, 0xfd000000000000e3ull)                    \
-    M(f32x4_add, 0xfd000000000000e4ull)                     \
-    M(f32x4_sub, 0xfd000000000000e5ull)                     \
-    M(f32x4_mul, 0xfd000000000000e6ull)                     \
-    M(f32x4_div, 0xfd000000000000e7ull)                     \
-    M(f32x4_min, 0xfd000000000000e8ull)                     \
-    M(f32x4_max, 0xfd000000000000e9ull)                     \
-    M(f32x4_pmin, 0xfd000000000000eaull)                    \
-    M(f32x4_pmax, 0xfd000000000000ebull)                    \
-    M(f64x2_abs, 0xfd000000000000ecull)                     \
-    M(f64x2_neg, 0xfd000000000000edull)                     \
-    M(f64x2_sqrt, 0xfd000000000000efull)                    \
-    M(f64x2_add, 0xfd000000000000f0ull)                     \
-    M(f64x2_sub, 0xfd000000000000f1ull)                     \
-    M(f64x2_mul, 0xfd000000000000f2ull)                     \
-    M(f64x2_div, 0xfd000000000000f3ull)                     \
-    M(f64x2_min, 0xfd000000000000f4ull)                     \
-    M(f64x2_max, 0xfd000000000000f5ull)                     \
-    M(f64x2_pmin, 0xfd000000000000f6ull)                    \
-    M(f64x2_pmax, 0xfd000000000000f7ull)                    \
-    M(i32x4_trunc_sat_f32x4_s, 0xfd000000000000f8ull)       \
-    M(i32x4_trunc_sat_f32x4_u, 0xfd000000000000f9ull)       \
-    M(f32x4_convert_i32x4_s, 0xfd000000000000faull)         \
-    M(f32x4_convert_i32x4_u, 0xfd000000000000fbull)         \
-    M(i32x4_trunc_sat_f64x2_s_zero, 0xfd000000000000fcull)  \
-    M(i32x4_trunc_sat_f64x2_u_zero, 0xfd000000000000fdull)  \
-    M(f64x2_convert_low_i32x4_s, 0xfd000000000000feull)     \
-    M(f64x2_convert_low_i32x4_u, 0xfd000000000000ffull)
+#define ENUMERATE_MULTI_BYTE_WASM_OPCODES(M)                      \
+    M(i32_trunc_sat_f32_s, 0xfc00000000000000ull, 1, 1)           \
+    M(i32_trunc_sat_f32_u, 0xfc00000000000001ull, 1, 1)           \
+    M(i32_trunc_sat_f64_s, 0xfc00000000000002ull, 1, 1)           \
+    M(i32_trunc_sat_f64_u, 0xfc00000000000003ull, 1, 1)           \
+    M(i64_trunc_sat_f32_s, 0xfc00000000000004ull, 1, 1)           \
+    M(i64_trunc_sat_f32_u, 0xfc00000000000005ull, 1, 1)           \
+    M(i64_trunc_sat_f64_s, 0xfc00000000000006ull, 1, 1)           \
+    M(i64_trunc_sat_f64_u, 0xfc00000000000007ull, 1, 1)           \
+    M(memory_init, 0xfc00000000000008ull, 3, 0)                   \
+    M(data_drop, 0xfc00000000000009ull, 0, 0)                     \
+    M(memory_copy, 0xfc0000000000000aull, 3, 0)                   \
+    M(memory_fill, 0xfc0000000000000bull, 3, 0)                   \
+    M(table_init, 0xfc0000000000000cull, 3, 0)                    \
+    M(elem_drop, 0xfc0000000000000dull, 0, 0)                     \
+    M(table_copy, 0xfc0000000000000eull, 3, 0)                    \
+    M(table_grow, 0xfc0000000000000full, 2, 1)                    \
+    M(table_size, 0xfc00000000000010ull, 0, 1)                    \
+    M(table_fill, 0xfc00000000000011ull, 3, 0)                    \
+    M(v128_load, 0xfd00000000000000ull, 1, 1)                     \
+    M(v128_load8x8_s, 0xfd00000000000001ull, 1, 1)                \
+    M(v128_load8x8_u, 0xfd00000000000002ull, 1, 1)                \
+    M(v128_load16x4_s, 0xfd00000000000003ull, 1, 1)               \
+    M(v128_load16x4_u, 0xfd00000000000004ull, 1, 1)               \
+    M(v128_load32x2_s, 0xfd00000000000005ull, 1, 1)               \
+    M(v128_load32x2_u, 0xfd00000000000006ull, 1, 1)               \
+    M(v128_load8_splat, 0xfd00000000000007ull, 1, 1)              \
+    M(v128_load16_splat, 0xfd00000000000008ull, 1, 1)             \
+    M(v128_load32_splat, 0xfd00000000000009ull, 1, 1)             \
+    M(v128_load64_splat, 0xfd0000000000000aull, 1, 1)             \
+    M(v128_store, 0xfd0000000000000bull, 2, 0)                    \
+    M(v128_const, 0xfd0000000000000cull, 0, 1)                    \
+    M(i8x16_shuffle, 0xfd0000000000000dull, 2, 1)                 \
+    M(i8x16_swizzle, 0xfd0000000000000eull, 2, 1)                 \
+    M(i8x16_splat, 0xfd0000000000000full, 1, 1)                   \
+    M(i16x8_splat, 0xfd00000000000010ull, 1, 1)                   \
+    M(i32x4_splat, 0xfd00000000000011ull, 1, 1)                   \
+    M(i64x2_splat, 0xfd00000000000012ull, 1, 1)                   \
+    M(f32x4_splat, 0xfd00000000000013ull, 1, 1)                   \
+    M(f64x2_splat, 0xfd00000000000014ull, 1, 1)                   \
+    M(i8x16_extract_lane_s, 0xfd00000000000015ull, 1, 1)          \
+    M(i8x16_extract_lane_u, 0xfd00000000000016ull, 1, 1)          \
+    M(i8x16_replace_lane, 0xfd00000000000017ull, 2, 1)            \
+    M(i16x8_extract_lane_s, 0xfd00000000000018ull, 1, 1)          \
+    M(i16x8_extract_lane_u, 0xfd00000000000019ull, 1, 1)          \
+    M(i16x8_replace_lane, 0xfd0000000000001aull, 2, -1)           \
+    M(i32x4_extract_lane, 0xfd0000000000001bull, 1, 1)            \
+    M(i32x4_replace_lane, 0xfd0000000000001cull, 2, 1)            \
+    M(i64x2_extract_lane, 0xfd0000000000001dull, 1, 1)            \
+    M(i64x2_replace_lane, 0xfd0000000000001eull, 2, 1)            \
+    M(f32x4_extract_lane, 0xfd0000000000001full, 1, 1)            \
+    M(f32x4_replace_lane, 0xfd00000000000020ull, 2, 1)            \
+    M(f64x2_extract_lane, 0xfd00000000000021ull, 1, 1)            \
+    M(f64x2_replace_lane, 0xfd00000000000022ull, 2, 1)            \
+    M(i8x16_eq, 0xfd00000000000023ull, 2, 1)                      \
+    M(i8x16_ne, 0xfd00000000000024ull, 2, 1)                      \
+    M(i8x16_lt_s, 0xfd00000000000025ull, 2, 1)                    \
+    M(i8x16_lt_u, 0xfd00000000000026ull, 2, 1)                    \
+    M(i8x16_gt_s, 0xfd00000000000027ull, 2, 1)                    \
+    M(i8x16_gt_u, 0xfd00000000000028ull, 2, 1)                    \
+    M(i8x16_le_s, 0xfd00000000000029ull, 2, 1)                    \
+    M(i8x16_le_u, 0xfd0000000000002aull, 2, 1)                    \
+    M(i8x16_ge_s, 0xfd0000000000002bull, 2, 1)                    \
+    M(i8x16_ge_u, 0xfd0000000000002cull, 2, 1)                    \
+    M(i16x8_eq, 0xfd0000000000002dull, 2, 1)                      \
+    M(i16x8_ne, 0xfd0000000000002eull, 2, 1)                      \
+    M(i16x8_lt_s, 0xfd0000000000002full, 2, 1)                    \
+    M(i16x8_lt_u, 0xfd00000000000030ull, 2, 1)                    \
+    M(i16x8_gt_s, 0xfd00000000000031ull, 2, 1)                    \
+    M(i16x8_gt_u, 0xfd00000000000032ull, 2, 1)                    \
+    M(i16x8_le_s, 0xfd00000000000033ull, 2, 1)                    \
+    M(i16x8_le_u, 0xfd00000000000034ull, 2, 1)                    \
+    M(i16x8_ge_s, 0xfd00000000000035ull, 2, 1)                    \
+    M(i16x8_ge_u, 0xfd00000000000036ull, 2, 1)                    \
+    M(i32x4_eq, 0xfd00000000000037ull, 2, 1)                      \
+    M(i32x4_ne, 0xfd00000000000038ull, 2, 1)                      \
+    M(i32x4_lt_s, 0xfd00000000000039ull, 2, 1)                    \
+    M(i32x4_lt_u, 0xfd0000000000003aull, 2, 1)                    \
+    M(i32x4_gt_s, 0xfd0000000000003bull, 2, 1)                    \
+    M(i32x4_gt_u, 0xfd0000000000003cull, 2, 1)                    \
+    M(i32x4_le_s, 0xfd0000000000003dull, 2, 1)                    \
+    M(i32x4_le_u, 0xfd0000000000003eull, 2, 1)                    \
+    M(i32x4_ge_s, 0xfd0000000000003full, 2, 1)                    \
+    M(i32x4_ge_u, 0xfd00000000000040ull, 2, 1)                    \
+    M(f32x4_eq, 0xfd00000000000041ull, 2, 1)                      \
+    M(f32x4_ne, 0xfd00000000000042ull, 2, 1)                      \
+    M(f32x4_lt, 0xfd00000000000043ull, 2, 1)                      \
+    M(f32x4_gt, 0xfd00000000000044ull, 2, 1)                      \
+    M(f32x4_le, 0xfd00000000000045ull, 2, 1)                      \
+    M(f32x4_ge, 0xfd00000000000046ull, 2, 1)                      \
+    M(f64x2_eq, 0xfd00000000000047ull, 2, 1)                      \
+    M(f64x2_ne, 0xfd00000000000048ull, 2, 1)                      \
+    M(f64x2_lt, 0xfd00000000000049ull, 2, 1)                      \
+    M(f64x2_gt, 0xfd0000000000004aull, 2, 1)                      \
+    M(f64x2_le, 0xfd0000000000004bull, 2, 1)                      \
+    M(f64x2_ge, 0xfd0000000000004cull, 2, 1)                      \
+    M(v128_not, 0xfd0000000000004dull, 1, 1)                      \
+    M(v128_and, 0xfd0000000000004eull, 2, 1)                      \
+    M(v128_andnot, 0xfd0000000000004full, 2, 1)                   \
+    M(v128_or, 0xfd00000000000050ull, 2, 1)                       \
+    M(v128_xor, 0xfd00000000000051ull, 2, 1)                      \
+    M(v128_bitselect, 0xfd00000000000052ull, 3, 1)                \
+    M(v128_any_true, 0xfd00000000000053ull, 1, 1)                 \
+    M(v128_load8_lane, 0xfd00000000000054ull, 2, 1)               \
+    M(v128_load16_lane, 0xfd00000000000055ull, 2, 1)              \
+    M(v128_load32_lane, 0xfd00000000000056ull, 2, 1)              \
+    M(v128_load64_lane, 0xfd00000000000057ull, 2, 1)              \
+    M(v128_store8_lane, 0xfd00000000000058ull, 2, 0)              \
+    M(v128_store16_lane, 0xfd00000000000059ull, 2, 0)             \
+    M(v128_store32_lane, 0xfd0000000000005aull, 2, 0)             \
+    M(v128_store64_lane, 0xfd0000000000005bull, 2, 0)             \
+    M(v128_load32_zero, 0xfd0000000000005cull, 1, 1)              \
+    M(v128_load64_zero, 0xfd0000000000005dull, 1, 1)              \
+    M(f32x4_demote_f64x2_zero, 0xfd0000000000005eull, 1, 1)       \
+    M(f64x2_promote_low_f32x4, 0xfd0000000000005full, 1, 1)       \
+    M(i8x16_abs, 0xfd00000000000060ull, 1, 1)                     \
+    M(i8x16_neg, 0xfd00000000000061ull, 1, 1)                     \
+    M(i8x16_popcnt, 0xfd00000000000062ull, 1, 1)                  \
+    M(i8x16_all_true, 0xfd00000000000063ull, 1, 1)                \
+    M(i8x16_bitmask, 0xfd00000000000064ull, 1, 1)                 \
+    M(i8x16_narrow_i16x8_s, 0xfd00000000000065ull, 2, 1)          \
+    M(i8x16_narrow_i16x8_u, 0xfd00000000000066ull, 2, 1)          \
+    M(f32x4_ceil, 0xfd00000000000067ull, 1, 1)                    \
+    M(f32x4_floor, 0xfd00000000000068ull, 1, 1)                   \
+    M(f32x4_trunc, 0xfd00000000000069ull, 1, 1)                   \
+    M(f32x4_nearest, 0xfd0000000000006aull, 1, 1)                 \
+    M(i8x16_shl, 0xfd0000000000006bull, 2, 1)                     \
+    M(i8x16_shr_s, 0xfd0000000000006cull, 2, 1)                   \
+    M(i8x16_shr_u, 0xfd0000000000006dull, 2, 1)                   \
+    M(i8x16_add, 0xfd0000000000006eull, 2, 1)                     \
+    M(i8x16_add_sat_s, 0xfd0000000000006full, 2, 1)               \
+    M(i8x16_add_sat_u, 0xfd00000000000070ull, 2, 1)               \
+    M(i8x16_sub, 0xfd00000000000071ull, 2, 1)                     \
+    M(i8x16_sub_sat_s, 0xfd00000000000072ull, 2, 1)               \
+    M(i8x16_sub_sat_u, 0xfd00000000000073ull, 2, 1)               \
+    M(f64x2_ceil, 0xfd00000000000074ull, 1, 1)                    \
+    M(f64x2_floor, 0xfd00000000000075ull, 1, 1)                   \
+    M(i8x16_min_s, 0xfd00000000000076ull, 2, 1)                   \
+    M(i8x16_min_u, 0xfd00000000000077ull, 2, 1)                   \
+    M(i8x16_max_s, 0xfd00000000000078ull, 2, 1)                   \
+    M(i8x16_max_u, 0xfd00000000000079ull, 2, 1)                   \
+    M(f64x2_trunc, 0xfd0000000000007aull, 1, 1)                   \
+    M(i8x16_avgr_u, 0xfd0000000000007bull, 2, 1)                  \
+    M(i16x8_extadd_pairwise_i8x16_s, 0xfd0000000000007cull, 1, 1) \
+    M(i16x8_extadd_pairwise_i8x16_u, 0xfd0000000000007dull, 1, 1) \
+    M(i32x4_extadd_pairwise_i16x8_s, 0xfd0000000000007eull, 1, 1) \
+    M(i32x4_extadd_pairwise_i16x8_u, 0xfd0000000000007full, 1, 1) \
+    M(i16x8_abs, 0xfd00000000000080ull, 1, 1)                     \
+    M(i16x8_neg, 0xfd00000000000081ull, 1, 1)                     \
+    M(i16x8_q15mulr_sat_s, 0xfd00000000000082ull, 2, 1)           \
+    M(i16x8_all_true, 0xfd00000000000083ull, 1, 1)                \
+    M(i16x8_bitmask, 0xfd00000000000084ull, 1, 1)                 \
+    M(i16x8_narrow_i32x4_s, 0xfd00000000000085ull, 2, 1)          \
+    M(i16x8_narrow_i32x4_u, 0xfd00000000000086ull, 2, 1)          \
+    M(i16x8_extend_low_i8x16_s, 0xfd00000000000087ull, 1, 1)      \
+    M(i16x8_extend_high_i8x16_s, 0xfd00000000000088ull, 1, 1)     \
+    M(i16x8_extend_low_i8x16_u, 0xfd00000000000089ull, 1, 1)      \
+    M(i16x8_extend_high_i8x16_u, 0xfd0000000000008aull, 1, 1)     \
+    M(i16x8_shl, 0xfd0000000000008bull, 2, 1)                     \
+    M(i16x8_shr_s, 0xfd0000000000008cull, 2, 1)                   \
+    M(i16x8_shr_u, 0xfd0000000000008dull, 2, 1)                   \
+    M(i16x8_add, 0xfd0000000000008eull, 2, 1)                     \
+    M(i16x8_add_sat_s, 0xfd0000000000008full, 2, 1)               \
+    M(i16x8_add_sat_u, 0xfd00000000000090ull, 2, 1)               \
+    M(i16x8_sub, 0xfd00000000000091ull, 2, 1)                     \
+    M(i16x8_sub_sat_s, 0xfd00000000000092ull, 2, 1)               \
+    M(i16x8_sub_sat_u, 0xfd00000000000093ull, 2, 1)               \
+    M(f64x2_nearest, 0xfd00000000000094ull, 1, 1)                 \
+    M(i16x8_mul, 0xfd00000000000095ull, 2, 1)                     \
+    M(i16x8_min_s, 0xfd00000000000096ull, 2, 1)                   \
+    M(i16x8_min_u, 0xfd00000000000097ull, 2, 1)                   \
+    M(i16x8_max_s, 0xfd00000000000098ull, 2, 1)                   \
+    M(i16x8_max_u, 0xfd00000000000099ull, 2, 1)                   \
+    M(i16x8_avgr_u, 0xfd0000000000009bull, 2, 1)                  \
+    M(i16x8_extmul_low_i8x16_s, 0xfd0000000000009cull, 2, 1)      \
+    M(i16x8_extmul_high_i8x16_s, 0xfd0000000000009dull, 2, 1)     \
+    M(i16x8_extmul_low_i8x16_u, 0xfd0000000000009eull, 2, 1)      \
+    M(i16x8_extmul_high_i8x16_u, 0xfd0000000000009full, 2, 1)     \
+    M(i32x4_abs, 0xfd000000000000a0ull, 1, 1)                     \
+    M(i32x4_neg, 0xfd000000000000a1ull, 1, 1)                     \
+    M(i32x4_all_true, 0xfd000000000000a3ull, 1, 1)                \
+    M(i32x4_bitmask, 0xfd000000000000a4ull, 1, 1)                 \
+    M(i32x4_extend_low_i16x8_s, 0xfd000000000000a7ull, 1, 1)      \
+    M(i32x4_extend_high_i16x8_s, 0xfd000000000000a8ull, 1, 1)     \
+    M(i32x4_extend_low_i16x8_u, 0xfd000000000000a9ull, 1, 1)      \
+    M(i32x4_extend_high_i16x8_u, 0xfd000000000000aaull, 1, 1)     \
+    M(i32x4_shl, 0xfd000000000000abull, 2, 1)                     \
+    M(i32x4_shr_s, 0xfd000000000000acull, 2, 1)                   \
+    M(i32x4_shr_u, 0xfd000000000000adull, 2, 1)                   \
+    M(i32x4_add, 0xfd000000000000aeull, 2, 1)                     \
+    M(i32x4_sub, 0xfd000000000000b1ull, 2, 1)                     \
+    M(i32x4_mul, 0xfd000000000000b5ull, 2, 1)                     \
+    M(i32x4_min_s, 0xfd000000000000b6ull, 2, 1)                   \
+    M(i32x4_min_u, 0xfd000000000000b7ull, 2, 1)                   \
+    M(i32x4_max_s, 0xfd000000000000b8ull, 2, 1)                   \
+    M(i32x4_max_u, 0xfd000000000000b9ull, 2, 1)                   \
+    M(i32x4_dot_i16x8_s, 0xfd000000000000baull, 2, 1)             \
+    M(i32x4_extmul_low_i16x8_s, 0xfd000000000000bcull, 2, 1)      \
+    M(i32x4_extmul_high_i16x8_s, 0xfd000000000000bdull, 2, 1)     \
+    M(i32x4_extmul_low_i16x8_u, 0xfd000000000000beull, 2, 1)      \
+    M(i32x4_extmul_high_i16x8_u, 0xfd000000000000bfull, 2, 1)     \
+    M(i64x2_abs, 0xfd000000000000c0ull, 1, 1)                     \
+    M(i64x2_neg, 0xfd000000000000c1ull, 1, 1)                     \
+    M(i64x2_all_true, 0xfd000000000000c3ull, 1, 1)                \
+    M(i64x2_bitmask, 0xfd000000000000c4ull, 1, 1)                 \
+    M(i64x2_extend_low_i32x4_s, 0xfd000000000000c7ull, 1, 1)      \
+    M(i64x2_extend_high_i32x4_s, 0xfd000000000000c8ull, 1, 1)     \
+    M(i64x2_extend_low_i32x4_u, 0xfd000000000000c9ull, 1, 1)      \
+    M(i64x2_extend_high_i32x4_u, 0xfd000000000000caull, 1, 1)     \
+    M(i64x2_shl, 0xfd000000000000cbull, 2, 1)                     \
+    M(i64x2_shr_s, 0xfd000000000000ccull, 2, 1)                   \
+    M(i64x2_shr_u, 0xfd000000000000cdull, 2, 1)                   \
+    M(i64x2_add, 0xfd000000000000ceull, 2, 1)                     \
+    M(i64x2_sub, 0xfd000000000000d1ull, 2, 1)                     \
+    M(i64x2_mul, 0xfd000000000000d5ull, 2, 1)                     \
+    M(i64x2_eq, 0xfd000000000000d6ull, 2, 1)                      \
+    M(i64x2_ne, 0xfd000000000000d7ull, 2, 1)                      \
+    M(i64x2_lt_s, 0xfd000000000000d8ull, 2, 1)                    \
+    M(i64x2_gt_s, 0xfd000000000000d9ull, 2, 1)                    \
+    M(i64x2_le_s, 0xfd000000000000daull, 2, 1)                    \
+    M(i64x2_ge_s, 0xfd000000000000dbull, 2, 1)                    \
+    M(i64x2_extmul_low_i32x4_s, 0xfd000000000000dcull, 2, 1)      \
+    M(i64x2_extmul_high_i32x4_s, 0xfd000000000000ddull, 2, 1)     \
+    M(i64x2_extmul_low_i32x4_u, 0xfd000000000000deull, 2, 1)      \
+    M(i64x2_extmul_high_i32x4_u, 0xfd000000000000dfull, 2, 1)     \
+    M(f32x4_abs, 0xfd000000000000e0ull, 1, 1)                     \
+    M(f32x4_neg, 0xfd000000000000e1ull, 1, 1)                     \
+    M(f32x4_sqrt, 0xfd000000000000e3ull, 1, 1)                    \
+    M(f32x4_add, 0xfd000000000000e4ull, 2, 1)                     \
+    M(f32x4_sub, 0xfd000000000000e5ull, 2, 1)                     \
+    M(f32x4_mul, 0xfd000000000000e6ull, 2, 1)                     \
+    M(f32x4_div, 0xfd000000000000e7ull, 2, 1)                     \
+    M(f32x4_min, 0xfd000000000000e8ull, 2, 1)                     \
+    M(f32x4_max, 0xfd000000000000e9ull, 2, 1)                     \
+    M(f32x4_pmin, 0xfd000000000000eaull, 2, 1)                    \
+    M(f32x4_pmax, 0xfd000000000000ebull, 2, 1)                    \
+    M(f64x2_abs, 0xfd000000000000ecull, 1, 1)                     \
+    M(f64x2_neg, 0xfd000000000000edull, 1, 1)                     \
+    M(f64x2_sqrt, 0xfd000000000000efull, 1, 1)                    \
+    M(f64x2_add, 0xfd000000000000f0ull, 2, 1)                     \
+    M(f64x2_sub, 0xfd000000000000f1ull, 2, 1)                     \
+    M(f64x2_mul, 0xfd000000000000f2ull, 2, 1)                     \
+    M(f64x2_div, 0xfd000000000000f3ull, 2, 1)                     \
+    M(f64x2_min, 0xfd000000000000f4ull, 2, 1)                     \
+    M(f64x2_max, 0xfd000000000000f5ull, 2, 1)                     \
+    M(f64x2_pmin, 0xfd000000000000f6ull, 2, 1)                    \
+    M(f64x2_pmax, 0xfd000000000000f7ull, 2, 1)                    \
+    M(i32x4_trunc_sat_f32x4_s, 0xfd000000000000f8ull, 1, 1)       \
+    M(i32x4_trunc_sat_f32x4_u, 0xfd000000000000f9ull, 1, 1)       \
+    M(f32x4_convert_i32x4_s, 0xfd000000000000faull, 1, 1)         \
+    M(f32x4_convert_i32x4_u, 0xfd000000000000fbull, 1, 1)         \
+    M(i32x4_trunc_sat_f64x2_s_zero, 0xfd000000000000fcull, 1, 1)  \
+    M(i32x4_trunc_sat_f64x2_u_zero, 0xfd000000000000fdull, 1, 1)  \
+    M(f64x2_convert_low_i32x4_s, 0xfd000000000000feull, 1, 1)     \
+    M(f64x2_convert_low_i32x4_u, 0xfd000000000000ffull, 1, 1)
 
 #define ENUMERATE_WASM_OPCODES(M)         \
     ENUMERATE_SINGLE_BYTE_WASM_OPCODES(M) \
     ENUMERATE_MULTI_BYTE_WASM_OPCODES(M)
 
-#define M(name, value) static constexpr OpCode name = value;
+#define M(name, value, ...) static constexpr OpCode name = value;
 ENUMERATE_WASM_OPCODES(M)
 #undef M
 
