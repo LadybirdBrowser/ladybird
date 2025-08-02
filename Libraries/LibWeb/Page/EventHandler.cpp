@@ -608,6 +608,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
     GC::Ref<DOM::Document> document = *m_navigable->active_document();
     GC::Ptr<DOM::Node> node;
 
+    ScopeGuard update_hovered_node_guard = [&node, &document] {
+        document->set_hovered_node(node);
+    };
+
     {
         GC::Ptr<Painting::Paintable> paintable;
         if (auto result = target_for_mouse_position(viewport_position); result.has_value())
@@ -620,7 +624,6 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
         VERIFY(pointer_events != CSS::PointerEvents::None);
 
         node = dom_node_for_event_dispatch(*paintable);
-        document->set_hovered_node(node);
 
         if (paintable->wants_mouse_events()) {
             if (paintable->handle_mousedown({}, viewport_position, button, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
@@ -745,18 +748,25 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
         start_index = result->index_in_node;
     }
 
+    GC::Ptr<DOM::Node> node;
+
+    ScopeGuard update_hovered_node_guard = [&node, &document] {
+        document.set_hovered_node(node);
+    };
+
     GC::Ptr<HTML::HTMLAnchorElement const> hovered_link_element;
     if (paintable) {
         if (paintable->wants_mouse_events()) {
-            document.set_hovered_node(paintable->dom_node());
-            if (paintable->handle_mousemove({}, viewport_position, buttons, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
+            if (paintable->handle_mousemove({}, viewport_position, buttons, modifiers) == Painting::Paintable::DispatchEventOfSameName::No) {
+                node = paintable->dom_node();
                 return EventResult::Cancelled;
+            }
 
             // FIXME: It feels a bit aggressive to always update the cursor like this.
             m_navigable->page().client().page_did_request_cursor_change(Gfx::StandardCursor::None);
         }
 
-        auto node = dom_node_for_event_dispatch(*paintable);
+        node = dom_node_for_event_dispatch(*paintable);
 
         if (node && is<HTML::HTMLIFrameElement>(*node)) {
             if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
@@ -775,7 +785,6 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
         GC::Ptr<Layout::Node> layout_node;
         bool found_parent_element = parent_element_for_event_dispatch(*paintable, node, layout_node);
         hovered_node_changed = node.ptr() != document.hovered_node();
-        document.set_hovered_node(node);
         if (found_parent_element) {
             hovered_link_element = node->enclosing_link_element();
             if (hovered_link_element)
