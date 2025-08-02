@@ -435,6 +435,8 @@ void Printer::print(Wasm::Instruction const& instruction)
     print_indent();
     print("({}", instruction_name(instruction.opcode()));
     if (instruction.arguments().has<u8>()) {
+        if (instruction.opcode() == Instructions::local_get || instruction.opcode() == Instructions::local_set || instruction.opcode() == Instructions::local_tee)
+            print(" (local index {})", instruction.local_index());
         print(")\n");
     } else {
         print(" ");
@@ -478,7 +480,10 @@ void Printer::print(Wasm::Instruction const& instruction)
             [&](Instruction::TableTableArgs const& args) { print("(table_table (table index {}) (table index {}))", args.lhs.value(), args.rhs.value()); },
             [&](ValueType const& type) { print(type); },
             [&](Vector<ValueType> const&) { print("(types...)"); },
-            [&](auto const& value) { print("{}", value); });
+            [&](auto const& value) { print("(const {})", value); });
+
+        if (instruction.local_index().value())
+            print(" (local index {})", instruction.local_index().value());
 
         print(")\n");
     }

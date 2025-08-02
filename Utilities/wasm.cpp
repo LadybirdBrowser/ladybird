@@ -274,6 +274,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView filename;
     bool print = false;
+    bool print_compiled = false;
     bool attempt_instantiate = false;
     bool export_all_imports = false;
     bool wasi = false;
@@ -286,6 +287,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::ArgsParser parser;
     parser.add_positional_argument(filename, "File name to parse", "file");
     parser.add_option(print, "Print the parsed module", "print", 'p');
+    parser.add_option(print_compiled, "Print the compiled module", "print-compiled");
     parser.add_option(attempt_instantiate, "Attempt to instantiate the module", "instantiate", 'i');
     parser.add_option(exported_function_to_execute, "Attempt to execute the named exported function from the module (implies -i)", "execute", 'e', "name");
     parser.add_option(export_all_imports, "Export noop functions corresponding to imports", "export-noop");
@@ -352,7 +354,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         printer.print(*parse_result);
     }
 
-    if (attempt_instantiate) {
+    if (attempt_instantiate || print_compiled) {
         Wasm::AbstractMachine machine;
         Optional<Wasm::Wasi::Implementation> wasi_impl;
 
@@ -476,12 +478,85 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             print_link_error(link_result.error());
             return 1;
         }
+
         auto result = machine.instantiate(*parse_result, link_result.release_value());
         if (result.is_error()) {
             warnln("Module instantiation failed: {}", result.error().error);
             return 1;
         }
         auto module_instance = result.release_value();
+
+        if (print_compiled) {
+            for (auto address : module_instance->functions()) {
+                auto function = machine.store().get(address)->get_pointer<Wasm::WasmFunction>();
+                if (!function)
+                    continue;
+                auto& expression = function->code().func().body();
+                if (expression.compiled_instructions.dispatches.is_empty())
+                    continue;
+
+                ByteString export_name;
+                for (auto& entry : function->module().exports()) {
+                    if (entry.value() == address) {
+                        export_name = ByteString::formatted(" '{}'", entry.name());
+                        break;
+                    }
+                }
+
+                TRY(g_stdout->write_until_depleted(ByteString::formatted("Function #{}{} (stack usage = {}):\n", address.value(), export_name, expression.stack_usage_hint())));
+                Wasm::Printer printer { *g_stdout, 1 };
+                for (size_t ip = 0; ip < expression.compiled_instructions.dispatches.size(); ++ip) {
+                    auto& dispatch = expression.compiled_instructions.dispatches[ip];
+                    ByteString regs;
+                    auto first = true;
+                    ssize_t in_count = 0;
+                    bool has_out = false;
+#define M(name, _, ins, outs)              \
+    case Wasm::Instructions::name.value(): \
+        in_count = ins;                    \
+        has_out = outs != 0;               \
+        break;
+                    switch (dispatch.instruction->opcode().value()) {
+                        ENUMERATE_WASM_OPCODES(M)
+                    }
+#undef M
+                    constexpr auto reg_name = [](Wasm::Dispatch::RegisterOrStack reg) -> ByteString {
+                        if (reg == Wasm::Dispatch::RegisterOrStack::Stack)
+                            return "stack"sv;
+                        return ByteString::formatted("reg{}", to_underlying(reg));
+                    };
+                    if (in_count > -1) {
+                        for (ssize_t index = 0; index < in_count; ++index) {
+                            if (first)
+                                regs = ByteString::formatted("{} ({}", regs, reg_name(dispatch.sources[index]));
+                            else
+                                regs = ByteString::formatted("{}, {}", regs, reg_name(dispatch.sources[index]));
+                            first = false;
+                        }
+                        if (has_out) {
+                            if (first)
+                                regs = ByteString::formatted(" () -> {}", reg_name(dispatch.destination));
+                            else
+                                regs = ByteString::formatted("{}) -> {}", regs, reg_name(dispatch.destination));
+                        } else {
+                            if (first)
+                                regs = ByteString::formatted(" () -x");
+                            else
+                                regs = ByteString::formatted("{}) -x", regs);
+                        }
+                    }
+
+                    if (!regs.is_empty())
+                        regs = ByteString::formatted(" {{{:<33} }}", regs);
+
+                    TRY(g_stdout->write_until_depleted(ByteString::formatted("  [{:>03}]", ip)));
+                    TRY(g_stdout->write_until_depleted(regs.bytes()));
+                    printer.print(*dispatch.instruction);
+                }
+
+                TRY(g_stdout->write_until_depleted("\n"sv.bytes()));
+            }
+        }
 
         auto print_func = [&](auto const& address) {
             Wasm::FunctionInstance* fn = machine.store().get(address);

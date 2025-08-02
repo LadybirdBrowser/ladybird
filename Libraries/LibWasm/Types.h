@@ -461,14 +461,33 @@ public:
     {
     }
 
+    explicit Instruction(OpCode opcode, LocalIndex argument)
+        : m_opcode(opcode)
+        , m_local_index(argument)
+        , m_arguments(static_cast<u8>(0))
+    {
+    }
+
+    template<typename Arg1>
+    explicit Instruction(OpCode opcode, LocalIndex argument0, Arg1&& argument1)
+        : m_opcode(opcode)
+        , m_local_index(argument0)
+        , m_arguments(forward<Arg1>(argument1))
+    {
+    }
+
     static ParseResult<Instruction> parse(ConstrainedStream& stream);
 
     auto& opcode() const { return m_opcode; }
     auto& arguments() const { return m_arguments; }
     auto& arguments() { return m_arguments; }
 
+    LocalIndex local_index() const { return m_local_index; }
+
 private:
     OpCode m_opcode { 0 };
+    LocalIndex m_local_index;
+
     Variant<
         BlockType,
         DataIndex,
@@ -478,7 +497,7 @@ private:
         IndirectCallArgs,
         LabelIndex,
         LaneIndex,
-        LocalIndex,
+        LocalIndex, // Only used by instructions that take more than one local index (currently only fused ops).
         MemoryArgument,
         MemoryAndLaneArgument,
         MemoryCopyArgs,
@@ -499,6 +518,34 @@ private:
         u128,
         u8> // Empty state
         m_arguments;
+};
+
+struct Dispatch {
+    enum RegisterOrStack : u8 {
+        R0,
+        R1,
+        R2,
+        R3,
+        R4,
+        R5,
+        R6,
+        R7,
+        CountRegisters,
+        Stack = CountRegisters,
+    };
+
+    Instruction const* instruction { nullptr };
+    union {
+        struct {
+            RegisterOrStack sources[3];
+            RegisterOrStack destination;
+        };
+        u32 sources_and_destination;
+    };
+};
+struct CompiledInstructions {
+    Vector<Dispatch> dispatches;
+    Vector<Instruction, 0, FastLastAccess::Yes> extra_instruction_storage;
 };
 
 struct SectionId {
@@ -710,6 +757,7 @@ public:
 
     void set_stack_usage_hint(size_t value) const { m_stack_usage_hint = value; }
     auto stack_usage_hint() const { return m_stack_usage_hint; }
+    mutable CompiledInstructions compiled_instructions;
 
 private:
     Vector<Instruction> m_instructions;
@@ -1055,5 +1103,7 @@ private:
     ValidationStatus m_validation_status { ValidationStatus::Unchecked };
     Optional<ByteString> m_validation_error;
 };
+
+CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions);
 
 }
