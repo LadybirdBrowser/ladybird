@@ -161,6 +161,7 @@ public:
     bool will_validate();
     WebIDL::ExceptionOr<bool> check_validity();
     WebIDL::ExceptionOr<bool> report_validity();
+    virtual String format_validation_message() override;
 
     WebIDL::ExceptionOr<void> show_picker();
 
