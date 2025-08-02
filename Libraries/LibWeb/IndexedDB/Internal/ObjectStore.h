@@ -14,6 +14,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
@@ -22,12 +23,6 @@
 namespace Web::IndexedDB {
 
 using KeyPath = Variant<String, Vector<String>>;
-
-// https://w3c.github.io/IndexedDB/#object-store-record
-struct Record {
-    GC::Ref<Key> key;
-    HTML::SerializationRecord value;
-};
 
 // https://w3c.github.io/IndexedDB/#object-store-construct
 class ObjectStore : public JS::Cell {
@@ -48,15 +43,16 @@ public:
     AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
 
     GC::Ref<Database> database() const { return m_database; }
-    ReadonlySpan<Record> records() const { return m_records; }
+    ReadonlySpan<ObjectStoreRecord> records() const { return m_records; }
 
     void remove_records_in_range(GC::Ref<IDBKeyRange> range);
     bool has_record_with_key(GC::Ref<Key> key);
-    void store_a_record(Record const& record);
+    void store_a_record(ObjectStoreRecord const& record);
     u64 count_records_in_range(GC::Ref<IDBKeyRange> range);
-    Optional<Record&> first_in_range(GC::Ref<IDBKeyRange> range);
+    Optional<ObjectStoreRecord&> first_in_range(GC::Ref<IDBKeyRange> range);
     void clear_records();
-    GC::ConservativeVector<Record> first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
+    GC::ConservativeVector<ObjectStoreRecord> first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
+    GC::ConservativeVector<ObjectStoreRecord> last_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
 
 protected:
     virtual void visit_edges(Visitor&) override;
@@ -80,7 +76,7 @@ private:
     Optional<KeyGenerator> m_key_generator;
 
     // An object store has a list of records
-    Vector<Record> m_records;
+    Vector<ObjectStoreRecord> m_records;
 };
 
 }
