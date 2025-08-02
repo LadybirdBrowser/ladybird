@@ -217,14 +217,13 @@ struct FillPath {
     float opacity { 1.0f };
     PaintStyleOrColor paint_style_or_color;
     Gfx::WindingRule winding_rule;
-    Gfx::FloatPoint aa_translation;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
 
     void translate_by(Gfx::IntPoint const& offset)
     {
+        path.offset(offset.to_type<float>());
         path_bounding_rect.translate_by(offset);
-        aa_translation.translate_by(offset.to_type<float>());
     }
     void dump(StringBuilder&) const;
 };
@@ -240,14 +239,13 @@ struct StrokePath {
     float opacity;
     PaintStyleOrColor paint_style_or_color;
     float thickness;
-    Gfx::FloatPoint aa_translation;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
 
     void translate_by(Gfx::IntPoint const& offset)
     {
+        path.offset(offset.to_type<float>());
         path_bounding_rect.translate_by(offset);
-        aa_translation.translate_by(offset.to_type<float>());
     }
     void dump(StringBuilder&) const;
 };

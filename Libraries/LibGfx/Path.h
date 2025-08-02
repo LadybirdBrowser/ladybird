@@ -34,6 +34,7 @@ public:
     virtual void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2) = 0;
     virtual void text(Utf8View, Font const&) = 0;
     virtual void glyph_run(GlyphRun const&) = 0;
+    virtual void offset(Gfx::FloatPoint const&) = 0;
 
     virtual void append_path(Gfx::Path const&) = 0;
     virtual void intersect(Gfx::Path const&) = 0;
@@ -92,6 +93,7 @@ public:
     void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2) { impl().cubic_bezier_curve_to(c1, c2, p2); }
     void text(Utf8View text, Font const& font) { impl().text(text, font); }
     void glyph_run(GlyphRun const& glyph_run) { impl().glyph_run(glyph_run); }
+    void offset(Gfx::FloatPoint const& offset) { impl().offset(offset); }
 
     void horizontal_line_to(float x) { line_to({ x, last_point().y() }); }
     void vertical_line_to(float y) { line_to({ last_point().x(), y }); }

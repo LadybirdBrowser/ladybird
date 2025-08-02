@@ -29,6 +29,7 @@ public:
     virtual void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2) override;
     virtual void text(Utf8View, Font const&) override;
     virtual void glyph_run(GlyphRun const&) override;
+    virtual void offset(Gfx::FloatPoint const&) override;
 
     virtual void append_path(Gfx::Path const&) override;
     virtual void intersect(Gfx::Path const&) override;
