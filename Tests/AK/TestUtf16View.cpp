@@ -442,6 +442,24 @@ TEST_CASE(to_ascii_titlecase)
     EXPECT_EQ(u"foo 😀 bar"sv.to_ascii_titlecase(), u"Foo 😀 Bar"sv);
 }
 
+TEST_CASE(equals_utf8)
+{
+    EXPECT_EQ(u""sv, ""sv);
+
+    EXPECT_EQ(u"foo bar"sv, "foo bar"sv);
+    EXPECT_NE(u"foo bar"sv, "foo ba"sv);
+    EXPECT_NE(u"foo bar"sv, "foo"sv);
+    EXPECT_NE(u"foo bar"sv, ""sv);
+
+    EXPECT_EQ(u"foo 😀 bar"sv, "foo 😀 bar"sv);
+    EXPECT_NE(u"foo 😀 bar"sv, "foo 😀"sv);
+    EXPECT_NE(u"foo 😀 bar"sv, "foo"sv);
+    EXPECT_NE(u"foo 😀 bar"sv, ""sv);
+
+    EXPECT_NE(u"foo 😀 bar"sv, "foo 😂 bar"sv);
+    EXPECT_NE(u"foo 😂 bar"sv, "foo 😀 bar"sv);
+}
+
 TEST_CASE(equals_ignoring_case)
 {
     auto string1 = Utf16String::from_utf8("foobar"sv);

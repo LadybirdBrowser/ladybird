@@ -20,6 +20,7 @@
 #include <AK/Traits.h>
 #include <AK/Types.h>
 #include <AK/UnicodeUtils.h>
+#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 
 namespace AK {
@@ -232,7 +233,21 @@ public:
     {
         if (has_ascii_storage())
             return StringView { m_string.ascii, length_in_code_units() } == other;
-        return *this == Utf16View { other.characters_without_null_termination(), other.length() };
+
+        if (other.is_ascii())
+            return *this == Utf16View { other.characters_without_null_termination(), other.length() };
+
+        Utf8View other_utf8 { other };
+
+        auto this_it = begin();
+        auto other_it = other_utf8.begin();
+
+        for (; this_it != end() && other_it != other_utf8.end(); ++this_it, ++other_it) {
+            if (*this_it != *other_it)
+                return false;
+        }
+
+        return this_it == end() && other_it == other_utf8.end();
     }
 
     [[nodiscard]] constexpr bool equals_ignoring_case(Utf16View const& other) const
