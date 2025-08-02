@@ -6,7 +6,10 @@
 
 #include "ConnectionFromClient.h"
 
+#include <AK/Windows.h>
 #include <RequestServer/WebSocketImplCurl.h>
+
+#include <curl/curl.h>
 
 namespace RequestServer {
 
