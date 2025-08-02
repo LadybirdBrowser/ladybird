@@ -1070,7 +1070,7 @@ TEST_CASE(equals_ascii)
     test("ababababab"sv, "😀😀😀😀😀"_utf16);
 
     // Non-ASCII string comparison.
-    EXPECT_NE("😀"sv, "😀"_utf16);
+    EXPECT_EQ("😀"sv, "😀"_utf16);
 }
 
 TEST_CASE(equals_ignoring_ascii_case)
