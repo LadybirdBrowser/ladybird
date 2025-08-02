@@ -181,13 +181,14 @@ public:
             return first_child();
 
         T* node = static_cast<T*>(this);
-        T* next = nullptr;
-        while (!(next = node->next_sibling())) {
-            node = node->parent();
-            if (!node || node == stay_within)
+        while (node) {
+            if (node == stay_within)
                 return nullptr;
+            if (T* next = node->next_sibling())
+                return next;
+            node = node->parent();
         }
-        return next;
+        return nullptr;
     }
 
     T const* next_in_pre_order() const
