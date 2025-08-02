@@ -6050,19 +6050,26 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
             }
         }
 
-        // 2. Let algorithm be a new KeyAlgorithm object.
+        // 2. Let data be keyData.
+        auto data = key_data.get<ByteBuffer>();
+
+        // 3. If the length in bits of data is not 256 then throw a DataError.
+        if (data.size() * 8 != 256)
+            return WebIDL::DataError::create(m_realm, "Invalid key length"_string);
+
+        // 4. Let algorithm be a new KeyAlgorithm object.
         auto algorithm = KeyAlgorithm::create(m_realm);
 
-        // 3. Set the name attribute of algorithm to "Ed25519".
+        // 5. Set the name attribute of algorithm to "Ed25519".
         algorithm->set_name("Ed25519"_string);
 
-        // 4. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and representing the key data provided in keyData.
-        key = CryptoKey::create(m_realm, key_data);
+        // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
+        key = CryptoKey::create(m_realm, data);
 
-        // 5. Set the [[type]] internal slot of key to "public"
+        // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
 
-        // 6. Set the [[algorithm]] internal slot of key to algorithm.
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(algorithm);
     }
 
@@ -6543,19 +6550,26 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
             }
         }
 
-        // 2. Let algorithm be a new KeyAlgorithm object.
+        // 2. Let data be keyData.
+        auto data = key_data.get<ByteBuffer>();
+
+        // 3. If the length in bits of data is not 448 then throw a DataError.
+        if (data.size() * 8 != 448)
+            return WebIDL::DataError::create(m_realm, "Invalid key length"_string);
+
+        // 4. Let algorithm be a new KeyAlgorithm object.
         auto algorithm = KeyAlgorithm::create(m_realm);
 
-        // 3. Set the name attribute of algorithm to "Ed448".
+        // 5. Set the name attribute of algorithm to "Ed448".
         algorithm->set_name("Ed448"_string);
 
-        // 4. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and representing the key data provided in keyData.
-        key = CryptoKey::create(m_realm, key_data);
+        // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
+        key = CryptoKey::create(m_realm, data);
 
-        // 5. Set the [[type]] internal slot of key to "public"
+        // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
 
-        // 6. Set the [[algorithm]] internal slot of key to algorithm.
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(algorithm);
     }
 
@@ -7258,24 +7272,26 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
         if (!usages.is_empty())
             return WebIDL::SyntaxError::create(m_realm, "Usages must be empty"_string);
 
-        // AD-HOC: if the key length is not 32 bytes, then throw a DataError.
-        // See: https://github.com/w3c/webcrypto/issues/409
-        if (32 != key_data.get<ByteBuffer>().size())
-            return WebIDL::DataError::create(m_realm, "X25519 key must be 32 bytes"_string);
+        // 2. Let data be keyData.
+        auto data = key_data.get<ByteBuffer>();
 
-        // 2. Let algorithm be a new KeyAlgorithm object.
+        // 3. If the length in bits of data is not 256 then throw a DataError.
+        if (data.size() * 8 != 256)
+            return WebIDL::DataError::create(m_realm, "Invalid key length"_string);
+
+        // 4. Let algorithm be a new KeyAlgorithm object.
         auto algorithm = KeyAlgorithm::create(m_realm);
 
-        // 3. Set the name attribute of algorithm to "X25519".
+        // 5. Set the name attribute of algorithm to "X25519".
         algorithm->set_name("X25519"_string);
 
-        // 4. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and representing the key data provided in keyData.
-        key = CryptoKey::create(m_realm, key_data);
+        // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
+        key = CryptoKey::create(m_realm, data);
 
-        // 5. Set the [[type]] internal slot of key to "public"
+        // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
 
-        // 6. Set the [[algorithm]] internal slot of key to algorithm.
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(algorithm);
     }
 
@@ -7874,19 +7890,26 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
         if (!usages.is_empty())
             return WebIDL::SyntaxError::create(m_realm, "Usages must be empty"_string);
 
-        // 2. Let algorithm be a new KeyAlgorithm object.
+        // 2.Let data be keyData.
+        auto data = key_data.get<ByteBuffer>();
+
+        // 3. If the length in bits of data is not 448 then throw a DataError.
+        if (data.size() * 8 != 448)
+            return WebIDL::DataError::create(m_realm, "Invalid key length"_string);
+
+        // 4. Let algorithm be a new KeyAlgorithm object.
         auto algorithm = KeyAlgorithm::create(m_realm);
 
-        // 3. Set the name attribute of algorithm to "X448".
+        // 5. Set the name attribute of algorithm to "X448".
         algorithm->set_name("X448"_string);
 
-        // 4. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and representing the key data provided in keyData.
-        auto key = CryptoKey::create(m_realm, key_data);
+        // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
+        auto key = CryptoKey::create(m_realm, data);
 
-        // 5. Set the [[type]] internal slot of key to "public"
+        // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
 
-        // 6. Set the [[algorithm]] internal slot of key to algorithm.
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(algorithm);
 
         return key;
