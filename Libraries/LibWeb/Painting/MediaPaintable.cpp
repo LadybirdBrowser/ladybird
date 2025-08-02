@@ -15,6 +15,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/MediaPaintable.h>
+#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 
 namespace Web::Painting {
@@ -242,7 +243,7 @@ void MediaPaintable::paint_control_bar_speaker(DisplayListRecordingContext& cont
         .dash_array = {},
         .dash_offset = 0,
         .path = path,
-        .color = speaker_button_color,
+        .paint_style_or_color = speaker_button_color,
         .thickness = 1,
     });
 

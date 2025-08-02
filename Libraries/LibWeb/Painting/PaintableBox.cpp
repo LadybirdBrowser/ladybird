@@ -904,7 +904,7 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
                 .dash_array = {},
                 .dash_offset = 0,
                 .path = build_triangle_wave_path(line_start_point.to_type<int>(), line_end_point.to_type<int>(), amplitude),
-                .color = line_color,
+                .paint_style_or_color = line_color,
                 .thickness = static_cast<float>(device_line_thickness.value()),
             });
             break;

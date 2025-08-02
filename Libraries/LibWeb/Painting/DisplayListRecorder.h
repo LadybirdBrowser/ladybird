@@ -56,32 +56,19 @@ public:
     };
     void fill_path(FillPathUsingPaintStyleParams params);
 
-    struct StrokePathUsingColorParams {
+    struct StrokePathParams {
         Gfx::Path::CapStyle cap_style;
         Gfx::Path::JoinStyle join_style;
         float miter_limit;
         Vector<float> dash_array;
         float dash_offset;
         Gfx::Path path;
-        Gfx::Color color;
+        float opacity = 1.0f;
+        PaintStyleOrColor paint_style_or_color;
         float thickness;
         Optional<Gfx::FloatPoint> translation = {};
     };
-    void stroke_path(StrokePathUsingColorParams params);
-
-    struct StrokePathUsingPaintStyleParams {
-        Gfx::Path::CapStyle cap_style;
-        Gfx::Path::JoinStyle join_style;
-        float miter_limit;
-        Vector<float> dash_array;
-        float dash_offset;
-        Gfx::Path path;
-        PaintStyle paint_style;
-        float thickness;
-        float opacity;
-        Optional<Gfx::FloatPoint> translation = {};
-    };
-    void stroke_path(StrokePathUsingPaintStyleParams params);
+    void stroke_path(StrokePathParams);
 
     void draw_ellipse(Gfx::IntRect const& a_rect, Color color, int thickness);
 

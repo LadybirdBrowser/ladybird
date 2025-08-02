@@ -147,14 +147,9 @@ void FillPathUsingPaintStyle::dump(StringBuilder& builder) const
     builder.appendff("FillPathUsingPaintStyle");
 }
 
-void StrokePathUsingColor::dump(StringBuilder& builder) const
+void StrokePath::dump(StringBuilder& builder) const
 {
-    builder.appendff("StrokePathUsingColor");
-}
-
-void StrokePathUsingPaintStyle::dump(StringBuilder& builder) const
-{
-    builder.appendff("StrokePathUsingPaintStyle");
+    builder.appendff("StrokePath");
 }
 
 void DrawEllipse::dump(StringBuilder& builder) const

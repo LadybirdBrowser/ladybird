@@ -9,6 +9,7 @@
 
 #include <AK/DistinctNumeric.h>
 #include <AK/Variant.h>
+#include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 
@@ -42,6 +43,7 @@ class DisplayListRecorder;
 class SVGGradientPaintStyle;
 class ScrollStateSnapshot;
 using PaintStyle = RefPtr<SVGGradientPaintStyle>;
+using PaintStyleOrColor = Variant<PaintStyle, Gfx::Color>;
 using ScrollStateSnapshotByDisplayList = HashMap<NonnullRefPtr<DisplayList>, ScrollStateSnapshot>;
 
 }

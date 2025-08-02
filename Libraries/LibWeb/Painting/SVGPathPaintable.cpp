@@ -176,9 +176,9 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             .dash_array = stroke_dasharray,
             .dash_offset = stroke_dashoffset,
             .path = path,
-            .paint_style = *paint_style,
-            .thickness = stroke_thickness,
             .opacity = stroke_opacity,
+            .paint_style_or_color = *paint_style,
+            .thickness = stroke_thickness,
             .translation = offset,
         });
     } else if (auto stroke_color = graphics_element.stroke_color(); stroke_color.has_value()) {
@@ -189,7 +189,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             .dash_array = stroke_dasharray,
             .dash_offset = stroke_dashoffset,
             .path = path,
-            .color = stroke_color->with_opacity(stroke_opacity),
+            .paint_style_or_color = stroke_color->with_opacity(stroke_opacity),
             .thickness = stroke_thickness,
             .translation = offset,
         });

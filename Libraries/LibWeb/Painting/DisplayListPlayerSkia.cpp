@@ -660,30 +660,20 @@ void DisplayListPlayerSkia::fill_path_using_paint_style(FillPathUsingPaintStyle 
     surface().canvas().drawPath(path, paint);
 }
 
-void DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& command)
+void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
 {
-    auto& canvas = surface().canvas();
+    auto path = to_skia_path(command.path);
+    path.offset(command.aa_translation.x(), command.aa_translation.y());
     SkPaint paint;
+    if (command.paint_style_or_color.has<PaintStyle>()) {
+        auto const& paint_style = command.paint_style_or_color.get<PaintStyle>();
+        paint = paint_style_to_skia_paint(*paint_style, command.bounding_rect().to_type<float>());
+        paint.setAlphaf(command.opacity);
+    } else {
+        auto const& color = command.paint_style_or_color.get<Color>();
+        paint.setColor(to_skia_color(color));
+    }
     paint.setAntiAlias(true);
-    paint.setStyle(SkPaint::kStroke_Style);
-    paint.setStrokeWidth(command.thickness);
-    paint.setStrokeCap(to_skia_cap(command.cap_style));
-    paint.setStrokeJoin(to_skia_join(command.join_style));
-    paint.setColor(to_skia_color(command.color));
-    paint.setStrokeMiter(command.miter_limit);
-    paint.setPathEffect(SkDashPathEffect::Make(command.dash_array.data(), command.dash_array.size(), command.dash_offset));
-    auto path = to_skia_path(command.path);
-    path.offset(command.aa_translation.x(), command.aa_translation.y());
-    canvas.drawPath(path, paint);
-}
-
-void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintStyle const& command)
-{
-    auto path = to_skia_path(command.path);
-    path.offset(command.aa_translation.x(), command.aa_translation.y());
-    auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
-    paint.setAntiAlias(true);
-    paint.setAlphaf(command.opacity);
     paint.setStyle(SkPaint::Style::kStroke_Style);
     paint.setStrokeWidth(command.thickness);
     paint.setStrokeCap(to_skia_cap(command.cap_style));

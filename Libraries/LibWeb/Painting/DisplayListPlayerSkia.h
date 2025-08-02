@@ -42,8 +42,7 @@ private:
     void fill_rect_with_rounded_corners(FillRectWithRoundedCorners const&) override;
     void fill_path_using_color(FillPathUsingColor const&) override;
     void fill_path_using_paint_style(FillPathUsingPaintStyle const&) override;
-    void stroke_path_using_color(StrokePathUsingColor const&) override;
-    void stroke_path_using_paint_style(StrokePathUsingPaintStyle const&) override;
+    void stroke_path(StrokePath const&) override;
     void draw_ellipse(DrawEllipse const&) override;
     void fill_ellipse(FillEllipse const&) override;
     void draw_line(DrawLine const&) override;
