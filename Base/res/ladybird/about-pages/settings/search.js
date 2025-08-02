@@ -164,7 +164,7 @@ function addCustomSearchEngine() {
     searchCustomName.classList.remove("error");
     searchCustomURL.classList.remove("error");
 
-    for (const i = 0; i < searchEngine.length; ++i) {
+    for (let i = 0; i < searchEngine.length; ++i) {
         if (searchCustomName.value === searchEngine.item(i).value) {
             searchCustomName.classList.add("error");
             return;
