@@ -15,7 +15,8 @@ void Configuration::unwind(Badge<CallFrameHandle>, CallFrameHandle const& frame_
 {
     m_frame_stack.take_last();
     m_depth--;
-    m_ip = frame_handle.ip;
+    m_ip = frame_handle.ip.value();
+    m_locals_base = m_frame_stack.is_empty() ? nullptr : m_frame_stack.unchecked_last().locals().data();
 }
 
 Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Vector<Value> arguments)
