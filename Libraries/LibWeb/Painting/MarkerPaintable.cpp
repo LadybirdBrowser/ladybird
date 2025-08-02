@@ -84,7 +84,7 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
             path.line_to({ left + sin_60_deg * (right - left), (top + bottom) / 2 });
             path.line_to({ left, bottom });
             path.close();
-            context.display_list_recorder().fill_path({ .path = path, .color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
+            context.display_list_recorder().fill_path({ .path = path, .paint_style_or_color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
             break;
         }
         case CSS::CounterStyleNameKeyword::DisclosureOpen: {
@@ -100,7 +100,7 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
             path.line_to({ right, top });
             path.line_to({ (left + right) / 2, top + sin_60_deg * (bottom - top) });
             path.close();
-            context.display_list_recorder().fill_path({ .path = path, .color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
+            context.display_list_recorder().fill_path({ .path = path, .paint_style_or_color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
             break;
         }
         case CSS::CounterStyleNameKeyword::None:

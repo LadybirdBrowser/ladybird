@@ -575,18 +575,6 @@ void DisplayListPlayerSkia::fill_rect_with_rounded_corners(FillRectWithRoundedCo
     canvas.drawRRect(rounded_rect, paint);
 }
 
-void DisplayListPlayerSkia::fill_path_using_color(FillPathUsingColor const& command)
-{
-    auto& canvas = surface().canvas();
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setColor(to_skia_color(command.color));
-    auto path = to_skia_path(command.path);
-    path.setFillType(to_skia_path_fill_type(command.winding_rule));
-    path.offset(command.aa_translation.x(), command.aa_translation.y());
-    canvas.drawPath(path, paint);
-}
-
 static SkTileMode to_skia_tile_mode(SVGLinearGradientPaintStyle::SpreadMethod spread_method)
 {
     switch (spread_method) {
@@ -649,41 +637,39 @@ static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& 
     return paint;
 }
 
-void DisplayListPlayerSkia::fill_path_using_paint_style(FillPathUsingPaintStyle const& command)
+void DisplayListPlayerSkia::fill_path(FillPath const& command)
 {
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     path.setFillType(to_skia_path_fill_type(command.winding_rule));
-    auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
+
+    SkPaint paint;
+    if (command.paint_style_or_color.has<PaintStyle>()) {
+        auto const& paint_style = command.paint_style_or_color.get<PaintStyle>();
+        paint = paint_style_to_skia_paint(*paint_style, command.bounding_rect().to_type<float>());
+        paint.setAlphaf(command.opacity);
+    } else {
+        auto const& color = command.paint_style_or_color.get<Color>();
+        paint.setColor(to_skia_color(color));
+    }
     paint.setAntiAlias(true);
-    paint.setAlphaf(command.opacity);
     surface().canvas().drawPath(path, paint);
 }
 
-void DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& command)
+void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
 {
-    auto& canvas = surface().canvas();
+    auto path = to_skia_path(command.path);
+    path.offset(command.aa_translation.x(), command.aa_translation.y());
     SkPaint paint;
+    if (command.paint_style_or_color.has<PaintStyle>()) {
+        auto const& paint_style = command.paint_style_or_color.get<PaintStyle>();
+        paint = paint_style_to_skia_paint(*paint_style, command.bounding_rect().to_type<float>());
+        paint.setAlphaf(command.opacity);
+    } else {
+        auto const& color = command.paint_style_or_color.get<Color>();
+        paint.setColor(to_skia_color(color));
+    }
     paint.setAntiAlias(true);
-    paint.setStyle(SkPaint::kStroke_Style);
-    paint.setStrokeWidth(command.thickness);
-    paint.setStrokeCap(to_skia_cap(command.cap_style));
-    paint.setStrokeJoin(to_skia_join(command.join_style));
-    paint.setColor(to_skia_color(command.color));
-    paint.setStrokeMiter(command.miter_limit);
-    paint.setPathEffect(SkDashPathEffect::Make(command.dash_array.data(), command.dash_array.size(), command.dash_offset));
-    auto path = to_skia_path(command.path);
-    path.offset(command.aa_translation.x(), command.aa_translation.y());
-    canvas.drawPath(path, paint);
-}
-
-void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintStyle const& command)
-{
-    auto path = to_skia_path(command.path);
-    path.offset(command.aa_translation.x(), command.aa_translation.y());
-    auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
-    paint.setAntiAlias(true);
-    paint.setAlphaf(command.opacity);
     paint.setStyle(SkPaint::Style::kStroke_Style);
     paint.setStrokeWidth(command.thickness);
     paint.setStrokeCap(to_skia_cap(command.cap_style));
@@ -870,75 +856,6 @@ void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& comma
     paint.setAntiAlias(true);
     paint.setShader(shader);
     surface().canvas().drawRect(to_skia_rect(rect), paint);
-}
-
-void DisplayListPlayerSkia::draw_triangle_wave(DrawTriangleWave const& command)
-{
-    // FIXME: Support more than horizontal waves
-    if (command.p1.y() != command.p2.y()) {
-        dbgln("FIXME: Support more than horizontal waves");
-        return;
-    }
-
-    auto& canvas = surface().canvas();
-    auto from = to_skia_point(command.p1);
-    auto to = to_skia_point(command.p2);
-
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setStyle(SkPaint::kStroke_Style);
-    paint.setStrokeWidth(command.thickness);
-    paint.setStrokeJoin(SkPaint::kRound_Join);
-    paint.setStrokeCap(SkPaint::kRound_Cap);
-    paint.setColor(to_skia_color(command.color));
-
-    SkPath path;
-    path.moveTo(from);
-
-    float const wavelength = command.amplitude * 2.0f;
-    float const half_wavelength = command.amplitude;
-    float const quarter_wavelength = command.amplitude / 2.0f;
-
-    auto position = from;
-    auto remaining = abs(to.x() - position.x());
-    while (remaining > wavelength) {
-        // Draw a whole wave
-        path.lineTo(position.x() + quarter_wavelength, position.y() - quarter_wavelength);
-        path.lineTo(position.x() + quarter_wavelength + half_wavelength, position.y() + quarter_wavelength);
-        path.lineTo(position.x() + wavelength, position.y());
-        position.offset(wavelength, 0);
-        remaining = abs(to.x() - position.x());
-    }
-
-    // Up
-    if (remaining > quarter_wavelength) {
-        path.lineTo(position.x() + quarter_wavelength, position.y() - quarter_wavelength);
-        position.offset(quarter_wavelength, 0);
-        remaining = abs(to.x() - position.x());
-    } else if (remaining >= 1) {
-        auto fraction = remaining / quarter_wavelength;
-        path.lineTo(position.x() + (fraction * quarter_wavelength), position.y() - (fraction * quarter_wavelength));
-        remaining = 0;
-    }
-
-    // Down
-    if (remaining > half_wavelength) {
-        path.lineTo(position.x() + half_wavelength, position.y() + quarter_wavelength);
-        position.offset(half_wavelength, 0);
-        remaining = abs(to.x() - position.x());
-    } else if (remaining >= 1) {
-        auto fraction = remaining / half_wavelength;
-        path.lineTo(position.x() + (fraction * half_wavelength), position.y() - quarter_wavelength + (fraction * half_wavelength));
-        remaining = 0;
-    }
-
-    // Back to middle
-    if (remaining >= 1) {
-        auto fraction = remaining / quarter_wavelength;
-        path.lineTo(position.x() + (fraction * quarter_wavelength), position.y() + ((1 - fraction) * quarter_wavelength));
-    }
-
-    canvas.drawPath(path, paint);
 }
 
 void DisplayListPlayerSkia::add_rounded_rect_clip(AddRoundedRectClip const& command)

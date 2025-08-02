@@ -211,10 +211,11 @@ struct FillRectWithRoundedCorners {
     void dump(StringBuilder&) const;
 };
 
-struct FillPathUsingColor {
+struct FillPath {
     Gfx::IntRect path_bounding_rect;
     Gfx::Path path;
-    Color color;
+    float opacity { 1.0f };
+    PaintStyleOrColor paint_style_or_color;
     Gfx::WindingRule winding_rule;
     Gfx::FloatPoint aa_translation;
 
@@ -228,57 +229,17 @@ struct FillPathUsingColor {
     void dump(StringBuilder&) const;
 };
 
-struct FillPathUsingPaintStyle {
+struct StrokePath {
+    Gfx::Path::CapStyle cap_style;
+    Gfx::Path::JoinStyle join_style;
+    float miter_limit;
+    Vector<float> dash_array;
+    float dash_offset;
     Gfx::IntRect path_bounding_rect;
     Gfx::Path path;
-    PaintStyle paint_style;
-    Gfx::WindingRule winding_rule;
     float opacity;
-    Gfx::FloatPoint aa_translation;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
-
-    void translate_by(Gfx::IntPoint const& offset)
-    {
-        path_bounding_rect.translate_by(offset);
-        aa_translation.translate_by(offset.to_type<float>());
-    }
-    void dump(StringBuilder&) const;
-};
-
-struct StrokePathUsingColor {
-    Gfx::Path::CapStyle cap_style;
-    Gfx::Path::JoinStyle join_style;
-    float miter_limit;
-    Vector<float> dash_array;
-    float dash_offset;
-    Gfx::IntRect path_bounding_rect;
-    Gfx::Path path;
-    Color color;
+    PaintStyleOrColor paint_style_or_color;
     float thickness;
-    Gfx::FloatPoint aa_translation;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
-
-    void translate_by(Gfx::IntPoint const& offset)
-    {
-        path_bounding_rect.translate_by(offset);
-        aa_translation.translate_by(offset.to_type<float>());
-    }
-    void dump(StringBuilder&) const;
-};
-
-struct StrokePathUsingPaintStyle {
-    Gfx::Path::CapStyle cap_style;
-    Gfx::Path::JoinStyle join_style;
-    float miter_limit;
-    Vector<float> dash_array;
-    float dash_offset;
-    Gfx::IntRect path_bounding_rect;
-    Gfx::Path path;
-    PaintStyle paint_style;
-    float thickness;
-    float opacity = 1.0f;
     Gfx::FloatPoint aa_translation;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
@@ -379,21 +340,6 @@ struct PaintConicGradient {
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
-    void dump(StringBuilder&) const;
-};
-
-struct DrawTriangleWave {
-    Gfx::IntPoint p1;
-    Gfx::IntPoint p2;
-    Color color;
-    int amplitude;
-    int thickness;
-
-    void translate_by(Gfx::IntPoint const& offset)
-    {
-        p1.translate_by(offset);
-        p2.translate_by(offset);
-    }
     void dump(StringBuilder&) const;
 };
 
@@ -521,16 +467,13 @@ using DisplayListCommand = Variant<
     PaintInnerBoxShadow,
     PaintTextShadow,
     FillRectWithRoundedCorners,
-    FillPathUsingColor,
-    FillPathUsingPaintStyle,
-    StrokePathUsingColor,
-    StrokePathUsingPaintStyle,
+    FillPath,
+    StrokePath,
     DrawEllipse,
     FillEllipse,
     DrawLine,
     ApplyBackdropFilter,
     DrawRect,
-    DrawTriangleWave,
     AddRoundedRectClip,
     AddMask,
     PaintNestedDisplayList,

@@ -64,47 +64,31 @@ void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color)
     APPEND(FillRect { rect, color });
 }
 
-void DisplayListRecorder::fill_path(FillPathUsingColorParams params)
+void DisplayListRecorder::fill_path(FillPathParams params)
 {
-    if (params.color.alpha() == 0)
+    if (params.paint_style_or_color.has<Gfx::Color>() && params.paint_style_or_color.get<Gfx::Color>().alpha() == 0)
         return;
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
-    APPEND(FillPathUsingColor {
+    APPEND(FillPath {
         .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
-        .color = params.color,
-        .winding_rule = params.winding_rule,
-        .aa_translation = aa_translation,
-    });
-}
-
-void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
-{
-    auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
-    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
-    auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
-    if (path_bounding_int_rect.is_empty())
-        return;
-    APPEND(FillPathUsingPaintStyle {
-        .path_bounding_rect = path_bounding_int_rect,
-        .path = move(params.path),
-        .paint_style = params.paint_style,
-        .winding_rule = params.winding_rule,
         .opacity = params.opacity,
+        .paint_style_or_color = params.paint_style_or_color,
+        .winding_rule = params.winding_rule,
         .aa_translation = aa_translation,
     });
 }
 
-void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
+void DisplayListRecorder::stroke_path(StrokePathParams params)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (!params.thickness)
         return;
-    if (params.color.alpha() == 0)
+    if (params.paint_style_or_color.has<Gfx::Color>() && params.paint_style_or_color.get<Gfx::Color>().alpha() == 0)
         return;
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
@@ -113,7 +97,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
-    APPEND(StrokePathUsingColor {
+    APPEND(StrokePath {
         .cap_style = params.cap_style,
         .join_style = params.join_style,
         .miter_limit = params.miter_limit,
@@ -121,35 +105,9 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
         .dash_offset = params.dash_offset,
         .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
-        .color = params.color,
-        .thickness = params.thickness,
-        .aa_translation = aa_translation,
-    });
-}
-
-void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
-{
-    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
-    if (!params.thickness)
-        return;
-    auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
-    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
-    // Increase path bounding box by `thickness` to account for stroke.
-    path_bounding_rect.inflate(params.thickness, params.thickness);
-    auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
-    if (path_bounding_int_rect.is_empty())
-        return;
-    APPEND(StrokePathUsingPaintStyle {
-        .cap_style = params.cap_style,
-        .join_style = params.join_style,
-        .miter_limit = params.miter_limit,
-        .dash_array = move(params.dash_array),
-        .dash_offset = params.dash_offset,
-        .path_bounding_rect = path_bounding_int_rect,
-        .path = move(params.path),
-        .paint_style = params.paint_style,
-        .thickness = params.thickness,
         .opacity = params.opacity,
+        .paint_style_or_color = params.paint_style_or_color,
+        .thickness = params.thickness,
         .aa_translation = aa_translation,
     });
 }
@@ -431,21 +389,6 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_r
         { top_right_radius, top_right_radius },
         { bottom_right_radius, bottom_right_radius },
         { bottom_left_radius, bottom_left_radius });
-}
-
-void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a_p2, Color color, int amplitude, int thickness = 1)
-{
-    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
-    if (!thickness)
-        return;
-    if (color.alpha() == 0)
-        return;
-    APPEND(DrawTriangleWave {
-        .p1 = a_p1,
-        .p2 = a_p2,
-        .color = color,
-        .amplitude = amplitude,
-        .thickness = thickness });
 }
 
 void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, CSSPixelFraction scroll_size, Color thumb_color, Color track_color, bool vertical)

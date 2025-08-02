@@ -40,10 +40,8 @@ private:
     void paint_inner_box_shadow(PaintInnerBoxShadow const&) override;
     void paint_text_shadow(PaintTextShadow const&) override;
     void fill_rect_with_rounded_corners(FillRectWithRoundedCorners const&) override;
-    void fill_path_using_color(FillPathUsingColor const&) override;
-    void fill_path_using_paint_style(FillPathUsingPaintStyle const&) override;
-    void stroke_path_using_color(StrokePathUsingColor const&) override;
-    void stroke_path_using_paint_style(StrokePathUsingPaintStyle const&) override;
+    void fill_path(FillPath const&) override;
+    void stroke_path(StrokePath const&) override;
     void draw_ellipse(DrawEllipse const&) override;
     void fill_ellipse(FillEllipse const&) override;
     void draw_line(DrawLine const&) override;
@@ -51,7 +49,6 @@ private:
     void draw_rect(DrawRect const&) override;
     void paint_radial_gradient(PaintRadialGradient const&) override;
     void paint_conic_gradient(PaintConicGradient const&) override;
-    void draw_triangle_wave(DrawTriangleWave const&) override;
     void add_rounded_rect_clip(AddRoundedRectClip const&) override;
     void add_mask(AddMask const&) override;
     void paint_scrollbar(PaintScrollBar const&) override;

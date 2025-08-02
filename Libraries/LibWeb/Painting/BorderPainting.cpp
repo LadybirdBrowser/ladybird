@@ -195,9 +195,7 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         // If joined borders have the same color, combine them to draw together.
         if (ready_to_draw) {
             path.close_all_subpaths();
-            painter.fill_path({ .path = path,
-                .color = color,
-                .winding_rule = Gfx::WindingRule::EvenOdd });
+            painter.fill_path({ .path = path, .paint_style_or_color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
             path.clear();
         }
     };

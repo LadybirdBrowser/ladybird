@@ -137,24 +137,14 @@ void FillRectWithRoundedCorners::dump(StringBuilder& builder) const
     builder.appendff("FillRectWithRoundedCorners rect={} color={}", rect, color);
 }
 
-void FillPathUsingColor::dump(StringBuilder& builder) const
+void FillPath::dump(StringBuilder& builder) const
 {
-    builder.appendff("FillPathUsingColor");
+    builder.appendff("FillPath");
 }
 
-void FillPathUsingPaintStyle::dump(StringBuilder& builder) const
+void StrokePath::dump(StringBuilder& builder) const
 {
-    builder.appendff("FillPathUsingPaintStyle");
-}
-
-void StrokePathUsingColor::dump(StringBuilder& builder) const
-{
-    builder.appendff("StrokePathUsingColor");
-}
-
-void StrokePathUsingPaintStyle::dump(StringBuilder& builder) const
-{
-    builder.appendff("StrokePathUsingPaintStyle");
+    builder.appendff("StrokePath");
 }
 
 void DrawEllipse::dump(StringBuilder& builder) const
@@ -180,11 +170,6 @@ void ApplyBackdropFilter::dump(StringBuilder& builder) const
 void DrawRect::dump(StringBuilder& builder) const
 {
     builder.appendff("DrawRect rect={} color={} rough={}", rect, color, rough);
-}
-
-void DrawTriangleWave::dump(StringBuilder& builder) const
-{
-    builder.appendff("DrawTriangleWave p1={} p2={} color={} amplitude={} thickness={}", p1, p2, color, amplitude, thickness);
 }
 
 void AddRoundedRectClip::dump(StringBuilder& builder) const

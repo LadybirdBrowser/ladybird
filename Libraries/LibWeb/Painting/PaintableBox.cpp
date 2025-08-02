@@ -734,9 +734,65 @@ void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable 
     context.display_list_recorder().fill_rect(cursor_device_rect, caret_color);
 }
 
+static Gfx::Path build_triangle_wave_path(Gfx::IntPoint from, Gfx::IntPoint to, float amplitude)
+{
+    Gfx::Path path;
+    if (from.y() != to.y()) {
+        dbgln("FIXME: Support more than horizontal waves");
+        return path;
+    }
+
+    path.move_to(from.to_type<float>());
+
+    float const wavelength = amplitude * 2.0f;
+    float const half_wavelength = amplitude;
+    float const quarter_wavelength = amplitude / 2.0f;
+
+    auto position = from.to_type<float>();
+    auto remaining = abs(to.x() - position.x());
+    while (remaining > wavelength) {
+        // Draw a whole wave
+        path.line_to({ position.x() + quarter_wavelength, position.y() - quarter_wavelength });
+        path.line_to({ position.x() + quarter_wavelength + half_wavelength, position.y() + quarter_wavelength });
+        path.line_to({ position.x() + wavelength, (float)position.y() });
+        position.translate_by({ wavelength, 0 });
+        remaining = abs(to.x() - position.x());
+    }
+
+    // Up
+    if (remaining > quarter_wavelength) {
+        path.line_to({ position.x() + quarter_wavelength, position.y() - quarter_wavelength });
+        position.translate_by({ quarter_wavelength, 0 });
+        remaining = abs(to.x() - position.x());
+    } else if (remaining >= 1) {
+        auto fraction = remaining / quarter_wavelength;
+        path.line_to({ position.x() + (fraction * quarter_wavelength), position.y() - (fraction * quarter_wavelength) });
+        remaining = 0;
+    }
+
+    // Down
+    if (remaining > half_wavelength) {
+        path.line_to({ position.x() + half_wavelength, position.y() + quarter_wavelength });
+        position.translate_by(half_wavelength, 0);
+        remaining = abs(to.x() - position.x());
+    } else if (remaining >= 1) {
+        auto fraction = remaining / half_wavelength;
+        path.line_to({ position.x() + (fraction * half_wavelength), position.y() - quarter_wavelength + (fraction * half_wavelength) });
+        remaining = 0;
+    }
+
+    // Back to middle
+    if (remaining >= 1) {
+        auto fraction = remaining / quarter_wavelength;
+        path.line_to({ position.x() + (fraction * quarter_wavelength), position.y() + ((1 - fraction) * quarter_wavelength) });
+    }
+
+    return path;
+}
+
 void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
 {
-    auto& painter = context.display_list_recorder();
+    auto& recorder = context.display_list_recorder();
     auto& font = fragment.layout_node().first_available_font();
     auto fragment_box = fragment.absolute_rect();
     CSSPixels glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
@@ -796,7 +852,7 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
 
         switch (line_style) {
         case CSS::TextDecorationStyle::Solid:
-            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Solid);
+            recorder.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Solid);
             break;
         case CSS::TextDecorationStyle::Double:
             switch (line) {
@@ -814,14 +870,14 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
                 VERIFY_NOT_REACHED();
             }
 
-            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value());
-            painter.draw_line(line_start_point.translated(0, device_line_thickness + 1).to_type<int>(), line_end_point.translated(0, device_line_thickness + 1).to_type<int>(), line_color, device_line_thickness.value());
+            recorder.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value());
+            recorder.draw_line(line_start_point.translated(0, device_line_thickness + 1).to_type<int>(), line_end_point.translated(0, device_line_thickness + 1).to_type<int>(), line_color, device_line_thickness.value());
             break;
         case CSS::TextDecorationStyle::Dashed:
-            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Dashed);
+            recorder.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Dashed);
             break;
         case CSS::TextDecorationStyle::Dotted:
-            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Dotted);
+            recorder.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Dotted);
             break;
         case CSS::TextDecorationStyle::Wavy:
             auto amplitude = device_line_thickness.value() * 3;
@@ -841,7 +897,16 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
             default:
                 VERIFY_NOT_REACHED();
             }
-            painter.draw_triangle_wave(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, amplitude, device_line_thickness.value());
+            recorder.stroke_path({
+                .cap_style = Gfx::Path::CapStyle::Round,
+                .join_style = Gfx::Path::JoinStyle::Round,
+                .miter_limit = 0,
+                .dash_array = {},
+                .dash_offset = 0,
+                .path = build_triangle_wave_path(line_start_point.to_type<int>(), line_end_point.to_type<int>(), amplitude),
+                .paint_style_or_color = line_color,
+                .thickness = static_cast<float>(device_line_thickness.value()),
+            });
             break;
         }
     }

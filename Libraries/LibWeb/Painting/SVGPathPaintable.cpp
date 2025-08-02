@@ -95,7 +95,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
         // the edge of the geometry) which represents the silhouette of the graphics associated with that element.
         context.display_list_recorder().fill_path({
             .path = closed_path(),
-            .color = Color::Black,
+            .paint_style_or_color = Gfx::Color(Color::Black),
             .winding_rule = to_gfx_winding_rule(graphics_element.clip_rule().value_or(SVG::ClipRule::Nonzero)),
             .translation = offset,
         });
@@ -113,15 +113,15 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
     if (auto paint_style = graphics_element.fill_paint_style(paint_context); paint_style.has_value()) {
         context.display_list_recorder().fill_path({
             .path = closed_path(),
-            .paint_style = *paint_style,
-            .winding_rule = winding_rule,
             .opacity = fill_opacity,
+            .paint_style_or_color = *paint_style,
+            .winding_rule = winding_rule,
             .translation = offset,
         });
     } else if (auto fill_color = graphics_element.fill_color(); fill_color.has_value()) {
         context.display_list_recorder().fill_path({
             .path = closed_path(),
-            .color = fill_color->with_opacity(fill_opacity),
+            .paint_style_or_color = fill_color->with_opacity(fill_opacity),
             .winding_rule = winding_rule,
             .translation = offset,
         });
@@ -176,9 +176,9 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             .dash_array = stroke_dasharray,
             .dash_offset = stroke_dashoffset,
             .path = path,
-            .paint_style = *paint_style,
-            .thickness = stroke_thickness,
             .opacity = stroke_opacity,
+            .paint_style_or_color = *paint_style,
+            .thickness = stroke_thickness,
             .translation = offset,
         });
     } else if (auto stroke_color = graphics_element.stroke_color(); stroke_color.has_value()) {
@@ -189,7 +189,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             .dash_array = stroke_dasharray,
             .dash_offset = stroke_dashoffset,
             .path = path,
-            .color = stroke_color->with_opacity(stroke_opacity),
+            .paint_style_or_color = stroke_color->with_opacity(stroke_opacity),
             .thickness = stroke_thickness,
             .translation = offset,
         });
