@@ -35,8 +35,10 @@ public:
     ALWAYS_INLINE Utf16StringBase(Utf16StringBase const& other)
         : m_value(other.m_value)
     {
-        if (has_long_storage())
-            data_without_union_member_assertion()->ref();
+        if (has_long_storage()) {
+            if (auto const* data = data_without_union_member_assertion())
+                data->ref();
+        }
     }
 
     constexpr Utf16StringBase(Utf16StringBase&& other)
@@ -74,15 +76,19 @@ public:
         if (has_short_ascii_storage())
             return short_ascii_string_without_union_member_assertion().bytes();
 
-        VERIFY(has_long_ascii_storage());
-        return data_without_union_member_assertion()->ascii_view();
+        if (auto const* data = data_without_union_member_assertion())
+            return data->ascii_view();
+        return {};
     }
 
     [[nodiscard]] ALWAYS_INLINE Utf16View utf16_view() const&
     {
         if (has_short_ascii_storage())
             return Utf16View { ascii_view().characters_without_null_termination(), length_in_code_units() };
-        return data_without_union_member_assertion()->utf16_view();
+
+        if (auto const* data = data_without_union_member_assertion())
+            return data->utf16_view();
+        return {};
     }
 
     StringView ascii_view() const&& = delete;
@@ -97,13 +103,17 @@ public:
     ALWAYS_INLINE Utf16StringBase& operator=(Utf16StringBase const& other)
     {
         if (&other != this) {
-            if (has_long_storage())
-                data_without_union_member_assertion()->unref();
+            if (has_long_storage()) {
+                if (auto const* data = data_without_union_member_assertion())
+                    data->unref();
+            }
 
             m_value = other.m_value;
 
-            if (has_long_storage())
-                data_without_union_member_assertion()->ref();
+            if (has_long_storage()) {
+                if (auto const* data = data_without_union_member_assertion())
+                    data->ref();
+            }
         }
 
         return *this;
@@ -111,8 +121,10 @@ public:
 
     ALWAYS_INLINE Utf16StringBase& operator=(Utf16StringBase&& other)
     {
-        if (has_long_storage())
-            data_without_union_member_assertion()->unref();
+        if (has_long_storage()) {
+            if (auto const* data = data_without_union_member_assertion())
+                data->unref();
+        }
 
         m_value = exchange(other.m_value, { .short_ascii_string = ShortString::create_empty() });
         return *this;
@@ -123,8 +135,15 @@ public:
         if (has_short_ascii_storage() && other.has_short_ascii_storage())
             return bit_cast<FlatPtr>(m_value) == bit_cast<FlatPtr>(other.m_value);
 
-        if (has_long_storage() && other.has_long_storage())
-            return *data_without_union_member_assertion() == *other.data_without_union_member_assertion();
+        if (has_long_storage() && other.has_long_storage()) {
+            auto const* this_data = data_without_union_member_assertion();
+            auto const* other_data = other.data_without_union_member_assertion();
+
+            if (!this_data || !other_data)
+                return this_data == other_data;
+
+            return *this_data == *other_data;
+        }
 
         return utf16_view() == other.utf16_view();
     }
@@ -151,7 +170,10 @@ public:
     {
         if (has_short_ascii_storage())
             return StringView { short_ascii_string_without_union_member_assertion().bytes() }.hash();
-        return data_without_union_member_assertion()->hash();
+
+        if (auto const* data = data_without_union_member_assertion())
+            return data->hash();
+        return string_hash(nullptr, 0);
     }
 
     [[nodiscard]] ALWAYS_INLINE bool is_empty() const { return length_in_code_units() == 0uz; }
@@ -162,14 +184,20 @@ public:
     {
         if (has_short_ascii_storage())
             return short_ascii_string_without_union_member_assertion().byte_count();
-        return data_without_union_member_assertion()->length_in_code_units();
+
+        if (auto const* data = data_without_union_member_assertion())
+            return data->length_in_code_units();
+        return 0;
     }
 
     [[nodiscard]] ALWAYS_INLINE size_t length_in_code_points() const
     {
         if (has_short_ascii_storage())
             return short_ascii_string_without_union_member_assertion().byte_count();
-        return data_without_union_member_assertion()->length_in_code_points();
+
+        if (auto const* data = data_without_union_member_assertion())
+            return data->length_in_code_points();
+        return 0;
     }
 
     [[nodiscard]] ALWAYS_INLINE char16_t code_unit_at(size_t code_unit_offset) const { return utf16_view().code_unit_at(code_unit_offset); }
@@ -254,7 +282,10 @@ public:
     {
         if (has_short_ascii_storage())
             return false;
-        return data_without_union_member_assertion()->has_ascii_storage();
+
+        if (auto const* data = data_without_union_member_assertion())
+            return data->has_ascii_storage();
+        return false;
     }
 
     // This is primarily interesting to unit tests.
@@ -268,7 +299,10 @@ public:
     {
         if (has_short_ascii_storage())
             return false;
-        return data_without_union_member_assertion()->has_utf16_storage();
+
+        if (auto const* data = data_without_union_member_assertion())
+            return data->has_utf16_storage();
+        return false;
     }
 
     // This is primarily interesting to unit tests.
@@ -295,8 +329,10 @@ public:
 protected:
     ALWAYS_INLINE void destroy_string() const
     {
-        if (has_long_storage())
-            data_without_union_member_assertion()->unref();
+        if (has_long_storage()) {
+            if (auto const* data = data_without_union_member_assertion())
+                data->unref();
+        }
     }
 
     // This is technically **invalid**! See StringBase for details.
