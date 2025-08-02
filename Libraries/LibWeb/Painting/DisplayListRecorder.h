@@ -24,6 +24,7 @@
 #include <LibWeb/Painting/ClipFrame.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
+#include <LibWeb/Painting/PaintStyle.h>
 
 namespace Web::Painting {
 
@@ -39,22 +40,14 @@ class DisplayListRecorder {
 public:
     void fill_rect(Gfx::IntRect const& rect, Color color);
 
-    struct FillPathUsingColorParams {
+    struct FillPathParams {
         Gfx::Path path;
-        Gfx::Color color;
+        float opacity = 1.0f;
+        PaintStyleOrColor paint_style_or_color;
         Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
         Optional<Gfx::FloatPoint> translation = {};
     };
-    void fill_path(FillPathUsingColorParams params);
-
-    struct FillPathUsingPaintStyleParams {
-        Gfx::Path path;
-        PaintStyle paint_style;
-        Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
-        float opacity;
-        Optional<Gfx::FloatPoint> translation = {};
-    };
-    void fill_path(FillPathUsingPaintStyleParams params);
+    void fill_path(FillPathParams params);
 
     struct StrokePathParams {
         Gfx::Path::CapStyle cap_style;

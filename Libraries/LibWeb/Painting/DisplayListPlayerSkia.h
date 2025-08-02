@@ -40,8 +40,7 @@ private:
     void paint_inner_box_shadow(PaintInnerBoxShadow const&) override;
     void paint_text_shadow(PaintTextShadow const&) override;
     void fill_rect_with_rounded_corners(FillRectWithRoundedCorners const&) override;
-    void fill_path_using_color(FillPathUsingColor const&) override;
-    void fill_path_using_paint_style(FillPathUsingPaintStyle const&) override;
+    void fill_path(FillPath const&) override;
     void stroke_path(StrokePath const&) override;
     void draw_ellipse(DrawEllipse const&) override;
     void fill_ellipse(FillEllipse const&) override;

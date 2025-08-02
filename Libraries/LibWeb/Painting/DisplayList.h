@@ -55,8 +55,7 @@ private:
     virtual void paint_inner_box_shadow(PaintInnerBoxShadow const&) = 0;
     virtual void paint_text_shadow(PaintTextShadow const&) = 0;
     virtual void fill_rect_with_rounded_corners(FillRectWithRoundedCorners const&) = 0;
-    virtual void fill_path_using_color(FillPathUsingColor const&) = 0;
-    virtual void fill_path_using_paint_style(FillPathUsingPaintStyle const&) = 0;
+    virtual void fill_path(FillPath const&) = 0;
     virtual void stroke_path(StrokePath const&) = 0;
     virtual void draw_ellipse(DrawEllipse const&) = 0;
     virtual void fill_ellipse(FillEllipse const&) = 0;

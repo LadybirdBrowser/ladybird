@@ -575,18 +575,6 @@ void DisplayListPlayerSkia::fill_rect_with_rounded_corners(FillRectWithRoundedCo
     canvas.drawRRect(rounded_rect, paint);
 }
 
-void DisplayListPlayerSkia::fill_path_using_color(FillPathUsingColor const& command)
-{
-    auto& canvas = surface().canvas();
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setColor(to_skia_color(command.color));
-    auto path = to_skia_path(command.path);
-    path.setFillType(to_skia_path_fill_type(command.winding_rule));
-    path.offset(command.aa_translation.x(), command.aa_translation.y());
-    canvas.drawPath(path, paint);
-}
-
 static SkTileMode to_skia_tile_mode(SVGLinearGradientPaintStyle::SpreadMethod spread_method)
 {
     switch (spread_method) {
@@ -649,14 +637,22 @@ static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& 
     return paint;
 }
 
-void DisplayListPlayerSkia::fill_path_using_paint_style(FillPathUsingPaintStyle const& command)
+void DisplayListPlayerSkia::fill_path(FillPath const& command)
 {
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     path.setFillType(to_skia_path_fill_type(command.winding_rule));
-    auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
+
+    SkPaint paint;
+    if (command.paint_style_or_color.has<PaintStyle>()) {
+        auto const& paint_style = command.paint_style_or_color.get<PaintStyle>();
+        paint = paint_style_to_skia_paint(*paint_style, command.bounding_rect().to_type<float>());
+        paint.setAlphaf(command.opacity);
+    } else {
+        auto const& color = command.paint_style_or_color.get<Color>();
+        paint.setColor(to_skia_color(color));
+    }
     paint.setAntiAlias(true);
-    paint.setAlphaf(command.opacity);
     surface().canvas().drawPath(path, paint);
 }
 
