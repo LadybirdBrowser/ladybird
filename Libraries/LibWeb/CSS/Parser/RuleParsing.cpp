@@ -29,6 +29,8 @@
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Parser/Syntax.h>
+#include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
@@ -626,12 +628,40 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         }
     });
 
-    // TODO: Parse the initial value using the syntax, if it's provided.
-
-    if (syntax_maybe.has_value() && inherits_maybe.has_value()) {
-        return CSSPropertyRule::create(realm(), name, syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
+    // @property rules require a syntax and inherits descriptor; if either are missing, the entire rule is invalid and must be ignored.
+    if (!syntax_maybe.has_value() || syntax_maybe->is_empty() || !inherits_maybe.has_value()) {
+        return {};
     }
-    return {};
+
+    auto parsing_params = CSS::Parser::ParsingParams { *document() };
+    auto syntax_component_values = parse_component_values_list(parsing_params, syntax_maybe.value());
+    auto maybe_syntax = parse_as_syntax(syntax_component_values);
+
+    // If the provided string is not a valid syntax string (if it returns failure when consume
+    // a syntax definition is called on it), the descriptor is invalid and must be ignored.
+    if (!maybe_syntax) {
+        return {};
+    }
+    // The initial-value descriptor is optional only if the syntax is the universal syntax definition,
+    // otherwise the descriptor is required; if it’s missing, the entire rule is invalid and must be ignored.
+    if (!initial_value_maybe && maybe_syntax->type() != CSS::Parser::SyntaxNode::NodeType::Universal) {
+        return {};
+    }
+
+    if (initial_value_maybe) {
+        initial_value_maybe = Web::CSS::Parser::parse_with_a_syntax(parsing_params, initial_value_maybe->tokenize(), *maybe_syntax);
+        // Otherwise, if the value of the syntax descriptor is not the universal syntax definition,
+        // the following conditions must be met for the @property rule to be valid:
+        //  - The initial-value descriptor must be present.
+        //  - The initial-value descriptor’s value must parse successfully according to the grammar specified by the syntax definition.
+        //  - FIXME: The initial-value must be computationally independent.
+
+        if (!initial_value_maybe || initial_value_maybe->is_guaranteed_invalid()) {
+            return {};
+        }
+    }
+
+    return CSSPropertyRule::create(realm(), name, syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
 }
 
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)

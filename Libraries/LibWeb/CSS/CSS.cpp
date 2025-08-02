@@ -112,10 +112,10 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
         return WebIDL::SyntaxError::create(realm, "Initial value must be provided for non-universal syntax"_string);
     } else {
         // Otherwise, parse initialValue according to syntax definition.
-        auto initial_value_component_values = parse_component_values_list(CSS::Parser::ParsingParams {}, definition.initial_value.value());
+        auto initial_value_component_values = parse_component_values_list(parsing_params, definition.initial_value.value());
 
         initial_value_maybe = Parser::parse_with_a_syntax(
-            Parser::ParsingParams { realm },
+            parsing_params,
             initial_value_component_values,
             *maybe_syntax);
 

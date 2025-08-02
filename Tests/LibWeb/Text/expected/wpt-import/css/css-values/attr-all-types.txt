@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 139 tests
 
-130 Pass
-9 Fail
+128 Pass
+11 Fail
 Pass	CSS Values and Units Test: attr
 Fail	CSS Values and Units Test: attr 1
 Pass	CSS Values and Units Test: attr 2
@@ -54,12 +54,12 @@ Pass	CSS Values and Units Test: attr 46
 Pass	CSS Values and Units Test: attr 47
 Pass	CSS Values and Units Test: attr 48
 Pass	CSS Values and Units Test: attr 49
-Pass	CSS Values and Units Test: attr 50
+Fail	CSS Values and Units Test: attr 50
 Fail	CSS Values and Units Test: attr 51
 Pass	CSS Values and Units Test: attr 52
 Pass	CSS Values and Units Test: attr 53
 Pass	CSS Values and Units Test: attr 54
-Pass	CSS Values and Units Test: attr 55
+Fail	CSS Values and Units Test: attr 55
 Pass	CSS Values and Units Test: attr 56
 Pass	CSS Values and Units Test: attr 57
 Pass	CSS Values and Units Test: attr 58
