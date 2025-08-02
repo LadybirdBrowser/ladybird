@@ -770,6 +770,12 @@ struct IntersectionObserverRegistration;
 
 }
 
+namespace Web::Keyboard {
+
+class Keyboard;
+
+}
+
 namespace Web::Layout {
 
 class AudioBox;
