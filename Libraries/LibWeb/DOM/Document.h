@@ -158,6 +158,7 @@ struct ElementCreationOptions {
 enum class PolicyControlledFeature : u8 {
     Autoplay,
     FocusWithoutUserActivation,
+    EncryptedMedia,
 };
 
 class Document
