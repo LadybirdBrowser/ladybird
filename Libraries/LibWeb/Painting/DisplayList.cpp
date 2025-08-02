@@ -223,7 +223,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(DrawLine, draw_line)
         else HANDLE_COMMAND(ApplyBackdropFilter, apply_backdrop_filter)
         else HANDLE_COMMAND(DrawRect, draw_rect)
-        else HANDLE_COMMAND(DrawTriangleWave, draw_triangle_wave)
         else HANDLE_COMMAND(AddRoundedRectClip, add_rounded_rect_clip)
         else HANDLE_COMMAND(AddMask, add_mask)
         else HANDLE_COMMAND(PaintScrollBar, paint_scrollbar)

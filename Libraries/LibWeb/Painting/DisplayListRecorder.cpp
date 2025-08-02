@@ -433,21 +433,6 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_r
         { bottom_left_radius, bottom_left_radius });
 }
 
-void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a_p2, Color color, int amplitude, int thickness = 1)
-{
-    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
-    if (!thickness)
-        return;
-    if (color.alpha() == 0)
-        return;
-    APPEND(DrawTriangleWave {
-        .p1 = a_p1,
-        .p2 = a_p2,
-        .color = color,
-        .amplitude = amplitude,
-        .thickness = thickness });
-}
-
 void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, CSSPixelFraction scroll_size, Color thumb_color, Color track_color, bool vertical)
 {
     APPEND(PaintScrollBar {

@@ -182,11 +182,6 @@ void DrawRect::dump(StringBuilder& builder) const
     builder.appendff("DrawRect rect={} color={} rough={}", rect, color, rough);
 }
 
-void DrawTriangleWave::dump(StringBuilder& builder) const
-{
-    builder.appendff("DrawTriangleWave p1={} p2={} color={} amplitude={} thickness={}", p1, p2, color, amplitude, thickness);
-}
-
 void AddRoundedRectClip::dump(StringBuilder& builder) const
 {
     builder.appendff("AddRoundedRectClip rect={}", border_rect);

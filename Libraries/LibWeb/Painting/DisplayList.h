@@ -64,7 +64,6 @@ private:
     virtual void draw_line(DrawLine const&) = 0;
     virtual void apply_backdrop_filter(ApplyBackdropFilter const&) = 0;
     virtual void draw_rect(DrawRect const&) = 0;
-    virtual void draw_triangle_wave(DrawTriangleWave const&) = 0;
     virtual void add_rounded_rect_clip(AddRoundedRectClip const&) = 0;
     virtual void add_mask(AddMask const&) = 0;
     virtual void paint_nested_display_list(PaintNestedDisplayList const&) = 0;
