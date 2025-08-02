@@ -12,9 +12,9 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueue);
 GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
-GC::Ref<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable)
+GC::Ref<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable, NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion)
 {
-    return vm.heap().allocate<SessionHistoryTraversalQueueEntry>(steps, target_navigable);
+    return vm.heap().allocate<SessionHistoryTraversalQueueEntry>(steps, target_navigable, promise_to_signal_steps_completion);
 }
 
 void SessionHistoryTraversalQueueEntry::visit_edges(JS::Cell::Visitor& visitor)
@@ -31,12 +31,21 @@ SessionHistoryTraversalQueue::SessionHistoryTraversalQueue()
             m_timer->start();
             return;
         }
+
         while (m_queue.size() > 0) {
+            if (m_current_promise && !m_current_promise->is_resolved() && !m_current_promise->is_rejected()) {
+                m_timer->start();
+                return;
+            }
+
             m_is_task_running = true;
             auto entry = m_queue.take_first();
+            m_current_promise = entry->promise_to_signal_steps_completion();
             entry->execute_steps();
             m_is_task_running = false;
         }
+
+        m_current_promise = {};
     });
 }
 
@@ -46,17 +55,17 @@ void SessionHistoryTraversalQueue::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_queue);
 }
 
-void SessionHistoryTraversalQueue::append(GC::Ref<GC::Function<void()>> steps)
+void SessionHistoryTraversalQueue::append(GC::Ref<GC::Function<void()>> steps, NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion)
 {
-    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, nullptr));
+    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, nullptr, promise_to_signal_steps_completion));
     if (!m_timer->is_active()) {
         m_timer->start();
     }
 }
 
-void SessionHistoryTraversalQueue::append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable)
+void SessionHistoryTraversalQueue::append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable, NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion)
 {
-    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
+    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable, promise_to_signal_steps_completion));
     if (!m_timer->is_active()) {
         m_timer->start();
     }

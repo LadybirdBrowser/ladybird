@@ -113,7 +113,9 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
     document->update_the_visibility_state(traversable->system_visibility_state());
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, navigable, parent_navigable, history_entry, after_session_history_update] {
+    // Note: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
+    auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, navigable, parent_navigable, history_entry, after_session_history_update, signal_to_continue_session_history_processing] {
         // 1. Let parentDocState be parentNavigable's active session history entry's document state.
         auto parent_doc_state = parent_navigable->active_session_history_entry()->document_state();
 
@@ -143,7 +145,9 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
         if (after_session_history_update) {
             after_session_history_update->function()();
         }
-    }));
+        signal_to_continue_session_history_processing->resolve({});
+    }),
+        signal_to_continue_session_history_processing);
 
     return {};
 }
@@ -311,10 +315,14 @@ void NavigableContainer::destroy_the_child_navigable()
         auto traversable = this->navigable()->traversable_navigable();
 
         // 9. Append the following session history traversal steps to traversable:
-        traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable] {
+        // Note: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
+        auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+        traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, signal_to_continue_session_history_processing] {
             // 1. Update for navigable creation/destruction given traversable.
             traversable->update_for_navigable_creation_or_destruction();
-        }));
+            signal_to_continue_session_history_processing->resolve({});
+        }),
+            signal_to_continue_session_history_processing);
     }));
 }
 

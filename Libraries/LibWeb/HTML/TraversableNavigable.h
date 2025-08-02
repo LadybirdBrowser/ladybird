@@ -86,14 +86,14 @@ public:
     void definitely_close_top_level_traversable();
     void destroy_top_level_traversable();
 
-    void append_session_history_traversal_steps(GC::Ref<GC::Function<void()>> steps)
+    void append_session_history_traversal_steps(GC::Ref<GC::Function<void()>> steps, NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion)
     {
-        m_session_history_traversal_queue->append(steps);
+        m_session_history_traversal_queue->append(steps, promise_to_signal_steps_completion);
     }
 
-    void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<GC::Function<void()>> steps)
+    void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<GC::Function<void()>> steps, NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion)
     {
-        m_session_history_traversal_queue->append_sync(steps, target_navigable);
+        m_session_history_traversal_queue->append_sync(steps, target_navigable, promise_to_signal_steps_completion);
     }
 
     String window_handle() const { return m_window_handle; }
