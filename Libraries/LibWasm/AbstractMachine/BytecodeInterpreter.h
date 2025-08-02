@@ -12,7 +12,7 @@
 
 namespace Wasm {
 
-struct BytecodeInterpreter : public Interpreter {
+struct BytecodeInterpreter final : public Interpreter {
     explicit BytecodeInterpreter(StackInfo const& stack_info)
         : m_stack_info(stack_info)
     {
@@ -104,20 +104,6 @@ protected:
 
     Variant<Trap, Empty> m_trap;
     StackInfo const& m_stack_info;
-};
-
-struct DebuggerBytecodeInterpreter : public BytecodeInterpreter {
-    DebuggerBytecodeInterpreter(StackInfo const& stack_info)
-        : BytecodeInterpreter(stack_info)
-    {
-    }
-    virtual ~DebuggerBytecodeInterpreter() override = default;
-
-    Function<bool(Configuration&, InstructionPointer&, Instruction const&)> pre_interpret_hook;
-    Function<bool(Configuration&, InstructionPointer&, Instruction const&, Interpreter const&)> post_interpret_hook;
-
-private:
-    void interpret_instruction(Configuration&, InstructionPointer&, Instruction const&);
 };
 
 }
