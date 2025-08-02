@@ -67,6 +67,11 @@ DOM::Document const* Task::document() const
     return m_document.ptr();
 }
 
+void Task::set_document(GC::Ptr<DOM::Document const> document)
+{
+    m_document = document;
+}
+
 UniqueTaskSource::UniqueTaskSource()
     : source(static_cast<Task::Source>(s_unique_task_source_allocator.allocate()))
 {
