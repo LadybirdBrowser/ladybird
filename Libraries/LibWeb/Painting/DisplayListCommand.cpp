@@ -137,14 +137,9 @@ void FillRectWithRoundedCorners::dump(StringBuilder& builder) const
     builder.appendff("FillRectWithRoundedCorners rect={} color={}", rect, color);
 }
 
-void FillPathUsingColor::dump(StringBuilder& builder) const
+void FillPath::dump(StringBuilder& builder) const
 {
-    builder.appendff("FillPathUsingColor");
-}
-
-void FillPathUsingPaintStyle::dump(StringBuilder& builder) const
-{
-    builder.appendff("FillPathUsingPaintStyle");
+    builder.appendff("FillPath");
 }
 
 void StrokePath::dump(StringBuilder& builder) const

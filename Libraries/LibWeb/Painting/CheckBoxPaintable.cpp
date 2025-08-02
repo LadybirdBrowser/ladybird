@@ -11,6 +11,7 @@
 #include <LibWeb/Painting/CheckBoxPaintable.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/InputColors.h>
+#include <LibWeb/Painting/PaintStyle.h>
 
 namespace Web::Painting {
 
@@ -101,7 +102,7 @@ void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
             tick_color = shade(tick_color, 0.5f);
         context.display_list_recorder().fill_path({
             .path = check_mark_path(checkbox_rect),
-            .color = tick_color,
+            .paint_style_or_color = tick_color,
             .translation = checkbox_rect.location().to_type<float>(),
         });
     } else {

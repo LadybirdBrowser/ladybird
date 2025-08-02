@@ -55,7 +55,7 @@ void MediaPaintable::fill_triangle(DisplayListRecorder& painter, Gfx::IntPoint l
     path.close();
     painter.fill_path({
         .path = path,
-        .color = color,
+        .paint_style_or_color = color,
         .winding_rule = Gfx::WindingRule::EvenOdd,
     });
 }
@@ -229,7 +229,7 @@ void MediaPaintable::paint_control_bar_speaker(DisplayListRecordingContext& cont
     path.line_to(device_point(0, 11));
     path.line_to(device_point(0, 4));
     path.close();
-    context.display_list_recorder().fill_path({ .path = path, .color = speaker_button_color, .winding_rule = Gfx::WindingRule::EvenOdd });
+    context.display_list_recorder().fill_path({ .path = path, .paint_style_or_color = speaker_button_color, .winding_rule = Gfx::WindingRule::EvenOdd });
 
     path.clear();
     path.move_to(device_point(13, 3));
