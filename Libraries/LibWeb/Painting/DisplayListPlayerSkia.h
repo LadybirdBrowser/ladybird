@@ -51,7 +51,6 @@ private:
     void draw_rect(DrawRect const&) override;
     void paint_radial_gradient(PaintRadialGradient const&) override;
     void paint_conic_gradient(PaintConicGradient const&) override;
-    void draw_triangle_wave(DrawTriangleWave const&) override;
     void add_rounded_rect_clip(AddRoundedRectClip const&) override;
     void add_mask(AddMask const&) override;
     void paint_scrollbar(PaintScrollBar const&) override;

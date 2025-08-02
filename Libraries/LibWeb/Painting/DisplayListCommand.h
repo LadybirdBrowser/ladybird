@@ -382,21 +382,6 @@ struct PaintConicGradient {
     void dump(StringBuilder&) const;
 };
 
-struct DrawTriangleWave {
-    Gfx::IntPoint p1;
-    Gfx::IntPoint p2;
-    Color color;
-    int amplitude;
-    int thickness;
-
-    void translate_by(Gfx::IntPoint const& offset)
-    {
-        p1.translate_by(offset);
-        p2.translate_by(offset);
-    }
-    void dump(StringBuilder&) const;
-};
-
 struct AddRoundedRectClip {
     CornerRadii corner_radii;
     Gfx::IntRect border_rect;
@@ -530,7 +515,6 @@ using DisplayListCommand = Variant<
     DrawLine,
     ApplyBackdropFilter,
     DrawRect,
-    DrawTriangleWave,
     AddRoundedRectClip,
     AddMask,
     PaintNestedDisplayList,
