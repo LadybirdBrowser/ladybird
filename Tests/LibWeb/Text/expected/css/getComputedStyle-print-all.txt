@@ -184,7 +184,14 @@ margin-inline-start: 8px
 margin-left: 8px
 margin-right: 8px
 margin-top: 8px
+mask-clip: border-box
+mask-composite: add
 mask-image: none
+mask-mode: match-source
+mask-origin: border-box
+mask-position: 0% 0%
+mask-repeat: repeat
+mask-size: auto
 mask-type: luminance
 max-block-size: none
 max-height: none

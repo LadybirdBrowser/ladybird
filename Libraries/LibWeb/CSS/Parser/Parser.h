@@ -421,8 +421,7 @@ private:
     RefPtr<CSSStyleValue const> parse_aspect_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_background_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_single_background_position_x_or_y_value(TokenStream<ComponentValue>&, PropertyID);
-    RefPtr<CSSStyleValue const> parse_single_background_repeat_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue const> parse_single_background_size_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_single_background_size_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_border_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_border_image_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_border_image_slice_value(TokenStream<ComponentValue>&);
@@ -451,6 +450,7 @@ private:
     RefPtr<CSSStyleValue const> parse_font_variant_ligatures_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_variant_numeric_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_list_style_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_mask_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_math_depth_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_opacity_value(PropertyID property_id, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_overflow_value(TokenStream<ComponentValue>&);
@@ -458,6 +458,7 @@ private:
     RefPtr<CSSStyleValue const> parse_place_items_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_place_self_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_quotes_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_single_repeat_style_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_scrollbar_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_scrollbar_gutter_value(TokenStream<ComponentValue>&);
     enum class AllowInsetKeyword {

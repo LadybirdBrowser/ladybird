@@ -19,7 +19,6 @@
 #include <LibWeb/CSS/CharacterTypes.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
@@ -49,6 +48,7 @@
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
@@ -472,11 +472,11 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BackgroundRepeat:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_single_background_repeat_value(tokens); }))
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); }))
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BackgroundSize:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_single_background_size_value(tokens); }))
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); }))
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Border:
@@ -658,6 +658,30 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         return ParseError::SyntaxError;
     case PropertyID::MathDepth:
         if (auto parsed_value = parse_math_depth_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::Mask:
+        if (auto parsed_value = parse_mask_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::MaskClip:
+    case PropertyID::MaskComposite:
+    case PropertyID::MaskImage:
+    case PropertyID::MaskMode:
+    case PropertyID::MaskOrigin:
+        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens))
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::MaskPosition:
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens); }))
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::MaskRepeat:
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); }))
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::MaskSize:
+        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); }))
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Opacity:
@@ -1130,7 +1154,7 @@ RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<Component
 {
     auto transaction = tokens.begin_transaction();
 
-    auto make_background_shorthand = [&](auto background_color, auto background_image, auto background_position, auto background_size, auto background_repeat, auto background_attachment, auto background_origin, auto background_clip) {
+    auto make_background_shorthand = [](auto background_color, auto background_image, auto background_position, auto background_size, auto background_repeat, auto background_attachment, auto background_origin, auto background_clip) {
         return ShorthandStyleValue::create(PropertyID::Background,
             { PropertyID::BackgroundColor, PropertyID::BackgroundImage, PropertyID::BackgroundPosition, PropertyID::BackgroundSize, PropertyID::BackgroundRepeat, PropertyID::BackgroundAttachment, PropertyID::BackgroundOrigin, PropertyID::BackgroundClip },
             { move(background_color), move(background_image), move(background_position), move(background_size), move(background_repeat), move(background_attachment), move(background_origin), move(background_clip) });
@@ -1239,9 +1263,10 @@ RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<Component
         if (!value_and_property.has_value())
             return nullptr;
         auto& value = value_and_property->style_value;
-        remove_property(remaining_layer_properties, value_and_property->property);
+        auto property = value_and_property->property;
+        remove_property(remaining_layer_properties, property);
 
-        switch (value_and_property->property) {
+        switch (property) {
         case PropertyID::BackgroundAttachment:
             VERIFY(!background_attachment);
             background_attachment = value.release_nonnull();
@@ -1281,7 +1306,7 @@ RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<Component
             auto background_size_transaction = tokens.begin_transaction();
             auto& maybe_slash = tokens.consume_a_token();
             if (maybe_slash.is_delim('/')) {
-                if (auto maybe_background_size = parse_single_background_size_value(tokens)) {
+                if (auto maybe_background_size = parse_single_background_size_value(PropertyID::BackgroundSize, tokens)) {
                     background_size_transaction.commit();
                     background_size = maybe_background_size.release_nonnull();
                     continue;
@@ -1293,7 +1318,7 @@ RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<Component
         case PropertyID::BackgroundRepeat: {
             VERIFY(!background_repeat);
             tokens.reconsume_current_input_token();
-            if (auto maybe_repeat = parse_single_background_repeat_value(tokens)) {
+            if (auto maybe_repeat = parse_single_repeat_style_value(property, tokens)) {
                 background_repeat = maybe_repeat.release_nonnull();
                 continue;
             }
@@ -1435,67 +1460,7 @@ RefPtr<CSSStyleValue const> Parser::parse_single_background_position_x_or_y_valu
     return EdgeStyleValue::create(relative_edge, {});
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_single_background_repeat_value(TokenStream<ComponentValue>& tokens)
-{
-    auto transaction = tokens.begin_transaction();
-
-    auto is_directional_repeat = [](CSSStyleValue const& value) -> bool {
-        auto keyword = value.to_keyword();
-        return keyword == Keyword::RepeatX || keyword == Keyword::RepeatY;
-    };
-
-    auto as_repeat = [](Keyword keyword) -> Optional<Repeat> {
-        switch (keyword) {
-        case Keyword::NoRepeat:
-            return Repeat::NoRepeat;
-        case Keyword::Repeat:
-            return Repeat::Repeat;
-        case Keyword::Round:
-            return Repeat::Round;
-        case Keyword::Space:
-            return Repeat::Space;
-        default:
-            return {};
-        }
-    };
-
-    auto maybe_x_value = parse_css_value_for_property(PropertyID::BackgroundRepeat, tokens);
-    if (!maybe_x_value)
-        return nullptr;
-    auto x_value = maybe_x_value.release_nonnull();
-
-    if (is_directional_repeat(*x_value)) {
-        auto keyword = x_value->to_keyword();
-        transaction.commit();
-        return BackgroundRepeatStyleValue::create(
-            keyword == Keyword::RepeatX ? Repeat::Repeat : Repeat::NoRepeat,
-            keyword == Keyword::RepeatX ? Repeat::NoRepeat : Repeat::Repeat);
-    }
-
-    auto x_repeat = as_repeat(x_value->to_keyword());
-    if (!x_repeat.has_value())
-        return nullptr;
-
-    // See if we have a second value for Y
-    auto maybe_y_value = parse_css_value_for_property(PropertyID::BackgroundRepeat, tokens);
-    if (!maybe_y_value) {
-        // We don't have a second value, so use x for both
-        transaction.commit();
-        return BackgroundRepeatStyleValue::create(x_repeat.value(), x_repeat.value());
-    }
-    auto y_value = maybe_y_value.release_nonnull();
-    if (is_directional_repeat(*y_value))
-        return nullptr;
-
-    auto y_repeat = as_repeat(y_value->to_keyword());
-    if (!y_repeat.has_value())
-        return nullptr;
-
-    transaction.commit();
-    return BackgroundRepeatStyleValue::create(x_repeat.value(), y_repeat.value());
-}
-
-RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(TokenStream<ComponentValue>& tokens)
+RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(PropertyID property, TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
 
@@ -1511,7 +1476,7 @@ RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(TokenStre
         return {};
     };
 
-    auto maybe_x_value = parse_css_value_for_property(PropertyID::BackgroundSize, tokens);
+    auto maybe_x_value = parse_css_value_for_property(property, tokens);
     if (!maybe_x_value)
         return nullptr;
     auto x_value = maybe_x_value.release_nonnull();
@@ -1521,7 +1486,7 @@ RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(TokenStre
         return x_value;
     }
 
-    auto maybe_y_value = parse_css_value_for_property(PropertyID::BackgroundSize, tokens);
+    auto maybe_y_value = parse_css_value_for_property(property, tokens);
     if (!maybe_y_value) {
         auto y_value = LengthPercentage { Length::make_auto() };
         auto x_size = get_length_percentage(*x_value);
@@ -3536,6 +3501,244 @@ RefPtr<CSSStyleValue const> Parser::parse_list_style_value(TokenStream<Component
         { list_position.release_nonnull(), list_image.release_nonnull(), list_type.release_nonnull() });
 }
 
+RefPtr<CSSStyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.fxtf.org/css-masking-1/#the-mask
+    // <mask-layer>#
+    //
+    // <mask-layer> =
+    //   <mask-reference> ||
+    //   <position> [ / <bg-size> ]? ||
+    //   <repeat-style> ||
+    //   <geometry-box> ||
+    //   [ <geometry-box> | no-clip ] ||
+    //   <compositing-operator> ||
+    //   <masking-mode>
+    auto transaction = tokens.begin_transaction();
+
+    auto make_mask_shorthand = [](auto mask_image, auto mask_position, auto mask_size, auto mask_repeat, auto mask_origin, auto mask_clip, auto mask_composite, auto mask_mode) {
+        return ShorthandStyleValue::create(PropertyID::Mask,
+            { PropertyID::MaskImage, PropertyID::MaskPosition, PropertyID::MaskSize, PropertyID::MaskRepeat, PropertyID::MaskOrigin, PropertyID::MaskClip, PropertyID::MaskComposite, PropertyID::MaskMode },
+            { move(mask_image), move(mask_position), move(mask_size), move(mask_repeat), move(mask_origin), move(mask_clip), move(mask_composite), move(mask_mode) });
+    };
+
+    StyleValueVector mask_images;
+    StyleValueVector mask_positions;
+    StyleValueVector mask_sizes;
+    StyleValueVector mask_repeats;
+    StyleValueVector mask_origins;
+    StyleValueVector mask_clips;
+    StyleValueVector mask_composites;
+    StyleValueVector mask_modes;
+
+    auto initial_mask_image = property_initial_value(PropertyID::MaskImage);
+    auto initial_mask_position = property_initial_value(PropertyID::MaskPosition);
+    auto initial_mask_size = property_initial_value(PropertyID::MaskSize);
+    auto initial_mask_repeat = property_initial_value(PropertyID::MaskRepeat);
+    auto initial_mask_origin = property_initial_value(PropertyID::MaskOrigin);
+    auto initial_mask_clip = property_initial_value(PropertyID::MaskClip);
+    auto initial_mask_composite = property_initial_value(PropertyID::MaskComposite);
+    auto initial_mask_mode = property_initial_value(PropertyID::MaskMode);
+
+    // Per-layer values
+    RefPtr<CSSStyleValue const> mask_image;
+    RefPtr<CSSStyleValue const> mask_position;
+    RefPtr<CSSStyleValue const> mask_size;
+    RefPtr<CSSStyleValue const> mask_repeat;
+    RefPtr<CSSStyleValue const> mask_origin;
+    RefPtr<CSSStyleValue const> mask_clip;
+    RefPtr<CSSStyleValue const> mask_composite;
+    RefPtr<CSSStyleValue const> mask_mode;
+
+    bool has_multiple_layers = false;
+    // MaskSize is always parsed as part of MaskPosition, so we don't include it here.
+    Vector<PropertyID> remaining_layer_properties {
+        PropertyID::MaskImage,
+        PropertyID::MaskPosition,
+        PropertyID::MaskRepeat,
+        PropertyID::MaskOrigin,
+        PropertyID::MaskClip,
+        PropertyID::MaskComposite,
+        PropertyID::MaskMode,
+    };
+
+    auto mask_layer_is_valid = [&]() -> bool {
+        return mask_image || mask_position || mask_size || mask_repeat || mask_origin || mask_clip || mask_composite || mask_mode;
+    };
+
+    auto complete_mask_layer = [&]() {
+        mask_images.append(mask_image ? mask_image.release_nonnull() : initial_mask_image);
+        mask_positions.append(mask_position ? mask_position.release_nonnull() : initial_mask_position);
+        mask_sizes.append(mask_size ? mask_size.release_nonnull() : initial_mask_size);
+        mask_repeats.append(mask_repeat ? mask_repeat.release_nonnull() : initial_mask_repeat);
+        mask_composites.append(mask_composite ? mask_composite.release_nonnull() : initial_mask_composite);
+        mask_modes.append(mask_mode ? mask_mode.release_nonnull() : initial_mask_mode);
+
+        if (!mask_origin && !mask_clip) {
+            mask_origin = initial_mask_origin;
+            mask_clip = initial_mask_clip;
+        } else if (!mask_clip) {
+            mask_clip = mask_origin;
+        }
+        mask_origins.append(mask_origin.release_nonnull());
+        mask_clips.append(mask_clip.release_nonnull());
+
+        mask_image = nullptr;
+        mask_position = nullptr;
+        mask_size = nullptr;
+        mask_repeat = nullptr;
+        mask_origin = nullptr;
+        mask_clip = nullptr;
+        mask_composite = nullptr;
+        mask_mode = nullptr;
+
+        remaining_layer_properties.clear_with_capacity();
+        remaining_layer_properties.unchecked_append(PropertyID::MaskImage);
+        remaining_layer_properties.unchecked_append(PropertyID::MaskPosition);
+        remaining_layer_properties.unchecked_append(PropertyID::MaskRepeat);
+        remaining_layer_properties.unchecked_append(PropertyID::MaskOrigin);
+        remaining_layer_properties.unchecked_append(PropertyID::MaskClip);
+        remaining_layer_properties.unchecked_append(PropertyID::MaskComposite);
+        remaining_layer_properties.unchecked_append(PropertyID::MaskMode);
+    };
+
+    while (tokens.has_next_token()) {
+        if (tokens.next_token().is(Token::Type::Comma)) {
+            has_multiple_layers = true;
+            if (!mask_layer_is_valid())
+                return nullptr;
+            complete_mask_layer();
+            tokens.discard_a_token();
+            continue;
+        }
+
+        auto value_and_property = parse_css_value_for_properties(remaining_layer_properties, tokens);
+        if (!value_and_property.has_value())
+            return nullptr;
+        auto& value = value_and_property->style_value;
+        auto property = value_and_property->property;
+        remove_property(remaining_layer_properties, property);
+
+        switch (property) {
+        // <mask-reference>
+        case PropertyID::MaskImage:
+            VERIFY(!mask_image);
+            mask_image = value.release_nonnull();
+            continue;
+        // <position> [ / <bg-size> ]?
+        case PropertyID::MaskPosition: {
+            VERIFY(!mask_position);
+            mask_position = value.release_nonnull();
+
+            // Attempt to parse `/ <bg-size>`
+            auto mask_size_transaction = tokens.begin_transaction();
+            auto const& maybe_slash = tokens.consume_a_token();
+            if (maybe_slash.is_delim('/')) {
+                if (auto maybe_mask_size = parse_single_background_size_value(PropertyID::MaskSize, tokens)) {
+                    mask_size_transaction.commit();
+                    mask_size = maybe_mask_size.release_nonnull();
+                    continue;
+                }
+                return nullptr;
+            }
+            continue;
+        }
+        // <repeat-style>
+        case PropertyID::MaskRepeat: {
+            VERIFY(!mask_repeat);
+            tokens.reconsume_current_input_token();
+            if (auto maybe_repeat = parse_single_repeat_style_value(property, tokens)) {
+                mask_repeat = maybe_repeat.release_nonnull();
+                continue;
+            }
+            return nullptr;
+        }
+        // <geometry-box> || [ <geometry-box> | no-clip ]
+        // If one <geometry-box> value and the no-clip keyword are present then <geometry-box> sets mask-origin and
+        // no-clip sets mask-clip to that value.
+        // If one <geometry-box> value and no no-clip keyword are present then <geometry-box> sets both mask-origin and
+        // mask-clip to that value.
+        // If two <geometry-box> values are present, then the first sets mask-origin and the second mask-clip.
+        case PropertyID::MaskOrigin:
+        case PropertyID::MaskClip: {
+            VERIFY(value->is_keyword());
+            if (value->as_keyword().keyword() == Keyword::NoClip) {
+                VERIFY(!mask_clip);
+                mask_clip = value.release_nonnull();
+            } else if (!mask_origin) {
+                mask_origin = value.release_nonnull();
+            } else if (!mask_clip) {
+                mask_clip = value.release_nonnull();
+            } else {
+                VERIFY_NOT_REACHED();
+            }
+            continue;
+        }
+        // <compositing-operator>
+        case PropertyID::MaskComposite:
+            VERIFY(!mask_composite);
+            mask_composite = value.release_nonnull();
+            continue;
+        // <masking-mode>
+        case PropertyID::MaskMode:
+            VERIFY(!mask_mode);
+            mask_mode = value.release_nonnull();
+            continue;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+
+        VERIFY_NOT_REACHED();
+    }
+
+    if (!mask_layer_is_valid())
+        return nullptr;
+
+    // We only need to create StyleValueLists if there are multiple layers.
+    // Otherwise, we can pass the single StyleValue directly
+    if (has_multiple_layers) {
+        complete_mask_layer();
+        transaction.commit();
+        return make_mask_shorthand(
+            StyleValueList::create(move(mask_images), StyleValueList::Separator::Comma),
+            StyleValueList::create(move(mask_positions), StyleValueList::Separator::Comma),
+            StyleValueList::create(move(mask_sizes), StyleValueList::Separator::Comma),
+            StyleValueList::create(move(mask_repeats), StyleValueList::Separator::Comma),
+            StyleValueList::create(move(mask_origins), StyleValueList::Separator::Comma),
+            StyleValueList::create(move(mask_clips), StyleValueList::Separator::Comma),
+            StyleValueList::create(move(mask_composites), StyleValueList::Separator::Comma),
+            StyleValueList::create(move(mask_modes), StyleValueList::Separator::Comma));
+    }
+
+    if (!mask_image)
+        mask_image = initial_mask_image;
+    if (!mask_position)
+        mask_position = initial_mask_position;
+    if (!mask_size)
+        mask_size = initial_mask_size;
+    if (!mask_repeat)
+        mask_repeat = initial_mask_repeat;
+    if (!mask_origin)
+        mask_origin = initial_mask_origin;
+    if (!mask_clip)
+        mask_clip = mask_origin; // intentionally not initial value
+    if (!mask_composite)
+        mask_composite = initial_mask_composite;
+    if (!mask_mode)
+        mask_mode = initial_mask_mode;
+
+    transaction.commit();
+    return make_mask_shorthand(
+        mask_image.release_nonnull(),
+        mask_position.release_nonnull(),
+        mask_size.release_nonnull(),
+        mask_repeat.release_nonnull(),
+        mask_origin.release_nonnull(),
+        mask_clip.release_nonnull(),
+        mask_composite.release_nonnull(),
+        mask_mode.release_nonnull());
+}
+
 RefPtr<CSSStyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentValue>& tokens)
 {
     // https://w3c.github.io/mathml-core/#propdef-math-depth
@@ -3721,6 +3924,66 @@ RefPtr<CSSStyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValu
 
     transaction.commit();
     return StyleValueList::create(move(string_values), StyleValueList::Separator::Space);
+}
+
+RefPtr<CSSStyleValue const> Parser::parse_single_repeat_style_value(PropertyID property, TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+
+    auto is_directional_repeat = [](CSSStyleValue const& value) -> bool {
+        auto keyword = value.to_keyword();
+        return keyword == Keyword::RepeatX || keyword == Keyword::RepeatY;
+    };
+
+    auto as_repeat = [](Keyword keyword) -> Optional<Repetition> {
+        switch (keyword) {
+        case Keyword::NoRepeat:
+            return Repetition::NoRepeat;
+        case Keyword::Repeat:
+            return Repetition::Repeat;
+        case Keyword::Round:
+            return Repetition::Round;
+        case Keyword::Space:
+            return Repetition::Space;
+        default:
+            return {};
+        }
+    };
+
+    auto maybe_x_value = parse_css_value_for_property(property, tokens);
+    if (!maybe_x_value)
+        return nullptr;
+    auto x_value = maybe_x_value.release_nonnull();
+
+    if (is_directional_repeat(*x_value)) {
+        auto keyword = x_value->to_keyword();
+        transaction.commit();
+        return RepeatStyleStyleValue::create(
+            keyword == Keyword::RepeatX ? Repetition::Repeat : Repetition::NoRepeat,
+            keyword == Keyword::RepeatX ? Repetition::NoRepeat : Repetition::Repeat);
+    }
+
+    auto x_repeat = as_repeat(x_value->to_keyword());
+    if (!x_repeat.has_value())
+        return nullptr;
+
+    // See if we have a second value for Y
+    auto maybe_y_value = parse_css_value_for_property(property, tokens);
+    if (!maybe_y_value) {
+        // We don't have a second value, so use x for both
+        transaction.commit();
+        return RepeatStyleStyleValue::create(x_repeat.value(), x_repeat.value());
+    }
+    auto y_value = maybe_y_value.release_nonnull();
+    if (is_directional_repeat(*y_value))
+        return nullptr;
+
+    auto y_repeat = as_repeat(y_value->to_keyword());
+    if (!y_repeat.has_value())
+        return nullptr;
+
+    transaction.commit();
+    return RepeatStyleStyleValue::create(x_repeat.value(), y_repeat.value());
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_text_decoration_value(TokenStream<ComponentValue>& tokens)

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: parsing mask-composite with valid values</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-mask-composite">
+<meta name="assert" content="mask-composite supports the full grammar '<compositing-operator>#'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("mask-composite", "add");
+test_valid_value("mask-composite", "subtract");
+test_valid_value("mask-composite", "intersect");
+test_valid_value("mask-composite", "exclude");
+test_valid_value("mask-composite", "add, subtract");
+</script>
+</body>
+</html>

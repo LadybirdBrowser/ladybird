@@ -21,8 +21,8 @@ struct ResolvedBackgroundLayerData {
     CSSPixels offset_y;
     CSSPixelRect background_positioning_area;
     CSSPixelRect image_rect;
-    CSS::Repeat repeat_x;
-    CSS::Repeat repeat_y;
+    CSS::Repetition repeat_x;
+    CSS::Repetition repeat_y;
     CSS::MixBlendMode blend_mode;
 };
 
