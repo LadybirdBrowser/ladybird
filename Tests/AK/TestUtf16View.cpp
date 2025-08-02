@@ -331,7 +331,7 @@ TEST_CASE(decode_invalid_utf16)
         Utf16View view { u"AB\xd800"sv };
         EXPECT_EQ(view.length_in_code_units(), 3uz);
 
-        auto expected = Array { (u32)0x41, 0x42, 0xfffd };
+        auto expected = Array { (u32)0x41, 0x42, 0xd800 };
         EXPECT_EQ(expected.size(), view.length_in_code_points());
 
         size_t i = 0;
@@ -345,7 +345,7 @@ TEST_CASE(decode_invalid_utf16)
         Utf16View view { u"AB\xdc00"sv };
         EXPECT_EQ(view.length_in_code_units(), 3uz);
 
-        auto expected = Array { (u32)0x41, 0x42, 0xfffd };
+        auto expected = Array { (u32)0x41, 0x42, 0xdc00 };
         EXPECT_EQ(expected.size(), view.length_in_code_points());
 
         size_t i = 0;
@@ -359,7 +359,7 @@ TEST_CASE(decode_invalid_utf16)
         Utf16View view { u"AB\xd800\x0000"sv };
         EXPECT_EQ(view.length_in_code_units(), 4uz);
 
-        auto expected = Array { (u32)0x41, 0x42, 0xfffd, 0 };
+        auto expected = Array { (u32)0x41, 0x42, 0xd800, 0 };
         EXPECT_EQ(expected.size(), view.length_in_code_points());
 
         size_t i = 0;
@@ -373,7 +373,7 @@ TEST_CASE(decode_invalid_utf16)
         Utf16View view { u"AB\xd800\xd800"sv };
         EXPECT_EQ(view.length_in_code_units(), 4uz);
 
-        auto expected = Array { (u32)0x41, 0x42, 0xfffd, 0xfffd };
+        auto expected = Array { (u32)0x41, 0x42, 0xd800, 0xd800 };
         EXPECT_EQ(expected.size(), view.length_in_code_points());
 
         size_t i = 0;

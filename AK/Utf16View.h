@@ -78,12 +78,7 @@ public:
                 if (UnicodeUtils::is_utf16_low_surrogate(next_code_unit))
                     return UnicodeUtils::decode_utf16_surrogate_pair(code_unit, next_code_unit);
             }
-
-            return UnicodeUtils::REPLACEMENT_CODE_POINT;
         }
-
-        if (UnicodeUtils::is_utf16_low_surrogate(code_unit))
-            return UnicodeUtils::REPLACEMENT_CODE_POINT;
 
         return static_cast<u32>(code_unit);
     }
