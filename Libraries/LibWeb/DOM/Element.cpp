@@ -3898,7 +3898,7 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
     return {};
 }
 
-Optional<CSS::CountersSet const&> Element::counters_set() const
+Optional<CSS::CountersSet&> Element::counters_set() const
 {
     if (!m_counters_set)
         return {};

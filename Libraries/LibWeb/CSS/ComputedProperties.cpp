@@ -966,6 +966,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
     auto quotes_data = quotes();
 
     auto quote_nesting_level = initial_quote_nesting_level;
+    bool content_needs_reversed_counter_fixup = false;
 
     auto get_quote_string = [&](bool open, auto depth) {
         switch (quotes_data.type) {
@@ -1020,7 +1021,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                     break;
                 }
             } else if (item->is_counter()) {
-                content_data.data.append(item->as_counter().resolve(element_reference));
+                content_data.data.append(item->as_counter().resolve(element_reference, content_needs_reversed_counter_fixup));
             } else if (item->is_image()) {
                 content_data.data.append(NonnullRefPtr { const_cast<ImageStyleValue&>(item->as_image()) });
             } else {
@@ -1036,7 +1037,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                 if (item->is_string()) {
                     alt_text_builder.append(item->as_string().string_value());
                 } else if (item->is_counter()) {
-                    alt_text_builder.append(item->as_counter().resolve(element_reference));
+                    alt_text_builder.append(item->as_counter().resolve(element_reference, content_needs_reversed_counter_fixup));
                 } else {
                     dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string(SerializationMode::Normal));
                 }
@@ -1044,7 +1045,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
             content_data.alt_text = MUST(alt_text_builder.to_string());
         }
 
-        return { content_data, quote_nesting_level };
+        return { content_data, quote_nesting_level, content_needs_reversed_counter_fixup };
     }
 
     switch (value.to_keyword()) {
@@ -1056,7 +1057,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
         break;
     }
 
-    return { {}, quote_nesting_level };
+    return { {}, quote_nesting_level, false };
 }
 
 ContentVisibility ComputedProperties::content_visibility() const

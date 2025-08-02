@@ -926,9 +926,6 @@ RefPtr<CSSStyleValue const> Parser::parse_counter_definitions_value(TokenStream<
     // Otherwise parses:
     //   [ <counter-name> <integer>? ]+
 
-    // FIXME: This disabled parsing of `reversed()` counters. Remove this line once they're supported.
-    allow_reversed = AllowReversed::No;
-
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
@@ -945,17 +942,19 @@ RefPtr<CSSStyleValue const> Parser::parse_counter_definitions_value(TokenStream<
             definition.name = counter_name->custom_ident();
             definition.is_reversed = false;
         } else if (allow_reversed == AllowReversed::Yes && token.is_function("reversed"sv)) {
-            TokenStream function_tokens { token.function().value };
+            // reversed( <conter-name> )
+            TokenStream<ComponentValue> function_tokens { token.function().value };
             tokens.discard_a_token();
             function_tokens.discard_whitespace();
-            auto& name_token = function_tokens.consume_a_token();
-            if (!name_token.is(Token::Type::Ident))
+            // A <counter-name> for a reversed counter cannot match the keyword none; such an identifier is invalid as a <counter-name>.
+            auto name_token = parse_custom_ident_value(function_tokens, { { "none"sv } });
+            if (!name_token)
                 break;
             function_tokens.discard_whitespace();
             if (function_tokens.has_next_token())
                 break;
 
-            definition.name = name_token.token().ident();
+            definition.name = name_token->custom_ident();
             definition.is_reversed = true;
         } else {
             break;
