@@ -246,7 +246,7 @@ struct FillPathUsingPaintStyle {
     void dump(StringBuilder&) const;
 };
 
-struct StrokePathUsingColor {
+struct StrokePath {
     Gfx::Path::CapStyle cap_style;
     Gfx::Path::JoinStyle join_style;
     float miter_limit;
@@ -254,31 +254,9 @@ struct StrokePathUsingColor {
     float dash_offset;
     Gfx::IntRect path_bounding_rect;
     Gfx::Path path;
-    Color color;
+    float opacity;
+    PaintStyleOrColor paint_style_or_color;
     float thickness;
-    Gfx::FloatPoint aa_translation;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
-
-    void translate_by(Gfx::IntPoint const& offset)
-    {
-        path_bounding_rect.translate_by(offset);
-        aa_translation.translate_by(offset.to_type<float>());
-    }
-    void dump(StringBuilder&) const;
-};
-
-struct StrokePathUsingPaintStyle {
-    Gfx::Path::CapStyle cap_style;
-    Gfx::Path::JoinStyle join_style;
-    float miter_limit;
-    Vector<float> dash_array;
-    float dash_offset;
-    Gfx::IntRect path_bounding_rect;
-    Gfx::Path path;
-    PaintStyle paint_style;
-    float thickness;
-    float opacity = 1.0f;
     Gfx::FloatPoint aa_translation;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
@@ -508,8 +486,7 @@ using DisplayListCommand = Variant<
     FillRectWithRoundedCorners,
     FillPathUsingColor,
     FillPathUsingPaintStyle,
-    StrokePathUsingColor,
-    StrokePathUsingPaintStyle,
+    StrokePath,
     DrawEllipse,
     FillEllipse,
     DrawLine,

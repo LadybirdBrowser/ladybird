@@ -99,12 +99,12 @@ void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
     });
 }
 
-void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
+void DisplayListRecorder::stroke_path(StrokePathParams params)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (!params.thickness)
         return;
-    if (params.color.alpha() == 0)
+    if (params.paint_style_or_color.has<Gfx::Color>() && params.paint_style_or_color.get<Gfx::Color>().alpha() == 0)
         return;
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
@@ -113,7 +113,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
-    APPEND(StrokePathUsingColor {
+    APPEND(StrokePath {
         .cap_style = params.cap_style,
         .join_style = params.join_style,
         .miter_limit = params.miter_limit,
@@ -121,35 +121,9 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
         .dash_offset = params.dash_offset,
         .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
-        .color = params.color,
-        .thickness = params.thickness,
-        .aa_translation = aa_translation,
-    });
-}
-
-void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
-{
-    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
-    if (!params.thickness)
-        return;
-    auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
-    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
-    // Increase path bounding box by `thickness` to account for stroke.
-    path_bounding_rect.inflate(params.thickness, params.thickness);
-    auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
-    if (path_bounding_int_rect.is_empty())
-        return;
-    APPEND(StrokePathUsingPaintStyle {
-        .cap_style = params.cap_style,
-        .join_style = params.join_style,
-        .miter_limit = params.miter_limit,
-        .dash_array = move(params.dash_array),
-        .dash_offset = params.dash_offset,
-        .path_bounding_rect = path_bounding_int_rect,
-        .path = move(params.path),
-        .paint_style = params.paint_style,
-        .thickness = params.thickness,
         .opacity = params.opacity,
+        .paint_style_or_color = params.paint_style_or_color,
+        .thickness = params.thickness,
         .aa_translation = aa_translation,
     });
 }
