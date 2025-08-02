@@ -5,12 +5,15 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/BaseUriDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ChildSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ConnectSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DefaultSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveFactory.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/FontSourceDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/FormActionDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/FrameAncestorsDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/FrameSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ImageSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ManifestSourceDirective.h>
@@ -29,6 +32,9 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> value)
 {
+    if (name == Names::BaseUri)
+        return heap.allocate<BaseUriDirective>(move(name), move(value));
+
     if (name == Names::ChildSrc)
         return heap.allocate<ChildSourceDirective>(move(name), move(value));
 
@@ -40,6 +46,12 @@ GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> 
 
     if (name == Names::FontSrc)
         return heap.allocate<FontSourceDirective>(move(name), move(value));
+
+    if (name == Names::FormAction)
+        return heap.allocate<FormActionDirective>(move(name), move(value));
+
+    if (name == Names::FrameAncestors)
+        return heap.allocate<FrameAncestorsDirective>(move(name), move(value));
 
     if (name == Names::FrameSrc)
         return heap.allocate<FrameSourceDirective>(move(name), move(value));

@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/HTMLBaseElementPrototype.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
 
@@ -80,11 +81,14 @@ void HTMLBaseElement::set_the_frozen_base_url()
     auto url_record = document.fallback_base_url().complete_url(href);
 
     // 3. If any of the following are true:
-    // - urlRecord is failure;
-    // - urlRecord's scheme is "data" or "javascript"; or
-    // FIXME: - running Is base allowed for Document? on urlRecord and document returns "Blocked",
-    // then set element's frozen base URL to document's fallback base URL and return.
-    if (!url_record.has_value() || url_record->scheme() == "data" || url_record->scheme() == "javascript") {
+    //    - urlRecord is failure;
+    //    - urlRecord's scheme is "data" or "javascript"; or
+    //    - running Is base allowed for Document? on urlRecord and document returns "Blocked",
+    if (!url_record.has_value()
+        || url_record->scheme() == "data"
+        || url_record->scheme() == "javascript"
+        || ContentSecurityPolicy::is_base_allowed_for_document(realm(), url_record.value(), document) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        // then set element's frozen base URL to document's fallback base URL and return.
         m_frozen_base_url = document.fallback_base_url();
         return;
     }

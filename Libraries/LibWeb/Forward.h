@@ -134,11 +134,14 @@ struct SerializedPolicy;
 
 namespace Web::ContentSecurityPolicy::Directives {
 
+class BaseUriDirective;
 class ChildSourceDirective;
 class ConnectSourceDirective;
 class DefaultSourceDirective;
 class Directive;
 class FontSourceDirective;
+class FormActionDirective;
+class FrameAncestorsDirective;
 class FrameSourceDirective;
 class ImageSourceDirective;
 class ManifestSourceDirective;

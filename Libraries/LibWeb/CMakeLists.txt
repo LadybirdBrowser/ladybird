@@ -43,6 +43,7 @@ set(SOURCES
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
+    ContentSecurityPolicy/Directives/BaseUriDirective.cpp
     ContentSecurityPolicy/Directives/ChildSourceDirective.cpp
     ContentSecurityPolicy/Directives/ConnectSourceDirective.cpp
     ContentSecurityPolicy/Directives/DefaultSourceDirective.cpp
@@ -50,6 +51,8 @@ set(SOURCES
     ContentSecurityPolicy/Directives/DirectiveFactory.cpp
     ContentSecurityPolicy/Directives/DirectiveOperations.cpp
     ContentSecurityPolicy/Directives/FontSourceDirective.cpp
+    ContentSecurityPolicy/Directives/FormActionDirective.cpp
+    ContentSecurityPolicy/Directives/FrameAncestorsDirective.cpp
     ContentSecurityPolicy/Directives/FrameSourceDirective.cpp
     ContentSecurityPolicy/Directives/ImageSourceDirective.cpp
     ContentSecurityPolicy/Directives/KeywordSources.cpp
