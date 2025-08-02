@@ -68,8 +68,7 @@ void DisplayListRecorder::fill_path(FillPathParams params)
 {
     if (params.paint_style_or_color.has<Gfx::Color>() && params.paint_style_or_color.get<Gfx::Color>().alpha() == 0)
         return;
-    auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
-    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
+    auto path_bounding_rect = params.path.bounding_box();
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
@@ -79,7 +78,6 @@ void DisplayListRecorder::fill_path(FillPathParams params)
         .opacity = params.opacity,
         .paint_style_or_color = params.paint_style_or_color,
         .winding_rule = params.winding_rule,
-        .aa_translation = aa_translation,
     });
 }
 
@@ -90,8 +88,7 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
         return;
     if (params.paint_style_or_color.has<Gfx::Color>() && params.paint_style_or_color.get<Gfx::Color>().alpha() == 0)
         return;
-    auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
-    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
+    auto path_bounding_rect = params.path.bounding_box();
     // Increase path bounding box by `thickness` to account for stroke.
     path_bounding_rect.inflate(params.thickness, params.thickness);
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
@@ -108,7 +105,6 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
         .opacity = params.opacity,
         .paint_style_or_color = params.paint_style_or_color,
         .thickness = params.thickness,
-        .aa_translation = aa_translation,
     });
 }
 

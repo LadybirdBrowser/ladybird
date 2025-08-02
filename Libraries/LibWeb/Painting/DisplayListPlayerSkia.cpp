@@ -640,7 +640,6 @@ static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& 
 void DisplayListPlayerSkia::fill_path(FillPath const& command)
 {
     auto path = to_skia_path(command.path);
-    path.offset(command.aa_translation.x(), command.aa_translation.y());
     path.setFillType(to_skia_path_fill_type(command.winding_rule));
 
     SkPaint paint;
@@ -659,7 +658,6 @@ void DisplayListPlayerSkia::fill_path(FillPath const& command)
 void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
 {
     auto path = to_skia_path(command.path);
-    path.offset(command.aa_translation.x(), command.aa_translation.y());
     SkPaint paint;
     if (command.paint_style_or_color.has<PaintStyle>()) {
         auto const& paint_style = command.paint_style_or_color.get<PaintStyle>();

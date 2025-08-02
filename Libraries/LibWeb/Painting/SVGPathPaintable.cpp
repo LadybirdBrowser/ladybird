@@ -71,6 +71,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
 
     auto paint_transform = computed_transforms().svg_to_device_pixels_transform(context);
     auto path = computed_path()->copy_transformed(paint_transform);
+    path.offset(offset);
 
     // Fills are computed as though all subpaths are closed (https://svgwg.org/svg2-draft/painting.html#FillProperties)
     auto closed_path = [&] {
@@ -97,7 +98,6 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             .path = closed_path(),
             .paint_style_or_color = Gfx::Color(Color::Black),
             .winding_rule = to_gfx_winding_rule(graphics_element.clip_rule().value_or(SVG::ClipRule::Nonzero)),
-            .translation = offset,
         });
         return;
     }
@@ -116,14 +116,12 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             .opacity = fill_opacity,
             .paint_style_or_color = *paint_style,
             .winding_rule = winding_rule,
-            .translation = offset,
         });
     } else if (auto fill_color = graphics_element.fill_color(); fill_color.has_value()) {
         context.display_list_recorder().fill_path({
             .path = closed_path(),
             .paint_style_or_color = fill_color->with_opacity(fill_opacity),
             .winding_rule = winding_rule,
-            .translation = offset,
         });
     }
 
@@ -179,7 +177,6 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             .opacity = stroke_opacity,
             .paint_style_or_color = *paint_style,
             .thickness = stroke_thickness,
-            .translation = offset,
         });
     } else if (auto stroke_color = graphics_element.stroke_color(); stroke_color.has_value()) {
         context.display_list_recorder().stroke_path({
@@ -191,7 +188,6 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             .path = path,
             .paint_style_or_color = stroke_color->with_opacity(stroke_opacity),
             .thickness = stroke_thickness,
-            .translation = offset,
         });
     }
 }

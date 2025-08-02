@@ -100,11 +100,9 @@ void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
         auto tick_color = increase_contrast(input_colors.base, background_color);
         if (!enabled)
             tick_color = shade(tick_color, 0.5f);
-        context.display_list_recorder().fill_path({
-            .path = check_mark_path(checkbox_rect),
-            .paint_style_or_color = tick_color,
-            .translation = checkbox_rect.location().to_type<float>(),
-        });
+        auto path = check_mark_path(checkbox_rect);
+        path.offset(checkbox_rect.location().to_type<float>());
+        context.display_list_recorder().fill_path({ .path = move(path), .paint_style_or_color = tick_color });
     } else {
         auto background_color = input_colors.background_color(enabled);
         auto border_thickness = max(1, checkbox_rect.width() / 10);

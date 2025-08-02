@@ -155,6 +155,11 @@ void PathImplSkia::glyph_run(GlyphRun const& glyph_run)
     }
 }
 
+void PathImplSkia::offset(Gfx::FloatPoint const& offset)
+{
+    m_path->offset(offset.x(), offset.y());
+}
+
 NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf8View text, Font const& font) const
 {
     auto sk_font = font.skia_font(1);

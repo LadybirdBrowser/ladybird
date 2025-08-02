@@ -45,7 +45,6 @@ public:
         float opacity = 1.0f;
         PaintStyleOrColor paint_style_or_color;
         Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
-        Optional<Gfx::FloatPoint> translation = {};
     };
     void fill_path(FillPathParams params);
 
@@ -59,7 +58,6 @@ public:
         float opacity = 1.0f;
         PaintStyleOrColor paint_style_or_color;
         float thickness;
-        Optional<Gfx::FloatPoint> translation = {};
     };
     void stroke_path(StrokePathParams);
 
