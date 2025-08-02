@@ -345,10 +345,8 @@ Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::Abstract
     Vector<ComponentValue> new_values;
     TokenStream source { values };
     auto maybe_error = substitute_arbitrary_substitution_functions_step_2(element, guarded_contexts, source, new_values);
-    if (maybe_error.is_error()) {
-        dbgln_if(CSS_PARSER_DEBUG, "{} (context? {})", maybe_error.release_error(), context.map([](auto& it) { return it.to_string(); }));
+    if (maybe_error.is_error())
         return { ComponentValue { GuaranteedInvalidValue {} } };
-    }
 
     // 3. If context is marked as a cyclic substitution context, return the guaranteed-invalid value.
     // NOTE: Nested arbitrary substitution functions may have marked context as cyclic in step 2.

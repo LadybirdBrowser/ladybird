@@ -47,7 +47,7 @@ struct QualifiedRule {
     Vector<Declaration> declarations;
     Vector<RuleOrListOfDeclarations> child_rules;
 
-    void for_each_as_declaration_list(DeclarationVisitor&& visit) const;
+    void for_each_as_declaration_list(FlyString const& rule_name, DeclarationVisitor&& visit) const;
 };
 
 // https://drafts.csswg.org/css-syntax/#declaration

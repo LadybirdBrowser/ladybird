@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/MediaList.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Sizing.h>
@@ -1623,7 +1624,7 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
         } else if (has_ignored_vendor_prefix(property_name)) {
             return {};
         } else {
-            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS property '{}'", property_name);
+            ErrorReporter::the().report(UnknownPropertyError { .property_name = property_name });
             return {};
         }
     }
@@ -1632,10 +1633,11 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
     auto value = parse_css_value(property_id.value(), value_token_stream, declaration.original_text);
     if (value.is_error()) {
         if (value.error() == ParseError::SyntaxError) {
-            dbgln_if(CSS_PARSER_DEBUG, "Unable to parse value for CSS property '{}'.", property_name);
-            if constexpr (CSS_PARSER_DEBUG) {
-                value_token_stream.dump_all_tokens();
-            }
+            ErrorReporter::the().report(InvalidPropertyError {
+                .property_name = property_name,
+                .value_string = value_token_stream.dump_string(),
+                .description = "Failed to parse."_string,
+            });
         }
         return {};
     }
@@ -1750,7 +1752,11 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
         remove_all_consecutive_whitespace_tokens_from_the_end_of(unparsed_size);
         if (unparsed_size.is_empty()) {
             log_parse_error();
-            dbgln_if(CSS_PARSER_DEBUG, "-> Failed in step 3.1; all whitespace");
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "sizes attribute"_fly_string,
+                .value_string = m_token_stream.dump_string(),
+                .description = "Failed in step 3.1; all whitespace"_string,
+            });
             continue;
         }
 
@@ -1764,7 +1770,11 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
             unparsed_size.take_last();
         } else {
             log_parse_error();
-            dbgln_if(CSS_PARSER_DEBUG, "-> Failed in step 3.2; couldn't parse {} as a <source-size-value>", unparsed_size.last().to_debug_string());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "sizes attribute"_fly_string,
+                .value_string = m_token_stream.dump_string(),
+                .description = "Failed in step 3.2; couldn't parse {} as a <source-size-value>"_string,
+            });
             continue;
         }
 
@@ -1789,7 +1799,11 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
             // 1. If this was not the last item in unparsed sizes list, that is a parse error.
             if (i != unparsed_sizes_list.size() - 1) {
                 log_parse_error();
-                dbgln_if(CSS_PARSER_DEBUG, "-> Failed in step 3.4.1; is unparsed size #{}, count {}", i, unparsed_sizes_list.size());
+                ErrorReporter::the().report(InvalidValueError {
+                    .value_type = "sizes attribute"_fly_string,
+                    .value_string = m_token_stream.dump_string(),
+                    .description = MUST(String::formatted("Failed in step 3.4.1; is unparsed size #{}, count {}", i, unparsed_sizes_list.size())),
+                });
             }
 
             // 2. If size is not auto, then return size. Otherwise, continue.

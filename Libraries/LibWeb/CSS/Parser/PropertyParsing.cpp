@@ -17,6 +17,7 @@
 #include <AK/QuickSort.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/CharacterTypes.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
@@ -2409,7 +2410,11 @@ RefPtr<CSSStyleValue const> Parser::parse_display_value(TokenStream<ComponentVal
             }
 
             // Not a display value, abort.
-            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized display value: `{}`", tokens.next_token().to_string());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<display>"_fly_string,
+                .value_string = tokens.next_token().to_string(),
+                .description = "Unrecognized value"_string,
+            });
             return {};
         }
 
@@ -2790,20 +2795,40 @@ RefPtr<CSSStyleValue const> Parser::parse_font_language_override_value(TokenStre
         auto string_value = string->string_value();
         tokens.discard_whitespace();
         if (tokens.has_next_token()) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: unexpected trailing tokens");
+            ErrorReporter::the().report(InvalidPropertyError {
+                .rule_name = "style"_fly_string,
+                .property_name = "font-language-override"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = "Unexpected trailing tokens"_string,
+            });
             return nullptr;
         }
         auto length = string_value.bytes().size();
         if (length == 0) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: <string> value is empty");
+            ErrorReporter::the().report(InvalidPropertyError {
+                .rule_name = "style"_fly_string,
+                .property_name = "font-language-override"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = "<string> value is empty"_string,
+            });
             return nullptr;
         }
         if (!string_value.is_ascii()) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: <string> value \"{}\" contains non-ascii characters", string_value);
+            ErrorReporter::the().report(InvalidPropertyError {
+                .rule_name = "style"_fly_string,
+                .property_name = "font-language-override"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = MUST(String::formatted("<string> value \"{}\" contains non-ascii characters", string_value)),
+            });
             return nullptr;
         }
         if (length > 4) {
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: <string> value \"{}\" is too long", string_value);
+            ErrorReporter::the().report(InvalidPropertyError {
+                .rule_name = "style"_fly_string,
+                .property_name = "font-language-override"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = MUST(String::formatted("<string> value \"{}\" is too long", string_value)),
+            });
             return nullptr;
         }
         transaction.commit();
@@ -3219,7 +3244,11 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant_alternates_value(TokenStr
     if (auto historical_forms = parse_all_as_single_keyword_value(tokens, Keyword::HistoricalForms))
         return historical_forms;
 
-    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @font-variant-alternate: parsing {} not implemented.", tokens.next_token().to_debug_string());
+    ErrorReporter::the().report(InvalidPropertyError {
+        .property_name = "font-variant-alternates"_fly_string,
+        .value_string = tokens.next_token().to_string(),
+        .description = "Invalid or not yet implemented"_string,
+    });
     return nullptr;
 }
 
@@ -3921,12 +3950,20 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_value(TokenStream<ComponentV
         auto arguments = parse_a_comma_separated_list_of_component_values(function_tokens);
 
         if (arguments.size() > function_metadata.parameters.size()) {
-            dbgln_if(CSS_PARSER_DEBUG, "Too many arguments to {}. max: {}", part.function().name, function_metadata.parameters.size());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<transform-function>"_fly_string,
+                .value_string = part.function().original_source_text(),
+                .description = MUST(String::formatted("Too many arguments to {}. max: {}", part.function().name, function_metadata.parameters.size())),
+            });
             return nullptr;
         }
 
         if (arguments.size() < function_metadata.parameters.size() && function_metadata.parameters[arguments.size()].required) {
-            dbgln_if(CSS_PARSER_DEBUG, "Required parameter at position {} is missing", arguments.size());
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = "<transform-function>"_fly_string,
+                .value_string = part.function().original_source_text(),
+                .description = MUST(String::formatted("Required parameter at position {} is missing", arguments.size())),
+            });
             return nullptr;
         }
 
@@ -4152,7 +4189,11 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
                     transition.delay = move(time);
                     break;
                 default:
-                    dbgln_if(CSS_PARSER_DEBUG, "Transition property has more than two time values");
+                    ErrorReporter::the().report(InvalidPropertyError {
+                        .property_name = "transition"_fly_string,
+                        .value_string = tokens.dump_string(),
+                        .description = "Contains more than two time values"_string,
+                    });
                     return {};
                 }
                 time_value_count++;
@@ -4161,7 +4202,11 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
 
             if (auto easing = parse_easing_value(tokens)) {
                 if (transition.easing) {
-                    dbgln_if(CSS_PARSER_DEBUG, "Transition property has multiple easing values");
+                    ErrorReporter::the().report(InvalidPropertyError {
+                        .property_name = "transition"_fly_string,
+                        .value_string = tokens.dump_string(),
+                        .description = "Contains multiple easing values"_string,
+                    });
                     return {};
                 }
 
@@ -4181,7 +4226,11 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
                 auto transition_keyword = parse_keyword_value(tokens);
                 VERIFY(transition_keyword->to_keyword() == Keyword::All);
                 if (transition.property_name) {
-                    dbgln_if(CSS_PARSER_DEBUG, "Transition property has multiple property identifiers");
+                    ErrorReporter::the().report(InvalidPropertyError {
+                        .property_name = "transition"_fly_string,
+                        .value_string = tokens.dump_string(),
+                        .description = "Contains multiple property identifiers"_string,
+                    });
                     return {};
                 }
                 transition.property_name = transition_keyword.release_nonnull();
@@ -4190,7 +4239,11 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
 
             if (auto transition_property = parse_custom_ident_value(tokens, { { "all"sv, "none"sv } })) {
                 if (transition.property_name) {
-                    dbgln_if(CSS_PARSER_DEBUG, "Transition property has multiple property identifiers");
+                    ErrorReporter::the().report(InvalidPropertyError {
+                        .property_name = "transition"_fly_string,
+                        .value_string = tokens.dump_string(),
+                        .description = "Contains multiple property identifiers"_string,
+                    });
                     return {};
                 }
 
@@ -4201,7 +4254,11 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
                 }
             }
 
-            dbgln_if(CSS_PARSER_DEBUG, "Transition property has unexpected token \"{}\"", tokens.next_token().to_string());
+            ErrorReporter::the().report(InvalidPropertyError {
+                .property_name = "transition"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = MUST(String::formatted("Unexpected token \"{}\"", tokens.next_token().to_string())),
+            });
             return {};
         }
 
