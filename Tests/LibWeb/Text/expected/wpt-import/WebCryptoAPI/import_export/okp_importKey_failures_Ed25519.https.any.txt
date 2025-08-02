@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 270 tests
 
-252 Pass
-18 Fail
+260 Pass
+10 Fail
 Pass	Bad usages: importKey(spki, {name: Ed25519}, true, [encrypt])
 Pass	Bad usages: importKey(spki, {name: Ed25519}, false, [encrypt])
 Pass	Bad usages: importKey(spki, {name: Ed25519}, true, [verify, encrypt])
@@ -226,10 +226,10 @@ Pass	Bad key length: importKey(pkcs8, {name: Ed25519}, true, [sign])
 Pass	Bad key length: importKey(pkcs8, {name: Ed25519}, false, [sign])
 Pass	Bad key length: importKey(pkcs8, {name: Ed25519}, true, [sign, sign])
 Pass	Bad key length: importKey(pkcs8, {name: Ed25519}, false, [sign, sign])
-Fail	Bad key length: importKey(raw, {name: Ed25519}, true, [verify])
-Fail	Bad key length: importKey(raw, {name: Ed25519}, false, [verify])
-Fail	Bad key length: importKey(raw, {name: Ed25519}, true, [verify, verify])
-Fail	Bad key length: importKey(raw, {name: Ed25519}, false, [verify, verify])
+Pass	Bad key length: importKey(raw, {name: Ed25519}, true, [verify])
+Pass	Bad key length: importKey(raw, {name: Ed25519}, false, [verify])
+Pass	Bad key length: importKey(raw, {name: Ed25519}, true, [verify, verify])
+Pass	Bad key length: importKey(raw, {name: Ed25519}, false, [verify, verify])
 Fail	Bad key length: importKey(jwk(private), {name: Ed25519}, true, [sign])
 Fail	Bad key length: importKey(jwk(private), {name: Ed25519}, false, [sign])
 Fail	Bad key length: importKey(jwk(private), {name: Ed25519}, true, [sign, sign])
@@ -270,7 +270,7 @@ Pass	Invalid 'use' field: importKey(jwk(private), {name: Ed25519}, true, [sign])
 Pass	Invalid 'use' field: importKey(jwk (public) , {name: Ed25519}, true, [verify])
 Pass	Invalid 'crv' field: importKey(jwk(private), {name: Ed25519}, true, [sign])
 Pass	Invalid 'crv' field: importKey(jwk (public) , {name: Ed25519}, true, [verify])
-Fail	Invalid 'alg' field 'ed25519': importKey(jwk(private), {name: Ed25519}, true, [sign])
-Fail	Invalid 'alg' field 'ED25519': importKey(jwk(private), {name: Ed25519}, true, [sign])
-Fail	Invalid 'alg' field 'ed25519': importKey(jwk (public) , {name: Ed25519}, true, [verify])
-Fail	Invalid 'alg' field 'ED25519': importKey(jwk (public) , {name: Ed25519}, true, [verify])
+Pass	Invalid 'alg' field 'ed25519': importKey(jwk(private), {name: Ed25519}, true, [sign])
+Pass	Invalid 'alg' field 'ED25519': importKey(jwk(private), {name: Ed25519}, true, [sign])
+Pass	Invalid 'alg' field 'ed25519': importKey(jwk (public) , {name: Ed25519}, true, [verify])
+Pass	Invalid 'alg' field 'ED25519': importKey(jwk (public) , {name: Ed25519}, true, [verify])

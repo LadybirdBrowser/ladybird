@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 231 tests
 
-215 Pass
-16 Fail
+217 Pass
+14 Fail
 Pass	Bad usages: importKey(spki, {name: X448}, true, [encrypt])
 Pass	Bad usages: importKey(spki, {name: X448}, false, [encrypt])
 Pass	Bad usages: importKey(spki, {name: X448}, true, [decrypt])
@@ -186,8 +186,8 @@ Pass	Bad key length: importKey(pkcs8, {name: X448}, true, [deriveBits])
 Pass	Bad key length: importKey(pkcs8, {name: X448}, false, [deriveBits])
 Pass	Bad key length: importKey(pkcs8, {name: X448}, true, [deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Bad key length: importKey(pkcs8, {name: X448}, false, [deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Bad key length: importKey(raw, {name: X448}, true, [])
-Fail	Bad key length: importKey(raw, {name: X448}, false, [])
+Pass	Bad key length: importKey(raw, {name: X448}, true, [])
+Pass	Bad key length: importKey(raw, {name: X448}, false, [])
 Fail	Bad key length: importKey(jwk(private), {name: X448}, true, [deriveKey])
 Fail	Bad key length: importKey(jwk(private), {name: X448}, false, [deriveKey])
 Fail	Bad key length: importKey(jwk(private), {name: X448}, true, [deriveBits, deriveKey])
