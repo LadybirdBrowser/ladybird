@@ -69,6 +69,10 @@ void SVGScriptElement::process_the_script_element()
     if (m_already_processed || !in_a_document_tree())
         return;
 
+    // This prevents execution of scripts that were implicitly closed by end of SVG context
+    if (!m_properly_closed)
+        return;
+
     // https://svgwg.org/svg2-draft/interact.html#ScriptElement
     // Before attempting to execute the ‘script’ element the resolved media type value for ‘type’ must be inspected.
     // If the SVG user agent does not support the scripting language then the ‘script’ element must not be executed.
