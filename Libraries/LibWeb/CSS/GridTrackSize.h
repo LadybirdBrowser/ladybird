@@ -55,7 +55,7 @@ public:
 
     Size css_size() const;
 
-    String to_string() const;
+    String to_string(SerializationMode) const;
     bool operator==(GridSize const& other) const = default;
 
 private:
@@ -70,7 +70,7 @@ public:
     GridSize const& min_grid_size() const& { return m_min_grid_size; }
     GridSize const& max_grid_size() const& { return m_max_grid_size; }
 
-    String to_string() const;
+    String to_string(SerializationMode) const;
     bool operator==(GridMinMax const& other) const = default;
 
 private:
@@ -106,7 +106,7 @@ public:
     Vector<CSS::ExplicitGridTrack> track_list() const;
     auto const& list() const { return m_list; }
 
-    String to_string() const;
+    String to_string(SerializationMode) const;
     bool operator==(GridTrackSizeList const& other) const;
 
     bool is_empty() const { return m_list.is_empty(); }
@@ -144,7 +144,7 @@ public:
     GridTrackSizeList const& grid_track_size_list() const& { return m_grid_track_size_list; }
     GridRepeatType type() const& { return m_type; }
 
-    String to_string() const;
+    String to_string(SerializationMode) const;
     bool operator==(GridRepeat const& other) const = default;
 
 private:
@@ -166,7 +166,7 @@ public:
     bool is_default() const { return m_value.has<GridSize>(); }
     GridSize const& grid_size() const { return m_value.get<GridSize>(); }
 
-    String to_string() const;
+    String to_string(SerializationMode) const;
     bool operator==(ExplicitGridTrack const& other) const = default;
 
 private:

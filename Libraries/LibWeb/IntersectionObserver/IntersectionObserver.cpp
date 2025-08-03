@@ -208,13 +208,13 @@ String IntersectionObserver::root_margin() const
     // IntersectionObserver constructor. If no rootMargin was passed to the IntersectionObserver
     // constructor, the value of this attribute is "0px 0px 0px 0px".
     StringBuilder builder;
-    builder.append(m_root_margin[0].to_string());
+    builder.append(m_root_margin[0].to_string(CSS::SerializationMode::ResolvedValue));
     builder.append(' ');
-    builder.append(m_root_margin[1].to_string());
+    builder.append(m_root_margin[1].to_string(CSS::SerializationMode::ResolvedValue));
     builder.append(' ');
-    builder.append(m_root_margin[2].to_string());
+    builder.append(m_root_margin[2].to_string(CSS::SerializationMode::ResolvedValue));
     builder.append(' ');
-    builder.append(m_root_margin[3].to_string());
+    builder.append(m_root_margin[3].to_string(CSS::SerializationMode::ResolvedValue));
     return builder.to_string().value();
 }
 
@@ -227,13 +227,13 @@ String IntersectionObserver::scroll_margin() const
     // IntersectionObserver constructor. If no scrollMargin was passed to the IntersectionObserver
     // constructor, the value of this attribute is "0px 0px 0px 0px".
     StringBuilder builder;
-    builder.append(m_scroll_margin[0].to_string());
+    builder.append(m_scroll_margin[0].to_string(CSS::SerializationMode::ResolvedValue));
     builder.append(' ');
-    builder.append(m_scroll_margin[1].to_string());
+    builder.append(m_scroll_margin[1].to_string(CSS::SerializationMode::ResolvedValue));
     builder.append(' ');
-    builder.append(m_scroll_margin[2].to_string());
+    builder.append(m_scroll_margin[2].to_string(CSS::SerializationMode::ResolvedValue));
     builder.append(' ');
-    builder.append(m_scroll_margin[3].to_string());
+    builder.append(m_scroll_margin[3].to_string(CSS::SerializationMode::ResolvedValue));
     return builder.to_string().value();
 }
 

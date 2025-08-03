@@ -11,9 +11,9 @@
 
 namespace Web::CSS {
 
-String GridTrackSizeListStyleValue::to_string(SerializationMode) const
+String GridTrackSizeListStyleValue::to_string(SerializationMode mode) const
 {
-    return m_grid_track_size_list.to_string();
+    return m_grid_track_size_list.to_string(mode);
 }
 
 ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> GridTrackSizeListStyleValue::create(CSS::GridTrackSizeList grid_track_size_list)

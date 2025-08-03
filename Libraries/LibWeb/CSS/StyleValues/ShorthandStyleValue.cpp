@@ -280,7 +280,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         auto horizontal_radius = [&](auto& style_value) -> String {
             if (style_value->is_border_radius())
-                return style_value->as_border_radius().horizontal_radius().to_string();
+                return style_value->as_border_radius().horizontal_radius().to_string(mode);
             return style_value->to_string(mode);
         };
 
@@ -291,7 +291,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         auto vertical_radius = [&](auto& style_value) -> String {
             if (style_value->is_border_radius())
-                return style_value->as_border_radius().vertical_radius().to_string();
+                return style_value->as_border_radius().vertical_radius().to_string(mode);
             return style_value->to_string(mode);
         };
 
@@ -463,7 +463,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
                     }
                     builder.append("\" "sv);
                 }
-                builder.append(row.to_string());
+                builder.append(row.to_string(mode));
                 if (idx < rows.grid_track_size_list().track_list().size() - 1)
                     builder.append(' ');
                 idx++;
@@ -473,7 +473,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         if (columns.grid_track_size_list().track_list().size() == 0)
             return MUST(String::formatted("{}", construct_rows_string()));
-        return MUST(String::formatted("{} / {}", construct_rows_string(), columns.grid_track_size_list().to_string()));
+        return MUST(String::formatted("{} / {}", construct_rows_string(), columns.grid_track_size_list().to_string(mode)));
     }
     case PropertyID::GridColumn: {
         auto start = longhand(PropertyID::GridColumnStart);

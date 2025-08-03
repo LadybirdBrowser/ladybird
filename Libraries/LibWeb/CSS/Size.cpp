@@ -87,7 +87,7 @@ bool Size::contains_percentage() const
     }
 }
 
-String Size::to_string() const
+String Size::to_string(SerializationMode mode) const
 {
     switch (m_type) {
     case Type::Auto:
@@ -95,13 +95,13 @@ String Size::to_string() const
     case Type::Calculated:
     case Type::Length:
     case Type::Percentage:
-        return m_length_percentage.to_string();
+        return m_length_percentage.to_string(mode);
     case Type::MinContent:
         return "min-content"_string;
     case Type::MaxContent:
         return "max-content"_string;
     case Type::FitContent:
-        return MUST(String::formatted("fit-content({})", m_length_percentage.to_string()));
+        return MUST(String::formatted("fit-content({})", m_length_percentage.to_string(mode)));
     case Type::None:
         return "none"_string;
     }

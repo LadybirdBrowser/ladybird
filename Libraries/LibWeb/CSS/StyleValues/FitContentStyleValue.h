@@ -23,11 +23,11 @@ public:
     }
     virtual ~FitContentStyleValue() override = default;
 
-    virtual String to_string(SerializationMode) const override
+    virtual String to_string(SerializationMode mode) const override
     {
         if (m_length_percentage.is_auto())
             return "fit-content"_string;
-        return MUST(String::formatted("fit-content({})", m_length_percentage.to_string()));
+        return MUST(String::formatted("fit-content({})", m_length_percentage.to_string(mode)));
     }
 
     bool equals(CSSStyleValue const& other) const override
