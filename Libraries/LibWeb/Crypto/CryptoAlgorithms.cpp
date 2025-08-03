@@ -2476,7 +2476,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(AlgorithmParams const
         // -> If format is "raw":
         //    1. Let data be the octet string contained in keyData.
         //    2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
-        data = key_data.get<ByteBuffer>();
+        data = move(key_data.get<ByteBuffer>());
         auto length_in_bits = data.size() * 8;
         if (length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256) {
             return WebIDL::DataError::create(m_realm, MUST(String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits)));
@@ -2715,7 +2715,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(AlgorithmParams const
     // 2. If format is "raw":
     if (format == Bindings::KeyFormat::Raw) {
         // 1. Let data be the octet string contained in keyData.
-        data = key_data.get<ByteBuffer>();
+        data = move(key_data.get<ByteBuffer>());
 
         // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
         auto length_in_bits = data.size() * 8;
@@ -3027,7 +3027,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(AlgorithmParams const
     // 2. If format is "raw":
     if (format == Bindings::KeyFormat::Raw) {
         // 1. Let data be the octet string contained in keyData.
-        data = key_data.get<ByteBuffer>();
+        data = move(key_data.get<ByteBuffer>());
 
         // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
         auto length_in_bits = data.size() * 8;
@@ -3372,7 +3372,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(AlgorithmParams const&
     // 2. If format is "raw":
     if (format == Bindings::KeyFormat::Raw) {
         // 1. Let data be the octet string contained in keyData.
-        data = key_data.get<ByteBuffer>();
+        data = move(key_data.get<ByteBuffer>());
 
         // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
         auto length_in_bits = data.size() * 8;
@@ -4447,7 +4447,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
 
         // 3. If namedCurve is "P-256", "P-384" or "P-521":
         if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
-            auto key_bytes = key_data.get<ByteBuffer>();
+            auto key_bytes = move(key_data.get<ByteBuffer>());
 
             // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve
             //          member of normalizedAlgorithm identified by performing the conversion steps
@@ -4455,7 +4455,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
             // The uncompressed point format MUST be supported.
             // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
             // 3. If a decode error occurs or an identity point is found, throw a DataError.
-            auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(key_bytes, false, {});
+            auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(move(key_bytes), false, {});
             if (maybe_public_key.is_error())
                 return WebIDL::DataError::create(m_realm, "Failed to parse key"_string);
 
@@ -5416,7 +5416,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
 
         // 3. If namedCurve is "P-256", "P-384" or "P-521":
         if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
-            auto key_bytes = key_data.get<ByteBuffer>();
+            auto key_bytes = move(key_data.get<ByteBuffer>());
 
             // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve
             //          member of normalizedAlgorithm identified by performing the conversion steps
@@ -5424,7 +5424,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
             // The uncompressed point format MUST be supported.
             // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
             // 3. If a decode error occurs or an identity point is found, throw a DataError.
-            auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(key_bytes, false, {});
+            auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(move(key_bytes), false, {});
             if (maybe_public_key.is_error())
                 return WebIDL::DataError::create(m_realm, "Failed to parse key"_string);
 
@@ -6055,7 +6055,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
         }
 
         // 2. Let data be keyData.
-        auto data = key_data.get<ByteBuffer>();
+        auto data = move(key_data.get<ByteBuffer>());
 
         // 3. If the length in bits of data is not 256 then throw a DataError.
         if (data.size() * 8 != 256)
@@ -6068,7 +6068,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
         algorithm->set_name("Ed25519"_string);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-        key = CryptoKey::create(m_realm, data);
+        key = CryptoKey::create(m_realm, move(data));
 
         // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -6562,7 +6562,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
         }
 
         // 2. Let data be keyData.
-        auto data = key_data.get<ByteBuffer>();
+        auto data = move(key_data.get<ByteBuffer>());
 
         // 3. If the length in bits of data is not 448 then throw a DataError.
         if (data.size() * 8 != 448)
@@ -6575,7 +6575,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
         algorithm->set_name("Ed448"_string);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-        key = CryptoKey::create(m_realm, data);
+        key = CryptoKey::create(m_realm, move(data));
 
         // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -7287,7 +7287,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
             return WebIDL::SyntaxError::create(m_realm, "Usages must be empty"_string);
 
         // 2. Let data be keyData.
-        auto data = key_data.get<ByteBuffer>();
+        auto data = move(key_data.get<ByteBuffer>());
 
         // 3. If the length in bits of data is not 256 then throw a DataError.
         if (data.size() * 8 != 256)
@@ -7300,7 +7300,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
         algorithm->set_name("X25519"_string);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-        key = CryptoKey::create(m_realm, data);
+        key = CryptoKey::create(m_realm, move(data));
 
         // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -7781,7 +7781,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
         //    Throw a DataError.
         if (!key_data.has<Bindings::JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "Data is not a JsonWebKey dictionary"_string);
-        auto jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<Bindings::JsonWebKey>();
 
         // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         if (jwk.d.has_value()) {
@@ -7905,7 +7905,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
             return WebIDL::SyntaxError::create(m_realm, "Usages must be empty"_string);
 
         // 2.Let data be keyData.
-        auto data = key_data.get<ByteBuffer>();
+        auto data = move(key_data.get<ByteBuffer>());
 
         // 3. If the length in bits of data is not 448 then throw a DataError.
         if (data.size() * 8 != 448)
@@ -7918,7 +7918,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
         algorithm->set_name("X448"_string);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-        auto key = CryptoKey::create(m_realm, data);
+        auto key = CryptoKey::create(m_realm, move(data));
 
         // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -8092,7 +8092,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmP
     AK::ByteBuffer data;
     if (key_format == Bindings::KeyFormat::Raw) {
         // 4.1. Let data be the octet string contained in keyData.
-        data = key_data.get<ByteBuffer>();
+        data = move(key_data.get<ByteBuffer>());
 
         // 4.2. Set hash to equal the hash member of normalizedAlgorithm.
         hash->set_name(TRY(normalized_algorithm.hash.name(vm)));
@@ -8106,7 +8106,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmP
         //    Throw a DataError.
         if (!key_data.has<Bindings::JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "Data is not a JsonWebKey dictionary"_string);
-        auto jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<Bindings::JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"sv)
