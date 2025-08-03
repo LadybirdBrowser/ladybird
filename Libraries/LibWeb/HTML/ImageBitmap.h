@@ -20,7 +20,9 @@ using ImageBitmapSource = FlattenVariant<CanvasImageSource, Variant<GC::Root<Fil
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmapoptions
 struct ImageBitmapOptions {
-    // FIXME: Implement these fields
+    // FIXME: Implement the rest of the fields
+    Optional<WebIDL::UnsignedLong> resize_width;
+    Optional<WebIDL::UnsignedLong> resize_height;
 };
 
 class ImageBitmap final : public Bindings::PlatformObject
