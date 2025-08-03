@@ -26,7 +26,7 @@ dictionary ImageBitmapOptions {
     // FIXME: ImageOrientation imageOrientation = "from-image";
     // FIXME: PremultiplyAlpha premultiplyAlpha = "default";
     // FIXME: ColorSpaceConversion colorSpaceConversion = "default";
-    // FIXME: [EnforceRange] unsigned long resizeWidth;
-    // FIXME: [EnforceRange] unsigned long resizeHeight;
+    [EnforceRange] unsigned long resizeWidth;
+    [EnforceRange] unsigned long resizeHeight;
     // FIXME: ResizeQuality resizeQuality = "low";
 };
