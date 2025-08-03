@@ -547,7 +547,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                 } else if (button == UIEvents::MouseButton::Secondary) {
                     if (is<HTML::HTMLImageElement>(*node)) {
                         auto& image_element = as<HTML::HTMLImageElement>(*node);
-                        auto image_url = image_element.document().encoding_parse_url(image_element.src());
+                        auto image_url = image_element.document().encoding_parse_url(image_element.current_src());
                         if (image_url.has_value()) {
                             Optional<Gfx::Bitmap const*> bitmap;
                             if (image_element.immutable_bitmap())
