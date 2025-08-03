@@ -237,6 +237,15 @@ Optional<CSSPixelFraction> SVGImageElement::intrinsic_aspect_ratio() const
     return {};
 }
 
+RefPtr<Gfx::ImmutableBitmap> SVGImageElement::default_image_bitmap(Gfx::IntSize size) const
+{
+    if (!m_resource_request)
+        return {};
+    if (auto data = m_resource_request->image_data())
+        return data->bitmap(0, size);
+    return {};
+}
+
 RefPtr<Gfx::ImmutableBitmap> SVGImageElement::current_image_bitmap(Gfx::IntSize size) const
 {
     if (!m_resource_request)
