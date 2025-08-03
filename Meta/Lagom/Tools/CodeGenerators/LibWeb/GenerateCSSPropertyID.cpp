@@ -830,7 +830,9 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
                 if (enum_names.contains_slow(type_name))
                     continue;
 
-                if (type_name == "angle") {
+                if (type_name == "anchor") {
+                    property_generator.appendln("        case ValueType::Anchor:");
+                } else if (type_name == "angle") {
                     property_generator.appendln("        case ValueType::Angle:");
                 } else if (type_name == "background-position") {
                     property_generator.appendln("        case ValueType::BackgroundPosition:");

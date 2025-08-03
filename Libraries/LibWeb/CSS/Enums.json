@@ -40,6 +40,19 @@
     "stretch",
     "unsafe"
   ],
+  "anchor-side": [
+    "inside",
+    "outside",
+    "top",
+    "left",
+    "right",
+    "bottom",
+    "start",
+    "end",
+    "self-start",
+    "self-end",
+    "center"
+  ],
   "anchor-size": [
     "block",
     "height",
