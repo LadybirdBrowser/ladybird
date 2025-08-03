@@ -21,6 +21,8 @@ public:
     constexpr Utf16FlyString() = default;
 
     static Utf16FlyString from_utf8(StringView);
+    static Utf16FlyString from_utf8(String const& string) { return from_utf8_without_validation(string); }
+    static Utf16FlyString from_utf8(FlyString const& string) { return from_utf8_without_validation(string); }
     static Utf16FlyString from_utf8_without_validation(StringView);
     static Utf16FlyString from_utf8_but_should_be_ported_to_utf16(StringView string) { return from_utf8_without_validation(string); }
 
