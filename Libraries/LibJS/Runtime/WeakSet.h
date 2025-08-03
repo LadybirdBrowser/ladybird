@@ -8,12 +8,13 @@
 
 #include <AK/HashTable.h>
 #include <LibGC/WeakContainer.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {
 
-class WeakSet final
+class JS_API WeakSet final
     : public Object
     , public GC::WeakContainer {
     JS_OBJECT(WeakSet, Object);
