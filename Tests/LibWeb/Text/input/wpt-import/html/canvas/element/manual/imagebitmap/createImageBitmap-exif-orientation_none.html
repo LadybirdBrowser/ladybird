@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<title>Test that createImageBitmap honors EXIF orientation</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<style>canvas { outline: 1px solid black; margin-right: 1em; }</style>
+<body>
+<script>
+function loadImage(src) {
+    return new Promise(function(resolve) {
+        const image = new Image();
+        image.addEventListener("load", () => resolve(image), { once: true });
+        image.src = src;
+    });
+}
+
+function checkColors(ctx, w, h, is_verticle, expectedColors) {
+    let data = ctx.getImageData(0, 0, w, h).data;
+    row_width = 80;
+    col_width = 80;
+
+    for (let [row, col, r, g, b, a] of expectedColors) {
+        let x = col * row_width + 10;
+        let y = row * col_width + 10;
+        let i = (x + y * w) * 4;
+
+        let expected = [r, g, b, a];
+        let actual = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+
+        assert_array_approx_equals(actual, expected, 1, `Pixel value at (${x},${y}) ${expected} =~ ${actual}.`);
+    }
+}
+
+for (let orientation of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    async_test(function(t) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 160;
+        canvas.height = 320;
+        document.body.append(canvas);
+
+        const ctx = canvas.getContext("2d");
+        loadImage(`resources/squares_${orientation}.jpg`)
+            .then((image) => createImageBitmap(image, { imageOrientation: "none" }))
+            .then(t.step_func_done(function(imageBitmap) {
+                ctx.drawImage(imageBitmap, 0, 0, 160, 320);
+
+                checkColors(ctx, canvas.width, canvas.height, false, [
+                    // row, col, r, g, b, a
+                    [0, 0, 0, 0, 0, 255],
+                    [0, 1, 128, 128, 128, 255],
+                    [1, 0, 0, 0, 255, 255],
+                    [1, 1, 128, 128, 255, 255],
+                    [2, 0, 0, 255, 0, 255],
+                    [2, 1, 128, 255, 128, 255],
+                    [3, 0, 255, 0, 0, 255],
+                    [3, 1, 255, 128, 128, 255],
+                ]);
+            }));
+    }, `createImageBitmap with Orientation ${orientation}`);
+}
+
+</script>
