@@ -47,7 +47,7 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
             builder.append(circle_size.radius.to_string());
         },
         [&](EllipseSize const& ellipse_size) {
-            builder.appendff("{} {}", ellipse_size.radius_a.to_string(), ellipse_size.radius_b.to_string());
+            builder.appendff("{} {}", ellipse_size.radius_a.to_string(mode), ellipse_size.radius_b.to_string(mode));
         });
 
     if (has_position) {

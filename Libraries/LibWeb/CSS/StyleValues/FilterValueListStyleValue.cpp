@@ -43,7 +43,7 @@ float FilterOperation::Color::resolved_amount() const
     VERIFY_NOT_REACHED();
 }
 
-String FilterValueListStyleValue::to_string(SerializationMode) const
+String FilterValueListStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder {};
     bool first = true;
@@ -97,7 +97,7 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
                         }
                     }());
 
-                builder.append(color.amount.to_string());
+                builder.append(color.amount.to_string(mode));
             },
             [&](CSS::URL const& url) {
                 builder.append(url.to_string());

@@ -76,10 +76,10 @@ String Rect::to_string(SerializationMode) const
     return MUST(String::formatted("rect({} {} {} {})", box.top(), box.right(), box.bottom(), box.left()));
 }
 
-static String radius_to_string(ShapeRadius radius)
+static String radius_to_string(ShapeRadius radius, SerializationMode mode)
 {
     return radius.visit(
-        [](LengthPercentage const& length_percentage) { return length_percentage.to_string(); },
+        [&mode](LengthPercentage const& length_percentage) { return length_percentage.to_string(mode); },
         [](FitSide const& side) {
             switch (side) {
             case FitSide::ClosestSide:
@@ -128,7 +128,7 @@ Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) 
 
 String Circle::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("circle({} at {})", radius_to_string(radius), position->to_string(mode)));
+    return MUST(String::formatted("circle({} at {})", radius_to_string(radius, mode), position->to_string(mode)));
 }
 
 Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
@@ -173,7 +173,7 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node)
 
 String Ellipse::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("ellipse({} {} at {})", radius_to_string(radius_x), radius_to_string(radius_y), position->to_string(mode)));
+    return MUST(String::formatted("ellipse({} {} at {})", radius_to_string(radius_x, mode), radius_to_string(radius_y, mode), position->to_string(mode)));
 }
 
 Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const

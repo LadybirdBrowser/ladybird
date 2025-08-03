@@ -185,12 +185,12 @@ static void serialize_color_stop_list(StringBuilder& builder, auto const& color_
             builder.append(", "sv);
 
         if (element.transition_hint.has_value())
-            builder.appendff("{}, "sv, element.transition_hint->value.to_string());
+            builder.appendff("{}, "sv, element.transition_hint->value.to_string(mode));
 
         builder.append(element.color_stop.color->to_string(mode));
         for (auto position : Array { &element.color_stop.position, &element.color_stop.second_position }) {
             if (position->has_value())
-                builder.appendff(" {}"sv, (*position)->to_string());
+                builder.appendff(" {}"sv, (*position)->to_string(mode));
         }
         first = false;
     }

@@ -119,10 +119,10 @@ public:
             });
     }
 
-    String to_string() const
+    String to_string(SerializationMode mode) const
     {
         if (is_calculated())
-            return m_value.template get<NonnullRefPtr<CalculatedStyleValue const>>()->to_string(SerializationMode::Normal);
+            return m_value.template get<NonnullRefPtr<CalculatedStyleValue const>>()->to_string(mode);
         if (is_percentage())
             return m_value.template get<Percentage>().to_string();
         return m_value.template get<T>().to_string();
@@ -229,7 +229,7 @@ template<>
 struct AK::Formatter<Web::CSS::AnglePercentage> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::AnglePercentage const& angle_percentage)
     {
-        return Formatter<StringView>::format(builder, angle_percentage.to_string());
+        return Formatter<StringView>::format(builder, angle_percentage.to_string(Web::CSS::SerializationMode::Normal));
     }
 };
 
@@ -237,7 +237,7 @@ template<>
 struct AK::Formatter<Web::CSS::FrequencyPercentage> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::FrequencyPercentage const& frequency_percentage)
     {
-        return Formatter<StringView>::format(builder, frequency_percentage.to_string());
+        return Formatter<StringView>::format(builder, frequency_percentage.to_string(Web::CSS::SerializationMode::Normal));
     }
 };
 
@@ -245,7 +245,7 @@ template<>
 struct AK::Formatter<Web::CSS::LengthPercentage> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::LengthPercentage const& length_percentage)
     {
-        return Formatter<StringView>::format(builder, length_percentage.to_string());
+        return Formatter<StringView>::format(builder, length_percentage.to_string(Web::CSS::SerializationMode::Normal));
     }
 };
 
@@ -253,6 +253,6 @@ template<>
 struct AK::Formatter<Web::CSS::TimePercentage> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::TimePercentage const& time_percentage)
     {
-        return Formatter<StringView>::format(builder, time_percentage.to_string());
+        return Formatter<StringView>::format(builder, time_percentage.to_string(Web::CSS::SerializationMode::Normal));
     }
 };
