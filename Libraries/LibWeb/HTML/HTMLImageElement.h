@@ -51,6 +51,7 @@ public:
     String src() const { return get_attribute_value(HTML::AttributeNames::src); }
 
     RefPtr<Gfx::ImmutableBitmap> immutable_bitmap() const;
+    RefPtr<Gfx::ImmutableBitmap> default_image_bitmap(Gfx::IntSize = {}) const;
 
     WebIDL::UnsignedLong width() const;
     WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);

@@ -173,6 +173,13 @@ RefPtr<Gfx::ImmutableBitmap> HTMLImageElement::immutable_bitmap() const
     return current_image_bitmap();
 }
 
+RefPtr<Gfx::ImmutableBitmap> HTMLImageElement::default_image_bitmap(Gfx::IntSize size) const
+{
+    if (auto data = m_current_request->image_data())
+        return data->bitmap(0, size);
+    return nullptr;
+}
+
 bool HTMLImageElement::is_image_available() const
 {
     return m_current_request && m_current_request->is_available();
