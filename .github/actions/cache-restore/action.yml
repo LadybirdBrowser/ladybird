@@ -67,16 +67,35 @@ runs:
           "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
 
     - name: 'Configure Compiler Cache'
-      if: ${{ inputs.ccache_path != '' }}
+      if: ${{ inputs.os != 'Windows' && inputs.ccache_path != '' }}
       shell: bash
+      env:
+        CCACHE_DIR: ${{ inputs.ccache_path }}
       run: |
-          CCACHE_DIR=${{ inputs.ccache_path }} ccache -M 0
+          ccache -M 0
 
           # Reset all ccache modification dates to a known epoch. This provides a baseline that we can prune against.
           find ${{ inputs.ccache_path }} | tac | xargs touch -a -m -d "2018-10-10T09:53:07Z"
 
-          CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
-          CCACHE_DIR=${{ inputs.ccache_path }} ccache -z
+          ccache -s
+          ccache -z
+
+    - name: 'Configure Compiler Cache (Windows)'
+      if: ${{ inputs.os == 'Windows' && inputs.ccache_path != '' }}
+      shell: pwsh
+      env:
+        CCACHE_DIR: ${{ inputs.ccache_path }}
+      run: |
+        ccache -M 0
+        
+        # Reset all ccache modification dates to a known epoch. This provides a baseline that we can prune against.
+        Get-ChildItem -Path "${{ inputs.ccache_path }}" -Recurse | Sort-Object FullName -Descending | ForEach-Object { 
+            $_.LastWriteTime = [DateTime]::Parse("2018-10-10T09:53:07Z")
+            $_.LastAccessTime = [DateTime]::Parse("2018-10-10T09:53:07Z")
+        }
+        
+        ccache -s
+        ccache -z
 
     - name: 'Restore vcpkg cache'
       uses: actions/cache/restore@v4

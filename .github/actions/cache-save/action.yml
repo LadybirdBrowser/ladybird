@@ -32,9 +32,11 @@ runs:
   steps:
     - name: 'Prune obsolete ccache files'
       shell: bash
+      env:
+        CCACHE_DIR: ${{ inputs.ccache_path }}
       if: ${{ inputs.ccache_path != '' }}
       run: |
-        CCACHE_DIR=${{ inputs.ccache_path }} ccache --evict-older-than=1d
+        ccache --evict-older-than=1d
 
     - name: 'Compiler Cache'
       uses: actions/cache/save@v4
@@ -45,9 +47,11 @@ runs:
 
     - name: 'Cache Stats'
       shell: bash
+      env:
+        CCACHE_DIR: ${{ inputs.ccache_path }}
       if: ${{ inputs.ccache_path != '' }}
       run: |
-        CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
+        ccache -s
 
     - name: 'vcpkg binary cache'
       uses: actions/cache/save@v4
