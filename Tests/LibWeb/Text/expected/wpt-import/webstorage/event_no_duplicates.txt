@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+2 Pass
+6 Fail
+Pass	sessionStorage exists
+Fail	Setting to same value does not trigger event for sessionStorage
+Fail	Deleting non-existent key does not trigger event for sessionStorage
+Fail	Clearing empty storage does not trigger event for sessionStorage
+Pass	localStorage exists
+Fail	Setting to same value does not trigger event for localStorage
+Fail	Deleting non-existent key does not trigger event for localStorage
+Fail	Clearing empty storage does not trigger event for localStorage
