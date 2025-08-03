@@ -29,7 +29,7 @@ JS_API GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_e
 GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject&, Object* new_target);
 GC::Ref<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer);
 GC::Ref<Environment> get_this_environment(VM&);
-bool can_be_held_weakly(Value);
+JS_API bool can_be_held_weakly(Value);
 Object* get_super_constructor(VM&);
 ThrowCompletionOr<Value> require_object_coercible(VM&, Value);
 JS_API ThrowCompletionOr<Value> call_impl(VM&, Value function, Value this_value, ReadonlySpan<Value> arguments = {});

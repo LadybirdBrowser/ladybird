@@ -26,7 +26,7 @@ struct ParseRegexPatternError {
 ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pattern, bool unicode, bool unicode_sets);
 ThrowCompletionOr<String> parse_regex_pattern(VM& vm, Utf16View const& pattern, bool unicode, bool unicode_sets);
 
-class RegExpObject : public Object {
+class JS_API RegExpObject : public Object {
     JS_OBJECT(RegExpObject, Object);
     GC_DECLARE_ALLOCATOR(RegExpObject);
 

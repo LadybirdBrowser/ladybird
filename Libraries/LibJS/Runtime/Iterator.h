@@ -18,7 +18,7 @@
 namespace JS {
 
 // 7.4.1 Iterator Records, https://tc39.es/ecma262/#sec-iterator-records
-class IteratorRecord final : public Cell {
+class JS_API IteratorRecord final : public Cell {
     GC_CELL(IteratorRecord, Cell);
     GC_DECLARE_ALLOCATOR(IteratorRecord);
 

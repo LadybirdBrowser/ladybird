@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -15,7 +16,7 @@ namespace JS {
 
 Reference make_private_reference(VM&, Value base_value, Utf16FlyString const& private_identifier);
 
-class Reference {
+class JS_API Reference {
 public:
     enum class BaseType : u8 {
         Unresolvable,

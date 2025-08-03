@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/Utf16FlyString.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Environment.h>
@@ -15,7 +16,7 @@
 
 namespace JS {
 
-class DeclarativeEnvironment : public Environment {
+class JS_API DeclarativeEnvironment : public Environment {
     JS_ENVIRONMENT(DeclarativeEnvironment, Environment);
     GC_DECLARE_ALLOCATOR(DeclarativeEnvironment);
 
