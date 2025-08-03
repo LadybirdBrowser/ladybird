@@ -477,7 +477,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
         return WebIDL::SecurityError::create(realm, "localStorage is not available"_string);
 
     // 4. Let storage be a new Storage object whose map is map.
-    auto storage = Storage::create(realm, Storage::Type::Session, *map);
+    auto storage = Storage::create(realm, Storage::Type::Local, *map);
 
     // 5. Set this's associated Document's local storage holder to storage.
     associated_document.set_local_storage_holder(storage);
