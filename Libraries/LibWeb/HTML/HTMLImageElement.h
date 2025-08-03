@@ -48,7 +48,6 @@ public:
     }
 
     String alt() const { return get_attribute_value(HTML::AttributeNames::alt); }
-    String src() const { return get_attribute_value(HTML::AttributeNames::src); }
 
     RefPtr<Gfx::ImmutableBitmap> immutable_bitmap() const;
 
