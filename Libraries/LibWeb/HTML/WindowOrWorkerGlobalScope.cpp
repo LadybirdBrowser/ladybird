@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/ErrorEvent.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventSource.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -42,6 +43,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
+#include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/ServiceWorker/CacheStorage.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
 #include <LibWeb/UserTiming/PerformanceMark.h>
@@ -241,42 +243,6 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
         },
         [&](CanvasImageSource const& image_source) {
             image_source.visit(
-                // -> img
-                [&](GC::Root<HTMLImageElement> const& image_element) {
-                    // 1. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size) and options's resizeWidth or options's resizeHeight is not present, then return a promise rejected with an "InvalidStateError" DOMException.
-                    auto const has_natural_dimensions = image_element->intrinsic_width().has_value() && image_element->intrinsic_height().has_value();
-                    if (!has_natural_dimensions && (!options.has_value() || !options->resize_width.has_value() || !options->resize_width.has_value())) {
-                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_string));
-                        return;
-                    }
-
-                    // 2. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size), it should be rendered to a bitmap of the size specified by the resizeWidth and the resizeHeight options.
-                    // 3. Set imageBitmap's bitmap data to a copy of image's media data, cropped to the source rectangle with formatting. If this is an animated image, imageBitmap's bitmap data must only be taken from the default image of the animation (the one that the format defines is to be used when animation is not supported or is disabled), or, if there is no such image, the first frame of the animation.
-                    // FIXME: Actually crop the image to the source rectangle with formatting: https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
-                    RefPtr<Gfx::ImmutableBitmap> immutable_bitmap;
-                    if (has_natural_dimensions) {
-                        immutable_bitmap = image_element->default_image_bitmap(Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() });
-                    } else {
-                        immutable_bitmap = image_element->default_image_bitmap(Gfx::IntSize { *options->resize_width, *options->resize_height });
-                    }
-                    image_bitmap->set_bitmap(MUST(immutable_bitmap->bitmap()->clone()));
-
-                    // FIXME: 4. If image is not origin-clean, then set the origin-clean flag of imageBitmap's bitmap to false.
-
-                    // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
-                        auto& realm = relevant_realm(image_bitmap);
-                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-                        WebIDL::resolve_promise(realm, *p, image_bitmap);
-                    }));
-                },
-                // -> SVG image
-                [&](GC::Root<SVG::SVGImageElement> const&) {
-                    dbgln("(STUBBED) createImageBitmap() for SVGImageElement");
-                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for SVGImageElement"sv);
-                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::reject_promise(realm, *p, error);
-                },
                 // -> canvas
                 [&](GC::Root<HTMLCanvasElement> const& canvas_element) {
                     // 1. Set imageBitmap's bitmap data to a copy of image's bitmap data, cropped to the source rectangle with formatting.
@@ -311,6 +277,36 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLVideoElement"sv);
                     TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::reject_promise(realm, *p, error);
+                },
+                // -> img
+                // -> SVG image
+                [&](auto const& image_element) {
+                    // 1. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size) and options's resizeWidth or options's resizeHeight is not present, then return a promise rejected with an "InvalidStateError" DOMException.
+                    auto const has_natural_dimensions = image_element->intrinsic_width().has_value() && image_element->intrinsic_height().has_value();
+                    if (!has_natural_dimensions && (!options.has_value() || !options->resize_width.has_value() || !options->resize_width.has_value())) {
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_string));
+                        return;
+                    }
+
+                    // 2. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size), it should be rendered to a bitmap of the size specified by the resizeWidth and the resizeHeight options.
+                    // 3. Set imageBitmap's bitmap data to a copy of image's media data, cropped to the source rectangle with formatting. If this is an animated image, imageBitmap's bitmap data must only be taken from the default image of the animation (the one that the format defines is to be used when animation is not supported or is disabled), or, if there is no such image, the first frame of the animation.
+                    // FIXME: Actually crop the image to the source rectangle with formatting: https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
+                    RefPtr<Gfx::ImmutableBitmap> immutable_bitmap;
+                    if (has_natural_dimensions) {
+                        immutable_bitmap = image_element->default_image_bitmap(Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() });
+                    } else {
+                        immutable_bitmap = image_element->default_image_bitmap(Gfx::IntSize { *options->resize_width, *options->resize_height });
+                    }
+                    image_bitmap->set_bitmap(MUST(immutable_bitmap->bitmap()->clone()));
+
+                    // FIXME: 4. If image is not origin-clean, then set the origin-clean flag of imageBitmap's bitmap to false.
+
+                    // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
+                    queue_global_task(Task::Source::BitmapTask, image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
+                        auto& realm = relevant_realm(image_bitmap);
+                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                        WebIDL::resolve_promise(realm, *p, image_bitmap);
+                    }));
                 });
         });
 
