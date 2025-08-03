@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	e.style['margin-top'] = "anchor(--foo top)" should not set the property value
+Pass	e.style['height'] = "anchor(--foo top)" should not set the property value
+Pass	e.style['font-size'] = "anchor(--foo top)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo, top)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top,)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top bottom)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top, 10px 20%)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top, 10px, 20%)" should not set the property value
+Pass	e.style['top'] = "anchor(2 * 20%)" should not set the property value
+Pass	e.style['top'] = "anchor((2 * 20%))" should not set the property value
+Pass	e.style['top'] = "anchor(foo top)" should not set the property value
+Pass	e.style['top'] = "anchor(top foo)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo height)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo 10em)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo 100s)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top, 1)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top, 100s)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top, bottom)" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top, anchor(bar top))" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top, anchor-size(bar height))" should not set the property value
+Pass	e.style['top'] = "anchor(--foo top, auto" should not set the property value
+Pass	e.style['top'] = "calc(anchor(foo top) + 10px + 10%)" should not set the property value
+Pass	e.style['top'] = "calc(10px + 100 * anchor(--foo top, anchor(bar bottom)))" should not set the property value
+Pass	e.style['top'] = "min(anchor(--foo top), anchor(--bar bottom), anchor-size(baz height))" should not set the property value

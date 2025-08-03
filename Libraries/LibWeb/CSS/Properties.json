@@ -1123,7 +1123,8 @@
     "initial": "auto",
     "valid-types": [
       "length [-∞,∞]",
-      "percentage [-∞,∞]"
+      "percentage [-∞,∞]",
+      "anchor"
     ],
     "valid-identifiers": [
       "auto"
@@ -2151,7 +2152,8 @@
     "initial": "auto",
     "valid-types": [
       "length [-∞,∞]",
-      "percentage [-∞,∞]"
+      "percentage [-∞,∞]",
+      "anchor"
     ],
     "valid-identifiers": [
       "auto"
@@ -2862,7 +2864,8 @@
     "initial": "auto",
     "valid-types": [
       "length [-∞,∞]",
-      "percentage [-∞,∞]"
+      "percentage [-∞,∞]",
+      "anchor"
     ],
     "valid-identifiers": [
       "auto"
@@ -3234,7 +3237,8 @@
     "initial": "auto",
     "valid-types": [
       "length [-∞,∞]",
-      "percentage [-∞,∞]"
+      "percentage [-∞,∞]",
+      "anchor"
     ],
     "valid-identifiers": [
       "auto"

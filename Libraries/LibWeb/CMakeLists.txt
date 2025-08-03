@@ -178,6 +178,7 @@ set(SOURCES
     CSS/StyleSheet.cpp
     CSS/StyleSheetIdentifier.cpp
     CSS/StyleSheetList.cpp
+    CSS/StyleValues/AnchorStyleValue.cpp
     CSS/StyleValues/AnchorSizeStyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp
     CSS/StyleValues/BackgroundRepeatStyleValue.cpp

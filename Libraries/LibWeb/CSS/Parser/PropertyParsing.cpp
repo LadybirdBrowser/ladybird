@@ -384,6 +384,9 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (auto parsed = parse_for_type(ValueType::Paint); parsed.has_value())
         return parsed.release_value();
 
+    if (auto parsed = parse_for_type(ValueType::Anchor); parsed.has_value())
+        return parsed.release_value();
+
     return OptionalNone {};
 }
 

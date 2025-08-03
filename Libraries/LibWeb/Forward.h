@@ -192,6 +192,7 @@ class SubtleCrypto;
 namespace Web::CSS {
 
 class AbstractImageStyleValue;
+class AnchorStyleValue;
 class AnchorSizeStyleValue;
 class Angle;
 class AngleOrCalculated;

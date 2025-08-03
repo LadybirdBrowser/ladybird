@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -793,6 +794,75 @@ RefPtr<CSSStyleValue const> Parser::parse_percentage_value(TokenStream<Component
     }
 
     return nullptr;
+}
+
+// https://drafts.csswg.org/css-anchor-position-1/#funcdef-anchor
+RefPtr<CSSStyleValue const> Parser::parse_anchor(TokenStream<ComponentValue>& tokens)
+{
+    // <anchor()> = anchor( <anchor-name>? && <anchor-side>, <length-percentage>? )
+
+    auto transaction = tokens.begin_transaction();
+    auto const& function_token = tokens.consume_a_token();
+    if (!function_token.is_function("anchor"sv))
+        return {};
+
+    auto argument_tokens = TokenStream { function_token.function().value };
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
+    Optional<FlyString> anchor_name;
+    RefPtr<CSSStyleValue const> anchor_side_value;
+    RefPtr<CSSStyleValue const> fallback_value;
+    for (auto i = 0; i < 2; ++i) {
+        argument_tokens.discard_whitespace();
+
+        // <anchor-name> = <dashed-ident>
+        if (auto dashed_ident = parse_dashed_ident(argument_tokens); dashed_ident.has_value()) {
+            if (anchor_name.has_value())
+                return {};
+
+            anchor_name = dashed_ident.value();
+            continue;
+        }
+
+        if (anchor_side_value)
+            break;
+
+        // <anchor-side> = inside | outside
+        //               | top | left | right | bottom
+        //               | start | end | self-start | self-end
+        //               | <percentage> | center
+        anchor_side_value = parse_keyword_value(argument_tokens);
+        if (!anchor_side_value) {
+            // FIXME: Only percentages are allowed here, but we parse a length-percentage so that calc values are handled.
+            anchor_side_value = parse_length_percentage_value(argument_tokens);
+            if (!anchor_side_value)
+                return {};
+
+            if (anchor_side_value->is_length())
+                return {};
+
+        } else if (auto anchor_side_keyword = keyword_to_anchor_side(anchor_side_value->to_keyword()); !anchor_side_keyword.has_value()) {
+            return {};
+        }
+    }
+    if (argument_tokens.next_token().is(Token::Type::Comma)) {
+        argument_tokens.discard_a_token();
+        argument_tokens.discard_whitespace();
+        fallback_value = parse_length_percentage_value(argument_tokens);
+        if (!fallback_value) {
+            fallback_value = parse_anchor(argument_tokens);
+            if (!fallback_value)
+                return {};
+            argument_tokens.discard_a_token();
+        }
+    }
+
+    if (argument_tokens.has_next_token())
+        return {};
+
+    if (!anchor_side_value)
+        return {};
+
+    return AnchorStyleValue::create(anchor_name, anchor_side_value.release_nonnull(), fallback_value);
 }
 
 // https://drafts.csswg.org/css-anchor-position-1/#sizing
@@ -4507,6 +4577,8 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::A
 RefPtr<CSSStyleValue const> Parser::parse_value(ValueType value_type, TokenStream<ComponentValue>& tokens)
 {
     switch (value_type) {
+    case ValueType::Anchor:
+        return parse_anchor(tokens);
     case ValueType::AnchorSize:
         return parse_anchor_size(tokens);
     case ValueType::Angle:
