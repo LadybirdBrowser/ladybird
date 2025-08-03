@@ -45,6 +45,11 @@ public:
         return from_utf8_without_validation(utf8_string);
     }
 
+    ALWAYS_INLINE static Utf16String from_utf8(FlyString const& utf8_string)
+    {
+        return from_utf8_without_validation(utf8_string);
+    }
+
     enum class WithBOMHandling {
         No,
         Yes,
