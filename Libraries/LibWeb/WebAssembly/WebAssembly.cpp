@@ -560,10 +560,8 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
         if (value.is_null())
             return Wasm::Value(Wasm::ValueType { Wasm::ValueType::Kind::ExternReference });
         auto& cache = get_cache(*vm.current_realm());
-        for (auto& entry : cache.extern_values()) {
-            if (entry.value == value)
-                return Wasm::Value { Wasm::Reference { Wasm::Reference::Extern { entry.key } } };
-        }
+        if (auto entry = cache.inverse_extern_values().get(value); entry.has_value())
+            return Wasm::Value { Wasm::Reference { Wasm::Reference::Extern { *entry } } };
         Wasm::ExternAddress extern_addr = cache.extern_values().size();
         cache.add_extern_value(extern_addr, value);
         return Wasm::Value { Wasm::Reference { Wasm::Reference::Extern { extern_addr } } };

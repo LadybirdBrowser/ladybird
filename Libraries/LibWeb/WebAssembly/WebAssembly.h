@@ -47,7 +47,13 @@ public:
     void add_compiled_module(NonnullRefPtr<CompiledWebAssemblyModule> module) { m_compiled_modules.append(module); }
     void add_function_instance(Wasm::FunctionAddress address, GC::Ptr<JS::NativeFunction> function) { m_function_instances.set(address, function); }
     void add_imported_object(GC::Ptr<JS::Object> object) { m_imported_objects.set(object); }
-    void add_extern_value(Wasm::ExternAddress address, JS::Value value) { m_extern_values.set(address, value); }
+    void add_extern_value(Wasm::ExternAddress address, JS::Value value)
+    {
+        if (auto entry = m_extern_values.get(address); entry.has_value())
+            m_inverse_extern_values.remove(entry.value());
+        m_extern_values.set(address, value);
+        m_inverse_extern_values.set(value, address);
+    }
     void add_global_instance(Wasm::GlobalAddress address, GC::Ptr<WebAssembly::Global> global) { m_global_instances.set(address, global); }
 
     Optional<GC::Ptr<JS::NativeFunction>> get_function_instance(Wasm::FunctionAddress address) { return m_function_instances.get(address); }
@@ -56,6 +62,7 @@ public:
 
     HashMap<Wasm::FunctionAddress, GC::Ptr<JS::NativeFunction>> function_instances() const { return m_function_instances; }
     HashMap<Wasm::ExternAddress, JS::Value> extern_values() const { return m_extern_values; }
+    HashMap<JS::Value, Wasm::ExternAddress> inverse_extern_values() const { return m_inverse_extern_values; }
     HashMap<Wasm::GlobalAddress, GC::Ptr<WebAssembly::Global>> global_instances() const { return m_global_instances; }
     HashTable<GC::Ptr<JS::Object>> imported_objects() const { return m_imported_objects; }
     Wasm::AbstractMachine& abstract_machine() { return m_abstract_machine; }
@@ -63,6 +70,7 @@ public:
 private:
     HashMap<Wasm::FunctionAddress, GC::Ptr<JS::NativeFunction>> m_function_instances;
     HashMap<Wasm::ExternAddress, JS::Value> m_extern_values;
+    HashMap<JS::Value, Wasm::ExternAddress> m_inverse_extern_values;
     HashMap<Wasm::GlobalAddress, GC::Ptr<WebAssembly::Global>> m_global_instances;
     Vector<NonnullRefPtr<CompiledWebAssemblyModule>> m_compiled_modules;
     HashTable<GC::Ptr<JS::Object>> m_imported_objects;
