@@ -29,6 +29,8 @@ public:
 
     Gfx::Rect<CSSPixels> bounding_box() const;
 
+    RefPtr<Gfx::ImmutableBitmap> default_image_bitmap(Gfx::IntSize = {}) const;
+
     // ^Layout::ImageProvider
     virtual bool is_image_available() const override;
     virtual Optional<CSSPixels> intrinsic_width() const override;
