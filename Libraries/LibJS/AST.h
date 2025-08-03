@@ -52,7 +52,7 @@ create_ast_node(SourceRange range, Args&&... args)
     return adopt_ref(*new T(move(range), forward<Args>(args)...));
 }
 
-class ASTNode : public RefCounted<ASTNode> {
+class JS_API ASTNode : public RefCounted<ASTNode> {
 public:
     virtual ~ASTNode() = default;
 
@@ -778,7 +778,7 @@ struct FunctionParsingInsights {
     bool might_need_arguments_object { false };
 };
 
-class FunctionNode {
+class JS_API FunctionNode {
 public:
     FlyString name() const { return m_name ? m_name->string() : ""_fly_string; }
     RefPtr<Identifier const> name_identifier() const { return m_name; }
