@@ -333,7 +333,6 @@ SVGSVGElement::NaturalMetrics SVGSVGElement::negotiate_natural_metrics(SVG::SVGS
         if (auto active_view_element = svg_root.active_view_element(); active_view_element && active_view_element->view_box().has_value()) {
             // 1. let viewbox be the viewbox defined by the active SVG View
             auto view_box = active_view_element->view_box().value();
-            dbgln("SVG View is active");
 
             // 2. return viewbox.width / viewbox.height
             if (view_box.width != 0 || view_box.height != 0)
