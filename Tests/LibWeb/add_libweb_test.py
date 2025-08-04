@@ -69,7 +69,7 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
         elif test_type == "Ref":
             input_boilerplate = Rf"""<!DOCTYPE html>
 <head>
-     <link rel="match" href="{"../" * num_sub_levels}../expected/{Path(test_name).with_suffix("")}-ref.html" />
+<link rel="match" href="{"../" * num_sub_levels}../expected/{Path(test_name).with_suffix("")}-ref.html" />
 <style>
 </style>
 </head>
@@ -80,8 +80,27 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
             expected_boilerplate = f"Put equivalently rendering HTML for {test_name} here."
 
         elif test_type == "Screenshot":
-            input_boilerplate = generic_boilerplate
-            expected_boilerplate = f"Put equivalently rendering HTML for {test_name} here."
+            input_boilerplate = Rf"""<!DOCTYPE html>
+<head>
+<link rel="match" href="{"../" * num_sub_levels}../expected/{Path(test_name).with_suffix("")}-ref.html" />
+<style>
+</style>
+</head>
+<body>
+</body>
+"""
+
+            expected_boilerplate = f"""<!DOCTYPE html>
+<style>
+  * {{
+    margin: 0;
+  }}
+  body {{
+    background-color: white;
+  }}
+</style>
+<img src="{"../" * num_sub_levels}../images/{Path(test_name).with_suffix("")}-ref.png">
+"""
 
         # layout tests are async agnostic
         elif test_type == "Layout":
