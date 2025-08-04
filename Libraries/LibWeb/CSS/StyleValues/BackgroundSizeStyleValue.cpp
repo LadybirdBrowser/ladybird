@@ -26,4 +26,15 @@ String BackgroundSizeStyleValue::to_string(SerializationMode mode) const
     return MUST(String::formatted("{} {}", m_properties.size_x.to_string(mode), m_properties.size_y.to_string(mode)));
 }
 
+ValueComparingNonnullRefPtr<CSSStyleValue const> BackgroundSizeStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+{
+    auto absolutized_size_x = m_properties.size_x.absolutized(viewport_rect, font_metrics, root_font_metrics);
+    auto absolutized_size_y = m_properties.size_y.absolutized(viewport_rect, font_metrics, root_font_metrics);
+
+    if (absolutized_size_x == m_properties.size_x && absolutized_size_y == m_properties.size_y)
+        return *this;
+
+    return BackgroundSizeStyleValue::create(absolutized_size_x, absolutized_size_y);
+}
+
 }
