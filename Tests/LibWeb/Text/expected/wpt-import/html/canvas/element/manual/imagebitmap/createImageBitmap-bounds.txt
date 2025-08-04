@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	simple clip inside
+Pass	clip outside negative
+Pass	clip outside positive
+Pass	clip inside using negative width and height
