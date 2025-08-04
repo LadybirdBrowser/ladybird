@@ -1099,8 +1099,9 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         };
 
         compute_font(computed_properties, &element, pseudo_element);
+        absolutize_values(computed_properties, element);
         Length::FontMetrics font_metrics {
-            root_element_font_metrics_for_element(element).font_size,
+            computed_properties.font_size(),
             computed_properties.first_available_computed_font().pixel_metrics()
         };
         for (auto const& [property_id, value] : keyframe_values.properties) {
