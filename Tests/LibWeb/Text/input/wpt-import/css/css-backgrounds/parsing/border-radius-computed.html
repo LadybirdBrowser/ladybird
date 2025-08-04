@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: getComputedStyle().borderRadius</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-radius">
+<meta name="assert" content="Computed value has computed length-percentage values.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("border-radius", "1px");
+test_computed_value("border-radius", "1px 2% 3px 4%");
+test_computed_value("border-radius", "5em / 1px 2% 3px 4%", "200px / 1px 2% 3px 4%");
+test_computed_value("border-radius", "1px 2% 3px 4% / 5em", "1px 2% 3px 4% / 200px");
+
+test_computed_value("border-radius", "1px 1px 1px 2% / 1px 2% 1px 2%", "1px 1px 1px 2% / 1px 2%");
+test_computed_value("border-radius", "1px 1px 1px 1px / 1px 1px 2% 1px", "1px / 1px 1px 2%");
+test_computed_value("border-radius", "1px 1px 2% 2%");
+test_computed_value("border-radius", "1px 2% 1px 1px");
+test_computed_value("border-radius", "1px 2% 2% 2% / 1px 2% 3px 2%", "1px 2% 2% / 1px 2% 3px");
+
+test_computed_value("border-top-left-radius", "calc(-0.5em + 10px)", "0px");
+test_computed_value("border-top-right-radius", "20%");
+test_computed_value("border-bottom-right-radius", "calc(0.5em + 10px) 40%", "30px 40%");
+test_computed_value("border-bottom-left-radius", "50% 60px");
+
+test_computed_value("border-top-left-radius", "40px 0px", "40px 0px");
+</script>
+</body>
+</html>
