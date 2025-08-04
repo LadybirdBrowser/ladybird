@@ -107,6 +107,8 @@ protected:
     [[nodiscard]] bool should_treat_max_width_as_none(Box const&, AvailableSize const&) const;
     [[nodiscard]] bool should_treat_max_height_as_none(Box const&, AvailableSize const&) const;
 
+    [[nodiscard]] bool box_is_sized_as_replaced_element(Box const&, AvailableSpace const&) const;
+
     OwnPtr<FormattingContext> layout_inside(Box const&, LayoutMode, AvailableSpace const&);
 
     struct SpaceUsedByFloats {
@@ -164,7 +166,5 @@ protected:
 
     LayoutState& m_state;
 };
-
-bool box_is_sized_as_replaced_element(Box const&);
 
 }

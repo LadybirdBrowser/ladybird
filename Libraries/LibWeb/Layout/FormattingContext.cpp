@@ -551,7 +551,7 @@ CSSPixels FormattingContext::tentative_width_for_replaced_element(Box const& box
 
 void FormattingContext::compute_width_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
 {
-    if (box_is_sized_as_replaced_element(box))
+    if (box_is_sized_as_replaced_element(box, available_space))
         compute_width_for_absolutely_positioned_replaced_element(box, available_space);
     else
         compute_width_for_absolutely_positioned_non_replaced_element(box, available_space);
@@ -559,7 +559,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_element(Box cons
 
 void FormattingContext::compute_height_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space, BeforeOrAfterInsideLayout before_or_after_inside_layout)
 {
-    if (box_is_sized_as_replaced_element(box))
+    if (box_is_sized_as_replaced_element(box, available_space))
         compute_height_for_absolutely_positioned_replaced_element(box, available_space, before_or_after_inside_layout);
     else
         compute_height_for_absolutely_positioned_non_replaced_element(box, available_space, before_or_after_inside_layout);
@@ -1888,7 +1888,7 @@ CSSPixelRect FormattingContext::margin_box_rect_in_ancestor_coordinate_space(Box
     return margin_box_rect_in_ancestor_coordinate_space(m_state.get(box), ancestor_box);
 }
 
-bool box_is_sized_as_replaced_element(Box const& box)
+bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, AvailableSpace const& available_space) const
 {
     // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a
     // replaced element with a natural aspect ratio and no natural size in that axis, see e.g. CSS2 §10
@@ -1906,8 +1906,8 @@ bool box_is_sized_as_replaced_element(Box const& box)
 
         // AD-HOC: If box has preferred aspect ratio but width and height are not specified, then we should
         //         size it as a normal box to match other browsers.
-        if (box.computed_values().height().is_auto()
-            && box.computed_values().width().is_auto()
+        if (should_treat_width_as_auto(box, available_space)
+            && should_treat_height_as_auto(box, available_space)
             && !box.has_natural_width()
             && !box.has_natural_height()) {
             return false;

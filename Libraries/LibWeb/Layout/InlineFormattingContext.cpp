@@ -119,7 +119,7 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     box_state.border_bottom = computed_values.border_bottom().width;
     box_state.margin_bottom = computed_values.margin().bottom().to_px(box, width_of_containing_block);
 
-    if (box_is_sized_as_replaced_element(box)) {
+    if (box_is_sized_as_replaced_element(box, *m_available_space)) {
         box_state.set_content_width(compute_width_for_replaced_element(box, *m_available_space));
         box_state.set_content_height(compute_height_for_replaced_element(box, *m_available_space));
         auto independent_formatting_context = layout_inside(box, layout_mode, box_state.available_inner_space_or_constraints_from(*m_available_space));

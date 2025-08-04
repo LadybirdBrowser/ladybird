@@ -187,7 +187,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
         remaining_available_space.width = AvailableSize::make_definite(remaining_width);
     }
 
-    if (box_is_sized_as_replaced_element(box)) {
+    if (box_is_sized_as_replaced_element(box, available_space)) {
         // FIXME: This should not be done *by* ReplacedBox
         if (is<ReplacedBox>(box)) {
             auto& replaced = as<ReplacedBox>(box);
@@ -297,7 +297,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     };
 
     auto input_width = [&] {
-        if (box_is_sized_as_replaced_element(box)) {
+        if (box_is_sized_as_replaced_element(box, available_space)) {
             // NOTE: Replaced elements had their width calculated independently above.
             //       We use that width as the input here to ensure that margins get resolved.
             return CSS::Length::make_px(box_state.content_width());
@@ -329,7 +329,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
             used_width = try_compute_width(CSS::Length::make_px(min_width));
     }
 
-    if (!box_is_sized_as_replaced_element(box) && !used_width.is_auto())
+    if (!box_is_sized_as_replaced_element(box, available_space) && !used_width.is_auto())
         box_state.set_content_width(used_width.to_px(box));
 
     box_state.margin_left = margin_left.to_px(box);
@@ -522,7 +522,7 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
     auto& box_state = m_state.get_mutable(box);
 
     CSSPixels height = 0;
-    if (box_is_sized_as_replaced_element(box)) {
+    if (box_is_sized_as_replaced_element(box, available_space)) {
         height = compute_height_for_replaced_element(box, available_space);
     } else {
         if (box_formatting_context) {
