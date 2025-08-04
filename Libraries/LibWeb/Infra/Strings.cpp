@@ -21,7 +21,7 @@
 namespace Web::Infra {
 
 // https://infra.spec.whatwg.org/#normalize-newlines
-String normalize_newlines(String const& string)
+AK::String normalize_newlines(AK::String const& string)
 {
     // To normalize newlines in a string, replace every U+000D CR U+000A LF code point pair with a single U+000A LF
     // code point, and then replace every remaining U+000D CR code point with a U+000A LF code point.
@@ -68,7 +68,7 @@ Utf16String normalize_newlines(Utf16String const& string)
 }
 
 // https://infra.spec.whatwg.org/#strip-and-collapse-ascii-whitespace
-ErrorOr<String> strip_and_collapse_whitespace(StringView string)
+ErrorOr<AK::String> strip_and_collapse_whitespace(StringView string)
 {
     // Replace any sequence of one or more consecutive code points that are ASCII whitespace in the string with a single U+0020 SPACE code point.
     StringBuilder builder;
@@ -143,7 +143,7 @@ bool is_code_unit_prefix(StringView potential_prefix_utf8, StringView input_utf8
 }
 
 // https://infra.spec.whatwg.org/#scalar-value-string
-ErrorOr<String> convert_to_scalar_value_string(StringView string)
+ErrorOr<AK::String> convert_to_scalar_value_string(StringView string)
 {
     // To convert a string into a scalar value string, replace any surrogates with U+FFFD.
     StringBuilder scalar_value_builder;
@@ -173,7 +173,7 @@ ByteBuffer isomorphic_encode(StringView input)
 }
 
 // https://infra.spec.whatwg.org/#isomorphic-decode
-String isomorphic_decode(ReadonlyBytes input)
+AK::String isomorphic_decode(ReadonlyBytes input)
 {
     // To isomorphic decode a byte sequence input, return a string whose code point length is equal
     // to input’s length and whose code points have the same values as the values of input’s bytes, in the same order.

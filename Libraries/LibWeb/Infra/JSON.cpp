@@ -38,7 +38,7 @@ WebIDL::ExceptionOr<JS::Value> parse_json_bytes_to_javascript_value(JS::Realm& r
 }
 
 // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-a-json-string
-WebIDL::ExceptionOr<String> serialize_javascript_value_to_json_string(JS::VM& vm, JS::Value value)
+WebIDL::ExceptionOr<AK::String> serialize_javascript_value_to_json_string(JS::VM& vm, JS::Value value)
 {
     auto& realm = *vm.current_realm();
 
@@ -145,7 +145,7 @@ WebIDL::ExceptionOr<ByteBuffer> serialize_javascript_value_to_json_bytes(JS::VM&
 }
 
 // https://infra.spec.whatwg.org/#serialize-an-infra-value-to-a-json-string
-String serialize_an_infra_value_to_a_json_string(JS::Realm& realm, JSONTopLevel const& value)
+AK::String serialize_an_infra_value_to_a_json_string(JS::Realm& realm, JSONTopLevel const& value)
 {
     auto& vm = realm.vm();
 
