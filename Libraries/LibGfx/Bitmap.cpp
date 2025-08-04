@@ -158,9 +158,9 @@ void Bitmap::apply_mask(Gfx::Bitmap const& mask, MaskKind mask_kind)
     }
 }
 
-ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::cropped(Gfx::IntRect crop, Optional<BitmapFormat> new_bitmap_format) const
+ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::cropped(Gfx::IntRect crop) const
 {
-    auto new_bitmap = TRY(Gfx::Bitmap::create(new_bitmap_format.value_or(format()), alpha_type(), { crop.width(), crop.height() }));
+    auto new_bitmap = TRY(Gfx::Bitmap::create(format(), alpha_type(), { crop.width(), crop.height() }));
 
     for (int y = 0; y < crop.height(); ++y) {
         for (int x = 0; x < crop.width(); ++x) {
