@@ -175,11 +175,11 @@ private:
     ByteString navigator_compatibility_mode() const { return m_navigator_compatibility_mode; }
     void set_navigator_compatibility_mode(ByteString const& navigator_compatibility_mode) { m_navigator_compatibility_mode = navigator_compatibility_mode; }
 
-    QScreen* m_current_screen;
+    QScreen* m_current_screen { nullptr };
     double m_device_pixel_ratio { 0 };
     double m_refresh_rate { 60.0 };
 
-    Web::CSS::PreferredColorScheme m_preferred_color_scheme;
+    Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme);
 
     void devtools_disabled();
