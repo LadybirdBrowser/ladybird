@@ -40,14 +40,14 @@ public:
 
     Separator separator() const { return m_properties.separator; }
 
+    virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
+
 private:
     StyleValueList(StyleValueVector&& values, Separator separator)
         : StyleValueWithDefaultOperators(Type::ValueList)
         , m_properties { .separator = separator, .values = move(values) }
     {
     }
-
-    virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
 
     struct Properties {
         Separator separator;
