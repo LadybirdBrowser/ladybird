@@ -100,11 +100,11 @@ UnsignedBigInteger::~UnsignedBigInteger()
     mp_clear(&m_mp);
 }
 
-size_t UnsignedBigInteger::export_data(Bytes data) const
+Bytes UnsignedBigInteger::export_data(Bytes data) const
 {
     size_t written = 0;
     MP_MUST(mp_to_ubin(&m_mp, data.data(), data.size(), &written));
-    return written;
+    return data.slice(0, written);
 }
 
 ErrorOr<UnsignedBigInteger> UnsignedBigInteger::from_base(u16 N, StringView str)
@@ -363,8 +363,8 @@ u32 UnsignedBigInteger::hash() const
         return *m_hash;
 
     auto buffer = MUST(ByteBuffer::create_zeroed(byte_length()));
-    auto length = export_data(buffer);
-    m_hash = string_hash(reinterpret_cast<char const*>(buffer.data()), length);
+    auto result = export_data(buffer);
+    m_hash = string_hash(reinterpret_cast<char const*>(result.data()), result.size());
     return *m_hash;
 }
 
