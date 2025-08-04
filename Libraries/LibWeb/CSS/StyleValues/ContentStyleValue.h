@@ -29,6 +29,8 @@ public:
 
     bool properties_equal(ContentStyleValue const& other) const { return m_properties == other.m_properties; }
 
+    virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
+
 private:
     ContentStyleValue(ValueComparingNonnullRefPtr<StyleValueList const> content, ValueComparingRefPtr<StyleValueList const> alt_text)
         : StyleValueWithDefaultOperators(Type::Content)

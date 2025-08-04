@@ -19,4 +19,12 @@ String ContentStyleValue::to_string(SerializationMode mode) const
     return m_properties.content->to_string(mode);
 }
 
+void ContentStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
+{
+    Base::set_style_sheet(style_sheet);
+    const_cast<StyleValueList&>(*m_properties.content).set_style_sheet(style_sheet);
+    if (m_properties.alt_text)
+        const_cast<StyleValueList&>(*m_properties.alt_text).set_style_sheet(style_sheet);
+}
+
 }
