@@ -429,13 +429,13 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto& column_end = longhand(PropertyID::GridColumnEnd)->as_grid_track_placement();
         StringBuilder builder;
         if (!row_start.grid_track_placement().is_auto())
-            builder.appendff("{}", row_start.grid_track_placement().to_string());
+            builder.appendff("{}", row_start.grid_track_placement().to_string(mode));
         if (!column_start.grid_track_placement().is_auto())
-            builder.appendff(" / {}", column_start.grid_track_placement().to_string());
+            builder.appendff(" / {}", column_start.grid_track_placement().to_string(mode));
         if (!row_end.grid_track_placement().is_auto())
-            builder.appendff(" / {}", row_end.grid_track_placement().to_string());
+            builder.appendff(" / {}", row_end.grid_track_placement().to_string(mode));
         if (!column_end.grid_track_placement().is_auto())
-            builder.appendff(" / {}", column_end.grid_track_placement().to_string());
+            builder.appendff(" / {}", column_end.grid_track_placement().to_string(mode));
         if (builder.is_empty())
             return "auto"_string;
         return MUST(builder.to_string());

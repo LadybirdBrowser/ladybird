@@ -25,13 +25,13 @@ NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()
     return adopt_ref(*media_query);
 }
 
-String MediaFeatureValue::to_string() const
+String MediaFeatureValue::to_string(SerializationMode mode) const
 {
     return m_value.visit(
         [](Keyword const& ident) { return MUST(String::from_utf8(string_from_keyword(ident))); },
-        [](LengthOrCalculated const& length) { return length.to_string(); },
+        [&mode](LengthOrCalculated const& length) { return length.to_string(mode); },
         [](Ratio const& ratio) { return ratio.to_string(); },
-        [](ResolutionOrCalculated const& resolution) { return resolution.to_string(); },
+        [&mode](ResolutionOrCalculated const& resolution) { return resolution.to_string(mode); },
         [](IntegerOrCalculated const& integer) {
             if (integer.is_calculated())
                 return integer.calculated()->to_string(SerializationMode::Normal);
@@ -75,19 +75,19 @@ String MediaFeature::to_string() const
     case Type::IsTrue:
         return MUST(String::from_utf8(string_from_media_feature_id(m_id)));
     case Type::ExactValue:
-        return MUST(String::formatted("{}: {}", string_from_media_feature_id(m_id), value().to_string()));
+        return MUST(String::formatted("{}: {}", string_from_media_feature_id(m_id), value().to_string(SerializationMode::Normal)));
     case Type::MinValue:
-        return MUST(String::formatted("min-{}: {}", string_from_media_feature_id(m_id), value().to_string()));
+        return MUST(String::formatted("min-{}: {}", string_from_media_feature_id(m_id), value().to_string(SerializationMode::Normal)));
     case Type::MaxValue:
-        return MUST(String::formatted("max-{}: {}", string_from_media_feature_id(m_id), value().to_string()));
+        return MUST(String::formatted("max-{}: {}", string_from_media_feature_id(m_id), value().to_string(SerializationMode::Normal)));
     case Type::Range: {
         auto& range = this->range();
         StringBuilder builder;
         if (range.left_comparison.has_value())
-            builder.appendff("{} {} ", range.left_value->to_string(), comparison_string(*range.left_comparison));
+            builder.appendff("{} {} ", range.left_value->to_string(SerializationMode::Normal), comparison_string(*range.left_comparison));
         builder.append(string_from_media_feature_id(m_id));
         if (range.right_comparison.has_value())
-            builder.appendff(" {} {}", comparison_string(*range.right_comparison), range.right_value->to_string());
+            builder.appendff(" {} {}", comparison_string(*range.right_comparison), range.right_value->to_string(SerializationMode::Normal));
 
         return builder.to_string_without_validation();
     }

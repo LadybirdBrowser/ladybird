@@ -53,7 +53,7 @@ public:
     IntegerOrCalculated line_number() const { return *m_value.get<AreaOrLine>().line_number; }
     IntegerOrCalculated span() const { return m_value.get<Span>().value; }
 
-    String to_string() const;
+    String to_string(SerializationMode mode) const;
 
     bool operator==(GridTrackPlacement const& other) const = default;
 
