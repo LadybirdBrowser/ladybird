@@ -40,7 +40,7 @@ public:
     [[nodiscard]] static SignedBigInteger import_data(StringView data) { return import_data(reinterpret_cast<u8 const*>(data.characters_without_null_termination()), data.length()); }
     [[nodiscard]] static SignedBigInteger import_data(u8 const* ptr, size_t length) { return SignedBigInteger(ptr, length); }
 
-    size_t export_data(Bytes) const;
+    [[nodiscard]] Bytes export_data(Bytes) const;
 
     [[nodiscard]] static ErrorOr<SignedBigInteger> from_base(u16 N, StringView str);
     [[nodiscard]] ErrorOr<String> to_base(u16 N) const;
