@@ -4816,6 +4816,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
 using namespace Web::Animations;
 using namespace Web::Clipboard;
 using namespace Web::ContentSecurityPolicy;
+using namespace Web::CookieStore;
 using namespace Web::CredentialManagement;
 using namespace Web::Crypto;
 using namespace Web::CSS;

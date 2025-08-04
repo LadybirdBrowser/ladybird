@@ -1,0 +1,21 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+#import <HTML/Window.idl>
+#import <ServiceWorker/ServiceWorkerGlobalScope.idl>
+
+// https://cookiestore.spec.whatwg.org/#cookiestore
+[Exposed=(ServiceWorker,Window), SecureContext]
+interface CookieStore : EventTarget {
+
+};
+
+// https://cookiestore.spec.whatwg.org/#Window
+[SecureContext]
+partial interface Window {
+    [SameObject] readonly attribute CookieStore cookieStore;
+};
+
+// https://cookiestore.spec.whatwg.org/#ServiceWorkerGlobalScope
+partial interface ServiceWorkerGlobalScope {
+    [SameObject] readonly attribute CookieStore cookieStore;
+};

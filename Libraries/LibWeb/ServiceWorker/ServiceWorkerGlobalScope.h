@@ -33,8 +33,15 @@ public:
     void set_onmessageerror(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onmessageerror();
 
+    [[nodiscard]] GC::Ref<CookieStore::CookieStore> cookie_store();
+
 protected:
     explicit ServiceWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
+
+private:
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    GC::Ptr<CookieStore::CookieStore> m_cookie_store;
 };
 
 }

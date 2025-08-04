@@ -333,6 +333,7 @@ shared_library("LibWeb") {
            "CSS",
            "Clipboard",
            "Cookie",
+           "CookieStore",
            "Crypto",
            "DOM",
            "DOMURL",
