@@ -94,13 +94,14 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         gfx_line_style = Gfx::LineStyle::Dashed;
         break;
     case CSS::LineStyle::Solid:
+    case CSS::LineStyle::Inset:
+    case CSS::LineStyle::Outset:
+        // The only difference between Inset/Outset and Solid is the color, and we already handled that above.
         gfx_line_style = Gfx::LineStyle::Solid;
         break;
     case CSS::LineStyle::Double:
     case CSS::LineStyle::Groove:
     case CSS::LineStyle::Ridge:
-    case CSS::LineStyle::Inset:
-    case CSS::LineStyle::Outset:
         // FIXME: Implement these
         break;
     }
