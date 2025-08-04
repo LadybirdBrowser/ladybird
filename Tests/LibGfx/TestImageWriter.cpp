@@ -6,10 +6,8 @@
 
 #include <AK/MemoryStream.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImageFormats/AnimationWriter.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
 #include <LibGfx/ImageFormats/BMPWriter.h>
-#include <LibGfx/ImageFormats/GIFLoader.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
 #include <LibGfx/ImageFormats/JPEGWriter.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
@@ -183,101 +181,4 @@ TEST_CASE(test_webp_color_indexing_transform_single_channel)
         auto decoded_bitmap_without_color_indexing = TRY_OR_FAIL(expect_single_frame_of_size(*TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(encoded_data)), bitmap->size()));
         expect_bitmaps_equal(*decoded_bitmap_without_color_indexing, *decoded_bitmap);
     }
-}
-
-TEST_CASE(test_webp_animation)
-{
-    auto rgb_bitmap = TRY_OR_FAIL(create_test_rgb_bitmap());
-    auto rgba_bitmap = TRY_OR_FAIL(create_test_rgba_bitmap());
-
-    // 20 kiB is enough for two 47x33 frames.
-    auto stream_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(20 * 1024));
-    FixedMemoryStream stream { Bytes { stream_buffer } };
-
-    auto animation_writer = TRY_OR_FAIL(Gfx::WebPWriter::start_encoding_animation(stream, rgb_bitmap->size()));
-
-    TRY_OR_FAIL(animation_writer->add_frame(*rgb_bitmap, 100));
-    TRY_OR_FAIL(animation_writer->add_frame(*rgba_bitmap, 200));
-
-    auto encoded_animation = ReadonlyBytes { stream_buffer.data(), stream.offset() };
-
-    auto decoded_animation_plugin = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(encoded_animation));
-    EXPECT(decoded_animation_plugin->is_animated());
-    EXPECT_EQ(decoded_animation_plugin->frame_count(), 2u);
-    EXPECT_EQ(decoded_animation_plugin->loop_count(), 0u);
-    EXPECT_EQ(decoded_animation_plugin->size(), rgb_bitmap->size());
-
-    auto frame0 = TRY_OR_FAIL(decoded_animation_plugin->frame(0));
-    EXPECT_EQ(frame0.duration, 100);
-    expect_bitmaps_equal(*frame0.image, *rgb_bitmap);
-
-    auto frame1 = TRY_OR_FAIL(decoded_animation_plugin->frame(1));
-    EXPECT_EQ(frame1.duration, 200);
-    expect_bitmaps_equal(*frame1.image, *rgba_bitmap);
-}
-
-TEST_CASE(test_webp_incremental_animation)
-{
-    auto rgb_bitmap_1 = TRY_OR_FAIL(create_test_rgb_bitmap());
-
-    auto rgb_bitmap_2 = TRY_OR_FAIL(create_test_rgb_bitmap());
-
-    // WebP frames can't be at odd coordinates. Make a pixel at an odd coordinate different to make sure we handle this.
-    rgb_bitmap_2->scanline(3)[3] = Gfx::Color(Color::Red).value();
-
-    // 20 kiB is enough for two 47x33 frames.
-    auto stream_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(20 * 1024));
-    FixedMemoryStream stream { Bytes { stream_buffer } };
-
-    auto animation_writer = TRY_OR_FAIL(Gfx::WebPWriter::start_encoding_animation(stream, rgb_bitmap_1->size()));
-
-    TRY_OR_FAIL(animation_writer->add_frame(*rgb_bitmap_1, 100));
-    TRY_OR_FAIL(animation_writer->add_frame_relative_to_last_frame(*rgb_bitmap_2, 200, *rgb_bitmap_1));
-
-    auto encoded_animation = ReadonlyBytes { stream_buffer.data(), stream.offset() };
-
-    auto decoded_animation_plugin = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(encoded_animation));
-    EXPECT(decoded_animation_plugin->is_animated());
-    EXPECT_EQ(decoded_animation_plugin->frame_count(), 2u);
-    EXPECT_EQ(decoded_animation_plugin->loop_count(), 0u);
-    EXPECT_EQ(decoded_animation_plugin->size(), rgb_bitmap_1->size());
-
-    auto frame0 = TRY_OR_FAIL(decoded_animation_plugin->frame(0));
-    EXPECT_EQ(frame0.duration, 100);
-    expect_bitmaps_equal(*frame0.image, *rgb_bitmap_1);
-
-    auto frame1 = TRY_OR_FAIL(decoded_animation_plugin->frame(1));
-    EXPECT_EQ(frame1.duration, 200);
-    expect_bitmaps_equal(*frame1.image, *rgb_bitmap_2);
-}
-
-TEST_CASE(test_webp_incremental_animation_two_identical_frames)
-{
-    auto rgb_bitmap = TRY_OR_FAIL(create_test_rgba_bitmap());
-    rgb_bitmap = TRY_OR_FAIL(rgb_bitmap->cropped({ 0, 0, 40, 20 })); // Even-sized.
-
-    // 20 kiB is enough for two 47x33 frames.
-    auto stream_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(20 * 1024));
-    FixedMemoryStream stream { Bytes { stream_buffer } };
-
-    auto animation_writer = TRY_OR_FAIL(Gfx::WebPWriter::start_encoding_animation(stream, rgb_bitmap->size()));
-
-    TRY_OR_FAIL(animation_writer->add_frame(*rgb_bitmap, 100));
-    TRY_OR_FAIL(animation_writer->add_frame_relative_to_last_frame(*rgb_bitmap, 200, *rgb_bitmap));
-
-    auto encoded_animation = ReadonlyBytes { stream_buffer.data(), stream.offset() };
-
-    auto decoded_animation_plugin = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(encoded_animation));
-    EXPECT(decoded_animation_plugin->is_animated());
-    EXPECT_EQ(decoded_animation_plugin->frame_count(), 2u);
-    EXPECT_EQ(decoded_animation_plugin->loop_count(), 0u);
-    EXPECT_EQ(decoded_animation_plugin->size(), rgb_bitmap->size());
-
-    auto frame0 = TRY_OR_FAIL(decoded_animation_plugin->frame(0));
-    EXPECT_EQ(frame0.duration, 100);
-    expect_bitmaps_equal(*frame0.image, *rgb_bitmap);
-
-    auto frame1 = TRY_OR_FAIL(decoded_animation_plugin->frame(1));
-    EXPECT_EQ(frame1.duration, 200);
-    expect_bitmaps_equal(*frame1.image, *rgb_bitmap);
 }
