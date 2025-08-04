@@ -1,0 +1,89 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<link rel='stylesheet' href='support/base.css' />
+<link rel="author" title="Joy Yu" href="mailto:joysyu@mit.edu">
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#computing-the-table-height">
+<style>
+    x-table {
+      border: 5px solid black;
+    }
+    x-table span {
+        display: inline-block;
+        vertical-align: top;
+        background: lime;
+        margin: 3px;
+        height: 100px;
+        width: 100px;
+    }
+</style>
+<main>
+    <h1>Visibility collapse</h1>
+    <a href="https://drafts.csswg.org/css-tables-3/#computing-the-table-height">Spec</a>
+    <p>
+    Setting a row to visibility:collapse changes table height but not width.
+    </p>
+    <x-table id="one">
+        <x-tr>
+            <x-td>
+                <img src="../support/cat.png">
+            </x-td>
+            <x-td>
+                <span></span><span></span>
+            </x-td>
+        </x-tr>
+        <x-tr>
+            <x-td>
+                <span>row 2</span>
+            </x-td>
+            <x-td>
+                <span></span>
+            </x-td>
+        </x-tr>
+    </x-table>
+    Bottom table is identical to top except row 1 has been collapsed.
+    <x-table id="two">
+        <x-tr id="collapse">
+            <x-td>
+                <img src="../support/cat.png">
+            </x-td>
+            <x-td>
+                <span></span><span></span>
+            </x-td>
+        </x-tr>
+        <x-tr>
+            <x-td>
+                <span>row 2</span>
+            </x-td>
+            <x-td>
+                <span></span>
+            </x-td>
+        </x-tr>
+    </x-table>
+</main>
+
+<script>
+    row = document.getElementById("collapse");
+    row.style.visibility = "collapse";
+
+    tests = [
+        [
+            document.getElementById('two').offsetWidth,
+            document.getElementById('one').offsetWidth,
+            "row visibility:collapse doesn't change table width, unlike display:none"
+        ],
+        [
+            document.getElementById('two').offsetHeight,
+            116,
+            "row visibility:collapse changes table height, unlike visibility:hidden"
+        ]];
+    for (i = 0; i< tests.length; i++) {
+        test(function()
+            {
+                assert_equals.apply(this, tests[i]);
+            },
+            tests[i][2]);
+    };
+</script>
+</html>
