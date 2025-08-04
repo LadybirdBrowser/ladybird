@@ -13,7 +13,6 @@ lagom_utility(abench SOURCES abench.cpp LIBS LibMain LibFileSystem LibMedia)
 lagom_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
 
 if (ENABLE_GUI_TARGETS)
-    lagom_utility(animation SOURCES animation.cpp LIBS LibGfx LibMain)
     lagom_utility(image SOURCES image.cpp LIBS LibGfx LibMain)
 endif()
 
