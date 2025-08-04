@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-8 Pass
-4 Fail
+12 Pass
 Pass	Property inset-block-start value 'auto'
 Pass	Property inset-block-end value '-10px'
 Pass	Property inset-inline-start value '-20%'
-Fail	Property inset-inline-end value 'calc(10px - 0.5em)'
+Pass	Property inset-inline-end value 'calc(10px - 0.5em)'
 Pass	Property inset-block value 'auto'
 Pass	Property inset-block value '-10px'
-Fail	Property inset-block value 'calc(10px - 0.5em) -20%'
+Pass	Property inset-block value 'calc(10px - 0.5em) -20%'
 Pass	Property inset-block value 'auto auto'
 Pass	Property inset-inline value '-20%'
-Fail	Property inset-inline value 'calc(10px - 0.5em)'
+Pass	Property inset-inline value 'calc(10px - 0.5em)'
 Pass	Property inset-inline value '-10px auto'
-Fail	Property inset-inline value 'auto calc(10px + 0.5em)'
+Pass	Property inset-inline value 'auto calc(10px + 0.5em)'

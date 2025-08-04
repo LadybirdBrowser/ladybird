@@ -2661,6 +2661,17 @@ String CalculatedStyleValue::to_string(SerializationMode serialization_mode) con
     return serialize_a_math_function(m_calculation, m_context, serialization_mode);
 }
 
+ValueComparingNonnullRefPtr<CSSStyleValue const> CalculatedStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+{
+    Length::ResolutionContext length_resolution_context {
+        .viewport_rect = viewport_rect,
+        .font_metrics = font_metrics,
+        .root_font_metrics = root_font_metrics
+    };
+
+    return CalculatedStyleValue::create(simplify_a_calculation_tree(m_calculation, m_context, { .length_resolution_context = length_resolution_context }), m_resolved_type, m_context);
+}
+
 bool CalculatedStyleValue::equals(CSSStyleValue const& other) const
 {
     if (type() != other.type())

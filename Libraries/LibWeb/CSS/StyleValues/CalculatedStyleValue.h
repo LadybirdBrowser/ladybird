@@ -68,6 +68,7 @@ public:
     }
 
     virtual String to_string(SerializationMode) const override;
+    virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
     virtual bool equals(CSSStyleValue const& other) const override;
 
     Optional<CalculationResult> resolve_value(CalculationResolutionContext const&) const;

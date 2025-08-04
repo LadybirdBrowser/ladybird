@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-5 Pass
-2 Fail
-Fail	testing width: calc(5px * 10lh / 1px)
+7 Pass
+Pass	testing width: calc(5px * 10lh / 1px)
 Pass	testing width: calc(20% * 0.5em / 1px)
 Pass	testing width: calc(4px * 4em / 1px)
-Fail	testing width: calc(400px / 4lh * 1px)
+Pass	testing width: calc(400px / 4lh * 1px)
 Pass	testing width: calc(20% / 0.5em * 1px)
 Pass	testing width: calc(52px * 1px / 10%)
 Pass	testing width: calc(100px * 1px / 1px / 1)
