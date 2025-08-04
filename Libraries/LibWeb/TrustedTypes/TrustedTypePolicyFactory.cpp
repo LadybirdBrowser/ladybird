@@ -13,6 +13,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordTrustedTypes.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
+#include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -215,6 +216,8 @@ WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create
 // https://www.w3.org/TR/trusted-types/#should-block-create-policy
 ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object& global, String const& policy_name, Vector<String> const& created_policy_names)
 {
+    auto& realm = this->realm();
+
     // 1. Let result be "Allowed".
     auto result = ContentSecurityPolicy::Directives::Directive::Result::Allowed;
 
@@ -259,11 +262,19 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
         if (!create_violation)
             continue;
 
-        // FIXME
         // 8. Let violation be the result of executing Create a violation object for global, policy, and directive on global, policy and "trusted-types"
+        auto const violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, ContentSecurityPolicy::Directives::Names::TrustedTypes.to_string());
+
         // 9. Set violation’s resource to "trusted-types-policy".
+        violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesPolicy);
+
         // 10. Set violation’s sample to the substring of policyName, containing its first 40 characters.
+        Utf8View source_view { policy_name };
+        auto sample = source_view.unicode_substring_view(0, min(source_view.length(), 40));
+        violation->set_sample(String::from_utf8_without_validation(sample.as_string().bytes()));
+
         // 11. Execute Report a violation on violation.
+        violation->report_a_violation(realm);
 
         // 12. If policy’s disposition is "enforce", then set result to "Blocked".
         if (policy->disposition() == ContentSecurityPolicy::Policy::Disposition::Enforce)
