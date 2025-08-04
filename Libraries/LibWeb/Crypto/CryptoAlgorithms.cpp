@@ -116,9 +116,8 @@ ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger integer)
     // octet), which is "AA".
 
     auto bytes = TRY(ByteBuffer::create_uninitialized(integer.byte_length()));
-    auto data_size = integer.export_data(bytes.span());
-    auto data_slice_be = bytes.bytes().slice(bytes.size() - data_size, data_size);
-    return TRY(encode_base64url(data_slice_be, AK::OmitPadding::Yes));
+    auto result = integer.export_data(bytes.span());
+    return TRY(encode_base64url(result, AK::OmitPadding::Yes));
 }
 
 WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm& realm, String const& base64_url_string)

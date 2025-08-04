@@ -30,20 +30,16 @@ struct SECPxxxr1Point {
     static ErrorOr<ByteBuffer> scalar_to_bytes(UnsignedBigInteger const& a, size_t size)
     {
         auto a_bytes = TRY(ByteBuffer::create_uninitialized(a.byte_length()));
-        auto a_size = a.export_data(a_bytes.span());
+        auto a_result = a.export_data(a_bytes.span());
 
-        if (a_size >= size) {
-            for (size_t i = 0; i < a_size - size; i++) {
-                if (a_bytes[i] != 0) {
-                    return Error::from_string_literal("Scalar is too large for the given size");
-                }
-            }
+        if (a_result.size() > size)
+            return Error::from_string_literal("Scalar is too large for the given size");
 
-            return a_bytes.slice(a_size - size, size);
-        }
+        if (a_result.size() == size)
+            return a_bytes;
 
         auto a_extended_bytes = TRY(ByteBuffer::create_zeroed(size));
-        a_extended_bytes.overwrite(size - a_size, a_bytes.data(), a_size);
+        a_extended_bytes.overwrite(size - a_result.size(), a_result.data(), a_result.size());
         return a_extended_bytes;
     }
 

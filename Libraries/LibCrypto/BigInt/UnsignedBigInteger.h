@@ -42,7 +42,8 @@ public:
     [[nodiscard]] static UnsignedBigInteger import_data(StringView data) { return import_data(reinterpret_cast<u8 const*>(data.characters_without_null_termination()), data.length()); }
     [[nodiscard]] static UnsignedBigInteger import_data(u8 const* ptr, size_t length) { return UnsignedBigInteger(ptr, length); }
 
-    size_t export_data(Bytes) const;
+    // Exports in big-endian (msb stored first), trimmed (no leading zeros) format
+    [[nodiscard]] Bytes export_data(Bytes) const;
 
     [[nodiscard]] static ErrorOr<UnsignedBigInteger> from_base(u16 N, StringView str);
     [[nodiscard]] ErrorOr<String> to_base(u16 N) const;
