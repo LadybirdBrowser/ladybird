@@ -24,7 +24,7 @@ public:
         : UnsignedBigInteger(static_cast<u64>(value))
     {
     }
-    UnsignedBigInteger(u8 const* ptr, size_t length);
+    UnsignedBigInteger(ReadonlyBytes);
 
     explicit UnsignedBigInteger(Vector<u32> const& words);
     explicit UnsignedBigInteger(double value);
@@ -39,8 +39,7 @@ public:
     UnsignedBigInteger();
     ~UnsignedBigInteger();
 
-    [[nodiscard]] static UnsignedBigInteger import_data(StringView data) { return import_data(reinterpret_cast<u8 const*>(data.characters_without_null_termination()), data.length()); }
-    [[nodiscard]] static UnsignedBigInteger import_data(u8 const* ptr, size_t length) { return UnsignedBigInteger(ptr, length); }
+    [[nodiscard]] static UnsignedBigInteger import_data(ReadonlyBytes data) { return UnsignedBigInteger(data); }
 
     // Exports in big-endian (msb stored first), trimmed (no leading zeros) format
     [[nodiscard]] Bytes export_data(Bytes) const;

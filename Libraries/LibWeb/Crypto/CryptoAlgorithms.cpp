@@ -88,20 +88,8 @@ static ::Crypto::UnsignedBigInteger big_integer_from_api_big_integer(GC::Ptr<JS:
 
     auto const& buffer = big_integer->viewed_array_buffer()->buffer();
 
-    if (buffer.size() > 0) {
-        if constexpr (AK::HostIsLittleEndian) {
-            // We need to reverse the buffer to get it into little-endian order
-            Vector<u8, 32> reversed_buffer;
-            reversed_buffer.resize(buffer.size());
-            for (size_t i = 0; i < buffer.size(); ++i) {
-                reversed_buffer[buffer.size() - i - 1] = buffer[i];
-            }
-
-            return ::Crypto::UnsignedBigInteger::import_data(reversed_buffer.data(), reversed_buffer.size());
-        } else {
-            return ::Crypto::UnsignedBigInteger::import_data(buffer.data(), buffer.size());
-        }
-    }
+    if (buffer.size() > 0)
+        return ::Crypto::UnsignedBigInteger::import_data(buffer);
     return ::Crypto::UnsignedBigInteger(0);
 }
 
@@ -136,7 +124,7 @@ WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm& realm, String
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm& realm, String const& base64_url_string)
 {
     auto base64_bytes_be = TRY(base64_url_bytes_decode(realm, base64_url_string));
-    return ::Crypto::UnsignedBigInteger::import_data(base64_bytes_be.data(), base64_bytes_be.size());
+    return ::Crypto::UnsignedBigInteger::import_data(base64_bytes_be);
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-an-asn1-structure
@@ -3937,8 +3925,8 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
         // and using params as the EC domain parameters, and Q as the public key.
 
         auto half_size = signature.size() / 2;
-        auto r = ::Crypto::UnsignedBigInteger::import_data(signature.data(), half_size);
-        auto s = ::Crypto::UnsignedBigInteger::import_data(signature.data() + half_size, half_size);
+        auto r = ::Crypto::UnsignedBigInteger::import_data(signature.bytes().slice(0, half_size));
+        auto s = ::Crypto::UnsignedBigInteger::import_data(signature.bytes().slice(half_size, half_size));
 
         auto maybe_result = curve.visit(
             [](Empty const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },

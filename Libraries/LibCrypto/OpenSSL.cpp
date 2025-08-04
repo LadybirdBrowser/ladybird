@@ -46,7 +46,7 @@ ErrorOr<UnsignedBigInteger> openssl_bignum_to_unsigned_big_integer(OpenSSL_BN co
     auto size = BN_num_bytes(bn.ptr());
     auto buf = TRY(ByteBuffer::create_uninitialized(size));
     BN_bn2bin(bn.ptr(), buf.bytes().data());
-    return UnsignedBigInteger::import_data(buf.bytes().data(), size);
+    return UnsignedBigInteger::import_data(buf);
 }
 
 ErrorOr<StringView> hash_kind_to_openssl_digest_name(Hash::HashKind hash)

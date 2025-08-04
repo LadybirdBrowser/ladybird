@@ -104,7 +104,7 @@ ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Ve
         READ_OBJECT(OctetString, StringView, private_key_bytes);
         POP_SCOPE();
 
-        auto private_key = UnsignedBigInteger::import_data(private_key_bytes);
+        auto private_key = UnsignedBigInteger::import_data(private_key_bytes.bytes());
 
         Optional<Vector<int>> parameters;
         if (!decoder.eof()) {

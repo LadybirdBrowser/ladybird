@@ -226,7 +226,7 @@ TEST_CASE(test_bigint_import_big_endian_decode_encode_roundtrip)
     u8 random_bytes[128];
     u8 target_buffer[128];
     fill_with_random(random_bytes);
-    auto encoded = Crypto::UnsignedBigInteger::import_data(random_bytes, sizeof(random_bytes));
+    auto encoded = Crypto::UnsignedBigInteger::import_data(random_bytes);
     auto result = encoded.export_data(target_buffer);
     EXPECT_EQ(result.size(), sizeof(target_buffer) - count_leading_zeros(random_bytes));
     EXPECT(Bytes { random_bytes }.ends_with(result));
@@ -237,13 +237,13 @@ TEST_CASE(test_bigint_import_big_endian_encode_decode_roundtrip)
     u8 target_buffer[128];
     auto encoded = "12345678901234567890"_bigint;
     auto result = encoded.export_data({ target_buffer, 128 });
-    auto decoded = Crypto::UnsignedBigInteger::import_data(result.data(), result.size());
+    auto decoded = Crypto::UnsignedBigInteger::import_data(result);
     EXPECT_EQ(encoded, decoded);
 }
 
 TEST_CASE(test_bigint_big_endian_import)
 {
-    auto number = Crypto::UnsignedBigInteger::import_data("hello"sv);
+    auto number = Crypto::UnsignedBigInteger::import_data("hello"sv.bytes());
     EXPECT_EQ(number, "448378203247"_bigint);
 }
 
