@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	row visibility:collapse doesn't change table width, unlike display:none
+Fail	row visibility:collapse changes table height, unlike visibility:hidden

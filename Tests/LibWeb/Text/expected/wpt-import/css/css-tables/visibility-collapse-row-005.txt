@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	collapsed row should not contribute to overflow
+Fail	collapsed section should not contribute to overflow
