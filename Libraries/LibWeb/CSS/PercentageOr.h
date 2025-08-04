@@ -18,7 +18,7 @@
 
 namespace Web::CSS {
 
-template<typename T>
+template<typename T, typename Self>
 class PercentageOr {
 public:
     PercentageOr(T t)
@@ -38,13 +38,13 @@ public:
 
     ~PercentageOr() = default;
 
-    PercentageOr<T>& operator=(T t)
+    PercentageOr<T, Self>& operator=(T t)
     {
         m_value = move(t);
         return *this;
     }
 
-    PercentageOr<T>& operator=(Percentage percentage)
+    PercentageOr<T, Self>& operator=(Percentage percentage)
     {
         m_value = move(percentage);
         return *this;
@@ -128,7 +128,7 @@ public:
         return m_value.template get<T>().to_string();
     }
 
-    bool operator==(PercentageOr<T> const& other) const
+    bool operator==(PercentageOr<T, Self> const& other) const
     {
         if (is_calculated() != other.is_calculated())
             return false;
@@ -141,6 +141,21 @@ public:
         return (m_value.template get<T>() == other.m_value.template get<T>());
     }
 
+    Self absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+    {
+        return m_value.visit(
+            [&](T const& value) {
+                if constexpr (IsSame<T, Length>)
+                    return Self { value.absolutized(viewport_rect, font_metrics, root_font_metrics) };
+                else
+                    return *static_cast<Self const*>(this);
+            },
+            [&](Percentage const&) { return *static_cast<Self const*>(this); },
+            [&](NonnullRefPtr<CalculatedStyleValue const> const& value) {
+                return Self { value->absolutized(viewport_rect, font_metrics, root_font_metrics)->as_calculated() };
+            });
+    }
+
 protected:
     bool is_t() const { return m_value.template has<T>(); }
     T const& get_t() const { return m_value.template get<T>(); }
@@ -149,49 +164,49 @@ private:
     Variant<T, Percentage, NonnullRefPtr<CalculatedStyleValue const>> m_value;
 };
 
-template<typename T>
-bool operator==(PercentageOr<T> const& percentage_or, T const& t)
+template<typename T, typename Self>
+bool operator==(PercentageOr<T, Self> const& percentage_or, T const& t)
 {
-    return percentage_or == PercentageOr<T> { t };
+    return percentage_or == PercentageOr<T, Self> { t };
 }
 
-template<typename T>
-bool operator==(T const& t, PercentageOr<T> const& percentage_or)
+template<typename T, typename Self>
+bool operator==(T const& t, PercentageOr<T, Self> const& percentage_or)
 {
     return t == percentage_or;
 }
 
-template<typename T>
-bool operator==(PercentageOr<T> const& percentage_or, Percentage const& percentage)
+template<typename T, typename Self>
+bool operator==(PercentageOr<T, Self> const& percentage_or, Percentage const& percentage)
 {
-    return percentage_or == PercentageOr<T> { percentage };
+    return percentage_or == PercentageOr<T, Self> { percentage };
 }
 
-template<typename T>
-bool operator==(Percentage const& percentage, PercentageOr<T> const& percentage_or)
+template<typename T, typename Self>
+bool operator==(Percentage const& percentage, PercentageOr<T, Self> const& percentage_or)
 {
     return percentage == percentage_or;
 }
 
-class AnglePercentage : public PercentageOr<Angle> {
+class AnglePercentage : public PercentageOr<Angle, AnglePercentage> {
 public:
-    using PercentageOr<Angle>::PercentageOr;
+    using PercentageOr<Angle, AnglePercentage>::PercentageOr;
 
     bool is_angle() const { return is_t(); }
     Angle const& angle() const { return get_t(); }
 };
 
-class FrequencyPercentage : public PercentageOr<Frequency> {
+class FrequencyPercentage : public PercentageOr<Frequency, FrequencyPercentage> {
 public:
-    using PercentageOr<Frequency>::PercentageOr;
+    using PercentageOr<Frequency, FrequencyPercentage>::PercentageOr;
 
     bool is_frequency() const { return is_t(); }
     Frequency const& frequency() const { return get_t(); }
 };
 
-class LengthPercentage : public PercentageOr<Length> {
+class LengthPercentage : public PercentageOr<Length, LengthPercentage> {
 public:
-    using PercentageOr<Length>::PercentageOr;
+    using PercentageOr<Length, LengthPercentage>::PercentageOr;
 
     bool is_auto() const { return is_length() && length().is_auto(); }
 
@@ -199,17 +214,17 @@ public:
     Length const& length() const { return get_t(); }
 };
 
-class TimePercentage : public PercentageOr<Time> {
+class TimePercentage : public PercentageOr<Time, TimePercentage> {
 public:
-    using PercentageOr<Time>::PercentageOr;
+    using PercentageOr<Time, TimePercentage>::PercentageOr;
 
     bool is_time() const { return is_t(); }
     Time const& time() const { return get_t(); }
 };
 
-struct NumberPercentage : public PercentageOr<Number> {
+struct NumberPercentage : public PercentageOr<Number, NumberPercentage> {
 public:
-    using PercentageOr<Number>::PercentageOr;
+    using PercentageOr<Number, NumberPercentage>::PercentageOr;
 
     bool is_number() const { return is_t(); }
     Number const& number() const { return get_t(); }
