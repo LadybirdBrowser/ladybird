@@ -14,6 +14,13 @@
 
 namespace Web::Painting {
 
+enum class BorderEdge : u8 {
+    Top,
+    Right,
+    Bottom,
+    Left,
+};
+
 struct BorderDataDevicePixels {
 public:
     Color color { Color::Transparent };
@@ -26,6 +33,25 @@ struct BordersDataDevicePixels {
     BorderDataDevicePixels right;
     BorderDataDevicePixels bottom;
     BorderDataDevicePixels left;
+
+    BorderDataDevicePixels& for_edge(BorderEdge edge)
+    {
+        switch (edge) {
+        case BorderEdge::Top:
+            return top;
+        case BorderEdge::Right:
+            return right;
+        case BorderEdge::Bottom:
+            return bottom;
+        default: // BorderEdge::Left:
+            return left;
+        }
+    }
+
+    BorderDataDevicePixels const& for_edge(BorderEdge edge) const
+    {
+        return const_cast<BordersDataDevicePixels&>(*this).for_edge(edge);
+    }
 };
 
 struct BordersData {
