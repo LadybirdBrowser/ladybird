@@ -14,7 +14,7 @@ GC_DEFINE_ALLOCATOR(MediaKeySystemAccess);
 
 MediaKeySystemAccess::~MediaKeySystemAccess() = default;
 
-MediaKeySystemAccess::MediaKeySystemAccess(JS::Realm& realm, String key_system, Bindings::MediaKeySystemConfiguration configuration, RefPtr<KeySystem> cdm_implementation)
+MediaKeySystemAccess::MediaKeySystemAccess(JS::Realm& realm, WebIDL::DOMString key_system, Bindings::MediaKeySystemConfiguration configuration, RefPtr<KeySystem> cdm_implementation)
     : PlatformObject(realm)
     , m_key_system(key_system)
     , m_configuration(configuration)
@@ -22,7 +22,7 @@ MediaKeySystemAccess::MediaKeySystemAccess(JS::Realm& realm, String key_system, 
 {
 }
 
-GC::Ref<MediaKeySystemAccess> MediaKeySystemAccess::create(JS::Realm& realm, String key_system, Bindings::MediaKeySystemConfiguration configuration, RefPtr<KeySystem> cdm_implementation)
+GC::Ref<MediaKeySystemAccess> MediaKeySystemAccess::create(JS::Realm& realm, WebIDL::DOMString key_system, Bindings::MediaKeySystemConfiguration configuration, RefPtr<KeySystem> cdm_implementation)
 {
     return realm.create<MediaKeySystemAccess>(realm, key_system, configuration, cdm_implementation);
 }

@@ -9,25 +9,26 @@
 
 #include <AK/Types.h>
 #include <LibWeb/Bindings/MediaKeySystemAccessPrototype.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Bindings {
 
 // https://w3c.github.io/encrypted-media/#dom-mediakeysystemmediacapability
 struct MediaKeySystemMediaCapability {
-    String content_type;
-    Optional<String> encryption_scheme;
-    String robustness;
+    WebIDL::DOMString content_type;
+    Optional<WebIDL::DOMString> encryption_scheme;
+    WebIDL::DOMString robustness;
 };
 
 // https://w3c.github.io/encrypted-media/#dom-mediakeysystemconfiguration
 struct MediaKeySystemConfiguration {
-    String label;
-    Vector<String> init_data_types;
+    WebIDL::DOMString label;
+    Vector<WebIDL::DOMString> init_data_types;
     Vector<MediaKeySystemMediaCapability> audio_capabilities;
     Vector<MediaKeySystemMediaCapability> video_capabilities;
     Bindings::MediaKeysRequirement distinctive_identifier = Bindings::MediaKeysRequirement::Optional;
     Bindings::MediaKeysRequirement persistent_state = Bindings::MediaKeysRequirement::Optional;
-    Optional<Vector<String>> session_types;
+    Optional<Vector<WebIDL::DOMString>> session_types;
 };
 
 }

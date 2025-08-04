@@ -14,7 +14,7 @@
 
 namespace Web::EncryptedMediaExtensions {
 
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> NavigatorEncryptedMediaExtensionsPartial::request_media_key_system_access(String key_system, Vector<Bindings::MediaKeySystemConfiguration> supported_configurations)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> NavigatorEncryptedMediaExtensionsPartial::request_media_key_system_access(WebIDL::DOMString key_system, Vector<Bindings::MediaKeySystemConfiguration> supported_configurations)
 {
     auto& navigator = as<HTML::Navigator>(*this);
     auto& realm = navigator.realm();

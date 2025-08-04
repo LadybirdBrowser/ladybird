@@ -40,7 +40,7 @@ Vector<Bindings::MediaKeySystemMediaCapability> get_supported_capabilities_for_a
             return {};
 
         // 5. Let mimeType be the result of running parse a MIME type with content type.
-        auto mime_type = MimeSniff::MimeType::parse(content_type);
+        auto mime_type = MimeSniff::MimeType::parse(content_type.ascii_view());
 
         // 6. If mimeType is failure or is unrecognized, continue to the next iteration.
         if (!mime_type.has_value())
@@ -120,20 +120,20 @@ Vector<Bindings::MediaKeySystemMediaCapability> get_supported_capabilities_for_a
 }
 
 // https://w3c.github.io/encrypted-media/#dfn-is-persistent-session-type
-bool is_persistent_session_type(String const& session_type)
+bool is_persistent_session_type(WebIDL::DOMString const& session_type)
 {
     // 1. Let the session type be the specified MediaKeySessionType value.
 
     // 2. Follow the steps for the value of session type from the following list:
 
     // * "temporary"
-    if (session_type == "temporary"_string) {
+    if (session_type == "temporary"_utf16) {
         // Return false.
         return false;
     }
 
     // * "persistent-license"
-    if (session_type == "persistent-license"_string) {
+    if (session_type == "persistent-license"_utf16) {
         // Return true.
         return true;
     }
@@ -166,7 +166,7 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(RefPtr<Ke
     // 3. If the initDataTypes member of candidate configuration is non-empty, run the following steps:
     if (!candidate_configuration.init_data_types.is_empty()) {
         // 1. Let supported types be an empty sequence of DOMStrings.
-        Vector<String> supported_types;
+        Vector<WebIDL::DOMString> supported_types;
 
         // 2. For each value in candidate configuration's initDataTypes member:
         for (auto const& init_data_type : candidate_configuration.init_data_types) {
@@ -236,7 +236,7 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(RefPtr<Ke
     // 12. Set the persistentState member of accumulated configuration to equal the value of persistent state requirement.
     accumulated_configuration.persistent_state = persistent_state_requirement;
 
-    Vector<String> session_types;
+    Vector<WebIDL::DOMString> session_types;
     // 1. Follow the steps for the first matching condition from the following list:
     if (candidate_configuration.session_types.has_value()) {
         // * If the sessionTypes member is present in candidate configuration
@@ -245,7 +245,7 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(RefPtr<Ke
     } else {
         // * Otherwise
         // Let session types be [ "temporary" ].
-        session_types.append("temporary"_string);
+        session_types.append("temporary"_utf16);
     }
 
     // 13. For each value in session types:
@@ -384,19 +384,19 @@ Optional<ConsentConfiguration> get_supported_configuration(RefPtr<KeySystem> imp
 }
 
 // https://w3c.github.io/encrypted-media/#dfn-common-key-systems
-bool is_supported_key_system(String const& key_system)
+bool is_supported_key_system(WebIDL::DOMString const& key_system)
 {
     constexpr Array<StringView, 1> supported_key_systems = {
         // https://w3c.github.io/encrypted-media/#clear-key
         "org.w3.clearkey"sv,
     };
 
-    return supported_key_systems.contains_slow(key_system);
+    return supported_key_systems.contains_slow(key_system.ascii_view());
 }
 
-RefPtr<KeySystem> key_system_from_string(String const& key_system)
+RefPtr<KeySystem> key_system_from_string(WebIDL::DOMString const& key_system)
 {
-    if (key_system == "org.w3.clearkey"_string) {
+    if (key_system == "org.w3.clearkey"_utf16) {
         return adopt_ref(*new ClearKeySystem());
     }
 
