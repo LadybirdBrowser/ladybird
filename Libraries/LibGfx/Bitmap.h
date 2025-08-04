@@ -73,7 +73,7 @@ public:
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> clone() const;
 
-    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> cropped(Gfx::IntRect) const;
+    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> cropped(Gfx::IntRect, Gfx::Color outside_color = Gfx::Color::Black) const;
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap_backed_by_anonymous_buffer() const;
 
     [[nodiscard]] ShareableBitmap to_shareable_bitmap() const;
