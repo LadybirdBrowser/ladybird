@@ -192,8 +192,11 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
     }
     case CSS::LineStyle::Groove:
     case CSS::LineStyle::Ridge:
-        // FIXME: Implement these
-        break;
+        // Two half-width borders
+        paint_double_border(0.5f,
+            border_style == CSS::LineStyle::Groove ? CSS::LineStyle::Inset : CSS::LineStyle::Outset,
+            border_style == CSS::LineStyle::Groove ? CSS::LineStyle::Outset : CSS::LineStyle::Inset);
+        return;
     }
 
     struct Points {
