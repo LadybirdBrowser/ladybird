@@ -117,7 +117,7 @@ ErrorOr<UnsignedBigInteger> Decoder::decode_arbitrary_sized_integer(ReadonlyByte
     if (is_negative)
         return Error::from_string_literal("ASN1::Decoder: Decoding a negative unsigned arbitrary sized integer");
 
-    return UnsignedBigInteger::import_data(data.data(), data.size());
+    return UnsignedBigInteger::import_data(data);
 }
 
 ErrorOr<StringView> Decoder::decode_octet_string(ReadonlyBytes bytes)

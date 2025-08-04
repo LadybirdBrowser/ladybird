@@ -18,10 +18,10 @@
 
 namespace Crypto {
 
-UnsignedBigInteger::UnsignedBigInteger(u8 const* ptr, size_t length)
+UnsignedBigInteger::UnsignedBigInteger(ReadonlyBytes data)
 {
     MP_MUST(mp_init(&m_mp));
-    MP_MUST(mp_from_ubin(&m_mp, ptr, length));
+    MP_MUST(mp_from_ubin(&m_mp, data.data(), data.size()));
 }
 
 UnsignedBigInteger::UnsignedBigInteger(Vector<u32> const& words)

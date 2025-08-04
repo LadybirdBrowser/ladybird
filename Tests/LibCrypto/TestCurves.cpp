@@ -197,12 +197,12 @@ TEST_CASE(test_secp256r1)
     };
     // clang-format on
 
-    auto alice_private_key = Crypto::UnsignedBigInteger::import_data(alice_private_key_data, 32);
+    auto alice_private_key = Crypto::UnsignedBigInteger::import_data(alice_private_key_data);
     auto alice_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ alice_public_key_data, 65 }));
-    auto bob_private_key = Crypto::UnsignedBigInteger::import_data(bob_private_key_data, 32);
+    auto bob_private_key = Crypto::UnsignedBigInteger::import_data(bob_private_key_data);
     auto bob_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ bob_public_key_data, 65 }));
     auto shared_secret = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ shared_secret_data, 65 }));
-    auto private_key = Crypto::UnsignedBigInteger::import_data(private_key_data, 32);
+    auto private_key = Crypto::UnsignedBigInteger::import_data(private_key_data);
     auto expected_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ expected_public_key_data, 65 }));
 
     Crypto::Curves::SECP256r1 curve;
@@ -293,12 +293,12 @@ TEST_CASE(test_secp384r1)
     };
     // clang-format on
 
-    auto alice_private_key = Crypto::UnsignedBigInteger::import_data(alice_private_key_data.data(), alice_private_key_data.size());
+    auto alice_private_key = Crypto::UnsignedBigInteger::import_data(alice_private_key_data);
     auto alice_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ alice_public_key_data.data(), alice_public_key_data.size() }));
-    auto bob_private_key = Crypto::UnsignedBigInteger::import_data(bob_private_key_data.data(), bob_private_key_data.size());
+    auto bob_private_key = Crypto::UnsignedBigInteger::import_data(bob_private_key_data);
     auto bob_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ bob_public_key_data.data(), bob_public_key_data.size() }));
     auto shared_secret = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ shared_secret_data.data(), shared_secret_data.size() }));
-    auto private_key = Crypto::UnsignedBigInteger::import_data(private_key_data.data(), private_key_data.size());
+    auto private_key = Crypto::UnsignedBigInteger::import_data(private_key_data);
     auto expected_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ expected_public_key_data.data(), expected_public_key_data.size() }));
 
     Crypto::Curves::SECP384r1 curve;
@@ -406,12 +406,12 @@ TEST_CASE(test_secp521r1)
     };
     // clang-format on
 
-    auto alice_private_key = Crypto::UnsignedBigInteger::import_data(alice_private_key_data.data(), alice_private_key_data.size());
+    auto alice_private_key = Crypto::UnsignedBigInteger::import_data(alice_private_key_data);
     auto alice_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ alice_public_key_data.data(), alice_public_key_data.size() }));
-    auto bob_private_key = Crypto::UnsignedBigInteger::import_data(bob_private_key_data.data(), bob_private_key_data.size());
+    auto bob_private_key = Crypto::UnsignedBigInteger::import_data(bob_private_key_data);
     auto bob_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ bob_public_key_data.data(), bob_public_key_data.size() }));
     auto shared_secret = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ shared_secret_data.data(), shared_secret_data.size() }));
-    auto private_key = Crypto::UnsignedBigInteger::import_data(private_key_data.data(), private_key_data.size());
+    auto private_key = Crypto::UnsignedBigInteger::import_data(private_key_data);
     auto expected_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ expected_public_key_data.data(), expected_public_key_data.size() }));
 
     Crypto::Curves::SECP521r1 curve;
