@@ -38,20 +38,7 @@ static Color dark_color_for_inset_and_outset(Color const& color)
 
 Gfx::Color border_color(BorderEdge edge, BordersDataDevicePixels const& borders_data)
 {
-    auto const& border_data = [&] {
-        switch (edge) {
-        case BorderEdge::Top:
-            return borders_data.top;
-        case BorderEdge::Right:
-            return borders_data.right;
-        case BorderEdge::Bottom:
-            return borders_data.bottom;
-        case BorderEdge::Left:
-            return borders_data.left;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }();
+    auto const& border_data = borders_data.for_edge(edge);
 
     if (border_data.line_style == CSS::LineStyle::Inset) {
         if (edge == BorderEdge::Left || edge == BorderEdge::Top)
@@ -69,18 +56,7 @@ Gfx::Color border_color(BorderEdge edge, BordersDataDevicePixels const& borders_
 
 void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect const& rect, CornerRadius const& radius, CornerRadius const& opposite_radius, BordersDataDevicePixels const& borders_data, Gfx::Path& path, bool last)
 {
-    auto const& border_data = [&] {
-        switch (edge) {
-        case BorderEdge::Top:
-            return borders_data.top;
-        case BorderEdge::Right:
-            return borders_data.right;
-        case BorderEdge::Bottom:
-            return borders_data.bottom;
-        default: // BorderEdge::Left:
-            return borders_data.left;
-        }
-    }();
+    auto const& border_data = borders_data.for_edge(edge);
 
     if (border_data.width <= 0)
         return;

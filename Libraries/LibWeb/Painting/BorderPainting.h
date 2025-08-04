@@ -15,13 +15,6 @@
 
 namespace Web::Painting {
 
-enum class BorderEdge {
-    Top,
-    Right,
-    Bottom,
-    Left,
-};
-
 // Returns OptionalNone if there is no outline to paint.
 Optional<BordersData> borders_data_for_outline(Layout::Node const&, Color outline_color, CSS::OutlineStyle outline_style, CSSPixels outline_width);
 
