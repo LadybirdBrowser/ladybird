@@ -64,22 +64,108 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
     auto color = border_color(edge, borders_data);
     auto border_style = border_data.line_style;
 
-    struct Points {
-        DevicePixelPoint p1;
-        DevicePixelPoint p2;
-    };
+    auto paint_double_border = [&](float proportional_line_thickness, CSS::LineStyle outer_style, CSS::LineStyle inner_style) {
+        // FIXME: Converting to floats and back is awkward, can we somehow do all this processing using CSSPixels?
+        auto modified_borders_data = borders_data;
+        modified_borders_data.top.width = static_cast<float>(modified_borders_data.top.width.value()) * proportional_line_thickness;
+        modified_borders_data.right.width = static_cast<float>(modified_borders_data.right.width.value()) * proportional_line_thickness;
+        modified_borders_data.bottom.width = static_cast<float>(modified_borders_data.bottom.width.value()) * proportional_line_thickness;
+        modified_borders_data.left.width = static_cast<float>(modified_borders_data.left.width.value()) * proportional_line_thickness;
 
-    auto points_for_edge = [](BorderEdge edge, DevicePixelRect const& rect) -> Points {
+        auto modified_rect = rect;
+
+        // Outer border
         switch (edge) {
         case BorderEdge::Top:
-            return { rect.top_left(), rect.top_right().moved_left(1) };
+            modified_rect.set_height(static_cast<float>(rect.height().value()) * proportional_line_thickness);
+            break;
         case BorderEdge::Right:
-            return { rect.top_right().moved_left(1), rect.bottom_right().translated(-1) };
+            modified_rect.set_width(static_cast<float>(rect.width().value()) * proportional_line_thickness);
+            modified_rect.set_right_without_resize(rect.right());
+            break;
         case BorderEdge::Bottom:
-            return { rect.bottom_left().moved_up(1), rect.bottom_right().translated(-1) };
-        default: // Edge::Left
-            return { rect.top_left(), rect.bottom_left().moved_up(1) };
+            modified_rect.set_height(static_cast<float>(rect.height().value()) * proportional_line_thickness);
+            modified_rect.set_bottom_without_resize(rect.bottom());
+            break;
+        case BorderEdge::Left:
+            modified_rect.set_width(static_cast<float>(rect.width().value()) * proportional_line_thickness);
+            break;
         }
+        modified_borders_data.for_edge(edge).line_style = outer_style;
+        paint_border(painter, edge, modified_rect, radius, opposite_radius, modified_borders_data, path, last);
+
+        // Inner border, with smaller rect and radii
+        CornerRadius modified_radius = radius;
+        CornerRadius modified_opposite_radius = opposite_radius;
+        switch (edge) {
+        case BorderEdge::Top: {
+            auto top_inset = borders_data.top.width - modified_borders_data.top.width;
+            auto right_inset = borders_data.right.width - modified_borders_data.right.width;
+            auto left_inset = borders_data.left.width - modified_borders_data.left.width;
+
+            modified_radius.horizontal_radius = max(0, modified_radius.horizontal_radius - left_inset.value());
+            modified_opposite_radius.horizontal_radius = max(0, modified_opposite_radius.horizontal_radius - right_inset.value());
+            modified_radius.vertical_radius = max(0, modified_radius.vertical_radius - top_inset.value());
+            modified_opposite_radius.vertical_radius = modified_radius.vertical_radius;
+
+            modified_rect.set_bottom_without_resize(rect.bottom());
+            // FIXME: Figure out the correct shrink amounts. This is only correct for some cases.
+            if (modified_radius.horizontal_radius == 0 && modified_opposite_radius.horizontal_radius == 0)
+                modified_rect.shrink(0, right_inset, 0, left_inset);
+            break;
+        }
+        case BorderEdge::Right: {
+            auto top_inset = borders_data.top.width - modified_borders_data.top.width;
+            auto right_inset = borders_data.right.width - modified_borders_data.right.width;
+            auto bottom_inset = borders_data.bottom.width - modified_borders_data.bottom.width;
+
+            modified_radius.horizontal_radius = max(0, modified_radius.horizontal_radius - right_inset.value());
+            modified_opposite_radius.horizontal_radius = modified_radius.horizontal_radius;
+            modified_radius.vertical_radius = max(0, modified_radius.vertical_radius - top_inset.value());
+            modified_opposite_radius.vertical_radius = max(0, modified_opposite_radius.vertical_radius - bottom_inset.value());
+
+            modified_rect.set_left(rect.left());
+            // FIXME: Figure out the correct shrink amounts. This is only correct for some cases.
+            if (modified_radius.vertical_radius == 0 && modified_opposite_radius.vertical_radius == 0)
+                modified_rect.shrink(top_inset, 0, bottom_inset, 0);
+            break;
+        }
+        case BorderEdge::Bottom: {
+            auto right_inset = borders_data.right.width - modified_borders_data.right.width;
+            auto bottom_inset = borders_data.bottom.width - modified_borders_data.bottom.width;
+            auto left_inset = borders_data.left.width - modified_borders_data.left.width;
+
+            modified_radius.horizontal_radius = max(0, modified_radius.horizontal_radius - right_inset.value());
+            modified_opposite_radius.horizontal_radius = max(0, modified_opposite_radius.horizontal_radius - left_inset.value());
+            modified_radius.vertical_radius = max(0, modified_radius.vertical_radius - bottom_inset.value());
+            modified_opposite_radius.vertical_radius = modified_radius.vertical_radius;
+
+            modified_rect.set_top(rect.top());
+            // FIXME: Figure out the correct shrink amounts. This is only correct for some cases.
+            if (modified_radius.horizontal_radius == 0 && modified_opposite_radius.horizontal_radius == 0)
+                modified_rect.shrink(0, right_inset, 0, left_inset);
+            break;
+        }
+        case BorderEdge::Left: {
+            auto top_inset = borders_data.top.width - modified_borders_data.top.width;
+            auto bottom_inset = borders_data.bottom.width - modified_borders_data.bottom.width;
+            auto left_inset = borders_data.left.width - modified_borders_data.left.width;
+
+            modified_radius.horizontal_radius = max(0, modified_radius.horizontal_radius - left_inset.value());
+            modified_opposite_radius.horizontal_radius = modified_radius.horizontal_radius;
+            modified_radius.vertical_radius = max(0, modified_radius.vertical_radius - bottom_inset.value());
+            modified_opposite_radius.vertical_radius = max(0, modified_opposite_radius.vertical_radius - top_inset.value());
+
+            modified_rect.set_right_without_resize(rect.right());
+            // FIXME: Figure out the correct shrink amounts. This is only correct for some cases.
+            if (modified_radius.vertical_radius == 0 && modified_opposite_radius.vertical_radius == 0)
+                modified_rect.shrink(top_inset, 0, bottom_inset, 0);
+            break;
+        }
+        }
+
+        modified_borders_data.for_edge(edge).line_style = inner_style;
+        paint_border(painter, edge, modified_rect, modified_radius, modified_opposite_radius, modified_borders_data, path, last);
     };
 
     auto gfx_line_style = Gfx::LineStyle::Solid;
@@ -99,12 +185,34 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         // The only difference between Inset/Outset and Solid is the color, and we already handled that above.
         gfx_line_style = Gfx::LineStyle::Solid;
         break;
-    case CSS::LineStyle::Double:
+    case CSS::LineStyle::Double: {
+        // Treat this as two solid borders, each 1/3 of the width.
+        paint_double_border(1.0f / 3.0f, CSS::LineStyle::Solid, CSS::LineStyle::Solid);
+        return;
+    }
     case CSS::LineStyle::Groove:
     case CSS::LineStyle::Ridge:
         // FIXME: Implement these
         break;
     }
+
+    struct Points {
+        DevicePixelPoint p1;
+        DevicePixelPoint p2;
+    };
+
+    auto points_for_edge = [](BorderEdge edge, DevicePixelRect const& rect) -> Points {
+        switch (edge) {
+        case BorderEdge::Top:
+            return { rect.top_left(), rect.top_right().moved_left(1) };
+        case BorderEdge::Right:
+            return { rect.top_right().moved_left(1), rect.bottom_right().translated(-1) };
+        case BorderEdge::Bottom:
+            return { rect.bottom_left().moved_up(1), rect.bottom_right().translated(-1) };
+        default: // Edge::Left
+            return { rect.top_left(), rect.bottom_left().moved_up(1) };
+        }
+    };
 
     if (gfx_line_style != Gfx::LineStyle::Solid) {
         auto [p1, p2] = points_for_edge(edge, rect);
