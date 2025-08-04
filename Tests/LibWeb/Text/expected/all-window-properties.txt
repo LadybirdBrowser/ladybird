@@ -79,6 +79,7 @@ Comment
 CompositionEvent
 CompressionStream
 ConstantSourceNode
+CookieStore
 CountQueuingStrategy
 Credential
 CredentialsContainer

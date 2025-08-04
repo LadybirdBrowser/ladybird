@@ -1,3 +1,4 @@
+#import <CookieStore/CookieStore.idl>
 #import <CSS/MediaQueryList.idl>
 #import <CSS/Screen.idl>
 #import <CSS/VisualViewport.idl>

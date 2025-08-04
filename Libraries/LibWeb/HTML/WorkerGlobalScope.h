@@ -109,6 +109,8 @@ public:
 protected:
     explicit WorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
 
+    virtual void visit_edges(Cell::Visitor&) override;
+
     virtual void initialize_web_interfaces_impl();
 
     void close_a_worker();
@@ -119,8 +121,6 @@ protected:
 
 private:
     virtual bool is_window_or_worker_global_scope_mixin() const final { return true; }
-
-    virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<WorkerLocation> m_location;
     GC::Ptr<WorkerNavigator> m_navigator;

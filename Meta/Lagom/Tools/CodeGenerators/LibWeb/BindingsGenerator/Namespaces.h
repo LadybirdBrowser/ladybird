@@ -17,6 +17,7 @@ static constexpr Array libweb_interface_namespaces = {
     "Clipboard"sv,
     "Compression"sv,
     "ContentSecurityPolicy"sv,
+    "CookieStore"sv,
     "Crypto"sv,
     "DOM"sv,
     "DOMURL"sv,

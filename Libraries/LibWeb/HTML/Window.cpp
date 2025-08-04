@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Screen.h>
+#include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
@@ -130,6 +131,7 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pdf_viewer_plugin_objects);
     visitor.visit(m_pdf_viewer_mime_type_objects);
     visitor.visit(m_close_watcher_manager);
+    visitor.visit(m_cookie_store);
     visitor.visit(m_locationbar);
     visitor.visit(m_menubar);
     visitor.visit(m_personalbar);
@@ -1119,6 +1121,17 @@ GC::Ref<CloseWatcherManager> Window::close_watcher_manager()
     if (!m_close_watcher_manager)
         m_close_watcher_manager = realm.create<CloseWatcherManager>(realm);
     return GC::Ref { *m_close_watcher_manager };
+}
+
+// https://cookiestore.spec.whatwg.org/#Window
+GC::Ref<CookieStore::CookieStore> Window::cookie_store()
+{
+    auto& realm = this->realm();
+
+    // The cookieStore getter steps are to return this’s associated CookieStore.
+    if (!m_cookie_store)
+        m_cookie_store = realm.create<CookieStore::CookieStore>(realm);
+    return *m_cookie_store;
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-alert

@@ -173,6 +173,12 @@ enum class Source;
 
 }
 
+namespace Web::CookieStore {
+
+class CookieStore;
+
+}
+
 namespace Web::CredentialManagement {
 
 class Credential;

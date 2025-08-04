@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/ServiceWorker/EventNames.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 
@@ -16,6 +17,13 @@ ServiceWorkerGlobalScope::~ServiceWorkerGlobalScope() = default;
 ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
     : HTML::WorkerGlobalScope(realm, page)
 {
+}
+
+void ServiceWorkerGlobalScope::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+
+    visitor.visit(m_cookie_store);
 }
 
 // https://w3c.github.io/ServiceWorker/#dom-serviceworkerglobalscope-oninstall
@@ -76,6 +84,17 @@ void ServiceWorkerGlobalScope::set_onmessageerror(GC::Ptr<WebIDL::CallbackType> 
 GC::Ptr<WebIDL::CallbackType> ServiceWorkerGlobalScope::onmessageerror()
 {
     return event_handler_attribute(EventNames::messageerror);
+}
+
+// https://cookiestore.spec.whatwg.org/#ServiceWorkerGlobalScope
+GC::Ref<CookieStore::CookieStore> ServiceWorkerGlobalScope::cookie_store()
+{
+    auto& realm = this->realm();
+
+    // The cookieStore getter steps are to return this’s associated CookieStore.
+    if (!m_cookie_store)
+        m_cookie_store = realm.create<CookieStore::CookieStore>(realm);
+    return *m_cookie_store;
 }
 
 }
