@@ -8,9 +8,9 @@
 #include <AK/MemoryStream.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/System.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 #include <LibTest/TestSuite.h>
-#include <unistd.h>
 
 #if defined(HAVE_PULSEAUDIO)
 #    include <LibMedia/Audio/PulseAudioWrappers.h>
@@ -38,7 +38,7 @@ TEST_CASE(create_and_destroy_playback_stream)
             return buffer.trim(writing_stream.offset());
         });
         EXPECT_EQ(!stream_result.is_error(), has_implementation);
-        usleep(10000);
+        MUST(Core::System::sleep_ms(100));
     }
 
 #if defined(HAVE_PULSEAUDIO)
