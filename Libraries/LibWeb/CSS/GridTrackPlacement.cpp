@@ -10,7 +10,7 @@
 
 namespace Web::CSS {
 
-String GridTrackPlacement::to_string() const
+String GridTrackPlacement::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     m_value.visit(
@@ -19,9 +19,9 @@ String GridTrackPlacement::to_string() const
         },
         [&](AreaOrLine const& area_or_line) {
             if (area_or_line.line_number.has_value() && area_or_line.name.has_value()) {
-                builder.appendff("{} {}", area_or_line.line_number->to_string(), *area_or_line.name);
+                builder.appendff("{} {}", area_or_line.line_number->to_string(mode), *area_or_line.name);
             } else if (area_or_line.line_number.has_value()) {
-                builder.appendff("{}", area_or_line.line_number->to_string());
+                builder.appendff("{}", area_or_line.line_number->to_string(mode));
             } else if (area_or_line.name.has_value()) {
                 builder.appendff("{}", *area_or_line.name);
             }
@@ -30,7 +30,7 @@ String GridTrackPlacement::to_string() const
             builder.append("span"sv);
 
             if (!span.name.has_value() || span.value.is_calculated() || span.value.value() != 1)
-                builder.appendff(" {}", span.value.to_string());
+                builder.appendff(" {}", span.value.to_string(mode));
 
             if (span.name.has_value())
                 builder.appendff(" {}", span.name.value());

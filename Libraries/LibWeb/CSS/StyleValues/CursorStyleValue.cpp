@@ -22,7 +22,7 @@ String CursorStyleValue::to_string(SerializationMode mode) const
 
     if (m_properties.x.has_value()) {
         VERIFY(m_properties.y.has_value());
-        builder.appendff(" {} {}", m_properties.x->to_string(), m_properties.y->to_string());
+        builder.appendff(" {} {}", m_properties.x->to_string(mode), m_properties.y->to_string(mode));
     }
 
     return builder.to_string_without_validation();

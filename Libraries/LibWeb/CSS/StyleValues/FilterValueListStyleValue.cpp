@@ -52,7 +52,7 @@ String FilterValueListStyleValue::to_string(SerializationMode mode) const
             builder.append(' ');
         filter_function.visit(
             [&](FilterOperation::Blur const& blur) {
-                builder.appendff("blur({}", blur.radius.to_string());
+                builder.appendff("blur({}", blur.radius.to_string(mode));
             },
             [&](FilterOperation::DropShadow const& drop_shadow) {
                 builder.append("drop-shadow("sv);
@@ -62,13 +62,13 @@ String FilterValueListStyleValue::to_string(SerializationMode mode) const
                 }
                 builder.appendff("{} {}", drop_shadow.offset_x, drop_shadow.offset_y);
                 if (drop_shadow.radius.has_value())
-                    builder.appendff(" {}", drop_shadow.radius->to_string());
+                    builder.appendff(" {}", drop_shadow.radius->to_string(mode));
             },
             [&](FilterOperation::HueRotate const& hue_rotate) {
                 builder.append("hue-rotate("sv);
                 hue_rotate.angle.visit(
                     [&](AngleOrCalculated const& angle) {
-                        builder.append(angle.to_string());
+                        builder.append(angle.to_string(mode));
                     },
                     [&](FilterOperation::HueRotate::Zero const&) {
                         builder.append("0deg"sv);

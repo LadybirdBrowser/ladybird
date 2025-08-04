@@ -345,7 +345,7 @@ String EasingStyleValue::CubicBezier::to_string(SerializationMode mode) const
             y2_value = y2_value.resolved({}).value_or(0.0);
         }
         builder.appendff("cubic-bezier({}, {}, {}, {})",
-            x1_value.to_string(), y1_value.to_string(), x2_value.to_string(), y2_value.to_string());
+            x1_value.to_string(mode), y1_value.to_string(mode), x2_value.to_string(mode), y2_value.to_string(mode));
     }
     return MUST(builder.to_string());
 }
@@ -429,9 +429,9 @@ String EasingStyleValue::Steps::to_string(SerializationMode mode) const
             intervals = max(resolved_value, this->position == Steps::Position::JumpNone ? 2 : 1);
         }
         if (position.has_value()) {
-            builder.appendff("steps({}, {})", intervals.to_string(), position.value());
+            builder.appendff("steps({}, {})", intervals.to_string(mode), position.value());
         } else {
-            builder.appendff("steps({})", intervals.to_string());
+            builder.appendff("steps({})", intervals.to_string(mode));
         }
     }
     return MUST(builder.to_string());

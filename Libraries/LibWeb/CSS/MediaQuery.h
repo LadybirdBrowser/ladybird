@@ -57,7 +57,7 @@ public:
     {
     }
 
-    String to_string() const;
+    String to_string(SerializationMode mode) const;
 
     bool is_ident() const { return m_value.has<Keyword>(); }
     bool is_length() const { return m_value.has<LengthOrCalculated>(); }
