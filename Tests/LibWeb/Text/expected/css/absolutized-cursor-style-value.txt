@@ -1,1 +1,1 @@
-url("foo.png") calc(1 * sign(1em - 1px)) calc(2 * sign(1em - 1px)), pointer
+url("foo.png") 1 2, pointer
