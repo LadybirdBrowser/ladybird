@@ -17,6 +17,17 @@ bool StyleValueList::Properties::operator==(Properties const& other) const
     return separator == other.separator && values.span() == other.values.span();
 }
 
+ValueComparingNonnullRefPtr<CSSStyleValue const> StyleValueList::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+{
+    StyleValueVector absolutized_style_values;
+    absolutized_style_values.ensure_capacity(m_properties.values.size());
+
+    for (auto const& value : m_properties.values)
+        absolutized_style_values.append(value->absolutized(viewport_rect, font_metrics, root_font_metrics));
+
+    return StyleValueList::create(move(absolutized_style_values), m_properties.separator);
+}
+
 String StyleValueList::to_string(SerializationMode mode) const
 {
     if (m_properties.values.is_empty())

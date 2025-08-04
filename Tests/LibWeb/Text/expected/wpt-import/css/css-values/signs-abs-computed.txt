@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 233 tests
 
-209 Pass
-24 Fail
+212 Pass
+21 Fail
 Pass	abs(1) should be used-value-equivalent to 1
 Pass	sign(1) should be used-value-equivalent to 1
 Pass	abs(-1) should be used-value-equivalent to 1
@@ -222,9 +222,9 @@ Pass	calc(50px + 100px * sign(38px - 2em)) should be used-value-equivalent to -5
 Fail	calc(90deg + 30deg * sign(42px - 2em)) should be used-value-equivalent to 120deg
 Fail	calc(90deg + 30deg * sign(40px - 2em)) should be used-value-equivalent to 90deg
 Fail	calc(90deg + 30deg * sign(38px - 2em)) should be used-value-equivalent to 60deg
-Fail	calc(5s + 15s * sign(42px - 2em)) should be used-value-equivalent to 20s
-Fail	calc(5s + 15s * sign(40px - 2em)) should be used-value-equivalent to 5s
-Fail	calc(5s + 15s * sign(38px - 2em)) should be used-value-equivalent to -10s
+Pass	calc(5s + 15s * sign(42px - 2em)) should be used-value-equivalent to 20s
+Pass	calc(5s + 15s * sign(40px - 2em)) should be used-value-equivalent to 5s
+Pass	calc(5s + 15s * sign(38px - 2em)) should be used-value-equivalent to -10s
 Fail	calc(100dpi + 20dpi * sign(42px - 2em)) should be used-value-equivalent to 120dpi
 Fail	calc(100dpi + 20dpi * sign(40px - 2em)) should be used-value-equivalent to 100dpi
 Fail	calc(100dpi + 20dpi * sign(38px - 2em)) should be used-value-equivalent to 80dpi
