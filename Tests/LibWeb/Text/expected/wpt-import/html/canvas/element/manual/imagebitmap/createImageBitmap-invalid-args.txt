@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 93 tests
 
-81 Pass
-12 Fail
+87 Pass
+6 Fail
 Pass	createImageBitmap with an HTMLCanvasElement source and sw set to 0
 Pass	createImageBitmap with an HTMLCanvasElement source and sh set to 0
-Fail	createImageBitmap with an HTMLCanvasElement source and oversized (unallocatable) crop region
+Pass	createImageBitmap with an HTMLCanvasElement source and oversized (unallocatable) crop region
 Pass	createImageBitmap with an HTMLCanvasElement source and a value of 0 int resizeWidth
 Pass	createImageBitmap with an HTMLCanvasElement source and a value of 0 in resizeHeight
 Pass	createImageBitmap with an HTMLCanvasElement source and a value between 0 and 1 in resizeWidth
@@ -27,7 +27,7 @@ Pass	createImageBitmap with an HTMLVideoElement from a data URL source and a val
 Pass	createImageBitmap with an HTMLVideoElement from a data URL source and a value between 0 and 1 in resizeHeight
 Pass	createImageBitmap with a bitmap HTMLImageElement source and sw set to 0
 Pass	createImageBitmap with a bitmap HTMLImageElement source and sh set to 0
-Fail	createImageBitmap with a bitmap HTMLImageElement source and oversized (unallocatable) crop region
+Pass	createImageBitmap with a bitmap HTMLImageElement source and oversized (unallocatable) crop region
 Pass	createImageBitmap with a bitmap HTMLImageElement source and a value of 0 int resizeWidth
 Pass	createImageBitmap with a bitmap HTMLImageElement source and a value of 0 in resizeHeight
 Pass	createImageBitmap with a bitmap HTMLImageElement source and a value between 0 and 1 in resizeWidth
@@ -41,7 +41,7 @@ Pass	createImageBitmap with a vector HTMLImageElement source and a value between
 Pass	createImageBitmap with a vector HTMLImageElement source and a value between 0 and 1 in resizeHeight
 Pass	createImageBitmap with a bitmap SVGImageElement source and sw set to 0
 Pass	createImageBitmap with a bitmap SVGImageElement source and sh set to 0
-Fail	createImageBitmap with a bitmap SVGImageElement source and oversized (unallocatable) crop region
+Pass	createImageBitmap with a bitmap SVGImageElement source and oversized (unallocatable) crop region
 Pass	createImageBitmap with a bitmap SVGImageElement source and a value of 0 int resizeWidth
 Pass	createImageBitmap with a bitmap SVGImageElement source and a value of 0 in resizeHeight
 Pass	createImageBitmap with a bitmap SVGImageElement source and a value between 0 and 1 in resizeWidth
@@ -62,7 +62,7 @@ Pass	createImageBitmap with an OffscreenCanvas source and a value between 0 and 
 Pass	createImageBitmap with an OffscreenCanvas source and a value between 0 and 1 in resizeHeight
 Pass	createImageBitmap with an ImageData source and sw set to 0
 Pass	createImageBitmap with an ImageData source and sh set to 0
-Fail	createImageBitmap with an ImageData source and oversized (unallocatable) crop region
+Pass	createImageBitmap with an ImageData source and oversized (unallocatable) crop region
 Pass	createImageBitmap with an ImageData source and a value of 0 int resizeWidth
 Pass	createImageBitmap with an ImageData source and a value of 0 in resizeHeight
 Pass	createImageBitmap with an ImageData source and a value between 0 and 1 in resizeWidth
@@ -76,7 +76,7 @@ Pass	createImageBitmap with an ImageBitmap source and a value between 0 and 1 in
 Pass	createImageBitmap with an ImageBitmap source and a value between 0 and 1 in resizeHeight
 Pass	createImageBitmap with a Blob source and sw set to 0
 Pass	createImageBitmap with a Blob source and sh set to 0
-Fail	createImageBitmap with a Blob source and oversized (unallocatable) crop region
+Pass	createImageBitmap with a Blob source and oversized (unallocatable) crop region
 Pass	createImageBitmap with a Blob source and a value of 0 int resizeWidth
 Pass	createImageBitmap with a Blob source and a value of 0 in resizeHeight
 Pass	createImageBitmap with a Blob source and a value between 0 and 1 in resizeWidth
@@ -89,7 +89,7 @@ Pass	createImageBitmap with Uint8Array image source.
 Pass	createImageBitmap with ArrayBuffer image source.
 Pass	createImageBitmap with empty image source.
 Pass	createImageBitmap with empty video source.
-Fail	createImageBitmap with an oversized canvas source.
+Pass	createImageBitmap with an oversized canvas source.
 Fail	createImageBitmap with an invalid OffscreenCanvas source.
 Pass	createImageBitmap with an undecodable blob source.
 Pass	createImageBitmap with a broken image source.
