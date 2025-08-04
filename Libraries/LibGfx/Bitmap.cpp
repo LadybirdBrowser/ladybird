@@ -160,6 +160,10 @@ void Bitmap::apply_mask(Gfx::Bitmap const& mask, MaskKind mask_kind)
 
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::cropped(Gfx::IntRect crop, Gfx::Color outside_color) const
 {
+    // OPTIMIZATION: Skip slow manual copying for NO-OP crops
+    if (crop == rect())
+        return clone();
+
     auto new_bitmap = TRY(Gfx::Bitmap::create(format(), alpha_type(), { crop.width(), crop.height() }));
 
     for (int y = 0; y < crop.height(); ++y) {
