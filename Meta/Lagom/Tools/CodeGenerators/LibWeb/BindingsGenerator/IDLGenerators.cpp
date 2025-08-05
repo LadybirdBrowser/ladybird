@@ -501,7 +501,7 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
     }
 }
 
-static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type const& type)
+static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type const& type, bool is_optional)
 {
     struct TypeMap {
         StringView idl_type;
@@ -525,7 +525,7 @@ static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type 
     VERIFY(it != idl_type_map.end());
     scoped_generator.set("cpp_type"sv, it->cpp_type);
 
-    if (type.is_nullable()) {
+    if (is_optional || type.is_nullable()) {
         scoped_generator.append(R"~~~(
     @result_expression@ JS::Value(static_cast<@cpp_type@>(@value@.release_value()));
 )~~~");
@@ -1980,7 +1980,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
         }
     } else if (type.is_integer()) {
-        generate_from_integral(scoped_generator, type);
+        generate_from_integral(scoped_generator, type, is_optional);
     } else if (type.name() == "Location" || type.name() == "Uint8Array" || type.name() == "Uint8ClampedArray" || type.name() == "any") {
         scoped_generator.append(R"~~~(
     @result_expression@ @value@;
