@@ -7,6 +7,8 @@
 #define AK_DONT_REPLACE_STD
 
 #include <AK/TypeCasts.h>
+#include <AK/Utf16View.h>
+#include <AK/Utf8View.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/Rect.h>
@@ -136,9 +138,19 @@ void PathImplSkia::cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoin
     m_path->cubicTo(c1.x(), c1.y(), c2.x(), c2.y(), p2.x(), p2.y());
 }
 
-void PathImplSkia::text(Utf8View string, Font const& font)
+void PathImplSkia::text(Utf8View const& string, Font const& font)
 {
     SkTextUtils::GetPath(string.as_string().characters_without_null_termination(), string.as_string().length(), SkTextEncoding::kUTF8, last_point().x(), last_point().y(), font.skia_font(1), m_path.ptr());
+}
+
+void PathImplSkia::text(Utf16View const& string, Font const& font)
+{
+    if (string.has_ascii_storage()) {
+        text(Utf8View { string.bytes() }, font);
+        return;
+    }
+
+    SkTextUtils::GetPath(string.utf16_span().data(), string.length_in_code_units() * sizeof(char16_t), SkTextEncoding::kUTF16, last_point().x(), last_point().y(), font.skia_font(1), m_path.ptr());
 }
 
 void PathImplSkia::glyph_run(GlyphRun const& glyph_run)
@@ -160,42 +172,67 @@ void PathImplSkia::offset(Gfx::FloatPoint const& offset)
     m_path->offset(offset.x(), offset.y());
 }
 
-NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf8View text, Font const& font) const
+template<typename TextToGlyphs>
+static NonnullOwnPtr<PathImpl> place_text_along_impl(SkPath const& path, Font const& font, size_t length_in_code_points, TextToGlyphs&& text_to_glyphs)
 {
     auto sk_font = font.skia_font(1);
-    size_t const text_length = text.length();
     SkScalar x = 0;
     SkScalar y = 0;
+
     SkTextBlobBuilder builder;
-    SkTextBlobBuilder::RunBuffer runBuffer = builder.allocRun(sk_font, text_length, x, y, nullptr);
-    sk_font.textToGlyphs(text.as_string().characters_without_null_termination(), text.as_string().length(), SkTextEncoding::kUTF8, runBuffer.glyphs, text_length);
-    SkPathMeasure pathMeasure(*m_path, false);
+    auto const& run_buffer = builder.allocRun(sk_font, static_cast<int>(length_in_code_points), x, y, nullptr);
+    text_to_glyphs(sk_font, run_buffer);
+
+    SkPathMeasure path_measure(path, false);
     SkScalar accumulated_distance = 0;
+
     auto output_path = PathImplSkia::create();
-    for (size_t i = 0; i < text_length; ++i) {
-        SkGlyphID glyph = runBuffer.glyphs[i];
-        SkPath glyphPath;
-        sk_font.getPath(glyph, &glyphPath);
+
+    for (size_t i = 0; i < length_in_code_points; ++i) {
+        SkGlyphID glyph = run_buffer.glyphs[i];
+        SkPath glyph_path;
+        sk_font.getPath(glyph, &glyph_path);
 
         SkScalar advance;
         sk_font.getWidths(&glyph, 1, &advance);
 
         SkPoint position;
         SkVector tangent;
-        if (!pathMeasure.getPosTan(accumulated_distance, &position, &tangent))
+        if (!path_measure.getPosTan(accumulated_distance, &position, &tangent))
             continue;
 
         SkMatrix matrix;
         matrix.setTranslate(position.x(), position.y());
         matrix.preRotate(SkRadiansToDegrees(std::atan2(tangent.y(), tangent.x())));
 
-        glyphPath.transform(matrix);
-        output_path->sk_path().addPath(glyphPath);
+        glyph_path.transform(matrix);
+        output_path->sk_path().addPath(glyph_path);
 
         accumulated_distance += advance;
     }
 
     return output_path;
+}
+
+NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf8View const& text, Font const& font) const
+{
+    auto length_in_code_points = text.length();
+
+    return place_text_along_impl(*m_path, font, length_in_code_points, [&](auto const& sk_font, auto const& run_buffer) {
+        sk_font.textToGlyphs(text.as_string().characters_without_null_termination(), text.as_string().length(), SkTextEncoding::kUTF8, run_buffer.glyphs, length_in_code_points);
+    });
+}
+
+NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf16View const& text, Font const& font) const
+{
+    if (text.has_ascii_storage())
+        return place_text_along(Utf8View { text.bytes() }, font);
+
+    auto length_in_code_points = text.length_in_code_points();
+
+    return place_text_along_impl(*m_path, font, length_in_code_points, [&](auto const& sk_font, auto const& run_buffer) {
+        sk_font.textToGlyphs(text.utf16_span().data(), text.length_in_code_units() * sizeof(char16_t), SkTextEncoding::kUTF16, run_buffer.glyphs, length_in_code_points);
+    });
 }
 
 void PathImplSkia::append_path(Gfx::Path const& other)
