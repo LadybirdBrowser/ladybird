@@ -8,7 +8,6 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/Utf8View.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
@@ -32,7 +31,8 @@ public:
     virtual void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep) = 0;
     virtual void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point) = 0;
     virtual void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2) = 0;
-    virtual void text(Utf8View, Font const&) = 0;
+    virtual void text(Utf8View const&, Font const&) = 0;
+    virtual void text(Utf16View const&, Font const&) = 0;
     virtual void glyph_run(GlyphRun const&) = 0;
     virtual void offset(Gfx::FloatPoint const&) = 0;
 
@@ -47,7 +47,8 @@ public:
 
     virtual NonnullOwnPtr<PathImpl> clone() const = 0;
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const = 0;
-    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View text, Font const&) const = 0;
+    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View const& text, Font const&) const = 0;
+    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf16View const& text, Font const&) const = 0;
 };
 
 class Path {
@@ -91,7 +92,8 @@ public:
     void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep) { impl().arc_to(point, radius, large_arc, sweep); }
     void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point) { impl().quadratic_bezier_curve_to(through, point); }
     void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2) { impl().cubic_bezier_curve_to(c1, c2, p2); }
-    void text(Utf8View text, Font const& font) { impl().text(text, font); }
+    void text(Utf8View const& text, Font const& font) { impl().text(text, font); }
+    void text(Utf16View const& text, Font const& font) { impl().text(text, font); }
     void glyph_run(GlyphRun const& glyph_run) { impl().glyph_run(glyph_run); }
     void offset(Gfx::FloatPoint const& offset) { impl().offset(offset); }
 
@@ -109,7 +111,8 @@ public:
 
     Gfx::Path clone() const { return Gfx::Path { impl().clone() }; }
     Gfx::Path copy_transformed(Gfx::AffineTransform const& transform) const { return Gfx::Path { impl().copy_transformed(transform) }; }
-    Gfx::Path place_text_along(Utf8View text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
+    Gfx::Path place_text_along(Utf8View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
+    Gfx::Path place_text_along(Utf16View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
 
     void transform(Gfx::AffineTransform const& transform) { m_impl = impl().copy_transformed(transform); }
 
