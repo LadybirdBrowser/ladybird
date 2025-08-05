@@ -21,7 +21,6 @@ set(SOURCES
     CyclicModule.cpp
     Heap/Cell.cpp
     Lexer.cpp
-    MarkupGenerator.cpp
     Module.cpp
     Parser.cpp
     ParserError.cpp
