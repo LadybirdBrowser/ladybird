@@ -20,7 +20,7 @@ namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedTypePolicy);
 
-TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm, String const& name, TrustedTypePolicyOptions const& options)
+TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm, Utf16String const& name, TrustedTypePolicyOptions const& options)
     : PlatformObject(realm)
     , m_name(name)
     , m_options(options)
@@ -34,7 +34,7 @@ void TrustedTypePolicy::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createhtml
-WebIDL::ExceptionOr<GC::Root<TrustedHTML>> TrustedTypePolicy::create_html(String const& input, GC::RootVector<JS::Value> const& arguments)
+WebIDL::ExceptionOr<GC::Root<TrustedHTML>> TrustedTypePolicy::create_html(Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
 {
     // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
     //    policy
@@ -50,7 +50,7 @@ WebIDL::ExceptionOr<GC::Root<TrustedHTML>> TrustedTypePolicy::create_html(String
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createscript
-WebIDL::ExceptionOr<GC::Root<TrustedScript>> TrustedTypePolicy::create_script(String const& input, GC::RootVector<JS::Value> const& arguments)
+WebIDL::ExceptionOr<GC::Root<TrustedScript>> TrustedTypePolicy::create_script(Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
 {
     // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
     //    policy
@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<GC::Root<TrustedScript>> TrustedTypePolicy::create_script(St
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createscripturl
-WebIDL::ExceptionOr<GC::Root<TrustedScriptURL>> TrustedTypePolicy::create_script_url(String const& input, GC::RootVector<JS::Value> const& arguments)
+WebIDL::ExceptionOr<GC::Root<TrustedScriptURL>> TrustedTypePolicy::create_script_url(Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
 {
     // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
     //    policy
@@ -82,7 +82,7 @@ WebIDL::ExceptionOr<GC::Root<TrustedScriptURL>> TrustedTypePolicy::create_script
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
-TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName trusted_type_name, String const& value, GC::RootVector<JS::Value> const& arguments)
+TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName trusted_type_name, Utf16String const& value, GC::RootVector<JS::Value> const& arguments)
 {
     auto& vm = this->vm();
     auto& realm = this->realm();
@@ -124,7 +124,7 @@ TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName tr
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-policy-value
-WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(TrustedTypeName trusted_type_name, String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing)
+WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(TrustedTypeName trusted_type_name, Utf16String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing)
 {
     auto& vm = this->vm();
 

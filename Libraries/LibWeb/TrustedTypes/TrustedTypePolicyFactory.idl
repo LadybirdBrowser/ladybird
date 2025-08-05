@@ -4,20 +4,20 @@
 [Exposed=(Window,Worker)]
 interface TrustedTypePolicyFactory {
     TrustedTypePolicy createPolicy(
-        DOMString policyName, optional TrustedTypePolicyOptions policyOptions = {});
+        Utf16DOMString policyName, optional TrustedTypePolicyOptions policyOptions = {});
     boolean isHTML(any value);
     boolean isScript(any value);
     boolean isScriptURL(any value);
     [FIXME] readonly attribute TrustedHTML emptyHTML;
     [FIXME] readonly attribute TrustedScript emptyScript;
-    DOMString? getAttributeType(
-        DOMString tagName,
-        DOMString attribute,
-        optional DOMString? elementNs = "",
-        optional DOMString? attrNs = "");
-    DOMString? getPropertyType(
-        DOMString tagName,
-        DOMString property,
-        optional DOMString? elementNs = "");
+    Utf16DOMString? getAttributeType(
+        Utf16DOMString tagName,
+        Utf16DOMString attribute,
+        optional Utf16DOMString? elementNs = "",
+        optional Utf16DOMString? attrNs = "");
+    Utf16DOMString? getPropertyType(
+        Utf16DOMString tagName,
+        Utf16DOMString property,
+        optional Utf16DOMString? elementNs = "");
     readonly attribute TrustedTypePolicy? defaultPolicy;
 };

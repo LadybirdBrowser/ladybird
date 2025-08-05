@@ -37,7 +37,7 @@ GC::Ref<TrustedTypePolicyFactory> TrustedTypePolicyFactory::create(JS::Realm& re
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-getattributetype
-Optional<String> TrustedTypePolicyFactory::get_attribute_type(String const& tag_name, String& attribute, Optional<String> element_ns, Optional<String> attr_ns)
+Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String const& tag_name, Utf16String& attribute, Optional<Utf16String> element_ns, Optional<Utf16String> attr_ns)
 {
     // 1. Set localName to tagName in ASCII lowercase.
     auto const local_name = tag_name.to_ascii_lowercase();
@@ -47,7 +47,7 @@ Optional<String> TrustedTypePolicyFactory::get_attribute_type(String const& tag_
 
     // 3. If elementNs is null or an empty string, set elementNs to HTML namespace.
     if (!element_ns.has_value() || element_ns.value().is_empty())
-        element_ns = String { Namespace::HTML };
+        element_ns = Utf16String::from_utf8(Namespace::HTML);
 
     // 4. If attrNs is an empty string, set attrNs to null.
     if (attr_ns.has_value() && attr_ns.value().is_empty())
@@ -56,19 +56,19 @@ Optional<String> TrustedTypePolicyFactory::get_attribute_type(String const& tag_
     // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
     // we care about in the table in get_trusted_type_data_for_attribute function
     // 5. Let interface be the element interface for localName and elementNs.
-    String interface;
+    Utf16String interface;
     if (local_name == HTML::TagNames::iframe && element_ns == Namespace::HTML) {
-        interface = "HTMLIFrameElement"_string;
+        interface = "HTMLIFrameElement"_utf16;
     } else if (local_name == HTML::TagNames::script && element_ns == Namespace::HTML) {
-        interface = "HTMLScriptElement"_string;
+        interface = "HTMLScriptElement"_utf16;
     } else if (local_name == SVG::TagNames::script && element_ns == Namespace::SVG) {
-        interface = "SVGScriptElement"_string;
+        interface = "SVGScriptElement"_utf16;
     } else {
-        interface = "Element"_string;
+        interface = "Element"_utf16;
     }
 
     // 6. Let expectedType be null.
-    Optional<String> expected_type {};
+    Optional<Utf16String> expected_type {};
 
     // 7. Set attributeData to the result of Get Trusted Type data for attribute algorithm,
     // with the following arguments, interface as element, attribute, attrNs
@@ -84,38 +84,38 @@ Optional<String> TrustedTypePolicyFactory::get_attribute_type(String const& tag_
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-getpropertytype
-Optional<String> TrustedTypePolicyFactory::get_property_type(String const& tag_name, String const& property, Optional<String> element_ns)
+Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16String const& tag_name, Utf16String const& property, Optional<Utf16String> element_ns)
 {
     // 1. Set localName to tagName in ASCII lowercase.
     auto const local_name = tag_name.to_ascii_lowercase();
 
     // 2. If elementNs is null or an empty string, set elementNs to HTML namespace.
     if (!element_ns.has_value() || element_ns.value().is_empty())
-        element_ns = String { Namespace::HTML };
+        element_ns = Utf16String::from_utf8(Namespace::HTML);
 
     // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
     // we care about in the table in get_trusted_type_data_for_attribute function
     // 3. Let interface be the element interface for localName and elementNs.
-    String interface;
+    Utf16String interface;
     if (local_name == HTML::TagNames::iframe && element_ns == Namespace::HTML) {
-        interface = "HTMLIFrameElement"_string;
+        interface = "HTMLIFrameElement"_utf16;
     } else if (local_name == HTML::TagNames::script && element_ns == Namespace::HTML) {
-        interface = "HTMLScriptElement"_string;
+        interface = "HTMLScriptElement"_utf16;
     } else {
-        interface = "Element"_string;
+        interface = "Element"_utf16;
     }
 
     // 4. Let expectedType be null.
-    Optional<String> expected_type;
+    Optional<Utf16String> expected_type;
 
-    static Vector<Array<String, 3>> const table {
-        { "HTMLIFrameElement"_string, "srcdoc"_string, "TrustedHTML"_string },
-        { "HTMLScriptElement"_string, "innerText"_string, "TrustedScript"_string },
-        { "HTMLScriptElement"_string, "src"_string, "TrustedScriptURL"_string },
-        { "HTMLScriptElement"_string, "text"_string, "TrustedScript"_string },
-        { "HTMLScriptElement"_string, "textContent"_string, "TrustedScript"_string },
-        { "*"_string, "innerHTML"_string, "TrustedHTML"_string },
-        { "*"_string, "outerHTML"_string, "TrustedHTML"_string },
+    static Vector<Array<Utf16String, 3>> const table {
+        { "HTMLIFrameElement"_utf16, "srcdoc"_utf16, "TrustedHTML"_utf16 },
+        { "HTMLScriptElement"_utf16, "innerText"_utf16, "TrustedScript"_utf16 },
+        { "HTMLScriptElement"_utf16, "src"_utf16, "TrustedScriptURL"_utf16 },
+        { "HTMLScriptElement"_utf16, "text"_utf16, "TrustedScript"_utf16 },
+        { "HTMLScriptElement"_utf16, "textContent"_utf16, "TrustedScript"_utf16 },
+        { "*"_utf16, "innerHTML"_utf16, "TrustedHTML"_utf16 },
+        { "*"_utf16, "outerHTML"_utf16, "TrustedHTML"_utf16 },
     };
 
     // 5. Find the row in the following table, where the first column is "*" or interface’s name, and property is in the second column.
@@ -150,7 +150,7 @@ void TrustedTypePolicyFactory::visit_edges(Visitor& visitor)
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(String const& policy_name, TrustedTypePolicyOptions const& policy_options)
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(Utf16String const& policy_name, TrustedTypePolicyOptions const& policy_options)
 {
     // 1. Returns the result of executing a Create a Trusted Type Policy algorithm, with the following arguments:
     //      factory: this value
@@ -182,7 +182,7 @@ bool TrustedTypePolicyFactory::is_script_url(JS::Value value)
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(String const& policy_name, TrustedTypePolicyOptions const& options, JS::Object& global)
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(Utf16String const& policy_name, TrustedTypePolicyOptions const& options, JS::Object& global)
 {
     auto& realm = this->realm();
 
@@ -214,7 +214,7 @@ WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create
 }
 
 // https://www.w3.org/TR/trusted-types/#should-block-create-policy
-ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object& global, String const& policy_name, Vector<String> const& created_policy_names)
+ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object& global, Utf16String const& policy_name, Vector<Utf16String> const& created_policy_names)
 {
     auto& realm = this->realm();
 
@@ -248,7 +248,7 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
         }
 
         // 6. If directive’s value does not contain a tt-policy-name, which value is policyName, and directive’s value does not contain a tt-wildcard, set createViolation to true.
-        auto directive_value_iterator = directive->value().find(policy_name);
+        auto directive_value_iterator = directive->value().find(policy_name.to_utf8());
         if (directive_value_iterator.is_end()) {
             auto maybe_wild_card = directive->value().find_if([](auto const& directive_value) {
                 return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::WildCard);
@@ -269,9 +269,8 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
         violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesPolicy);
 
         // 10. Set violation’s sample to the substring of policyName, containing its first 40 characters.
-        Utf8View source_view { policy_name };
-        auto sample = source_view.unicode_substring_view(0, min(source_view.length(), 40));
-        violation->set_sample(String::from_utf8_without_validation(sample.as_string().bytes()));
+        auto sample = policy_name.substring_view(0, min(policy_name.length_in_code_points(), 40));
+        violation->set_sample(Utf16String::from_utf16(sample).to_utf8());
 
         // 11. Execute Report a violation on violation.
         violation->report_a_violation(realm);
@@ -286,7 +285,7 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute
-Optional<TrustedTypeData> get_trusted_type_data_for_attribute(String const& element, String const& attribute, Optional<String> const& attribute_ns)
+Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const& element, Utf16String const& attribute, Optional<Utf16String> const& attribute_ns)
 {
     // 1. Let data be null.
     Optional<TrustedTypeData const&> data {};
@@ -294,10 +293,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(String const& elem
     // 2. If attributeNs is null, and attribute is the name of an event handler content attribute, then:
     if (!attribute_ns.has_value()) {
 #undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)                                                                                   \
-    if (attribute == HTML::AttributeNames::attribute_name) {                                                                      \
-        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                        \
-        return TrustedTypeData { "Element"_string, {}, attribute, "TrustedScript"_string, "Element " #attribute_name ""_string }; \
+#define __ENUMERATE(attribute_name, event_name)                                                                                \
+    if (attribute == HTML::AttributeNames::attribute_name) {                                                                   \
+        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                     \
+        return TrustedTypeData { "Element"_utf16, {}, attribute, "TrustedScript"_utf16, "Element " #attribute_name ""_utf16 }; \
     }
         ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
         ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
@@ -305,10 +304,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(String const& elem
     }
 
     static Vector<TrustedTypeData> const table {
-        { "HTMLIFrameElement"_string, {}, "srcdoc"_string, "TrustedHTML"_string, "HTMLIFrameElement srcdoc"_string },
-        { "HTMLScriptElement"_string, {}, "src"_string, "TrustedScriptURL"_string, "HTMLScriptElement src"_string },
-        { "SVGScriptElement"_string, {}, "href"_string, "TrustedScriptURL"_string, "SVGScriptElement href"_string },
-        { "SVGScriptElement"_string, Namespace::XLink.to_string(), "href"_string, "TrustedScriptURL"_string, "SVGScriptElement href"_string },
+        { "HTMLIFrameElement"_utf16, {}, "srcdoc"_utf16, "TrustedHTML"_utf16, "HTMLIFrameElement srcdoc"_utf16 },
+        { "HTMLScriptElement"_utf16, {}, "src"_utf16, "TrustedScriptURL"_utf16, "HTMLScriptElement src"_utf16 },
+        { "SVGScriptElement"_utf16, {}, "href"_utf16, "TrustedScriptURL"_utf16, "SVGScriptElement href"_utf16 },
+        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), "href"_utf16, "TrustedScriptURL"_utf16, "SVGScriptElement href"_utf16 },
     };
 
     // 3. Find the row in the following table, where element is in the first column, attributeNs is in the second column,
