@@ -913,6 +913,64 @@ TEST_CASE(to_casefold)
     EXPECT_EQ(result, u"\u03B1\u0342\u03B9"sv);
 }
 
+TEST_CASE(trim)
+{
+    auto expect_same_string = [](Utf16String const& string, Utf16String const& result) {
+        EXPECT_EQ(string, result);
+
+        VERIFY(string.has_ascii_storage() == result.has_ascii_storage());
+        auto string_view = string.utf16_view();
+        auto result_view = result.utf16_view();
+
+        if (string.has_ascii_storage())
+            EXPECT_EQ(string_view.ascii_span().data(), result_view.ascii_span().data());
+        else
+            EXPECT_EQ(string_view.utf16_span().data(), result_view.utf16_span().data());
+    };
+
+    Utf16View whitespace { u" "sv };
+    {
+        auto string = u"looooong word"_utf16;
+        expect_same_string(string, string.trim(whitespace, TrimMode::Both));
+        expect_same_string(string, string.trim(whitespace, TrimMode::Left));
+        expect_same_string(string, string.trim(whitespace, TrimMode::Right));
+    }
+    {
+        auto string = u"   looooong word"_utf16;
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Both), u"looooong word"sv);
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Left), u"looooong word"sv);
+        expect_same_string(string, string.trim(whitespace, TrimMode::Right));
+    }
+    {
+        auto string = u"looooong word   "_utf16;
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Both), u"looooong word"sv);
+        expect_same_string(string, string.trim(whitespace, TrimMode::Left));
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Right), u"looooong word"sv);
+    }
+    {
+        auto string = u"   looooong word   "_utf16;
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Both), u"looooong word"sv);
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Left), u"looooong word   "sv);
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Right), u"   looooong word"sv);
+    }
+    {
+        auto string = u"   \u180E   "_utf16;
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Both), u"\u180E"sv);
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Left), u"\u180E   "sv);
+        EXPECT_EQ(string.trim(whitespace, TrimMode::Right), u"   \u180E"sv);
+    }
+    {
+        auto string = u"😀wfh😀"_utf16;
+        EXPECT_EQ(string.trim(u"😀"sv, TrimMode::Both), u"wfh"sv);
+        EXPECT_EQ(string.trim(u"😀"sv, TrimMode::Left), u"wfh😀"sv);
+        EXPECT_EQ(string.trim(u"😀"sv, TrimMode::Right), u"😀wfh"sv);
+
+        expect_same_string(string, string.trim(whitespace, TrimMode::Both));
+        expect_same_string(string, string.trim(whitespace, TrimMode::Left));
+        expect_same_string(string, string.trim(whitespace, TrimMode::Right));
+    }
+}
+
 TEST_CASE(copy_operations)
 {
     auto test = [](Utf16String const& string1) {

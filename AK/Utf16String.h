@@ -199,6 +199,29 @@ public:
         return view.replace(needle, replacement, replace_mode);
     }
 
+    ALWAYS_INLINE Utf16String trim(Utf16View const& code_units, TrimMode mode = TrimMode::Both) const
+    {
+        if (is_empty())
+            return {};
+
+        bool needs_trimming = false;
+
+        if (mode == TrimMode::Left || mode == TrimMode::Both)
+            needs_trimming |= code_units.contains(code_unit_at(0));
+        if (mode == TrimMode::Right || mode == TrimMode::Both)
+            needs_trimming |= code_units.contains(code_unit_at(length_in_code_units() - 1));
+
+        if (!needs_trimming)
+            return *this;
+
+        return Utf16String::from_utf16_without_validation(utf16_view().trim(code_units, mode));
+    }
+
+    ALWAYS_INLINE Utf16String trim_ascii_whitespace(TrimMode mode = TrimMode::Both) const
+    {
+        return trim(" \n\t\v\f\r"sv, mode);
+    }
+
     ALWAYS_INLINE Utf16String escape_html_entities() const { return utf16_view().escape_html_entities(); }
 
 private:
