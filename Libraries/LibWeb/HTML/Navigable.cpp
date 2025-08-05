@@ -2370,6 +2370,7 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     if (auto document = active_document()) {
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
+        document->set_needs_media_query_evaluation();
         if (auto layout_node = document->layout_node())
             layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
     }

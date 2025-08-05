@@ -540,6 +540,7 @@ public:
     void run_the_scroll_steps();
 
     void evaluate_media_queries_and_report_changes();
+    void set_needs_media_query_evaluation() { m_needs_media_query_evaluation = true; }
     void add_media_query_list(GC::Ref<CSS::MediaQueryList>);
 
     GC::Ref<CSS::VisualViewport> visual_viewport();
@@ -1073,6 +1074,7 @@ private:
     Vector<GC::Ref<EventTarget>> m_pending_scrollend_event_targets;
 
     // Used by evaluate_media_queries_and_report_changes().
+    bool m_needs_media_query_evaluation { false };
     Vector<WeakPtr<CSS::MediaQueryList>> m_media_query_lists;
 
     bool m_needs_full_style_update { false };
