@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Test that nested var() fallback values work with CSS env vars
+1 Pass
+Pass	Test that nested var() fallback values work with CSS env vars

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Test unknown env() names will override previous values
+1 Pass
+Pass	Test unknown env() names will override previous values

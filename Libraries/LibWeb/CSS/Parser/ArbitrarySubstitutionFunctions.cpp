@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS::Parser {
@@ -64,6 +65,8 @@ Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlySt
 {
     if (name.equals_ignoring_ascii_case("attr"sv))
         return ArbitrarySubstitutionFunction::Attr;
+    if (name.equals_ignoring_ascii_case("env"sv))
+        return ArbitrarySubstitutionFunction::Env;
     if (name.equals_ignoring_ascii_case("var"sv))
         return ArbitrarySubstitutionFunction::Var;
     return {};
@@ -196,6 +199,64 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
 
     // 6. FAILURE:
     // NB: Step 6 is a lambda defined at the top of the function.
+}
+
+// https://drafts.csswg.org/css-env/#substitute-an-env
+static Vector<ComponentValue> replace_an_env_function(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionFunctionArguments const& arguments)
+{
+    // AD-HOC: env() is not defined as an ASF (and was defined before the ASF concept was), but behaves a lot like one.
+    // So, this is a combination of the spec's "substitute an env()" algorithm linked above, and the "replace a FOO function()" algorithms.
+
+    auto const& first_argument = arguments.first();
+    auto const second_argument = arguments.get(1);
+
+    // AD-HOC: Substitute ASFs in the first argument.
+    auto substituted_first_argument = substitute_arbitrary_substitution_functions(element, guarded_contexts, first_argument);
+
+    // AD-HOC: Parse the arguments.
+    // env() = env( <custom-ident> <integer [0,∞]>*, <declaration-value>? )
+    TokenStream first_argument_tokens { substituted_first_argument };
+    first_argument_tokens.discard_whitespace();
+    auto& name_token = first_argument_tokens.consume_a_token();
+    if (!name_token.is(Token::Type::Ident))
+        return { ComponentValue { GuaranteedInvalidValue {} } };
+    auto& name = name_token.token().ident();
+    first_argument_tokens.discard_whitespace();
+
+    Vector<i64> indices;
+    // FIXME: Are non-literal <integer>s allowed here?
+    while (first_argument_tokens.has_next_token()) {
+        auto& maybe_integer = first_argument_tokens.consume_a_token();
+        if (!maybe_integer.is(Token::Type::Number))
+            return { ComponentValue { GuaranteedInvalidValue {} } };
+        auto& number = maybe_integer.token().number();
+        if (number.is_integer() && number.integer_value() >= 0)
+            indices.append(number.integer_value());
+        else
+            return { ComponentValue { GuaranteedInvalidValue {} } };
+        first_argument_tokens.discard_whitespace();
+    }
+
+    // 1. If the name provided by the first argument of the env() function is a recognized environment variable name,
+    //    the number of supplied integers matches the number of dimensions of the environment variable referenced by
+    //    that name, and values of the indices correspond to a known sub-value, replace the env() function by the value
+    //    of the named environment variable.
+    if (auto environment_variable = environment_variable_from_string(name);
+        environment_variable.has_value() && indices.size() == environment_variable_dimension_count(*environment_variable)) {
+
+        auto result = element.document().environment_variable_value(*environment_variable, indices);
+        if (result.has_value())
+            return result.release_value();
+    }
+
+    // 2. Otherwise, if the env() function has a fallback value as its second argument, replace the env() function by
+    //    the fallback value. If there are any env() references in the fallback, substitute them as well.
+    // AD-HOC: Substitute all ASFs in the result.
+    if (second_argument.has_value())
+        return substitute_arbitrary_substitution_functions(element, guarded_contexts, second_argument.value());
+
+    // 3. Otherwise, the property or descriptor containing the env() function is invalid at computed-value time.
+    return { ComponentValue { GuaranteedInvalidValue {} } };
 }
 
 // https://drafts.csswg.org/css-variables-1/#replace-a-var-function
@@ -386,6 +447,11 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
         // https://drafts.csswg.org/css-values-5/#attr-notation
         // <attr-args> = attr( <declaration-value> , <declaration-value>? )
         return parse_declaration_value_then_optional_declaration_value(values);
+    case ArbitrarySubstitutionFunction::Env:
+        // https://drafts.csswg.org/css-env/#env-function
+        // AD-HOC: This doesn't have an argument-grammar definition.
+        //         However, it follows the same format of "some CVs, then an optional comma and a fallback".
+        return parse_declaration_value_then_optional_declaration_value(values);
     case ArbitrarySubstitutionFunction::Var:
         // https://drafts.csswg.org/css-variables/#funcdef-var
         // <var-args> = var( <declaration-value> , <declaration-value>? )
@@ -400,6 +466,8 @@ Vector<ComponentValue> replace_an_arbitrary_substitution_function(DOM::AbstractE
     switch (function) {
     case ArbitrarySubstitutionFunction::Attr:
         return replace_an_attr_function(element, guarded_contexts, arguments);
+    case ArbitrarySubstitutionFunction::Env:
+        return replace_an_env_function(element, guarded_contexts, arguments);
     case ArbitrarySubstitutionFunction::Var:
         return replace_a_var_function(element, guarded_contexts, arguments);
     }
