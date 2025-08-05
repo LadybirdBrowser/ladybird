@@ -3,10 +3,16 @@
 #import <HTML/Window.idl>
 #import <ServiceWorker/ServiceWorkerGlobalScope.idl>
 
+[GenerateToValue]
+dictionary CookieListItem {
+    USVString name;
+    USVString value;
+};
+
 // https://cookiestore.spec.whatwg.org/#cookiestore
 [Exposed=(ServiceWorker,Window), SecureContext]
 interface CookieStore : EventTarget {
-
+    Promise<CookieListItem?> get(USVString name);
 };
 
 // https://cookiestore.spec.whatwg.org/#Window

@@ -192,13 +192,22 @@ Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies()
 }
 
 // https://w3c.github.io/webdriver/#dfn-associated-cookies
-Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies(URL::URL const& url)
+Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_webdriver(URL::URL const& url)
 {
     auto domain = canonicalize_domain(url);
     if (!domain.has_value())
         return {};
 
     return get_matching_cookies(url, domain.value(), Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
+}
+
+Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL const& url)
+{
+    auto domain = canonicalize_domain(url);
+    if (!domain.has_value())
+        return {};
+
+    return get_matching_cookies(url, domain.value(), Web::Cookie::Source::NonHttp, MatchingCookiesSpecMode::RFC6265);
 }
 
 Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, StringView name)

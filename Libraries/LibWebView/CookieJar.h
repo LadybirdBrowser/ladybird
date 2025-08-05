@@ -93,7 +93,8 @@ public:
     void dump_cookies();
     void clear_all_cookies();
     Vector<Web::Cookie::Cookie> get_all_cookies();
-    Vector<Web::Cookie::Cookie> get_all_cookies(URL::URL const& url);
+    Vector<Web::Cookie::Cookie> get_all_cookies_webdriver(URL::URL const& url);
+    Vector<Web::Cookie::Cookie> get_all_cookies_cookiestore(URL::URL const& url);
     Optional<Web::Cookie::Cookie> get_named_cookie(URL::URL const& url, StringView name);
     void expire_cookies_with_time_offset(AK::Duration);
 
