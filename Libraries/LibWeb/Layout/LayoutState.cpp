@@ -605,23 +605,6 @@ void LayoutState::UsedValues::set_node(NodeWithStyle& node, UsedValues const* co
     m_has_definite_width = is_definite_size(computed_values.width(), m_content_width, true);
     m_has_definite_height = is_definite_size(computed_values.height(), m_content_height, false);
 
-    // For boxes with a preferred aspect ratio and one definite size, we can infer the other size
-    // and consider it definite since this did not require performing layout.
-    if (is<Box>(node)) {
-        auto const& box = static_cast<Box const&>(node);
-        if (auto aspect_ratio = box.preferred_aspect_ratio(); aspect_ratio.has_value()) {
-            if (m_has_definite_width && m_has_definite_height) {
-                // Both width and height are definite.
-            } else if (m_has_definite_width) {
-                m_content_height = *aspect_ratio == 0 ? 0 : clamp_to_max_dimension_value(m_content_width / *aspect_ratio);
-                m_has_definite_height = true;
-            } else if (m_has_definite_height) {
-                m_content_width = clamp_to_max_dimension_value(m_content_height * *aspect_ratio);
-                m_has_definite_width = true;
-            }
-        }
-    }
-
     if (m_has_definite_width) {
         if (has_definite_min_width)
             m_content_width = clamp_to_max_dimension_value(max(min_width, m_content_width));
