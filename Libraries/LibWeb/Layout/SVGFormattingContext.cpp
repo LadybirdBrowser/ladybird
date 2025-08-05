@@ -339,8 +339,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box
     // FIXME: Use per-code-point fonts.
     auto& font = text_box.first_available_font();
     auto text_contents = text_element.text_contents();
-    Utf8View text_utf8 { text_contents };
-    auto text_width = font.width(text_utf8);
+    auto text_width = font.width(text_contents);
     auto text_offset = text_element.get_offset(m_viewport_size);
 
     // https://svgwg.org/svg2-draft/text.html#TextAnchoringProperties
@@ -368,7 +367,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box
 
     Gfx::Path path;
     path.move_to(text_offset);
-    path.text(text_utf8, font);
+    path.text(text_contents, font);
     return path;
 }
 
@@ -382,10 +381,9 @@ Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const&
     // FIXME: Use per-code-point fonts.
     auto& font = text_path_box.first_available_font();
     auto text_contents = text_path_element.text_contents();
-    Utf8View text_utf8 { text_contents };
 
     auto shape_path = const_cast<SVG::SVGGeometryElement&>(*path_or_shape).get_path(m_viewport_size);
-    return shape_path.place_text_along(text_utf8, font);
+    return shape_path.place_text_along(text_contents, font);
 }
 
 void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphics_box)

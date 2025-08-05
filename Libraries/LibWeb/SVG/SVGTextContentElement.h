@@ -23,7 +23,7 @@ public:
 
     Optional<TextAnchor> text_anchor() const;
 
-    ByteString text_contents() const;
+    Utf16String text_contents() const;
 
     GC::Ref<Geometry::DOMPoint> get_start_position_of_char(WebIDL::UnsignedLong charnum);
 
