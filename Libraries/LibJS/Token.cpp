@@ -123,9 +123,9 @@ ByteString Token::string_value(StringValueStatus& status) const
 
             if (code_point_or_error.is_error()) {
                 switch (code_point_or_error.error()) {
-                case GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape:
+                case AK::UnicodeEscapeError::MalformedUnicodeEscape:
                     return encoding_failure(StringValueStatus::MalformedUnicodeEscape);
-                case GenericLexer::UnicodeEscapeError::UnicodeEscapeOverflow:
+                case AK::UnicodeEscapeError::UnicodeEscapeOverflow:
                     return encoding_failure(StringValueStatus::UnicodeEscapeOverflow);
                 }
             }
