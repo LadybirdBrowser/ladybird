@@ -178,7 +178,6 @@ private:
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot) override;
     virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
 
-    Web::Layout::Viewport* layout_root();
     void setup_palette();
     ConnectionFromClient& client() const;
 

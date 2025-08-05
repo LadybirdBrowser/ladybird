@@ -184,14 +184,6 @@ void PageClient::set_window_size(Web::DevicePixelSize size)
     page().set_window_size(size);
 }
 
-Web::Layout::Viewport* PageClient::layout_root()
-{
-    auto* document = page().top_level_browsing_context().active_document();
-    if (!document)
-        return nullptr;
-    return document->layout_node();
-}
-
 void PageClient::ready_to_paint()
 {
     page().top_level_traversable()->ready_to_paint();
