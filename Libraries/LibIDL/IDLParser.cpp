@@ -955,13 +955,16 @@ void Parser::parse_dictionary(Interface& interface)
         bool required = false;
         HashMap<ByteString, ByteString> extended_attributes;
 
+        if (lexer.consume_specific('['))
+            extended_attributes = parse_extended_attributes();
+
         if (lexer.consume_specific("required"sv)) {
             required = true;
             consume_whitespace();
         }
 
         if (lexer.consume_specific('['))
-            extended_attributes = parse_extended_attributes();
+            extended_attributes.update(parse_extended_attributes());
 
         auto type = parse_type();
         consume_whitespace();
