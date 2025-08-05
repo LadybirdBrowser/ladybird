@@ -2,7 +2,7 @@
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -315,14 +315,21 @@ CalendarFields calendar_merge_fields(StringView calendar, CalendarFields const& 
     return merged;
 }
 
-// 12.2.6 CalendarDateAdd ( calendar, isoDate, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateadd
+// 12.2.6 NonISODateAdd ( calendar, isoDate, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-nonisodateadd
+ThrowCompletionOr<ISODate> non_iso_date_add(VM& vm, StringView calendar, ISODate iso_date, DateDuration const& duration, Overflow overflow)
+{
+    // FIXME: Return an ISODate for an ISO8601 calendar for now.
+    (void)calendar;
+    return calendar_date_add(vm, "iso8601"sv, iso_date, duration, overflow);
+}
+
+// 12.2.7 CalendarDateAdd ( calendar, isoDate, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateadd
 ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODate iso_date, DateDuration const& duration, Overflow overflow)
 {
     ISODate result;
 
     // 1. If calendar is "iso8601", then
-    // FIXME: Return an ISODate for an ISO8601 calendar for now.
-    if (true || calendar == "iso8601"sv) {
+    if (calendar == "iso8601"sv) {
         // a. Let intermediate be BalanceISOYearMonth(isoDate.[[Year]] + duration.[[Years]], isoDate.[[Month]] + duration.[[Months]]).
         auto intermediate = balance_iso_year_month(static_cast<double>(iso_date.year) + duration.years, static_cast<double>(iso_date.month) + duration.months);
 
@@ -337,7 +344,8 @@ ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODat
     }
     // 2. Else,
     else {
-        // a. Let result be an implementation-defined ISO Date Record, or throw a RangeError exception, as described below.
+        // a. Let result be ? NonISODateAdd(calendar, isoDate, duration, overflow).
+        return non_iso_date_add(vm, calendar, iso_date, duration, overflow);
     }
 
     // 3. If ISODateWithinLimits(result) is false, throw a RangeError exception.
@@ -348,7 +356,15 @@ ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODat
     return result;
 }
 
-// 12.2.7 CalendarDateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
+// 12.2.8 NonISODateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-nonisodateuntil
+DateDuration non_iso_date_until(VM& vm, StringView calendar, ISODate one, ISODate two, Unit largest_unit)
+{
+    // FIXME: Return a DateDuration for an ISO8601 calendar for now.
+    (void)calendar;
+    return calendar_date_until(vm, "iso8601"sv, one, two, largest_unit);
+}
+
+// 12.2.9 CalendarDateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
 DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODate two, Unit largest_unit)
 {
     // 1. If calendar is "iso8601", then
@@ -437,12 +453,11 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
         return MUST(create_date_duration_record(vm, years, months, weeks, days));
     }
 
-    // 2. Return an implementation-defined Date Duration Record as described above.
-    // FIXME: Return a DateDuration for an ISO8601 calendar for now.
-    return calendar_date_until(vm, "iso8601"sv, one, two, largest_unit);
+    // 2. Return NonISODateUntil(calendar, one, two, largestUnit).
+    return non_iso_date_until(vm, calendar, one, two, largest_unit);
 }
 
-// 12.2.8 ToTemporalCalendarIdentifier ( temporalCalendarLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalcalendaridentifier
+// 12.2.10 ToTemporalCalendarIdentifier ( temporalCalendarLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalcalendaridentifier
 ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal_calendar_like)
 {
     // 1. If temporalCalendarLike is an Object, then
@@ -476,7 +491,7 @@ ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal
     return TRY(canonicalize_calendar(vm, identifier));
 }
 
-// 12.2.9 GetTemporalCalendarIdentifierWithISODefault ( item ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalcalendarslotvaluewithisodefault
+// 12.2.11 GetTemporalCalendarIdentifierWithISODefault ( item ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalcalendarslotvaluewithisodefault
 ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& vm, Object const& item)
 {
     // 1. If item has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
@@ -506,7 +521,7 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
     return TRY(to_temporal_calendar_identifier(vm, calendar_like));
 }
 
-// 12.2.10 CalendarDateFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
+// 12.2.12 CalendarDateFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
 ThrowCompletionOr<ISODate> calendar_date_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Perform ? CalendarResolveFields(calendar, fields, DATE).
@@ -523,7 +538,7 @@ ThrowCompletionOr<ISODate> calendar_date_from_fields(VM& vm, StringView calendar
     return result;
 }
 
-// 12.2.11 CalendarYearMonthFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendaryearmonthfromfields
+// 12.2.13 CalendarYearMonthFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendaryearmonthfromfields
 ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Perform ? CalendarResolveFields(calendar, fields, YEAR-MONTH).
@@ -547,7 +562,7 @@ ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM& vm, StringView ca
     return result;
 }
 
-// 12.2.12 CalendarMonthDayFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdayfromfields
+// 12.2.14 CalendarMonthDayFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdayfromfields
 ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Perform ? CalendarResolveFields(calendar, fields, MONTH-DAY).
@@ -564,7 +579,7 @@ ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM& vm, StringView cal
     return result;
 }
 
-// 12.2.13 FormatCalendarAnnotation ( id, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-formatcalendarannotation
+// 12.2.15 FormatCalendarAnnotation ( id, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-formatcalendarannotation
 String format_calendar_annotation(StringView id, ShowCalendar show_calendar)
 {
     // 1. If showCalendar is NEVER, return the empty String.
@@ -582,7 +597,7 @@ String format_calendar_annotation(StringView id, ShowCalendar show_calendar)
     return MUST(String::formatted("[{}u-ca={}]", flag, id));
 }
 
-// 12.2.14 CalendarEquals ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-calendarequals
+// 12.2.16 CalendarEquals ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-calendarequals
 bool calendar_equals(StringView one, StringView two)
 {
     // 1. If CanonicalizeUValue("ca", one) is CanonicalizeUValue("ca", two), return true.
@@ -591,7 +606,7 @@ bool calendar_equals(StringView one, StringView two)
         == Unicode::canonicalize_unicode_extension_values("ca"sv, two);
 }
 
-// 12.2.15 ISODaysInMonth ( year, month ), https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
+// 12.2.17 ISODaysInMonth ( year, month ), https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
 u8 iso_days_in_month(double year, double month)
 {
     // 1. If month is 1, 3, 5, 7, 8, 10, or 12, return 31.
@@ -609,7 +624,7 @@ u8 iso_days_in_month(double year, double month)
     return 28 + mathematical_in_leap_year(epoch_time_for_year(year));
 }
 
-// 12.2.16 ISOWeekOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isoweekofyear
+// 12.2.18 ISOWeekOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isoweekofyear
 YearWeek iso_week_of_year(ISODate iso_date)
 {
     // 1. Let year be isoDate.[[Year]].
@@ -690,7 +705,7 @@ YearWeek iso_week_of_year(ISODate iso_date)
     return { .week = week, .year = year };
 }
 
-// 12.2.17 ISODayOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofyear
+// 12.2.19 ISODayOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofyear
 u16 iso_day_of_year(ISODate iso_date)
 {
     // 1. Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
@@ -700,7 +715,7 @@ u16 iso_day_of_year(ISODate iso_date)
     return epoch_time_to_day_in_year(epoch_days_to_epoch_ms(epoch_days, 0)) + 1;
 }
 
-// 12.2.18 ISODayOfWeek ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofweek
+// 12.2.20 ISODayOfWeek ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofweek
 u8 iso_day_of_week(ISODate iso_date)
 {
     // 1. Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
@@ -717,7 +732,15 @@ u8 iso_day_of_week(ISODate iso_date)
     return day_of_week;
 }
 
-// 12.2.19 CalendarDateToISO ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatetoiso
+// 12.2.21 NonISOCalendarDateToISO ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-nonisocalendardatetoiso
+ThrowCompletionOr<ISODate> non_iso_calendar_date_to_iso(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
+{
+    // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
+    (void)calendar;
+    return calendar_date_to_iso(vm, "iso8601"sv, fields, overflow);
+}
+
+// 12.2.22 CalendarDateToISO ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatetoiso
 ThrowCompletionOr<ISODate> calendar_date_to_iso(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
 {
     // 1. If calendar is "iso8601", then
@@ -731,12 +754,19 @@ ThrowCompletionOr<ISODate> calendar_date_to_iso(VM& vm, StringView calendar, Cal
         return TRY(regulate_iso_date(vm, *fields.year, *fields.month, *fields.day, overflow));
     }
 
-    // 2. Return an implementation-defined ISO Date Record, or throw a RangeError exception, as described below.
-    // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
-    return calendar_date_to_iso(vm, "iso8601"sv, fields, overflow);
+    // 2. Return ? NonISOCalendarDateToISO(calendar, fields, overflow).
+    return non_iso_calendar_date_to_iso(vm, calendar, fields, overflow);
 }
 
-// 12.2.20 CalendarMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate
+// 12.2.23 NonISOMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-nonisomonthdaytoisoreferencedate
+ThrowCompletionOr<ISODate> non_iso_month_day_to_iso_reference_date(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
+{
+    // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
+    (void)calendar;
+    return calendar_month_day_to_iso_reference_date(vm, "iso8601"sv, fields, overflow);
+}
+
+// 12.2.24 CalendarMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate
 ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
 {
     // 1. If calendar is "iso8601", then
@@ -758,12 +788,19 @@ ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM& vm, Stri
         return create_iso_date_record(reference_iso_year, result.month, result.day);
     }
 
-    // 2. Return an implementation-defined ISO Date Record, or throw a RangeError exception, as described below.
-    // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
-    return calendar_month_day_to_iso_reference_date(vm, "iso8601"sv, fields, overflow);
+    // 2. Return ? NonISOMonthDayToISOReferenceDate(calendar, fields, overflow).
+    return non_iso_month_day_to_iso_reference_date(vm, calendar, fields, overflow);
 }
 
-// 12.2.21 CalendarISOToDate ( calendar, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-calendarisotodate
+// 12.2.25 NonISOCalendarISOToDate ( calendar, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-nonisocalendarisotodate
+CalendarDate non_iso_calendar_iso_to_date(StringView calendar, ISODate iso_date)
+{
+    // FIXME: Return an ISO8601 calendar date for now.
+    (void)calendar;
+    return calendar_iso_to_date("iso8601"sv, iso_date);
+}
+
+// 12.2.26 CalendarISOToDate ( calendar, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-calendarisotodate
 CalendarDate calendar_iso_to_date(StringView calendar, ISODate iso_date)
 {
     // 1. If calendar is "iso8601", then
@@ -798,12 +835,11 @@ CalendarDate calendar_iso_to_date(StringView calendar, ISODate iso_date)
         };
     }
 
-    // 2. Return an implementation-defined Calendar Date Record with fields as described in Table 18.
-    // FIXME: Return an ISO8601 calendar date for now.
-    return calendar_iso_to_date("iso8601"sv, iso_date);
+    // 2. Return NonISOCalendarISOToDate(calendar, isoDate).
+    return non_iso_calendar_iso_to_date(calendar, iso_date);
 }
 
-// 12.2.22 CalendarExtraFields ( calendar, fields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarextrafields
+// 12.2.27 CalendarExtraFields ( calendar, fields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarextrafields
 Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldList)
 {
     // 1. If calendar is "iso8601", return an empty List.
@@ -814,7 +850,15 @@ Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldLi
     return {};
 }
 
-// 12.2.23 CalendarFieldKeysToIgnore ( calendar, keys ), https://tc39.es/proposal-temporal/#sec-temporal-calendarfieldkeystoignore
+// 12.2.28 NonISOFieldKeysToIgnore ( calendar, keys ), https://tc39.es/proposal-temporal/#sec-temporal-nonisofieldkeystoignore
+Vector<CalendarField> non_iso_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField> keys)
+{
+    // FIXME: Return keys for an ISO8601 calendar for now.
+    (void)calendar;
+    return calendar_field_keys_to_ignore("iso8601"sv, keys);
+}
+
+// 12.2.29 CalendarFieldKeysToIgnore ( calendar, keys ), https://tc39.es/proposal-temporal/#sec-temporal-calendarfieldkeystoignore
 Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField> keys)
 {
     // 1. If calendar is "iso8601", then
@@ -842,12 +886,19 @@ Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, Readonl
         return ignored_keys;
     }
 
-    // 2. Return an implementation-defined List as described below.
-    // FIXME: Return keys for an ISO8601 calendar for now.
-    return calendar_field_keys_to_ignore("iso8601"sv, keys);
+    // 2. Return NonISOFieldKeysToIgnore(calendar, keys).
+    return non_iso_field_keys_to_ignore(calendar, keys);
 }
 
-// 12.2.24 CalendarResolveFields ( calendar, fields, type ), https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
+// 12.2.30 NonISOResolveFields ( calendar, fields, type ), https://tc39.es/proposal-temporal/#sec-temporal-nonisoresolvefields
+ThrowCompletionOr<void> non_iso_resolve_fields(VM& vm, StringView calendar, CalendarFields& fields, DateType type)
+{
+    // FIXME: Resolve fields as an ISO8601 calendar for now. See also: CalendarMonthDayToISOReferenceDate.
+    (void)calendar;
+    return calendar_resolve_fields(vm, "iso8601"sv, fields, type);
+}
+
+// 12.2.31 CalendarResolveFields ( calendar, fields, type ), https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
 ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, CalendarFields& fields, DateType type)
 {
     // 1. If calendar is "iso8601", then
@@ -907,9 +958,8 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, Cal
     }
     // 2. Else,
     else {
-        // a. Perform implementation-defined processing to mutate fields, or throw a TypeError or RangeError exception, as described below.
-        // FIXME: Resolve fields as an ISO8601 calendar for now. See also: CalendarMonthDayToISOReferenceDate.
-        TRY(calendar_resolve_fields(vm, "iso8601"sv, fields, type));
+        // a. Perform ? NonISOResolveFields(calendar, fields, type).
+        return TRY(non_iso_resolve_fields(vm, calendar, fields, type));
     }
 
     // 3. Return UNUSED.

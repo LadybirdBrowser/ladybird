@@ -2,7 +2,7 @@
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -110,15 +110,22 @@ u16 iso_day_of_year(ISODate);
 u8 iso_day_of_week(ISODate);
 Vector<CalendarField> calendar_field_keys_present(CalendarFields const&);
 CalendarFields calendar_merge_fields(StringView calendar, CalendarFields const& fields, CalendarFields const& additional_fields);
+ThrowCompletionOr<ISODate> non_iso_date_add(VM&, StringView calendar, ISODate, DateDuration const&, Overflow);
 ThrowCompletionOr<ISODate> calendar_date_add(VM&, StringView calendar, ISODate, DateDuration const&, Overflow);
+DateDuration non_iso_date_until(VM&, StringView calendar, ISODate, ISODate, Unit largest_unit);
 DateDuration calendar_date_until(VM&, StringView calendar, ISODate, ISODate, Unit largest_unit);
 ThrowCompletionOr<String> to_temporal_calendar_identifier(VM&, Value temporal_calendar_like);
 ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM&, Object const& item);
+ThrowCompletionOr<ISODate> non_iso_calendar_date_to_iso(VM&, StringView calendar, CalendarFields const&, Overflow);
 ThrowCompletionOr<ISODate> calendar_date_to_iso(VM&, StringView calendar, CalendarFields const&, Overflow);
+ThrowCompletionOr<ISODate> non_iso_month_day_to_iso_reference_date(VM&, StringView calendar, CalendarFields const&, Overflow);
 ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM&, StringView calendar, CalendarFields const&, Overflow);
+CalendarDate non_iso_calendar_iso_to_date(StringView calendar, ISODate);
 CalendarDate calendar_iso_to_date(StringView calendar, ISODate);
 Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldList);
+Vector<CalendarField> non_iso_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField>);
 Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField>);
+ThrowCompletionOr<void> non_iso_resolve_fields(VM&, StringView calendar, CalendarFields&, DateType);
 ThrowCompletionOr<void> calendar_resolve_fields(VM&, StringView calendar, CalendarFields&, DateType);
 
 }
