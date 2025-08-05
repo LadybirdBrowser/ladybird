@@ -23,6 +23,7 @@ interface CookieStore : EventTarget {
     Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
 
     Promise<CookieList> getAll(USVString name);
+    Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
 };
 
 // https://cookiestore.spec.whatwg.org/#Window
