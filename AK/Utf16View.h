@@ -28,8 +28,6 @@ namespace AK {
 [[nodiscard]] bool validate_utf16_le(ReadonlyBytes);
 [[nodiscard]] bool validate_utf16_be(ReadonlyBytes);
 
-size_t utf16_code_unit_length_from_utf8(StringView);
-
 namespace Detail {
 
 static constexpr inline auto UTF16_FLAG = NumericLimits<size_t>::digits() - 1;
