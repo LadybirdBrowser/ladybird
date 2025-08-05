@@ -482,9 +482,14 @@ void PageClient::page_did_change_favicon(Gfx::Bitmap const& favicon)
     client().async_did_change_favicon(m_id, favicon.to_shareable_bitmap());
 }
 
-Vector<Web::Cookie::Cookie> PageClient::page_did_request_all_cookies(URL::URL const& url)
+Vector<Web::Cookie::Cookie> PageClient::page_did_request_all_cookies_webdriver(URL::URL const& url)
 {
-    return client().did_request_all_cookies(url);
+    return client().did_request_all_cookies_webdriver(url);
+}
+
+Vector<Web::Cookie::Cookie> PageClient::page_did_request_all_cookies_cookiestore(URL::URL const& url)
+{
+    return client().did_request_all_cookies_cookiestore(url);
 }
 
 Optional<Web::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::URL const& url, String const& name)
