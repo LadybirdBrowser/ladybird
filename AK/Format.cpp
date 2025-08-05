@@ -590,6 +590,61 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
         return put_string(special_case_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
     }
 
+    auto const [sign, mantissa, exponent] = convert_floating_point_to_decimal_exponential_form(value);
+
+    auto convert_to_decimal_digits_array = [](auto x, auto& digits) -> size_t {
+        size_t length = 0;
+        for (; x; x /= 10)
+            digits[length++] = x % 10 | '0';
+        for (size_t i = 0; 2 * i + 1 < length; ++i)
+            swap(digits[i], digits[length - i - 1]);
+        return length;
+    };
+
+    Array<u8, 20> mantissa_digits;
+    auto mantissa_length = convert_to_decimal_digits_array(mantissa, mantissa_digits);
+
+    auto const n = exponent + static_cast<i32>(mantissa_length);
+    auto mantissa_text = StringView { mantissa_digits.span().slice(0, mantissa_length) };
+
+    // NOTE: Range from ECMA262, seems like an okay default.
+    if (n < -5 || n > 21) {
+        StringBuilder scientific_notation_builder;
+
+        if (sign)
+            TRY(scientific_notation_builder.try_append('-'));
+        else if (sign_mode == SignMode::Always)
+            TRY(scientific_notation_builder.try_append('+'));
+        else if (sign_mode == SignMode::Reserved)
+            TRY(scientific_notation_builder.try_append(' '));
+
+        auto const exponent_sign = n < 0 ? '-' : '+';
+        Array<u8, 5> exponent_digits;
+        auto const exponent_length = convert_to_decimal_digits_array(abs(n - 1), exponent_digits);
+        auto const exponent_text = StringView { exponent_digits.span().slice(0, exponent_length) };
+
+        if (precision.has_value())
+            mantissa_text = mantissa_text.substring_view(0, min(*precision + 1, mantissa_text.length())).trim("0"sv, TrimMode::Right);
+
+        if (mantissa_text.length() == 1) {
+            // <mantissa>e<exponent>
+            TRY(scientific_notation_builder.try_append(mantissa_text));
+            TRY(scientific_notation_builder.try_append('e'));
+            TRY(scientific_notation_builder.try_append(exponent_sign));
+            TRY(scientific_notation_builder.try_append(exponent_text));
+        } else {
+            // <mantissa>.<mantissa[1..]>e<exponent>
+            TRY(scientific_notation_builder.try_append(mantissa_text.substring_view(0, 1)));
+            TRY(scientific_notation_builder.try_append('.'));
+            TRY(scientific_notation_builder.try_append(mantissa_text.substring_view(1)));
+            TRY(scientific_notation_builder.try_append('e'));
+            TRY(scientific_notation_builder.try_append(exponent_sign));
+            TRY(scientific_notation_builder.try_append(exponent_text));
+        }
+
+        return put_string(scientific_notation_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
+    }
+
     if (precision.has_value() || base != 10)
         return put_f64_with_precision(value, base, upper_case, zero_pad, use_separator, align, min_width, precision.value_or(6), fill, sign_mode, display_mode);
 
@@ -609,20 +664,6 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
     }
 
     // No precision specified, so pick the best precision with roundtrip guarantees.
-    auto const [sign, mantissa, exponent] = convert_floating_point_to_decimal_exponential_form(value);
-
-    auto convert_to_decimal_digits_array = [](auto x, auto& digits) -> size_t {
-        size_t length = 0;
-        for (; x; x /= 10)
-            digits[length++] = x % 10 | '0';
-        for (size_t i = 0; 2 * i + 1 < length; ++i)
-            swap(digits[i], digits[length - i - 1]);
-        return length;
-    };
-
-    Array<u8, 20> mantissa_digits;
-    auto mantissa_length = convert_to_decimal_digits_array(mantissa, mantissa_digits);
-
     StringBuilder builder;
 
     if (sign)
@@ -632,48 +673,22 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
     else if (sign_mode == SignMode::Reserved)
         TRY(builder.try_append(' '));
 
-    auto const n = exponent + static_cast<i32>(mantissa_length);
-    auto const mantissa_text = StringView { mantissa_digits.span().slice(0, mantissa_length) };
     size_t integral_part_end = 0;
-    // NOTE: Range from ECMA262, seems like an okay default.
-    if (n >= -5 && n <= 21) {
-        if (exponent >= 0) {
-            TRY(builder.try_append(mantissa_text));
-            TRY(builder.try_append_repeated('0', exponent));
-            integral_part_end = builder.length();
-        } else if (n > 0) {
-            TRY(builder.try_append(mantissa_text.substring_view(0, n)));
-            integral_part_end = builder.length();
-            TRY(builder.try_append('.'));
-            TRY(builder.try_append(mantissa_text.substring_view(n)));
-        } else {
-            TRY(builder.try_append("0."sv));
-            TRY(builder.try_append_repeated('0', -n));
-            TRY(builder.try_append(mantissa_text));
-            integral_part_end = 1;
-        }
-    } else {
-        auto const exponent_sign = n < 0 ? '-' : '+';
-        Array<u8, 5> exponent_digits;
-        auto const exponent_length = convert_to_decimal_digits_array(abs(n - 1), exponent_digits);
-        auto const exponent_text = StringView { exponent_digits.span().slice(0, exponent_length) };
-        integral_part_end = 1;
 
-        if (mantissa_length == 1) {
-            // <mantissa>e<exponent>
-            TRY(builder.try_append(mantissa_text));
-            TRY(builder.try_append('e'));
-            TRY(builder.try_append(exponent_sign));
-            TRY(builder.try_append(exponent_text));
-        } else {
-            // <mantissa>.<mantissa[1..]>e<exponent>
-            TRY(builder.try_append(mantissa_text.substring_view(0, 1)));
-            TRY(builder.try_append('.'));
-            TRY(builder.try_append(mantissa_text.substring_view(1)));
-            TRY(builder.try_append('e'));
-            TRY(builder.try_append(exponent_sign));
-            TRY(builder.try_append(exponent_text));
-        }
+    if (exponent >= 0) {
+        TRY(builder.try_append(mantissa_text));
+        TRY(builder.try_append_repeated('0', exponent));
+        integral_part_end = builder.length();
+    } else if (n > 0) {
+        TRY(builder.try_append(mantissa_text.substring_view(0, n)));
+        integral_part_end = builder.length();
+        TRY(builder.try_append('.'));
+        TRY(builder.try_append(mantissa_text.substring_view(n)));
+    } else {
+        TRY(builder.try_append("0."sv));
+        TRY(builder.try_append_repeated('0', -n));
+        TRY(builder.try_append(mantissa_text));
+        integral_part_end = 1;
     }
 
     if (use_separator && integral_part_end > 3) {
