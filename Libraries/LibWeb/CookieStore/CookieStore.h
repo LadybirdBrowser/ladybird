@@ -19,6 +19,12 @@ struct CookieListItem {
     Optional<String> value;
 };
 
+// https://cookiestore.spec.whatwg.org/#dictdef-cookiestoregetoptions
+struct CookieStoreGetOptions {
+    Optional<String> name;
+    Optional<String> url;
+};
+
 // https://cookiestore.spec.whatwg.org/#cookiestore
 class CookieStore final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(CookieStore, DOM::EventTarget);
@@ -26,6 +32,7 @@ class CookieStore final : public DOM::EventTarget {
 
 public:
     GC::Ref<WebIDL::Promise> get(String name);
+    GC::Ref<WebIDL::Promise> get(CookieStoreGetOptions const&);
 
     GC::Ref<WebIDL::Promise> get_all(String name);
 
