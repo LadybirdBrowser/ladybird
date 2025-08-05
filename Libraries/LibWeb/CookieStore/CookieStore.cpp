@@ -252,4 +252,67 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(String name)
     return promise;
 }
 
+// https://cookiestore.spec.whatwg.org/#dom-cookiestore-getall-options
+GC::Ref<WebIDL::Promise> CookieStore::get_all(CookieStoreGetOptions const& options)
+{
+    auto& realm = this->realm();
+
+    // 1. Let settings be this’s relevant settings object.
+    auto const& settings = HTML::relevant_settings_object(*this);
+
+    // 2. Let origin be settings’s origin.
+    auto const& origin = settings.origin();
+
+    // 3. If origin is an opaque origin, then return a promise rejected with a "SecurityError" DOMException.
+    if (origin.is_opaque())
+        return WebIDL::create_rejected_promise(realm, WebIDL::SecurityError::create(realm, "Document origin is opaque"_string));
+
+    // 4. Let url be settings’s creation URL.
+    auto url = settings.creation_url;
+
+    // 5. If options["url"] is present, then run these steps:
+    if (options.url.has_value()) {
+        // 1. Let parsed be the result of parsing options["url"] with settings’s API base URL.
+        auto parsed = URL::Parser::basic_parse(options.url.value(), settings.api_base_url());
+
+        // AD-HOC: This isn't explicitly mentioned in the specification, but we have to reject invalid URLs as well
+        if (!parsed.has_value())
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url is invalid"sv));
+
+        // 2. If this’s relevant global object is a Window object and parsed does not equal url with exclude fragments
+        //    set to true, then return a promise rejected with a TypeError.
+        if (is<HTML::Window>(HTML::relevant_global_object(*this)) && !parsed->equals(url, URL::ExcludeFragment::Yes))
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url does not match creation URL"sv));
+
+        // 3. If parsed’s origin and url’s origin are not the same origin, then return a promise rejected with a TypeError.
+        if (parsed->origin() != url.origin())
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url's origin does not match creation URL's origin"sv));
+
+        // 4. Set url to parsed.
+        url = parsed.value();
+    }
+
+    // 6. Let p be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 7. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = options.name]() {
+        // 1. Let list be the results of running query cookies with url and options["name"] (if present).
+        auto list = query_cookies(client, url, name);
+
+        // AD-HOC: Queue a global task to perform the next steps
+        // Spec issue: https://github.com/whatwg/cookiestore/issues/239
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, list = move(list)]() {
+            HTML::TemporaryExecutionContext execution_context { realm };
+            // 2. If list is failure, then reject p with a TypeError and abort these steps.
+
+            // 3. Otherwise, resolve p with list.
+            WebIDL::resolve_promise(realm, promise, cookie_list_to_value(realm, list));
+        }));
+    }));
+
+    // 8. Return p.
+    return promise;
+}
+
 }
