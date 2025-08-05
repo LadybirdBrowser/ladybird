@@ -18,7 +18,8 @@ interface HTMLScriptElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString integrity;
     [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
 
-    [CEReactions] attribute Utf16DOMString text;
+    // https://www.w3.org/TR/trusted-types/#enforcement-in-scripts
+    [CEReactions] attribute (TrustedScript or Utf16DOMString) text;
 
     static boolean supports(DOMString type);
 
