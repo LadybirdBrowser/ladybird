@@ -7,120 +7,214 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/GenericLexer.h>
-#include <AK/StringView.h>
 
 TEST_CASE(should_constexpr_construct_from_empty_string_view)
 {
-    constexpr GenericLexer sut(StringView {});
-    static_assert(sut.is_eof());
+    {
+        constexpr GenericLexer sut(StringView {});
+        static_assert(sut.is_eof());
+    }
+    {
+        constexpr Utf16GenericLexer sut(Utf16View {});
+        static_assert(sut.is_eof());
+    }
 }
 
 TEST_CASE(should_construct_from_string_view)
 {
-    constexpr GenericLexer sut("abcdef"sv);
-    static_assert(!sut.is_eof());
+    {
+        constexpr GenericLexer sut("abcdef"sv);
+        static_assert(!sut.is_eof());
+    }
+    {
+        constexpr Utf16GenericLexer sut("abcdef"sv);
+        static_assert(!sut.is_eof());
+    }
 }
 
 TEST_CASE(should_constexpr_tell)
 {
-    constexpr GenericLexer sut("abcdef"sv);
-    static_assert(sut.tell() == 0);
+    {
+        constexpr GenericLexer sut("abcdef"sv);
+        static_assert(sut.tell() == 0);
+    }
+    {
+        constexpr Utf16GenericLexer sut("abcdef"sv);
+        static_assert(sut.tell() == 0);
+    }
 }
 
 TEST_CASE(should_constexpr_tell_remaining)
 {
-    constexpr GenericLexer sut("abcdef"sv);
-    static_assert(sut.tell_remaining() == 6);
+    {
+        constexpr GenericLexer sut("abcdef"sv);
+        static_assert(sut.tell_remaining() == 6);
+    }
+    {
+        constexpr Utf16GenericLexer sut("abcdef"sv);
+        static_assert(sut.tell_remaining() == 6);
+    }
 }
 
 TEST_CASE(should_constexpr_peek)
 {
-    constexpr GenericLexer sut("abcdef"sv);
-    static_assert(sut.peek() == 'a');
-    static_assert(sut.peek(2) == 'c');
-    static_assert(sut.peek(100) == '\0');
+    {
+        constexpr GenericLexer sut("abcdef"sv);
+        static_assert(sut.peek() == 'a');
+        static_assert(sut.peek(2) == 'c');
+        static_assert(sut.peek(100) == '\0');
+    }
+    {
+        constexpr Utf16GenericLexer sut("abcdef"sv);
+        static_assert(sut.peek() == 'a');
+        static_assert(sut.peek(2) == 'c');
+        static_assert(sut.peek(100) == '\0');
+    }
 }
 
 TEST_CASE(should_constexpr_next_is)
 {
-    constexpr GenericLexer sut("abcdef"sv);
-    static_assert(sut.next_is('a'));
-    static_assert(sut.next_is("abc"sv));
+    {
+        constexpr GenericLexer sut("abcdef"sv);
+        static_assert(sut.next_is('a'));
+        static_assert(sut.next_is("abc"sv));
+    }
+    {
+        constexpr Utf16GenericLexer sut("abcdef"sv);
+        static_assert(sut.next_is('a'));
+        static_assert(sut.next_is("abc"sv));
+    }
 }
 
 TEST_CASE(should_constexpr_retreat)
 {
-    constexpr auto sut = [] {
-        GenericLexer sut("abcdef"sv);
-        sut.consume();
-        sut.retreat();
-        return sut;
-    }();
-    static_assert(sut.peek() == 'a');
+    {
+        constexpr auto sut = [] {
+            GenericLexer sut("abcdef"sv);
+            sut.consume();
+            sut.retreat();
+            return sut;
+        }();
+        static_assert(sut.peek() == 'a');
+    }
+    {
+        constexpr auto sut = [] {
+            Utf16GenericLexer sut("abcdef"sv);
+            sut.consume();
+            sut.retreat();
+            return sut;
+        }();
+        static_assert(sut.peek() == 'a');
+    }
 }
 
 TEST_CASE(should_constexpr_consume_1)
 {
-    constexpr auto sut = [] {
-        GenericLexer sut("abcdef"sv);
-        sut.consume();
-        return sut;
-    }();
-    static_assert(sut.peek() == 'b');
+    {
+        constexpr auto sut = [] {
+            GenericLexer sut("abcdef"sv);
+            sut.consume();
+            return sut;
+        }();
+        static_assert(sut.peek() == 'b');
+    }
+    {
+        constexpr auto sut = [] {
+            Utf16GenericLexer sut("abcdef"sv);
+            sut.consume();
+            return sut;
+        }();
+        static_assert(sut.peek() == 'b');
+    }
 }
 
 TEST_CASE(should_constexpr_consume_specific_char)
 {
-    constexpr auto sut = [] {
-        GenericLexer sut("abcdef"sv);
-        sut.consume_specific('a');
-        return sut;
-    }();
-    static_assert(sut.peek() == 'b');
+    {
+        constexpr auto sut = [] {
+            GenericLexer sut("abcdef"sv);
+            sut.consume_specific('a');
+            return sut;
+        }();
+        static_assert(sut.peek() == 'b');
+    }
+    {
+        constexpr auto sut = [] {
+            Utf16GenericLexer sut("abcdef"sv);
+            sut.consume_specific('a');
+            return sut;
+        }();
+        static_assert(sut.peek() == 'b');
+    }
 }
 
 TEST_CASE(should_constexpr_consume_specific_string_view)
 {
-    constexpr auto sut = [] {
-        GenericLexer sut("abcdef"sv);
-        sut.consume_specific("ab"sv);
-        return sut;
-    }();
-    static_assert(sut.peek() == 'c');
-}
+    {
+        constexpr auto sut = [] {
+            GenericLexer sut("abcdef"sv);
+            VERIFY(sut.consume_specific("ab"sv));
+            return sut;
+        }();
+        static_assert(sut.peek() == 'c');
+    }
+    {
+        constexpr auto sut = [] {
+            Utf16GenericLexer sut("abcdef"sv);
+            VERIFY(sut.consume_specific("abcd"sv));
+            return sut;
+        }();
 
-TEST_CASE(should_constexpr_consume_specific_cstring)
-{
-    constexpr auto sut = [] {
-        GenericLexer sut("abcdef"sv);
-        sut.consume_specific("abcd"sv);
-        return sut;
-    }();
-    static_assert(sut.peek() == 'e');
+        static_assert(sut.peek() == 'e');
+    }
 }
 
 TEST_CASE(should_constexpr_consume_specific_with_predicate)
 {
-    constexpr auto sut = [] {
-        GenericLexer sut("h e l l o !"sv);
-        for (size_t i = 0; i < 100; ++i) {
-            sut.consume_specific_with_predicate([](auto c) {
-                return is_ascii_alpha(c) || is_ascii_space(c);
-            });
-        }
-        return sut;
-    }();
-    static_assert(sut.peek() == '!');
+    {
+        constexpr auto sut = [] {
+            GenericLexer sut("h e l l o !"sv);
+            for (size_t i = 0; i < 100; ++i) {
+                sut.consume_specific_with_predicate([](auto c) {
+                    return is_ascii_alpha(c) || is_ascii_space(c);
+                });
+            }
+            return sut;
+        }();
+        static_assert(sut.peek() == '!');
+    }
+    {
+        constexpr auto sut = [] {
+            Utf16GenericLexer sut("h e l l o !"sv);
+            for (size_t i = 0; i < 100; ++i) {
+                sut.consume_specific_with_predicate([](auto c) {
+                    return is_ascii_alpha(c) || is_ascii_space(c);
+                });
+            }
+            return sut;
+        }();
+        static_assert(sut.peek() == '!');
+    }
 }
 
 TEST_CASE(should_constexpr_ignore_until)
 {
-    constexpr auto sut = [] {
-        GenericLexer sut("abcdef"sv);
-        sut.ignore_until('d');
-        return sut;
-    }();
-    static_assert(sut.peek() == 'd');
+    {
+        constexpr auto sut = [] {
+            GenericLexer sut("abcdef"sv);
+            sut.ignore_until('d');
+            return sut;
+        }();
+        static_assert(sut.peek() == 'd');
+    }
+    {
+        constexpr auto sut = [] {
+            Utf16GenericLexer sut("abcdef"sv);
+            sut.ignore_until('d');
+            return sut;
+        }();
+        static_assert(sut.peek() == 'd');
+    }
 }
 
 TEST_CASE(should_constexpr_next_is_pred)
@@ -128,41 +222,68 @@ TEST_CASE(should_constexpr_next_is_pred)
     constexpr auto pred = [](auto c) {
         return c == 'a';
     };
-    constexpr GenericLexer sut("abcdef"sv);
-    static_assert(sut.next_is(pred));
+
+    {
+        constexpr GenericLexer sut("abcdef"sv);
+        static_assert(sut.next_is(pred));
+    }
+    {
+        constexpr Utf16GenericLexer sut("abcdef"sv);
+        static_assert(sut.next_is(pred));
+    }
 }
 
 TEST_CASE(should_constexpr_ignore_while_pred)
 {
-    constexpr auto sut = [] {
-        constexpr auto pred = [](auto c) {
-            return c == 'a';
-        };
+    constexpr auto pred = [](auto c) {
+        return c == 'a';
+    };
 
-        GenericLexer sut("abcdef"sv);
-        sut.ignore_while(pred);
-        return sut;
-    }();
-    static_assert(sut.peek() == 'b');
+    {
+        constexpr auto sut = [&] {
+            GenericLexer sut("abcdef"sv);
+            sut.ignore_while(pred);
+            return sut;
+        }();
+        static_assert(sut.peek() == 'b');
+    }
+    {
+        constexpr auto sut = [&] {
+            Utf16GenericLexer sut("abcdef"sv);
+            sut.ignore_while(pred);
+            return sut;
+        }();
+        static_assert(sut.peek() == 'b');
+    }
 }
 
 TEST_CASE(should_constexpr_ignore_until_pred)
 {
-    constexpr auto sut = [] {
-        constexpr auto pred = [](auto c) {
-            return c == 'c';
-        };
+    constexpr auto pred = [](auto c) {
+        return c == 'c';
+    };
 
-        GenericLexer sut("abcdef"sv);
-        sut.ignore_until(pred);
-        return sut;
-    }();
-    static_assert(sut.peek() == 'c');
+    {
+        constexpr auto sut = [&] {
+            GenericLexer sut("abcdef"sv);
+            sut.ignore_until(pred);
+            return sut;
+        }();
+        static_assert(sut.peek() == 'c');
+    }
+    {
+        constexpr auto sut = [&] {
+            Utf16GenericLexer sut("abcdef"sv);
+            sut.ignore_until(pred);
+            return sut;
+        }();
+        static_assert(sut.peek() == 'c');
+    }
 }
 
 TEST_CASE(consume_escaped_code_point)
 {
-    auto test = [](StringView test, Result<u32, GenericLexer::UnicodeEscapeError> expected, bool combine_surrogate_pairs = true) {
+    auto test = [](StringView test, Result<u32, AK::UnicodeEscapeError> expected, bool combine_surrogate_pairs = true) {
         GenericLexer lexer(test);
 
         auto actual = lexer.consume_escaped_code_point(combine_surrogate_pairs);
@@ -173,39 +294,56 @@ TEST_CASE(consume_escaped_code_point)
         else
             EXPECT_EQ(actual.value(), expected.value());
     };
+    auto test_utf16 = [](Utf16View test, Result<u32, AK::UnicodeEscapeError> expected, bool combine_surrogate_pairs = true) {
+        Utf16GenericLexer lexer(test);
 
-    test("\\u"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\u{"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\u{1"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\u{}"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\u{x}"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
+        auto actual = lexer.consume_escaped_code_point(combine_surrogate_pairs);
+        EXPECT_EQ(actual.is_error(), expected.is_error());
 
-    test("\\u{110000}"sv, GenericLexer::UnicodeEscapeError::UnicodeEscapeOverflow);
-    test("\\u{f00000000}"sv, GenericLexer::UnicodeEscapeError::UnicodeEscapeOverflow);
+        if (actual.is_error() && expected.is_error())
+            EXPECT_EQ(actual.error(), expected.error());
+        else
+            EXPECT_EQ(actual.value(), expected.value());
+    };
 
-    test("\\u{0}"sv, 0);
-    test("\\u{41}"sv, 0x41);
-    test("\\u{ffff}"sv, 0xffff);
-    test("\\u{10ffff}"sv, 0x10ffff);
+#define CHECK(input, expected, ...)                             \
+    do {                                                        \
+        test(input, expected __VA_OPT__(, ) __VA_ARGS__);       \
+        test_utf16(input, expected __VA_OPT__(, ) __VA_ARGS__); \
+    } while (false)
 
-    test("\\u1"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\u11"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\u111"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\u111x"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\ud800\\u"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\ud800\\u1"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\ud800\\u11"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\ud800\\u111"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
-    test("\\ud800\\u111x"sv, GenericLexer::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\u"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\u{"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\u{1"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\u{}"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\u{x}"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
 
-    test("\\u0000"sv, 0x0);
-    test("\\u0041"sv, 0x41);
-    test("\\uffff"sv, 0xffff);
+    CHECK("\\u{110000}"sv, AK::UnicodeEscapeError::UnicodeEscapeOverflow);
+    CHECK("\\u{f00000000}"sv, AK::UnicodeEscapeError::UnicodeEscapeOverflow);
 
-    test("\\ud83d"sv, 0xd83d);
-    test("\\ud83d\\u1111"sv, 0xd83d);
-    test("\\ud83d\\ude00"sv, 0x1f600);
-    test("\\ud83d\\ude00"sv, 0xd83d, false);
+    CHECK("\\u{0}"sv, 0);
+    CHECK("\\u{41}"sv, 0x41);
+    CHECK("\\u{ffff}"sv, 0xffff);
+    CHECK("\\u{10ffff}"sv, 0x10ffff);
+
+    CHECK("\\u1"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\u11"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\u111"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\u111x"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\ud800\\u"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\ud800\\u1"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\ud800\\u11"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\ud800\\u111"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+    CHECK("\\ud800\\u111x"sv, AK::UnicodeEscapeError::MalformedUnicodeEscape);
+
+    CHECK("\\u0000"sv, 0x0);
+    CHECK("\\u0041"sv, 0x41);
+    CHECK("\\uffff"sv, 0xffff);
+
+    CHECK("\\ud83d"sv, 0xd83d);
+    CHECK("\\ud83d\\u1111"sv, 0xd83d);
+    CHECK("\\ud83d\\ude00"sv, 0x1f600);
+    CHECK("\\ud83d\\ude00"sv, 0xd83d, false);
 }
 
 TEST_CASE(consume_decimal_integer_correctly_parses)
@@ -217,7 +355,14 @@ TEST_CASE(consume_decimal_integer_correctly_parses)
         VERIFY(!actual.is_error());                             \
         EXPECT_EQ(actual.value(), static_cast<type>(expected)); \
         EXPECT_EQ(lexer.tell(), test##sv.length());             \
+                                                                \
+        Utf16GenericLexer utf16_lexer(test##sv);                \
+        actual = utf16_lexer.consume_decimal_integer<type>();   \
+        VERIFY(!actual.is_error());                             \
+        EXPECT_EQ(actual.value(), static_cast<type>(expected)); \
+        EXPECT_EQ(utf16_lexer.tell(), test##sv.length());       \
     } while (false)
+
     CHECK_PARSES_INTEGER("0", 0, u8);
     CHECK_PARSES_INTEGER("-0", -0, u8);
     CHECK_PARSES_INTEGER("10", 10, u8);
@@ -270,7 +415,14 @@ TEST_CASE(consume_decimal_integer_fails_with_correct_error)
         VERIFY(actual.is_error() && actual.error().is_errno()); \
         EXPECT_EQ(actual.error().code(), err);                  \
         EXPECT_EQ(lexer.tell(), static_cast<size_t>(0));        \
+                                                                \
+        Utf16GenericLexer utf16_lexer(test##sv);                \
+        actual = utf16_lexer.consume_decimal_integer<type>();   \
+        VERIFY(actual.is_error() && actual.error().is_errno()); \
+        EXPECT_EQ(actual.error().code(), err);                  \
+        EXPECT_EQ(utf16_lexer.tell(), static_cast<size_t>(0));  \
     } while (false)
+
     CHECK_FAILS_WITH_ERROR("Well hello GenericLexer!", u64, EINVAL);
     CHECK_FAILS_WITH_ERROR("+", u64, EINVAL);
     CHECK_FAILS_WITH_ERROR("+WHF", u64, EINVAL);
