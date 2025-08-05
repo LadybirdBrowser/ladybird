@@ -1269,6 +1269,11 @@ Optional<CalculatedStyleValue::CalculationResult> ClampCalculationNode::run_oper
     if (!consistent_type.has_value())
         return {};
 
+    // https://drafts.csswg.org/css-values-4/#calc-ieee
+    // Any operation with at least one NaN argument produces NaN.
+    if (isnan(min_result->value()) || isnan(center_result->value()) || isnan(max_result->value()))
+        return CalculatedStyleValue::CalculationResult { AK::NaN<double>, consistent_type.release_value() };
+
     auto chosen_value = max(min_result->value(), min(center_result->value(), max_result->value()));
     return CalculatedStyleValue::CalculationResult { chosen_value, consistent_type.release_value() };
 }
