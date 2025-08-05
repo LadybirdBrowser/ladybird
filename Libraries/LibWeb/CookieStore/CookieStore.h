@@ -27,6 +27,8 @@ class CookieStore final : public DOM::EventTarget {
 public:
     GC::Ref<WebIDL::Promise> get(String name);
 
+    GC::Ref<WebIDL::Promise> get_all(String name);
+
 private:
     CookieStore(JS::Realm&, PageClient&);
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/CookieStorePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CookieStore/CookieStore.h>
@@ -122,6 +123,54 @@ GC::Ref<WebIDL::Promise> CookieStore::get(String name)
             // 4. Otherwise, resolve p with the first item of list.
             else
                 WebIDL::resolve_promise(realm, promise, Bindings::cookie_list_item_to_value(realm, list[0]));
+        }));
+    }));
+
+    // 7. Return p.
+    return promise;
+}
+
+static JS::Value cookie_list_to_value(JS::Realm& realm, Vector<CookieListItem> const& cookie_list)
+{
+    return JS::Array::create_from<CookieListItem>(realm, cookie_list, [&](auto const& cookie) {
+        return Bindings::cookie_list_item_to_value(realm, cookie);
+    });
+}
+
+// https://cookiestore.spec.whatwg.org/#dom-cookiestore-getall
+GC::Ref<WebIDL::Promise> CookieStore::get_all(String name)
+{
+    auto& realm = this->realm();
+
+    // 1. Let settings be this’s relevant settings object.
+    auto const& settings = HTML::relevant_settings_object(*this);
+
+    // 2. Let origin be settings’s origin.
+    auto const& origin = settings.origin();
+
+    // 3. If origin is an opaque origin, then return a promise rejected with a "SecurityError" DOMException.
+    if (origin.is_opaque())
+        return WebIDL::create_rejected_promise(realm, WebIDL::SecurityError::create(realm, "Document origin is opaque"_string));
+
+    // 4. Let url be settings’s creation URL.
+    auto url = settings.creation_url;
+
+    // 5. Let p be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 6. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = move(name)]() {
+        // 1. Let list be the results of running query cookies with url and name.
+        auto list = query_cookies(client, url, name);
+
+        // AD-HOC: Queue a global task to perform the next steps
+        // Spec issue: https://github.com/whatwg/cookiestore/issues/239
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, list = move(list)]() {
+            HTML::TemporaryExecutionContext execution_context { realm };
+            // 2. If list is failure, then reject p with a TypeError and abort these steps.
+
+            // 3. Otherwise, resolve p with list.
+            WebIDL::resolve_promise(realm, promise, cookie_list_to_value(realm, list));
         }));
     }));
 

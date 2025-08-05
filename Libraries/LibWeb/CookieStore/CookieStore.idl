@@ -9,10 +9,14 @@ dictionary CookieListItem {
     USVString value;
 };
 
+typedef sequence<CookieListItem> CookieList;
+
 // https://cookiestore.spec.whatwg.org/#cookiestore
 [Exposed=(ServiceWorker,Window), SecureContext]
 interface CookieStore : EventTarget {
     Promise<CookieListItem?> get(USVString name);
+
+    Promise<CookieList> getAll(USVString name);
 };
 
 // https://cookiestore.spec.whatwg.org/#Window
