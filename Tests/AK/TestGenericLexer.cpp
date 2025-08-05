@@ -45,7 +45,6 @@ TEST_CASE(should_constexpr_next_is)
 {
     constexpr GenericLexer sut("abcdef"sv);
     static_assert(sut.next_is('a'));
-    static_assert(sut.next_is("abc"));
     static_assert(sut.next_is("abc"sv));
 }
 
@@ -122,16 +121,6 @@ TEST_CASE(should_constexpr_ignore_until)
         return sut;
     }();
     static_assert(sut.peek() == 'd');
-}
-
-TEST_CASE(should_constexpr_ignore_until_cstring)
-{
-    constexpr auto sut = [] {
-        GenericLexer sut("abcdef"sv);
-        sut.ignore_until("cde");
-        return sut;
-    }();
-    static_assert(sut.peek() == 'c');
 }
 
 TEST_CASE(should_constexpr_next_is_pred)
