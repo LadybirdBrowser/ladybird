@@ -312,3 +312,24 @@ The generated code provides:
 - `Optional<TransformFunction> transform_function_from_string(StringView)` to parse a string as a `TransformFunction`
 - `StringView to_string(TransformFunction)` to convert a `TransformFunction` back to a string
 - `TransformFunctionMetadata transform_function_metadata(TransformFunction)` to obtain metadata about the transform function, such as its parameter list
+
+## EnvironmentVariables.json
+
+This is a single JSON object, describing each [CSS environment variable](https://drafts.csswg.org/css-env/#css-environment-variable),
+with the keys being the environment variable names, and the values being objects describing the variable's properties.
+This generates `EnvironmentVariable.h` and `EnvironmentVariable.cpp`.
+
+Each entry has 3 properties, all taken from the 
+
+| Field        | Description                                                         |
+|--------------|---------------------------------------------------------------------|
+| `spec`       | String. URL to the spec definition for this environment variable.   |
+| `type`       | String. CSS value type of the variable, eg `<length>`.              |
+| `dimensions` | Integer. Number of dimensions for the variable, or `0` for scalars. |
+
+The generated code provides:
+- An `EnvironmentVariable` enum listing the environment variables
+- `Optional<EnvironmentVariable> environment_variable_from_string(StringView)` to parse a string as an `EnvironmentVariable`
+- `StringView to_string(EnvironmentVariable)` to convert the `EnvironmentVariable` back to a string
+- `ValueType environment_variable_type(EnvironmentVariable)` to get the variable's value type
+- `u32 environment_variable_dimension_count(EnvironmentVariable)` to get its dimension count
