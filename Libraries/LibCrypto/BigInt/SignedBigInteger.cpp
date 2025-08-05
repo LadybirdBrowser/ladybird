@@ -23,10 +23,10 @@ SignedBigInteger::SignedBigInteger(UnsignedBigInteger&& unsigned_data, bool sign
     }
 }
 
-SignedBigInteger::SignedBigInteger(u8 const* ptr, size_t length)
+SignedBigInteger::SignedBigInteger(ReadonlyBytes data)
 {
     MP_MUST(mp_init(&m_mp));
-    MP_MUST(mp_from_sbin(&m_mp, ptr, length));
+    MP_MUST(mp_from_sbin(&m_mp, data.data(), data.size()));
 }
 
 SignedBigInteger::SignedBigInteger(UnsignedBigInteger const& unsigned_data)
