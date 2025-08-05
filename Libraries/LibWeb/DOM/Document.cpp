@@ -3412,12 +3412,17 @@ void Document::run_the_scroll_steps()
 
 void Document::add_media_query_list(GC::Ref<CSS::MediaQueryList> media_query_list)
 {
+    m_needs_media_query_evaluation = true;
     m_media_query_lists.append(*media_query_list);
 }
 
 // https://drafts.csswg.org/cssom-view/#evaluate-media-queries-and-report-changes
 void Document::evaluate_media_queries_and_report_changes()
 {
+    if (!m_needs_media_query_evaluation)
+        return;
+    m_needs_media_query_evaluation = false;
+
     // NOTE: Not in the spec, but we take this opportunity to prune null WeakPtrs.
     m_media_query_lists.remove_all_matching([](auto& it) {
         return it.is_null();
