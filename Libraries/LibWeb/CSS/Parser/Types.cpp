@@ -87,10 +87,12 @@ String Function::original_source_text() const
 
 void Function::contains_arbitrary_substitution_function(SubstitutionFunctionsPresence& presence) const
 {
-    if (name.equals_ignoring_ascii_case("var"sv))
-        presence.var = true;
-    else if (name.equals_ignoring_ascii_case("attr"sv))
+    if (name.equals_ignoring_ascii_case("attr"sv))
         presence.attr = true;
+    else if (name.equals_ignoring_ascii_case("env"sv))
+        presence.env = true;
+    else if (name.equals_ignoring_ascii_case("var"sv))
+        presence.var = true;
     for (auto const& component_value : value) {
         if (component_value.is_function())
             component_value.function().contains_arbitrary_substitution_function(presence);
