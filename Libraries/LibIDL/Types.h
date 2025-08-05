@@ -208,6 +208,8 @@ struct DictionaryMember {
 struct Dictionary {
     ByteString parent_name;
     Vector<DictionaryMember> members;
+    HashMap<ByteString, ByteString> extended_attributes;
+    bool is_original_definition { true };
 };
 
 struct Typedef {
@@ -336,7 +338,7 @@ public:
 
     bool will_generate_code() const
     {
-        return !name.is_empty() || any_of(enumerations, [](auto& entry) { return entry.value.is_original_definition; });
+        return !name.is_empty() || any_of(dictionaries, [](auto& entry) { return entry.value.is_original_definition; }) || any_of(enumerations, [](auto& entry) { return entry.value.is_original_definition; });
     }
 
     void extend_with_partial_interface(Interface const&);

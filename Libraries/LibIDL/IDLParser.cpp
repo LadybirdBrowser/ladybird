@@ -919,7 +919,7 @@ void Parser::parse_typedef(Interface& interface)
     consume_whitespace();
 }
 
-void Parser::parse_dictionary(Interface& interface)
+void Parser::parse_dictionary(HashMap<ByteString, ByteString> extended_attributes, Interface& interface)
 {
     bool partial = false;
     if (lexer.next_is("partial")) {
@@ -932,6 +932,7 @@ void Parser::parse_dictionary(Interface& interface)
     consume_whitespace();
 
     Dictionary dictionary {};
+    dictionary.extended_attributes = move(extended_attributes);
 
     auto name = parse_identifier_ending_with_space();
     consume_whitespace();
@@ -953,10 +954,10 @@ void Parser::parse_dictionary(Interface& interface)
         }
 
         bool required = false;
-        HashMap<ByteString, ByteString> extended_attributes;
+        HashMap<ByteString, ByteString> member_extended_attributes;
 
         if (lexer.consume_specific('['))
-            extended_attributes = parse_extended_attributes();
+            member_extended_attributes = parse_extended_attributes();
 
         if (lexer.consume_specific("required"sv)) {
             required = true;
@@ -964,7 +965,7 @@ void Parser::parse_dictionary(Interface& interface)
         }
 
         if (lexer.consume_specific('['))
-            extended_attributes.update(parse_extended_attributes());
+            member_extended_attributes.update(parse_extended_attributes());
 
         auto type = parse_type();
         consume_whitespace();
@@ -987,7 +988,7 @@ void Parser::parse_dictionary(Interface& interface)
             required,
             move(type),
             move(name),
-            move(extended_attributes),
+            move(member_extended_attributes),
             Optional<ByteString>(move(default_value)),
         };
         dictionary.members.append(move(member));
@@ -1061,7 +1062,7 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
         if (lexer.consume_specific('['))
             extended_attributes = parse_extended_attributes();
         if (lexer.next_is("dictionary") || lexer.next_is("partial dictionary")) {
-            parse_dictionary(interface);
+            parse_dictionary(extended_attributes, interface);
         } else if (lexer.next_is("enum")) {
             parse_enumeration(extended_attributes, interface);
         } else if (lexer.next_is("typedef")) {
@@ -1205,7 +1206,11 @@ Interface& Parser::parse()
                 interface.extend_with_partial_interface(*partial_interface);
         }
 
-        interface.dictionaries.update(import.dictionaries);
+        for (auto& dictionary : import.dictionaries) {
+            auto dictionary_copy = dictionary.value;
+            dictionary_copy.is_original_definition = false;
+            interface.dictionaries.set(dictionary.key, move(dictionary_copy));
+        }
 
         for (auto& partial_dictionary : import.partial_dictionaries) {
             auto& it = interface.partial_dictionaries.ensure(partial_dictionary.key);
