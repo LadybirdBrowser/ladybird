@@ -913,6 +913,7 @@ set(SOURCES
     SVG/TagNames.cpp
     SVG/ViewBox.cpp
     TrustedTypes/InjectionSink.cpp
+    TrustedTypes/RequireTrustedTypesForDirective.cpp
     TrustedTypes/TrustedHTML.cpp
     TrustedTypes/TrustedScript.cpp
     TrustedTypes/TrustedScriptURL.cpp

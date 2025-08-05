@@ -31,6 +31,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceElementDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/WebRTCDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/WorkerSourceDirective.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 
@@ -77,6 +78,9 @@ GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> 
 
     if (name == Names::ReportUri)
         return heap.allocate<ReportUriDirective>(move(name), move(value));
+
+    if (name == Names::RequireTrustedTypesFor)
+        return heap.allocate<TrustedTypes::RequireTrustedTypesForDirective>(move(name), move(value));
 
     if (name == Names::Sandbox)
         return heap.allocate<SandboxDirective>(move(name), move(value));
