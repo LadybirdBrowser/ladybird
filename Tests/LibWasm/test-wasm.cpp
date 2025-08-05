@@ -310,7 +310,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                     return JS::Value(global->value().to<double>());
                 case Wasm::ValueType::V128: {
                     auto value = global->value().to<u128>();
-                    return JS::BigInt::create(vm, Crypto::SignedBigInteger::import_data(bit_cast<u8 const*>(&value), sizeof(u128)));
+                    return JS::BigInt::create(vm, Crypto::SignedBigInteger::import_data(value.bytes()));
                 }
                 case Wasm::ValueType::FunctionReference:
                 case Wasm::ValueType::ExternReference:
