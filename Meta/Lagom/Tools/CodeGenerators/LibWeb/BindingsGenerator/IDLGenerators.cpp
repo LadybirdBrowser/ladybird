@@ -501,7 +501,7 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
     }
 }
 
-static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type const& type)
+static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type const& type, bool const optional_integral_type)
 {
     struct TypeMap {
         StringView idl_type;
@@ -525,7 +525,7 @@ static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type 
     VERIFY(it != idl_type_map.end());
     scoped_generator.set("cpp_type"sv, it->cpp_type);
 
-    if (type.is_nullable()) {
+    if (type.is_nullable() || optional_integral_type) {
         scoped_generator.append(R"~~~(
     @result_expression@ JS::Value(static_cast<@cpp_type@>(@value@.release_value()));
 )~~~");
@@ -1854,16 +1854,20 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         return;
     }
 
+    bool generate_optional_integral_type = false;
     if ((is_optional || type.is_nullable()) && !is<UnionType>(type)) {
+        generate_optional_integral_type = true;
         if (type.is_string()) {
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
 )~~~");
         } else if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
+            generate_optional_integral_type = true;
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
 )~~~");
         } else if (type.is_primitive() || interface.enumerations.contains(type.name()) || interface.dictionaries.contains(type.name())) {
+            generate_optional_integral_type = true;
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
 )~~~");
@@ -1980,7 +1984,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
         }
     } else if (type.is_integer()) {
-        generate_from_integral(scoped_generator, type);
+        generate_from_integral(scoped_generator, type, generate_optional_integral_type);
     } else if (type.name() == "Location" || type.name() == "Uint8Array" || type.name() == "Uint8ClampedArray" || type.name() == "any") {
         scoped_generator.append(R"~~~(
     @result_expression@ @value@;
