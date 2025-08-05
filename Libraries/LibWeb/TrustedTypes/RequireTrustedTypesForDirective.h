@@ -12,6 +12,14 @@
 
 namespace Web::TrustedTypes {
 
+// https://w3c.github.io/trusted-types/dist/spec/#trusted-types-sink-group
+#define ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR \
+    __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR(Script, "'script'")
+
+#define __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR(name, value) extern FlyString name;
+ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR
+#undef __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR
+
 enum class IncludeReportOnlyPolicies {
     Yes,
     No

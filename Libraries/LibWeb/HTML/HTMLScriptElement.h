@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
 #include <LibWeb/HTML/Scripting/Script.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWeb/TrustedTypes/TrustedScript.h>
 
 namespace Web::HTML {
 
@@ -57,8 +58,8 @@ public:
     void unmark_as_already_started(Badge<DOM::Range>);
     void unmark_as_parser_inserted(Badge<DOM::Range>);
 
-    Utf16String text() { return child_text_content(); }
-    void set_text(Utf16String const& text) { string_replace_all(text); }
+    TrustedTypes::TrustedScriptOrString text() const { return child_text_content(); }
+    WebIDL::ExceptionOr<void> set_text(TrustedTypes::TrustedScriptOrString);
 
     [[nodiscard]] bool async() const;
     void set_async(bool);
@@ -142,6 +143,9 @@ private:
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
 
     size_t m_source_line_number { 1 };
+
+    // https://www.w3.org/TR/trusted-types/#htmlscriptelement-script-text
+    Utf16String m_script_text;
 };
 
 }

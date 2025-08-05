@@ -12,6 +12,8 @@
 
 namespace Web::TrustedTypes {
 
+using TrustedScriptOrString = Variant<GC::Root<TrustedScript>, Utf16String>;
+
 class TrustedScript final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(TrustedScript, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(TrustedScript);
