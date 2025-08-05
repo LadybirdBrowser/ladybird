@@ -2,7 +2,7 @@
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -37,7 +37,7 @@ private:
 ISODate create_iso_date_record(double year, double month, double day);
 ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value options = js_undefined());
 ThrowCompletionOr<GC::Ref<PlainDate>> create_temporal_date(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
-bool iso_date_surpasses(i8 sign, double year1, double month1, double day1, ISODate iso_date2);
+bool iso_date_surpasses(VM&, i8 sign, ISODate base_date, ISODate iso_date2, double years, double months, double weeks, double days);
 ThrowCompletionOr<ISODate> regulate_iso_date(VM& vm, double year, double month, double day, Overflow overflow);
 bool is_valid_iso_date(double year, double month, double day);
 ISODate balance_iso_date(double year, double month, double day);
