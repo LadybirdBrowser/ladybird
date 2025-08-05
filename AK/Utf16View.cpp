@@ -26,11 +26,6 @@ bool validate_utf16_be(ReadonlyBytes bytes)
     return simdutf::validate_utf16be(reinterpret_cast<char16_t const*>(bytes.data()), bytes.size() / 2);
 }
 
-size_t utf16_code_unit_length_from_utf8(StringView string)
-{
-    return simdutf::utf16_length_from_utf8(string.characters_without_null_termination(), string.length());
-}
-
 ErrorOr<String> Utf16View::to_utf8(AllowLonelySurrogates allow_lonely_surrogates) const
 {
     if (is_empty())
