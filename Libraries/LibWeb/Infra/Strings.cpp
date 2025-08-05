@@ -105,7 +105,7 @@ Utf16String strip_and_collapse_whitespace(Utf16String const& string)
     }
 
     // ...and then remove any leading and trailing ASCII whitespace from that string.
-    return Utf16String::from_utf16(builder.utf16_string_view().trim(Infra::ASCII_WHITESPACE));
+    return builder.to_utf16_string().trim(Infra::ASCII_WHITESPACE);
 }
 
 // https://infra.spec.whatwg.org/#code-unit-prefix

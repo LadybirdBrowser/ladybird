@@ -1644,8 +1644,7 @@ Utf16String HTMLInputElement::value_sanitization_algorithm(Utf16String const& va
     };
 
     auto strip_newlines_and_trim = [&]() {
-        auto value_without_newlines = strip_newlines();
-        return Utf16String::from_utf16_without_validation(value_without_newlines.utf16_view().trim(Infra::ASCII_WHITESPACE));
+        return strip_newlines().trim(Infra::ASCII_WHITESPACE);
     };
 
     // https://html.spec.whatwg.org/multipage/input.html#text-(type=text)-state-and-search-state-(type=search):value-sanitization-algorithm

@@ -477,8 +477,7 @@ public:
 
     [[nodiscard]] constexpr Utf16View trim_ascii_whitespace(TrimMode mode = TrimMode::Both) const
     {
-        static constexpr Utf16View white_space { u" \n\t\v\f\r", 6uz };
-        return trim(white_space, mode);
+        return trim(" \n\t\v\f\r"sv, mode);
     }
 
     constexpr Optional<size_t> find_code_unit_offset(char16_t needle, size_t start_offset = 0) const
