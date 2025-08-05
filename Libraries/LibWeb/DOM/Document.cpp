@@ -6597,6 +6597,49 @@ String Document::dump_display_list()
     return display_list->dump();
 }
 
+Optional<Vector<CSS::Parser::ComponentValue>> Document::environment_variable_value(CSS::EnvironmentVariable environment_variable, Span<i64> indices) const
+{
+    auto invalid = [] {
+        return Vector { CSS::Parser::ComponentValue { CSS::Parser::GuaranteedInvalidValue {} } };
+    };
+
+    switch (environment_variable) {
+    case CSS::EnvironmentVariable::PreferredTextScale:
+        // FIXME: Report the user's preferred text scale, once we have that as a setting.
+        if (!indices.is_empty())
+            return invalid();
+        return Vector {
+            CSS::Parser::ComponentValue {
+                CSS::Parser::Token::create_number(CSS::Number { CSS::Number::Type::Number, 1 }) }
+        };
+    case CSS::EnvironmentVariable::SafeAreaInsetBottom:
+    case CSS::EnvironmentVariable::SafeAreaInsetLeft:
+    case CSS::EnvironmentVariable::SafeAreaInsetRight:
+    case CSS::EnvironmentVariable::SafeAreaInsetTop:
+    case CSS::EnvironmentVariable::SafeAreaMaxInsetBottom:
+    case CSS::EnvironmentVariable::SafeAreaMaxInsetLeft:
+    case CSS::EnvironmentVariable::SafeAreaMaxInsetRight:
+    case CSS::EnvironmentVariable::SafeAreaMaxInsetTop:
+        // FIXME: Report the safe area, once we can detect our display's shape (and it's not rectangular).
+        if (!indices.is_empty())
+            return invalid();
+        return Vector {
+            CSS::Parser::ComponentValue { CSS::Parser::Token::create_dimension(0, "px"_fly_string) }
+        };
+    case CSS::EnvironmentVariable::ViewportSegmentBottom:
+    case CSS::EnvironmentVariable::ViewportSegmentHeight:
+    case CSS::EnvironmentVariable::ViewportSegmentLeft:
+    case CSS::EnvironmentVariable::ViewportSegmentRight:
+    case CSS::EnvironmentVariable::ViewportSegmentTop:
+    case CSS::EnvironmentVariable::ViewportSegmentWidth:
+        // "These variables are only defined when there are at least two such segments."
+        // https://drafts.csswg.org/css-env/#viewport-segments
+        // FIXME: Report the viewport segment areas, once we can detect that and there are multiple of them.
+        return Vector { CSS::Parser::ComponentValue { CSS::Parser::GuaranteedInvalidValue {} } };
+    }
+    VERIFY_NOT_REACHED();
+}
+
 HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>>& Document::registered_custom_properties()
 {
     return m_registered_custom_properties;
