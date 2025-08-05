@@ -167,7 +167,13 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)onURLChange:(URL::URL const&)url
 {
     [self setLocationFieldText:url.serialize()];
-    [self.window makeFirstResponder:[self tab].web_view];
+
+    auto url_string = url.serialize();
+    auto new_tab_url = WebView::Application::settings().new_tab_page_url().serialize();
+
+    if (url_string != new_tab_url) {
+        [self.window makeFirstResponder:[self tab].web_view];
+    }
 }
 
 - (void)onBackNavigationEnabled:(BOOL)back_enabled
@@ -182,6 +188,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 {
     [self setPopupBlocking:m_settings.block_popups];
     [self setScripting:m_settings.scripting_enabled];
+    [self focusLocationToolbarItem];
 }
 
 - (void)zoomIn:(id)sender
