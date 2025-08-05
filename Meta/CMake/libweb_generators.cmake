@@ -21,6 +21,15 @@ function (generate_css_implementation)
     )
 
     invoke_cpp_generator(
+        "EnvironmentVariable.cpp"
+        Lagom::GenerateCSSEnvironmentVariable
+        "${LIBWEB_INPUT_FOLDER}/CSS/EnvironmentVariables.json"
+        "CSS/EnvironmentVariable.h"
+        "CSS/EnvironmentVariable.cpp"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/EnvironmentVariables.json"
+    )
+
+    invoke_cpp_generator(
         "MathFunctions.cpp"
         Lagom::GenerateCSSMathFunctions
         "${LIBWEB_INPUT_FOLDER}/CSS/MathFunctions.json"
@@ -131,6 +140,7 @@ function (generate_css_implementation)
 
     set(CSS_GENERATED_HEADERS
        "CSS/Enums.h"
+       "CSS/EnvironmentVariable.h"
        "CSS/GeneratedCSSStyleProperties.h"
        "CSS/Keyword.h"
        "CSS/MathFunctions.h"
