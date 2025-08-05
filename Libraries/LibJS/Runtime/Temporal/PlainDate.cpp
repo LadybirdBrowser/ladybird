@@ -18,6 +18,7 @@
 #include <LibJS/Runtime/Temporal/PlainDateConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
+#include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 
@@ -165,29 +166,65 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
     return TRY(create_temporal_date(vm, iso_date, move(calendar)));
 }
 
-// 3.5.5 ISODateSurpasses ( sign, y1, m1, d1, isoDate2 ), https://tc39.es/proposal-temporal/#sec-temporal-isodatesurpasses
-bool iso_date_surpasses(i8 sign, double year1, double month1, double day1, ISODate iso_date2)
+// 3.5.5 ISODateSurpasses ( sign, baseDate, isoDate2, years, months, weeks, days ), https://tc39.es/proposal-temporal/#sec-temporal-isodatesurpasses
+bool iso_date_surpasses(VM& vm, i8 sign, ISODate base_date, ISODate iso_date2, double years, double months, double weeks, double days)
 {
-    // 1. If y1 ≠ isoDate2.[[Year]], then
+    // 1. Let yearMonth be BalanceISOYearMonth(baseDate.[[Year]] + years, baseDate.[[Month]] + months).
+    auto year_month = balance_iso_year_month(static_cast<double>(base_date.year) + years, static_cast<double>(base_date.month) + months);
+
+    i32 year1 = 0;
+    u8 month1 = 0;
+    u8 day1 = 0;
+
+    // 2. If weeks is not 0 or days is not 0, then
+    if (weeks != 0 || days != 0) {
+        // a. Let regulatedDate be ! RegulateISODate(yearMonth.[[Year]], yearMonth.[[Month]], baseDate.[[Day]], CONSTRAIN).
+        auto regulated_date = MUST(regulate_iso_date(vm, year_month.year, year_month.month, base_date.day, Overflow::Constrain));
+
+        // b. Let balancedDate be BalanceISODate(regulatedDate.[[Year]], regulatedDate.[[Month]], regulatedDate.[[Day]] + 7 * weeks + days).
+        auto balanced_date = balance_iso_date(regulated_date.year, regulated_date.month, static_cast<double>(regulated_date.day) + (7 * weeks) + days);
+
+        // c. Let y1 be balancedDate.[[Year]].
+        year1 = balanced_date.year;
+
+        // d. Let m1 be balancedDate.[[Month]].
+        month1 = balanced_date.month;
+
+        // e. Let d1 be balancedDate.[[Day]].
+        day1 = balanced_date.day;
+    }
+    // 3. Else,
+    else {
+        // a. Let y1 be yearMonth.[[Year]].
+        year1 = year_month.year;
+
+        // b. Let m1 be yearMonth.[[Month]].
+        month1 = year_month.month;
+
+        // c. Let d1 be baseDate.[[Day]].
+        day1 = base_date.day;
+    }
+
+    // 4. If y1 ≠ isoDate2.[[Year]], then
     if (year1 != iso_date2.year) {
         // a. If sign × (y1 - isoDate2.[[Year]]) > 0, return true.
         if (sign * (year1 - iso_date2.year) > 0)
             return true;
     }
-    // 2. Else if m1 ≠ isoDate2.[[Month]], then
+    // 5. Else if m1 ≠ isoDate2.[[Month]], then
     else if (month1 != iso_date2.month) {
         // a. If sign × (m1 - isoDate2.[[Month]]) > 0, return true.
         if (sign * (month1 - iso_date2.month) > 0)
             return true;
     }
-    // 3. Else if d1 ≠ isoDate2.[[Day]], then
+    // 6. Else if d1 ≠ isoDate2.[[Day]], then
     else if (day1 != iso_date2.day) {
         // a. If sign × (d1 - isoDate2.[[Day]]) > 0, return true.
         if (sign * (day1 - iso_date2.day) > 0)
             return true;
     }
 
-    // 4. Return false.
+    // 7. Return false.
     return false;
 }
 

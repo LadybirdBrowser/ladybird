@@ -395,8 +395,8 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
             if (candidate_years != 0)
                 candidate_years -= sign;
 
-            // d.ii. Repeat, while ISODateSurpasses(sign, one.[[Year]] + candidateYears, one.[[Month]], one.[[Day]], two) is false,
-            while (!iso_date_surpasses(sign, static_cast<double>(one.year) + candidate_years, one.month, one.day, two)) {
+            // d.ii. Repeat, while ISODateSurpasses(sign, one, two, candidateYears, 0, 0, 0) is false,
+            while (!iso_date_surpasses(vm, sign, one, two, candidate_years, 0, 0, 0)) {
                 // 1. Set years to candidateYears.
                 years = candidate_years;
 
@@ -407,19 +407,13 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
             // f.i. Let candidateMonths be sign.
             double candidate_months = sign;
 
-            // f.ii. Let intermediate be BalanceISOYearMonth(one.[[Year]] + years, one.[[Month]] + candidateMonths).
-            auto intermediate = balance_iso_year_month(static_cast<double>(one.year) + years, static_cast<double>(one.month) + candidate_months);
-
-            // f.iii. Repeat, while ISODateSurpasses(sign, intermediate.[[Year]], intermediate.[[Month]], one.[[Day]], two) is false,
-            while (!iso_date_surpasses(sign, intermediate.year, intermediate.month, one.day, two)) {
+            // f.ii. Repeat, while ISODateSurpasses(sign, one, two, years, candidateMonths, 0, 0) is false,
+            while (!iso_date_surpasses(vm, sign, one, two, years, candidate_months, 0, 0)) {
                 // 1. Set months to candidateMonths.
                 months = candidate_months;
 
                 // 2. Set candidateMonths to candidateMonths + sign.
                 candidate_months += sign;
-
-                // 3. Set intermediate to BalanceISOYearMonth(intermediate.[[Year]], intermediate.[[Month]] + sign).
-                intermediate = balance_iso_year_month(intermediate.year, static_cast<double>(intermediate.month) + sign);
             }
 
             if (largest_unit == Unit::Month) {
@@ -428,28 +422,24 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
             }
         }
 
-        // g. Set intermediate to BalanceISOYearMonth(one.[[Year]] + years, one.[[Month]] + months).
-        auto intermediate = balance_iso_year_month(static_cast<double>(one.year) + years, static_cast<double>(one.month) + months);
-
-        // h. Let constrained be ! RegulateISODate(intermediate.[[Year]], intermediate.[[Month]], one.[[Day]], CONSTRAIN).
-        auto constrained = MUST(regulate_iso_date(vm, intermediate.year, intermediate.month, one.day, Overflow::Constrain));
-
-        // i. Let weeks be 0.
+        // g. Let weeks be 0.
         double weeks = 0;
 
         // OPTIMIZATION: If the largestUnit is DAY, we do not want to enter an ISODateSurpasses loop. The loop would have
         //               us increment the intermediate ISOYearMonth one day at time, which will take an extremely long
         //               time if the difference is a large number of years. Instead, we can compute the day difference,
         //               and convert to weeks if needed.
+        auto year_month = balance_iso_year_month(static_cast<double>(one.year) + years, static_cast<double>(one.month) + months);
+        auto regulated_date = MUST(regulate_iso_date(vm, year_month.year, year_month.month, one.day, Overflow::Constrain));
 
-        auto days = iso_date_to_epoch_days(two.year, two.month - 1, two.day) - iso_date_to_epoch_days(constrained.year, constrained.month - 1, constrained.day);
+        auto days = iso_date_to_epoch_days(two.year, two.month - 1, two.day) - iso_date_to_epoch_days(regulated_date.year, regulated_date.month - 1, regulated_date.day);
 
         if (largest_unit == Unit::Week) {
             weeks = trunc(days / 7.0);
             days = fmod(days, 7.0);
         }
 
-        // o. Return ! CreateDateDurationRecord(years, months, weeks, days).
+        // l. Return ! CreateDateDurationRecord(years, months, weeks, days).
         return MUST(create_date_duration_record(vm, years, months, weeks, days));
     }
 
