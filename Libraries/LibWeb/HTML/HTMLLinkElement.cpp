@@ -265,6 +265,8 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
     // 2. Let options be a new link processing options with
     LinkProcessingOptions options {
         // FIXME: destination                      the result of translating the state of el's as attribute
+        // cryptographic nonce metadata     the current value of el's [[CryptographicNonce]] internal slot
+        .cryptographic_nonce_metadata = m_cryptographic_nonce,
         // crossorigin                      the state of el's crossorigin content attribute
         .crossorigin = cors_setting_attribute_from_keyword(get_attribute(AttributeNames::crossorigin)),
         // referrer policy                  the state of el's referrerpolicy content attribute
@@ -280,7 +282,6 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
         .policy_container = document.policy_container(),
         // document                         document
         .document = &document,
-        // FIXME: cryptographic nonce metadata     the current value of el's [[CryptographicNonce]] internal slot
         // fetch priority                   the state of el's fetchpriority content attribute
         .fetch_priority = Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto),
     };
