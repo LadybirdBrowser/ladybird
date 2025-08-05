@@ -239,9 +239,78 @@ WebIDL::ExceptionOr<JS::Value> process_value_with_a_default_policy(TrustedTypeNa
         return realm.create<TrustedScript>(realm, move(data_string));
     case TrustedTypeName::TrustedScriptURL:
         return realm.create<TrustedScriptURL>(realm, move(data_string));
-    default:
-        VERIFY_NOT_REACHED();
     }
+    VERIFY_NOT_REACHED();
+}
+
+// https://www.w3.org/TR/trusted-types/#get-trusted-type-compliant-string-algorithm
+WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeName expected_type, JS::Object& global, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> input, InjectionSink sink, String sink_group)
+{
+    auto& vm = global.vm();
+
+    // 1. If input is an instance of expectedType, return stringified input and abort these steps.
+    switch (expected_type) {
+    case TrustedTypeName::TrustedHTML:
+        if (auto* const value = input.get_pointer<GC::Root<TrustedHTML>>(); value)
+            return (*value)->to_string();
+        break;
+    case TrustedTypeName::TrustedScript:
+        if (auto* const value = input.get_pointer<GC::Root<TrustedScript>>(); value)
+            return (*value)->to_string();
+        break;
+    case TrustedTypeName::TrustedScriptURL:
+        if (auto* const value = input.get_pointer<GC::Root<TrustedScriptURL>>(); value)
+            return (*value)->to_string();
+        break;
+    }
+
+    // 2. Let requireTrustedTypes be the result of executing Does sink type require trusted types? algorithm, passing global, sinkGroup, and true.
+    auto const require_trusted_types = ContentSecurityPolicy::Directives::does_sink_require_trusted_types(global, sink_group, ContentSecurityPolicy::Directives::IncludeReportOnlyPolicies::Yes);
+
+    // 3. If requireTrustedTypes is false, return stringified input and abort these steps.
+    if (!require_trusted_types)
+        return input.visit([](auto&& value) { return value->to_string(); }, [](Utf16String& value) { return value; });
+
+    // 4. Let convertedInput be the result of executing Process value with a default policy with the same arguments as this algorithm.
+    // 5. If the algorithm threw an error, rethrow the error and abort the following steps.
+    auto const converted_input = TRY(process_value_with_a_default_policy(expected_type, global, input, sink));
+
+    // 6. If convertedInput is null or undefined, execute the following steps:
+    if (converted_input.is_nullish()) {
+        // 1. Let disposition be the result of executing Should sink type mismatch violation be blocked by Content Security Policy?
+        //    algorithm, passing global, stringified input as source, sinkGroup and sink.
+        auto const disposition = ContentSecurityPolicy::Directives::should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(
+            global,
+            sink,
+            sink_group,
+            input.visit(
+                [](auto&& value) { return value->to_string(); },
+                [](Utf16String& value) { return value; }));
+
+        // 2. If disposition is “Allowed”, return stringified input and abort further steps.
+        if (disposition == ContentSecurityPolicy::Directives::Directive::Result::Allowed)
+            return input.visit([](auto&& value) { return value->to_string(); }, [](Utf16String& value) { return value; });
+
+        // 3. Throw a TypeError and abort further steps.
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Sink {} of type {} requires a TrustedType to be used", to_string(sink), sink_group)) };
+    }
+
+    // 7. Assert: convertedInput is an instance of expectedType.
+    VERIFY(converted_input.is_object());
+    switch (expected_type) {
+    case TrustedTypeName::TrustedHTML:
+        VERIFY(is<TrustedHTML>(converted_input.as_object()));
+        break;
+    case TrustedTypeName::TrustedScript:
+        VERIFY(is<TrustedScript>(converted_input.as_object()));
+        break;
+    case TrustedTypeName::TrustedScriptURL:
+        VERIFY(is<TrustedScriptURL>(converted_input.as_object()));
+        break;
+    }
+
+    // 8. Return stringified convertedInput.
+    return TRY(converted_input.to_utf16_string(vm));
 }
 
 }
