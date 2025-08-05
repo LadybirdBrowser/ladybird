@@ -11,10 +11,16 @@ dictionary CookieListItem {
 
 typedef sequence<CookieListItem> CookieList;
 
+dictionary CookieStoreGetOptions {
+    USVString name;
+    USVString url;
+};
+
 // https://cookiestore.spec.whatwg.org/#cookiestore
 [Exposed=(ServiceWorker,Window), SecureContext]
 interface CookieStore : EventTarget {
     Promise<CookieListItem?> get(USVString name);
+    Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
 
     Promise<CookieList> getAll(USVString name);
 };
