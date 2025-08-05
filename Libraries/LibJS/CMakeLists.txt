@@ -8,6 +8,10 @@ set(SOURCES
     Bytecode/Generator.cpp
     Bytecode/IdentifierTable.cpp
     Bytecode/Instruction.cpp
+    Bytecode/Instructions/Generic.cpp
+    Bytecode/Instructions/Dump.cpp
+    Bytecode/Instructions/ControlFlow.cpp
+    Bytecode/Instructions/Comparison.cpp
     Bytecode/Interpreter.cpp
     Bytecode/Label.cpp
     Bytecode/RegexTable.cpp
