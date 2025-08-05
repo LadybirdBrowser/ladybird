@@ -9,7 +9,6 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RedBlackTree.h>
 #include <AK/Result.h>
-#include <AK/String.h>
 #include <AK/StringView.h>
 
 namespace AK {
@@ -54,14 +53,6 @@ public:
         return true;
     }
 
-    constexpr bool next_is(char const* expected) const
-    {
-        for (size_t i = 0; expected[i] != '\0'; ++i)
-            if (peek(i) != expected[i])
-                return false;
-        return true;
-    }
-
     constexpr void retreat()
     {
         VERIFY(m_index > 0);
@@ -80,30 +71,22 @@ public:
         return m_input[m_index++];
     }
 
-    template<typename T>
-    constexpr bool consume_specific(T const& next)
+    constexpr bool consume_specific(StringView next)
     {
         if (!next_is(next))
             return false;
 
-        if constexpr (requires { next.length(); }) {
-            ignore(next.length());
-        } else {
-            ignore(sizeof(next));
-        }
+        ignore(next.length());
         return true;
     }
 
-    bool consume_specific(ByteString next) = delete;
-
-    bool consume_specific(String const& next)
+    constexpr bool consume_specific(char next)
     {
-        return consume_specific(next.bytes_as_string_view());
-    }
+        if (!next_is(next))
+            return false;
 
-    constexpr bool consume_specific(char const* next)
-    {
-        return consume_specific(StringView { next, __builtin_strlen(next) });
+        ignore(sizeof(next));
+        return true;
     }
 
     constexpr char consume_escaped_character(char escape_char = '\\', StringView escape_map = "n\nr\rt\tb\bf\f"sv)
@@ -125,10 +108,9 @@ public:
     StringView consume_all();
     StringView consume_line();
     StringView consume_until(char);
-    StringView consume_until(char const*);
     StringView consume_until(StringView);
     StringView consume_quoted_string(char escape_char = 0);
-    Optional<ByteString> consume_and_unescape_string(char escape_char = '\\');
+
     template<Integral T>
     ErrorOr<T> consume_decimal_integer();
 
@@ -148,13 +130,6 @@ public:
     constexpr void ignore_until(char stop)
     {
         while (!is_eof() && peek() != stop) {
-            ++m_index;
-        }
-    }
-
-    constexpr void ignore_until(char const* stop)
-    {
-        while (!is_eof() && !next_is(stop)) {
             ++m_index;
         }
     }

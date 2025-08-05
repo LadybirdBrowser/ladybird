@@ -42,7 +42,7 @@ DecodedPEM decode_pem(ReadonlyBytes data)
         case PreStartData:
             if (lexer.consume_specific("-----BEGIN "sv)) {
                 state = Started;
-                header_type = lexer.consume_until("-----");
+                header_type = lexer.consume_until("-----"sv);
             }
             lexer.consume_line();
             break;
@@ -50,7 +50,7 @@ DecodedPEM decode_pem(ReadonlyBytes data)
             if (lexer.consume_specific("-----END "sv)) {
                 state = Ended;
 
-                if (lexer.consume_until("-----") != header_type) {
+                if (lexer.consume_until("-----"sv) != header_type) {
                     dbgln("PEM type mismatch");
                     return {};
                 }
@@ -98,7 +98,7 @@ ErrorOr<Vector<DecodedPEM>> decode_pems(ReadonlyBytes data)
         case Junk:
             if (lexer.consume_specific("-----BEGIN "sv)) {
                 state = Parsing;
-                header_type = lexer.consume_until("-----");
+                header_type = lexer.consume_until("-----"sv);
             }
             lexer.consume_line();
             break;
@@ -106,7 +106,7 @@ ErrorOr<Vector<DecodedPEM>> decode_pems(ReadonlyBytes data)
             if (lexer.consume_specific("-----END "sv)) {
                 state = Junk;
 
-                if (lexer.consume_until("-----") != header_type) {
+                if (lexer.consume_until("-----"sv) != header_type) {
                     return Error::from_string_literal("PEM type mismatch");
                 }
                 lexer.consume_line();

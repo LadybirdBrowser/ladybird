@@ -732,63 +732,63 @@ void Parser::parse_interface(Interface& interface)
                 interface.has_unscopable_member = true;
         }
 
-        if (lexer.next_is("async")) {
+        if (lexer.next_is("async"sv)) {
             parse_async_iterable(interface);
             continue;
         }
 
-        if (lexer.next_is("constructor")) {
+        if (lexer.next_is("constructor"sv)) {
             parse_constructor(extended_attributes, interface);
             continue;
         }
 
-        if (lexer.next_is("const")) {
+        if (lexer.next_is("const"sv)) {
             parse_constant(interface);
             continue;
         }
 
-        if (lexer.next_is("stringifier")) {
+        if (lexer.next_is("stringifier"sv)) {
             parse_stringifier(extended_attributes, interface);
             continue;
         }
 
-        if (lexer.next_is("iterable")) {
+        if (lexer.next_is("iterable"sv)) {
             parse_iterable(interface);
             continue;
         }
 
-        if (lexer.next_is("setlike")) {
+        if (lexer.next_is("setlike"sv)) {
             bool is_readonly = false;
             parse_setlike(interface, is_readonly);
             continue;
         }
 
-        if (lexer.next_is("inherit") || lexer.next_is("readonly") || lexer.next_is("attribute")) {
+        if (lexer.next_is("inherit"sv) || lexer.next_is("readonly"sv) || lexer.next_is("attribute"sv)) {
             parse_attribute(extended_attributes, interface);
             continue;
         }
 
-        if (lexer.next_is("getter")) {
+        if (lexer.next_is("getter"sv)) {
             parse_getter(extended_attributes, interface);
             continue;
         }
 
-        if (lexer.next_is("setter")) {
+        if (lexer.next_is("setter"sv)) {
             parse_setter(extended_attributes, interface);
             continue;
         }
 
-        if (lexer.next_is("deleter")) {
+        if (lexer.next_is("deleter"sv)) {
             parse_deleter(extended_attributes, interface);
             continue;
         }
 
-        bool is_static = lexer.consume_specific("static");
+        bool is_static = lexer.consume_specific("static"sv);
         if (!is_static) {
             parse_function(extended_attributes, interface, IsStatic::No);
         } else {
             consume_whitespace();
-            if (lexer.next_is("readonly") || lexer.next_is("attribute")) {
+            if (lexer.next_is("readonly"sv) || lexer.next_is("attribute"sv)) {
                 parse_attribute(extended_attributes, interface, IsStatic::Yes);
             } else {
                 parse_function(extended_attributes, interface, IsStatic::Yes);
@@ -922,7 +922,7 @@ void Parser::parse_typedef(Interface& interface)
 void Parser::parse_dictionary(HashMap<ByteString, ByteString> extended_attributes, Interface& interface)
 {
     bool partial = false;
-    if (lexer.next_is("partial")) {
+    if (lexer.next_is("partial"sv)) {
         assert_string("partial"sv);
         consume_whitespace();
         partial = true;
@@ -1061,19 +1061,19 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
         HashMap<ByteString, ByteString> extended_attributes;
         if (lexer.consume_specific('['))
             extended_attributes = parse_extended_attributes();
-        if (lexer.next_is("dictionary") || lexer.next_is("partial dictionary")) {
+        if (lexer.next_is("dictionary"sv) || lexer.next_is("partial dictionary"sv)) {
             parse_dictionary(extended_attributes, interface);
-        } else if (lexer.next_is("enum")) {
+        } else if (lexer.next_is("enum"sv)) {
             parse_enumeration(extended_attributes, interface);
-        } else if (lexer.next_is("typedef")) {
+        } else if (lexer.next_is("typedef"sv)) {
             parse_typedef(interface);
         } else if (lexer.next_is("partial interface"sv)) {
             parse_partial_interface(extended_attributes, interface);
-        } else if (lexer.next_is("interface mixin")) {
+        } else if (lexer.next_is("interface mixin"sv)) {
             parse_interface_mixin(interface);
-        } else if (lexer.next_is("callback")) {
+        } else if (lexer.next_is("callback"sv)) {
             parse_callback_function(extended_attributes, interface);
-        } else if ((allow_interface && !lexer.next_is("interface") && !lexer.next_is("namespace")) || !allow_interface) {
+        } else if ((allow_interface && !lexer.next_is("interface"sv) && !lexer.next_is("namespace"sv)) || !allow_interface) {
             auto current_offset = lexer.tell();
             auto name = parse_identifier_ending_with_space();
             consume_whitespace();

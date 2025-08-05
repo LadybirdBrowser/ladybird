@@ -138,7 +138,7 @@ ByteString Token::string_value(StringValueStatus& status) const
 
         // Line continuation
         if (lexer.next_is('\n') || lexer.next_is('\r')) {
-            if (lexer.next_is("\r\n"))
+            if (lexer.next_is("\r\n"sv))
                 lexer.ignore();
             lexer.ignore();
             continue;
