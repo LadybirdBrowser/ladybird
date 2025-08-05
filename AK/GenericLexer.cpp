@@ -58,17 +58,6 @@ StringView GenericLexer::consume_until(char stop)
 }
 
 // Consume and return characters until the string `stop` is found
-StringView GenericLexer::consume_until(char const* stop)
-{
-    size_t start = m_index;
-    while (!is_eof() && !next_is(stop))
-        m_index++;
-    size_t length = m_index - start;
-
-    return m_input.substring_view(start, length);
-}
-
-// Consume and return characters until the string `stop` is found
 StringView GenericLexer::consume_until(StringView stop)
 {
     size_t start = m_index;
@@ -198,18 +187,6 @@ template ErrorOr<u32> GenericLexer::consume_decimal_integer<u32>();
 template ErrorOr<i32> GenericLexer::consume_decimal_integer<i32>();
 template ErrorOr<u64> GenericLexer::consume_decimal_integer<u64>();
 template ErrorOr<i64> GenericLexer::consume_decimal_integer<i64>();
-
-Optional<ByteString> GenericLexer::consume_and_unescape_string(char escape_char)
-{
-    auto view = consume_quoted_string(escape_char);
-    if (view.is_null())
-        return {};
-
-    StringBuilder builder;
-    for (size_t i = 0; i < view.length(); ++i)
-        builder.append(consume_escaped_character(escape_char));
-    return builder.to_byte_string();
-}
 
 auto GenericLexer::consume_escaped_code_point(bool combine_surrogate_pairs) -> Result<u32, UnicodeEscapeError>
 {
