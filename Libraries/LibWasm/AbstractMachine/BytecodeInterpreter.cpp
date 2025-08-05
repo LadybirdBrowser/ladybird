@@ -434,7 +434,7 @@ void BytecodeInterpreter::interpret_impl(Configuration& configuration, Expressio
                 auto instance = configuration.store().get(address);
                 auto pages = instance->size() / Constants::page_size;
                 dbgln_if(WASM_TRACE_DEBUG, "memory.size -> stack({})", pages);
-                configuration.push_to_destination(Value((i32)pages));
+                configuration.push_to_destination(Value(static_cast<i32>(pages)));
                 RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
             }
             case Instructions::memory_grow.value(): {
@@ -446,9 +446,9 @@ void BytecodeInterpreter::interpret_impl(Configuration& configuration, Expressio
                 auto new_pages = entry.to<i32>();
                 dbgln_if(WASM_TRACE_DEBUG, "memory.grow({}), previously {} pages...", new_pages, old_pages);
                 if (instance->grow(new_pages * Constants::page_size))
-                    entry = Value((i32)old_pages);
+                    entry = Value(old_pages);
                 else
-                    entry = Value((i32)-1);
+                    entry = Value(-1);
                 RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
             }
             // https://webassembly.github.io/spec/core/bikeshed/#exec-memory-fill
@@ -664,9 +664,9 @@ void BytecodeInterpreter::interpret_impl(Configuration& configuration, Expressio
                 auto previous_size = table->elements().size();
                 auto did_grow = table->grow(size, fill_value.to<Reference>());
                 if (!did_grow) {
-                    configuration.push_to_destination(Value((i32)-1));
+                    configuration.push_to_destination(Value(-1));
                 } else {
-                    configuration.push_to_destination(Value((i32)previous_size));
+                    configuration.push_to_destination(Value(static_cast<i32>(previous_size)));
                 }
                 RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
             }
@@ -674,7 +674,7 @@ void BytecodeInterpreter::interpret_impl(Configuration& configuration, Expressio
                 auto table_index = instruction->arguments().get<TableIndex>();
                 auto address = configuration.frame().module().tables()[table_index.value()];
                 auto table = configuration.store().get(address);
-                configuration.push_to_destination(Value((i32)table->elements().size()));
+                configuration.push_to_destination(Value(static_cast<i32>(table->elements().size())));
                 RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
             }
             case Instructions::ref_null.value(): {
