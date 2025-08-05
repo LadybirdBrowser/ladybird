@@ -69,7 +69,7 @@ so  any platform that supports Unix domain sockets should be able to use the IPC
 
 ### Windows
 
-Over the years excitement about a native windows port has waxed and waned. The main issue is that Ladybird is built on
+Over the years excitement about a native Windows port has waxed and waned. The main issue is that Ladybird is built on
 top of LibCore, which is a POSIX abstraction. Windows is not POSIX, and so a Windows port requires a significant amount
 of effort to implement.
 
