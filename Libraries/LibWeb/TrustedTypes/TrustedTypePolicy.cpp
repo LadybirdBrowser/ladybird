@@ -8,10 +8,13 @@
 
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedScriptURL.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -180,6 +183,74 @@ WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(
 
     // 7. Return policyValue.
     return policy_value;
+}
+
+// https://www.w3.org/TR/trusted-types/#process-value-with-a-default-policy-algorithm
+WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(TrustedTypeName trusted_type_name, JS::Object& global, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> input, InjectionSink sink)
+{
+    auto& vm = global.vm();
+    auto& realm = HTML::relevant_realm(global);
+
+    // 1. Let defaultPolicy be the value of global’s trusted type policy factory’s default policy.
+    auto const& default_policy = as<HTML::WindowOrWorkerGlobalScopeMixin>(global).trusted_types()->default_policy();
+
+    // This algorithm routes a value to be assigned to an injection sink through a default policy, should one exist.
+    // FIXME: Open an issue upstream. It is not immediately clear what to do if the default policy does not exist.
+    // Ref: https://github.com/w3c/trusted-types/issues/595
+    if (!default_policy)
+        return Optional<TrustedType> {};
+
+    // 2. Let policyValue be the result of executing Get Trusted Type policy value, with the following arguments:
+    //    policy:
+    //      defaultPolicy
+    //    value:
+    //      stringified input
+    //    trustedTypeName:
+    //      expectedType’s type name
+    //    arguments:
+    //      « trustedTypeName, sink »
+    //    throwIfMissing:
+    //      false
+    //  3. If the algorithm threw an error, rethrow the error and abort the following steps.
+    auto arguments = GC::RootVector<JS::Value>(vm.heap());
+    arguments.append(JS::PrimitiveString::create(vm, to_string(trusted_type_name)));
+    arguments.append(JS::PrimitiveString::create(vm, to_string(sink)));
+    auto policy_value = TRY(default_policy->get_trusted_type_policy_value(
+        trusted_type_name,
+        input.visit(
+            [](auto& value) { return value->to_string(); },
+            [](Utf16String& value) { return value; }),
+        arguments,
+        ThrowIfCallbackMissing::No));
+
+    //  4. If policyValue is null or undefined, return policyValue.
+    if (policy_value.is_nullish())
+        return Optional<TrustedType> {};
+
+    //  5. Let dataString be the result of stringifying policyValue.
+    Utf16String data_string;
+    switch (trusted_type_name) {
+    case TrustedTypeName::TrustedHTML:
+    case TrustedTypeName::TrustedScript:
+        data_string = TRY(WebIDL::to_utf16_string(vm, policy_value));
+        break;
+    case TrustedTypeName::TrustedScriptURL:
+        data_string = TRY(WebIDL::to_utf16_usv_string(vm, policy_value));
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    //  6. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
+    switch (trusted_type_name) {
+    case TrustedTypeName::TrustedHTML:
+        return realm.create<TrustedHTML>(realm, move(data_string));
+    case TrustedTypeName::TrustedScript:
+        return realm.create<TrustedScript>(realm, move(data_string));
+    case TrustedTypeName::TrustedScriptURL:
+        return realm.create<TrustedScriptURL>(realm, move(data_string));
+    }
+    VERIFY_NOT_REACHED();
 }
 
 }
