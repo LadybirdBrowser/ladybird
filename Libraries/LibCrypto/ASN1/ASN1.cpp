@@ -9,114 +9,114 @@
 
 namespace Crypto::ASN1 {
 
-ByteString kind_name(Kind kind)
+StringView kind_name(Kind kind)
 {
     switch (kind) {
     case Kind::Eol:
-        return "EndOfList";
+        return "EndOfList"sv;
     case Kind::Boolean:
-        return "Boolean";
+        return "Boolean"sv;
     case Kind::Integer:
-        return "Integer";
+        return "Integer"sv;
     case Kind::BitString:
-        return "BitString";
+        return "BitString"sv;
     case Kind::OctetString:
-        return "OctetString";
+        return "OctetString"sv;
     case Kind::Null:
-        return "Null";
+        return "Null"sv;
     case Kind::ObjectIdentifier:
-        return "ObjectIdentifier";
+        return "ObjectIdentifier"sv;
     case Kind::ObjectDescriptor:
-        return "ObjectDescriptor";
+        return "ObjectDescriptor"sv;
     case Kind::External:
-        return "External";
+        return "External"sv;
     case Kind::Real:
-        return "Real";
+        return "Real"sv;
     case Kind::Enumerated:
-        return "Enumerated";
+        return "Enumerated"sv;
     case Kind::EmbeddedPdv:
-        return "EmbeddedPdv";
+        return "EmbeddedPdv"sv;
     case Kind::Utf8String:
-        return "Utf8String";
+        return "Utf8String"sv;
     case Kind::RelativeOid:
-        return "RelativeOid";
+        return "RelativeOid"sv;
     case Kind::Time:
-        return "Time";
+        return "Time"sv;
     case Kind::Reserved:
-        return "Reserved";
+        return "Reserved"sv;
     case Kind::Sequence:
-        return "Sequence";
+        return "Sequence"sv;
     case Kind::Set:
-        return "Set";
+        return "Set"sv;
     case Kind::NumericString:
-        return "NumericString";
+        return "NumericString"sv;
     case Kind::PrintableString:
-        return "PrintableString";
+        return "PrintableString"sv;
     case Kind::T61String:
-        return "T61String";
+        return "T61String"sv;
     case Kind::VideotexString:
-        return "VideotexString";
+        return "VideotexString"sv;
     case Kind::IA5String:
-        return "IA5String";
+        return "IA5String"sv;
     case Kind::UTCTime:
-        return "UTCTime";
+        return "UTCTime"sv;
     case Kind::GeneralizedTime:
-        return "GeneralizedTime";
+        return "GeneralizedTime"sv;
     case Kind::GraphicString:
-        return "GraphicString";
+        return "GraphicString"sv;
     case Kind::VisibleString:
-        return "VisibleString";
+        return "VisibleString"sv;
     case Kind::GeneralString:
-        return "GeneralString";
+        return "GeneralString"sv;
     case Kind::UniversalString:
-        return "UniversalString";
+        return "UniversalString"sv;
     case Kind::CharacterString:
-        return "CharacterString";
+        return "CharacterString"sv;
     case Kind::BMPString:
-        return "BMPString";
+        return "BMPString"sv;
     case Kind::Date:
-        return "Date";
+        return "Date"sv;
     case Kind::TimeOfDay:
-        return "TimeOfDay";
+        return "TimeOfDay"sv;
     case Kind::DateTime:
-        return "DateTime";
+        return "DateTime"sv;
     case Kind::Duration:
-        return "Duration";
+        return "Duration"sv;
     case Kind::OidIri:
-        return "OidIri";
+        return "OidIri"sv;
     case Kind::RelativeOidIri:
-        return "RelativeOidIri";
+        return "RelativeOidIri"sv;
     }
 
-    return "InvalidKind";
+    return "InvalidKind"sv;
 }
 
-ByteString class_name(Class class_)
+StringView class_name(Class class_)
 {
     switch (class_) {
     case Class::Application:
-        return "Application";
+        return "Application"sv;
     case Class::Context:
-        return "Context";
+        return "Context"sv;
     case Class::Private:
-        return "Private";
+        return "Private"sv;
     case Class::Universal:
-        return "Universal";
+        return "Universal"sv;
     }
 
-    return "InvalidClass";
+    return "InvalidClass"sv;
 }
 
-ByteString type_name(Type type)
+StringView type_name(Type type)
 {
     switch (type) {
     case Type::Constructed:
-        return "Constructed";
+        return "Constructed"sv;
     case Type::Primitive:
-        return "Primitive";
+        return "Primitive"sv;
     }
 
-    return "InvalidType";
+    return "InvalidType"sv;
 }
 
 Optional<UnixDateTime> parse_utc_time(StringView time)
