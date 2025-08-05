@@ -726,8 +726,8 @@ HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_ins
 
     // 2. Determine the adjusted insertion location using the first matching steps from the following list:
 
-    // `-> If foster parenting is enabled and target is a table, tbody, tfoot, thead, or tr element
-    if (m_foster_parenting && target.local_name().is_one_of(HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr)) {
+    // `-> If foster parenting is enabled and target is a table, tbody, tfoot, thead, or tr element in the HTML namespace
+    if (m_foster_parenting && target.namespace_uri() == Namespace::HTML && target.local_name().is_one_of(HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr)) {
         // 1. Let last template be the last template element in the stack of open elements, if any.
         auto last_template = m_stack_of_open_elements.last_element_with_tag_name(HTML::TagNames::template_);
         // 2. Let last table be the last table element in the stack of open elements, if any.
@@ -2975,6 +2975,19 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
     // -> A start tag whose tag name is one of: "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr"
     if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::frame, HTML::TagNames::head, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr))) {
+        // Check if we're inside an SVG element - if so, treat these as SVG elements, not HTML table elements
+        // But only if we're not inside an HTML integration point
+        auto svg_element = m_stack_of_open_elements.last_element_with_tag_name(HTML::TagNames::svg).element;
+        if (svg_element && !is_html_integration_point(*current_node())) {
+            // We're in SVG context (but not in an HTML integration point), so treat these as SVG elements
+            // Reconstruct the active formatting elements, if any.
+            reconstruct_the_active_formatting_elements();
+
+            // Insert a foreign element for the token, with SVG namespace and false.
+            (void)insert_foreign_element(token, Namespace::SVG, OnlyAddToElementStack::No);
+            return;
+        }
+
         // Parse error. Ignore the token.
         log_parse_error();
         return;
@@ -3422,6 +3435,12 @@ void HTMLParser::handle_in_row(HTMLToken& token)
     // -> An end tag whose tag name is "table"
     if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr))
         || (token.is_end_tag() && token.tag_name() == HTML::TagNames::table)) {
+        // Check if we're inside an SVG element
+        auto svg_element = m_stack_of_open_elements.last_element_with_tag_name(HTML::TagNames::svg).element;
+        if (svg_element) {
+            process_using_the_rules_for(InsertionMode::InTable, token);
+            return;
+        }
 
         // If the stack of open elements does not have a tr element in table scope, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::tr)) {
@@ -3773,6 +3792,12 @@ void HTMLParser::handle_in_table(HTMLToken& token)
 
     // -> A start tag whose tag name is one of: "tbody", "tfoot", "thead"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead)) {
+        // Check if we're inside an SVG element
+        auto svg_element = m_stack_of_open_elements.last_element_with_tag_name(HTML::TagNames::svg).element;
+        if (svg_element) {
+            return;
+        }
+
         // Clear the stack back to a table context.
         clear_the_stack_back_to_a_table_context();
 
@@ -3784,6 +3809,12 @@ void HTMLParser::handle_in_table(HTMLToken& token)
 
     // -> A start tag whose tag name is one of: "td", "th", "tr"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::tr)) {
+        // Check if we're inside an SVG element
+        auto svg_element = m_stack_of_open_elements.last_element_with_tag_name(HTML::TagNames::svg).element;
+        if (svg_element) {
+            return;
+        }
+
         // Clear the stack back to a table context.
         clear_the_stack_back_to_a_table_context();
 
