@@ -211,7 +211,7 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
 }
 
 // 3.1.4 ShadowRealmImportValue ( specifierString: a String, exportNameString: a String, callerRealm: a Realm Record, evalRealm: a Realm Record, evalContext: an execution context, ), https://tc39.es/proposal-shadowrealm/#sec-shadowrealmimportvalue
-ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, String specifier_string, String export_name_string, Realm& caller_realm, Realm& eval_realm)
+ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, Utf16FlyString specifier_string, Utf16FlyString export_name_string, Realm& caller_realm, Realm& eval_realm)
 {
     auto& realm = *vm.current_realm();
 
@@ -232,7 +232,7 @@ ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, String specifier_stri
     auto referrer = GC::Ref { *eval_context->realm };
 
     // 7. Perform HostLoadImportedModule(referrer, specifierString, empty, innerCapability).
-    vm.host_load_imported_module(referrer, ModuleRequest { specifier_string }, nullptr, inner_capability);
+    vm.host_load_imported_module(referrer, ModuleRequest { move(specifier_string) }, nullptr, inner_capability);
 
     // 7. Suspend evalContext and remove it from the execution context stack.
     // NOTE: We don't support this concept yet.
@@ -242,7 +242,7 @@ ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, String specifier_stri
     // NOTE: We don't support this concept yet.
 
     // 9. Let steps be the steps of an ExportGetter function as described below.
-    auto steps = [string = Utf16String::from_utf8(export_name_string)](auto& vm) -> ThrowCompletionOr<Value> {
+    auto steps = [string = move(export_name_string)](auto& vm) -> ThrowCompletionOr<Value> {
         // 1. Assert: exports is a module namespace exotic object.
         VERIFY(vm.argument(0).is_object());
         auto& exports = vm.argument(0).as_object();
