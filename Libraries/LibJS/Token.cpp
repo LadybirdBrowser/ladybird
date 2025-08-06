@@ -54,42 +54,36 @@ double Token::double_value() const
 {
     VERIFY(type() == TokenType::NumericLiteral);
 
-    Vector<char, 32> buffer;
+    auto value = this->value();
+    ByteString buffer;
 
-    for (auto ch : value()) {
-        if (ch == '_')
-            continue;
-        buffer.append(ch);
+    if (value.contains('_')) {
+        buffer = value.replace("_"sv, {}, ReplaceMode::All);
+        value = buffer;
     }
-    buffer.append('\0');
 
-    auto value_string = StringView { buffer.data(), buffer.size() - 1 };
-    if (value_string[0] == '0' && value_string.length() >= 2) {
-        if (value_string[1] == 'x' || value_string[1] == 'X') {
-            // hexadecimal
-            return static_cast<double>(strtoul(value_string.characters_without_null_termination() + 2, nullptr, 16));
-        } else if (value_string[1] == 'o' || value_string[1] == 'O') {
-            // octal
-            return static_cast<double>(strtoul(value_string.characters_without_null_termination() + 2, nullptr, 8));
-        } else if (value_string[1] == 'b' || value_string[1] == 'B') {
-            // binary
-            return static_cast<double>(strtoul(value_string.characters_without_null_termination() + 2, nullptr, 2));
-        } else if (is_ascii_digit(value_string[1])) {
-            // also octal, but syntax error in strict mode
-            if (!value().contains('8') && !value().contains('9'))
-                return static_cast<double>(strtoul(value_string.characters_without_null_termination() + 1, nullptr, 8));
-        }
+    if (value.length() >= 2 && value.starts_with('0')) {
+        auto next = value[1];
+
+        // hexadecimal
+        if (next == 'x' || next == 'X')
+            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 16).value());
+
+        // octal
+        if (next == 'o' || next == 'O')
+            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 8).value());
+
+        // binary
+        if (next == 'b' || next == 'B')
+            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 2).value());
+
+        // also octal, but syntax error in strict mode
+        if (is_ascii_digit(next) && (!value.contains('8') && !value.contains('9')))
+            return static_cast<double>(value.substring_view(1).to_number<u64>(TrimWhitespace::No, 8).value());
     }
+
     // This should always be a valid double
-    return value_string.to_number<double>().release_value();
-}
-
-static u32 hex2int(char x)
-{
-    VERIFY(is_ascii_hex_digit(x));
-    if (x >= '0' && x <= '9')
-        return x - '0';
-    return 10u + (to_ascii_lowercase(x) - 'a');
+    return value.to_number<double>(TrimWhitespace::No).value();
 }
 
 ByteString Token::string_value(StringValueStatus& status) const
@@ -165,8 +159,10 @@ ByteString Token::string_value(StringValueStatus& status) const
             lexer.ignore();
             if (!is_ascii_hex_digit(lexer.peek()) || !is_ascii_hex_digit(lexer.peek(1)))
                 return encoding_failure(StringValueStatus::MalformedHexEscape);
-            auto code_point = hex2int(lexer.consume()) * 16 + hex2int(lexer.consume());
+
+            auto code_point = lexer.consume(2).to_number<u32>(TrimWhitespace::No, 16).value();
             VERIFY(code_point <= 255);
+
             builder.append_code_point(code_point);
             continue;
         }
@@ -194,8 +190,10 @@ ByteString Token::string_value(StringValueStatus& status) const
 
         if (octal_str.has_value()) {
             status = StringValueStatus::LegacyOctalEscapeSequence;
-            auto code_point = strtoul(octal_str->characters(), nullptr, 8);
+
+            auto code_point = octal_str->to_number<u32>(TrimWhitespace::No, 8).value();
             VERIFY(code_point <= 255);
+
             builder.append_code_point(code_point);
             continue;
         }
