@@ -99,6 +99,11 @@ Utf16String Utf16View::to_ascii_titlecase() const
     return builder.to_utf16_string();
 }
 
+Utf16String Utf16View::replace(char16_t needle, Utf16View const& replacement, ReplaceMode replace_mode) const
+{
+    return replace({ &needle, 1 }, replacement, replace_mode);
+}
+
 Utf16String Utf16View::replace(Utf16View const& needle, Utf16View const& replacement, ReplaceMode replace_mode) const
 {
     if (is_empty())
