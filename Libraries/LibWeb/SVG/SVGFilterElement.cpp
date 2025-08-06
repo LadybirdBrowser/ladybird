@@ -11,6 +11,8 @@
 #include <LibWeb/SVG/SVGFEBlendElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
+#include <LibWeb/SVG/SVGFEMergeElement.h>
+#include <LibWeb/SVG/SVGFEMergeNodeElement.h>
 #include <LibWeb/SVG/SVGFEOffsetElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 
@@ -130,6 +132,15 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
 
             root_filter = Gfx::Filter::blur(radius_x, radius_y, input);
             update_result_map(*blur_primitive);
+        } else if (auto* merge_primitive = as_if<SVGFEMergeElement>(node)) {
+            Vector<Optional<Gfx::Filter>> merge_inputs;
+            merge_primitive->template for_each_child_of_type<SVGFEMergeNodeElement>([&](auto& merge_node) {
+                merge_inputs.append(resolve_input_filter(merge_node.in1()->base_val()));
+                return IterationDecision::Continue;
+            });
+
+            root_filter = Gfx::Filter::merge(merge_inputs);
+            update_result_map(*merge_primitive);
         } else if (auto* offset_primitive = as_if<SVGFEOffsetElement>(node)) {
             auto input = resolve_input_filter(offset_primitive->in1()->base_val());
 

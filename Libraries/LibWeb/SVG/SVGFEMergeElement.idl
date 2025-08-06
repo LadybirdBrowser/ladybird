@@ -1,0 +1,9 @@
+#import <SVG/SVGElement.idl>
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEMergeElement
+[Exposed=Window]
+interface SVGFEMergeElement : SVGElement {
+};
+
+SVGFEMergeElement includes SVGFilterPrimitiveStandardAttributes;
