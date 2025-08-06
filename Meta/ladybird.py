@@ -240,9 +240,9 @@ def configure_skia_jemalloc() -> list[str]:
     with open(user_vars_cmake_module, "w") as f:
         f.writelines(
             [
-                f"set(PKGCONFIG {pkg_config})",
-                f"set(GN {gn})",
-                "",
+                f"set(PKGCONFIG {pkg_config})\n",
+                f"set(GN {gn})\n",
+                "\n",
             ]
         )
 
