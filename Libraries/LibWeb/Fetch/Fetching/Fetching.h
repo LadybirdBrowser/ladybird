@@ -40,6 +40,7 @@ ENUMERATE_BOOL_PARAMS
 
 WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm&, Infrastructure::Request&, Infrastructure::FetchAlgorithms const&, UseParallelQueue use_parallel_queue = UseParallelQueue::No);
 WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm&, Infrastructure::FetchParams const&, Recursive recursive = Recursive::No);
+void populate_request_from_client(JS::Realm const&, Infrastructure::Request&);
 void fetch_response_handover(JS::Realm&, Infrastructure::FetchParams const&, Infrastructure::Response&);
 WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm&, Infrastructure::FetchParams const&);
 WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm&, Infrastructure::FetchParams const&, MakeCORSPreflight make_cors_preflight = MakeCORSPreflight::No);

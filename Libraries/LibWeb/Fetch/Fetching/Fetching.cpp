@@ -4,6 +4,7 @@
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025, Kenneth Myhra <kennethmyhra@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -268,6 +269,54 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
 
     // 18. Return fetchParams’s controller.
     return fetch_params->controller();
+}
+
+// https://fetch.spec.whatwg.org/#populate-request-from-client
+void populate_request_from_client(JS::Realm const& realm, Infrastructure::Request& request)
+{
+    auto& heap = realm.heap();
+
+    // 1. If request’s traversable for user prompts is "client":
+    auto const* traversable_for_user_prompts = request.traversable_for_user_prompts().get_pointer<Infrastructure::Request::TraversableForUserPrompts>();
+    if (traversable_for_user_prompts && *traversable_for_user_prompts == Infrastructure::Request::TraversableForUserPrompts::Client) {
+        // 1. Set request’s traversable for user prompts to "no-traversable".
+        request.set_traversable_for_user_prompts(Infrastructure::Request::TraversableForUserPrompts::NoTraversable);
+
+        // 2. If request’s client is non-null:
+        if (request.client()) {
+            // 1. Let global be request’s client’s global object.
+            auto& global = request.client()->global_object();
+
+            // 2. If global is a Window object and global’s navigable is not null, then set request’s traversable for
+            //    user prompts to global’s navigable’s traversable navigable.
+            if (auto const* window = as_if<HTML::Window>(global)) {
+                if (window->navigable())
+                    request.set_traversable_for_user_prompts(window->navigable()->traversable_navigable());
+            }
+        }
+    }
+
+    // 2. If request’s origin is "client":
+    auto const* origin = request.origin().get_pointer<Infrastructure::Request::Origin>();
+    if (origin && *origin == Infrastructure::Request::Origin::Client) {
+        // 1. Assert: request’s client is non-null.
+        VERIFY(request.client());
+
+        // 2. Set request’s origin to request’s client’s origin.
+        request.set_origin(request.client()->origin());
+    }
+
+    // 3. If request’s policy container is "client":
+    auto const* policy_container = request.policy_container().get_pointer<Infrastructure::Request::PolicyContainer>();
+    if (policy_container && *policy_container == Infrastructure::Request::PolicyContainer::Client) {
+        // 1. If request’s client is non-null, then set request’s policy container to a clone of request’s client’s
+        //    policy container.
+        if (request.client())
+            request.set_policy_container(request.client()->policy_container()->clone(heap));
+        // 2. Otherwise, set request’s policy container to a new policy container.
+        else
+            request.set_policy_container(heap.allocate<HTML::PolicyContainer>(heap));
+    }
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
