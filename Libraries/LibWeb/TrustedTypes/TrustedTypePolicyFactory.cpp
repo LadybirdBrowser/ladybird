@@ -31,11 +31,6 @@ namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedTypePolicyFactory);
 
-GC::Ref<TrustedTypePolicyFactory> TrustedTypePolicyFactory::create(JS::Realm& realm)
-{
-    return realm.create<TrustedTypePolicyFactory>(realm);
-}
-
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-getattributetype
 Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String const& tag_name, Utf16String& attribute, Optional<Utf16String> element_ns, Optional<Utf16String> attr_ns)
 {
@@ -140,6 +135,8 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16String co
 
 TrustedTypePolicyFactory::TrustedTypePolicyFactory(JS::Realm& realm)
     : PlatformObject(realm)
+    , m_empty_html(realm.create<TrustedHTML>(realm, ""_utf16))
+    , m_empty_script(realm.create<TrustedScript>(realm, ""_utf16))
 {
 }
 
@@ -153,6 +150,8 @@ void TrustedTypePolicyFactory::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_default_policy);
+    visitor.visit(m_empty_html);
+    visitor.visit(m_empty_script);
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy
