@@ -7,6 +7,7 @@
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
@@ -73,4 +74,38 @@ ContentSecurityPolicy::Directives::Directive::Result RequireTrustedTypesForDirec
     return Result::Allowed;
 }
 
+// https://w3c.github.io/trusted-types/dist/spec/#does-sink-require-trusted-types
+bool does_sink_require_trusted_types(JS::Object& global, String sink_group, IncludeReportOnlyPolicies include_report_only_policies)
+{
+    // 1. For each policy in global’s CSP list:
+    for (auto const policy : ContentSecurityPolicy::PolicyList::from_object(global)->policies()) {
+        // 1. If policy’s directive set does not contain a directive whose name is "require-trusted-types-for", skip to the next policy.
+        if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor))
+            continue;
+
+        // 2. Let directive be the policy’s directive set’s directive whose name is "require-trusted-types-for"
+        auto const directive = policy->get_directive_by_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor);
+
+        // 3. If directive’s value does not contain a trusted-types-sink-group which is a match for sinkGroup, skip to the next policy.
+        auto const maybe_sink_group = directive->value().find_if([&sink_group](auto const& directive_value) {
+            return directive_value.equals_ignoring_ascii_case(sink_group);
+        });
+        if (maybe_sink_group.is_end())
+            continue;
+
+        // 4. Let enforced be true if policy’s disposition is "enforce", and false otherwise.
+        auto const enforced = policy->disposition() == ContentSecurityPolicy::Policy::Disposition::Enforce;
+
+        // 5. If enforced is true, return true.
+        if (enforced)
+            return true;
+
+        // 6. If includeReportOnlyPolicies is true, return true.
+        if (include_report_only_policies == IncludeReportOnlyPolicies::Yes)
+            return true;
+    }
+
+    // 2. Return false.
+    return false;
+}
 }
