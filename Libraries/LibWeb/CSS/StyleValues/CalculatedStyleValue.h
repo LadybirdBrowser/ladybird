@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>

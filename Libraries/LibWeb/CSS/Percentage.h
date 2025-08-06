@@ -8,12 +8,6 @@
 
 #include <AK/String.h>
 #include <AK/Variant.h>
-#include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/Frequency.h>
-#include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/Number.h>
-#include <LibWeb/CSS/Time.h>
-
 namespace Web::CSS {
 
 class Percentage {
