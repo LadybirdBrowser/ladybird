@@ -1340,7 +1340,7 @@ private:
 
 class RegExpLiteral final : public Expression {
 public:
-    RegExpLiteral(SourceRange source_range, regex::Parser::Result parsed_regex, String parsed_pattern, regex::RegexOptions<ECMAScriptFlags> parsed_flags, String pattern, String flags)
+    RegExpLiteral(SourceRange source_range, regex::Parser::Result parsed_regex, String parsed_pattern, regex::RegexOptions<ECMAScriptFlags> parsed_flags, Utf16String pattern, Utf16String flags)
         : Expression(move(source_range))
         , m_parsed_regex(move(parsed_regex))
         , m_parsed_pattern(move(parsed_pattern))
@@ -1356,15 +1356,15 @@ public:
     regex::Parser::Result const& parsed_regex() const { return m_parsed_regex; }
     String const& parsed_pattern() const { return m_parsed_pattern; }
     regex::RegexOptions<ECMAScriptFlags> const& parsed_flags() const { return m_parsed_flags; }
-    String const& pattern() const { return m_pattern; }
-    String const& flags() const { return m_flags; }
+    Utf16String const& pattern() const { return m_pattern; }
+    Utf16String const& flags() const { return m_flags; }
 
 private:
     regex::Parser::Result m_parsed_regex;
     String m_parsed_pattern;
     regex::RegexOptions<ECMAScriptFlags> m_parsed_flags;
-    String m_pattern;
-    String m_flags;
+    Utf16String m_pattern;
+    Utf16String m_flags;
 };
 
 class PrivateIdentifier final : public Expression {
