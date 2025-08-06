@@ -47,3 +47,11 @@ private:
 };
 
 }
+
+template<>
+struct AK::Formatter<Web::CSS::Percentage> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Percentage const& percentage)
+    {
+        return Formatter<StringView>::format(builder, percentage.to_string());
+    }
+};
