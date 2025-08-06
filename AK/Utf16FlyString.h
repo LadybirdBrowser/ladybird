@@ -165,6 +165,22 @@ struct Formatter<Utf16FlyString> : Formatter<Utf16String> {
     }
 };
 
+namespace Detail {
+
+template<>
+inline constexpr bool IsHashCompatible<Utf16View, Utf16FlyString> = true;
+
+template<>
+inline constexpr bool IsHashCompatible<Utf16FlyString, Utf16View> = true;
+
+template<>
+inline constexpr bool IsHashCompatible<Utf16String, Utf16FlyString> = true;
+
+template<>
+inline constexpr bool IsHashCompatible<Utf16FlyString, Utf16String> = true;
+
+}
+
 }
 
 [[nodiscard]] ALWAYS_INLINE AK::Utf16FlyString operator""_utf16_fly_string(char const* string, size_t length)

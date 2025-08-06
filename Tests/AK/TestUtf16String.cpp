@@ -14,6 +14,9 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf32View.h>
 
+static_assert(AK::Concepts::HashCompatible<Utf16String, Utf16View>);
+static_assert(AK::Concepts::HashCompatible<Utf16View, Utf16String>);
+
 static Utf16String make_copy(Utf16String const& string)
 {
     return string.has_ascii_storage()
