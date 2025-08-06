@@ -455,7 +455,7 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
             auto content = fuzzy_configuration.get_string("content"sv).release_value();
             auto fuzzy_match_or_error = parse_fuzzy_match(reference_url, content);
             if (fuzzy_match_or_error.is_error()) {
-                warnln("Failed to parse fuzzy configuration '{}' (reference: {})", content, reference_url);
+                warnln("Failed to parse fuzzy configuration '{}' (reference: {}): {}", content, reference_url, fuzzy_match_or_error.error());
                 continue;
             }
 
