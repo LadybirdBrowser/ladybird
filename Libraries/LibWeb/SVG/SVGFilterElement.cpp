@@ -79,6 +79,12 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
     HashMap<String, Gfx::Filter> result_map;
     Optional<Gfx::Filter> root_filter;
 
+    auto update_result_map = [&](auto& filter_primitive) {
+        auto result = filter_primitive.result()->base_val();
+        if (!result.is_empty())
+            result_map.set(result, *root_filter);
+    };
+
     // https://www.w3.org/TR/filter-effects-1/#element-attrdef-filter-primitive-in
     auto resolve_input_filter = [&](String const& name) -> Optional<Gfx::Filter> {
         // TODO: Add missing ones.
@@ -94,10 +100,9 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
             return Gfx::Filter::color_matrix(matrix);
         }
 
-        auto filter_from_map = result_map.get(name).copy();
-
+        auto filter_from_map = result_map.get(name);
         if (filter_from_map.has_value())
-            return filter_from_map;
+            return filter_from_map.value();
 
         return root_filter;
     };
@@ -106,45 +111,26 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
         if (is<DOM::Text>(node))
             return IterationDecision::Continue;
 
-        if (is<SVGFEFloodElement>(node)) {
-            auto& flood_primitive = static_cast<SVGFEFloodElement&>(node);
-
-            root_filter = Gfx::Filter::flood(flood_primitive.flood_color(), flood_primitive.flood_opacity());
-
-            auto result = flood_primitive.result()->base_val();
-            if (!result.is_empty()) {
-                result_map.set(result, *root_filter);
-            }
-        } else if (is<SVGFEBlendElement>(node)) {
-            auto& blend_primitive = static_cast<SVGFEBlendElement&>(node);
-
-            auto foreground = resolve_input_filter(blend_primitive.in1()->base_val());
-
-            auto background = resolve_input_filter(blend_primitive.in2()->base_val());
+        if (auto* flood_primitive = as_if<SVGFEFloodElement>(node)) {
+            root_filter = Gfx::Filter::flood(flood_primitive->flood_color(), flood_primitive->flood_opacity());
+            update_result_map(*flood_primitive);
+        } else if (auto* blend_primitive = as_if<SVGFEBlendElement>(node)) {
+            auto foreground = resolve_input_filter(blend_primitive->in1()->base_val());
+            auto background = resolve_input_filter(blend_primitive->in2()->base_val());
 
             // FIXME: Actually resolve the blend mode
             auto blend_mode = Gfx::CompositingAndBlendingOperator::Normal;
 
             root_filter = Gfx::Filter::blend(background, foreground, blend_mode);
+            update_result_map(*blend_primitive);
+        } else if (auto* blur_primitive = as_if<SVGFEGaussianBlurElement>(node)) {
+            auto input = resolve_input_filter(blur_primitive->in1()->base_val());
 
-            auto result = blend_primitive.result()->base_val();
-            if (!result.is_empty()) {
-                result_map.set(result, *root_filter);
-            }
-        } else if (is<SVGFEGaussianBlurElement>(node)) {
-            auto& blur_primitive = static_cast<SVGFEGaussianBlurElement&>(node);
-
-            auto input = resolve_input_filter(blur_primitive.in1()->base_val());
-
-            auto radius_x = blur_primitive.std_deviation_x()->base_val();
-            auto radius_y = blur_primitive.std_deviation_y()->base_val();
+            auto radius_x = blur_primitive->std_deviation_x()->base_val();
+            auto radius_y = blur_primitive->std_deviation_y()->base_val();
 
             root_filter = Gfx::Filter::blur(radius_x, radius_y, input);
-
-            auto result = blur_primitive.result()->base_val();
-            if (!result.is_empty()) {
-                result_map.set(result, *root_filter);
-            }
+            update_result_map(*blur_primitive);
         } else {
             dbgln("SVGFilterElement::gfx_filter(): Unknown or unsupported filter element '{}'", node.debug_description());
         }
