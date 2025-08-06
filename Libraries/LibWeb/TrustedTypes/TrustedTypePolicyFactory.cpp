@@ -31,11 +31,6 @@ namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedTypePolicyFactory);
 
-GC::Ref<TrustedTypePolicyFactory> TrustedTypePolicyFactory::create(JS::Realm& realm)
-{
-    return realm.create<TrustedTypePolicyFactory>(realm);
-}
-
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-getattributetype
 Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String const& tag_name, Utf16String& attribute, Optional<Utf16String> element_ns, Optional<Utf16String> attr_ns)
 {
@@ -153,6 +148,8 @@ void TrustedTypePolicyFactory::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_default_policy);
+    visitor.visit(m_empty_html);
+    visitor.visit(m_empty_script);
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy
@@ -185,6 +182,26 @@ bool TrustedTypePolicyFactory::is_script_url(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedScriptURL and has an associated data value set, false otherwise.
     return value.is_object() && is<TrustedScriptURL>(value.as_object());
+}
+
+GC::Ref<TrustedHTML const> TrustedTypePolicyFactory::empty_html()
+{
+    auto& realm = this->realm();
+
+    if (!m_empty_html)
+        m_empty_html = realm.create<TrustedHTML>(realm, ""_utf16);
+
+    return GC::Ref { *m_empty_html };
+}
+
+GC::Ref<TrustedScript const> TrustedTypePolicyFactory::empty_script()
+{
+    auto& realm = this->realm();
+
+    if (!m_empty_script)
+        m_empty_script = realm.create<TrustedScript>(realm, ""_utf16);
+
+    return GC::Ref { *m_empty_script };
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
