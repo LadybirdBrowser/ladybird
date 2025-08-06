@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>CSS Filters: feImage and CSS reference filters.</title>
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-1/#feImageElement">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-1/#FilterProperty">
+<link rel="match" href="../../../../expected/wpt-import/css/filter-effects/reference/effect-reference-feimage-001-ref.html">
+<meta name="assert" content="This test ensures that CSS reference filters supports feImage."/>
+<style>
+  #filtered {
+    width: 160px;
+    height: 90px;
+    filter: url(#imagereplace);
+  }
+</style>
+<div id="filtered"></div>
+<svg width="0" height="0">
+  <filter id="imagereplace" x="0%" y="0%" width="100%" height="100%">
+     <feimage xlink:href="support/color-palette.png"/>
+  </filter>
+</svg>

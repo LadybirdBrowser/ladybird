@@ -874,6 +874,7 @@ set(SOURCES
     SVG/SVGFEBlendElement.cpp
     SVG/SVGFEFloodElement.cpp
     SVG/SVGFEGaussianBlurElement.cpp
+    SVG/SVGFEImageElement.cpp
     SVG/SVGFEMergeElement.cpp
     SVG/SVGFEMergeNodeElement.cpp
     SVG/SVGFEOffsetElement.cpp

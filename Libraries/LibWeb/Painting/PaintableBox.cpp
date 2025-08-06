@@ -1695,7 +1695,8 @@ Optional<Gfx::Filter> PaintableBox::resolve_filter(CSS::Filter const& computed_f
                     return;
 
                 if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
-                    auto new_filter = filter_element->gfx_filter();
+                    auto& layout_node = layout_node_with_style_and_box_metrics();
+                    auto new_filter = filter_element->gfx_filter(layout_node);
 
                     if (!new_filter.has_value())
                         return;
