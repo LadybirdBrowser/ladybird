@@ -18,6 +18,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(desc)           \
     __ENUMERATE_SVG_TAG(ellipse)        \
     __ENUMERATE_SVG_TAG(feBlend)        \
+    __ENUMERATE_SVG_TAG(feComposite)    \
     __ENUMERATE_SVG_TAG(feFlood)        \
     __ENUMERATE_SVG_TAG(feGaussianBlur) \
     __ENUMERATE_SVG_TAG(feImage)        \
