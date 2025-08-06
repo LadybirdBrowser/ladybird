@@ -684,6 +684,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(ThrowIfNotObject);
             HANDLE_INSTRUCTION(ThrowIfNullish);
             HANDLE_INSTRUCTION(ThrowIfTDZ);
+            HANDLE_INSTRUCTION(ThrowInvalidAssignToConst);
             HANDLE_INSTRUCTION(Typeof);
             HANDLE_INSTRUCTION(TypeofBinding);
             HANDLE_INSTRUCTION(UnaryMinus);
@@ -3049,6 +3050,11 @@ ThrowCompletionOr<void> ThrowIfTDZ::execute_impl(Bytecode::Interpreter& interpre
     return {};
 }
 
+ThrowCompletionOr<void> ThrowInvalidAssignToConst::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    return interpreter.vm().throw_completion<TypeError>(ErrorType::InvalidAssignToConst);
+}
+
 void LeaveLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& running_execution_context = interpreter.running_execution_context();
@@ -3839,6 +3845,11 @@ ByteString ThrowIfTDZ::to_byte_string_impl(Bytecode::Executable const& executabl
 {
     return ByteString::formatted("ThrowIfTDZ {}",
         format_operand("src"sv, m_src, executable));
+}
+
+ByteString ThrowInvalidAssignToConst::to_byte_string_impl(Bytecode::Executable const&) const
+{
+    return ByteString::formatted("ThrowInvalidAssignToConst");
 }
 
 ByteString EnterUnwindContext::to_byte_string_impl(Bytecode::Executable const&) const

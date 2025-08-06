@@ -144,6 +144,7 @@
     O(ThrowIfNotObject)                \
     O(ThrowIfNullish)                  \
     O(ThrowIfTDZ)                      \
+    O(ThrowInvalidAssignToConst)       \
     O(Typeof)                          \
     O(TypeofBinding)                   \
     O(UnaryMinus)                      \

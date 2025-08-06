@@ -882,6 +882,10 @@ void Generator::emit_set_variable(JS::Identifier const& identifier, ScopedOperan
 {
     if (identifier.is_local()) {
         auto local_index = identifier.local_index();
+        if (initialization_mode == Bytecode::Op::BindingInitializationMode::Set && identifier.declaration_kind() == DeclarationKind::Const) {
+            emit<Bytecode::Op::ThrowInvalidAssignToConst>();
+            return;
+        }
         if (value.operand().is_local() && local_index.is_variable() && value.operand().index() == local_index.index) {
             // Moving a local to itself is a no-op.
             return;

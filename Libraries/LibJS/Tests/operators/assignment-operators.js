@@ -133,3 +133,33 @@ test("evaluation order", () => {
         expect(c.hasBeenCalled).toBeFalse();
     }
 });
+
+test("assignment to local const variable should throw", () => {
+    expect(() => {
+        const i = 1;
+        i++;
+    }).toThrow(Error);
+
+    expect(() => {
+        const i = 1;
+        i += 1;
+    }).toThrow(Error);
+
+    expect(() => {
+        const i = 1;
+        i = 2;
+    }).toThrow(Error);
+
+    let hello;
+    expect(() => {
+        const i = {
+            valueOf() {
+                hello = "hello!";
+                return 1;
+            },
+        };
+        i++;
+    }).toThrow(Error);
+
+    expect(hello).toBe("hello!");
+});

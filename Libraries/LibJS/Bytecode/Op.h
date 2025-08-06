@@ -2373,6 +2373,17 @@ private:
     Operand m_src;
 };
 
+class ThrowInvalidAssignToConst final : public Instruction {
+public:
+    explicit ThrowInvalidAssignToConst()
+        : Instruction(Type::ThrowInvalidAssignToConst)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+};
+
 class EnterUnwindContext final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
