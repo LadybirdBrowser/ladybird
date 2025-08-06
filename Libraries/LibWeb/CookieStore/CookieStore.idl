@@ -32,6 +32,13 @@ dictionary CookieInit {
     boolean partitioned = false;
 };
 
+dictionary CookieStoreDeleteOptions {
+    required USVString name;
+    USVString? domain = null;
+    USVString path = "/";
+    boolean partitioned = false;
+};
+
 // https://cookiestore.spec.whatwg.org/#cookiestore
 [Exposed=(ServiceWorker,Window), SecureContext]
 interface CookieStore : EventTarget {
@@ -45,6 +52,7 @@ interface CookieStore : EventTarget {
     Promise<undefined> set(CookieInit options);
 
     Promise<undefined> delete(USVString name);
+    Promise<undefined> delete(CookieStoreDeleteOptions options);
 };
 
 // https://cookiestore.spec.whatwg.org/#Window
