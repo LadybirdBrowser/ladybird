@@ -65,6 +65,9 @@ public:
     TrustedTypes::TrustedScriptURLOrString src() const { return Utf16String::from_utf8(get_attribute_value(AttributeNames::src)); }
     WebIDL::ExceptionOr<void> set_src(TrustedTypes::TrustedScriptURLOrString);
 
+    Variant<GC::Root<TrustedTypes::TrustedScript>, Utf16String, Empty> text_content() const;
+    WebIDL::ExceptionOr<void> set_text_content(TrustedTypes::TrustedScriptOrString);
+
     [[nodiscard]] bool async() const;
     void set_async(bool);
 
