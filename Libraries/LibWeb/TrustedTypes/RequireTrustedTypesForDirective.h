@@ -6,9 +6,15 @@
 
 #pragma once
 
+#include <LibJS/Runtime/Object.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 
 namespace Web::TrustedTypes {
+
+enum class IncludeReportOnlyPolicies {
+    Yes,
+    No
+};
 
 // https://www.w3.org/TR/trusted-types/#require-trusted-types-for-csp-directive
 class RequireTrustedTypesForDirective final : public ContentSecurityPolicy::Directives::Directive {
@@ -23,5 +29,7 @@ public:
 private:
     RequireTrustedTypesForDirective(String name, Vector<String> value);
 };
+
+bool does_sink_require_trusted_types(JS::Object&, String, IncludeReportOnlyPolicies);
 
 }
