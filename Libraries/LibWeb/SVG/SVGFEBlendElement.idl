@@ -27,7 +27,7 @@ interface SVGFEBlendElement : SVGElement {
 
     readonly attribute SVGAnimatedString in1;
     readonly attribute SVGAnimatedString in2;
-    readonly attribute SVGAnimatedEnumeration mode;
+    [ImplementedAs=mode_for_bindings] readonly attribute SVGAnimatedEnumeration mode;
 };
 
 SVGFEBlendElement includes SVGFilterPrimitiveStandardAttributes;

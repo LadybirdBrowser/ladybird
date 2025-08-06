@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/blend-filter-ref.html" />
+<meta name="fuzzy" content="0-1;0-35">
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <filter id="blendFilter">
+            <feFlood flood-color="green" />
+            <feBlend in2="SourceGraphic" mode="darken" result="blended" />
+        </filter>
+    </defs>
+    <rect x="0" y="0" width="100" height="100" fill="blue" />
+    <circle cx="50" cy="50" r="50" fill="red" filter="url(#blendFilter)" />
+</svg>

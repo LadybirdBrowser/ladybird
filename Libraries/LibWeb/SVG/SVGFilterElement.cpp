@@ -118,8 +118,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
             auto foreground = resolve_input_filter(blend_primitive->in1()->base_val());
             auto background = resolve_input_filter(blend_primitive->in2()->base_val());
 
-            // FIXME: Actually resolve the blend mode
-            auto blend_mode = Gfx::CompositingAndBlendingOperator::Normal;
+            auto blend_mode = blend_primitive.mode();
 
             root_filter = Gfx::Filter::blend(background, foreground, blend_mode);
             update_result_map(*blend_primitive);
