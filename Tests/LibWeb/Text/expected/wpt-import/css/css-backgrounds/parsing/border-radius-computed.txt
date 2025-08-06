@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 14 tests
 
-13 Pass
-1 Fail
+14 Pass
 Pass	Property border-radius value '1px'
 Pass	Property border-radius value '1px 2% 3px 4%'
 Pass	Property border-radius value '5em / 1px 2% 3px 4%'
@@ -13,7 +12,7 @@ Pass	Property border-radius value '1px 1px 1px 1px / 1px 1px 2% 1px'
 Pass	Property border-radius value '1px 1px 2% 2%'
 Pass	Property border-radius value '1px 2% 1px 1px'
 Pass	Property border-radius value '1px 2% 2% 2% / 1px 2% 3px 2%'
-Fail	Property border-top-left-radius value 'calc(-0.5em + 10px)'
+Pass	Property border-top-left-radius value 'calc(-0.5em + 10px)'
 Pass	Property border-top-right-radius value '20%'
 Pass	Property border-bottom-right-radius value 'calc(0.5em + 10px) 40%'
 Pass	Property border-bottom-left-radius value '50% 60px'

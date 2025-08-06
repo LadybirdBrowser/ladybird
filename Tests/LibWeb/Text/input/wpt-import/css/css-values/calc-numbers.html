@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Values and Units Test: computed value of 'tab-size' and 'opacity' when specified with calc() function</title>
+
+  <!--
+
+  Original test is:
+
+https://chromium.googlesource.com/chromium/src/+/c825d655f6aaf73484f9d56e9012793f5b9668cc/third_party/WebKit/LayoutTests/css3/calc/calc-numbers.html
+
+  -->
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-color-3/#transparency">
+  <link rel="help" href="https://www.w3.org/TR/css-text-3/#tab-size-property">
+  <link rel="help" href="https://www.w3.org/TR/css3-values/#calc-computed-value">
+  <link rel="help" href="https://www.w3.org/TR/css3-values/#calc-range">
+
+  <meta name="flags" content="invalid">
+  <meta content="This test verifies how 11 calc() functions are computed for 'opacity' and 'tab-size'." name="assert">
+
+  <script src="../../resources/testharness.js"></script>
+
+  <script src="../../resources/testharnessreport.js"></script>
+
+  <div id="target"></div>
+
+  <script>
+  function startTesting()
+  {
+
+    function verifyComputedStyle(property_name, initial_value, specified_value, expected_value, description)
+    {
+
+    var elemTarget = document.getElementById("target");
+
+    test(function()
+      {
+
+      elemTarget.style.setProperty(property_name, initial_value);
+
+      /*
+      In exactly 6 out of the 11 sub-tests, the initial_value will
+      act as a fallback value because the specified value generates
+      an invalid value. Since we are running 11 consecutive tests
+      on the same element, then it is necessary to 'reset' its
+      property to an initial value.
+      */
+
+      elemTarget.style.setProperty(property_name, specified_value);
+
+      assert_equals(getComputedStyle(elemTarget)[property_name], expected_value, specified_value + ' should compute to ' + expected_value);
+
+      }, description);
+    }
+
+ /* verifyComputedStyle(property_name, initial_value, specified_value, expected_value, description) */
+
+    verifyComputedStyle("tab-size", "initial", "calc(2 * 3)", "6", "testing tab-size: calc(2 * 3)");
+
+    verifyComputedStyle("tab-size", "12345", "calc(2 * -4)", "0", "testing tab-size: calc(2 * -4)");
+    /*
+    an out-of-range value inside a calc() does not cause
+    the declaration to become invalid. The value resulting
+    from an expression must be clamped to the range
+    allowed in the target context.
+    https://www.w3.org/TR/css-values-3/#calc-range
+    */
+
+    verifyComputedStyle("opacity", "initial", "calc(2 / 4)", "0.5", "testing opacity: calc(2 / 4)");
+
+    verifyComputedStyle("tab-size", "12345", "calc(2 / 4)", "0.5", "testing tab-size: calc(2 / 4)");
+    /*
+    'tab-size' accepts <number> values.
+    */
+
+    verifyComputedStyle("opacity", "0.9", "calc(2 / 4) * 1px", "0.9", "testing opacity: calc(2 / 4) * 1px");
+
+    verifyComputedStyle("opacity", "0.9", "calc(90%)", "0.9", "testing opacity: calc(90%)");
+
+    verifyComputedStyle("tab-size", "12345", "calc(1 + 1px)", "12345", "testing tab-size: calc(1 + 1px)");
+
+    verifyComputedStyle("tab-size", "12345", "calc(1 + 100%)", "12345", "testing tab-size: calc(1 + 100%)");
+
+    verifyComputedStyle("tab-size", "12345", "calc(100%)", "12345", "testing tab-size: calc(100%)");
+
+    verifyComputedStyle("tab-size", "12345", "calc(10px) bla", "12345", "testing tab-size: calc(10px) bla");
+
+    verifyComputedStyle("tab-size", "12345", "calc(bla) 10px", "12345", "testing tab-size: calc(bla) 10px");
+
+    verifyComputedStyle("tab-size", "initial", "calc(10px)", "10px", "testing tab-size: calc(10px)");
+
+ /* verifyComputedStyle(property_name, initial_value, specified_value, expected_value, description) */
+  }
+
+  startTesting();
+
+  </script>
