@@ -1,0 +1,8 @@
+#import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGElement.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEMergeNodeElement
+[Exposed=Window]
+interface SVGFEMergeNodeElement : SVGElement {
+    readonly attribute SVGAnimatedString in1;
+};
