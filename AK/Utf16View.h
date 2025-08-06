@@ -434,6 +434,7 @@ public:
         return { m_string.utf16 + code_unit_offset, length_in_code_units() - code_unit_offset };
     }
 
+    Utf16String replace(char16_t needle, Utf16View const& replacement, ReplaceMode) const;
     Utf16String replace(Utf16View const& needle, Utf16View const& replacement, ReplaceMode) const;
     Utf16String escape_html_entities() const;
 

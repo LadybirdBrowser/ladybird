@@ -190,6 +190,15 @@ public:
         return utf16_view().to_ascii_titlecase();
     }
 
+    ALWAYS_INLINE Utf16String replace(char16_t needle, Utf16View const& replacement, ReplaceMode replace_mode) const
+    {
+        auto view = utf16_view();
+        if (view.is_empty() || !view.contains(needle))
+            return *this;
+
+        return view.replace(needle, replacement, replace_mode);
+    }
+
     ALWAYS_INLINE Utf16String replace(Utf16View const& needle, Utf16View const& replacement, ReplaceMode replace_mode) const
     {
         auto view = utf16_view();
