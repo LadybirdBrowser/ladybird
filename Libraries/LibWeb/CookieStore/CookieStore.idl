@@ -43,6 +43,8 @@ interface CookieStore : EventTarget {
 
     Promise<undefined> set(USVString name, USVString value);
     Promise<undefined> set(CookieInit options);
+
+    Promise<undefined> delete(USVString name);
 };
 
 // https://cookiestore.spec.whatwg.org/#Window
