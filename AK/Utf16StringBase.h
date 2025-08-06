@@ -254,7 +254,10 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE size_t count(Utf16View const& needle) const { return utf16_view().count(needle); }
 
+    [[nodiscard]] ALWAYS_INLINE bool starts_with(char16_t needle) const { return utf16_view().starts_with(needle); }
     [[nodiscard]] ALWAYS_INLINE bool starts_with(Utf16View const& needle) const { return utf16_view().starts_with(needle); }
+
+    [[nodiscard]] ALWAYS_INLINE bool ends_with(char16_t needle) const { return utf16_view().ends_with(needle); }
     [[nodiscard]] ALWAYS_INLINE bool ends_with(Utf16View const& needle) const { return utf16_view().ends_with(needle); }
 
     [[nodiscard]] ALWAYS_INLINE Vector<Utf16View> split_view(char16_t needle, SplitBehavior split_behavior) const { return utf16_view().split_view(needle, split_behavior); }

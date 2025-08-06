@@ -55,7 +55,7 @@ bool is_valid_week_string(Utf16View const& value)
         if (!is_ascii_digit(digit))
             return false;
 
-    if (!parts[1].starts_with("W"sv))
+    if (!parts[1].starts_with('W'))
         return false;
     if (!is_ascii_digit(parts[1].code_unit_at(1)))
         return false;

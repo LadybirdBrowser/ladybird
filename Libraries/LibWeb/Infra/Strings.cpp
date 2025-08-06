@@ -96,7 +96,7 @@ Utf16String strip_and_collapse_whitespace(Utf16String const& string)
 
     for (auto code_point : string) {
         if (Infra::is_ascii_whitespace(code_point)) {
-            if (!builder.utf16_string_view().ends_with(" "sv))
+            if (!builder.utf16_string_view().ends_with(' '))
                 builder.append(' ');
             continue;
         }

@@ -579,6 +579,13 @@ public:
         return count;
     }
 
+    [[nodiscard]] constexpr bool starts_with(char16_t needle) const
+    {
+        if (is_empty())
+            return false;
+        return code_unit_at(0) == needle;
+    }
+
     [[nodiscard]] constexpr bool starts_with(Utf16View const& needle) const
     {
         auto needle_length = needle.length_in_code_units();
@@ -588,6 +595,13 @@ public:
             return false;
 
         return substring_view(0, needle_length) == needle;
+    }
+
+    [[nodiscard]] constexpr bool ends_with(char16_t needle) const
+    {
+        if (is_empty())
+            return false;
+        return code_unit_at(length_in_code_units() - 1) == needle;
     }
 
     [[nodiscard]] constexpr bool ends_with(Utf16View const& needle) const

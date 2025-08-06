@@ -1615,7 +1615,7 @@ static bool is_valid_simple_color(Utf16View const& value)
     if (value.length_in_code_units() != 7)
         return false;
     // and the first character is a U+0023 NUMBER SIGN character (#),
-    if (!value.starts_with("#"sv))
+    if (!value.starts_with('#'))
         return false;
     // and the remaining six characters are all ASCII hex digits
     for (size_t i = 1; i < value.length_in_code_units(); i++)
