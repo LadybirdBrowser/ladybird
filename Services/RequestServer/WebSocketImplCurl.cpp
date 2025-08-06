@@ -180,17 +180,17 @@ void WebSocketImplCurl::read_from_socket()
             return;
         }
 
-        // "Reading exactly 0 bytes indicates a closed connection."
-        if (nread == 0) {
-            dbgln("Failed to read from WebSocket: Server closed connection");
+        // "Reading exactly 0 bytes indicates a closed connection." which
+        // may be part of the closing handshake
+
+        received_data = true;
+        if (0 == nread)
+            break;
+
+        if (auto const err = m_read_buffer.write_until_depleted({ buffer, nread }); err.is_error()) {
             on_connection_error();
             return;
         }
-
-        received_data = true;
-
-        if (auto const err = m_read_buffer.write_until_depleted({ buffer, nread }); err.is_error())
-            on_connection_error();
     }
 
     if (received_data)
