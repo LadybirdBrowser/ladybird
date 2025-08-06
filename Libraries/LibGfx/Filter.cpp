@@ -9,6 +9,7 @@
 #include <LibGfx/SkiaUtils.h>
 #include <core/SkBlendMode.h>
 #include <core/SkColorFilter.h>
+#include <core/SkScalar.h>
 #include <effects/SkColorMatrix.h>
 #include <effects/SkImageFilters.h>
 
@@ -39,6 +40,16 @@ Filter::Filter(NonnullOwnPtr<FilterImpl>&& impl)
 FilterImpl const& Filter::impl() const
 {
     return *m_impl;
+}
+
+Filter Filter::arithmetic(Optional<Filter const&> background, Optional<Filter const&> foreground, float k1, float k2, float k3, float k4)
+{
+    sk_sp<SkImageFilter> background_skia = background.has_value() ? background->m_impl->filter : nullptr;
+    sk_sp<SkImageFilter> foreground_skia = foreground.has_value() ? foreground->m_impl->filter : nullptr;
+
+    auto filter = SkImageFilters::Arithmetic(
+        SkFloatToScalar(k1), SkFloatToScalar(k2), SkFloatToScalar(k3), SkFloatToScalar(k4), false, move(background_skia), move(foreground_skia));
+    return Filter(Impl::create(filter));
 }
 
 Filter Filter::compose(Filter const& outer, Filter const& inner)
