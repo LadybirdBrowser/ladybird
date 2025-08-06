@@ -195,9 +195,9 @@ public:
     }
 
     template<Arithmetic T>
-    Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
+    Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes, int base = 10) const
     {
-        return bytes_as_string_view().to_number<T>(trim_whitespace);
+        return bytes_as_string_view().to_number<T>(trim_whitespace, base);
     }
 
     static ErrorOr<String> vformatted(StringView fmtstr, TypeErasedFormatParams&);

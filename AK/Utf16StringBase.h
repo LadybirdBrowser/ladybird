@@ -95,9 +95,9 @@ public:
     Utf16View utf16_view() const&& = delete;
 
     template<Arithmetic T>
-    ALWAYS_INLINE Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
+    ALWAYS_INLINE Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes, int base = 10) const
     {
-        return utf16_view().to_number<T>(trim_whitespace);
+        return utf16_view().to_number<T>(trim_whitespace, base);
     }
 
     ALWAYS_INLINE Utf16StringBase& operator=(Utf16StringBase const& other)

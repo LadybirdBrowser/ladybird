@@ -202,11 +202,11 @@ public:
     }
 
     template<Arithmetic T>
-    ALWAYS_INLINE Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
+    ALWAYS_INLINE Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes, int base = 10) const
     {
         if (has_ascii_storage())
-            return parse_number<T>(bytes(), trim_whitespace);
-        return parse_number<T>(*this, trim_whitespace);
+            return parse_number<T>(bytes(), trim_whitespace, base);
+        return parse_number<T>(*this, trim_whitespace, base);
     }
 
     [[nodiscard]] constexpr bool operator==(Utf16View const& other) const
