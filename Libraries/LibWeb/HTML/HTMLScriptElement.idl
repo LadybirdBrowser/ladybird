@@ -21,6 +21,7 @@ interface HTMLScriptElement : HTMLElement {
     [CEReactions] attribute (TrustedScript or Utf16DOMString) text;
     [CEReactions] attribute (TrustedScriptURL or Utf16USVString) src;
     [CEReactions] attribute (TrustedScript or Utf16DOMString)? textContent;
+    [CEReactions] attribute (TrustedScript or Utf16DOMString) innerText;
 
     static boolean supports(DOMString type);
 
