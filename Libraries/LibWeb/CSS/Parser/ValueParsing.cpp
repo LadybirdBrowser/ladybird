@@ -4717,7 +4717,7 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_length_value(tokens);
     case ValueType::Number:
         return parse_number_value(tokens);
-    case ValueType::OpenTypeTag:
+    case ValueType::OpentypeTag:
         return parse_opentype_tag_value(tokens);
     case ValueType::Paint:
         return parse_paint_value(tokens);

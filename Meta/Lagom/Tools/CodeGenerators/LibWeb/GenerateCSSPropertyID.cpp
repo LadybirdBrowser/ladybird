@@ -830,59 +830,8 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
                 if (enum_names.contains_slow(type_name))
                     continue;
 
-                if (type_name == "anchor") {
-                    property_generator.appendln("        case ValueType::Anchor:");
-                } else if (type_name == "angle") {
-                    property_generator.appendln("        case ValueType::Angle:");
-                } else if (type_name == "background-position") {
-                    property_generator.appendln("        case ValueType::BackgroundPosition:");
-                } else if (type_name == "basic-shape") {
-                    property_generator.appendln("        case ValueType::BasicShape:");
-                } else if (type_name == "color") {
-                    property_generator.appendln("        case ValueType::Color:");
-                } else if (type_name == "counter") {
-                    property_generator.appendln("        case ValueType::Counter:");
-                } else if (type_name == "custom-ident") {
-                    property_generator.appendln("        case ValueType::CustomIdent:");
-                } else if (type_name == "easing-function") {
-                    property_generator.appendln("        case ValueType::EasingFunction:");
-                } else if (type_name == "fit-content") {
-                    property_generator.appendln("        case ValueType::FitContent:");
-                } else if (type_name == "flex") {
-                    property_generator.appendln("        case ValueType::Flex:");
-                } else if (type_name == "frequency") {
-                    property_generator.appendln("        case ValueType::Frequency:");
-                } else if (type_name == "image") {
-                    property_generator.appendln("        case ValueType::Image:");
-                } else if (type_name == "integer") {
-                    property_generator.appendln("        case ValueType::Integer:");
-                } else if (type_name == "length") {
-                    property_generator.appendln("        case ValueType::Length:");
-                } else if (type_name == "number") {
-                    property_generator.appendln("        case ValueType::Number:");
-                } else if (type_name == "opentype-tag") {
-                    property_generator.appendln("        case ValueType::OpenTypeTag:");
-                } else if (type_name == "paint") {
-                    property_generator.appendln("        case ValueType::Paint:");
-                } else if (type_name == "percentage") {
-                    property_generator.appendln("        case ValueType::Percentage:");
-                } else if (type_name == "position") {
-                    property_generator.appendln("        case ValueType::Position:");
-                } else if (type_name == "ratio") {
-                    property_generator.appendln("        case ValueType::Ratio:");
-                } else if (type_name == "rect") {
-                    property_generator.appendln("        case ValueType::Rect:");
-                } else if (type_name == "resolution") {
-                    property_generator.appendln("        case ValueType::Resolution:");
-                } else if (type_name == "string") {
-                    property_generator.appendln("        case ValueType::String:");
-                } else if (type_name == "time") {
-                    property_generator.appendln("        case ValueType::Time:");
-                } else if (type_name == "url") {
-                    property_generator.appendln("        case ValueType::Url:");
-                } else {
-                    VERIFY_NOT_REACHED();
-                }
+                property_generator.set("type_name", title_casify(type_name));
+                property_generator.appendln("        case ValueType::@type_name@:");
                 did_output_accepted_type = true;
             }
 
