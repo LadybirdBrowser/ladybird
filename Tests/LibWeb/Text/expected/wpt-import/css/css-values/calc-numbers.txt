@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+11 Pass
+1 Fail
+Pass	testing tab-size: calc(2 * 3)
+Pass	testing tab-size: calc(2 * -4)
+Pass	testing opacity: calc(2 / 4)
+Pass	testing tab-size: calc(2 / 4)
+Pass	testing opacity: calc(2 / 4) * 1px
+Fail	testing opacity: calc(90%)
+Pass	testing tab-size: calc(1 + 1px)
+Pass	testing tab-size: calc(1 + 100%)
+Pass	testing tab-size: calc(100%)
+Pass	testing tab-size: calc(10px) bla
+Pass	testing tab-size: calc(bla) 10px
+Pass	testing tab-size: calc(10px)

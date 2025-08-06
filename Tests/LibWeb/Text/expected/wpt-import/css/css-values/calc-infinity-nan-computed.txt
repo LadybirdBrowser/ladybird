@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 45 tests
 
-26 Pass
-19 Fail
+33 Pass
+12 Fail
 Pass	Property width value 'calc(NaN * 1px)'
 Pass	Property width value 'calc(NaN * 1%)'
 Pass	Property width value 'calc(infinity * 1px)'
@@ -30,13 +30,13 @@ Pass	Property margin-left value 'calc(-infinity * 1%)'
 Pass	Property margin-left value 'calc(max(10000px, 0px) + min(-infinity * 1px, infinity * 1px))'
 Pass	Property margin-left value 'calc(-infinity * 1px - infinity * 1px)'
 Pass	Property margin-left value 'calc(min(-infinity * 1px, 10px))'
-Fail	Property animation-duration value 'calc(NaN * 1s)'
-Fail	Property animation-duration value 'calc(infinity * 1s)'
-Fail	Property animation-duration value 'calc(1 / 0 * 1s)'
-Fail	Property animation-duration value 'calc(max(infinity * 1s, 10s)'
-Fail	Property transition-delay value 'calc(-infinity* 1s)'
-Fail	Property transition-delay value 'calc(max(10000s, 0s) + min(-infinity * 1s, infinity * 1s))'
-Fail	Property transition-delay value 'calc(min(-infinity * 1s, 10s))'
+Pass	Property animation-duration value 'calc(NaN * 1s)'
+Pass	Property animation-duration value 'calc(infinity * 1s)'
+Pass	Property animation-duration value 'calc(1 / 0 * 1s)'
+Pass	Property animation-duration value 'calc(max(infinity * 1s, 10s)'
+Pass	Property transition-delay value 'calc(-infinity* 1s)'
+Pass	Property transition-delay value 'calc(max(10000s, 0s) + min(-infinity * 1s, infinity * 1s))'
+Pass	Property transition-delay value 'calc(min(-infinity * 1s, 10s))'
 Fail	Property rotate(calc(infinity * 1deg)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(-infinity * 1deg)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(NaN * 1deg)) value expected same with rotate(0deg) in +/-0.0001
