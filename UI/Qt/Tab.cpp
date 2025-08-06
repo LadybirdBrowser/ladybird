@@ -76,7 +76,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     });
 
     auto* focus_location_editor_action = new QAction("Edit Location", this);
-    focus_location_editor_action->setShortcut(QKeySequence("Ctrl+L"));
+    focus_location_editor_action->setShortcuts({ QKeySequence("Ctrl+L"), QKeySequence("Alt+D") });
     addAction(focus_location_editor_action);
 
     m_layout->addWidget(m_toolbar);
