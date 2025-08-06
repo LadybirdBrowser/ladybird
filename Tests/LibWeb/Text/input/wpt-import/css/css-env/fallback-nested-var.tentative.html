@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="help" href="https://drafts.csswg.org/css-env-1/">
+    <title>Test that nested var() fallback values work with CSS env vars</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+      body {
+        --main-bg-color: rgb(0, 128, 0);
+        background-color: env(test, var(--main-bg-color));
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+    test(() => {
+      const style = window.getComputedStyle(document.body);
+      assert_equals(style.getPropertyValue("background-color"), "rgb(0, 128, 0)");
+    });
+    </script>
+  </body>
+</html>

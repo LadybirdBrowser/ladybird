@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>CSS Environment Variables: env() parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-env/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+
+<script>
+
+test_valid_value('width', 'env(safe-area-inset-top)');
+test_valid_value('width', 'env(safe-area-inset-top,)');
+test_valid_value('width', 'env(safe-area-inset-top, )');
+
+test_invalid_value('width', 'env(safe-area-inset-top ())');
+test_invalid_value('width', 'env(safe-area-inset-top () )');
+test_invalid_value('width', 'env(safe-area-inset-top() )');
+test_invalid_value('width', 'env(safe-area-inset-top (),)');
+test_invalid_value('width', 'env(safe-area-inset-top(),)');
+
+</script>
