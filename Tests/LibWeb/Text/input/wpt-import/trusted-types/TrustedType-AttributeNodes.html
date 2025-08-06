@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<head>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+  // This is a set of tests that try to make sure various ways of setting
+  // attributes (directly; via an attribute node; etc.) are all being treated
+  // identically. For background, se::
+  // https://github.com/w3c/webappsec-trusted-types/issues/47
+
+  const elems = ["div", "script", "iframe"];
+  const attrs = ["src", "srcdoc", "onclick", "bla"];
+
+  const policy_callback = s => ("" + s + " [policy]");
+  const policy = trustedTypes.createPolicy("policy", {
+    "createHTML": policy_callback,
+    "createScript": policy_callback,
+    "createScriptURL": policy_callback,
+  });
+
+  // Returns either the string-ified result value of fn, or an exception type.
+  function try_get(fn) {
+    try {
+      return "" + fn();
+    } catch(e) {
+      return "" + e.name;
+    }
+  }
+
+  // Returns a 'trusted' version of value, if element.attribute requires it.
+  function trusted(element, attribute, value) {
+    switch (trustedTypes.getAttributeType(element, attribute)) {
+      case 'TrustedHTML': value = policy.createHTML(value); break;
+      case 'TrustedScript': value = policy.createScript(value); break;
+      case 'TrustedScriptURL': value = policy.createScriptURL(value); break;
+    }
+    return value;
+  }
+
+  for (elem of elems) {
+    for (attr of attrs) {
+      const reference = try_get(_ => {
+        const e = document.createElement(elem);
+        e.setAttribute(attr, "hello");
+        return e.getAttribute(attr);
+      });
+
+      // Event handlers (like "onclick") apply to all elements, so we don't
+      // really have 'harmless' element we can attach them to. Hence this test
+      // case doesn't apply.
+      if (attr != "onclick") {
+        test(t => {
+          const harmless = document.createElement("div");
+          harmless.setAttribute(attr, "hello");
+          const node = harmless.getAttributeNode(attr);
+          harmless.removeAttributeNode(node);
+
+          const actual = try_get(_ => {
+            const e = document.createElement(elem);
+            e.setAttributeNode(node);
+            return e.getAttribute(attr);
+          });
+          assert_equals(actual, reference);
+        }, `Set attribute via attribute node on ${elem}.${attr}.`);
+      }
+
+      test(t => {
+        const e = document.createElement(elem);
+        e.setAttribute(attr, trusted(elem, attr, "123"));
+        const actual = try_get(_ => {
+          e.getAttributeNode(attr).value = "hello";
+          return e.getAttribute(attr);
+        });
+        assert_equals(actual, reference);
+      }, `Set attribute via attributenode.value on ${elem}.${attr}.`);
+
+      test(t => {
+        const e = document.createElement(elem);
+        const attrnode = document.createAttribute(attr);
+        attrnode.value = "hello";
+        const actual = try_get(_ => {
+          e.attributes.setNamedItem(attrnode);
+          return e.getAttribute(attr);
+        });
+        assert_equals(actual, reference);
+      }, `Set attribute via NamedNodeMap.setNamedItem on ${elem}.${attr}.`);
+    }
+  }
+</script>
+</body>

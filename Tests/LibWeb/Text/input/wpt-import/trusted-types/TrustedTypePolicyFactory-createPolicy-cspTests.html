@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+<script src="./support/csp-violations.js"></script>
+
+<meta http-equiv="Content-Security-Policy" content="trusted-types SomeName JustOneMoreName AnotherName">
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'">
+<body>
+<script>
+  // Allowed name test
+  test(t => {
+    let policy = window.trustedTypes.createPolicy('SomeName', { createHTML: s => s } );
+    assert_true(policy instanceof TrustedTypePolicy);
+    assert_equals(policy.name, 'SomeName');
+  }, "Allowed-name policy creation works.");
+
+  // Another allowed name test
+  test(t => {
+    let policy = window.trustedTypes.createPolicy('JustOneMoreName', { createHTML: s => s } );
+    assert_true(policy instanceof TrustedTypePolicy);
+    assert_equals(policy.name, 'JustOneMoreName');
+  }, "Another allowed-name policy creation works.");
+
+  // Non-allowed names test
+  promise_test(async t => {
+    const policyName = 'SomeOtherName';
+    let violation = await trusted_type_violation_for(TypeError, _ =>
+     window.trustedTypes.createPolicy(policyName, { createHTML: s => s } )
+    );
+    assert_true(violation.originalPolicy.includes("trusted-types SomeName JustOneMoreName AnotherName"));
+    assert_equals(violation.sample, clipSampleIfNeeded(policyName));
+  }, "Non-allowed name policy creation throws.");
+
+  // Duplicate names test
+  promise_test(async t => {
+    const policyName = 'AnotherName';
+    let policy = window.trustedTypes.createPolicy(policyName, { createHTML: s => s } );
+    assert_equals(policy.name, policyName);
+
+    let violation = await trusted_type_violation_for(TypeError, _ =>
+      window.trustedTypes.createPolicy(policyName, { createHTML: s => s } )
+    );
+    assert_true(violation.originalPolicy.includes("trusted-types SomeName JustOneMoreName AnotherName"));
+    assert_equals(violation.sample, clipSampleIfNeeded(policyName));
+  }, "Duplicate name policy creation throws.");
+</script>

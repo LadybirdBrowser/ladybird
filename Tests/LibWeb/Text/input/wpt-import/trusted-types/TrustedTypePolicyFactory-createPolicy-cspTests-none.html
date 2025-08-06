@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+<script src="./support/csp-violations.js"></script>
+<meta http-equiv="Content-Security-Policy" content="trusted-types 'none'">
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'">
+<body>
+<script>
+  promise_test(async t => {
+    const policyName = 'SomeName';
+    let violation = await trusted_type_violation_for(TypeError, _ =>
+      window.trustedTypes.createPolicy(policyName, { createHTML: s => s } )
+    );
+    assert_true(violation.originalPolicy.includes("trusted-types 'none'"));
+    assert_equals(violation.sample, clipSampleIfNeeded(policyName));
+  }, "Cannot create policy with name 'SomeName' - policy creation throws");
+
+  promise_test(async t => {
+    const policyName = 'default';
+    let violation = await trusted_type_violation_for(TypeError, _ =>
+      window.trustedTypes.createPolicy(policyName, { createHTML: s => s } )
+    );
+    assert_true(violation.originalPolicy.includes("trusted-types 'none'"));
+    assert_equals(violation.sample, clipSampleIfNeeded(policyName));
+  }, "Cannot create policy with name 'default' - policy creation throws");
+</script>

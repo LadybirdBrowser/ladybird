@@ -1,0 +1,13 @@
+Harness status: Error
+
+Found 8 tests
+
+8 Pass
+Pass	No violation reported for trusted input (innerText).
+Pass	Violation report for plain string (innerText)
+Pass	No violation reported for trusted input (textContent).
+Pass	Violation report for plain string (textContent)
+Pass	No violation reported for trusted input (src).
+Pass	Violation report for plain string (src)
+Pass	No violation reported for trusted input (text).
+Pass	Violation report for plain string (text)

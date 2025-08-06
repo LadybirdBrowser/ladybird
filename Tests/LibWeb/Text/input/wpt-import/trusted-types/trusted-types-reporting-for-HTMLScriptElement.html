@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/csp-violations.js"></script>
+<meta http-equiv="Content-Security-Policy"
+      content="require-trusted-types-for 'script'; connect-src 'none';">
+<body>
+  <script>
+    function createScript() { return document.createElement("script"); }
+    const policy = trustedTypes.createPolicy("dummy", {
+      createScript: x => x,
+      createScriptURL: x => x,
+    });
+    const properties = {
+      innerText: "script",
+      textContent: "script",
+      src: "scriptURL",
+      text: "script",
+    };
+    const input = {
+      script: `${';'.repeat(100)}`,
+      scriptURL: `about:blank?${'A'.repeat(100)}`,
+    };
+    const trustedInput = {
+      script: policy.createScript(input.script),
+      scriptURL: policy.createScriptURL(input.scriptURL),
+    };
+    for (let [property, type] of Object.entries(properties)) {
+      promise_test(async t => {
+        await no_trusted_type_violation_for(_ =>
+          createScript()[property] = trustedInput[type]
+        );
+      }, `No violation reported for trusted input (${property}).`);
+
+      promise_test(async t => {
+        let violation = await trusted_type_violation_for(TypeError, _ =>
+          createScript()[property] = input[type]
+        );
+        assert_equals(violation.blockedURI, "trusted-types-sink");
+        assert_equals(violation.sample, `HTMLScriptElement ${property}|${clipSampleIfNeeded(input[type])}`);
+      }, `Violation report for plain string (${property})`);
+    }
+  </script>
+</body>

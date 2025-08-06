@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <meta http-equiv="Content-Security-Policy" content="trusted-types foo">
+</head>
+<body>
+<script>
+test(t => {
+  let policy = trustedTypes.createPolicy("foo", {
+    createHTML: h => h,
+    createScript: s => s,
+    createScriptURL: u => u,
+   });
+
+  assert_equals(JSON.stringify({"x": policy.createHTML("<p>foo</p>")}),
+                "{\"x\":\"<p>foo</p>\"}");
+  assert_equals(JSON.stringify({"x": policy.createScript("foo(bar)")}),
+                "{\"x\":\"foo(bar)\"}");
+  assert_equals(JSON.stringify({"x": policy.createScriptURL("https://foo.example.com/bar")}),
+                "{\"x\":\"https://foo.example.com/bar\"}");
+}, "toJSON");
+</script>
+</body>
