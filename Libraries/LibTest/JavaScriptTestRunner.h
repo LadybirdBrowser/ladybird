@@ -219,7 +219,7 @@ inline AK::Result<GC::Ref<JS::Script>, ParserError> parse_script(StringView path
 
     if (script_or_errors.is_error()) {
         auto errors = script_or_errors.release_error();
-        return ParserError { errors[0], errors[0].source_location_hint(contents) };
+        return ParserError { errors[0], errors[0].source_location_hint(Utf16String::from_utf8(contents)) };
     }
 
     return script_or_errors.release_value();
@@ -232,7 +232,7 @@ inline AK::Result<GC::Ref<JS::SourceTextModule>, ParserError> parse_module(Strin
 
     if (script_or_errors.is_error()) {
         auto errors = script_or_errors.release_error();
-        return ParserError { errors[0], errors[0].source_location_hint(contents) };
+        return ParserError { errors[0], errors[0].source_location_hint(Utf16String::from_utf8(contents)) };
     }
 
     return script_or_errors.release_value();

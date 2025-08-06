@@ -6,34 +6,30 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
-#include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 
 namespace JS {
 
-// U+2028 LINE SEPARATOR
-constexpr char const line_separator_chars[] { (char)0xe2, (char)0x80, (char)0xa8, 0 };
-constexpr StringView const LINE_SEPARATOR_STRING { line_separator_chars, sizeof(line_separator_chars) - 1 };
-constexpr u32 const LINE_SEPARATOR { 0x2028 };
-
-// U+2029 PARAGRAPH SEPARATOR
-constexpr char const paragraph_separator_chars[] { (char)0xe2, (char)0x80, (char)0xa9, 0 };
-constexpr StringView const PARAGRAPH_SEPARATOR_STRING { paragraph_separator_chars, sizeof(paragraph_separator_chars) - 1 };
-constexpr u32 const PARAGRAPH_SEPARATOR { 0x2029 };
-
 // U+00A0 NO BREAK SPACE
-constexpr u32 const NO_BREAK_SPACE { 0x00A0 };
+constexpr inline char16_t const NO_BREAK_SPACE { 0x00A0 };
 
 // U+200C ZERO WIDTH NON-JOINER
-constexpr u32 const ZERO_WIDTH_NON_JOINER { 0x200C };
-
-// U+FEFF ZERO WIDTH NO-BREAK SPACE
-constexpr u32 const ZERO_WIDTH_NO_BREAK_SPACE { 0xFEFF };
+constexpr inline char16_t const ZERO_WIDTH_NON_JOINER { 0x200C };
 
 // U+200D ZERO WIDTH JOINER
-constexpr u32 const ZERO_WIDTH_JOINER { 0x200D };
+constexpr inline char16_t const ZERO_WIDTH_JOINER { 0x200D };
+
+// U+2028 LINE SEPARATOR
+constexpr inline char16_t const LINE_SEPARATOR { 0x2028 };
+
+// U+2029 PARAGRAPH SEPARATOR
+constexpr inline char16_t const PARAGRAPH_SEPARATOR { 0x2029 };
+
+// U+FEFF ZERO WIDTH NO-BREAK SPACE
+constexpr inline char16_t const ZERO_WIDTH_NO_BREAK_SPACE { 0xFEFF };
 
 #define ENUMERATE_JS_TOKENS                                     \
     __ENUMERATE_JS_TOKEN(Ampersand, Operator)                   \
@@ -183,7 +179,7 @@ class Token {
 public:
     Token() = default;
 
-    Token(TokenType type, StringView message, StringView trivia, StringView value, size_t line_number, size_t line_column, size_t offset)
+    Token(TokenType type, StringView message, Utf16View const& trivia, Utf16View const& value, size_t line_number, size_t line_column, size_t offset)
         : m_type(type)
         , m_message(message)
         , m_trivia(trivia)
@@ -202,22 +198,23 @@ public:
     static char const* name(TokenType);
 
     StringView message() const { return m_message; }
-    StringView trivia() const { return m_trivia; }
-    StringView original_value() const { return m_original_value; }
-    StringView value() const
+    Utf16View const& trivia() const { return m_trivia; }
+    Utf16View const& original_value() const { return m_original_value; }
+
+    Utf16View value() const
     {
         return m_value.visit(
-            [](StringView view) { return view; },
-            [](FlyString const& identifier) { return identifier.bytes_as_string_view(); },
-            [](Empty) -> StringView { VERIFY_NOT_REACHED(); });
+            [](Utf16View const& view) { return view; },
+            [](Utf16FlyString const& identifier) { return identifier.view(); },
+            [](Empty) -> Utf16View { VERIFY_NOT_REACHED(); });
     }
 
-    FlyString fly_string_value() const
+    Utf16FlyString fly_string_value() const
     {
         return m_value.visit(
-            [](StringView view) -> FlyString { return MUST(FlyString::from_utf8(view)); },
-            [](FlyString const& identifier) -> FlyString { return identifier; },
-            [](Empty) -> FlyString { VERIFY_NOT_REACHED(); });
+            [](Utf16View const& view) { return Utf16FlyString::from_utf16(view); },
+            [](Utf16FlyString const& identifier) { return identifier; },
+            [](Empty) -> Utf16FlyString { VERIFY_NOT_REACHED(); });
     }
 
     size_t line_number() const { return m_line_number; }
@@ -233,10 +230,10 @@ public:
         UnicodeEscapeOverflow,
         LegacyOctalEscapeSequence,
     };
-    ByteString string_value(StringValueStatus& status) const;
-    ByteString raw_template_value() const;
+    Utf16String string_value(StringValueStatus& status) const;
+    Utf16String raw_template_value() const;
 
-    void set_identifier_value(FlyString value)
+    void set_identifier_value(Utf16FlyString value)
     {
         m_value = move(value);
     }
@@ -247,9 +244,9 @@ public:
 private:
     TokenType m_type { TokenType::Invalid };
     StringView m_message;
-    StringView m_trivia;
-    StringView m_original_value;
-    Variant<Empty, StringView, FlyString> m_value {};
+    Utf16View m_trivia;
+    Utf16View m_original_value;
+    Variant<Empty, Utf16View, Utf16FlyString> m_value;
     size_t m_line_number { 0 };
     size_t m_line_column { 0 };
     size_t m_offset { 0 };

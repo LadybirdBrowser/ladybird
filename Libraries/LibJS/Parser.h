@@ -11,16 +11,13 @@
 #include <AK/Assertions.h>
 #include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/StringBuilder.h>
 #include <LibJS/AST.h>
 #include <LibJS/Export.h>
 #include <LibJS/Lexer.h>
 #include <LibJS/ParserError.h>
-#include <LibJS/Runtime/FunctionConstructor.h>
 #include <LibJS/SourceRange.h>
 #include <LibJS/Token.h>
 #include <initializer_list>
-#include <stdio.h>
 
 namespace JS {
 
@@ -194,17 +191,6 @@ public:
 
     bool has_errors() const { return m_state.errors.size(); }
     Vector<ParserError> const& errors() const { return m_state.errors; }
-    void print_errors(bool print_hint = true) const
-    {
-        for (auto& error : m_state.errors) {
-            if (print_hint) {
-                auto hint = error.source_location_hint(m_state.lexer.source());
-                if (!hint.is_empty())
-                    warnln("{}", hint);
-            }
-            warnln("SyntaxError: {}", error.to_byte_string());
-        }
-    }
 
     struct TokenMemoization {
         bool try_parse_arrow_function_expression_failed;
@@ -260,6 +246,7 @@ private:
     Token next_token() const;
 
     void check_identifier_name_for_assignment_validity(FlyString const&, bool force_strict = false);
+    void check_identifier_name_for_assignment_validity(Utf16FlyString const&, bool force_strict = false);
 
     bool try_parse_arrow_function_expression_failed_at_position(Position const&) const;
     void set_try_parse_arrow_function_expression_failed_at_position(Position const&, bool);
@@ -308,9 +295,9 @@ private:
         Vector<ParserError> errors;
         ScopePusher* current_scope_pusher { nullptr };
 
-        HashMap<FlyString, Optional<Position>> labels_in_scope;
+        HashMap<Utf16FlyString, Optional<Position>> labels_in_scope;
         HashMap<size_t, Position> invalid_property_range_in_object_expression;
-        HashTable<FlyString>* referenced_private_names { nullptr };
+        HashTable<Utf16FlyString>* referenced_private_names { nullptr };
 
         bool strict_mode { false };
         bool allow_super_property_lookup { false };
@@ -333,6 +320,7 @@ private:
     };
 
     [[nodiscard]] NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, FlyString string, Optional<DeclarationKind> = {});
+    [[nodiscard]] NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, Utf16FlyString const& string, Optional<DeclarationKind> = {});
 
     NonnullRefPtr<SourceCode const> m_source_code;
     Vector<Position> m_rule_starts;
