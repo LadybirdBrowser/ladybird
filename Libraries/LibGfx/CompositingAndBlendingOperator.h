@@ -8,13 +8,14 @@
 
 namespace Gfx {
 
+// The values of this enum should match the constants in SVGFEBlendELement.idl
 enum class CompositingAndBlendingOperator {
-    Normal,
+    Normal = 1,
     Multiply,
     Screen,
-    Overlay,
     Darken,
     Lighten,
+    Overlay,
     ColorDodge,
     ColorBurn,
     HardLight,
