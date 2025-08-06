@@ -8,6 +8,8 @@
 
 #include <AK/String.h>
 #include <AK/Variant.h>
+#include <LibWeb/CSS/SerializationMode.h>
+
 namespace Web::CSS {
 
 class Percentage {
@@ -20,7 +22,7 @@ public:
     double value() const { return m_value; }
     double as_fraction() const { return m_value * 0.01; }
 
-    String to_string() const
+    String to_string(SerializationMode = SerializationMode::Normal) const
     {
         return MUST(String::formatted("{}%", m_value));
     }

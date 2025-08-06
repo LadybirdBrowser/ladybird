@@ -9,7 +9,7 @@
 
 namespace Web::CSS {
 
-String Number::to_string() const
+String Number::to_string(SerializationMode) const
 {
     if (m_type == Type::IntegerWithExplicitSign)
         return MUST(String::formatted("{:+}", m_value));
