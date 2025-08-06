@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <LibWeb/Bindings/CookieStorePrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::CookieStore {
 
@@ -25,6 +26,17 @@ struct CookieStoreGetOptions {
     Optional<String> url;
 };
 
+// https://cookiestore.spec.whatwg.org/#dictdef-cookieinit
+struct CookieInit {
+    String name;
+    String value;
+    Optional<HighResolutionTime::DOMHighResTimeStamp> expires;
+    Optional<String> domain;
+    String path;
+    Bindings::CookieSameSite same_site;
+    bool partitioned { false };
+};
+
 // https://cookiestore.spec.whatwg.org/#cookiestore
 class CookieStore final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(CookieStore, DOM::EventTarget);
@@ -38,6 +50,7 @@ public:
     GC::Ref<WebIDL::Promise> get_all(CookieStoreGetOptions const&);
 
     GC::Ref<WebIDL::Promise> set(String name, String value);
+    GC::Ref<WebIDL::Promise> set(CookieInit const&);
 
 private:
     CookieStore(JS::Realm&, PageClient&);

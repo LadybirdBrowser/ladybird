@@ -22,6 +22,16 @@ enum CookieSameSite {
     "none"
 };
 
+dictionary CookieInit {
+    required USVString name;
+    required USVString value;
+    DOMHighResTimeStamp? expires = null;
+    USVString? domain = null;
+    USVString path = "/";
+    CookieSameSite sameSite = "strict";
+    boolean partitioned = false;
+};
+
 // https://cookiestore.spec.whatwg.org/#cookiestore
 [Exposed=(ServiceWorker,Window), SecureContext]
 interface CookieStore : EventTarget {
@@ -32,6 +42,7 @@ interface CookieStore : EventTarget {
     Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
 
     Promise<undefined> set(USVString name, USVString value);
+    Promise<undefined> set(CookieInit options);
 };
 
 // https://cookiestore.spec.whatwg.org/#Window
