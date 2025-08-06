@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-958 Pass
-823 Fail
+970 Pass
+811 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -386,18 +386,18 @@ Fail	SVGAnimatedLengthList must be primary interface of objects.text.x
 Fail	Stringification of objects.text.x
 Fail	SVGAnimatedLengthList interface: objects.text.x must inherit property "baseVal" with the proper type
 Fail	SVGAnimatedLengthList interface: objects.text.x must inherit property "animVal" with the proper type
-Fail	SVGUnitTypes interface: existence and properties of interface object
-Fail	SVGUnitTypes interface object length
-Fail	SVGUnitTypes interface object name
-Fail	SVGUnitTypes interface: existence and properties of interface prototype object
-Fail	SVGUnitTypes interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGUnitTypes interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_UNKNOWN on interface object
-Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_UNKNOWN on interface prototype object
-Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_USERSPACEONUSE on interface object
-Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_USERSPACEONUSE on interface prototype object
-Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_OBJECTBOUNDINGBOX on interface object
-Fail	SVGUnitTypes interface: constant SVG_UNIT_TYPE_OBJECTBOUNDINGBOX on interface prototype object
+Pass	SVGUnitTypes interface: existence and properties of interface object
+Pass	SVGUnitTypes interface object length
+Pass	SVGUnitTypes interface object name
+Pass	SVGUnitTypes interface: existence and properties of interface prototype object
+Pass	SVGUnitTypes interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGUnitTypes interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGUnitTypes interface: constant SVG_UNIT_TYPE_UNKNOWN on interface object
+Pass	SVGUnitTypes interface: constant SVG_UNIT_TYPE_UNKNOWN on interface prototype object
+Pass	SVGUnitTypes interface: constant SVG_UNIT_TYPE_USERSPACEONUSE on interface object
+Pass	SVGUnitTypes interface: constant SVG_UNIT_TYPE_USERSPACEONUSE on interface prototype object
+Pass	SVGUnitTypes interface: constant SVG_UNIT_TYPE_OBJECTBOUNDINGBOX on interface object
+Pass	SVGUnitTypes interface: constant SVG_UNIT_TYPE_OBJECTBOUNDINGBOX on interface prototype object
 Pass	SVGSVGElement interface: existence and properties of interface object
 Pass	SVGSVGElement interface object length
 Pass	SVGSVGElement interface object name

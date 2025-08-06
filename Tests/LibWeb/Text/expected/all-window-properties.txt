@@ -377,6 +377,7 @@ SVGTextPositioningElement
 SVGTitleElement
 SVGTransform
 SVGTransformList
+SVGUnitTypes
 SVGUseElement
 SVGViewElement
 Screen
