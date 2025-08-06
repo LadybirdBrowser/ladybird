@@ -8,6 +8,7 @@
 
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
+#include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
@@ -108,4 +109,79 @@ bool does_sink_require_trusted_types(JS::Object& global, String sink_group, Incl
     // 2. Return false.
     return false;
 }
+
+// https://w3c.github.io/trusted-types/dist/spec/#should-block-sink-type-mismatch
+ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, TrustedTypes::InjectionSink sink, String sink_group, Utf16String source)
+{
+    auto& realm = HTML::relevant_realm(global);
+
+    // 1. Let result be "Allowed".
+    auto result = ContentSecurityPolicy::Directives::Directive::Result::Allowed;
+
+    // 2. Let sample be source.
+    auto sample = source.substring_view(0);
+
+    // 3. If sink is "Function", then:
+    if (sink == TrustedTypes::InjectionSink::Function) {
+        // 1. If sample starts with "function anonymous", strip that from sample.
+        if (sample.starts_with("function anonymous"sv)) {
+            sample = sample.substring_view("function anonymous"sv.length());
+        }
+
+        // 2. Otherwise if sample starts with "async function anonymous", strip that from sample.
+        else if (sample.starts_with("async function anonymous"sv)) {
+            sample = sample.substring_view("async function anonymous"sv.length());
+        }
+
+        // 3. Otherwise if sample starts with "function* anonymous", strip that from sample.
+        else if (sample.starts_with("function* anonymous"sv)) {
+            sample = sample.substring_view("function* anonymous"sv.length());
+        }
+
+        // 4. Otherwise if sample starts with "async function* anonymous", strip that from sample.
+        else if (sample.starts_with("async function* anonymous"sv)) {
+            sample = sample.substring_view("async function* anonymous"sv.length());
+        }
+    }
+
+    // 4. For each policy in global’s CSP list:
+    for (auto const policy : ContentSecurityPolicy::PolicyList::from_object(global)->policies()) {
+        // 1. If policy’s directive set does not contain a directive whose name is "require-trusted-types-for", skip to the next policy.
+        if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor))
+            continue;
+
+        // 2. Let directive be the policy’s directive set’s directive whose name is "require-trusted-types-for"
+        auto const directive = policy->get_directive_by_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor);
+
+        // 3. If directive’s value does not contain a trusted-types-sink-group which is a match for sinkGroup, skip to the next policy.
+        auto const maybe_sink_group = directive->value().find_if([&sink_group](auto const& directive_value) {
+            return directive_value.equals_ignoring_ascii_case(sink_group);
+        });
+        if (maybe_sink_group.is_end())
+            continue;
+
+        // 4. Let violation be the result of executing Create a violation object for global, policy, and directive on global, policy and "require-trusted-types-for"
+        auto violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor.to_string());
+
+        // 5. Set violation’s resource to "trusted-types-sink".
+        violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesSink);
+
+        // 6. Let trimmedSample be the substring of sample, containing its first 40 characters.
+        auto const trimmed_sample = sample.substring_view(0, min(sample.length_in_code_points(), 40));
+
+        // 7. Set violation’s sample to be the result of concatenating the list « sink, trimmedSample « using "|" as a separator.
+        violation->set_sample(MUST(String::formatted("{}|{}", to_string(sink), trimmed_sample)));
+
+        // 8. Execute Report a violation on violation.
+        violation->report_a_violation(realm);
+
+        // 9. If policy’s disposition is "enforce", then set result to "Blocked".
+        if (policy->disposition() == ContentSecurityPolicy::Policy::Disposition::Enforce)
+            result = ContentSecurityPolicy::Directives::Directive::Result::Blocked;
+    }
+
+    // 5. Return result.
+    return result;
+}
+
 }
