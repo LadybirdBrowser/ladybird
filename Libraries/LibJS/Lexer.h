@@ -6,23 +6,22 @@
 
 #pragma once
 
-#include "Token.h"
-
-#include <AK/ByteString.h>
 #include <AK/HashMap.h>
-#include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Export.h>
+#include <LibJS/Token.h>
 
 namespace JS {
 
 class JS_API Lexer {
 public:
     explicit Lexer(StringView source, StringView filename = "(unknown)"sv, size_t line_number = 1, size_t line_column = 0);
+    explicit Lexer(Utf16String source, StringView filename = "(unknown)"sv, size_t line_number = 1, size_t line_column = 0);
 
     Token next();
 
-    ByteString const& source() const { return m_source; }
+    Utf16String const& source() const { return m_source; }
     String const& filename() const { return m_filename; }
 
     void disallow_html_comments() { m_allow_html_comments = false; }
@@ -37,7 +36,6 @@ private:
     bool consume_binary_number();
     bool consume_decimal_number();
 
-    bool is_unicode_character() const;
     u32 current_code_point() const;
 
     bool is_eof() const;
@@ -50,19 +48,19 @@ private:
     bool is_block_comment_start() const;
     bool is_block_comment_end() const;
     bool is_numeric_literal_start() const;
-    bool match(char, char) const;
-    bool match(char, char, char) const;
-    bool match(char, char, char, char) const;
+    bool match(char16_t, char16_t) const;
+    bool match(char16_t, char16_t, char16_t) const;
+    bool match(char16_t, char16_t, char16_t, char16_t) const;
     template<typename Callback>
     bool match_numeric_literal_separator_followed_by(Callback) const;
     bool slash_means_division() const;
 
     TokenType consume_regex_literal();
 
-    ByteString m_source;
+    Utf16String m_source;
     size_t m_position { 0 };
     Token m_current_token;
-    char m_current_char { 0 };
+    char16_t m_current_code_unit { 0 };
     bool m_eof { false };
 
     String m_filename;
@@ -79,14 +77,12 @@ private:
 
     bool m_allow_html_comments { true };
 
-    Optional<size_t> m_hit_invalid_unicode;
-
-    static HashMap<FlyString, TokenType> s_keywords;
+    static HashMap<Utf16FlyString, TokenType> s_keywords;
 
     struct ParsedIdentifiers : public RefCounted<ParsedIdentifiers> {
         // Resolved identifiers must be kept alive for the duration of the parsing stage, otherwise
         // the only references to these strings are deleted by the Token destructor.
-        HashTable<FlyString> identifiers;
+        HashTable<Utf16FlyString> identifiers;
     };
 
     RefPtr<ParsedIdentifiers> m_parsed_identifiers;

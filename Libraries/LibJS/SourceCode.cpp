@@ -12,25 +12,15 @@
 
 namespace JS {
 
-NonnullRefPtr<SourceCode const> SourceCode::create(String filename, String code)
+NonnullRefPtr<SourceCode const> SourceCode::create(String filename, Utf16String code)
 {
     return adopt_ref(*new SourceCode(move(filename), move(code)));
 }
 
-SourceCode::SourceCode(String filename, String code)
+SourceCode::SourceCode(String filename, Utf16String code)
     : m_filename(move(filename))
     , m_code(move(code))
 {
-}
-
-String const& SourceCode::filename() const
-{
-    return m_filename;
-}
-
-String const& SourceCode::code() const
-{
-    return m_code;
 }
 
 void SourceCode::fill_position_cache() const
@@ -46,22 +36,24 @@ void SourceCode::fill_position_cache() const
     size_t line = 1;
     size_t column = 1;
     size_t offset_of_last_starting_point = 0;
-    m_cached_positions.ensure_capacity(predicted_minimum_cached_positions + m_code.bytes().size() / maximum_distance_between_cached_positions);
+
+    m_cached_positions.ensure_capacity(predicted_minimum_cached_positions + (m_code.length_in_code_units() / maximum_distance_between_cached_positions));
     m_cached_positions.append({ .line = 1, .column = 1, .offset = 0 });
 
-    Utf8View const view(m_code);
+    auto view = m_code.utf16_view();
+
     for (auto it = view.begin(); it != view.end(); ++it) {
         u32 code_point = *it;
         bool is_line_terminator = code_point == '\r' || (code_point == '\n' && previous_code_point != '\r') || code_point == LINE_SEPARATOR || code_point == PARAGRAPH_SEPARATOR;
 
-        auto byte_offset = view.byte_offset_of(it);
+        auto offset = view.iterator_offset(it);
 
         bool is_nonempty_line = is_line_terminator && previous_code_point != '\n' && previous_code_point != LINE_SEPARATOR && previous_code_point != PARAGRAPH_SEPARATOR && (code_point == '\n' || previous_code_point != '\r');
-        auto distance_between_cached_position = byte_offset - offset_of_last_starting_point;
+        auto distance_between_cached_position = offset - offset_of_last_starting_point;
 
         if ((distance_between_cached_position >= minimum_distance_between_cached_positions && is_nonempty_line) || distance_between_cached_position >= maximum_distance_between_cached_positions) {
-            m_cached_positions.append({ .line = line, .column = column, .offset = byte_offset });
-            offset_of_last_starting_point = byte_offset;
+            m_cached_positions.append({ .line = line, .column = column, .offset = offset });
+            offset_of_last_starting_point = offset;
         }
 
         if (is_line_terminator) {
@@ -102,11 +94,11 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) con
 
     u32 previous_code_point = 0;
 
-    Utf8View const view(m_code);
-    for (auto it = view.iterator_at_byte_offset_without_validation(current.offset); it != view.end(); ++it) {
+    auto view = m_code.utf16_view();
 
+    for (auto it = view.iterator_at_code_unit_offset(current.offset); it != view.end(); ++it) {
         // If we're on or after the start offset, this is the start position.
-        if (!start.has_value() && view.byte_offset_of(it) >= start_offset) {
+        if (!start.has_value() && view.iterator_offset(it) >= start_offset) {
             start = Position {
                 .line = current.line,
                 .column = current.column,
@@ -115,7 +107,7 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) con
         }
 
         // If we're on or after the end offset, this is the end position.
-        if (!end.has_value() && view.byte_offset_of(it) >= end_offset) {
+        if (!end.has_value() && view.iterator_offset(it) >= end_offset) {
             end = Position {
                 .line = current.line,
                 .column = current.column,
@@ -134,6 +126,7 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) con
             current.column = 1;
             continue;
         }
+
         current.column += 1;
     }
 

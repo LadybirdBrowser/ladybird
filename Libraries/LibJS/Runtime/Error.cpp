@@ -17,7 +17,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(Error);
 
-static SourceRange dummy_source_range { SourceCode::create(String {}, String {}), {}, {} };
+static SourceRange dummy_source_range { SourceCode::create({}, {}), {}, {} };
 
 SourceRange const& TracebackFrame::source_range() const
 {
