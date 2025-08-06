@@ -21,6 +21,7 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(Documentwriteln, "Document writeln")                           \
     __ENUMERATE_INJECTION_SINKS(Function, "Function")                                          \
     __ENUMERATE_INJECTION_SINKS(HTMLIFrameElementsrcdoc, "HTMLIFrameElement srcdoc")           \
+    __ENUMERATE_INJECTION_SINKS(HTMLScriptElementinnerText, "HTMLScriptElement innerText")     \
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElementsrc, "HTMLScriptElement src")                 \
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElementtext, "HTMLScriptElement text")               \
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElementtextContent, "HTMLScriptElement textContent") \
