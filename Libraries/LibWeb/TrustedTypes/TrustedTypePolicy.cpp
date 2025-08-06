@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/RequireTrustedTypesFor.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
