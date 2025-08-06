@@ -2742,7 +2742,7 @@ bool CalculatedStyleValue::equals(StyleValue const& other) const
 }
 
 // https://drafts.csswg.org/css-values-4/#calc-computed-value
-Optional<CalculatedStyleValue::CalculationResult> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context) const
+Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context) const
 {
     // The calculation tree is again simplified at used value time; with used value time information.
     auto simplified_tree = simplify_a_calculation_tree(m_calculation, m_context, resolution_context);
@@ -2754,6 +2754,8 @@ Optional<CalculatedStyleValue::CalculationResult> CalculatedStyleValue::resolve_
 
     VERIFY(value.has_value());
 
+    auto raw_value = value->value();
+
     // https://drafts.csswg.org/css-values/#calc-ieee
     // FIXME: NaN does not escape a top-level calculation; it’s censored into a zero value.
 
@@ -2762,7 +2764,7 @@ Optional<CalculatedStyleValue::CalculationResult> CalculatedStyleValue::resolve_
     //        context. Clamping is performed on computed values to the extent possible, and also on used values if
     //        computation was unable to sufficiently simplify the expression to allow range-checking.
 
-    return value;
+    return ResolvedValue { raw_value, value->type() };
 }
 
 Optional<Angle> CalculatedStyleValue::resolve_angle_deprecated(CalculationResolutionContext const& context) const
@@ -2777,8 +2779,8 @@ Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_angle(m_context.percentages_resolve_as))
-        return Angle::make_degrees(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_angle(m_context.percentages_resolve_as))
+        return Angle::make_degrees(result->value);
 
     return {};
 }
@@ -2795,8 +2797,8 @@ Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext c
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_flex(m_context.percentages_resolve_as))
-        return Flex::make_fr(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_flex(m_context.percentages_resolve_as))
+        return Flex::make_fr(result->value);
 
     return {};
 }
@@ -2813,8 +2815,8 @@ Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutio
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_frequency(m_context.percentages_resolve_as))
-        return Frequency::make_hertz(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_frequency(m_context.percentages_resolve_as))
+        return Frequency::make_hertz(result->value);
 
     return {};
 }
@@ -2831,8 +2833,8 @@ Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionConte
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_length(m_context.percentages_resolve_as))
-        return Length::make_px(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_length(m_context.percentages_resolve_as))
+        return Length::make_px(result->value);
 
     return {};
 }
@@ -2849,8 +2851,8 @@ Optional<Percentage> CalculatedStyleValue::resolve_percentage(CalculationResolut
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_percentage())
-        return Percentage { result.value().value() };
+    if (result.has_value() && result->type.has_value() && result->type->matches_percentage())
+        return Percentage { result->value };
 
     return {};
 }
@@ -2867,8 +2869,8 @@ Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolut
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_resolution(m_context.percentages_resolve_as))
-        return Resolution::make_dots_per_pixel(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_resolution(m_context.percentages_resolve_as))
+        return Resolution::make_dots_per_pixel(result->value);
 
     return {};
 }
@@ -2885,8 +2887,8 @@ Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext c
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_time(m_context.percentages_resolve_as))
-        return Time::make_seconds(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_time(m_context.percentages_resolve_as))
+        return Time::make_seconds(result->value);
 
     return {};
 }
@@ -2910,14 +2912,14 @@ Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionConte
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_number(m_context.percentages_resolve_as)) {
-        auto value = result.value().value();
+    if (result.has_value() && result->type.has_value() && result->type->matches_number(m_context.percentages_resolve_as)) {
+        auto value = result->value;
 
         // FIXME: This can be removed once it is upstreamed to `resolve_value`
         if (isnan(value))
             return 0.;
 
-        return result.value().value();
+        return result->value;
     }
 
     return {};
@@ -2935,8 +2937,8 @@ Optional<i64> CalculatedStyleValue::resolve_integer(CalculationResolutionContext
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_number(m_context.percentages_resolve_as))
-        return llround(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_number(m_context.percentages_resolve_as))
+        return llround(result->value);
 
     return {};
 }
