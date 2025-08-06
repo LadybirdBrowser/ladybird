@@ -13,7 +13,7 @@
 namespace TestWeb {
 
 // https://web-platform-tests.org/writing-tests/reftests.html#fuzzy-matching
-bool fuzzy_screenshot_match(URL::URL const& reference, Gfx::Bitmap const& bitmap_a, Gfx::Bitmap const& bitmap_b,
+bool fuzzy_screenshot_match(URL::URL const& test_url, URL::URL const& reference, Gfx::Bitmap const& bitmap_a, Gfx::Bitmap const& bitmap_b,
     Vector<FuzzyMatch> const& fuzzy_matches)
 {
     // If the bitmaps are identical, we don't perform fuzzy matching.
@@ -28,18 +28,18 @@ bool fuzzy_screenshot_match(URL::URL const& reference, Gfx::Bitmap const& bitmap
         return true;
     });
     if (!fuzzy_match.has_value()) {
-        warnln("Screenshot mismatch: pixel error count {}, with maximum error {}. (No fuzzy config defined)", diff.pixel_error_count, diff.maximum_error);
+        warnln("{}: Screenshot mismatch: pixel error count {}, with maximum error {}. (No fuzzy config defined)", test_url, diff.pixel_error_count, diff.maximum_error);
         return false;
     }
 
     // Apply fuzzy matching.
     auto color_error_matches = fuzzy_match->color_value_error.contains(diff.maximum_error);
     if (!color_error_matches)
-        warnln("Fuzzy mismatch: maximum error {} is outside {}", diff.maximum_error, fuzzy_match->color_value_error);
+        warnln("{}: Fuzzy mismatch: maximum error {} is outside {}", test_url, diff.maximum_error, fuzzy_match->color_value_error);
 
     auto pixel_error_matches = fuzzy_match->pixel_error_count.contains(diff.pixel_error_count);
     if (!pixel_error_matches)
-        warnln("Fuzzy mismatch: pixel error count {} is outside {}", diff.pixel_error_count, fuzzy_match->pixel_error_count);
+        warnln("{}: Fuzzy mismatch: pixel error count {} is outside {}", test_url, diff.pixel_error_count, fuzzy_match->pixel_error_count);
 
     return color_error_matches && pixel_error_matches;
 }
