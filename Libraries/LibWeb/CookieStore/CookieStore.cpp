@@ -8,6 +8,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/CookieStorePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -312,6 +313,212 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(CookieStoreGetOptions const& optio
     }));
 
     // 8. Return p.
+    return promise;
+}
+
+static constexpr size_t maximum_name_value_pair_size = 4096;
+static constexpr size_t maximum_attribute_value_size = 1024;
+
+// https://cookiestore.spec.whatwg.org/#set-a-cookie
+static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, String value, Optional<HighResolutionTime::DOMHighResTimeStamp> expires, Optional<String> const& domain, Optional<String> const& path, Bindings::CookieSameSite same_site, bool partitioned)
+{
+    // 1. Remove all U+0009 TAB and U+0020 SPACE that are at the start or end of name.
+    name = MUST(name.trim("\t "sv));
+
+    // 2. Remove all U+0009 TAB and U+0020 SPACE that are at the start or end of value.
+    value = MUST(value.trim("\t "sv));
+
+    // 3. If name or value contain U+003B (;), any C0 control character except U+0009 TAB, or U+007F DELETE, then return failure.
+    if (name.contains(';') || value.contains(';'))
+        return false;
+    for (auto c = '\x00'; c <= '\x1F'; ++c) {
+        if (c == '\t')
+            continue;
+        if (name.contains(c) || value.contains(c))
+            return false;
+    }
+    if (name.contains('\x7F') || value.contains('\x7F'))
+        return false;
+
+    // 4. If name contains U+003D (=), then return failure.
+    if (name.contains('='))
+        return false;
+
+    // 5. If name’s length is 0:
+    if (name.is_empty()) {
+        // 1. If value contains U+003D (=), then return failure.
+        if (value.contains('='))
+            return false;
+
+        // 2. If value’s length is 0, then return failure.
+        if (value.is_empty())
+            return false;
+
+        // 3. If value, byte-lowercased, starts with `__host-`, `__hosthttp-`, `__http-`, or `__secure-`, then return failure.
+        auto value_byte_lowercased = value.to_ascii_lowercase();
+        if (value_byte_lowercased.starts_with_bytes("__host-"sv) || value_byte_lowercased.starts_with_bytes("__hosthttp-"sv) || value_byte_lowercased.starts_with_bytes("__http-"sv) || value_byte_lowercased.starts_with_bytes("__secure-"sv))
+            return false;
+    }
+
+    // 6. If name, byte-lowercased, starts with `__http-` or `__hosthttp-`, then return failure.
+    auto name_byte_lowercased = name.to_ascii_lowercase();
+    if (name_byte_lowercased.starts_with_bytes("__http-"sv) || name_byte_lowercased.starts_with_bytes("__hosthttp-"sv))
+        return false;
+
+    // 7. Let encodedName be the result of UTF-8 encoding name.
+    // 8. Let encodedValue be the result of UTF-8 encoding value.
+
+    // 9. If the byte sequence length of encodedName plus the byte sequence length of encodedValue is greater than the
+    //    maximum name/value pair size, then return failure.
+    if (name.byte_count() + value.byte_count() > maximum_name_value_pair_size)
+        return false;
+
+    // 10. Let host be url’s host
+    auto const& host = url.host();
+
+    // 11. Let attributes be a new list.
+    Cookie::ParsedCookie parsed_cookie {};
+    parsed_cookie.name = move(name);
+    parsed_cookie.value = move(value);
+
+    // 12. If domain is not null, then run these steps:
+    if (domain.has_value()) {
+        // 1. If domain starts with U+002E (.), then return failure.
+        if (domain->starts_with('.'))
+            return false;
+
+        // 2. If name, byte-lowercased, starts with `__host-`, then return failure.
+        if (name_byte_lowercased.starts_with_bytes("__host-"sv))
+            return false;
+
+        // 3. If domain is not a registrable domain suffix of and is not equal to host, then return failure.
+        if (!host.has_value() || !DOM::is_a_registrable_domain_suffix_of_or_is_equal_to(domain.value(), host.value()))
+            return false;
+
+        // 4. Let parsedDomain be the result of host parsing domain.
+        auto parsed_domain = URL::Parser::parse_host(domain.value());
+
+        // 5. Assert: parsedDomain is not failure.
+        VERIFY(parsed_domain.has_value());
+
+        // 6. Let encodedDomain be the result of UTF-8 encoding parsedDomain.
+        auto encoded_domain = parsed_domain->serialize();
+
+        // 7. If the byte sequence length of encodedDomain is greater than the maximum attribute value size, then return failure.
+        if (encoded_domain.byte_count() > maximum_attribute_value_size)
+            return false;
+
+        // 8. Append `Domain`/encodedDomain to attributes.
+        parsed_cookie.domain = move(encoded_domain);
+    }
+
+    // 13. If expires is given, then append `Expires`/expires (date serialized) to attributes.
+    if (expires.has_value())
+        parsed_cookie.expiry_time_from_expires_attribute = UnixDateTime::from_milliseconds_since_epoch(expires.value());
+
+    // 14. If path is not null:
+    if (path.has_value()) {
+        // 1. If path does not start with U+002F (/), then return failure.
+        if (!path->starts_with('/'))
+            return false;
+
+        // 2. If path is not U+002F (/), and name, byte-lowercased, starts with `__host-`, then return failure.
+        if (path != "/"sv && name_byte_lowercased.starts_with_bytes("__host-"sv))
+            return false;
+
+        // 3. Let encodedPath be the result of UTF-8 encoding path.
+
+        // 4. If the byte sequence length of encodedPath is greater than the maximum attribute value size, then return failure.
+        if (path->byte_count() > maximum_attribute_value_size)
+            return false;
+
+        // 5. Append `Path`/encodedPath to attributes.
+        parsed_cookie.path = path;
+    }
+    // 15. Otherwise, append `Path`/ U+002F (/) to attributes.
+    else {
+        parsed_cookie.path = "/"_string;
+    }
+
+    // 16. Append `Secure`/`` to attributes.
+    parsed_cookie.secure_attribute_present = true;
+
+    // 17. Switch on sameSite:
+    switch (same_site) {
+    // -> "none"
+    case Bindings::CookieSameSite::None:
+        // Append `SameSite`/`None` to attributes.
+        parsed_cookie.same_site_attribute = Cookie::SameSite::None;
+        break;
+    // -> "strict"
+    case Bindings::CookieSameSite::Strict:
+        // Append `SameSite`/`Strict` to attributes.
+        parsed_cookie.same_site_attribute = Cookie::SameSite::Strict;
+        break;
+    // -> "lax"
+    case Bindings::CookieSameSite::Lax:
+        // Append `SameSite`/`Lax` to attributes.
+        parsed_cookie.same_site_attribute = Cookie::SameSite::Lax;
+        break;
+    }
+
+    // FIXME: 18. If partitioned is true, Append `Partitioned`/`` to attributes.
+    (void)partitioned;
+
+    // 19. Perform the steps defined in Cookies § Storage Model for when the user agent "receives a cookie" with url as
+    //     request-uri, encodedName as cookie-name, encodedValue as cookie-value, and attributes as cookie-attribute-list.
+    //     For the purposes of the steps, the newly-created cookie was received from a "non-HTTP" API.
+    client.page_did_set_cookie(url, parsed_cookie, Cookie::Source::NonHttp);
+
+    // 20. Return success.
+    return true;
+}
+
+// https://cookiestore.spec.whatwg.org/#dom-cookiestore-set
+GC::Ref<WebIDL::Promise> CookieStore::set(String name, String value)
+{
+    auto& realm = this->realm();
+
+    // 1. Let settings be this’s relevant settings object.
+    auto const& settings = HTML::relevant_settings_object(*this);
+
+    // 2. Let origin be settings’s origin.
+    auto const& origin = settings.origin();
+
+    // 3. If origin is an opaque origin, then return a promise rejected with a "SecurityError" DOMException.
+    if (origin.is_opaque())
+        return WebIDL::create_rejected_promise(realm, WebIDL::SecurityError::create(realm, "Document origin is opaque"_string));
+
+    // 4. Let url be settings’s creation URL.
+    auto url = settings.creation_url;
+
+    // 5. Let domain be null.
+    // 6. Let path be "/".
+    // 7. Let sameSite be strict.
+    // 8. Let partitioned be false.
+
+    // 9. Let p be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 10. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = move(name), value = move(value)]() {
+        // 1. Let r be the result of running set a cookie with url, name, value, domain, path, sameSite, and partitioned.
+        auto result = set_a_cookie(client, url, move(name), move(value), {}, {}, "/"_string, Bindings::CookieSameSite::Strict, false);
+
+        // AD-HOC: Queue a global task to perform the next steps
+        // Spec issue: https://github.com/whatwg/cookiestore/issues/239
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, result]() {
+            HTML::TemporaryExecutionContext execution_context { realm };
+            // 2. If r is failure, then reject p with a TypeError and abort these steps.
+            if (!result)
+                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name or value are malformed"sv));
+
+            // 3. Resolve p with undefined.
+            WebIDL::resolve_promise(realm, promise);
+        }));
+    }));
+
+    // 11. Return p.
     return promise;
 }
 

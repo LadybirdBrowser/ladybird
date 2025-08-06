@@ -37,6 +37,8 @@ public:
     GC::Ref<WebIDL::Promise> get_all(String name);
     GC::Ref<WebIDL::Promise> get_all(CookieStoreGetOptions const&);
 
+    GC::Ref<WebIDL::Promise> set(String name, String value);
+
 private:
     CookieStore(JS::Realm&, PageClient&);
 
