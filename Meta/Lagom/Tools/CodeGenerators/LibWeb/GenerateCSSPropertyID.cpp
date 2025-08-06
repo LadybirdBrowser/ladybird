@@ -257,6 +257,12 @@ bool is_inherited_property(PropertyID);
 NonnullRefPtr<CSSStyleValue const> property_initial_value(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);
+struct AcceptedTypeRange {
+    float min;
+    float max;
+};
+using AcceptedTypeRangeMap = HashMap<ValueType, AcceptedTypeRange>;
+AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID);
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
@@ -849,6 +855,71 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
     generator.append(R"~~~(
     default:
         return false;
+    }
+}
+
+AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID property_id)
+{
+    switch (property_id) {
+)~~~");
+
+    properties.for_each_member([&](auto& name, auto& value) {
+        VERIFY(value.is_object());
+        auto& object = value.as_object();
+        if (is_legacy_alias(object))
+            return;
+
+        if (auto maybe_valid_types = object.get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
+            auto& valid_types = maybe_valid_types.value();
+            auto property_generator = generator.fork();
+            property_generator.set("name:titlecase", title_casify(name));
+
+            StringBuilder ranges_builder;
+
+            for (auto& type : valid_types.values()) {
+                VERIFY(type.is_string());
+
+                Vector<String> type_parts = MUST(type.as_string().split(' '));
+
+                if (type_parts.size() < 2)
+                    continue;
+
+                auto type_name = type_parts.first();
+
+                if (type_name == "custom-ident")
+                    continue;
+
+                // Drop the brackets on the range e.g. "[-∞,∞]" -> "-∞,∞"
+                auto type_range = MUST(type_parts.get(1)->substring_from_byte_offset(1, type_parts.get(1)->byte_count() - 2));
+
+                auto limits = MUST(type_range.split(','));
+
+                if (limits.size() != 2)
+                    VERIFY_NOT_REACHED();
+
+                // FIXME: Use min and max values for i32 instead of float where applicable (e.g. for "integer")
+                auto min = limits.get(0) == "-∞" ? "AK::NumericLimits<float>::lowest()"_string : *limits.get(0);
+                auto max = limits.get(1) == "∞" ? "AK::NumericLimits<float>::max()"_string : *limits.get(1);
+
+                if (!ranges_builder.is_empty())
+                    ranges_builder.appendff(", ");
+
+                ranges_builder.appendff("{{ ValueType::{}, {{ {}, {} }} }}", title_casify(type_name), min, max);
+            }
+
+            property_generator.set("ranges", ranges_builder.to_string_without_validation());
+
+            property_generator.append(R"~~~(
+    case PropertyID::@name:titlecase@: {
+        return { @ranges@ };
+    })~~~");
+        }
+    });
+
+    generator.append(R"~~~(
+    default: {
+        return { };
+    }
     }
 }
 
