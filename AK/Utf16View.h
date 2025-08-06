@@ -425,6 +425,15 @@ public:
         return it.m_iterator.utf16 - m_string.utf16;
     }
 
+    [[nodiscard]] constexpr Utf16CodePointIterator iterator_at_code_unit_offset(size_t code_unit_offset) const
+    {
+        VERIFY(code_unit_offset <= length_in_code_units());
+
+        if (has_ascii_storage())
+            return { m_string.ascii + code_unit_offset, length_in_code_units() - code_unit_offset };
+        return { m_string.utf16 + code_unit_offset, length_in_code_units() - code_unit_offset };
+    }
+
     Utf16String replace(Utf16View const& needle, Utf16View const& replacement, ReplaceMode) const;
     Utf16String escape_html_entities() const;
 
