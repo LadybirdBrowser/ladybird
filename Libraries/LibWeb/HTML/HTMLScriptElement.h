@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/Scripting/Script.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
+#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 
 namespace Web::HTML {
 
@@ -60,6 +61,9 @@ public:
 
     TrustedTypes::TrustedScriptOrString text() const { return child_text_content(); }
     WebIDL::ExceptionOr<void> set_text(TrustedTypes::TrustedScriptOrString);
+
+    TrustedTypes::TrustedScriptURLOrString src() const { return Utf16String::from_utf8(get_attribute_value(AttributeNames::src)); }
+    WebIDL::ExceptionOr<void> set_src(TrustedTypes::TrustedScriptURLOrString);
 
     [[nodiscard]] bool async() const;
     void set_async(bool);
