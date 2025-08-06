@@ -201,21 +201,27 @@ public:
 
     // This is a wrapper that can model "polymorphic" stacks,
     // by treating unknown stack entries as a potentially infinite number of entries
-    class Stack : private Vector<StackEntry> {
+    class Stack {
         template<typename, typename>
         friend struct AK::Formatter;
 
     public:
-        Stack(Vector<Frame> const& frames)
+        explicit Stack(Vector<Frame> const& frames)
             : m_frames(frames)
         {
         }
 
-        using Vector<StackEntry>::is_empty;
-        using Vector<StackEntry>::last;
-        using Vector<StackEntry>::at;
-        using Vector<StackEntry>::size;
-        using Vector<StackEntry>::resize;
+        bool is_empty() const { return m_entries.is_empty(); }
+        auto& last() const { return m_entries.last(); }
+        auto& last() { return m_entries.last(); }
+        auto& at(size_t index) const { return m_entries.at(index); }
+        auto& at(size_t index) { return m_entries.at(index); }
+        size_t size() const { return m_entries.size(); }
+        void resize(size_t size)
+        {
+            m_entries.resize(size);
+            m_max_known_size = max(m_max_known_size, size);
+        }
 
         ErrorOr<StackEntry, ValidationError> take_last()
         {
@@ -223,11 +229,11 @@ public:
                 return StackEntry();
             if (size() == m_frames.last().initial_size)
                 return Errors::invalid("stack state"sv, "<any>"sv, "<nothing>"sv);
-            return Vector<StackEntry>::take_last();
+            return m_entries.take_last();
         }
         void append(StackEntry entry)
         {
-            Vector<StackEntry>::append(entry);
+            m_entries.append(entry);
             m_max_known_size = max(m_max_known_size, size());
         }
 
@@ -258,12 +264,13 @@ public:
         Vector<StackEntry> release_vector()
         {
             m_max_known_size = 0;
-            return exchange(static_cast<Vector<StackEntry>&>(*this), Vector<StackEntry> {});
+            return exchange(m_entries, Vector<StackEntry> {});
         }
 
         size_t max_known_size() const { return m_max_known_size; }
 
     private:
+        Vector<StackEntry> m_entries;
         Vector<Frame> const& m_frames;
         size_t m_max_known_size { 0 };
     };
@@ -374,7 +381,7 @@ template<>
 struct AK::Formatter<Wasm::Validator::Stack> : public AK::Formatter<Vector<Wasm::Validator::StackEntry>> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Validator::Stack const& value)
     {
-        return Formatter<Vector<Wasm::Validator::StackEntry>>::format(builder, static_cast<Vector<Wasm::Validator::StackEntry> const&>(value));
+        return Formatter<Vector<Wasm::Validator::StackEntry>>::format(builder, value.m_entries);
     }
 };
 
