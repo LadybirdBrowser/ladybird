@@ -72,8 +72,6 @@ public:
     virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
     virtual bool equals(CSSStyleValue const& other) const override;
 
-    Optional<CalculationResult> resolve_value(CalculationResolutionContext const&) const;
-
     bool resolves_to_angle() const { return m_resolved_type.matches_angle(m_context.percentages_resolve_as); }
     bool resolves_to_angle_percentage() const { return m_resolved_type.matches_angle_percentage(m_context.percentages_resolve_as); }
     Optional<Angle> resolve_angle_deprecated(CalculationResolutionContext const&) const;
@@ -126,6 +124,12 @@ private:
         , m_context(move(context))
     {
     }
+
+    struct ResolvedValue {
+        double value;
+        Optional<CSSNumericType> type;
+    };
+    Optional<ResolvedValue> resolve_value(CalculationResolutionContext const&) const;
 
     Optional<ValueType> percentage_resolved_type() const;
 
