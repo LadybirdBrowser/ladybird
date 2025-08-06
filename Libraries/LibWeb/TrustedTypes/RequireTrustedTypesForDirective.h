@@ -8,6 +8,7 @@
 
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/TrustedTypes/InjectionSink.h>
 
 namespace Web::TrustedTypes {
 
@@ -31,5 +32,7 @@ private:
 };
 
 bool does_sink_require_trusted_types(JS::Object&, String, IncludeReportOnlyPolicies);
+
+ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, TrustedTypes::InjectionSink sink, String sink_group, Utf16String source);
 
 }
