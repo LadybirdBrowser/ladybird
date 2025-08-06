@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+5 Pass
+3 Fail
+Fail	e.style['width'] = "env(safe-area-inset-top)" should set the property value
+Fail	e.style['width'] = "env(safe-area-inset-top,)" should set the property value
+Fail	e.style['width'] = "env(safe-area-inset-top, )" should set the property value
+Pass	e.style['width'] = "env(safe-area-inset-top ())" should not set the property value
+Pass	e.style['width'] = "env(safe-area-inset-top () )" should not set the property value
+Pass	e.style['width'] = "env(safe-area-inset-top() )" should not set the property value
+Pass	e.style['width'] = "env(safe-area-inset-top (),)" should not set the property value
+Pass	e.style['width'] = "env(safe-area-inset-top(),)" should not set the property value

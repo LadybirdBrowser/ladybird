@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="help" href="https://drafts.csswg.org/css-env-1/">
+    <title>Test style seralization round tripping with CSS env vars</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+    test(() => {
+      document.body.style.top = "env(test)";
+      assert_equals(document.body.style.getPropertyValue("top"), "env(test)");
+      document.body.style.setProperty("top", "env()");
+      assert_equals(document.body.style.getPropertyValue("top"), "env(test)");
+    });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="help" href="https://drafts.csswg.org/css-env-1/">
+    <title>Test CSS env vars index parsing support</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      let invalidValues = [
+          "env(test1 test2, green)",
+          "env(test1 10 20 test2, green)",
+          "env(test 0.1, green)",
+          "env(test -1, green)",
+      ];
+      invalidValues.forEach(val => {
+        test(() => {
+          document.body.style.top = val;
+          assert_equals(document.body.style.top, "");
+        }, `CSS Environment variable value "${val}" must not successfully parse`);
+      });
+
+      let validValues = [
+          "env(test 0, green)",
+          "env(test 0,)",
+          "env(test 0)",
+          "env(test 0 1 2 3 4, green)",
+      ];
+      validValues.forEach(val => {
+        test(() => {
+          document.body.style.top = val;
+          assert_equals(document.body.style.top, val);
+        }, `CSS Environment variable value "${val}" must successfully parse and roundtrip`);
+      });
+
+    </script>
+  </body>
+</html>
+
