@@ -12,6 +12,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/SVG/SVGFEBlendElement.h>
+#include <LibWeb/SVG/SVGFECompositeElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
 #include <LibWeb/SVG/SVGFEImageElement.h>
@@ -125,6 +126,42 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 
             root_filter = Gfx::Filter::blend(background, foreground, blend_mode);
             update_result_map(*blend_primitive);
+        } else if (auto* composite_primitive = as_if<SVGFECompositeElement>(node)) {
+            auto foreground = resolve_input_filter(composite_primitive->in1()->base_val());
+            auto background = resolve_input_filter(composite_primitive->in2()->base_val());
+            auto operator_ = composite_primitive->operator_();
+            if (operator_ == SVGFECompositeElement::CompositingOperator::Arithmetic) {
+                auto k1 = composite_primitive->k1()->base_val();
+                auto k2 = composite_primitive->k2()->base_val();
+                auto k3 = composite_primitive->k3()->base_val();
+                auto k4 = composite_primitive->k4()->base_val();
+
+                root_filter = Gfx::Filter::arithmetic(background, foreground, k1, k2, k3, k4);
+            } else {
+                auto to_compositing_and_blending_operator = [](SVGFECompositeElement::CompositingOperator operator_) {
+                    switch (operator_) {
+                    case SVGFECompositeElement::CompositingOperator::Over:
+                        return Gfx::CompositingAndBlendingOperator::SourceOver;
+                    case SVGFECompositeElement::CompositingOperator::In:
+                        return Gfx::CompositingAndBlendingOperator::SourceIn;
+                    case SVGFECompositeElement::CompositingOperator::Out:
+                        return Gfx::CompositingAndBlendingOperator::DestinationOut;
+                    case SVGFECompositeElement::CompositingOperator::Atop:
+                        return Gfx::CompositingAndBlendingOperator::SourceATop;
+                    case SVGFECompositeElement::CompositingOperator::Xor:
+                        return Gfx::CompositingAndBlendingOperator::Xor;
+                    case SVGFECompositeElement::CompositingOperator::Lighter:
+                        return Gfx::CompositingAndBlendingOperator::Lighter;
+                    default:
+                        break;
+                    }
+                    return Gfx::CompositingAndBlendingOperator::SourceOver;
+                };
+
+                root_filter = Gfx::Filter::blend(background, foreground, to_compositing_and_blending_operator(operator_));
+            }
+
+            update_result_map(*composite_primitive);
         } else if (auto* blur_primitive = as_if<SVGFEGaussianBlurElement>(node)) {
             auto input = resolve_input_filter(blur_primitive->in1()->base_val());
 
