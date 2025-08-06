@@ -40,6 +40,7 @@ public:
     static Filter color_matrix(float matrix[20], Optional<Filter const&> input = {});
     static Filter saturate(float value, Optional<Filter const&> input = {});
     static Filter hue_rotate(float angle_degrees, Optional<Filter const&> input = {});
+    static Filter offset(float dx, float dy, Optional<Filter const&> input = {});
 
     FilterImpl const& impl() const;
 

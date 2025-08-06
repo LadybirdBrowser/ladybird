@@ -224,4 +224,10 @@ Filter Filter::hue_rotate(float angle_degrees, Optional<Filter const&> input)
     return Filter(Impl::create(SkImageFilters::ColorFilter(color_filter, input_skia)));
 }
 
+Filter Filter::offset(float dx, float dy, Optional<Filter const&> input)
+{
+    sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
+    return Filter(Impl::create(SkImageFilters::Offset(dx, dy, input_skia)));
+}
+
 }
