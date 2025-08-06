@@ -27,8 +27,10 @@ bool fuzzy_screenshot_match(URL::URL const& reference, Gfx::Bitmap const& bitmap
             return fuzzy_match.reference.value().equals(reference);
         return true;
     });
-    if (!fuzzy_match.has_value())
-        return diff.identical;
+    if (!fuzzy_match.has_value()) {
+        warnln("Screenshot mismatch: pixel error count {}, with maximum error {}. (No fuzzy config defined)", diff.pixel_error_count, diff.maximum_error);
+        return false;
+    }
 
     // Apply fuzzy matching.
     auto color_error_matches = fuzzy_match->color_value_error.contains(diff.maximum_error);
