@@ -8,6 +8,12 @@
 
 #include <AK/Utf16FlyString.h>
 
+static_assert(AK::Concepts::HashCompatible<Utf16String, Utf16FlyString>);
+static_assert(AK::Concepts::HashCompatible<Utf16FlyString, Utf16String>);
+
+static_assert(AK::Concepts::HashCompatible<Utf16View, Utf16FlyString>);
+static_assert(AK::Concepts::HashCompatible<Utf16FlyString, Utf16View>);
+
 TEST_CASE(empty_string)
 {
     Utf16FlyString fly {};
