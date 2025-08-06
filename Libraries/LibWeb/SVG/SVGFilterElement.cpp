@@ -7,6 +7,7 @@
 
 #include <LibWeb/Bindings/SVGFilterElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/SVG/SVGFEBlendElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
@@ -102,6 +103,9 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
     };
 
     for_each_child([&](auto& node) {
+        if (is<DOM::Text>(node))
+            return IterationDecision::Continue;
+
         if (is<SVGFEFloodElement>(node)) {
             auto& flood_primitive = static_cast<SVGFEFloodElement&>(node);
 
@@ -141,6 +145,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
             if (!result.is_empty()) {
                 result_map.set(result, *root_filter);
             }
+        } else {
+            dbgln("SVGFilterElement::gfx_filter(): Unknown or unsupported filter element '{}'", node.debug_description());
         }
 
         return IterationDecision::Continue;
