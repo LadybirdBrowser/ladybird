@@ -359,6 +359,8 @@ set(SOURCES
     Gamepad/Gamepad.cpp
     Gamepad/NavigatorGamepad.cpp
     Geolocation/Geolocation.cpp
+    Serial/Serial.cpp
+    Serial/SerialPort.cpp
     Geolocation/GeolocationCoordinates.cpp
     Geolocation/GeolocationPosition.cpp
     Geolocation/GeolocationPositionError.cpp
