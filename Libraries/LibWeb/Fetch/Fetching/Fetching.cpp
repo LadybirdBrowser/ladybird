@@ -2325,11 +2325,11 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
     if (request->buffer_policy() == Infrastructure::Request::BufferPolicy::DoNotBufferResponse) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-        // 12. Let stream be a new ReadableStream.
+        // 10. Let stream be a new ReadableStream.
         auto stream = realm.create<Streams::ReadableStream>(realm);
         auto fetched_data_receiver = realm.create<FetchedDataReceiver>(fetch_params, stream);
 
-        // 10. Let pullAlgorithm be the followings steps:
+        // 11. Let pullAlgorithm be the following steps:
         auto pull_algorithm = GC::create_function(realm.heap(), [&realm, fetched_data_receiver]() {
             // 1. Let promise be a new promise.
             auto promise = WebIDL::create_promise(realm);
@@ -2342,7 +2342,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
             return promise;
         });
 
-        // 11. Let cancelAlgorithm be an algorithm that aborts fetchParams’s controller with reason, given reason.
+        // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s controller with reason, given reason.
         auto cancel_algorithm = GC::create_function(realm.heap(), [&realm, &fetch_params](JS::Value reason) {
             fetch_params.controller()->abort(realm, reason);
             return WebIDL::create_resolved_promise(realm, JS::js_undefined());
