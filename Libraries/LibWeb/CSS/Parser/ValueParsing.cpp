@@ -4076,6 +4076,7 @@ RefPtr<StyleValue const> Parser::parse_calculated_value(ComponentValue const& co
                 return CalculationContext {
                     .percentages_resolve_as = property_resolves_percentages_relative_to(property_id),
                     .resolve_numbers_as_integers = property_accepts_type(property_id, ValueType::Integer),
+                    .accepted_type_ranges = property_accepted_type_ranges(property_id),
                 };
             },
             [](FunctionContext const& function) -> Optional<CalculationContext> {

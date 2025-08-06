@@ -30,6 +30,7 @@ class CalculationNode;
 struct CalculationContext {
     Optional<ValueType> percentages_resolve_as {};
     bool resolve_numbers_as_integers = false;
+    AcceptedTypeRangeMap accepted_type_ranges {};
 };
 
 class CalculatedStyleValue : public StyleValue {
