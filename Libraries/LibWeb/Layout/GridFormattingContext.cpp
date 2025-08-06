@@ -1038,6 +1038,7 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
 void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossing_flexible_tracks(GridDimension dimension)
 {
     auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
+    auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
     for (auto& item : m_grid_items) {
         Vector<GridTrack&> spanned_tracks;
         for_each_spanned_track_by_item(item, dimension, [&](GridTrack& track) {
@@ -1052,9 +1053,15 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
 
         // 1. For intrinsic minimums: First increase the base size of tracks with an intrinsic min track sizing
         //    function by distributing extra space as needed to accommodate these items’ minimum contributions.
-        auto item_minimum_contribution = calculate_minimum_contribution(item, dimension);
+        auto item_size_contribution = [&] {
+            // If the grid container is being sized under a min- or max-content constraint, use the items’ limited
+            // min-content contributions in place of their minimum contributions here.
+            if (available_size.is_intrinsic_sizing_constraint())
+                return calculate_limited_min_content_contribution(item, dimension);
+            return calculate_minimum_contribution(item, dimension);
+        }();
         distribute_extra_space_across_spanned_tracks_base_size(dimension,
-            item_minimum_contribution, SpaceDistributionPhase::AccommodateMinimumContribution, spanned_tracks, [&](GridTrack const& track) {
+            item_size_contribution, SpaceDistributionPhase::AccommodateMinimumContribution, spanned_tracks, [&](GridTrack const& track) {
                 return track.max_track_sizing_function.is_flexible_length();
             });
 
