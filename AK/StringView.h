@@ -348,9 +348,9 @@ public:
     }
 
     template<Arithmetic T>
-    Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
+    Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes, int base = 10) const
     {
-        return parse_number<T>(*this, trim_whitespace);
+        return parse_number<T>(*this, trim_whitespace, base);
     }
 
 private:
