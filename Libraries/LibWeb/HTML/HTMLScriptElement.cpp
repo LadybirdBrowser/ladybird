@@ -661,6 +661,23 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::set_text(TrustedTypes::TrustedScrip
     return {};
 }
 
+// https://www.w3.org/TR/trusted-types/#the-src-idl-attribute
+WebIDL::ExceptionOr<void> HTMLScriptElement::set_src(TrustedTypes::TrustedScriptURLOrString text)
+{
+    // 1. Let value be the result of calling Get Trusted Type compliant string with
+    //    TrustedScriptURL, this’s relevant global object, the given value, HTMLScriptElement src, and script.
+    auto const value = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedScriptURL,
+        HTML::relevant_global_object(*this),
+        text,
+        TrustedTypes::InjectionSink::HTMLScriptElementsrc,
+        TrustedTypes::Script.to_string()));
+
+    // 2. Set this’s src content attribute to value.
+    TRY(set_attribute(AttributeNames::src, value));
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-script-async
 bool HTMLScriptElement::async() const
 {
