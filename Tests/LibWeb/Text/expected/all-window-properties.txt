@@ -344,6 +344,7 @@ SVGEllipseElement
 SVGFEBlendElement
 SVGFEFloodElement
 SVGFEGaussianBlurElement
+SVGFEOffsetElement
 SVGFilterElement
 SVGForeignObjectElement
 SVGGElement

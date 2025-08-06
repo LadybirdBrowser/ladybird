@@ -11,6 +11,7 @@
 #include <LibWeb/SVG/SVGFEBlendElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
+#include <LibWeb/SVG/SVGFEOffsetElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 
 namespace Web::SVG {
@@ -129,6 +130,14 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
 
             root_filter = Gfx::Filter::blur(radius_x, radius_y, input);
             update_result_map(*blur_primitive);
+        } else if (auto* offset_primitive = as_if<SVGFEOffsetElement>(node)) {
+            auto input = resolve_input_filter(offset_primitive->in1()->base_val());
+
+            auto dx = offset_primitive->dx()->base_val();
+            auto dy = offset_primitive->dy()->base_val();
+
+            root_filter = Gfx::Filter::offset(dx, dy, input);
+            update_result_map(*offset_primitive);
         } else {
             dbgln("SVGFilterElement::gfx_filter(): Unknown or unsupported filter element '{}'", node.debug_description());
         }
