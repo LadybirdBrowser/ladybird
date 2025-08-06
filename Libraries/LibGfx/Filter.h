@@ -34,6 +34,7 @@ public:
 
     ~Filter();
 
+    static Filter arithmetic(Optional<Filter const&> background, Optional<Filter const&> foreground, float k1, float k2, float k3, float k4);
     static Filter compose(Filter const& outer, Filter const& inner);
     static Filter blend(Optional<Filter const&> background, Optional<Filter const&> foreground, CompositingAndBlendingOperator mode);
     static Filter flood(Gfx::Color color, float opacity);
