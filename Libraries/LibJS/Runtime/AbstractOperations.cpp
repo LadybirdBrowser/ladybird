@@ -771,7 +771,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
         if (global_var_environment) {
             // i. For each element name of varNames, do
             TRY(program.for_each_var_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-                auto name = Utf16FlyString::from_utf8(identifier.string());
+                auto const& name = identifier.string();
 
                 // 1. If varEnv.HasLexicalDeclaration(name) is true, throw a SyntaxError exception.
                 if (global_var_environment->has_lexical_declaration(name))
@@ -793,7 +793,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
                 // 1. NOTE: The environment of with statements cannot contain any lexical declaration so it doesn't need to be checked for var/let hoisting conflicts.
                 // 2. For each element name of varNames, do
                 TRY(program.for_each_var_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-                    auto name = Utf16FlyString::from_utf8(identifier.string());
+                    auto const& name = identifier.string();
 
                     // a. If ! thisEnv.HasBinding(name) is true, then
                     if (MUST(this_environment->has_binding(name))) {
@@ -831,7 +831,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
 
     // 10. For each element d of varDeclarations, in reverse List order, do
     TRY(program.for_each_var_function_declaration_in_reverse_order([&](FunctionDeclaration const& function) -> ThrowCompletionOr<void> {
-        auto function_name = Utf16FlyString::from_utf8(function.name());
+        auto function_name = function.name();
 
         // a. If d is neither a VariableDeclaration nor a ForBinding nor a BindingIdentifier, then
         // i. Assert: d is either a FunctionDeclaration, a GeneratorDeclaration, an AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration.
@@ -874,7 +874,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
         // b. For each FunctionDeclaration f that is directly contained in the StatementList of a Block, CaseClause, or DefaultClause Contained within body, do
         TRY(program.for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) -> ThrowCompletionOr<void> {
             // i. Let F be StringValue of the BindingIdentifier of f.
-            auto function_name = Utf16FlyString::from_utf8(function_declaration.name());
+            auto function_name = function_declaration.name();
 
             // ii. If replacing the FunctionDeclaration f with a VariableStatement that has F as a BindingIdentifier would not produce any Early Errors for body, then
             // Note: This is checked during parsing and for_each_function_hoistable_with_annexB_extension so it always passes here.
@@ -969,7 +969,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
 
         // i. For each String vn of the BoundNames of d, do
         return declaration.for_each_bound_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-            auto name = Utf16FlyString::from_utf8(identifier.string());
+            auto const& name = identifier.string();
 
             // 1. If vn is not an element of declaredFunctionNames, then
             if (!declared_function_names.contains(name)) {
@@ -1000,7 +1000,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
 
         // b. For each element dn of the BoundNames of d, do
         return declaration.for_each_bound_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-            auto name = Utf16FlyString::from_utf8(identifier.string());
+            auto const& name = identifier.string();
 
             // i. If IsConstantDeclaration of d is true, then
             if (declaration.is_constant_declaration()) {
@@ -1021,7 +1021,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
     //       instead of prepending. We append because prepending is much slower
     //       and we only use the created vector here.
     for (auto const& declaration : functions_to_initialize.in_reverse()) {
-        auto declaration_name = Utf16FlyString::from_utf8(declaration.name());
+        auto declaration_name = declaration.name();
 
         // a. Let fn be the sole element of the BoundNames of f.
         // b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
@@ -1178,7 +1178,7 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Nonnull
     VERIFY(formals->size() <= NumericLimits<i32>::max());
     for (i32 index = static_cast<i32>(formals->size()) - 1; index >= 0; --index) {
         // a. Let name be parameterNames[index].
-        auto name = Utf16FlyString::from_utf8(formals->parameters()[index].binding.get<NonnullRefPtr<Identifier const>>()->string());
+        auto const& name = formals->parameters()[index].binding.get<NonnullRefPtr<Identifier const>>()->string();
 
         // b. If name is not an element of mappedNames, then
         if (seen_names.contains(name))
@@ -1792,7 +1792,7 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
 
     // 8. Let specifierString be Completion(ToString(specifier)).
     // 9. IfAbruptRejectPromise(specifierString, promiseCapability).
-    FlyString specifier_string = TRY_OR_REJECT(vm, promise_capability, specifier.to_string(vm));
+    auto specifier_string = TRY_OR_REJECT(vm, promise_capability, specifier.to_utf16_string(vm));
 
     // 10. Let attributes be a new empty List.
     Vector<ImportAttribute> attributes;
@@ -1850,7 +1850,7 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
                     }
 
                     // b. Append the ImportAttribute Record { [[Key]]: key, [[Value]]: value } to attributes.
-                    attributes.empend(key.as_string().utf8_string(), value.as_string().utf8_string());
+                    attributes.empend(key.as_string().utf16_string(), value.as_string().utf16_string());
                 }
             }
         }

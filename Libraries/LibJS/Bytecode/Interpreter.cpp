@@ -1361,7 +1361,7 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
     } else {
         value = ECMAScriptFunctionObject::create_from_function_node(
             function_node,
-            Utf16FlyString::from_utf8(function_node.name()),
+            function_node.name(),
             *vm.current_realm(),
             vm.lexical_environment(),
             vm.running_execution_context().private_environment);
@@ -1622,9 +1622,8 @@ inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value supe
     if (!class_expression.has_name() && lhs_name.has_value()) {
         class_name = interpreter.current_executable().get_identifier(lhs_name.value());
     } else {
-        auto name = Utf16FlyString::from_utf8(class_expression.name());
-        binding_name = name;
-        class_name = name;
+        class_name = class_expression.name();
+        binding_name = class_name;
     }
 
     return TRY(class_expression.create_class_constructor(vm, class_environment, vm.lexical_environment(), super_class, element_keys, binding_name, class_name));

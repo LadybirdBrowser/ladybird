@@ -120,7 +120,7 @@ void finish_loading_imported_module(ImportedModuleReferrer referrer, ModuleReque
 
                 // i. Append the Record { [[Specifier]]: specifier, [[Module]]: result.[[Value]] } to referrer.[[LoadedModules]].
                 loaded_modules.append(ModuleWithSpecifier {
-                    .specifier = module_request.module_specifier.to_string(),
+                    .specifier = module_request.module_specifier.to_utf16_string(),
                     .module = GC::Ref<Module>(*module) });
             }
         }

@@ -245,7 +245,6 @@ private:
 
     Token next_token() const;
 
-    void check_identifier_name_for_assignment_validity(FlyString const&, bool force_strict = false);
     void check_identifier_name_for_assignment_validity(Utf16FlyString const&, bool force_strict = false);
 
     bool try_parse_arrow_function_expression_failed_at_position(Position const&) const;
@@ -256,7 +255,7 @@ private:
     bool parse_directive(ScopeNode& body);
     void parse_statement_list(ScopeNode& output_node, AllowLabelledFunction allow_labelled_functions = AllowLabelledFunction::No);
 
-    FlyString consume_string_value();
+    Utf16FlyString consume_string_value();
     ModuleRequest parse_module_request();
 
     struct RulePosition {
@@ -319,8 +318,7 @@ private:
         ParserState(Lexer, Program::Type);
     };
 
-    [[nodiscard]] NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, FlyString string, Optional<DeclarationKind> = {});
-    [[nodiscard]] NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, Utf16FlyString const& string, Optional<DeclarationKind> = {});
+    [[nodiscard]] NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, Utf16FlyString string, Optional<DeclarationKind> = {});
 
     NonnullRefPtr<SourceCode const> m_source_code;
     Vector<Position> m_rule_starts;

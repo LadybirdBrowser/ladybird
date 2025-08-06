@@ -121,7 +121,7 @@ VM::VM(ErrorMessages error_messages)
     };
 
     host_get_supported_import_attributes = [&] {
-        return Vector<String> { "type"_string };
+        return Vector<Utf16String> { "type"_utf16 };
     };
 
     // 1 HostGetCodeForEval ( argument ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-hostgetcodeforeval
@@ -523,7 +523,7 @@ ScriptOrModule VM::get_active_script_or_module() const
     return m_execution_context_stack[0]->script_or_module;
 }
 
-VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteString const& filename, String const&)
+VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteString const& filename, Utf16String const&)
 {
     // Note the spec says:
     // If this operation is called multiple times with the same (referrer, specifier) pair and it performs
@@ -582,7 +582,7 @@ ThrowCompletionOr<void> VM::link_and_eval_module(CyclicModule& module)
     return {};
 }
 
-static ByteString resolve_module_filename(StringView filename, StringView module_type)
+static ByteString resolve_module_filename(StringView filename, Utf16View const& module_type)
 {
     auto extensions = Vector<StringView, 2> { "js"sv, "mjs"sv };
     if (module_type == "json"sv)
@@ -635,7 +635,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         return;
     }
 
-    String module_type;
+    Utf16String module_type;
     for (auto& attribute : module_request.attributes) {
         if (attribute.key == "type"sv) {
             module_type = attribute.value;
@@ -662,7 +662,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         });
 
     LexicalPath base_path { base_filename };
-    auto filename = LexicalPath::absolute_path(base_path.dirname(), module_request.module_specifier);
+    auto filename = LexicalPath::absolute_path(base_path.dirname(), MUST(module_request.module_specifier.view().to_byte_string()));
 
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] base path: '{}'", base_path);
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] initial filename: '{}'", filename);

@@ -12,6 +12,8 @@
 #include <AK/FlyString.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/Root.h>
@@ -343,7 +345,7 @@ public:
     ThrowCompletionOr<void> for_each_function_hoistable_with_annexB_extension(ThrowCompletionOrVoidCallback<FunctionDeclaration&>&& callback) const;
 
     auto const& local_variables_names() const { return m_local_variables_names; }
-    size_t add_local_variable(FlyString name, LocalVariable::DeclarationKind declaration_kind)
+    size_t add_local_variable(Utf16FlyString name, LocalVariable::DeclarationKind declaration_kind)
     {
         auto index = m_local_variables_names.size();
         m_local_variables_names.append({ move(name), declaration_kind });
@@ -370,10 +372,10 @@ private:
 
 // ImportEntry Record, https://tc39.es/ecma262/#table-importentry-record-fields
 struct ImportEntry {
-    Optional<FlyString> import_name; // [[ImportName]]: stored string if Optional is not empty, NAMESPACE-OBJECT otherwise
-    FlyString local_name;            // [[LocalName]]
+    Optional<Utf16FlyString> import_name; // [[ImportName]]: stored string if Optional is not empty, NAMESPACE-OBJECT otherwise
+    Utf16FlyString local_name;            // [[LocalName]]
 
-    ImportEntry(Optional<FlyString> import_name_, FlyString local_name_)
+    ImportEntry(Optional<Utf16FlyString> import_name_, Utf16FlyString local_name_)
         : import_name(move(import_name_))
         , local_name(move(local_name_))
     {
@@ -407,7 +409,7 @@ public:
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
-    bool has_bound_name(FlyString const& name) const;
+    bool has_bound_name(Utf16FlyString const& name) const;
     Vector<ImportEntry> const& entries() const { return m_entries; }
     ModuleRequest const& module_request() const { return m_module_request; }
 
@@ -429,10 +431,10 @@ struct ExportEntry {
         EmptyNamedExport,
     } kind;
 
-    Optional<FlyString> export_name;          // [[ExportName]]
-    Optional<FlyString> local_or_import_name; // Either [[ImportName]] or [[LocalName]]
+    Optional<Utf16FlyString> export_name;          // [[ExportName]]
+    Optional<Utf16FlyString> local_or_import_name; // Either [[ImportName]] or [[LocalName]]
 
-    ExportEntry(Kind export_kind, Optional<FlyString> export_name_, Optional<FlyString> local_or_import_name_)
+    ExportEntry(Kind export_kind, Optional<Utf16FlyString> export_name_, Optional<Utf16FlyString> local_or_import_name_)
         : kind(export_kind)
         , export_name(move(export_name_))
         , local_or_import_name(move(local_or_import_name_))
@@ -444,7 +446,7 @@ struct ExportEntry {
         return m_module_request != nullptr;
     }
 
-    static ExportEntry indirect_export_entry(ModuleRequest const& module_request, Optional<FlyString> export_name, Optional<FlyString> import_name)
+    static ExportEntry indirect_export_entry(ModuleRequest const& module_request, Optional<Utf16FlyString> export_name, Optional<Utf16FlyString> import_name)
     {
         ExportEntry entry { Kind::NamedExport, move(export_name), move(import_name) };
         entry.m_module_request = &module_request;
@@ -462,7 +464,7 @@ private:
     friend class ExportStatement;
 
 public:
-    static ExportEntry named_export(FlyString export_name, FlyString local_name)
+    static ExportEntry named_export(Utf16FlyString export_name, Utf16FlyString local_name)
     {
         return ExportEntry { Kind::NamedExport, move(export_name), move(local_name) };
     }
@@ -472,7 +474,7 @@ public:
         return ExportEntry { Kind::ModuleRequestAllButDefault, {}, {} };
     }
 
-    static ExportEntry all_module_request(FlyString export_name)
+    static ExportEntry all_module_request(Utf16FlyString export_name)
     {
         return ExportEntry { Kind::ModuleRequestAll, move(export_name), {} };
     }
@@ -485,7 +487,7 @@ public:
 
 class ExportStatement final : public Statement {
 public:
-    static FlyString local_name_for_default;
+    static Utf16FlyString local_name_for_default;
 
     ExportStatement(SourceRange source_range, RefPtr<ASTNode const> statement, Vector<ExportEntry> entries, bool is_default_export, Optional<ModuleRequest> module_request)
         : Statement(move(source_range))
@@ -504,7 +506,7 @@ public:
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
-    bool has_export(FlyString const& export_name) const;
+    bool has_export(Utf16FlyString const& export_name) const;
 
     bool has_statement() const { return m_statement; }
     Vector<ExportEntry> const& entries() const { return m_entries; }
@@ -676,13 +678,13 @@ struct BindingPattern : RefCounted<BindingPattern> {
 
 class Identifier final : public Expression {
 public:
-    explicit Identifier(SourceRange source_range, FlyString string)
+    explicit Identifier(SourceRange source_range, Utf16FlyString string)
         : Expression(move(source_range))
         , m_string(move(string))
     {
     }
 
-    FlyString const& string() const { return m_string; }
+    Utf16FlyString const& string() const { return m_string; }
 
     struct Local {
         enum Type {
@@ -720,7 +722,7 @@ public:
 private:
     virtual bool is_identifier() const override { return true; }
 
-    FlyString m_string;
+    Utf16FlyString m_string;
 
     Optional<Local> m_local_index;
     bool m_is_global { false };
@@ -748,7 +750,7 @@ public:
     size_t size() const { return m_parameters.size(); }
     Vector<FunctionParameter> const& parameters() const { return m_parameters; }
 
-    Optional<size_t> get_index_of_parameter_name(FlyString const& name) const
+    Optional<size_t> get_index_of_parameter_name(Utf16FlyString const& name) const
     {
         // Iterate backwards to return the last parameter with the same name
         for (int i = m_parameters.size() - 1; i >= 0; i--) {
@@ -780,7 +782,7 @@ struct FunctionParsingInsights {
 
 class FunctionNode {
 public:
-    FlyString name() const { return m_name ? m_name->string() : ""_fly_string; }
+    Utf16FlyString name() const { return m_name ? m_name->string() : Utf16FlyString {}; }
     RefPtr<Identifier const> name_identifier() const { return m_name; }
     ByteString const& source_text() const { return m_source_text; }
     Statement const& body() const { return *m_body; }
@@ -1303,7 +1305,7 @@ private:
 
 class StringLiteral final : public Expression {
 public:
-    explicit StringLiteral(SourceRange source_range, String value)
+    explicit StringLiteral(SourceRange source_range, Utf16String value)
         : Expression(move(source_range))
         , m_value(move(value))
     {
@@ -1312,12 +1314,12 @@ public:
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
-    String const& value() const { return m_value; }
+    Utf16String const& value() const { return m_value; }
 
 private:
     virtual bool is_string_literal() const override { return true; }
 
-    String m_value;
+    Utf16String m_value;
 };
 
 class NullLiteral final : public PrimitiveLiteral {
@@ -1367,20 +1369,20 @@ private:
 
 class PrivateIdentifier final : public Expression {
 public:
-    explicit PrivateIdentifier(SourceRange source_range, FlyString string)
+    explicit PrivateIdentifier(SourceRange source_range, Utf16FlyString string)
         : Expression(move(source_range))
         , m_string(move(string))
     {
     }
 
-    FlyString const& string() const { return m_string; }
+    Utf16FlyString const& string() const { return m_string; }
 
     virtual void dump(int indent) const override;
 
     virtual bool is_private_identifier() const override { return true; }
 
 private:
-    FlyString m_string;
+    Utf16FlyString m_string;
 };
 
 class ClassElement : public ASTNode {
@@ -1404,7 +1406,7 @@ public:
     using ClassValue = Variant<ClassFieldDefinition, Completion, PrivateElement>;
     virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value) const = 0;
 
-    virtual Optional<FlyString> private_bound_identifier() const { return {}; }
+    virtual Optional<Utf16FlyString> private_bound_identifier() const { return {}; }
 
 private:
     bool m_is_static { false };
@@ -1432,7 +1434,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value property_key) const override;
-    virtual Optional<FlyString> private_bound_identifier() const override;
+    virtual Optional<Utf16FlyString> private_bound_identifier() const override;
 
 private:
     virtual bool is_class_method() const override { return true; }
@@ -1458,7 +1460,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual ThrowCompletionOr<ClassValue> class_element_evaluation(VM&, Object& home_object, Value property_key) const override;
-    virtual Optional<FlyString> private_bound_identifier() const override;
+    virtual Optional<Utf16FlyString> private_bound_identifier() const override;
 
 private:
     NonnullRefPtr<Expression const> m_key;
@@ -1507,7 +1509,7 @@ public:
     {
     }
 
-    FlyString name() const { return m_name ? m_name->string() : ""_fly_string; }
+    Utf16FlyString name() const { return m_name ? m_name->string() : Utf16FlyString {}; }
 
     ByteString const& source_text() const { return m_source_text; }
     RefPtr<FunctionExpression const> constructor() const { return m_constructor; }
@@ -1547,7 +1549,7 @@ public:
 
     virtual bool is_lexical_declaration() const override { return true; }
 
-    FlyString name() const { return m_class_expression->name(); }
+    Utf16FlyString name() const { return m_class_expression->name(); }
 
 private:
     virtual bool is_class_declaration() const override { return true; }
@@ -1651,7 +1653,7 @@ protected:
 
     virtual bool is_call_expression() const override { return true; }
 
-    Optional<String> expression_string() const;
+    Optional<Utf16String> expression_string() const;
 
     NonnullRefPtr<Expression const> m_callee;
 };
@@ -1994,7 +1996,7 @@ public:
     Expression const& object() const { return *m_object; }
     Expression const& property() const { return *m_property; }
 
-    [[nodiscard]] String to_string_approximation() const;
+    Utf16String to_string_approximation() const;
 
     bool ends_in_private_name() const;
 
