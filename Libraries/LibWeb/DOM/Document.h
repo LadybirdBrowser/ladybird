@@ -1290,4 +1290,6 @@ private:
 template<>
 inline bool Node::fast_is<Document>() const { return is_document(); }
 
+bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_string, URL::Host const& original_host);
+
 }

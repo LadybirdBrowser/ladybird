@@ -16,6 +16,12 @@ dictionary CookieStoreGetOptions {
     USVString url;
 };
 
+enum CookieSameSite {
+    "strict",
+    "lax",
+    "none"
+};
+
 // https://cookiestore.spec.whatwg.org/#cookiestore
 [Exposed=(ServiceWorker,Window), SecureContext]
 interface CookieStore : EventTarget {
@@ -24,6 +30,8 @@ interface CookieStore : EventTarget {
 
     Promise<CookieList> getAll(USVString name);
     Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
+
+    Promise<undefined> set(USVString name, USVString value);
 };
 
 // https://cookiestore.spec.whatwg.org/#Window

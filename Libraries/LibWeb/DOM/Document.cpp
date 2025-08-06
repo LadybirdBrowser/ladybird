@@ -3782,7 +3782,7 @@ String Document::domain() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#is-a-registrable-domain-suffix-of-or-is-equal-to
-static bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_string, URL::Host const& original_host)
+bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_string, URL::Host const& original_host)
 {
     // 1. If hostSuffixString is the empty string, then return false.
     if (host_suffix_string.is_empty())
