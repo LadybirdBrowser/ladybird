@@ -705,6 +705,33 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::set_text_content(TrustedTypes::Trus
     return {};
 }
 
+// https://w3c.github.io/trusted-types/dist/spec/#the-innerText-idl-attribute
+TrustedTypes::TrustedScriptOrString HTMLScriptElement::inner_text()
+{
+    // 1. Return the result of running get text content with this.
+    return get_the_text_steps();
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#the-innerText-idl-attribute
+WebIDL::ExceptionOr<void> HTMLScriptElement::set_inner_text(TrustedTypes::TrustedScriptOrString text)
+{
+    // 1. Let value be the result of calling Get Trusted Type compliant string with
+    //    TrustedScript, this’s relevant global object, the given value, HTMLScriptElement innerText, and script.
+    auto const value = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedScript,
+        HTML::relevant_global_object(*this),
+        text,
+        TrustedTypes::InjectionSink::HTMLScriptElementinnerText,
+        TrustedTypes::Script.to_string()));
+
+    // 2. Set this’s script text value to value.
+    m_script_text = value;
+
+    // 3. Run set the inner text steps with this and value.
+    HTMLElement::set_inner_text(value);
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-script-async
 bool HTMLScriptElement::async() const
 {
