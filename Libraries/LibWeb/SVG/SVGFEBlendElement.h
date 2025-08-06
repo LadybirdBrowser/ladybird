@@ -24,7 +24,9 @@ public:
 
     GC::Ref<SVGAnimatedString> in1();
     GC::Ref<SVGAnimatedString> in2();
-    GC::Ref<SVGAnimatedEnumeration> mode() const;
+
+    Gfx::CompositingAndBlendingOperator mode() const;
+    GC::Ref<SVGAnimatedEnumeration> mode_for_bindings() const;
 
 private:
     SVGFEBlendElement(DOM::Document&, DOM::QualifiedName);
@@ -32,8 +34,12 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& new_value, Optional<FlyString> const& namespace_) override;
+
     GC::Ptr<SVGAnimatedString> m_in1;
     GC::Ptr<SVGAnimatedString> m_in2;
+
+    Optional<CSS::MixBlendMode> m_mode;
 };
 
 }

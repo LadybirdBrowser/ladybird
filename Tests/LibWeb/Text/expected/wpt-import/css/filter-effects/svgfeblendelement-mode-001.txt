@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 35 tests
+
+18 Pass
+17 Fail
+Pass	SVGFEBlendElement.prototype.mode, getter, initial value
+Pass	SVGFEBlendElement.prototype.mode, getter, invalid value
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "normal"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "multiply"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "screen"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "darken"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "lighten"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "overlay"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "color-dodge"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "color-burn"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "hard-light"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "soft-light"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "difference"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "exclusion"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "hue"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "saturation"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "color"
+Pass	SVGFEBlendElement.prototype.mode, getter, numeric value for "luminosity"
+Fail	SVGFEBlendElement.prototype.mode, setter, invalid value
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "normal"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "multiply"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "screen"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "darken"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "lighten"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "overlay"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "color-dodge"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "color-burn"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "hard-light"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "soft-light"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "difference"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "exclusion"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "hue"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "saturation"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "color"
+Fail	SVGFEBlendElement.prototype.mode, setter, numeric value for "luminosity"
