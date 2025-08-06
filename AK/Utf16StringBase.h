@@ -176,7 +176,7 @@ public:
 
         if (auto const* data = data_without_union_member_assertion())
             return data->hash();
-        return string_hash(nullptr, 0);
+        return string_hash<char16_t>(nullptr, 0);
     }
 
     [[nodiscard]] ALWAYS_INLINE bool is_empty() const { return length_in_code_units() == 0uz; }
