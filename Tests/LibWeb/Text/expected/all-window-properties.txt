@@ -354,6 +354,7 @@ SVGEllipseElement
 SVGFEBlendElement
 SVGFEFloodElement
 SVGFEGaussianBlurElement
+SVGFEImageElement
 SVGFEMergeElement
 SVGFEMergeNodeElement
 SVGFEOffsetElement

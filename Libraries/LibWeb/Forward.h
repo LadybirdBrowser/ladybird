@@ -1051,6 +1051,7 @@ class SVGEllipseElement;
 class SVGFEBlendElement;
 class SVGFEFloodElement;
 class SVGFEGaussianBlurElement;
+class SVGFEImageElement;
 class SVGFilterElement;
 class SVGFitToViewBox;
 class SVGForeignObjectElement;

@@ -20,6 +20,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(feBlend)        \
     __ENUMERATE_SVG_TAG(feFlood)        \
     __ENUMERATE_SVG_TAG(feGaussianBlur) \
+    __ENUMERATE_SVG_TAG(feImage)        \
     __ENUMERATE_SVG_TAG(feMerge)        \
     __ENUMERATE_SVG_TAG(feMergeNode)    \
     __ENUMERATE_SVG_TAG(feOffset)       \

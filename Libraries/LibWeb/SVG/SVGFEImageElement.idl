@@ -1,0 +1,14 @@
+#import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGElement.idl>
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+#import <SVG/SVGURIReference.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#feImageElement
+[Exposed=Window]
+interface SVGFEImageElement : SVGElement {
+    [FIXME] readonly attribute SVGAnimatedPreserveAspectRatio preserveAspectRatio;
+    [FIXME] readonly attribute SVGAnimatedString crossOrigin;
+};
+
+SVGFEImageElement includes SVGFilterPrimitiveStandardAttributes;
+SVGFEImageElement includes SVGURIReference;

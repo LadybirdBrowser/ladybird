@@ -9,6 +9,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/Rect.h>
+#include <LibGfx/ScalingMode.h>
 
 namespace Gfx {
 
@@ -40,6 +43,7 @@ public:
     static Filter color_matrix(float matrix[20], Optional<Filter const&> input = {});
     static Filter saturate(float value, Optional<Filter const&> input = {});
     static Filter hue_rotate(float angle_degrees, Optional<Filter const&> input = {});
+    static Filter image(Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode);
     static Filter merge(Vector<Optional<Filter>> const&);
     static Filter offset(float dx, float dy, Optional<Filter const&> input = {});
 
