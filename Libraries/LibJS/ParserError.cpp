@@ -26,13 +26,15 @@ ByteString ParserError::to_byte_string() const
     return ByteString::formatted("{} (line: {}, column: {})", message, position.value().line, position.value().column);
 }
 
-ByteString ParserError::source_location_hint(StringView source, char const spacer, char const indicator) const
+ByteString ParserError::source_location_hint(Utf16View const& source, char spacer, char indicator) const
 {
     if (!position.has_value())
         return {};
+
     // We need to modify the source to match what the lexer considers one line - normalizing
     // line terminators to \n is easier than splitting using all different LT characters.
-    ByteString source_string = source.replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All).replace(LINE_SEPARATOR_STRING, "\n"sv, ReplaceMode::All).replace(PARAGRAPH_SEPARATOR_STRING, "\n"sv, ReplaceMode::All);
+    auto source_string = source.replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All).replace(LINE_SEPARATOR, "\n"sv, ReplaceMode::All).replace(PARAGRAPH_SEPARATOR, "\n"sv, ReplaceMode::All);
+
     StringBuilder builder;
     builder.append(source_string.split_view('\n', SplitBehavior::KeepEmpty)[position.value().line - 1]);
     builder.append('\n');
