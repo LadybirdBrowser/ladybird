@@ -517,20 +517,20 @@ bool command_font_size_action(DOM::Document& document, Utf16String const& value)
     // 2. If value is not a valid floating point number, and would not be a valid floating point number if a single
     //    leading "+" character were stripped, return false.
     if (!HTML::is_valid_floating_point_number(resulting_value.to_utf8_but_should_be_ported_to_utf16())) {
-        if (!resulting_value.starts_with("+"sv)
+        if (!resulting_value.starts_with('+')
             || !HTML::is_valid_floating_point_number(resulting_value.substring_view(1).to_utf8_but_should_be_ported_to_utf16()))
             return false;
     }
 
     // 3. If the first character of value is "+", delete the character and let mode be "relative-plus".
     auto mode = FontSizeMode::Absolute;
-    if (resulting_value.starts_with("+"sv)) {
+    if (resulting_value.starts_with('+')) {
         resulting_value = resulting_value.substring_view(1);
         mode = FontSizeMode::RelativePlus;
     }
 
     // 4. Otherwise, if the first character of value is "-", delete the character and let mode be "relative-minus".
-    else if (resulting_value.starts_with("-"sv)) {
+    else if (resulting_value.starts_with('-')) {
         resulting_value = resulting_value.substring_view(1);
         mode = FontSizeMode::RelativeMinus;
     }
@@ -623,7 +623,7 @@ bool command_format_block_action(DOM::Document& document, Utf16String const& val
     // 1. If value begins with a "<" character and ends with a ">" character, remove the first and last characters from
     //    it.
     auto resulting_value = Utf16String::from_utf16_without_validation(
-        value.starts_with("<"sv) && value.ends_with(">"sv)
+        value.starts_with('<') && value.ends_with('>')
             ? value.substring_view(1, value.length_in_code_units() - 2)
             : value);
 

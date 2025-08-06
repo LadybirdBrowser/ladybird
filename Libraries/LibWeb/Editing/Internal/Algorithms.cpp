@@ -498,7 +498,7 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
             // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand: https://github.com/w3c/editing/issues/486.
             if (is<DOM::Text>(*end_node) && end_offset == end_node->length() && precedes_a_line_break(end_node)) {
                 auto parent_white_space_collapse = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
-                if (parent_white_space_collapse != CSS::Keyword::Preserve && end_node->text_content()->ends_with(" "sv)) {
+                if (parent_white_space_collapse != CSS::Keyword::Preserve && end_node->text_content()->ends_with(' ')) {
                     // 1. Subtract one from end offset.
                     --end_offset;
 
