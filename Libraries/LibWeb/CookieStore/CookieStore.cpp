@@ -566,4 +566,65 @@ GC::Ref<WebIDL::Promise> CookieStore::set(CookieInit const& options)
     return promise;
 }
 
+// https://cookiestore.spec.whatwg.org/#delete-a-cookie
+static bool delete_a_cookie(PageClient& client, URL::URL const& url, String name, Optional<String> domain, Optional<String> path, bool partitioned)
+{
+    // 1. Let expires be the earliest representable date represented as a timestamp.
+    // NOTE: The exact value of expires is not important for the purposes of this algorithm, as long as it is in the past.
+    HighResolutionTime::DOMHighResTimeStamp expires = UnixDateTime::earliest().milliseconds_since_epoch();
+
+    // 2. Let value be the empty string.
+    String value;
+
+    // 3. If name’s length is 0, then set value to any non-empty implementation-defined string.
+    if (name.is_empty())
+        value = "ladybird"_string;
+
+    // 4. Return the results of running set a cookie with url, name, value, expires, domain, path, "strict", and partitioned.
+    return set_a_cookie(client, url, move(name), move(value), expires, move(domain), move(path), Bindings::CookieSameSite::Strict, partitioned);
+}
+
+// https://cookiestore.spec.whatwg.org/#dom-cookiestore-delete
+GC::Ref<WebIDL::Promise> CookieStore::delete_(String name)
+{
+    auto& realm = this->realm();
+
+    // 1. Let settings be this’s relevant settings object.
+    auto const& settings = HTML::relevant_settings_object(*this);
+
+    // 2. Let origin be settings’s origin.
+    auto const& origin = settings.origin();
+
+    // 3. If origin is an opaque origin, then return a promise rejected with a "SecurityError" DOMException.
+    if (origin.is_opaque())
+        return WebIDL::create_rejected_promise(realm, WebIDL::SecurityError::create(realm, "Document origin is opaque"_string));
+
+    // 4. Let url be settings’s creation URL.
+    auto url = settings.creation_url;
+
+    // 5. Let p be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 6. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = move(name)]() {
+        // 1. Let r be the result of running delete a cookie with url, name, null, "/", and true.
+        auto result = delete_a_cookie(client, url, move(name), {}, "/"_string, true);
+
+        // AD-HOC: Queue a global task to perform the next steps
+        // Spec issue: https://github.com/whatwg/cookiestore/issues/239
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, result]() {
+            HTML::TemporaryExecutionContext execution_context { realm };
+            // 2. If r is failure, then reject p with a TypeError and abort these steps.
+            if (!result)
+                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name is malformed"sv));
+
+            // 3. Resolve p with undefined.
+            WebIDL::resolve_promise(realm, promise);
+        }));
+    }));
+
+    // 7. Return p.
+    return promise;
+}
+
 }

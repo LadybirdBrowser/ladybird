@@ -52,6 +52,8 @@ public:
     GC::Ref<WebIDL::Promise> set(String name, String value);
     GC::Ref<WebIDL::Promise> set(CookieInit const&);
 
+    GC::Ref<WebIDL::Promise> delete_(String name);
+
 private:
     CookieStore(JS::Realm&, PageClient&);
 
