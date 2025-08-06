@@ -79,7 +79,7 @@ ErrorOr<FuzzyMatch> parse_fuzzy_match(Optional<URL::URL const&> reference, Strin
     Optional<FuzzyRange> color_value_error;
     Optional<FuzzyRange> pixel_error_count;
     for (auto [i, config_part] : enumerate(config_parts)) {
-        auto named_parts = MUST(config_part.split_limit('=', 2));
+        auto named_parts = MUST(MUST(config_part.trim_ascii_whitespace()).split_limit('=', 2));
         if (named_parts.is_empty())
             return Error::from_string_view("Fuzzy configuration value cannot be empty"sv);
 
