@@ -28,7 +28,7 @@ struct FuzzyMatch {
     FuzzyRange pixel_error_count;
 };
 
-bool fuzzy_screenshot_match(URL::URL const& reference, Gfx::Bitmap const&, Gfx::Bitmap const&, Vector<FuzzyMatch> const&);
+bool fuzzy_screenshot_match(URL::URL const& test_url, URL::URL const& reference, Gfx::Bitmap const&, Gfx::Bitmap const&, Vector<FuzzyMatch> const&);
 ErrorOr<FuzzyMatch> parse_fuzzy_match(Optional<URL::URL const&> reference, String const&);
 ErrorOr<FuzzyRange> parse_fuzzy_range(String const&);
 
