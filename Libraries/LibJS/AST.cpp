@@ -95,9 +95,9 @@ Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, Utf16
     if (given_name.is_empty())
         given_name = Utf16FlyString {};
 
-    auto has_own_name = !name().is_empty();
+    auto own_name = name();
+    auto has_own_name = !own_name.is_empty();
 
-    auto own_name = Utf16FlyString::from_utf8(name());
     auto const& used_name = has_own_name ? own_name : given_name;
 
     auto environment = GC::Ref { *vm.running_execution_context().lexical_environment };
@@ -120,10 +120,10 @@ Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, Utf16
     return closure;
 }
 
-Optional<String> CallExpression::expression_string() const
+Optional<Utf16String> CallExpression::expression_string() const
 {
     if (is<Identifier>(*m_callee))
-        return static_cast<Identifier const&>(*m_callee).string().to_string();
+        return static_cast<Identifier const&>(*m_callee).string().to_utf16_string();
 
     if (is<MemberExpression>(*m_callee))
         return static_cast<MemberExpression const&>(*m_callee).to_string_approximation();
@@ -137,7 +137,7 @@ static ThrowCompletionOr<ClassElementName> class_key_to_property_name(VM& vm, Ex
         auto& private_identifier = static_cast<PrivateIdentifier const&>(key);
         auto private_environment = vm.running_execution_context().private_environment;
         VERIFY(private_environment);
-        return ClassElementName { private_environment->resolve_private_identifier(Utf16FlyString::from_utf8(private_identifier.string())) };
+        return ClassElementName { private_environment->resolve_private_identifier(private_identifier.string()) };
     }
 
     VERIFY(!prop_key.is_special_empty_value());
@@ -156,7 +156,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
 
     auto& method_function = *ECMAScriptFunctionObject::create_from_function_node(
         *m_function,
-        Utf16String::from_utf8(m_function->name()),
+        m_function->name(),
         *vm.current_realm(),
         vm.lexical_environment(),
         vm.running_execution_context().private_environment);
@@ -271,19 +271,19 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
     };
 }
 
-static Optional<FlyString> nullopt_or_private_identifier_description(Expression const& expression)
+static Optional<Utf16FlyString> nullopt_or_private_identifier_description(Expression const& expression)
 {
     if (is<PrivateIdentifier>(expression))
         return static_cast<PrivateIdentifier const&>(expression).string();
     return {};
 }
 
-Optional<FlyString> ClassField::private_bound_identifier() const
+Optional<Utf16FlyString> ClassField::private_bound_identifier() const
 {
     return nullopt_or_private_identifier_description(*m_key);
 }
 
-Optional<FlyString> ClassMethod::private_bound_identifier() const
+Optional<Utf16FlyString> ClassMethod::private_bound_identifier() const
 {
     return nullopt_or_private_identifier_description(*m_key);
 }
@@ -355,7 +355,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
     auto const& constructor = *m_constructor;
     auto class_constructor = ECMAScriptFunctionObject::create_from_function_node(
         constructor,
-        Utf16FlyString::from_utf8(constructor.name()),
+        constructor.name(),
         realm,
         vm.lexical_environment(),
         vm.running_execution_context().private_environment);
@@ -1244,16 +1244,17 @@ void MemberExpression::dump(int indent) const
     m_property->dump(indent + 1);
 }
 
-String MemberExpression::to_string_approximation() const
+Utf16String MemberExpression::to_string_approximation() const
 {
-    String object_string = "<object>"_string;
+    Utf16View object_string = "<object>"sv;
     if (is<Identifier>(*m_object))
-        object_string = static_cast<Identifier const&>(*m_object).string().to_string();
+        object_string = static_cast<Identifier const&>(*m_object).string().view();
+
     if (is_computed())
-        return MUST(String::formatted("{}[<computed>]", object_string));
+        return Utf16String::formatted("{}[<computed>]", object_string);
     if (is<PrivateIdentifier>(*m_property))
-        return MUST(String::formatted("{}.{}", object_string, as<PrivateIdentifier>(*m_property).string()));
-    return MUST(String::formatted("{}.{}", object_string, as<Identifier>(*m_property).string()));
+        return Utf16String::formatted("{}.{}", object_string, as<PrivateIdentifier>(*m_property).string());
+    return Utf16String::formatted("{}.{}", object_string, as<Identifier>(*m_property).string());
 }
 
 bool MemberExpression::ends_in_private_name() const
@@ -1531,7 +1532,7 @@ void ScopeNode::add_hoisted_function(NonnullRefPtr<FunctionDeclaration const> de
     m_functions_hoistable_with_annexB_extension.append(move(declaration));
 }
 
-FlyString ExportStatement::local_name_for_default = "*default*"_fly_string;
+Utf16FlyString ExportStatement::local_name_for_default = "*default*"_utf16_fly_string;
 
 static void dump_assert_clauses(ModuleRequest const& request)
 {
@@ -1549,7 +1550,7 @@ void ExportStatement::dump(int indent) const
     print_indent(indent + 1);
     outln("(ExportEntries)");
 
-    auto string_or_null = [](Optional<FlyString> const& string) -> ByteString {
+    auto string_or_null = []<typename T>(Optional<T> const& string) -> ByteString {
         if (!string.has_value()) {
             return "null";
         }
@@ -1597,7 +1598,7 @@ void ImportStatement::dump(int indent) const
     }
 }
 
-bool ExportStatement::has_export(FlyString const& export_name) const
+bool ExportStatement::has_export(Utf16FlyString const& export_name) const
 {
     return any_of(m_entries.begin(), m_entries.end(), [&](auto& entry) {
         // Make sure that empty exported names does not overlap with anything
@@ -1607,7 +1608,7 @@ bool ExportStatement::has_export(FlyString const& export_name) const
     });
 }
 
-bool ImportStatement::has_bound_name(FlyString const& name) const
+bool ImportStatement::has_bound_name(Utf16FlyString const& name) const
 {
     return any_of(m_entries.begin(), m_entries.end(), [&](auto& entry) {
         return entry.local_name == name;
@@ -1641,7 +1642,7 @@ void ScopeNode::block_declaration_instantiation(VM& vm, Environment* environment
                 return;
             }
 
-            auto name = Utf16FlyString::from_utf8(identifier.string());
+            auto const& name = identifier.string();
 
             // i. If IsConstantDeclaration of d is true, then
             if (is_constant_declaration) {
@@ -1664,7 +1665,7 @@ void ScopeNode::block_declaration_instantiation(VM& vm, Environment* environment
             // ii. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
             auto function = ECMAScriptFunctionObject::create_from_function_node(
                 function_declaration,
-                Utf16FlyString::from_utf8(function_declaration.name()),
+                function_declaration.name(),
                 realm,
                 environment,
                 private_environment);
@@ -1697,7 +1698,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
     // 2. Let varNames be the VarDeclaredNames of script.
     // 3. For each element name of lexNames, do
     TRY(for_each_lexically_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-        auto name = Utf16FlyString::from_utf8(identifier.string());
+        auto const& name = identifier.string();
 
         // a. If HasLexicalDeclaration(env, name) is true, throw a SyntaxError exception.
         if (global_environment.has_lexical_declaration(name))
@@ -1719,7 +1720,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
     // 4. For each element name of varNames, do
     TRY(for_each_var_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
         // a. If env.HasLexicalDeclaration(name) is true, throw a SyntaxError exception.
-        if (global_environment.has_lexical_declaration(Utf16FlyString::from_utf8(identifier.string())))
+        if (global_environment.has_lexical_declaration(identifier.string()))
             return vm.throw_completion<SyntaxError>(ErrorType::TopLevelVariableAlreadyDeclared, identifier.string());
 
         return {};
@@ -1735,7 +1736,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
     // 8. For each element d of varDeclarations, in reverse List order, do
 
     TRY(for_each_var_function_declaration_in_reverse_order([&](FunctionDeclaration const& function) -> ThrowCompletionOr<void> {
-        auto function_name = Utf16FlyString::from_utf8(function.name());
+        auto function_name = function.name();
 
         // a. If d is neither a VariableDeclaration nor a ForBinding nor a BindingIdentifier, then
         // i. Assert: d is either a FunctionDeclaration, a GeneratorDeclaration, an AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration.
@@ -1754,7 +1755,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
 
         // 2. If fnDefinable is false, throw a TypeError exception.
         if (!function_definable)
-            return vm.throw_completion<TypeError>(ErrorType::CannotDeclareGlobalFunction, function.name());
+            return vm.throw_completion<TypeError>(ErrorType::CannotDeclareGlobalFunction, function_name);
 
         // 3. Append fn to declaredFunctionNames.
         // Note: Already done in step iv. above.
@@ -1776,7 +1777,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
 
         // i. For each String vn of the BoundNames of d, do
         return declaration.for_each_bound_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-            auto name = Utf16FlyString::from_utf8(identifier.string());
+            auto const& name = identifier.string();
 
             // 1. If vn is not an element of declaredFunctionNames, then
             if (declared_function_names.contains(name))
@@ -1806,7 +1807,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
         // b. For each FunctionDeclaration f that is directly contained in the StatementList of a Block, CaseClause, or DefaultClause Contained within script, do
         TRY(for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) -> ThrowCompletionOr<void> {
             // i. Let F be StringValue of the BindingIdentifier of f.
-            auto function_name = Utf16FlyString::from_utf8(function_declaration.name());
+            auto function_name = function_declaration.name();
 
             // ii. If replacing the FunctionDeclaration f with a VariableStatement that has F as a BindingIdentifier would not produce any Early Errors for script, then
             // Note: This step is already performed during parsing and for_each_function_hoistable_with_annexB_extension so this always passes here.
@@ -1858,7 +1859,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
         // a. NOTE: Lexically declared names are only instantiated here but not initialized.
         // b. For each element dn of the BoundNames of d, do
         return declaration.for_each_bound_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-            auto name = Utf16FlyString::from_utf8(identifier.string());
+            auto const& name = identifier.string();
 
             // i. If IsConstantDeclaration of d is true, then
             if (declaration.is_constant_declaration()) {
@@ -1884,7 +1885,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
         // b. Let fo be InstantiateFunctionObject of f with arguments env and privateEnv.
         auto function = ECMAScriptFunctionObject::create_from_function_node(
             declaration,
-            Utf16FlyString::from_utf8(declaration.name()),
+            declaration.name(),
             realm,
             &global_environment,
             private_environment);
@@ -1903,7 +1904,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
     return {};
 }
 
-ModuleRequest::ModuleRequest(FlyString module_specifier_, Vector<ImportAttribute> attributes)
+ModuleRequest::ModuleRequest(Utf16FlyString module_specifier_, Vector<ImportAttribute> attributes)
     : module_specifier(move(module_specifier_))
     , attributes(move(attributes))
 {

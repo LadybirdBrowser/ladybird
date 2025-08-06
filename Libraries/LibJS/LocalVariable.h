@@ -6,12 +6,11 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 
 namespace JS {
 
 struct LocalVariable {
-    FlyString name;
     enum class DeclarationKind {
         Var,
         LetOrConst,
@@ -19,6 +18,8 @@ struct LocalVariable {
         ArgumentsObject,
         CatchClauseParameter
     };
+
+    Utf16FlyString name;
     DeclarationKind declaration_kind;
 };
 
