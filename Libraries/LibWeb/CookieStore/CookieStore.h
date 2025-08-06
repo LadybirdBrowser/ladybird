@@ -37,6 +37,14 @@ struct CookieInit {
     bool partitioned { false };
 };
 
+// https://cookiestore.spec.whatwg.org/#dictdef-cookiestoredeleteoptions
+struct CookieStoreDeleteOptions {
+    String name;
+    Optional<String> domain;
+    String path;
+    bool partitioned { false };
+};
+
 // https://cookiestore.spec.whatwg.org/#cookiestore
 class CookieStore final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(CookieStore, DOM::EventTarget);
@@ -53,6 +61,7 @@ public:
     GC::Ref<WebIDL::Promise> set(CookieInit const&);
 
     GC::Ref<WebIDL::Promise> delete_(String name);
+    GC::Ref<WebIDL::Promise> delete_(CookieStoreDeleteOptions const&);
 
 private:
     CookieStore(JS::Realm&, PageClient&);

@@ -627,4 +627,48 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(String name)
     return promise;
 }
 
+// https://cookiestore.spec.whatwg.org/#dom-cookiestore-delete-options
+GC::Ref<WebIDL::Promise> CookieStore::delete_(CookieStoreDeleteOptions const& options)
+{
+    auto& realm = this->realm();
+
+    // 1. Let settings be this’s relevant settings object.
+    auto const& settings = HTML::relevant_settings_object(*this);
+
+    // 2. Let origin be settings’s origin.
+    auto const& origin = settings.origin();
+
+    // 3. If origin is an opaque origin, then return a promise rejected with a "SecurityError" DOMException.
+    if (origin.is_opaque())
+        return WebIDL::create_rejected_promise(realm, WebIDL::SecurityError::create(realm, "Document origin is opaque"_string));
+
+    // 4. Let url be settings’s creation URL.
+    auto url = settings.creation_url;
+
+    // 5. Let p be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 6. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), options = options]() {
+        // 1. Let r be the result of running delete a cookie with url, options["name"], options["domain"], options["path"],
+        //    and options["partitioned"].
+        auto result = delete_a_cookie(client, url, options.name, options.domain, options.path, options.partitioned);
+
+        // AD-HOC: Queue a global task to perform the next steps
+        // Spec issue: https://github.com/whatwg/cookiestore/issues/239
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, result]() {
+            HTML::TemporaryExecutionContext execution_context { realm };
+            // 2. If r is failure, then reject p with a TypeError and abort these steps.
+            if (!result)
+                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name is malformed"sv));
+
+            // 3. Resolve p with undefined.
+            WebIDL::resolve_promise(realm, promise);
+        }));
+    }));
+
+    // 7. Return p.
+    return promise;
+}
+
 }
