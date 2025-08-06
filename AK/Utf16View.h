@@ -324,7 +324,7 @@ public:
             return 0;
         if (has_ascii_storage())
             return string_hash(m_string.ascii, length_in_code_units());
-        return string_hash(reinterpret_cast<char const*>(m_string.utf16), length_in_code_units() * sizeof(char16_t));
+        return string_hash(m_string.utf16, length_in_code_units());
     }
 
     [[nodiscard]] constexpr bool is_null() const

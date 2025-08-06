@@ -78,8 +78,11 @@ public:
 
     ALWAYS_INLINE u32 hash() const
     {
-        if (!m_has_hash)
-            m_hash = calculate_hash();
+        if (!m_has_hash) {
+            m_hash = utf16_view().hash();
+            m_has_hash = true;
+        }
+
         return m_hash;
     }
 
@@ -127,13 +130,6 @@ private:
     static NonnullRefPtr<Utf16StringData> create_from_code_point_iterable(ViewType const&);
 
     [[nodiscard]] size_t calculate_code_point_length() const;
-
-    [[nodiscard]] ALWAYS_INLINE u32 calculate_hash() const
-    {
-        if (has_ascii_storage())
-            return ascii_view().hash();
-        return utf16_view().hash();
-    }
 
     // We store whether this string has ASCII or UTF-16 storage by setting the most significant bit of m_length_in_code_units
     // to 1 for UTF-16 storage. This shrinks the size of most UTF-16 string related classes, at the cost of not being
