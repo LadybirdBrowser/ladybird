@@ -39,6 +39,9 @@ public:
 
     ALWAYS_INLINE explicit operator Utf16String() const { return to_utf16_string(); }
 
+    ALWAYS_INLINE operator Utf16View() const& { return view(); }
+    explicit operator Utf16View() const&& = delete;
+
     ALWAYS_INLINE Utf16String to_utf16_string() const
     {
         Detail::Utf16StringBase copy { m_data };
