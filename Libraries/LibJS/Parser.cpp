@@ -1858,16 +1858,17 @@ Parser::PrimaryExpressionParseResult Parser::parse_primary_expression()
 NonnullRefPtr<RegExpLiteral const> Parser::parse_regexp_literal()
 {
     auto rule_start = push_start();
-    auto pattern = consume().value().to_utf8_but_should_be_ported_to_utf16();
-    // Remove leading and trailing slash.
-    pattern = MUST(pattern.substring_from_byte_offset(1, pattern.bytes().size() - 2));
+    auto pattern_view = consume().value();
 
-    auto flags = String {};
+    // Remove leading and trailing slash.
+    auto pattern = Utf16String::from_utf16(pattern_view.substring_view(1, pattern_view.length_in_code_units() - 2));
+
+    Utf16String flags {};
     auto parsed_flags = RegExpObject::default_flags;
 
     if (match(TokenType::RegexFlags)) {
         auto flags_start = position();
-        flags = consume().value().to_utf8_but_should_be_ported_to_utf16();
+        flags = consume().fly_string_value().to_utf16_string();
 
         auto parsed_flags_or_error = regex_flags_from_string(flags);
         if (parsed_flags_or_error.is_error())
@@ -1890,7 +1891,7 @@ NonnullRefPtr<RegExpLiteral const> Parser::parse_regexp_literal()
         syntax_error(MUST(String::formatted("RegExp compile error: {}", Regex<ECMA262>(parsed_regex, parsed_pattern.to_byte_string(), parsed_flags).error_string())), rule_start.position());
 
     SourceRange range { m_source_code, rule_start.position(), position() };
-    return create_ast_node<RegExpLiteral>(move(range), move(parsed_regex), move(parsed_pattern), move(parsed_flags), move(pattern), move(flags));
+    return create_ast_node<RegExpLiteral>(move(range), move(parsed_regex), move(parsed_pattern), parsed_flags, move(pattern), move(flags));
 }
 
 static bool is_simple_assignment_target(Expression const& expression, bool allow_web_reality_call_expression = true)

@@ -187,7 +187,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     // 5. If flags contains "y", let sticky be true; else let sticky be false.
     bool sticky = regex.options().has_flag_set(ECMAScriptFlags::Sticky);
     // 6. If flags contains "d", let hasIndices be true, else let hasIndices be false.
-    bool has_indices = regexp_object.flags().bytes_as_string_view().find('d').has_value();
+    bool has_indices = regexp_object.flags().contains('d');
 
     // 7. If global is false and sticky is false, set lastIndex to 0.
     if (!global && !sticky)
