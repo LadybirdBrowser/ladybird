@@ -848,7 +848,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
     }
 
     if (hovered_node_changed) {
-        GC::Ptr<HTML::HTMLElement const> hovered_html_element = document.hovered_node() ? document.hovered_node()->enclosing_html_element_with_attribute(HTML::AttributeNames::title) : nullptr;
+        GC::Ptr<HTML::HTMLElement const> hovered_html_element = node ? node->enclosing_html_element_with_attribute(HTML::AttributeNames::title) : nullptr;
 
         if (hovered_html_element && hovered_html_element->title().has_value()) {
             page.set_is_in_tooltip_area(true);
