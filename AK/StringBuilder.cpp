@@ -370,7 +370,7 @@ void StringBuilder::append_code_point(u32 code_point)
     if (m_mode == Mode::UTF16) {
         (void)(will_append(2));
 
-        if (code_point <= UnicodeUtils::FIRST_SUPPLEMENTARY_PLANE_CODE_POINT) {
+        if (code_point < UnicodeUtils::FIRST_SUPPLEMENTARY_PLANE_CODE_POINT) {
             auto code_unit = static_cast<char16_t>(code_point);
             m_buffer.append(&code_unit, sizeof(code_unit));
             return;
