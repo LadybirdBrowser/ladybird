@@ -37,6 +37,7 @@ static constexpr Array libweb_interface_namespaces = {
     "ResizeObserver"sv,
     "SVG"sv,
     "Selection"sv,
+    "Serial"sv,
     "ServiceWorker"sv,
     "Streams"sv,
     "UIEvents"sv,

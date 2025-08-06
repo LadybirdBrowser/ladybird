@@ -1,0 +1,26 @@
+#import <DOM/EventHandler.idl>
+#import <Serial/SerialPort.idl>
+
+// https://wicg.github.io/serial/#serial-interface
+[Exposed=(DedicatedWorker, Window), SecureContext]
+interface Serial : EventTarget {
+    attribute EventHandler onconnect;
+    attribute EventHandler ondisconnect;
+    Promise<sequence<SerialPort>> getPorts();
+    [Exposed=Window] Promise<SerialPort> requestPort(optional SerialPortRequestOptions options = {});
+};
+
+// https://wicg.github.io/serial/#serialportfilter-dictionary
+dictionary SerialPortFilter {
+    unsigned short usbVendorId;
+    unsigned short usbProductId;
+    // FIXME: Should be a BluetoothServiceUUID
+    DOMString bluetoothServiceClassId;
+};
+
+// https://wicg.github.io/serial/#serialportrequestoptions-dictionary
+dictionary SerialPortRequestOptions {
+    sequence<SerialPortFilter> filters;
+    // FIXME: Should be a BluetoothServiceUUID
+    sequence<DOMString> allowedBluetoothServiceClassIds;
+};

@@ -330,6 +330,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 static ByteString make_input_acceptable_cpp(ByteString const& input)
 {
     if (input.is_one_of(
+            "break",
             "char",
             "class",
             "continue",
@@ -4841,6 +4842,7 @@ using namespace Web::RequestIdleCallback;
 using namespace Web::ResizeObserver;
 using namespace Web::ResourceTiming;
 using namespace Web::Selection;
+using namespace Web::Serial;
 using namespace Web::ServiceWorker;
 using namespace Web::StorageAPI;
 using namespace Web::Streams;

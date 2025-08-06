@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/NavigatorLanguage.h>
 #include <LibWeb/HTML/NavigatorOnLine.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
+#include <LibWeb/Serial/Serial.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
 #include <LibWeb/StorageAPI/NavigatorStorage.h>
 
@@ -38,6 +39,8 @@ public:
 
     GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> media_capabilities();
 
+    [[nodiscard]] GC::Ref<Serial::Serial> serial();
+
 private:
     explicit WorkerNavigator(WorkerGlobalScope&);
 
@@ -49,6 +52,9 @@ private:
 
     // https://w3c.github.io/media-capabilities/#dom-workernavigator-mediacapabilities
     GC::Ptr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;
+
+    // https://wicg.github.io/serial/#extensions-to-the-workernavigator-interface
+    GC::Ptr<Serial::Serial> m_serial;
 
     GC::Ptr<ServiceWorker::ServiceWorkerContainer> m_service_worker_container;
 };

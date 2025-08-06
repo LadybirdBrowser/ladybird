@@ -385,6 +385,8 @@ ScreenOrientation
 ScriptProcessorNode
 SecurityPolicyViolationEvent
 Selection
+Serial
+SerialPort
 ServiceWorker
 ServiceWorkerContainer
 ServiceWorkerRegistration

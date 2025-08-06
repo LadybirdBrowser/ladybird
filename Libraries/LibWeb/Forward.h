@@ -940,6 +940,20 @@ class Selection;
 
 }
 
+namespace Web::Serial {
+
+class Serial;
+class SerialPort;
+
+struct SerialPortFilter;
+struct SerialPortRequestOptions;
+struct SerialOptions;
+struct SerialOutputSignals;
+struct SerialInputSignals;
+struct SerialPortInfo;
+
+}
+
 namespace Web::ServiceWorker {
 
 class ServiceWorker;
