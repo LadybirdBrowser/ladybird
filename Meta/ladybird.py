@@ -84,6 +84,15 @@ def main():
         "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
     )
 
+    profile_parser = subparsers.add_parser(
+        "profile",
+        help="Launches the application under callgrind for performance profiling",
+        parents=[preset_parser, compiler_parser, target_parser],
+    )
+    profile_parser.add_argument(
+        "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
+    )
+
     install_parser = subparsers.add_parser(
         "install", help="Installs the target binary", parents=[preset_parser, compiler_parser, target_parser]
     )
@@ -157,6 +166,10 @@ def main():
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.jobs, args.target, args.args)
         debug_main(platform.host_system, build_dir, args.target, args.debugger, args.cmd)
+    elif args.command == "profile":
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_main(build_dir, args.jobs, args.target, args.args)
+        profile_main(platform.host_system, build_dir, args.target)
     elif args.command == "install":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.jobs, args.target, args.args)
@@ -385,6 +398,21 @@ def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: 
         gdb_args.append(str(build_dir.joinpath("bin", target)))
 
     run_command(gdb_args, exit_on_failure=True)
+
+
+def profile_main(host_system: HostSystem, build_dir: Path, target: str):
+    if not shutil.which("valgrind"):
+        print("Please install valgrind", file=sys.stderr)
+        sys.exit(1)
+
+    valgrind_args = ["valgrind", "--tool=callgrind", "--instr-atstart=yes"]
+
+    if target == "Ladybird" and host_system == HostSystem.macOS:
+        valgrind_args.append(str(build_dir.joinpath("bin", "Ladybird.app")))
+    else:
+        valgrind_args.append(str(build_dir.joinpath("bin", target)))
+
+    run_command(valgrind_args, exit_on_failure=True)
 
 
 def clean_main(preset: str):
