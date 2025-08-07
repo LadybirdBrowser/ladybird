@@ -1,0 +1,20 @@
+{
+  "name": "dawn",
+  "version-string": "chromium_7258",
+  "port-version": 0,
+  "description": [
+    ""
+  ],
+  "homepage": "https://github.com/google/dawn",
+  "license": "BSD-3-Clause",
+  "dependencies": [
+    {
+      "name": "vcpkg-gn",
+      "host": true
+    },
+    {
+      "name": "vcpkg-tool-gn",
+      "host": true
+    }
+  ]
+}
