@@ -253,7 +253,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
                 });
 
             // FIXME: A potential optimization is not creating the functions here since these are never directly accessible.
-            auto function_code = create_ast_node<ClassFieldInitializerStatement>(m_initializer->source_range(), copy_initializer.release_nonnull(), name.to_utf8_but_should_be_ported_to_utf16());
+            auto function_code = create_ast_node<ClassFieldInitializerStatement>(m_initializer->source_range(), copy_initializer.release_nonnull(), move(name));
             FunctionParsingInsights parsing_insights;
             parsing_insights.uses_this_from_environment = true;
             parsing_insights.uses_this = true;

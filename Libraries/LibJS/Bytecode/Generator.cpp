@@ -911,26 +911,26 @@ void Generator::emit_set_variable(JS::Identifier const& identifier, ScopedOperan
     }
 }
 
-static Optional<String> expression_identifier(Expression const& expression)
+static Optional<Utf16String> expression_identifier(Expression const& expression)
 {
     if (expression.is_identifier()) {
         auto const& identifier = static_cast<Identifier const&>(expression);
-        return identifier.string().view().to_utf8_but_should_be_ported_to_utf16();
+        return identifier.string().to_utf16_string();
     }
 
     if (expression.is_numeric_literal()) {
         auto const& literal = static_cast<NumericLiteral const&>(expression);
-        return literal.value().to_string_without_side_effects();
+        return literal.value().to_utf16_string_without_side_effects();
     }
 
     if (expression.is_string_literal()) {
         auto const& literal = static_cast<StringLiteral const&>(expression);
-        return MUST(String::formatted("'{}'", literal.value()));
+        return Utf16String::formatted("'{}'", literal.value());
     }
 
     if (expression.is_member_expression()) {
         auto const& member_expression = static_cast<MemberExpression const&>(expression);
-        StringBuilder builder;
+        StringBuilder builder(StringBuilder::Mode::UTF16);
 
         if (auto identifier = expression_identifier(member_expression.object()); identifier.has_value())
             builder.append(*identifier);
@@ -942,7 +942,7 @@ static Optional<String> expression_identifier(Expression const& expression)
                 builder.appendff(".{}", *identifier);
         }
 
-        return builder.to_string_without_validation();
+        return builder.to_utf16_string();
     }
 
     return {};
@@ -1179,12 +1179,12 @@ void Generator::emit_put_by_value_with_this(ScopedOperand base, ScopedOperand pr
 
 void Generator::emit_iterator_value(ScopedOperand dst, ScopedOperand result)
 {
-    emit_get_by_id(dst, result, intern_identifier("value"_fly_string));
+    emit_get_by_id(dst, result, intern_identifier("value"_utf16_fly_string));
 }
 
 void Generator::emit_iterator_complete(ScopedOperand dst, ScopedOperand result)
 {
-    emit_get_by_id(dst, result, intern_identifier("done"_fly_string));
+    emit_get_by_id(dst, result, intern_identifier("done"_utf16_fly_string));
 }
 
 bool Generator::is_local_initialized(u32 local_index) const
