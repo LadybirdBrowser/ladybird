@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
@@ -1312,6 +1313,16 @@ void ConnectionFromClient::system_time_zone_changed()
 {
     JS::clear_system_time_zone_cache();
     Unicode::clear_system_time_zone_cache();
+}
+
+void ConnectionFromClient::cookies_changed(Vector<Web::Cookie::Cookie> cookies)
+{
+    for (auto& navigable : Web::HTML::all_navigables()) {
+        auto window = navigable->active_window();
+        if (!window)
+            return;
+        window->cookie_store()->process_cookie_changes(cookies);
+    }
 }
 
 }

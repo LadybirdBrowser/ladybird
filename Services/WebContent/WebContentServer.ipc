@@ -128,4 +128,5 @@ endpoint WebContentServer
     set_user_style(u64 page_id, String source) =|
 
     system_time_zone_changed() =|
+    cookies_changed(Vector<Web::Cookie::Cookie> cookies) =|
 }
