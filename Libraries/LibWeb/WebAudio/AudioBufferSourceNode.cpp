@@ -36,7 +36,7 @@ WebIDL::ExceptionOr<void> AudioBufferSourceNode::set_buffer(GC::Ptr<AudioBuffer>
 
     // 2. If new buffer is not null and [[buffer set]] is true, throw an InvalidStateError and abort these steps.
     if (new_buffer && m_buffer_set)
-        return WebIDL::InvalidStateError::create(realm(), "Buffer has already been set"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Buffer has already been set"_utf16);
 
     // 3. If new buffer is not null, set [[buffer set]] to true.
     if (new_buffer)
@@ -112,7 +112,7 @@ WebIDL::ExceptionOr<void> AudioBufferSourceNode::start(Optional<double> when, Op
 {
     // 1. If this AudioBufferSourceNode internal slot [[source started]] is true, an InvalidStateError exception MUST be thrown.
     if (source_started())
-        return WebIDL::InvalidStateError::create(realm(), "AudioBufferSourceNode has already been started"_string);
+        return WebIDL::InvalidStateError::create(realm(), "AudioBufferSourceNode has already been started"_utf16);
 
     // 2. Check for any errors that must be thrown due to parameter constraints described below. If any exception is thrown during this step, abort those steps.
     // A RangeError exception MUST be thrown if when is negative.

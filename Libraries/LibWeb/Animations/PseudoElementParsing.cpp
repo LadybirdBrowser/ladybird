@@ -21,7 +21,7 @@ WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseudo_eleme
         if (!pseudo_element.has_value()) {
             // 1. Throw a DOMException with error name "SyntaxError".
             // 2. Abort.
-            return WebIDL::SyntaxError::create(realm, MUST(String::formatted("Invalid pseudo-element selector: \"{}\"", value.value())));
+            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid pseudo-element selector: \"{}\"", value.value()));
         }
     }
 

@@ -361,8 +361,8 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLMediaElement::play()
     // 2. If the media element's error attribute is not null and its code is MEDIA_ERR_SRC_NOT_SUPPORTED, then return a promise
     //    rejected with a "NotSupportedError" DOMException.
     if (m_error && m_error->code() == MediaError::Code::SrcNotSupported) {
-        auto exception = WebIDL::NotSupportedError::create(realm, m_error->message());
-        return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
+        auto exception = WebIDL::NotSupportedError::create(realm, Utf16String::from_utf8(m_error->message()));
+        return WebIDL::create_rejected_promise_from_exception(realm, exception);
     }
 
     // 3. Let promise be a new promise and append promise to the list of pending play promises.
@@ -413,7 +413,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_volume(double volume)
     // set to the new value. If the new value is outside the range 0.0 to 1.0 inclusive, then, on setting, an
     // "IndexSizeError" DOMException must be thrown instead.
     if (volume < 0.0 || volume > 1.0)
-        return WebIDL::IndexSizeError::create(realm(), "Volume must be in the range 0.0 to 1.0, inclusive"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Volume must be in the range 0.0 to 1.0, inclusive"_utf16);
 
     m_volume = volume;
     volume_or_muted_attribute_changed();
@@ -566,7 +566,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 
             // 2. Take pending play promises and reject pending play promises with the result and an "AbortError" DOMException.
             auto promises = take_pending_play_promises();
-            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback was aborted"_string);
+            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback was aborted"_utf16);
         }
 
         // 7. If seeking is true, set it to false.
@@ -1312,7 +1312,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::handle_media_source_failure(Span<GC:
     dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
 
     // 6. Reject pending play promises with promises and a "NotSupportedError" DOMException.
-    reject_pending_play_promises<WebIDL::NotSupportedError>(promises, "Media is not supported"_string);
+    reject_pending_play_promises<WebIDL::NotSupportedError>(promises, "Media is not supported"_utf16);
 
     // 7. Set the element's delaying-the-load-event flag to false. This stops delaying the load event.
     m_delaying_the_load_event.clear();
@@ -1538,7 +1538,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::pause_element()
             dispatch_event(DOM::Event::create(realm, HTML::EventNames::pause));
 
             // 3. Reject pending play promises with promises and an "AbortError" DOMException.
-            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback was paused"_string);
+            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback was paused"_utf16);
         });
 
         // 4. Set the official playback position to the current playback position.
@@ -1733,7 +1733,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_playback_rate(double new_value)
     // 1. If the given value is not supported by the user agent, then throw a "NotSupportedError" DOMException.
     // FIXME: We need to support playback rates other than 1 for this to be even remotely useful.
     if (new_value != 1.0)
-        return WebIDL::NotSupportedError::create(realm(), "Playback rates other than 1 are not supported."_string);
+        return WebIDL::NotSupportedError::create(realm(), "Playback rates other than 1 are not supported."_utf16);
 
     // When the defaultPlaybackRate or playbackRate attributes change value (either by being set by script or by being changed directly by the user agent, e.g. in response to user
     // control), the user agent must queue a media element task given the media element to fire an event named ratechange at the media element.
@@ -1867,7 +1867,7 @@ void HTMLMediaElement::reached_end_of_media_playback()
 
             // 3. Take pending play promises and reject pending play promises with the result and an "AbortError" DOMException.
             auto promises = take_pending_play_promises();
-            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback has ended"_string);
+            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback has ended"_utf16);
         }
     });
 

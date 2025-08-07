@@ -37,7 +37,7 @@ WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> OffscreenCanvas::construct_impl(
         auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::IntSize { width, height });
 
         if (bitmap_or_error.is_error()) {
-            return WebIDL::InvalidStateError::create(realm, MUST(String::formatted("Error in allocating bitmap: {}", bitmap_or_error.error())));
+            return WebIDL::InvalidStateError::create(realm, Utf16String::formatted("Error in allocating bitmap: {}", bitmap_or_error.error()));
         }
         bitmap = bitmap_or_error.release_value();
     }
@@ -230,7 +230,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> OffscreenCanvas::transfer_to_image_bit
 
     // 2. If this OffscreenCanvas object's context mode is set to none, then throw an "InvalidStateError" DOMException.
     if (m_context.has<Empty>()) {
-        return WebIDL::InvalidStateError::create(realm(), "OffscreenCanvas has no context"_string);
+        return WebIDL::InvalidStateError::create(realm(), "OffscreenCanvas has no context"_utf16);
     }
 
     // 3. Let image be a newly created ImageBitmap object that references the same underlying bitmap data as this OffscreenCanvas object's bitmap.
@@ -273,7 +273,7 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOp
 
     // 3. If this OffscreenCanvas object's bitmap has no pixels (i.e., either its horizontal dimension or its vertical dimension is zero) then return a promise rejected with an "IndexSizeError" DOMException.
     if (size.height() == 0 or size.width() == 0) {
-        auto error = WebIDL::IndexSizeError::create(realm(), "OffscreenCanvas has invalid dimensions. The bitmap has no pixels"_string);
+        auto error = WebIDL::IndexSizeError::create(realm(), "OffscreenCanvas has invalid dimensions. The bitmap has no pixels"_utf16);
 
         return WebIDL::create_rejected_promise_from_exception(realm(), error);
     }
@@ -304,14 +304,14 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOp
 
             // 1. If file is null, then reject result with an "EncodingError" DOMException.
             if (!file_result.has_value()) {
-                auto error = WebIDL::EncodingError::create(realm(), "Failed to convert OffscreenCanvas to Blob"_string);
+                auto error = WebIDL::EncodingError::create(realm(), "Failed to convert OffscreenCanvas to Blob"_utf16);
 
                 WebIDL::reject_promise(realm(), result_promise, error);
             } else {
                 // 1. If result is non-null, resolve result with a new Blob object, created in the relevant realm of this OffscreenCanvas object, representing file. [FILEAPI]
                 auto type = String::from_utf8(file_result->mime_type);
                 if (type.is_error()) {
-                    auto error = WebIDL::EncodingError::create(realm(), MUST(String::formatted("OOM Error while converting string in OffscreenCanvas to blob: {}"_string, type.error())));
+                    auto error = WebIDL::EncodingError::create(realm(), Utf16String::formatted("OOM Error while converting string in OffscreenCanvas to blob: {}", type.error()));
                     WebIDL::reject_promise(realm(), result_promise, error);
                     return;
                 }

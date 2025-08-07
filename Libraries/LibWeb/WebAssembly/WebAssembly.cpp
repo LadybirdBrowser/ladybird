@@ -944,7 +944,7 @@ static JS::ThrowCompletionOr<GC::Ref<ClassName>> wasm_ordinary_create_from_const
         return realm.create<ClassName>(Bindings::ensure_web_prototype<PrototypeName>(realm, FullClassName##_fly_string)); \
     }                                                                                                                     \
                                                                                                                           \
-    GC::Ref<ClassName> ClassName::create(JS::Realm& realm, String message)                                                \
+    GC::Ref<ClassName> ClassName::create(JS::Realm& realm, Utf16String message)                                           \
     {                                                                                                                     \
         auto error = ClassName::create(realm);                                                                            \
         error->set_message(move(message));                                                                                \
@@ -953,7 +953,7 @@ static JS::ThrowCompletionOr<GC::Ref<ClassName>> wasm_ordinary_create_from_const
                                                                                                                           \
     GC::Ref<ClassName> ClassName::create(JS::Realm& realm, StringView message)                                            \
     {                                                                                                                     \
-        return create(realm, MUST(String::from_utf8(message)));                                                           \
+        return create(realm, Utf16String::from_utf8(message));                                                            \
     }                                                                                                                     \
                                                                                                                           \
     ClassName::ClassName(JS::Object& prototype)                                                                           \
@@ -1003,7 +1003,7 @@ static JS::ThrowCompletionOr<GC::Ref<ClassName>> wasm_ordinary_create_from_const
         /* 3. If message is not undefined, then */                                                                                        \
         if (!message.is_undefined()) {                                                                                                    \
             /* a. Let msg be ? ToString(message). */                                                                                      \
-            auto msg = TRY(message.to_string(vm));                                                                                        \
+            auto msg = TRY(message.to_utf16_string(vm));                                                                                  \
                                                                                                                                           \
             /* b. Perform CreateNonEnumerableDataPropertyOrThrow(O, "message", msg). */                                                   \
             error->create_non_enumerable_data_property_or_throw(vm.names.message, JS::PrimitiveString::create(vm, move(msg)));            \
@@ -1031,7 +1031,7 @@ static JS::ThrowCompletionOr<GC::Ref<ClassName>> wasm_ordinary_create_from_const
                                                                                                                  \
         u8 const attr = JS::Attribute::Writable | JS::Attribute::Configurable;                                   \
         define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, #ClassName##_string), attr);       \
-        define_direct_property(vm.names.message, JS::PrimitiveString::create(vm, String {}), attr);              \
+        define_direct_property(vm.names.message, JS::PrimitiveString::create(vm, Utf16String {}), attr);         \
     }
 
 #define __WASM_ENUMERATE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \

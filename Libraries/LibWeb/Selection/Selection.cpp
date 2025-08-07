@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> Selection::get_range_at(unsigned index)
     auto is_anchor_in_document_tree = anchor && &anchor->document() == document();
 
     if (index != 0 || is_empty() || !is_focus_in_document_tree || !is_anchor_in_document_tree)
-        return WebIDL::IndexSizeError::create(realm(), "Selection.getRangeAt() on empty Selection or with invalid argument"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Selection.getRangeAt() on empty Selection or with invalid argument"_utf16);
 
     // Otherwise, it must return a reference to (not a copy of) this's range.
     return m_range;
@@ -178,7 +178,7 @@ WebIDL::ExceptionOr<void> Selection::remove_range(GC::Ref<DOM::Range> range)
     }
 
     // Otherwise, it must throw a NotFoundError.
-    return WebIDL::NotFoundError::create(realm(), "Selection.removeRange() with invalid argument"_string);
+    return WebIDL::NotFoundError::create(realm(), "Selection.removeRange() with invalid argument"_utf16);
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-removeallranges
@@ -206,11 +206,11 @@ WebIDL::ExceptionOr<void> Selection::collapse(GC::Ptr<DOM::Node> node, unsigned 
 
     // 2. If node is a DocumentType, throw an InvalidNodeTypeError exception and abort these steps.
     if (node->is_document_type())
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Selection.collapse() with DocumentType node"_string);
+        return WebIDL::InvalidNodeTypeError::create(realm(), "Selection.collapse() with DocumentType node"_utf16);
 
     // 3. The method must throw an IndexSizeError exception if offset is longer than node's length and abort these steps.
     if (offset > node->length())
-        return WebIDL::IndexSizeError::create(realm(), "Selection.collapse() with offset longer than node's length"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Selection.collapse() with offset longer than node's length"_utf16);
 
     // 4. If document associated with this is not a shadow-including inclusive ancestor of node, abort these steps.
     if (!m_document->is_shadow_including_inclusive_ancestor_of(*node))
@@ -240,7 +240,7 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_start()
 {
     // 1. The method must throw InvalidStateError exception if the this is empty.
     if (!m_range) {
-        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_start() on empty range"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_start() on empty range"_utf16);
     }
 
     // 2. Otherwise, it must create a new range
@@ -260,7 +260,7 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_end()
 {
     // 1. The method must throw InvalidStateError exception if the this is empty.
     if (!m_range) {
-        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_end() on empty range"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_end() on empty range"_utf16);
     }
 
     // 2. Otherwise, it must create a new range
@@ -285,7 +285,7 @@ WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned of
 
     // 2. If this is empty, throw an InvalidStateError exception and abort these steps.
     if (!m_range) {
-        return WebIDL::InvalidStateError::create(realm(), "Selection.extend() on empty range"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Selection.extend() on empty range"_utf16);
     }
 
     // 3. Let oldAnchor and oldFocus be the this's anchor and focus, and let newFocus be the boundary point (node, offset).
@@ -332,10 +332,10 @@ WebIDL::ExceptionOr<void> Selection::set_base_and_extent(GC::Ref<DOM::Node> anch
 {
     // 1. If anchorOffset is longer than anchorNode's length or if focusOffset is longer than focusNode's length, throw an IndexSizeError exception and abort these steps.
     if (anchor_offset > anchor_node->length())
-        return WebIDL::IndexSizeError::create(realm(), "Anchor offset points outside of the anchor node"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Anchor offset points outside of the anchor node"_utf16);
 
     if (focus_offset > focus_node->length())
-        return WebIDL::IndexSizeError::create(realm(), "Focus offset points outside of the focus node"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Focus offset points outside of the focus node"_utf16);
 
     // 2. If document associated with this is not a shadow-including inclusive ancestor of anchorNode or focusNode, abort these steps.
     if (!m_document->is_shadow_including_inclusive_ancestor_of(anchor_node) || !m_document->is_shadow_including_inclusive_ancestor_of(focus_node))
@@ -374,7 +374,7 @@ WebIDL::ExceptionOr<void> Selection::select_all_children(GC::Ref<DOM::Node> node
 {
     // 1. If node is a DocumentType, throw an InvalidNodeTypeError exception and abort these steps.
     if (node->is_document_type())
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Selection.selectAllChildren() with DocumentType node"_string);
+        return WebIDL::InvalidNodeTypeError::create(realm(), "Selection.selectAllChildren() with DocumentType node"_utf16);
 
     // 2. If node's root is not the document associated with this, abort these steps.
     if (&node->root() != m_document.ptr())

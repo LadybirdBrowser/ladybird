@@ -194,7 +194,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read(ClipboardUnsanitizedFormats formats)
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_string));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_utf16));
             }));
 
             // 2. Abort these steps.
@@ -327,7 +327,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text()
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_string));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_utf16));
             }));
 
             // 2. Abort these steps.
@@ -386,7 +386,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text()
                 }
 
                 // 2. Reject p with "NotFoundError" DOMException in realm.
-                WebIDL::reject_promise(realm, promise, WebIDL::NotFoundError::create(realm, "Did not find a text item in the system clipboard"_string));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotFoundError::create(realm, "Did not find a text item in the system clipboard"_utf16));
             }));
         }));
     }));
@@ -415,7 +415,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_string));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_utf16));
             }));
 
             // 2. Abort these steps.
@@ -477,7 +477,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>
                             HTML::TemporaryExecutionContext execution_context { realm };
 
                             // 1. Reject p with "NotAllowedError" DOMException in realm.
-                            WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, MUST(String::formatted("Writing to the clipboard failed: {}", reason))));
+                            WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, Utf16String::formatted("Writing to the clipboard failed: {}", reason)));
 
                             // 2. Abort these steps.
                             // NOTE: This is handled below.
@@ -506,7 +506,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>
                     // 2. If type is not in the mandatory data types or optional data types list, then reject p with
                     //    "NotAllowedError" DOMException in realm and abort these steps.
                     if (!ClipboardItem::supports(realm.vm(), type)) {
-                        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, MUST(String::formatted("Clipboard item type {} is not allowed", type))));
+                        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, Utf16String::formatted("Clipboard item type {} is not allowed", type)));
                         return;
                     }
 
@@ -557,7 +557,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_string));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_utf16));
             }));
 
             // 2. Abort these steps.

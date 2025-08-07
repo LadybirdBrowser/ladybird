@@ -114,7 +114,7 @@ WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item(FlyString const
 
     // 2. If attr is null, then throw a "NotFoundError" DOMException.
     if (!attribute)
-        return WebIDL::NotFoundError::create(realm(), MUST(String::formatted("Attribute with name '{}' not found", qualified_name)));
+        return WebIDL::NotFoundError::create(realm(), Utf16String::formatted("Attribute with name '{}' not found", qualified_name));
 
     // 3. Return attr.
     return attribute;
@@ -128,7 +128,7 @@ WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item_ns(Optional<Fly
 
     // 2. If attr is null, then throw a "NotFoundError" DOMException.
     if (!attribute)
-        return WebIDL::NotFoundError::create(realm(), MUST(String::formatted("Attribute with namespace '{}' and local name '{}' not found", namespace_, local_name)));
+        return WebIDL::NotFoundError::create(realm(), Utf16String::formatted("Attribute with namespace '{}' and local name '{}' not found", namespace_, local_name));
 
     // 3. Return attr.
     return attribute;
@@ -199,7 +199,7 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
 {
     // 1. If attr’s element is neither null nor element, throw an "InUseAttributeError" DOMException.
     if ((attribute.owner_element() != nullptr) && (attribute.owner_element() != &associated_element()))
-        return WebIDL::InUseAttributeError::create(realm(), "Attribute must not already be in use"_string);
+        return WebIDL::InUseAttributeError::create(realm(), "Attribute must not already be in use"_utf16);
 
     // 2. Let oldAttr be the result of getting an attribute given attr’s namespace, attr’s local name, and element.
     size_t old_attribute_index = 0;
@@ -336,7 +336,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> NamedNodeMap::remove_attribute_node(GC::Ref<A
     // 1. If this’s attribute list does not contain attr, then throw a "NotFoundError" DOMException.
     auto index = m_attributes.find_first_index(attr);
     if (!index.has_value())
-        return WebIDL::NotFoundError::create(realm(), "Attribute not found"_string);
+        return WebIDL::NotFoundError::create(realm(), "Attribute not found"_utf16);
 
     // 2. Remove attr.
     remove_attribute_at_index(index.value());

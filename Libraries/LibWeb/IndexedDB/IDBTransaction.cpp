@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<void> IDBTransaction::abort()
 {
     // 1. If this's state is committing or finished, then throw an "InvalidStateError" DOMException.
     if (m_state == TransactionState::Committing || m_state == TransactionState::Finished)
-        return WebIDL::InvalidStateError::create(realm(), "Transaction is ending"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Transaction is ending"_utf16);
 
     // 2. Set this's state to inactive and run abort a transaction with this and null.
     m_state = TransactionState::Inactive;
@@ -112,7 +112,7 @@ WebIDL::ExceptionOr<void> IDBTransaction::commit()
 
     // 1. If this's state is not active, then throw an "InvalidStateError" DOMException.
     if (m_state != TransactionState::Active)
-        return WebIDL::InvalidStateError::create(realm, "Transaction is not active while committing"_string);
+        return WebIDL::InvalidStateError::create(realm, "Transaction is not active while committing"_utf16);
 
     // 2. Run commit a transaction with this.
     commit_a_transaction(realm, *this);
@@ -137,12 +137,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBTransaction::object_store(String
 
     // 1. If this's state is finished, then throw an "InvalidStateError" DOMException.
     if (m_state == TransactionState::Finished)
-        return WebIDL::InvalidStateError::create(realm, "Transaction is finished"_string);
+        return WebIDL::InvalidStateError::create(realm, "Transaction is finished"_utf16);
 
     // 2. Let store be the object store named name in this's scope, or throw a "NotFoundError" DOMException if none.
     auto store = object_store_named(name);
     if (!store)
-        return WebIDL::NotFoundError::create(realm, "Object store not found in transactions scope"_string);
+        return WebIDL::NotFoundError::create(realm, "Object store not found in transactions scope"_utf16);
 
     // 3. Return an object store handle associated with store and this.
     return IDBObjectStore::create(realm, *store, *this);

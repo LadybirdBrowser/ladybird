@@ -562,7 +562,7 @@ WebIDL::ExceptionOr<String> DOMMatrixReadOnly::to_string() const
         || !isfinite(m21()) || !isfinite(m22()) || !isfinite(m23()) || !isfinite(m24())
         || !isfinite(m31()) || !isfinite(m32()) || !isfinite(m33()) || !isfinite(m34())
         || !isfinite(m41()) || !isfinite(m42()) || !isfinite(m43()) || !isfinite(m44())) {
-        return WebIDL::InvalidStateError::create(realm(), "Cannot stringify non-finite matrix values"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Cannot stringify non-finite matrix values"_utf16);
     }
 
     // 2. Let string be the empty string.
@@ -951,7 +951,7 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
     // If parsedValue is failure, or any <transform-function> has <length> values without absolute length units, or any keyword other than none is used, then return failure. [CSS3-SYNTAX] [CSS3-TRANSFORMS]
     auto transform_style_value = parse_css_value(CSS::Parser::ParsingParams {}, transform_list, CSS::PropertyID::Transform);
     if (!transform_style_value || (transform_style_value->is_keyword() && transform_style_value->to_keyword() != CSS::Keyword::None))
-        return WebIDL::SyntaxError::create(realm, "Failed to parse CSS transform string."_string);
+        return WebIDL::SyntaxError::create(realm, "Failed to parse CSS transform string."_utf16);
     auto parsed_value = CSS::ComputedProperties::transformations_for_style_value(*transform_style_value);
 
     // 3. If parsedValue is none, set parsedValue to a <transform-list> containing a single identity matrix.
@@ -983,7 +983,7 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
     for (auto const& transform : parsed_value) {
         auto const& transform_matrix = transform.to_matrix({});
         if (transform_matrix.is_error())
-            return WebIDL::SyntaxError::create(realm, "Failed to parse CSS transform string."_string);
+            return WebIDL::SyntaxError::create(realm, "Failed to parse CSS transform string."_utf16);
         matrix = matrix * transform_matrix.value();
     }
 

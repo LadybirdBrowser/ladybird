@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
 
     // 2. If this has an open attribute, then throw an "InvalidStateError" DOMException.
     if (has_attribute(AttributeNames::open))
-        return WebIDL::InvalidStateError::create(realm(), "Dialog already open"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Dialog already open"_utf16);
 
     // 3. If the result of firing an event named beforetoggle, using ToggleEvent,
     //  with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
@@ -185,19 +185,19 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
 
     // 2. If subject has an open attribute, then throw an "InvalidStateError" DOMException.
     if (subject.has_attribute(AttributeNames::open))
-        return WebIDL::InvalidStateError::create(realm, "Dialog already open"_string);
+        return WebIDL::InvalidStateError::create(realm, "Dialog already open"_utf16);
 
     // 3. If subject's node document is not fully active, then throw an "InvalidStateError" DOMException.
     if (!subject.document().is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string);
+        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_utf16);
 
     // 4. If subject is not connected, then throw an "InvalidStateError" DOMException.
     if (!subject.is_connected())
-        return WebIDL::InvalidStateError::create(realm, "Dialog not connected"_string);
+        return WebIDL::InvalidStateError::create(realm, "Dialog not connected"_utf16);
 
     // 5. If subject is in the popover showing state, then throw an "InvalidStateError" DOMException.
     if (subject.popover_visibility_state() == PopoverVisibilityState::Showing)
-        return WebIDL::InvalidStateError::create(realm, "Dialog already open as popover"_string);
+        return WebIDL::InvalidStateError::create(realm, "Dialog already open as popover"_utf16);
 
     // 6. If the result of firing an event named beforetoggle, using ToggleEvent,
     //  with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",

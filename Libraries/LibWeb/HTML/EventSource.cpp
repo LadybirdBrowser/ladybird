@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
 
     // 4. If urlRecord is failure, then throw a "SyntaxError" DOMException.
     if (!url_record.has_value())
-        return WebIDL::SyntaxError::create(realm, MUST(String::formatted("Invalid URL '{}'", url)));
+        return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid URL '{}'", url));
 
     // 5. Set ev's url to urlRecord.
     event_source->m_url = url_record.release_value();

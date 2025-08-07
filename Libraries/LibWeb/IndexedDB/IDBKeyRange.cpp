@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::only(JS::VM& vm, JS::Valu
 
     // 2. If key is invalid, throw a "DataError" DOMException.
     if (key->is_invalid())
-        return WebIDL::DataError::create(realm, "Value is invalid"_string);
+        return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 3. Create and return a new key range containing only key.
     return IDBKeyRange::create(realm, key, key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
@@ -84,7 +84,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::lower_bound(JS::VM& vm, J
 
     // 2. If lowerKey is invalid, throw a "DataError" DOMException.
     if (key->is_invalid())
-        return WebIDL::DataError::create(realm, "Value is invalid"_string);
+        return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 3. Create and return a new key range with lower bound set to lowerKey, lower open flag set to open, upper bound set to null, and upper open flag set to true.
     return IDBKeyRange::create(realm, key, {}, open ? IDBKeyRange::LowerOpen::Yes : IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::Yes);
@@ -100,7 +100,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::upper_bound(JS::VM& vm, J
 
     // 2. If upperKey is invalid, throw a "DataError" DOMException.
     if (key->is_invalid())
-        return WebIDL::DataError::create(realm, "Value is invalid"_string);
+        return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 3. Create and return a new key range with lower bound set to null, lower open flag set to true, upper bound set to upperKey, and upper open flag set to open.
     return IDBKeyRange::create(realm, {}, key, IDBKeyRange::LowerOpen::Yes, open ? IDBKeyRange::UpperOpen::Yes : IDBKeyRange::UpperOpen::No);
@@ -116,18 +116,18 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::bound(JS::VM& vm, JS::Val
 
     // 2. If lowerKey is invalid, throw a "DataError" DOMException.
     if (lower_key->is_invalid())
-        return WebIDL::DataError::create(realm, "Value is invalid"_string);
+        return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 3. Let upperKey be the result of converting a value to a key with upper. Rethrow any exceptions.
     auto upper_key = TRY(convert_a_value_to_a_key(realm, upper));
 
     // 4. If upperKey is invalid, throw a "DataError" DOMException.
     if (upper_key->is_invalid())
-        return WebIDL::DataError::create(realm, "Value is invalid"_string);
+        return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 5. If lowerKey is greater than upperKey, throw a "DataError" DOMException.
     if (Key::less_than(upper_key, lower_key))
-        return WebIDL::DataError::create(realm, "Lower key is greater than upper key"_string);
+        return WebIDL::DataError::create(realm, "Lower key is greater than upper key"_utf16);
 
     // 6. Create and return a new key range with lower bound set to lowerKey, lower open flag set to lowerOpen, upper bound set to upperKey and upper open flag set to upperOpen.
     return IDBKeyRange::create(realm, lower_key, upper_key, lower_open ? IDBKeyRange::LowerOpen::Yes : IDBKeyRange::LowerOpen::No, upper_open ? IDBKeyRange::UpperOpen::Yes : IDBKeyRange::UpperOpen::No);
@@ -143,7 +143,7 @@ WebIDL::ExceptionOr<bool> IDBKeyRange::includes(JS::Value key)
 
     // 2. If k is invalid, throw a "DataError" DOMException.
     if (k->is_invalid())
-        return WebIDL::DataError::create(realm, "Value is invalid"_string);
+        return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 3. Return true if k is in this range, and false otherwise.
     return is_in_range(k);

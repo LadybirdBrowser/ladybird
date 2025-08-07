@@ -39,7 +39,7 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm
             // 2. If submitter’s form owner is not form, then throw a "NotFoundError" DOMException.
             auto* form_owner = form_associated_element->form();
             if (form_owner && form_owner != form) {
-                return WebIDL::NotFoundError::create(realm, "Submitter does not belong to the provided form."_string);
+                return WebIDL::NotFoundError::create(realm, "Submitter does not belong to the provided form."_utf16);
             }
         }
 
@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm
         auto entry_list = TRY(construct_entry_list(realm, *form, submitter));
         // 3. If list is null, then throw an "InvalidStateError" DOMException.
         if (!entry_list.has_value())
-            return WebIDL::InvalidStateError::create(realm, "Form element does not contain any entries."_string);
+            return WebIDL::InvalidStateError::create(realm, "Form element does not contain any entries."_utf16);
         // 4. Set this’s entry list to list.
         list = entry_list.release_value();
     }

@@ -58,18 +58,18 @@ OfflineAudioContext::~OfflineAudioContext() = default;
 // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-startrendering
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::start_rendering()
 {
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::start_rendering"_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::start_rendering"_utf16);
 }
 
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::resume()
 {
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::resume"_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::resume"_utf16);
 }
 
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::suspend(double suspend_time)
 {
     (void)suspend_time;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::suspend"_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::suspend"_utf16);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-length

@@ -434,7 +434,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
         reset_an_animations_pending_tasks();
 
         // 2. Reject the current finished promise with a DOMException named "AbortError".
-        auto dom_exception = WebIDL::AbortError::create(realm, "Animation was cancelled"_string);
+        auto dom_exception = WebIDL::AbortError::create(realm, "Animation was cancelled"_utf16);
         WebIDL::reject_promise(realm, current_finished_promise(), dom_exception);
 
         // 3. Set the [[PromiseIsHandled]] internal slot of the current finished promise to true.
@@ -494,9 +494,9 @@ WebIDL::ExceptionOr<void> Animation::finish()
     //    effect end is infinity, throw an "InvalidStateError" DOMException and abort these steps.
     auto effective_playback_rate = this->effective_playback_rate();
     if (effective_playback_rate == 0.0)
-        return WebIDL::InvalidStateError::create(realm(), "Animation with a playback rate of 0 cannot be finished"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Animation with a playback rate of 0 cannot be finished"_utf16);
     if (effective_playback_rate > 0.0 && isinf(associated_effect_end()))
-        return WebIDL::InvalidStateError::create(realm(), "Animation with no end cannot be finished"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Animation with no end cannot be finished"_utf16);
 
     // 2. Apply any pending playback rate to animation.
     apply_any_pending_playback_rate();
@@ -595,7 +595,7 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
             // -> If associated effect end is positive infinity,
             if (isinf(associated_effect_end) && associated_effect_end > 0.0) {
                 // throw an "InvalidStateError" DOMException and abort these steps.
-                return WebIDL::InvalidStateError::create(realm(), "Cannot rewind an animation with an infinite effect end"_string);
+                return WebIDL::InvalidStateError::create(realm(), "Cannot rewind an animation with an infinite effect end"_utf16);
             }
             // -> Otherwise,
             //    Set seek time to animation’s associated effect end.
@@ -716,7 +716,7 @@ WebIDL::ExceptionOr<void> Animation::pause()
             auto associated_effect_end = this->associated_effect_end();
             if (isinf(associated_effect_end) && associated_effect_end > 0.0) {
                 // throw an "InvalidStateError" DOMException and abort these steps.
-                return WebIDL::InvalidStateError::create(realm(), "Cannot pause an animation with an infinite effect end"_string);
+                return WebIDL::InvalidStateError::create(realm(), "Cannot pause an animation with an infinite effect end"_utf16);
             }
 
             // Otherwise,
@@ -842,7 +842,7 @@ WebIDL::ExceptionOr<void> Animation::reverse()
     // 1. If there is no timeline associated with animation, or the associated timeline is inactive throw an
     //    "InvalidStateError" DOMException and abort these steps.
     if (!m_timeline || m_timeline->is_inactive())
-        return WebIDL::InvalidStateError::create(realm, "Cannot reverse an animation with an inactive timeline"_string);
+        return WebIDL::InvalidStateError::create(realm, "Cannot reverse an animation with an inactive timeline"_utf16);
 
     // 2. Let original pending playback rate be animation’s pending playback rate.
     auto original_pending_playback_rate = m_pending_playback_rate;
@@ -1210,7 +1210,7 @@ void Animation::reset_an_animations_pending_tasks()
     apply_any_pending_playback_rate();
 
     // 5. Reject animation’s current ready promise with a DOMException named "AbortError".
-    auto dom_exception = WebIDL::AbortError::create(realm, "Animation was cancelled"_string);
+    auto dom_exception = WebIDL::AbortError::create(realm, "Animation was cancelled"_utf16);
     WebIDL::reject_promise(realm, current_ready_promise(), dom_exception);
 
     // 6. Set the [[PromiseIsHandled]] internal slot of animation’s current ready promise to true.

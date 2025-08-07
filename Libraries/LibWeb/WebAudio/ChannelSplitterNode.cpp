@@ -31,7 +31,7 @@ WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::construct
     // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelsplitter
     // An IndexSizeError exception MUST be thrown if numberOfOutputs is less than 1 or is greater than the number of supported channels.
     if (options.number_of_outputs < 1 || options.number_of_outputs > BaseAudioContext::MAX_NUMBER_OF_CHANNELS)
-        return WebIDL::IndexSizeError::create(realm, "Invalid number of outputs"_string);
+        return WebIDL::IndexSizeError::create(realm, "Invalid number of outputs"_utf16);
 
     auto node = realm.create<ChannelSplitterNode>(realm, context, options);
 
@@ -59,7 +59,7 @@ WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_count(WebIDL::Unsigne
     // https://webaudio.github.io/web-audio-api/#audionode-channelcount-constraints
     // The channel count cannot be changed, and an InvalidStateError exception MUST be thrown for any attempt to change the value.
     if (channel_count != m_number_of_outputs)
-        return WebIDL::InvalidStateError::create(realm(), "Channel count must be equal to number of outputs"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Channel count must be equal to number of outputs"_utf16);
 
     return AudioNode::set_channel_count(channel_count);
 }
@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_count_mode(Bindings::
     // https://webaudio.github.io/web-audio-api/#audionode-channelcountmode-constraints
     // The channel count mode cannot be changed from "explicit" and an InvalidStateError exception MUST be thrown for any attempt to change the value.
     if (channel_count_mode != Bindings::ChannelCountMode::Explicit)
-        return WebIDL::InvalidStateError::create(realm(), "Channel count mode must be 'explicit'"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Channel count mode must be 'explicit'"_utf16);
 
     return AudioNode::set_channel_count_mode(channel_count_mode);
 }
@@ -79,7 +79,7 @@ WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_interpretation(Bindin
     // https://webaudio.github.io/web-audio-api/#audionode-channelinterpretation-constraints
     // The channel interpretation can not be changed from "discrete" and a InvalidStateError exception MUST be thrown for any attempt to change the value.
     if (channel_interpretation != Bindings::ChannelInterpretation::Discrete)
-        return WebIDL::InvalidStateError::create(realm(), "Channel interpretation must be 'discrete'"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Channel interpretation must be 'discrete'"_utf16);
 
     return AudioNode::set_channel_interpretation(channel_interpretation);
 }

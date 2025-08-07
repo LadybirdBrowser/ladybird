@@ -124,7 +124,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
             clean_up_after_running_script(realm);
 
             // 2. Throw a "NetworkError" DOMException.
-            return throw_completion(WebIDL::NetworkError::create(realm, "Script error."_string));
+            return throw_completion(WebIDL::NetworkError::create(realm, "Script error."_utf16));
         }
 
         // 3. Otherwise, rethrow errors is false. Perform the following steps:

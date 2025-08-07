@@ -49,7 +49,7 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
         dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", value);
     }
 
-    console.report_exception(*JS::Error::create(realm, value.to_string_without_side_effects()), error_in_promise == ErrorInPromise::Yes);
+    console.report_exception(*JS::Error::create(realm, value.to_utf16_string_without_side_effects()), error_in_promise == ErrorInPromise::Yes);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#report-the-exception

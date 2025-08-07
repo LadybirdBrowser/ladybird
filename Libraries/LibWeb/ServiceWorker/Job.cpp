@@ -29,7 +29,7 @@ static void run_job(JS::VM&, JobQueue&);
 static void finish_job(JS::VM&, GC::Ref<Job>);
 static void resolve_job_promise(GC::Ref<Job>, Optional<Registration const&>, JS::Value = JS::js_null());
 template<typename Error>
-static void reject_job_promise(GC::Ref<Job>, String message);
+static void reject_job_promise(GC::Ref<Job>, Utf16String message);
 static void register_(JS::VM&, GC::Ref<Job>);
 static void update(JS::VM&, GC::Ref<Job>);
 static void unregister(JS::VM&, GC::Ref<Job>);
@@ -85,7 +85,7 @@ static void register_(JS::VM& vm, GC::Ref<Job> job)
     // 1. If the result of running potentially trustworthy origin with the origin of job’s script url as the argument is Not Trusted, then:
     if (SecureContexts::Trustworthiness::NotTrustworthy == SecureContexts::is_origin_potentially_trustworthy(script_origin)) {
         // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has untrustworthy script origin"_string);
+        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has untrustworthy script origin"_utf16);
 
         // 2. Invoke Finish Job with job and abort these steps.
         finish_job(vm, job);
@@ -95,7 +95,7 @@ static void register_(JS::VM& vm, GC::Ref<Job> job)
     // 2. If job’s script url's origin and job’s referrer's origin are not same origin, then:
     if (!script_origin.is_same_origin(referrer_origin)) {
         // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has incompatible script and referrer origins"_string);
+        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has incompatible script and referrer origins"_utf16);
 
         // 2. Invoke Finish Job with job and abort these steps.
         finish_job(vm, job);
@@ -105,7 +105,7 @@ static void register_(JS::VM& vm, GC::Ref<Job> job)
     // 3. If job’s scope url's origin and job’s referrer's origin are not same origin, then:
     if (!scope_origin.is_same_origin(referrer_origin)) {
         // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has incompatible scope and referrer origins"_string);
+        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has incompatible scope and referrer origins"_utf16);
 
         // 2. Invoke Finish Job with job and abort these steps.
         finish_job(vm, job);
@@ -180,7 +180,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
     // 2. If registration is null, then:
     if (!registration.has_value()) {
         // 1. Invoke Reject Job Promise with job and TypeError.
-        reject_job_promise<JS::TypeError>(job, "Service Worker registration not found on update"_string);
+        reject_job_promise<JS::TypeError>(job, "Service Worker registration not found on update"_utf16);
 
         // 2. Invoke Finish Job with job and abort these steps.
         finish_job(vm, job);
@@ -193,7 +193,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
     // 4. If job’s job type is update, and newestWorker is not null and its script url does not equal job’s script url, then:
     if (job->job_type == Job::Type::Update && newest_worker != nullptr && newest_worker->script_url != job->script_url) {
         // 1. Invoke Reject Job Promise with job and TypeError.
-        reject_job_promise<JS::TypeError>(job, "Service Worker script URL mismatch on update"_string);
+        reject_job_promise<JS::TypeError>(job, "Service Worker script URL mismatch on update"_utf16);
 
         // 2. Invoke Finish Job with job and abort these steps.
         finish_job(vm, job);
@@ -257,10 +257,10 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             auto mime_type = response->header_list()->extract_mime_type();
             if (!mime_type.has_value() || !mime_type->is_javascript()) {
                 // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-                reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script response is not a JavaScript MIME type"_string);
+                reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script response is not a JavaScript MIME type"_utf16);
 
                 // 2. Asynchronously complete these steps with a network error.
-                process_response_completion_result = WebIDL::NetworkError::create(realm, "Service Worker script response is not a JavaScript MIME type"_string);
+                process_response_completion_result = WebIDL::NetworkError::create(realm, "Service Worker script response is not a JavaScript MIME type"_utf16);
                 return;
             }
 
@@ -276,7 +276,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 // FIXME: Should we reject the job promise with a security error here?
 
                 // 1. Asynchronously complete these steps with a network error.
-                process_response_completion_result = WebIDL::NetworkError::create(realm, "Failed to extract Service-Worker-Allowed header from fetch response"_string);
+                process_response_completion_result = WebIDL::NetworkError::create(realm, "Failed to extract Service-Worker-Allowed header from fetch response"_utf16);
                 return;
             }
 
@@ -319,10 +319,10 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             // 16. If maxScopeString is null or scopeString does not start with maxScopeString, then:
             if (!max_scope_string.has_value() || !scope_string.starts_with(max_scope_string.value())) {
                 // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-                reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script scope does not match Service-Worker-Allowed header"_string);
+                reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script scope does not match Service-Worker-Allowed header"_utf16);
 
                 // 2. Asynchronously complete these steps with a network error.
-                process_response_completion_result = WebIDL::NetworkError::create(realm, "Service Worker script scope does not match Service-Worker-Allowed header"_string);
+                process_response_completion_result = WebIDL::NetworkError::create(realm, "Service Worker script scope does not match Service-Worker-Allowed header"_utf16);
                 return;
             }
 
@@ -384,7 +384,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             if (process_response_completion_result.has_value())
                 return true;
             if (fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated || fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted) {
-                process_response_completion_result = WebIDL::AbortError::create(realm, "Service Worker fetch was terminated or aborted"_string);
+                process_response_completion_result = WebIDL::AbortError::create(realm, "Service Worker fetch was terminated or aborted"_utf16);
                 return true;
             }
             return false;
@@ -400,7 +400,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         // FIXME: Reject async modules
         if (!script) {
             // 1. Invoke Reject Job Promise with job and TypeError.
-            reject_job_promise<JS::TypeError>(job, "Service Worker script is not a valid module"_string);
+            reject_job_promise<JS::TypeError>(job, "Service Worker script is not a valid module"_utf16);
 
             // 2. If newestWorker is null, then remove registration map[(registration’s storage key, serialized scopeURL)].
             if (newest_worker == nullptr)
@@ -566,7 +566,7 @@ static void resolve_job_promise(GC::Ref<Job> job, Optional<Registration const&>,
 
 // https://w3c.github.io/ServiceWorker/#reject-job-promise-algorithm
 template<typename Error>
-static void reject_job_promise(GC::Ref<Job> job, String message)
+static void reject_job_promise(GC::Ref<Job> job, Utf16String message)
 {
     // 1. If job’s client is not null, queue a task, on job’s client's responsible event loop using the DOM manipulation task source,
     //    to reject job’s job promise with a new exception with errorData and a user agent-defined message, in job’s client's Realm.

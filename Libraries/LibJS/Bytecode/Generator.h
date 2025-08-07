@@ -202,7 +202,7 @@ public:
         return m_current_basic_block->is_terminated();
     }
 
-    StringTableIndex intern_string(String string)
+    StringTableIndex intern_string(Utf16String string)
     {
         return m_string_table->insert(move(string));
     }

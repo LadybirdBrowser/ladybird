@@ -21,7 +21,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "execCommand is only supported on HTML documents"_string);
+        return WebIDL::InvalidStateError::create(realm(), "execCommand is only supported on HTML documents"_utf16);
 
     // AD-HOC: All major browsers refuse to recursively execute execCommand() (e.g. inside input event handlers).
     if (m_inside_exec_command)
@@ -141,7 +141,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandEnabled is only supported on HTML documents"_string);
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandEnabled is only supported on HTML documents"_utf16);
 
     // 2. Return true if command is both supported and enabled, false otherwise.
     if (!MUST(query_command_supported(command)))
@@ -236,7 +236,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_indeterm(FlyString const& comm
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandIndeterm is only supported on HTML documents"_string);
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandIndeterm is only supported on HTML documents"_utf16);
 
     // 1. If command is not supported or has no indeterminacy, return false.
     auto optional_command = Editing::find_command_definition(command);
@@ -312,7 +312,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_state(FlyString const& command
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandState is only supported on HTML documents"_string);
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandState is only supported on HTML documents"_utf16);
 
     // 1. If command is not supported or has no state, return false.
     auto optional_command = Editing::find_command_definition(command);
@@ -361,7 +361,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_supported(FlyString const& com
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandSupported is only supported on HTML documents"_string);
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandSupported is only supported on HTML documents"_utf16);
 
     // When the queryCommandSupported(command) method on the Document interface is invoked, the user agent must return
     // true if command is supported and available within the current script on the current site, and false otherwise.
@@ -375,7 +375,7 @@ WebIDL::ExceptionOr<String> Document::query_command_value(FlyString const& comma
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandValue is only supported on HTML documents"_string);
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandValue is only supported on HTML documents"_utf16);
 
     // 1. If command is not supported or has no value, return the empty string.
     auto optional_command = Editing::find_command_definition(command);

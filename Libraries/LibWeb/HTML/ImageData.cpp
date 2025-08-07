@@ -34,7 +34,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, u32 
 {
     // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
     if (sw == 0 || sh == 0)
-        return WebIDL::IndexSizeError::create(realm, "The source width and height must be greater than zero."_string);
+        return WebIDL::IndexSizeError::create(realm, "The source width and height must be greater than zero."_utf16);
 
     // 2. Initialize this given sw, sh, and settings set to settings.
     // 3. Initialize the image data of this to transparent black.
@@ -61,7 +61,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::
 
     // 2. If length is not a nonzero integral multiple of four, then throw an "InvalidStateError" DOMException.
     if (length == 0 || length % 4 != 0)
-        return WebIDL::InvalidStateError::create(realm, "Source data must have a non-sero length that is a multiple of four."_string);
+        return WebIDL::InvalidStateError::create(realm, "Source data must have a non-sero length that is a multiple of four."_utf16);
 
     // 3. Let length be length divided by four.
     length = length / 4;
@@ -70,14 +70,14 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::
     // NOTE: At this step, the length is guaranteed to be greater than zero (otherwise the second step above would have aborted the steps),
     //       so if sw is zero, this step will throw the exception and return.
     if (sw == 0 || length % sw != 0)
-        return WebIDL::IndexSizeError::create(realm, "Source width must be a multiple of source data's length."_string);
+        return WebIDL::IndexSizeError::create(realm, "Source width must be a multiple of source data's length."_utf16);
 
     // 5. Let height be length divided by sw.
     auto height = length / sw;
 
     // 6. If sh was given and its value is not equal to height, then throw an "IndexSizeError" DOMException.
     if (sh.has_value() && sh.value() != height)
-        return WebIDL::IndexSizeError::create(realm, "Source height must be equal to the calculated height of the data."_string);
+        return WebIDL::IndexSizeError::create(realm, "Source height must be equal to the calculated height of the data."_utf16);
 
     // 7. Initialize this given sw, sh, settings set to settings, and source set to data.
     // FIXME: This seems to be a spec issue, sh is an optional but height always have a value.
@@ -102,7 +102,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::initialize(JS::Realm& realm, 
         size *= pixels_per_row;
         size *= sizeof(u32);
         if (size.has_overflow())
-            return WebIDL::IndexSizeError::create(realm, "The specified image size could not created"_string);
+            return WebIDL::IndexSizeError::create(realm, "The specified image size could not created"_utf16);
 
         // 2. Otherwise (source was not given), initialize the data attribute of imageData to a new Uint8ClampedArray object.
         //    The Uint8ClampedArray object must use a new Canvas Pixel ArrayBuffer for its storage, and must have a zero start

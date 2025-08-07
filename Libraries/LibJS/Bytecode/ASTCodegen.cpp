@@ -444,8 +444,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> StringLiteral::generate
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> RegExpLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto source_index = generator.intern_string(m_pattern.to_utf8_but_should_be_ported_to_utf16());
-    auto flags_index = generator.intern_string(m_flags.to_utf8_but_should_be_ported_to_utf16());
+    auto source_index = generator.intern_string(m_pattern);
+    auto flags_index = generator.intern_string(m_flags);
     auto regex_index = generator.intern_regex(Bytecode::ParsedRegex {
         .regex = m_parsed_regex,
         .pattern = m_parsed_pattern,
@@ -1770,7 +1770,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
 
     Optional<Bytecode::StringTableIndex> expression_string_index;
     if (auto expression_string = this->expression_string(); expression_string.has_value())
-        expression_string_index = generator.intern_string(expression_string->to_utf8_but_should_be_ported_to_utf16());
+        expression_string_index = generator.intern_string(expression_string.release_value());
 
     bool has_spread = any_of(arguments(), [](auto& argument) { return argument.is_spread; });
     auto dst = choose_dst(generator, preferred_dst);

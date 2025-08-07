@@ -13,9 +13,9 @@ namespace Web::WebIDL {
 
 GC_DEFINE_ALLOCATOR(DOMException);
 
-GC::Ref<DOMException> DOMException::create(JS::Realm& realm, FlyString name, String message)
+GC::Ref<DOMException> DOMException::create(JS::Realm& realm, FlyString name, Utf16String const& message)
 {
-    return realm.create<DOMException>(realm, move(name), move(message));
+    return realm.create<DOMException>(realm, move(name), message);
 }
 
 GC::Ref<DOMException> DOMException::create(JS::Realm& realm)
@@ -23,15 +23,15 @@ GC::Ref<DOMException> DOMException::create(JS::Realm& realm)
     return realm.create<DOMException>(realm);
 }
 
-GC::Ref<DOMException> DOMException::construct_impl(JS::Realm& realm, String message, FlyString name)
+GC::Ref<DOMException> DOMException::construct_impl(JS::Realm& realm, Utf16String const& message, FlyString name)
 {
-    return realm.create<DOMException>(realm, move(name), move(message));
+    return realm.create<DOMException>(realm, move(name), message);
 }
 
-DOMException::DOMException(JS::Realm& realm, FlyString name, String message)
+DOMException::DOMException(JS::Realm& realm, FlyString name, Utf16String const& message)
     : PlatformObject(realm)
     , m_name(move(name))
-    , m_message(move(message))
+    , m_message(message)
 {
 }
 
@@ -54,7 +54,7 @@ WebIDL::ExceptionOr<void> DOMException::serialization_steps(HTML::TransferDataEn
     serialized.encode(m_name.to_string());
 
     // 2. Set serialized.[[Message]] to value’s message.
-    serialized.encode(m_message.to_string());
+    serialized.encode(m_message.to_utf16_string());
 
     // FIXME: 3. User agents should attach a serialized representation of any interesting accompanying data which are not yet specified, notably the stack property, to serialized.
 
@@ -67,7 +67,7 @@ WebIDL::ExceptionOr<void> DOMException::deserialization_steps(HTML::TransferData
     m_name = serialized.decode<String>();
 
     // 2. Set value’s message to serialized.[[Message]].
-    m_message = serialized.decode<String>();
+    m_message = serialized.decode<Utf16String>();
 
     // FIXME: 3. If any other data is attached to serialized, then deserialize and attach it to value.
 

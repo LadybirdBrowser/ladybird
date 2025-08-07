@@ -42,7 +42,7 @@ WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::construct_impl(JS::Realm& r
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-coneoutergain
     // It is a linear value (not dB) in the range [0, 1]. An InvalidStateError MUST be thrown if the parameter is outside this range.
     if (options.cone_outer_gain < 0.0 || options.cone_outer_gain > 1.0)
-        return WebIDL::InvalidStateError::create(realm, "coneOuterGain must be in the range of [0, 1]"_string);
+        return WebIDL::InvalidStateError::create(realm, "coneOuterGain must be in the range of [0, 1]"_utf16);
 
     // Create the node and allocate memory
     auto node = realm.create<PannerNode>(realm, context, options);
@@ -133,7 +133,7 @@ WebIDL::ExceptionOr<void> PannerNode::set_cone_outer_gain(double value)
 {
     // It is a linear value (not dB) in the range [0, 1]. An InvalidStateError MUST be thrown if the parameter is outside this range.
     if (value < 0.0 || value > 1.0)
-        return WebIDL::InvalidStateError::create(realm(), "coneOuterGain must be in the range of [0, 1]"_string);
+        return WebIDL::InvalidStateError::create(realm(), "coneOuterGain must be in the range of [0, 1]"_utf16);
 
     m_cone_outer_gain = value;
     return {};
@@ -169,7 +169,7 @@ WebIDL::ExceptionOr<void> PannerNode::set_orientation(float x, float y, float z)
 WebIDL::ExceptionOr<void> PannerNode::set_channel_count_mode(Bindings::ChannelCountMode mode)
 {
     if (mode == Bindings::ChannelCountMode::Max) {
-        return WebIDL::NotSupportedError::create(realm(), "PannerNode does not support 'max' as channelCountMode."_string);
+        return WebIDL::NotSupportedError::create(realm(), "PannerNode does not support 'max' as channelCountMode."_utf16);
     }
 
     return AudioNode::set_channel_count_mode(mode);
@@ -179,7 +179,7 @@ WebIDL::ExceptionOr<void> PannerNode::set_channel_count_mode(Bindings::ChannelCo
 WebIDL::ExceptionOr<void> PannerNode::set_channel_count(WebIDL::UnsignedLong channel_count)
 {
     if (channel_count > 2) {
-        return WebIDL::NotSupportedError::create(realm(), "PannerNode does not support channel count greater than 2"_string);
+        return WebIDL::NotSupportedError::create(realm(), "PannerNode does not support channel count greater than 2"_utf16);
     }
 
     return AudioNode::set_channel_count(channel_count);

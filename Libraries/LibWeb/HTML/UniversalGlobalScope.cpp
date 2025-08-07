@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::btoa(String const& data) 
     byte_string.ensure_capacity(data.bytes().size());
     for (u32 code_point : Utf8View(data)) {
         if (code_point > 0xff)
-            return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_string);
+            return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_utf16);
         byte_string.append(code_point);
     }
 
@@ -67,7 +67,7 @@ WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::atob(String const& data) 
 
     // 2. If decodedData is failure, then throw an "InvalidCharacterError" DOMException.
     if (decoded_data.is_error())
-        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_string);
+        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_utf16);
 
     // 3. Return decodedData.
     // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use isomorphic decoding to convert bytes to UTF-8.

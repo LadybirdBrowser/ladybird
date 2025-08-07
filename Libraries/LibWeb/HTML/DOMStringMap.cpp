@@ -147,7 +147,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
         if (current_character == '-' && character_index + 1 < name_view.length()) {
             auto next_character = name_view[character_index + 1];
             if (is_ascii_lower_alpha(next_character))
-                return WebIDL::SyntaxError::create(realm(), "Name cannot contain a '-' followed by a lowercase character."_string);
+                return WebIDL::SyntaxError::create(realm(), "Name cannot contain a '-' followed by a lowercase character."_utf16);
         }
 
         // 2. For each ASCII upper alpha in name, insert a U+002D HYPHEN-MINUS character (-) before the character and replace the character with the same character converted to ASCII lowercase.
@@ -164,7 +164,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 
     // 4. If name is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!DOM::is_valid_attribute_local_name(data_name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Name is not a valid attribute local name."_string);
+        return WebIDL::InvalidCharacterError::create(realm(), "Name is not a valid attribute local name."_utf16);
 
     // 5. Set an attribute value for the DOMStringMap's associated element using name and value.
     TRY(m_associated_element->set_attribute(data_name, value));

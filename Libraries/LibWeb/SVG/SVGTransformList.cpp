@@ -44,7 +44,7 @@ WebIDL::ExceptionOr<GC::Ref<SVGTransform>> SVGTransformList::get_item(WebIDL::Un
 {
     // 1. If index is greater than or equal to the length of the list, then throw an IndexSizeError.
     if (index >= m_transforms.size())
-        return WebIDL::IndexSizeError::create(realm(), "SVGTransformList index out of bounds"_string);
+        return WebIDL::IndexSizeError::create(realm(), "SVGTransformList index out of bounds"_utf16);
     // 2. Return the element in the list at position index.
     return m_transforms.at(index);
 }

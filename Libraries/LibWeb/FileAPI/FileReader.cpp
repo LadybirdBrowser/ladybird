@@ -142,7 +142,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
 
     // 1. If fr’s state is "loading", throw an InvalidStateError DOMException.
     if (m_state == State::Loading)
-        return WebIDL::InvalidStateError::create(realm, "Read already in progress"_string);
+        return WebIDL::InvalidStateError::create(realm, "Read already in progress"_utf16);
 
     // 2. Set fr’s state to "loading".
     m_state = State::Loading;

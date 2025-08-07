@@ -322,7 +322,7 @@ struct YearWeek {
 
 // 14.5.1.1 ToIntegerIfIntegral ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerifintegral
 template<typename... Args>
-ThrowCompletionOr<double> to_integer_if_integral(VM& vm, Value argument, ErrorType error_type, Args&&... args)
+ThrowCompletionOr<double> to_integer_if_integral(VM& vm, Value argument, ErrorType const& error_type, Args&&... args)
 {
     // 1. Let number be ? ToNumber(argument).
     auto number = TRY(argument.to_number(vm));

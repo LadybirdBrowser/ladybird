@@ -32,7 +32,7 @@ GC::Ref<ScreenOrientation> ScreenOrientation::create(JS::Realm& realm)
 // https://w3c.github.io/screen-orientation/#lock-method
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ScreenOrientation::lock(Bindings::OrientationLockType)
 {
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: ScreenOrientation::lock() is not implemented"_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: ScreenOrientation::lock() is not implemented"_utf16);
 }
 
 // https://w3c.github.io/screen-orientation/#unlock-method

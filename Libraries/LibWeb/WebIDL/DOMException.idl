@@ -2,10 +2,10 @@
 [Exposed=*, Serializable]
 interface DOMException {
 
-    constructor(optional DOMString message = "", optional DOMString name = "Error");
+    constructor(optional Utf16DOMString message = "", optional DOMString name = "Error");
 
     readonly attribute DOMString name;
-    readonly attribute DOMString message;
+    readonly attribute Utf16DOMString message;
     readonly attribute unsigned short code;
 
     const unsigned short INDEX_SIZE_ERR = 1;

@@ -37,7 +37,7 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::start(double when)
 {
     // 1. If this AudioScheduledSourceNode internal slot [[source started]] is true, an InvalidStateError exception MUST be thrown.
     if (source_started())
-        return WebIDL::InvalidStateError::create(realm(), "AudioScheduledSourceNode source has already started"_string);
+        return WebIDL::InvalidStateError::create(realm(), "AudioScheduledSourceNode source has already started"_utf16);
 
     // 2. Check for any errors that must be thrown due to parameter constraints described below. If any exception is thrown during this step, abort those steps.
     // A RangeError exception MUST be thrown if when is negative.
@@ -59,7 +59,7 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
 {
     // 1. If this AudioScheduledSourceNode internal slot [[source started]] is not true, an InvalidStateError exception MUST be thrown.
     if (!m_source_started)
-        return WebIDL::InvalidStateError::create(realm(), "AudioScheduledSourceNode source has not been started"_string);
+        return WebIDL::InvalidStateError::create(realm(), "AudioScheduledSourceNode source has not been started"_utf16);
 
     // 2. Check for any errors that must be thrown due to parameter constraints described below.
     // A RangeError exception MUST be thrown if when is negative.

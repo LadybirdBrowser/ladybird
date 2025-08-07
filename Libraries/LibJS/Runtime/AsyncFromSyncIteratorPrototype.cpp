@@ -181,9 +181,9 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::return_)
 
     // 12. If Type(result) is not Object, then
     if (!result.is_object()) {
-        auto error = TypeError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted(ErrorType::NotAnObject.message(), "SyncIteratorReturnResult")));
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAnObject, "SyncIteratorReturnResult");
         // a. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-        MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
+        MUST(call(vm, *promise_capability->reject(), js_undefined(), error.value()));
 
         // b. Return promiseCapability.[[Promise]].
         return promise_capability->promise();
@@ -230,8 +230,8 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::throw_)
         // f. NOTE: If closing syncIterator does not throw then the result of that operation is ignored, even if it yields a rejected promise.
 
         // g. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-        auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::IsUndefined.message(), "throw method")));
-        MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
+        auto error = vm.throw_completion<TypeError>(ErrorType::IsUndefined, "throw method");
+        MUST(call(vm, *promise_capability->reject(), js_undefined(), error.value()));
 
         // h. Return promiseCapability.[[Promise]].
         return promise_capability->promise();
@@ -249,8 +249,8 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::throw_)
     // 12. If result is not an Object, then
     if (!result.is_object()) {
         // a. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-        auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAnObject.message(), "SyncIteratorThrowResult")));
-        MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAnObject, "SyncIteratorThrowResult");
+        MUST(call(vm, *promise_capability->reject(), js_undefined(), error.value()));
 
         // b. Return promiseCapability.[[Promise]].
         return promise_capability->promise();

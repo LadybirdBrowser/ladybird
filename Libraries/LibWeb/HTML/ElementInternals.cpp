@@ -54,7 +54,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_form_value(Variant<GC::Root<File
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     (void)value;
     (void)state;
@@ -78,10 +78,10 @@ WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> ElementInternals::form() const
     // On getting, it must throw a "NotSupportedError" DOMException if the target element is not a form-associated custom element.
     // Otherwise, it must return the element's form owner, or null if there isn't one.
     if (!m_target_element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     dbgln("FIXME: ElementInternals::form()");
-    return WebIDL::NotFoundError::create(realm(), "FIXME: ElementInternals::form()"_string);
+    return WebIDL::NotFoundError::create(realm(), "FIXME: ElementInternals::form()"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-setvalidity
@@ -92,7 +92,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags cons
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     // 3. If flags contains one or more true values and message is not given or is the empty string, then throw a TypeError.
     if (flags.has_one_or_more_true_values() && (!message.has_value() || message->is_empty())) {
@@ -115,7 +115,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags cons
 
     // 8. Otherwise, if anchor is not a shadow-including inclusive descendant of element, then throw a "NotFoundError" DOMException.
     else if (!anchor.value()->is_shadow_including_inclusive_descendant_of(element)) {
-        return WebIDL::NotFoundError::create(realm(), "Anchor is not a shadow-including descendant of element"_string);
+        return WebIDL::NotFoundError::create(realm(), "Anchor is not a shadow-including descendant of element"_utf16);
     }
 
     // FIXME: 9. Set element's validation anchor to anchor.
@@ -130,7 +130,7 @@ WebIDL::ExceptionOr<bool> ElementInternals::will_validate() const
     // the target element is not a form-associated custom element. Otherwise, it must return true if the target element is a
     // candidate for constraint validation, and false otherwise.
     if (!m_target_element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     dbgln("FIXME: ElementInternals::will_validate()");
     return true;
@@ -143,10 +143,10 @@ WebIDL::ExceptionOr<GC::Ref<ValidityState const>> ElementInternals::validity() c
     // the target element is not a form-associated custom element. Otherwise, it must return a ValidityState object that
     // represents the validity states of the target element. This object is live.
     if (!m_target_element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     dbgln("FIXME: ElementInternals::validity()");
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: ElementInternals::validity()"_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: ElementInternals::validity()"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-validationmessage
@@ -157,7 +157,7 @@ WebIDL::ExceptionOr<String> ElementInternals::validation_message() const
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     // FIXME: 3. Return element's validation message.
 
@@ -173,7 +173,7 @@ WebIDL::ExceptionOr<bool> ElementInternals::check_validity() const
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     // FIXME: 3. Run the check validity steps on element.
 
@@ -189,7 +189,7 @@ WebIDL::ExceptionOr<bool> ElementInternals::report_validity() const
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     // FIXME: 3. Run the report validity steps on element.
 
@@ -204,10 +204,10 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> ElementInternals::labels()
     // On getting, it must throw a "NotSupportedError" DOMException if the target element is not a form-associated custom element.
     // Otherwise, it must return that NodeList object, and that same value must always be returned.
     if (!m_target_element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     dbgln("FIXME: ElementInternals::labels()");
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: ElementInternals::labels()"_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: ElementInternals::labels()"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-states

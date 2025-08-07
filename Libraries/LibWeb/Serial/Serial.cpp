@@ -70,7 +70,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> Serial::request_port(SerialPortReq
 
     // 6. Return promise.
     dbgln("FIXME: Unimplemented Serial::request_port()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, ""_string));
+    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
 }
 
 // https://wicg.github.io/serial/#getports-method
@@ -95,7 +95,7 @@ GC::Ref<WebIDL::Promise> Serial::get_ports()
 
     // 4. Return promise.
     dbgln("FIXME: Unimplemented Serial::get_ports()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, ""_string));
+    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
 }
 
 // https://wicg.github.io/serial/#onconnect-attribute

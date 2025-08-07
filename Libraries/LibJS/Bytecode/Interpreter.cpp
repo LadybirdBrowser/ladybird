@@ -2264,8 +2264,8 @@ void NewRegExp::execute_impl(Bytecode::Interpreter& interpreter) const
         new_regexp(
             interpreter.vm(),
             interpreter.current_executable().regex_table->get(m_regex_index),
-            Utf16String::from_utf8(interpreter.current_executable().get_string(m_source_index)),
-            Utf16String::from_utf8(interpreter.current_executable().get_string(m_flags_index))));
+            interpreter.current_executable().get_string(m_source_index),
+            interpreter.current_executable().get_string(m_flags_index)));
 }
 
 #define JS_DEFINE_NEW_BUILTIN_ERROR_OP(ErrorName)                                                                      \

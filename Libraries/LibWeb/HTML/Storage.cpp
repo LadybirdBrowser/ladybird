@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     // 5. Set this's map[key] to value.
     auto error = m_storage_bottle->set(key, value);
     if (error == WebView::StorageOperationError::QuotaExceededError) {
-        return WebIDL::QuotaExceededError::create(realm(), MUST(String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota())));
+        return WebIDL::QuotaExceededError::create(realm(), Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
     }
 
     // 7. Broadcast this with key, oldValue, and value.

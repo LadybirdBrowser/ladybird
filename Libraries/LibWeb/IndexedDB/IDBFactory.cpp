@@ -54,7 +54,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
     //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
     auto storage_key = StorageAPI::obtain_a_storage_key(environment);
     if (!storage_key.has_value())
-        return WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_string);
+        return WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_utf16);
 
     // 4. Let request be a new open request.
     auto request = IDBOpenDBRequest::create(realm);
@@ -109,14 +109,14 @@ WebIDL::ExceptionOr<i8> IDBFactory::cmp(JS::Value first, JS::Value second)
 
     // 2. If a is invalid, throw a "DataError" DOMException.
     if (a->is_invalid())
-        return WebIDL::DataError::create(realm(), "Failed to convert a value to a key"_string);
+        return WebIDL::DataError::create(realm(), "Failed to convert a value to a key"_utf16);
 
     // 3. Let b be the result of converting a value to a key with second. Rethrow any exceptions.
     auto b = TRY(convert_a_value_to_a_key(realm(), second));
 
     // 4. If b is invalid, throw a "DataError" DOMException.
     if (b->is_invalid())
-        return WebIDL::DataError::create(realm(), "Failed to convert a value to a key"_string);
+        return WebIDL::DataError::create(realm(), "Failed to convert a value to a key"_utf16);
 
     // 5. Return the results of comparing two keys with a and b.
     return Key::compare_two_keys(a, b);
@@ -134,7 +134,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Strin
     //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
     auto storage_key = StorageAPI::obtain_a_storage_key(environment);
     if (!storage_key.has_value())
-        return WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_string);
+        return WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_utf16);
 
     // 3. Let request be a new open request.
     auto request = IDBOpenDBRequest::create(realm);
@@ -189,7 +189,7 @@ GC::Ref<WebIDL::Promise> IDBFactory::databases()
     //    If failure is returned, then return a promise rejected with a "SecurityError" DOMException
     auto maybe_storage_key = StorageAPI::obtain_a_storage_key(environment);
     if (!maybe_storage_key.has_value())
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_string));
+        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_utf16));
 
     auto storage_key = maybe_storage_key.release_value();
 

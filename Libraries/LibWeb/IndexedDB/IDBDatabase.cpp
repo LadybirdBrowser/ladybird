@@ -105,22 +105,22 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
     // 2. Let transaction be database’s upgrade transaction if it is not null, or throw an "InvalidStateError" DOMException otherwise.
     auto transaction = database->upgrade_transaction();
     if (!transaction)
-        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is null"_string);
+        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is null"_utf16);
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while creating object store"_string);
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while creating object store"_utf16);
 
     // 4. Let keyPath be options’s keyPath member if it is not undefined or null, or null otherwise.
     auto key_path = options.key_path;
 
     // 5. If keyPath is not null and is not a valid key path, throw a "SyntaxError" DOMException.
     if (key_path.has_value() && !is_valid_key_path(key_path.value()))
-        return WebIDL::SyntaxError::create(realm, "Invalid key path"_string);
+        return WebIDL::SyntaxError::create(realm, "Invalid key path"_utf16);
 
     // 6. If an object store named name already exists in database throw a "ConstraintError" DOMException.
     if (database->object_store_with_name(name))
-        return WebIDL::ConstraintError::create(realm, "Object store already exists"_string);
+        return WebIDL::ConstraintError::create(realm, "Object store already exists"_utf16);
 
     // 7. Let autoIncrement be options’s autoIncrement member.
     auto auto_increment = options.auto_increment;
@@ -129,7 +129,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
 
     // 8. If autoIncrement is true and keyPath is an empty string or any sequence (empty or otherwise), throw an "InvalidAccessError" DOMException.
     if (auto_increment && is_empty_key_path_or_sequence)
-        return WebIDL::InvalidAccessError::create(realm, "Auto increment is true and key path is empty or sequence"_string);
+        return WebIDL::InvalidAccessError::create(realm, "Auto increment is true and key path is empty or sequence"_utf16);
 
     // 9. Let store be a new object store in database.
     //    Set the created object store's name to name.
@@ -167,16 +167,16 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
     // 2. Let transaction be database’s upgrade transaction if it is not null, or throw an "InvalidStateError" DOMException otherwise.
     auto transaction = database->upgrade_transaction();
     if (!transaction)
-        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is null"_string);
+        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is null"_utf16);
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting object store"_string);
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting object store"_utf16);
 
     // 4. Let store be the object store named name in database, or throw a "NotFoundError" DOMException if none.
     auto store = database->object_store_with_name(name);
     if (!store)
-        return WebIDL::NotFoundError::create(realm, "Object store not found while trying to delete"_string);
+        return WebIDL::NotFoundError::create(realm, "Object store not found while trying to delete"_utf16);
 
     // 5. Remove store from this's object store set.
     this->remove_from_object_store_set(*store);
@@ -197,11 +197,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
     // 1. If a live upgrade transaction is associated with the connection, throw an "InvalidStateError" DOMException.
     auto database = associated_database();
     if (database->upgrade_transaction())
-        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is live"_string);
+        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is live"_utf16);
 
     // 2. If this's close pending flag is true, then throw an "InvalidStateError" DOMException.
     if (close_pending())
-        return WebIDL::InvalidStateError::create(realm, "Close pending"_string);
+        return WebIDL::InvalidStateError::create(realm, "Close pending"_utf16);
 
     // 3. Let scope be the set of unique strings in storeNames if it is a sequence, or a set containing one string equal to storeNames otherwise.
     Vector<String> scope;
@@ -214,12 +214,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
     // 4. If any string in scope is not the name of an object store in the connected database, throw a "NotFoundError" DOMException.
     for (auto const& store_name : scope) {
         if (!database->object_store_with_name(store_name))
-            return WebIDL::NotFoundError::create(realm, "Provided object store names does not exist in database"_string);
+            return WebIDL::NotFoundError::create(realm, "Provided object store names does not exist in database"_utf16);
     }
 
     // 5. If scope is empty, throw an "InvalidAccessError" DOMException.
     if (scope.is_empty())
-        return WebIDL::InvalidAccessError::create(realm, "Scope is empty"_string);
+        return WebIDL::InvalidAccessError::create(realm, "Scope is empty"_utf16);
 
     // 6. If mode is not "readonly" or "readwrite", throw a TypeError.
     if (mode != Bindings::IDBTransactionMode::Readonly && mode != Bindings::IDBTransactionMode::Readwrite)

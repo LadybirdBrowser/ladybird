@@ -31,13 +31,13 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
     // 3. Attempt to parse a margin from options.rootMargin. If a list is returned, set this’s internal [[rootMargin]] slot to that. Otherwise, throw a SyntaxError exception.
     auto root_margin = parse_a_margin(realm, options.root_margin);
     if (!root_margin.has_value()) {
-        return WebIDL::SyntaxError::create(realm, "IntersectionObserver: Cannot parse root margin as a margin."_string);
+        return WebIDL::SyntaxError::create(realm, "IntersectionObserver: Cannot parse root margin as a margin."_utf16);
     }
 
     // 4. Attempt to parse a margin from options.scrollMargin. If a list is returned, set this’s internal [[scrollMargin]] slot to that. Otherwise, throw a SyntaxError exception.
     auto scroll_margin = parse_a_margin(realm, options.scroll_margin);
     if (!scroll_margin.has_value()) {
-        return WebIDL::SyntaxError::create(realm, "IntersectionObserver: Cannot parse scroll margin as a margin."_string);
+        return WebIDL::SyntaxError::create(realm, "IntersectionObserver: Cannot parse scroll margin as a margin."_utf16);
     }
 
     // 5. Let thresholds be a list equal to options.threshold.

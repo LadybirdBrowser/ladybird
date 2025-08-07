@@ -27,7 +27,7 @@ void ErrorPrototype::initialize(Realm& realm)
     Base::initialize(realm);
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_direct_property(vm.names.name, PrimitiveString::create(vm, "Error"_string), attr);
-    define_direct_property(vm.names.message, PrimitiveString::create(vm, String {}), attr);
+    define_direct_property(vm.names.message, PrimitiveString::create(vm, Utf16String {}), attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     // Non standard property "stack"
     // Every other engine seems to have this in some way or another, and the spec
@@ -55,8 +55,8 @@ JS_DEFINE_NATIVE_FUNCTION(ErrorPrototype::to_string)
 
     // 6. If msg is undefined, set msg to the empty String; otherwise set msg to ? ToString(msg).
     auto message = message_property.is_undefined()
-        ? String {}
-        : TRY(message_property.to_string(vm));
+        ? Utf16String {}
+        : TRY(message_property.to_utf16_string(vm));
 
     // 7. If name is the empty String, return msg.
     if (name.is_empty())
@@ -92,9 +92,9 @@ JS_DEFINE_NATIVE_FUNCTION(ErrorPrototype::stack_getter)
     else
         name = "Error"_string;
 
-    String message {};
+    Utf16String message {};
     if (auto message_property = TRY(error.get(vm.names.message)); !message_property.is_undefined())
-        message = TRY(message_property.to_string(vm));
+        message = TRY(message_property.to_utf16_string(vm));
 
     auto header = message.is_empty()
         ? move(name)
@@ -138,7 +138,7 @@ JS_DEFINE_NATIVE_FUNCTION(ErrorPrototype::stack_setter)
         Base::initialize(realm);                                                                       \
         u8 attr = Attribute::Writable | Attribute::Configurable;                                       \
         define_direct_property(vm.names.name, PrimitiveString::create(vm, #ClassName##_string), attr); \
-        define_direct_property(vm.names.message, PrimitiveString::create(vm, String {}), attr);        \
+        define_direct_property(vm.names.message, PrimitiveString::create(vm, Utf16String {}), attr);   \
     }
 
 JS_ENUMERATE_NATIVE_ERRORS
