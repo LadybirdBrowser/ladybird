@@ -1,0 +1,25 @@
+diff --git a/scripts/dawn_features.gni b/scripts/dawn_features.gni
+index 873d516366..d43084994e 100644
+--- a/scripts/dawn_features.gni
++++ b/scripts/dawn_features.gni
+@@ -89,15 +89,11 @@ declare_args() {
+   # (used for debugging purpose, capture and replay)
+   dawn_enable_webgpu_on_webgpu = dawn_standalone
+ 
+-  # Enables the compilation of Dawn's OpenGL backend
+-  # (best effort, non-conformant)
+-  dawn_enable_desktop_gl = is_linux && !is_chromeos
+-
+-  # Enables the compilation of Dawn's OpenGLES backend
+-  # (WebGPU/Compat subset)
+-  # Disables OpenGLES when compiling for UWP, since UWP only supports d3d
+-  dawn_enable_opengles =
+-      (is_linux && !is_chromeos) || (is_win && !dawn_is_winuwp) || is_android
++  # Disables the compilation of Dawn's OpenGL backend
++  dawn_enable_desktop_gl = false
++
++  # Disables the compilation of Dawn's OpenGLES backend
++  dawn_enable_opengles = false
+ 
+   # Enables the compilation of Dawn's Vulkan backend
+   # Disables vulkan when compiling for UWP, since UWP only supports d3d
