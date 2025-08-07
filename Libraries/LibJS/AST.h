@@ -1563,7 +1563,7 @@ private:
 // 10.2.1.3 Runtime Semantics: EvaluateBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatebody
 class ClassFieldInitializerStatement final : public Statement {
 public:
-    ClassFieldInitializerStatement(SourceRange source_range, NonnullRefPtr<Expression const> expression, FlyString field_name)
+    ClassFieldInitializerStatement(SourceRange source_range, NonnullRefPtr<Expression const> expression, Utf16FlyString field_name)
         : Statement(move(source_range))
         , m_expression(move(expression))
         , m_class_field_identifier_name(move(field_name))
@@ -1575,7 +1575,7 @@ public:
 
 private:
     NonnullRefPtr<Expression const> m_expression;
-    FlyString m_class_field_identifier_name; // [[ClassFieldIdentifierName]]
+    Utf16FlyString m_class_field_identifier_name; // [[ClassFieldIdentifierName]]
 };
 
 class SpreadExpression final : public Expression {
