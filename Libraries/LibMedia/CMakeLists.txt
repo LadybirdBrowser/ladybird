@@ -14,7 +14,7 @@ set(SOURCES
     VideoFrame.cpp
 )
 
-ladybird_lib(LibMedia media)
+ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
 
 target_sources(LibMedia PRIVATE
