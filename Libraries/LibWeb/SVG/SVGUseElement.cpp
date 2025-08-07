@@ -36,8 +36,10 @@ void SVGUseElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGUseElement);
     Base::initialize(realm);
 
-    // The shadow tree is open (inspectable by script), but read-only.
-    auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Open);
+    // NOTE: The spec says "The shadow tree is open (inspectable by script), but read-only."
+    //       This doesn't actually match other browsers, and there's a spec issue to change it.
+    //       Spec bug: https://github.com/w3c/svgwg/issues/875
+    auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
 
     // The user agent must create a use-element shadow tree whose host is the ‘use’ element itself
     set_shadow_root(shadow_root);

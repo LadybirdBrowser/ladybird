@@ -1,0 +1,10 @@
+<!doctype html>
+<script src="../include.js"></script>
+<svg id="foo"></svg>
+<svg><use id="use" href="#foo" /></svg>
+<script>
+    test(() => {
+        println(use.shadowRoot);
+        println(internals.getShadowRoot(use));
+    });
+</script>
