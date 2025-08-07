@@ -180,9 +180,11 @@ def pick_swift_compilers(platform: Platform, project_root: Path) -> tuple[Path, 
     swiftly_toolchain_path = run_command(["swiftly", "use", "--print-location"], return_output=True, cwd=project_root)
     if not swiftly_toolchain_path:
         run_command(["swiftly", "install"], exit_on_failure=True, cwd=project_root)
+
         swiftly_toolchain_path = run_command(
             ["swiftly", "use", "--print-location"], return_output=True, exit_on_failure=True, cwd=project_root
         )
+        assert swiftly_toolchain_path
 
     swiftly_toolchain_path = Path(swiftly_toolchain_path.strip())
     swiftly_bin_dir = swiftly_toolchain_path.joinpath("usr", "bin")

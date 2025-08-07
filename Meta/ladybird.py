@@ -183,9 +183,12 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
 
+    switfc: Optional[str] = None
     validate_cmake_version()
+
     if "Swift" in preset:
-        (cc, cxx, swiftc) = pick_swift_compilers(platform, ladybird_source_dir)
+        compilers = pick_swift_compilers(platform, ladybird_source_dir)
+        (cc, cxx, swiftc) = tuple(map(str, compilers))
     else:
         (cc, cxx) = pick_host_compiler(platform, cc, cxx)
 
@@ -201,7 +204,7 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         f"-DCMAKE_CXX_COMPILER={cxx}",
     ]
 
-    if "Swift" in preset:
+    if switfc:
         config_args.append(f"-DCMAKE_Swift_COMPILER={swiftc}")
 
     if platform.host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
