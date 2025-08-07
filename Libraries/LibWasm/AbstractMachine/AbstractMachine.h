@@ -13,6 +13,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StackInfo.h>
 #include <AK/UFixedBigInt.h>
+#include <LibWasm/Export.h>
 #include <LibWasm/Types.h>
 
 namespace Wasm {
@@ -551,7 +552,7 @@ private:
     Vector<Reference> m_references;
 };
 
-class Store {
+class WASM_API Store {
 public:
     Store() = default;
 
@@ -631,7 +632,7 @@ struct HostVisitOps {
     Function<void(ExternallyManagedTrap&)> visit_trap;
 };
 
-class AbstractMachine {
+class WASM_API AbstractMachine {
 public:
     explicit AbstractMachine() = default;
 
@@ -682,7 +683,7 @@ private:
     bool m_should_limit_instruction_count { false };
 };
 
-class Linker {
+class WASM_API Linker {
 public:
     struct Name {
         ByteString module;
