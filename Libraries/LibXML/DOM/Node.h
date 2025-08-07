@@ -11,6 +11,7 @@
 #include <AK/HashMap.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibXML/Export.h>
 #include <LibXML/FundamentalTypes.h>
 
 namespace XML {
@@ -20,7 +21,7 @@ struct Attribute {
     ByteString value;
 };
 
-struct Node {
+struct XML_API Node {
     struct Text {
         StringBuilder builder;
     };
