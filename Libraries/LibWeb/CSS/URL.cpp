@@ -130,11 +130,11 @@ String RequestURLModifier::to_string() const
 {
     switch (m_type) {
     case Type::CrossOrigin:
-        return MUST(String::formatted("crossorigin({})", CSS::to_string(m_value.get<CrossOriginModifierValue>())));
+        return MUST(String::formatted("cross-origin({})", CSS::to_string(m_value.get<CrossOriginModifierValue>())));
     case Type::Integrity:
         return MUST(String::formatted("integrity({})", serialize_a_string(m_value.get<FlyString>())));
     case Type::ReferrerPolicy:
-        return MUST(String::formatted("referrerpolicy({})", CSS::to_string(m_value.get<ReferrerPolicyModifierValue>())));
+        return MUST(String::formatted("referrer-policy({})", CSS::to_string(m_value.get<ReferrerPolicyModifierValue>())));
     }
     VERIFY_NOT_REACHED();
 }

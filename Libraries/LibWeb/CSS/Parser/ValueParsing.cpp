@@ -3049,17 +3049,17 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
 
         // NB: Currently <request-url-modifier> is the only kind of <url-modifier>
         // https://drafts.csswg.org/css-values-5/#request-url-modifiers
-        // <request-url-modifier> = <crossorigin-modifier> | <integrity-modifier> | <referrerpolicy-modifier>
+        // <request-url-modifier> = <cross-origin-modifier> | <integrity-modifier> | <referrer-policy-modifier>
         Vector<RequestURLModifier> request_url_modifiers;
         // AD-HOC: This isn't mentioned in the spec, but WPT expects modifiers to be unique (one per type).
         // Spec issue: https://github.com/w3c/csswg-drafts/issues/12151
         while (url_tokens.has_next_token()) {
             auto& modifier_token = url_tokens.consume_a_token();
-            if (modifier_token.is_function("crossorigin"sv)) {
+            if (modifier_token.is_function("cross-origin"sv)) {
                 // Reject duplicates
                 if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::CrossOrigin; }).has_value())
                     return {};
-                // <crossorigin-modifier> = crossorigin(anonymous | use-credentials)
+                // <cross-origin-modifier> = cross-origin(anonymous | use-credentials)
                 TokenStream modifier_tokens { modifier_token.function().value };
                 modifier_tokens.discard_whitespace();
                 if (!modifier_tokens.next_token().is(Token::Type::Ident))
@@ -3085,12 +3085,12 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
                 if (!maybe_string.is(Token::Type::String) || modifier_tokens.has_next_token())
                     return {};
                 request_url_modifiers.append(RequestURLModifier::create_integrity(maybe_string.token().string()));
-            } else if (modifier_token.is_function("referrerpolicy"sv)) {
+            } else if (modifier_token.is_function("referrer-policy"sv)) {
                 // Reject duplicates
                 if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::ReferrerPolicy; }).has_value())
                     return {};
 
-                // <referrerpolicy-modifier> = (no-referrer | no-referrer-when-downgrade | same-origin | origin | strict-origin | origin-when-cross-origin | strict-origin-when-cross-origin | unsafe-url)
+                // <referrer-policy-modifier> = (no-referrer | no-referrer-when-downgrade | same-origin | origin | strict-origin | origin-when-cross-origin | strict-origin-when-cross-origin | unsafe-url)
                 TokenStream modifier_tokens { modifier_token.function().value };
                 modifier_tokens.discard_whitespace();
                 if (!modifier_tokens.next_token().is(Token::Type::Ident))
