@@ -15,6 +15,7 @@ target_sources(ladybird PRIVATE
     ladybird.qrc
 )
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
+lagom_copy_runtime_dlls(ladybird)
 create_ladybird_bundle(ladybird)
 
 if (WIN32)
@@ -29,10 +30,6 @@ qt_deploy_runtime_dependencies(
 ")
 
     add_custom_command(TARGET ladybird POST_BUILD
-        COMMAND ${CMAKE_COMMAND}
-            -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:ladybird>
-            $<TARGET_FILE_DIR:ladybird>
         COMMAND ${CMAKE_COMMAND}
             -P ${ladybird_deploy_script}
         COMMAND_EXPAND_LISTS
