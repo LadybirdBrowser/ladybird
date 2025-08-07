@@ -1,0 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 46ae8fdf42..26b84f4794 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -221,6 +221,12 @@ else()
+   set(TINT_DEFAULT_GLSL OFF)
+ endif()
+ 
++if (DAWN_ENABLE_D3D11 OR DAWN_ENABLE_D3D12)
++  set(TINT_DEFAULT_HLSL ON)
++else()
++  set(TINT_DEFAULT_HLSL OFF)
++endif()
++
+ option(TINT_ENABLE_INSTALL "Enable install step for Tint libraries" OFF)
+ option(TINT_BUILD_CMD_TOOLS "Build the Tint command line tools" ON)
+ 
+@@ -234,7 +240,7 @@ option(TINT_BUILD_SPV_READER "Build the SPIR-V input reader" ${DAWN_ENABLE_VULKA
+ option(TINT_BUILD_WGSL_READER "Build the WGSL input reader" ON)
+ option(TINT_BUILD_GLSL_WRITER "Build the GLSL output writer" ${TINT_DEFAULT_GLSL})
+ option(TINT_BUILD_GLSL_VALIDATOR "Build the GLSL output validator" ON)
+-option(TINT_BUILD_HLSL_WRITER "Build the HLSL output writer" ${DAWN_ENABLE_D3D12})
++option(TINT_BUILD_HLSL_WRITER "Build the HLSL output writer" ${TINT_DEFAULT_HLSL})
+ option(TINT_BUILD_MSL_WRITER "Build the MSL output writer" ${DAWN_ENABLE_METAL})
+ option(TINT_BUILD_SPV_WRITER "Build the SPIR-V output writer" ${DAWN_ENABLE_VULKAN})
+ option(TINT_BUILD_WGSL_WRITER "Build the WGSL output writer" ON)

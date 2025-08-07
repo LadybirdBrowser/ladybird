@@ -1,0 +1,19 @@
+diff --git a/emdawnwebgpu.port.py b/emdawnwebgpu.port.py
+index 4b90064..1956d0b 100644
+--- a/emdawnwebgpu.port.py
++++ b/emdawnwebgpu.port.py
+@@ -70,10 +70,10 @@ def _walk(path):
+             yield os.path.join(dirpath, filename)
+ 
+ 
+-_pkg_dir = os.path.dirname(os.path.realpath(__file__))
+-_c_include_dir = os.path.join(_pkg_dir, 'webgpu', 'include')
+-_cpp_include_dir = os.path.join(_pkg_dir, 'webgpu_cpp', 'include')
+-_src_dir = os.path.join(_pkg_dir, 'webgpu', 'src')
++_pkg_dir = os.path.dirname(os.path.realpath(os.path.join(__file__, '..', '..')))
++_c_include_dir = os.path.join(_pkg_dir, 'include')
++_cpp_include_dir = os.path.join(_pkg_dir, 'include')
++_src_dir = os.path.join(_pkg_dir, 'share', 'dawn', 'src')
+ _srcs = [
+     os.path.join(_src_dir, 'webgpu.cpp'),
+ ]

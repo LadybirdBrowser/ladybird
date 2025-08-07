@@ -1,0 +1,23 @@
+diff --git a/src/cmake/DawnLibrary.cmake b/src/cmake/DawnLibrary.cmake
+index a5352433f0..d8aa1788d2 100644
+--- a/src/cmake/DawnLibrary.cmake
++++ b/src/cmake/DawnLibrary.cmake
+@@ -180,12 +180,12 @@ function(dawn_install_target name)
+     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+   )
+   # When building in debug mode with MSVC, install PDB files together with binaries
+-  if (MSVC)
+-    get_target_property(target_type "${name}" TYPE)
+-    if ((target_type STREQUAL "STATIC_LIBRARY") OR (target_type STREQUAL "SHARED_LIBRARY") OR (target_type STREQUAL "EXECUTABLE"))
+-      install(FILES $<TARGET_PDB_FILE:${name}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+-    endif()
+-  endif (MSVC)
++  # if (MSVC)
++  #   get_target_property(target_type "${name}" TYPE)
++  #   if ((target_type STREQUAL "STATIC_LIBRARY") OR (target_type STREQUAL "SHARED_LIBRARY") OR (target_type STREQUAL "EXECUTABLE"))
++  #     install(FILES $<TARGET_PDB_FILE:${name}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
++  #   endif()
++  # endif (MSVC)
+ 
+   # Automatically determine where each header should go based on its subdirectory in the include dir.
+   foreach(header IN LISTS arg_HEADERS)
