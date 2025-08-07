@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
+#include <LibWasm/Export.h>
 #include <LibWasm/Forward.h>
 
 namespace Wasm::Wasi::ABI {
@@ -821,7 +822,7 @@ private:
     LittleEndian<Tag> tag;
 };
 
-struct Implementation {
+struct WASM_API Implementation {
     struct MappedPath {
         LexicalPath host_path;
         LexicalPath mapped_path;
