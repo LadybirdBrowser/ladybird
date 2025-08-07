@@ -12,6 +12,7 @@
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
+#include <LibMedia/Export.h>
 #include <LibThreading/Thread.h>
 #include <pulse/pulseaudio.h>
 
@@ -35,7 +36,7 @@ using PulseAudioDataRequestCallback = Function<ReadonlyBytes(PulseAudioStream&, 
 
 // A wrapper around the PulseAudio main loop and context structs.
 // Generally, only one instance of this should be needed for a single process.
-class PulseAudioContext
+class MEDIA_API PulseAudioContext
     : public AtomicRefCounted<PulseAudioContext>
     , public Weakable<PulseAudioContext> {
 public:

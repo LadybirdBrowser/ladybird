@@ -12,6 +12,7 @@
 #include <AK/Optional.h>
 #include <LibCore/MappedFile.h>
 #include <LibMedia/DecoderError.h>
+#include <LibMedia/Export.h>
 
 #include "Document.h"
 
@@ -20,7 +21,7 @@ namespace Media::Matroska {
 class SampleIterator;
 class Streamer;
 
-class Reader {
+class MEDIA_API Reader {
 public:
     typedef Function<DecoderErrorOr<IterationDecision>(TrackEntry const&)> TrackEntryCallback;
 
@@ -80,7 +81,7 @@ private:
     bool m_cues_have_been_parsed { false };
 };
 
-class SampleIterator {
+class MEDIA_API SampleIterator {
 public:
     DecoderErrorOr<Block> next_block();
     Cluster const& current_cluster() const { return *m_current_cluster; }
