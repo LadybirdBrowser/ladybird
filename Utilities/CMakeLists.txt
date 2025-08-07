@@ -9,13 +9,12 @@ endif()
 
 lagom_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 lagom_utility(abench SOURCES abench.cpp LIBS LibMain LibFileSystem LibMedia)
+lagom_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
 
 # FIXME: Increase support for building targets on Windows
 if (WIN32 AND ENABLE_WINDOWS_CI)
     return()
 endif()
-
-lagom_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
 
 if (ENABLE_GUI_TARGETS)
     lagom_utility(image SOURCES image.cpp LIBS LibGfx LibMain)
