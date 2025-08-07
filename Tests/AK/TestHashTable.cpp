@@ -131,6 +131,38 @@ TEST_CASE(remove_all_matching)
     EXPECT_EQ(ints.remove_all_matching([&](int) { return true; }), false);
 }
 
+TEST_CASE(take_all_matching)
+{
+    HashTable<int> ints;
+
+    ints.set(1);
+    ints.set(2);
+    ints.set(3);
+    ints.set(4);
+
+    EXPECT_EQ(ints.size(), 4u);
+
+    auto first_values = ints.take_all_matching([&](int value) { return value > 2; });
+    EXPECT_EQ(first_values.size(), 2u);
+    EXPECT(first_values.contains_slow(3));
+    EXPECT(first_values.contains_slow(4));
+    EXPECT(ints.take_all_matching([&](int) { return false; }).is_empty());
+
+    EXPECT_EQ(ints.size(), 2u);
+
+    EXPECT(ints.contains(1));
+    EXPECT(ints.contains(2));
+
+    auto second_values = ints.take_all_matching([&](int) { return true; });
+    EXPECT_EQ(second_values.size(), 2u);
+    EXPECT(second_values.contains_slow(1));
+    EXPECT(second_values.contains_slow(2));
+
+    EXPECT(ints.is_empty());
+
+    EXPECT(ints.take_all_matching([&](int) { return true; }).is_empty());
+}
+
 TEST_CASE(case_insensitive)
 {
     HashTable<ByteString, CaseInsensitiveStringTraits> casetable;

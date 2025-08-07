@@ -478,6 +478,25 @@ public:
         return has_removed_anything;
     }
 
+    template<typename TUnaryPredicate>
+    Vector<T> take_all_matching(TUnaryPredicate const& predicate)
+    {
+        Vector<T> values;
+        for (size_t i = 0; i < m_capacity; ++i) {
+            auto& bucket = m_buckets[i];
+            if (bucket.state == BucketState::Free || !predicate(*bucket.slot()))
+                continue;
+
+            values.append(move(*bucket.slot()));
+            delete_bucket(bucket);
+
+            // If a bucket was shifted up, reevaluate this bucket index
+            if (bucket.state != BucketState::Free)
+                --i;
+        }
+        return values;
+    }
+
     T take_last()
     requires(IsOrdered)
     {
