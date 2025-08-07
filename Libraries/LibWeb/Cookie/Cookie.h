@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <LibIPC/Forward.h>
+#include <LibURL/URL.h>
 
 namespace Web::Cookie {
 
@@ -45,6 +46,9 @@ struct Cookie {
 
 StringView same_site_to_string(SameSite same_site_mode);
 SameSite same_site_from_string(StringView same_site_mode);
+
+Optional<String> canonicalize_domain(const URL::URL& url);
+bool path_matches(StringView request_path, StringView cookie_path);
 
 }
 

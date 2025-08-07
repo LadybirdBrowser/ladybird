@@ -57,6 +57,45 @@ SameSite same_site_from_string(StringView same_site_mode)
     return SameSite::Default;
 }
 
+// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.2
+Optional<String> canonicalize_domain(const URL::URL& url)
+{
+    if (!url.host().has_value())
+        return {};
+
+    // 1. Convert the host name to a sequence of individual domain name labels.
+    // 2. Convert each label that is not a Non-Reserved LDH (NR-LDH) label, to an A-label (see Section 2.3.2.1 of
+    //    [RFC5890] for the former and latter), or to a "punycode label" (a label resulting from the "ToASCII" conversion
+    //    in Section 4 of [RFC3490]), as appropriate (see Section 6.3 of this specification).
+    // 3. Concatenate the resulting labels, separated by a %x2E (".") character.
+    // FIXME: Implement the above conversions.
+
+    return MUST(url.serialized_host().to_lowercase());
+}
+
+// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
+bool path_matches(StringView request_path, StringView cookie_path)
+{
+    // A request-path path-matches a given cookie-path if at least one of the following conditions holds:
+
+    // * The cookie-path and the request-path are identical.
+    if (request_path == cookie_path)
+        return true;
+
+    if (request_path.starts_with(cookie_path)) {
+        // * The cookie-path is a prefix of the request-path, and the last character of the cookie-path is %x2F ("/").
+        if (cookie_path.ends_with('/'))
+            return true;
+
+        // * The cookie-path is a prefix of the request-path, and the first character of the request-path that is not
+        //   included in the cookie-path is a %x2F ("/") character.
+        if (request_path[cookie_path.length()] == '/')
+            return true;
+    }
+
+    return false;
+}
+
 }
 
 template<>

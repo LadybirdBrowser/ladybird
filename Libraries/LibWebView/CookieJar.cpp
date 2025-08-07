@@ -90,7 +90,7 @@ String CookieJar::get_cookie(const URL::URL& url, Web::Cookie::Source source)
 {
     m_transient_storage.purge_expired_cookies();
 
-    auto domain = canonicalize_domain(url);
+    auto domain = Web::Cookie::canonicalize_domain(url);
     if (!domain.has_value())
         return {};
 
@@ -119,7 +119,7 @@ String CookieJar::get_cookie(const URL::URL& url, Web::Cookie::Source source)
 
 void CookieJar::set_cookie(const URL::URL& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source)
 {
-    auto domain = canonicalize_domain(url);
+    auto domain = Web::Cookie::canonicalize_domain(url);
     if (!domain.has_value())
         return;
 
@@ -194,7 +194,7 @@ Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies()
 // https://w3c.github.io/webdriver/#dfn-associated-cookies
 Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_webdriver(URL::URL const& url)
 {
-    auto domain = canonicalize_domain(url);
+    auto domain = Web::Cookie::canonicalize_domain(url);
     if (!domain.has_value())
         return {};
 
@@ -203,7 +203,7 @@ Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_webdriver(URL::URL const&
 
 Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL const& url)
 {
-    auto domain = canonicalize_domain(url);
+    auto domain = Web::Cookie::canonicalize_domain(url);
     if (!domain.has_value())
         return {};
 
@@ -212,7 +212,7 @@ Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL cons
 
 Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, StringView name)
 {
-    auto domain = canonicalize_domain(url);
+    auto domain = Web::Cookie::canonicalize_domain(url);
     if (!domain.has_value())
         return {};
 
@@ -229,45 +229,6 @@ Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, S
 void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
 {
     m_transient_storage.purge_expired_cookies(offset);
-}
-
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.2
-Optional<String> CookieJar::canonicalize_domain(const URL::URL& url)
-{
-    if (!url.host().has_value())
-        return {};
-
-    // 1. Convert the host name to a sequence of individual domain name labels.
-    // 2. Convert each label that is not a Non-Reserved LDH (NR-LDH) label, to an A-label (see Section 2.3.2.1 of
-    //    [RFC5890] for the former and latter), or to a "punycode label" (a label resulting from the "ToASCII" conversion
-    //    in Section 4 of [RFC3490]), as appropriate (see Section 6.3 of this specification).
-    // 3. Concatenate the resulting labels, separated by a %x2E (".") character.
-    // FIXME: Implement the above conversions.
-
-    return MUST(url.serialized_host().to_lowercase());
-}
-
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
-bool CookieJar::path_matches(StringView request_path, StringView cookie_path)
-{
-    // A request-path path-matches a given cookie-path if at least one of the following conditions holds:
-
-    // * The cookie-path and the request-path are identical.
-    if (request_path == cookie_path)
-        return true;
-
-    if (request_path.starts_with(cookie_path)) {
-        // * The cookie-path is a prefix of the request-path, and the last character of the cookie-path is %x2F ("/").
-        if (cookie_path.ends_with('/'))
-            return true;
-
-        // * The cookie-path is a prefix of the request-path, and the first character of the request-path that is not
-        //   included in the cookie-path is a %x2F ("/") character.
-        if (request_path[cookie_path.length()] == '/')
-            return true;
-    }
-
-    return false;
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#name-storage-model
@@ -433,7 +394,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
                 return IterationDecision::Continue;
 
             // 4. The path of the newly-created cookie path-matches the path of the existing cookie.
-            if (!path_matches(cookie.path, old_cookie.path))
+            if (!Web::Cookie::path_matches(cookie.path, old_cookie.path))
                 return IterationDecision::Continue;
 
             ignore_cookie = true;
@@ -561,7 +522,7 @@ Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(const URL::URL& url,
             return;
 
         // * The retrieval's URI's path path-matches the cookie's path.
-        if (!path_matches(url.serialize_path(), cookie.path))
+        if (!Web::Cookie::path_matches(url.serialize_path(), cookie.path))
             return;
 
         // * If the cookie's secure-only-flag is true, then the retrieval's URI must denote a "secure" connection (as

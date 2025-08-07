@@ -104,9 +104,6 @@ private:
     AK_MAKE_NONCOPYABLE(CookieJar);
     AK_MAKE_NONMOVABLE(CookieJar);
 
-    static Optional<String> canonicalize_domain(const URL::URL& url);
-    static bool path_matches(StringView request_path, StringView cookie_path);
-
     enum class MatchingCookiesSpecMode {
         RFC6265,
         WebDriver,
