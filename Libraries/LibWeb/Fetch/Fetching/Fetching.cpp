@@ -132,12 +132,12 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
 
     // 9. If request’s window is "client", then set request’s window to request’s client, if request’s client’s global
     //    object is a Window object; otherwise "no-window".
-    auto const* window = request.window().get_pointer<Infrastructure::Request::Window>();
-    if (window && *window == Infrastructure::Request::Window::Client) {
+    auto const* window = request.traversable_for_user_prompts().get_pointer<Infrastructure::Request::TraversableForUserPrompts>();
+    if (window && *window == Infrastructure::Request::TraversableForUserPrompts::Client) {
         if (is<HTML::Window>(request.client()->global_object())) {
-            request.set_window(request.client());
+            request.set_traversable_for_user_prompts(request.client());
         } else {
-            request.set_window(Infrastructure::Request::Window::NoWindow);
+            request.set_traversable_for_user_prompts(Infrastructure::Request::TraversableForUserPrompts::NoTraversable);
         }
     }
 
@@ -153,7 +153,7 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
         // - request’s mode is "same-origin", "cors", or "no-cors"
         && (request.mode() == Infrastructure::Request::Mode::SameOrigin || request.mode() == Infrastructure::Request::Mode::CORS || request.mode() == Infrastructure::Request::Mode::NoCORS)
         // - request’s window is an environment settings object
-        && request.window().has<GC::Ptr<HTML::EnvironmentSettingsObject>>()
+        && request.traversable_for_user_prompts().has<GC::Ptr<HTML::EnvironmentSettingsObject>>()
         // - request’s method is `GET`
         && StringView { request.method() }.equals_ignoring_ascii_case("GET"sv)
         // - request’s unsafe-request flag is not set or request’s header list is empty
@@ -1707,10 +1707,10 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
                 aborted = true;
         };
 
-        // 1. If request’s window is "no-window" and request’s redirect mode is "error", then set httpFetchParams to
-        //    fetchParams and httpRequest to request.
-        if (request->window().has<Infrastructure::Request::Window>()
-            && request->window().get<Infrastructure::Request::Window>() == Infrastructure::Request::Window::NoWindow
+        // 1. If request’s traversable for user prompts is "no-traversable" and request’s redirect mode is "error",
+        //    then set httpFetchParams to fetchParams and httpRequest to request.
+        if (request->traversable_for_user_prompts().has<Infrastructure::Request::TraversableForUserPrompts>()
+            && request->traversable_for_user_prompts().get<Infrastructure::Request::TraversableForUserPrompts>() == Infrastructure::Request::TraversableForUserPrompts::NoTraversable
             && request->redirect_mode() == Infrastructure::Request::RedirectMode::Error) {
             http_fetch_params = fetch_params;
             http_request = request;
@@ -2123,11 +2123,11 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
         auto inner_pending_response = PendingResponse::create(vm, request, *response);
 
         // 14. If response’s status is 401, httpRequest’s response tainting is not "cors", includeCredentials is true,
-        //     and request’s window is an environment settings object, then:
+        //     and request’s traversable for user prompts is a traversable navigable:
         if (response->status() == 401
             && http_request->response_tainting() != Infrastructure::Request::ResponseTainting::CORS
             && include_credentials == IncludeCredentials::Yes
-            && request->window().has<GC::Ptr<HTML::EnvironmentSettingsObject>>()
+            && request->traversable_for_user_prompts().has<GC::Ptr<HTML::TraversableNavigable>>()
             // AD-HOC: Require at least one WWW-Authenticate header to be set before automatically retrying an authenticated
             //         request (see rule 1 below). See: https://github.com/whatwg/fetch/issues/1766
             && request->header_list()->contains("WWW-Authenticate"sv.bytes())) {
@@ -2181,9 +2181,9 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP network-or-cache fetch' inner_pending_response load callback");
             // 15. If response’s status is 407, then:
             if (response->status() == 407) {
-                // 1. If request’s window is "no-window", then return a network error.
-                if (request->window().has<Infrastructure::Request::Window>()
-                    && request->window().get<Infrastructure::Request::Window>() == Infrastructure::Request::Window::NoWindow) {
+                // 1. If request’s traversable for user prompts is "no-traversable", then return a network error.
+                if (request->traversable_for_user_prompts().has<Infrastructure::Request::TraversableForUserPrompts>()
+                    && request->traversable_for_user_prompts().get<Infrastructure::Request::TraversableForUserPrompts>() == Infrastructure::Request::TraversableForUserPrompts::NoTraversable) {
                     returned_pending_response->resolve(Infrastructure::Response::network_error(vm, "Request requires proxy authentication but has 'no-window' set"_string));
                     return;
                 }

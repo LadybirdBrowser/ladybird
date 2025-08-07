@@ -153,23 +153,24 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     // 7. Let origin be this’s relevant settings object’s origin.
     auto const& origin = HTML::relevant_settings_object(*request_object).origin();
 
-    // 8. Let window be "client".
-    auto window = Infrastructure::Request::WindowType { Infrastructure::Request::Window::Client };
+    // 8. Let traversableForUserPrompts be "client".
+    auto traversable_for_user_prompts = Infrastructure::Request::TraversableForUserPromptsType { Infrastructure::Request::TraversableForUserPrompts::Client };
 
-    // 9. If request’s window is an environment settings object and its origin is same origin with origin, then set window to request’s window.
-    if (input_request->window().has<GC::Ptr<HTML::EnvironmentSettingsObject>>()) {
-        auto eso = input_request->window().get<GC::Ptr<HTML::EnvironmentSettingsObject>>();
+    // 9. If request’s traversable for user prompts is an environment settings object and its origin is same origin with
+    //    origin, then set traversableForUserPrompts to request’s traversable for user prompts.
+    if (input_request->traversable_for_user_prompts().has<GC::Ptr<HTML::EnvironmentSettingsObject>>()) {
+        auto eso = input_request->traversable_for_user_prompts().get<GC::Ptr<HTML::EnvironmentSettingsObject>>();
         if (eso->origin().is_same_origin(origin))
-            window = input_request->window();
+            traversable_for_user_prompts = input_request->traversable_for_user_prompts();
     }
 
     // 10. If init["window"] exists and is non-null, then throw a TypeError.
     if (init.window.has_value() && !init.window->is_null())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'window' property must be omitted or null"sv };
 
-    // 11. If init["window"] exists, then set window to "no-window".
+    // 11. If init["window"] exists, then set traversableForUserPrompts to "no-traversable".
     if (init.window.has_value())
-        window = Infrastructure::Request::Window::NoWindow;
+        traversable_for_user_prompts = Infrastructure::Request::TraversableForUserPrompts::NoTraversable;
 
     // 12. Set request to a new request with the following properties:
     // NOTE: This is done at the beginning as the 'this' value Request object
@@ -199,9 +200,9 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     //     This’s relevant settings object.
     request->set_client(&HTML::relevant_settings_object(*request_object));
 
-    // window
-    //     window.
-    request->set_window(window);
+    // traversable for user prompts
+    //     traversableForUserPrompts.
+    request->set_traversable_for_user_prompts(traversable_for_user_prompts);
 
     // priority
     //     request’s priority.

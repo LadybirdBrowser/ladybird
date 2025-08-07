@@ -421,9 +421,9 @@ void Violation::report_a_violation(JS::Realm& realm)
                         auto& environment_settings_object = Bindings::principal_host_defined_environment_settings_object(HTML::principal_realm(realm));
                         request->set_origin(environment_settings_object.origin());
 
-                        // window
-                        //    "no-window"
-                        request->set_window(Fetch::Infrastructure::Request::Window::NoWindow);
+                        // traversable for user prompts
+                        //    "no-traversable"
+                        request->set_traversable_for_user_prompts(Fetch::Infrastructure::Request::TraversableForUserPrompts::NoTraversable);
 
                         // client
                         //    violation's global object's relevant settings object
