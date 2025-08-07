@@ -4266,18 +4266,12 @@ bool Parser::match_declaration(AllowUsingDeclaration allow_using) const
         || type == TokenType::Let;
 }
 
-Token Parser::next_token(size_t steps) const
+Token Parser::next_token() const
 {
-    Lexer lookahead_lexer = m_state.lexer;
-
-    Token lookahead_token;
-
-    while (steps > 0) {
-        lookahead_token = lookahead_lexer.next();
-        steps--;
-    }
-
-    return lookahead_token;
+    // We need to keep the lookahead lexer alive to prevent UAF on the lookahead token, as the token may hold a view
+    // into a short string stored on the stack.
+    m_state.lookahead_lexer = m_state.lexer;
+    return m_state.lookahead_lexer->next();
 }
 
 bool Parser::try_match_let_declaration() const

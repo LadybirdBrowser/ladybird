@@ -257,7 +257,7 @@ private:
 
     RefPtr<BindingPattern const> synthesize_binding_pattern(Expression const& expression);
 
-    Token next_token(size_t steps = 1) const;
+    Token next_token() const;
 
     void check_identifier_name_for_assignment_validity(FlyString const&, bool force_strict = false);
 
@@ -302,6 +302,7 @@ private:
 
     struct ParserState {
         Lexer lexer;
+        mutable Optional<Lexer> lookahead_lexer;
         Token current_token;
         bool previous_token_was_period { false };
         Vector<ParserError> errors;
