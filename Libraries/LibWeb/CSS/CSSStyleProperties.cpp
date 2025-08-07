@@ -137,6 +137,7 @@ size_t CSSStyleProperties::length() const
 String CSSStyleProperties::item(size_t index) const
 {
     // The item(index) method must return the property name of the CSS declaration at position index.
+    // If there is no indexth object in the collection, then the method must return the empty string.
     // FIXME: Include custom properties.
 
     if (index >= length())
