@@ -167,7 +167,7 @@ IntPoint AffineTransform::map(IntPoint point) const
 }
 
 template<>
-FloatPoint AffineTransform::map(FloatPoint point) const
+GFX_API FloatPoint AffineTransform::map(FloatPoint point) const
 {
     float mapped_x;
     float mapped_y;
@@ -203,7 +203,7 @@ static T largest_of(T p1, T p2, T p3, T p4)
 }
 
 template<>
-FloatRect AffineTransform::map(FloatRect const& rect) const
+GFX_API FloatRect AffineTransform::map(FloatRect const& rect) const
 {
     if (is_identity()) {
         return rect;

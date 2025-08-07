@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ImageFormats/WebPWriterLossless.h>
 
@@ -17,7 +18,7 @@ struct WebPEncoderOptions {
     Optional<ReadonlyBytes> icc_data;
 };
 
-class WebPWriter {
+class GFX_API WebPWriter {
 public:
     using Options = WebPEncoderOptions;
 
