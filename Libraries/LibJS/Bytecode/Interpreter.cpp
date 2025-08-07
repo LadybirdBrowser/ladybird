@@ -103,7 +103,7 @@ static ByteString format_operand(StringView name, Operand operand, Bytecode::Exe
         else if (value.is_double())
             builder.appendff("Double({})", value.as_double());
         else if (value.is_bigint())
-            builder.appendff("BigInt({})", value.as_bigint().to_byte_string());
+            builder.appendff("BigInt({})", MUST(value.as_bigint().to_string()));
         else if (value.is_string())
             builder.appendff("String(\"{}\")", value.as_string().utf8_string_view());
         else if (value.is_undefined())
