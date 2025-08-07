@@ -13,6 +13,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -32,8 +33,9 @@ void Request::visit_edges(JS::Cell::Visitor& visitor)
         [&](GC::Ref<Body>& body) { visitor.visit(body); },
         [](auto&) {});
     visitor.visit(m_reserved_client);
-    m_window.visit(
+    m_traversable_for_user_prompts.visit(
         [&](GC::Ptr<HTML::EnvironmentSettingsObject> const& value) { visitor.visit(value); },
+        [&](GC::Ptr<HTML::TraversableNavigable> const& value) { visitor.visit(value); },
         [](auto const&) {});
     visitor.visit(m_pending_responses);
     m_policy_container.visit(
@@ -226,7 +228,7 @@ GC::Ref<Request> Request::clone(JS::Realm& realm) const
     new_request->set_client(m_client);
     new_request->set_reserved_client(m_reserved_client);
     new_request->set_replaces_client_id(m_replaces_client_id);
-    new_request->set_window(m_window);
+    new_request->set_traversable_for_user_prompts(m_traversable_for_user_prompts);
     new_request->set_keepalive(m_keepalive);
     new_request->set_initiator_type(m_initiator_type);
     new_request->set_service_workers_mode(m_service_workers_mode);

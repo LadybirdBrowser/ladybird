@@ -147,8 +147,8 @@ public:
         None,
     };
 
-    enum class Window {
-        NoWindow,
+    enum class TraversableForUserPrompts {
+        NoTraversable,
         Client,
     };
 
@@ -173,7 +173,7 @@ public:
     using PolicyContainerType = Variant<PolicyContainer, GC::Ref<HTML::PolicyContainer>>;
     using ReferrerType = Variant<Referrer, URL::URL>;
     using ReservedClientType = GC::Ptr<HTML::Environment>;
-    using WindowType = Variant<Window, GC::Ptr<HTML::EnvironmentSettingsObject>>;
+    using TraversableForUserPromptsType = Variant<TraversableForUserPrompts, GC::Ptr<HTML::EnvironmentSettingsObject>, GC::Ptr<HTML::TraversableNavigable>>;
 
     [[nodiscard]] static GC::Ref<Request> create(JS::VM&);
 
@@ -204,8 +204,8 @@ public:
     [[nodiscard]] String const& replaces_client_id() const { return m_replaces_client_id; }
     void set_replaces_client_id(String replaces_client_id) { m_replaces_client_id = move(replaces_client_id); }
 
-    [[nodiscard]] WindowType const& window() const { return m_window; }
-    void set_window(WindowType window) { m_window = move(window); }
+    [[nodiscard]] TraversableForUserPromptsType const& traversable_for_user_prompts() const { return m_traversable_for_user_prompts; }
+    void set_traversable_for_user_prompts(TraversableForUserPromptsType traversable_for_user_prompts) { m_traversable_for_user_prompts = move(traversable_for_user_prompts); }
 
     [[nodiscard]] bool keepalive() const { return m_keepalive; }
     void set_keepalive(bool keepalive) { m_keepalive = keepalive; }
@@ -373,9 +373,9 @@ private:
     String m_replaces_client_id;
 
     // https://fetch.spec.whatwg.org/#concept-request-window
-    // A request has an associated window ("no-window", "client", or an environment settings object whose global object
-    // is a Window object). Unless stated otherwise it is "client".
-    WindowType m_window { Window::Client };
+    // A request has an associated traversable for user prompts, that is "no-traversable", "client", or a traversable
+    // navigable. Unless stated otherwise it is "client".
+    TraversableForUserPromptsType m_traversable_for_user_prompts { TraversableForUserPrompts::Client };
 
     // https://fetch.spec.whatwg.org/#request-keepalive-flag
     // A request has an associated boolean keepalive. Unless stated otherwise it is false.
