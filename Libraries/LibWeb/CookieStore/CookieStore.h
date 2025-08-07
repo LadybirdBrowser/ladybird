@@ -63,6 +63,11 @@ public:
     GC::Ref<WebIDL::Promise> delete_(String name);
     GC::Ref<WebIDL::Promise> delete_(CookieStoreDeleteOptions const&);
 
+    void set_onchange(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onchange();
+
+    void process_cookie_changes(Vector<Cookie::Cookie> const&);
+
 private:
     CookieStore(JS::Realm&, PageClient&);
 

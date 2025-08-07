@@ -14,6 +14,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/WebContentClient.h>
 
 namespace WebView {
 
@@ -585,9 +586,25 @@ void CookieJar::TransientStorage::set_cookies(Cookies cookies)
     purge_expired_cookies();
 }
 
+static void notify_cookies_changed(Vector<Web::Cookie::Cookie> cookies)
+{
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        client.async_cookies_changed(move(cookies));
+        return IterationDecision::Continue;
+    });
+}
+
 void CookieJar::TransientStorage::set_cookie(CookieStorageKey key, Web::Cookie::Cookie cookie)
 {
+    auto now = UnixDateTime::now();
+    // AD-HOC: Skip adding immediately-expiring cookies (i.e., only allow updating to immediately-expiring) to prevent firing deletion events for them
+    // Spec issue: https://github.com/whatwg/cookiestore/issues/282
+    if (cookie.expiry_time < now && !m_cookies.contains(key))
+        return;
     m_cookies.set(key, cookie);
+    // We skip notifying about updating expired cookies, as they will be notified as being expired immediately after instead
+    if (cookie.expiry_time >= now)
+        notify_cookies_changed({ cookie });
     m_dirty_cookies.set(move(key), move(cookie));
 }
 
@@ -607,7 +624,14 @@ UnixDateTime CookieJar::TransientStorage::purge_expired_cookies(Optional<AK::Dur
     }
 
     auto is_expired = [&](auto const&, auto const& cookie) { return cookie.expiry_time < now; };
-    m_cookies.remove_all_matching(is_expired);
+    auto removed_entries = m_cookies.take_all_matching(is_expired);
+    if (!removed_entries.is_empty()) {
+        Vector<Web::Cookie::Cookie> removed_cookies;
+        removed_cookies.ensure_capacity(removed_entries.size());
+        for (auto const& entry : removed_entries)
+            removed_cookies.unchecked_append(move(entry.value));
+        notify_cookies_changed(move(removed_cookies));
+    }
 
     return now;
 }

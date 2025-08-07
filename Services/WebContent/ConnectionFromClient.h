@@ -156,6 +156,7 @@ private:
     virtual void paste(u64 page_id, String text) override;
 
     virtual void system_time_zone_changed() override;
+    virtual void cookies_changed(Vector<Web::Cookie::Cookie>) override;
 
     NonnullOwnPtr<PageHost> m_page_host;
 

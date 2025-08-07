@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/CookieStorePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
+#include <LibWeb/CookieStore/CookieChangeEvent.h>
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -669,6 +670,173 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(CookieStoreDeleteOptions const& op
 
     // 7. Return p.
     return promise;
+}
+
+void CookieStore::set_onchange(WebIDL::CallbackType* event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::change, event_handler);
+}
+
+WebIDL::CallbackType* CookieStore::onchange()
+{
+    return event_handler_attribute(HTML::EventNames::change);
+}
+
+// https://cookiestore.spec.whatwg.org/#cookie-change
+struct CookieChange {
+    enum class Type {
+        Changed,
+        Deleted,
+    };
+
+    Cookie::Cookie cookie;
+    Type type;
+};
+
+// https://cookiestore.spec.whatwg.org/#observable-changes
+static Vector<CookieChange> observable_changes(URL::URL const& url, Vector<Cookie::Cookie> const& changes)
+{
+    // The observable changes for url are the set of cookie changes to cookies in a cookie store which meet the
+    // requirements in step 1 of Cookies § Retrieval Algorithm’s steps to compute the "cookie-string from a given
+    // cookie store" with url as request-uri, for a "non-HTTP" API.
+    // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-14#name-retrieval-algorithm
+    auto canonicalized_domain = Cookie::canonicalize_domain(url);
+    if (!canonicalized_domain.has_value())
+        return {};
+
+    // FIXME: The retrieval's same-site status is "same-site" if the Document's "site for cookies" is same-site with the
+    //        top-level origin as defined in Section 5.2.1 (otherwise it is "cross-site"), and the retrieval's type is "non-HTTP".
+    auto is_same_site_retrieval = true;
+
+    auto now = UnixDateTime::now();
+
+    // 1. Let cookie-list be the set of cookies from the cookie store that meets all of the following requirements:
+    Vector<CookieChange> observable_changes;
+    for (auto const& cookie : changes) {
+        // * Either:
+        //     The cookie's host-only-flag is true and the canonicalized host of the retrieval's URI is identical to
+        //     the cookie's domain.
+        bool is_host_only_and_has_identical_domain = cookie.host_only && (canonicalized_domain.value() == cookie.domain);
+        // Or:
+        //     The cookie's host-only-flag is false and the canonicalized host of the retrieval's URI domain-matches
+        //     the cookie's domain.
+        bool is_not_host_only_and_domain_matches = !cookie.host_only && Web::Cookie::domain_matches(canonicalized_domain.value(), cookie.domain);
+
+        if (!is_host_only_and_has_identical_domain && !is_not_host_only_and_domain_matches)
+            continue;
+
+        // * The retrieval's URI's path path-matches the cookie's path.
+        if (!Cookie::path_matches(url.serialize_path(), cookie.path))
+            continue;
+
+        // * If the cookie's secure-only-flag is true, then the retrieval's URI must denote a "secure" connection (as
+        //   defined by the user agent).
+        if (cookie.secure && url.scheme() != "https"sv && url.scheme() != "wss"sv)
+            continue;
+
+        // * If the cookie's http-only-flag is true, then exclude the cookie if the retrieval's type is "non-HTTP".
+        if (cookie.http_only)
+            continue;
+
+        // * If the cookie's same-site-flag is not "None" and the retrieval's same-site status is "cross-site", then
+        //   exclude the cookie unless all of the following conditions are met:
+        //     * The retrieval's type is "HTTP".
+        //     * The same-site-flag is "Lax" or "Default".
+        //     * The HTTP request associated with the retrieval uses a "safe" method.
+        //     * The target browsing context of the HTTP request associated with the retrieval is the active browsing context
+        //       or a top-level traversable.
+        if (cookie.same_site != Cookie::SameSite::None && !is_same_site_retrieval)
+            continue;
+
+        // A cookie change is a cookie and a type (either changed or deleted):
+        // - A cookie which is removed due to an insertion of another cookie with the same name, domain, and path is ignored.
+        // - A newly-created cookie which is not immediately evicted is considered changed.
+        // - A newly-created cookie which is immediately evicted is considered deleted.
+        // - A cookie which is otherwise evicted or removed is considered deleted
+        observable_changes.append({ cookie, cookie.expiry_time < now ? CookieChange::Type::Deleted : CookieChange::Type::Changed });
+    }
+
+    return observable_changes;
+}
+
+struct PreparedLists {
+    Vector<CookieListItem> changed_list;
+    Vector<CookieListItem> deleted_list;
+};
+
+// https://cookiestore.spec.whatwg.org/#prepare-lists
+static PreparedLists prepare_lists(Vector<CookieChange> const& changes)
+{
+    // 1. Let changedList be a new list.
+    Vector<CookieListItem> changed_list;
+
+    // 2. Let deletedList be a new list.
+    Vector<CookieListItem> deleted_list;
+
+    // 3. For each change in changes, run these steps:
+    for (auto const& change : changes) {
+        // 1. Let item be the result of running create a CookieListItem from change’s cookie.
+        auto item = create_a_cookie_list_item(change.cookie);
+
+        // 2. If change’s type is changed, then append item to changedList.
+        if (change.type == CookieChange::Type::Changed)
+            changed_list.append(move(item));
+
+        // 3. Otherwise, run these steps:
+        else {
+            // 1. Set item["value"] to undefined.
+            item.value.clear();
+
+            // 2. Append item to deletedList.
+            deleted_list.append(move(item));
+        }
+    }
+
+    // 4. Return changedList and deletedList.
+    return { move(changed_list), move(deleted_list) };
+}
+
+// https://cookiestore.spec.whatwg.org/#process-cookie-changes
+void CookieStore::process_cookie_changes(Vector<Cookie::Cookie> const& all_changes)
+{
+    auto& realm = this->realm();
+
+    // 1. Let url be window’s relevant settings object’s creation URL.
+    auto url = HTML::relevant_settings_object(*this).creation_url;
+
+    // 2. Let changes be the observable changes for url.
+    auto changes = observable_changes(url, all_changes);
+
+    // 3. If changes is empty, then continue.
+    if (changes.is_empty())
+        return;
+
+    // 4. Queue a global task on the DOM manipulation task source given window to fire a change event named "change"
+    //    with changes at window’s CookieStore.
+    queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function(realm.heap(), [this, &realm, changes = move(changes)]() {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        // https://cookiestore.spec.whatwg.org/#fire-a-change-event
+        // 4. Let changedList and deletedList be the result of running prepare lists from changes.
+        auto [changed_list, deleted_list] = prepare_lists(changes);
+
+        CookieChangeEventInit event_init = {};
+        // 5. Set event’s changed attribute to changedList.
+        event_init.changed = move(changed_list);
+
+        // 6. Set event’s deleted attribute to deletedList.
+        event_init.deleted = move(deleted_list);
+
+        // 1. Let event be the result of creating an Event using CookieChangeEvent.
+        // 2. Set event’s type attribute to type.
+        auto event = CookieChangeEvent::create(realm, HTML::EventNames::change, event_init);
+
+        // 3. Set event’s bubbles and cancelable attributes to false.
+        event->set_bubbles(false);
+        event->set_cancelable(false);
+
+        // 7. Dispatch event at target.
+        this->dispatch_event(event);
+    }));
 }
 
 }
