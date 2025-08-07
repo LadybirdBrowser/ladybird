@@ -1,0 +1,9 @@
+The package dawn provides an unofficial pkgconfig targets:
+
+    find_package(PkgConfig)
+    pkg_check_modules(dawn_native REQUIRED IMPORTED_TARGET unofficial-dawn-native)
+    pkg_check_modules(dawn_platform REQUIRED IMPORTED_TARGET unofficial-dawn-platform)
+    pkg_check_modules(dawn_proc REQUIRED IMPORTED_TARGET unofficial-dawn-proc)
+    pkg_check_modules(webgpu_dawn REQUIRED IMPORTED_TARGET unofficial-webgpu-dawn)
+
+    target_link_libraries(main PRIVATE PkgConfig::dawn_native PkgConfig::dawn_platform  PkgConfig::dawn_proc PkgConfig::webgpu_dawn)

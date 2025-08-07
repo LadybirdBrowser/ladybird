@@ -1,0 +1,51 @@
+diff --git a/config/apple/sdk_info.py b/config/apple/sdk_info.py
+index bbadc12..da6b62b 100755
+--- a/config/apple/sdk_info.py
++++ b/config/apple/sdk_info.py
+@@ -58,11 +58,16 @@ def FillXcodeVersion(settings, developer_dir):
+     settings['xcode_build'] = version_plist['ProductBuildVersion']
+     return
+ 
+-  lines = subprocess.check_output(['xcodebuild',
+-                                   '-version']).decode('UTF-8').splitlines()
+-  settings['xcode_version'] = FormatVersion(lines[0].split()[-1])
+-  settings['xcode_version_int'] = int(settings['xcode_version'], 10)
+-  settings['xcode_build'] = lines[-1].split()[-1]
++  try:
++    lines = subprocess.check_output(['xcodebuild',
++                                     '-version']).decode('UTF-8').splitlines()
++    settings['xcode_version'] = FormatVersion(lines[0].split()[-1])
++    settings['xcode_version_int'] = int(settings['xcode_version'], 10)
++    settings['xcode_build'] = lines[-1].split()[-1]
++  except:
++    settings['xcode_version'] = ''
++    settings['xcode_version_int'] = 0
++    settings['xcode_build'] = ''
+ 
+ 
+ def FillMachineOSBuild(settings):
+diff --git a/mac/find_sdk.py b/mac/find_sdk.py
+index 3dcc4d5..08260c5 100755
+--- a/mac/find_sdk.py
++++ b/mac/find_sdk.py
+@@ -71,6 +71,8 @@ def main():
+   dev_dir = out.decode('UTF-8').rstrip()
+   sdk_dir = os.path.join(
+       dev_dir, 'Platforms/MacOSX.platform/Developer/SDKs')
++  if not os.path.isdir(sdk_dir):
++    sdk_dir = os.path.join(dev_dir, 'SDKs')
+ 
+   if not os.path.isdir(sdk_dir):
+     raise SdkError('Install Xcode, launch it, accept the license ' +
+@@ -91,7 +93,10 @@ def main():
+ 
+   if options.print_bin_path:
+     bin_path = 'Toolchains/XcodeDefault.xctoolchain/usr/bin/'
+-    print(os.path.join(dev_dir, bin_path))
++    if os.path.isdir(os.path.join(dev_dir, bin_path)):
++      print(os.path.join(dev_dir, bin_path))
++    else:
++      print(os.path.join(dev_dir, 'usr/bin/'))
+ 
+   if options.print_sdk_build:
+     system_version_plist = os.path.join(sdk_path,
