@@ -66,6 +66,8 @@ public:
 
     String dump_display_list();
 
+    GC::Ptr<DOM::ShadowRoot> get_shadow_root(GC::Ref<DOM::Element>);
+
 private:
     explicit Internals(JS::Realm&);
 

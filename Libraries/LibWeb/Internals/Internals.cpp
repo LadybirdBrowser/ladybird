@@ -325,4 +325,9 @@ String Internals::dump_display_list()
     return window().associated_document().dump_display_list();
 }
 
+GC::Ptr<DOM::ShadowRoot> Internals::get_shadow_root(GC::Ref<DOM::Element> element)
+{
+    return element->shadow_root();
+}
+
 }
