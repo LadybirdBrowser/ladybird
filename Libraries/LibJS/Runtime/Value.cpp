@@ -397,6 +397,37 @@ String Value::to_string_without_side_effects() const
     }
 }
 
+Utf16String Value::to_utf16_string_without_side_effects() const
+{
+    if (is_double())
+        return number_to_utf16_string(m_value.as_double);
+
+    switch (m_value.tag) {
+    case UNDEFINED_TAG:
+        return "undefined"_utf16;
+    case NULL_TAG:
+        return "null"_utf16;
+    case BOOLEAN_TAG:
+        return as_bool() ? "true"_utf16 : "false"_utf16;
+    case INT32_TAG:
+        return Utf16String::number(as_i32());
+    case STRING_TAG:
+        return as_string().utf16_string();
+    case SYMBOL_TAG:
+        return as_symbol().descriptive_string();
+    case BIGINT_TAG:
+        return as_bigint().to_utf16_string();
+    case OBJECT_TAG:
+        return Utf16String::formatted("[object {}]", as_object().class_name());
+    case ACCESSOR_TAG:
+        return "<accessor>"_utf16;
+    case EMPTY_TAG:
+        return "<empty>"_utf16;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 ThrowCompletionOr<GC::Ref<PrimitiveString>> Value::to_primitive_string(VM& vm)
 {
     if (is_string())
