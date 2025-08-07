@@ -14,6 +14,7 @@
 #include <LibCore/SharedCircularQueue.h>
 #include <LibGfx/Bitmap.h>
 #include <LibMedia/Demuxer.h>
+#include <LibMedia/Export.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Mutex.h>
 #include <LibThreading/Thread.h>
@@ -98,7 +99,7 @@ enum class PlaybackState {
     Stopped,
 };
 
-class PlaybackManager {
+class MEDIA_API PlaybackManager {
     AK_MAKE_NONCOPYABLE(PlaybackManager);
     AK_MAKE_NONMOVABLE(PlaybackManager);
 

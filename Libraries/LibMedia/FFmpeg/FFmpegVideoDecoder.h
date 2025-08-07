@@ -7,13 +7,14 @@
 #pragma once
 
 #include <LibMedia/CodecID.h>
+#include <LibMedia/Export.h>
 #include <LibMedia/VideoDecoder.h>
 
 #include "FFmpegForward.h"
 
 namespace Media::FFmpeg {
 
-class FFmpegVideoDecoder final : public VideoDecoder {
+class MEDIA_API FFmpegVideoDecoder final : public VideoDecoder {
 public:
     static DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
     FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);

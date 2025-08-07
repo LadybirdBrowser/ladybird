@@ -17,6 +17,7 @@
 #include <AK/Stream.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibMedia/Export.h>
 
 namespace Audio {
 
@@ -72,7 +73,7 @@ protected:
     NonnullOwnPtr<SeekableStream> m_stream;
 };
 
-class Loader : public RefCounted<Loader> {
+class MEDIA_API Loader : public RefCounted<Loader> {
 public:
     static ErrorOr<NonnullRefPtr<Loader>> create(StringView path);
     static ErrorOr<NonnullRefPtr<Loader>> create(ReadonlyBytes buffer);
