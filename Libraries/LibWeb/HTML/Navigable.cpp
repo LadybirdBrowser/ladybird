@@ -866,7 +866,23 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     request->set_referrer(entry->document_state()->request_referrer());
     request->set_policy_container(source_snapshot_params.source_policy_container);
 
-    // 4. If documentResource is a POST resource, then:
+    // FIXME: 4. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's document state's initiator origin.
+
+    // 5. If request's client is null:
+    if (request->client() == nullptr) {
+        // Note: This only occurs in the case of a browser UI-initiated navigation.
+
+        // 1. Set request's origin to a new opaque origin.
+        request->set_origin(URL::Origin::create_opaque());
+
+        // 2. Set request's service-workers mode to "all".
+        request->set_service_workers_mode(Fetch::Infrastructure::Request::ServiceWorkersMode::All);
+
+        // 3. Set request's referrer to "no-referrer".
+        request->set_referrer(Fetch::Infrastructure::Request::Referrer::NoReferrer);
+    }
+
+    // 6. If documentResource is a POST resource:
     if (auto* post_resource = document_resource.get_pointer<POSTResource>()) {
         // 1. Set request's method to `POST`.
         request->set_method(TRY_OR_THROW_OOM(vm, ByteBuffer::copy("POST"sv.bytes())));
@@ -902,19 +918,19 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         request->header_list()->append(move(header));
     }
 
-    // 5. If entry's document state's reload pending is true, then set request's reload-navigation flag.
+    // 7. If entry's document state's reload pending is true, then set request's reload-navigation flag.
     if (entry->document_state()->reload_pending())
         request->set_reload_navigation(true);
 
-    // 6. Otherwise, if entry's document state's ever populated is true, then set request's history-navigation flag.
+    // 8. Otherwise, if entry's document state's ever populated is true, then set request's history-navigation flag.
     else if (entry->document_state()->ever_populated())
         request->set_history_navigation(true);
 
-    // 7. If sourceSnapshotParams's has transient activation is true, then set request's user-activation to true.
+    // 9. If sourceSnapshotParams's has transient activation is true, then set request's user-activation to true.
     if (source_snapshot_params.has_transient_activation)
         request->set_user_activation(true);
 
-    // 8. If navigable's container is non-null:
+    // 10. If navigable's container is non-null:
     if (navigable->container() != nullptr) {
         // 1. If the navigable's container has a browsing context scope origin, then set request's origin to that browsing context scope origin.
         // FIXME: From "browsing context scope origin": This definition is broken and needs investigation to see what it was intended to express: see issue #4703.
@@ -937,18 +953,18 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         }
     }
 
-    // 9. Let response be null.
+    // 11. Let response be null.
     // NOTE: We use a heap-allocated cell to hold the response pointer because the processResponse callback below
     //       might use it after this stack is freed.
     auto response_holder = ResponseHolder::create(vm);
 
-    // 10. Let responseOrigin be null.
+    // 12. Let responseOrigin be null.
     Optional<URL::Origin> response_origin;
 
-    // 11. Let fetchController be null.
+    // 13. Let fetchController be null.
     GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller = nullptr;
 
-    // 12. Let coopEnforcementResult be a new opener policy enforcement result, with
+    // 14. Let coopEnforcementResult be a new opener policy enforcement result, with
     // - url: navigable's active document's URL
     // - origin: navigable's active document's origin
     // - opener policy: navigable's active document's opener policy
@@ -961,25 +977,25 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         .current_context_is_navigation_source = entry->document_state()->initiator_origin().has_value() && active_document.origin().is_same_origin(*entry->document_state()->initiator_origin())
     };
 
-    // 13. Let finalSandboxFlags be an empty sandboxing flag set.
+    // 15. Let finalSandboxFlags be an empty sandboxing flag set.
     SandboxingFlagSet final_sandbox_flags = {};
 
-    // 14. Let responsePolicyContainer be null.
+    // 16. Let responsePolicyContainer be null.
     GC::Ptr<PolicyContainer> response_policy_container = {};
 
-    // 15. Let responseCOOP be a new opener policy.
+    // 17. Let responseCOOP be a new opener policy.
     OpenerPolicy response_coop = {};
 
-    // 16. Let locationURL be null.
+    // 18. Let locationURL be null.
     ErrorOr<Optional<URL::URL>> location_url { OptionalNone {} };
 
-    // 17. Let currentURL be request's current URL.
+    // 19. Let currentURL be request's current URL.
     URL::URL current_url = request->current_url();
 
-    // 18. Let commitEarlyHints be null.
+    // 20. Let commitEarlyHints be null.
     Function<void(DOM::Document&)> commit_early_hints = nullptr;
 
-    // 19. While true:
+    // 21. While true:
     while (true) {
         // 1. If request's reserved client is not null and currentURL's origin is not the same as request's reserved client's creation URL's origin, then:
         if (request->reserved_client() && !current_url.origin().is_same_origin(request->reserved_client()->creation_url.origin())) {
@@ -1162,7 +1178,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         entry->set_url(current_url);
     }
 
-    // 20. If locationURL is a URL whose scheme is not a fetch scheme, then return a new non-fetch scheme navigation params, with
+    // 22. If locationURL is a URL whose scheme is not a fetch scheme, then return a new non-fetch scheme navigation params, with
     if (!location_url.is_error() && location_url.value().has_value() && !Fetch::Infrastructure::is_fetch_scheme(location_url.value().value().scheme())) {
         // - id: navigationId
         // - navigable: navigable
@@ -1182,7 +1198,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
             user_involvement);
     }
 
-    // 21. If any of the following are true:
+    // 23. If any of the following are true:
     //       - response is a network error;
     //       - locationURL is failure; or
     //       - locationURL is a URL whose scheme is a fetch scheme
@@ -1196,23 +1212,23 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     } else if (location_url.is_error() || (location_url.value().has_value() && Fetch::Infrastructure::is_fetch_scheme(location_url.value().value().scheme())))
         return Navigable::NullOrError {};
 
-    // 22. Assert: locationURL is null and response is not a network error.
+    // 24. Assert: locationURL is null and response is not a network error.
     VERIFY(!location_url.value().has_value());
     VERIFY(!response_holder->response()->is_network_error());
 
-    // 23. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
+    // 25. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
     //     entry's document state's history policy container, sourceSnapshotParams's source policy container, null, and responsePolicyContainer.
     GC::Ptr<PolicyContainer> history_policy_container = entry->document_state()->history_policy_container().visit(
         [](GC::Ref<PolicyContainer> const& c) -> GC::Ptr<PolicyContainer> { return c; },
         [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
     auto result_policy_container = determine_navigation_params_policy_container(*response_holder->response()->url(), realm.heap(), history_policy_container, source_snapshot_params.source_policy_container, {}, response_policy_container);
 
-    // 24. If navigable's container is an iframe, and response's timing allow passed flag is set,
+    // 26. If navigable's container is an iframe, and response's timing allow passed flag is set,
     //     then set navigable's container's pending resource-timing start time to null.
     if (navigable->container() && is<HTML::HTMLIFrameElement>(*navigable->container()) && response_holder->response()->timing_allow_passed())
         static_cast<HTML::HTMLIFrameElement&>(*navigable->container()).set_pending_resource_start_time({});
 
-    // 25. Return a new navigation params, with
+    // 27. Return a new navigation params, with
     //     id: navigationId
     //     navigable: navigable
     //     request: request
