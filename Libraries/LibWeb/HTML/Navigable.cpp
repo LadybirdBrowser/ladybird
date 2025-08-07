@@ -1522,7 +1522,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     return {};
 }
 
-// To navigate a navigable navigable to a URL url using a Document sourceDocument,
+// To navigate a navigable navigable to a URL url using an optional Document-or-null sourceDocument (default null),
 // with an optional POST resource, string, or null documentResource (default null),
 // an optional response-or-null response (default null), an optional boolean exceptionsEnabled (default false),
 // an optional NavigationHistoryBehavior historyHandling (default "auto"),
@@ -1560,22 +1560,47 @@ void Navigable::begin_navigation(NavigateParams params)
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
     auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
 
-    // 3. Let initiatorOriginSnapshot be sourceDocument's origin.
-    auto initiator_origin_snapshot = source_document->origin();
+    // 3. Let initiatorOriginSnapshot be a new opaque origin.
+    auto initiator_origin_snapshot = URL::Origin::create_opaque();
 
-    // 4. Let initiatorBaseURLSnapshot be sourceDocument's document base URL.
-    auto initiator_base_url_snapshot = source_document->base_url();
+    // 4. Let initiatorBaseURLSnapshot be about:blank.
+    auto initiator_base_url_snapshot = URL::about_blank();
+
+    // FIXME: 5. If sourceDocument is null:
+    if (false) {
+        // 1. Assert: userInvolvement is "browser UI".
+        VERIFY(user_involvement == UserNavigationInvolvement::BrowserUI);
+
+        // 2. If url's scheme is "javascript", then set initiatorOriginSnapshot to navigable's active document's origin.
+        if (url.scheme() == "javascript"sv)
+            initiator_origin_snapshot = active_document.origin();
+    }
+    // 6. Otherwise:
+    else {
+        // 1. Assert: userInvolvement is not "browser UI".
+        // FIXME: We currently crash if we do this! Uncomment once other places are fixed to handle browser UI navigation.
+        // VERIFY(user_involvement != UserNavigationInvolvement::BrowserUI);
+
+        // 2. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams:
+        // NB: This step is handled in Navigable::navigate()
+
+        // 3. Set initiatorOriginSnapshot to sourceDocument's origin.
+        initiator_origin_snapshot = source_document->origin();
+
+        // 4. Set initiatorBaseURLSnapshot to sourceDocument's document base URL.
+        initiator_base_url_snapshot = source_document->base_url();
+    }
 
     // 5. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then:
     // NOTE: This step is handled in Navigable::navigate()
 
-    // 6. Let navigationId be the result of generating a random UUID.
+    // 7. Let navigationId be the result of generating a random UUID.
     String navigation_id = MUST(Crypto::generate_random_uuid());
 
-    // FIXME: 7. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
+    // FIXME: 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
     //           Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to continue these steps.
 
-    // 8. If navigable's active document's unload counter is greater than 0,
+    // 9. If navigable's active document's unload counter is greater than 0,
     //    then invoke WebDriver BiDi navigation failed with navigable and a WebDriver BiDi navigation status whose id
     //    is navigationId, status is "canceled", and url is url, and return.
     if (active_document.unload_counter() > 0) {
@@ -1584,10 +1609,10 @@ void Navigable::begin_navigation(NavigateParams params)
         return;
     }
 
-    // 9. Let container be navigable's container.
+    // 10. Let container be navigable's container.
     auto& container = m_container;
 
-    // 10. If container is an iframe element and will lazy load element steps given container returns true,
+    // 11. If container is an iframe element and will lazy load element steps given container returns true,
     //     then stop intersection-observing a lazy loading element container and set container's lazy load resumption steps to null.
     if (container && container->is_html_iframe_element()) {
         auto& iframe_element = static_cast<HTMLIFrameElement&>(*container);
@@ -1597,7 +1622,7 @@ void Navigable::begin_navigation(NavigateParams params)
         }
     }
 
-    // 11. If historyHandling is "auto", then:
+    // 12. If historyHandling is "auto", then:
     if (history_handling == Bindings::NavigationHistoryBehavior::Auto) {
         // FIXME: Fix spec typo targetNavigable --> navigable
         // 1. If url equals navigable's active document's URL,
@@ -1611,11 +1636,11 @@ void Navigable::begin_navigation(NavigateParams params)
             history_handling = Bindings::NavigationHistoryBehavior::Push;
     }
 
-    // 12. If the navigation must be a replace given url and navigable's active document, then set historyHandling to "replace".
+    // 13. If the navigation must be a replace given url and navigable's active document, then set historyHandling to "replace".
     if (navigation_must_be_a_replace(url, active_document))
         history_handling = Bindings::NavigationHistoryBehavior::Replace;
 
-    // 13. If all of the following are true:
+    // 14. If all of the following are true:
     //     - documentResource is null;
     //     - response is null;
     //     - url equals navigable's active session history entry's URL with exclude fragments set to true; and
@@ -1632,16 +1657,16 @@ void Navigable::begin_navigation(NavigateParams params)
         return;
     }
 
-    // 14. If navigable's parent is non-null, then set navigable's is delaying load events to true.
+    // 15. If navigable's parent is non-null, then set navigable's is delaying load events to true.
     if (parent() != nullptr)
         set_delaying_load_events(true);
 
-    // 15. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
+    // 16. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
     [[maybe_unused]] auto target_snapshot_params = snapshot_target_snapshot_params();
 
-    // FIXME: 16. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "pending", and url is url.
+    // FIXME: 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "pending", and url is url.
 
-    // 17. If navigable's ongoing navigation is "traversal", then:
+    // 18. If navigable's ongoing navigation is "traversal", then:
     if (ongoing_navigation().has<Traversal>()) {
         // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
 
@@ -1649,10 +1674,10 @@ void Navigable::begin_navigation(NavigateParams params)
         return;
     }
 
-    // 18. Set the ongoing navigation for navigable to navigationId.
+    // 19. Set the ongoing navigation for navigable to navigationId.
     set_ongoing_navigation(navigation_id);
 
-    // 19. If url's scheme is "javascript", then:
+    // 20. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, and initialInsertion.
         VERIFY(active_window());
@@ -1664,7 +1689,7 @@ void Navigable::begin_navigation(NavigateParams params)
         return;
     }
 
-    // 20. If all of the following are true:
+    // 21. If all of the following are true:
     //     - userInvolvement is not "browser UI";
     //     - navigable's active document's origin is same origin-domain with sourceDocument's origin;
     //     - navigable's active document's is initial about:blank is false; and
@@ -1713,7 +1738,9 @@ void Navigable::begin_navigation(NavigateParams params)
         active_browsing_context()->page().client().page_did_start_loading(url, false);
     }
 
-    // 21. In parallel, run these steps:
+    // FIXME: 22. If sourceDocument is navigable's container document, then reserve deferred fetch quota for navigable's container given url's origin.
+
+    // 23. In parallel, run these steps:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot, user_involvement] {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window()) {
@@ -1803,8 +1830,6 @@ void Navigable::begin_navigation(NavigateParams params)
             }));
         })).release_value_but_fixme_should_propagate_errors();
     }));
-
-    return;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid

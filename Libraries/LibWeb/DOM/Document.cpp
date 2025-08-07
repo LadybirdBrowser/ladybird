@@ -433,7 +433,9 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
     // FIXME: 17. Process link headers given document, navigationParams's response, and "pre-media".
 
-    // 18. Return document.
+    // FIXME: 18. Potentially free deferred fetch quota for document.
+
+    // 19. Return document.
     return document;
 }
 
