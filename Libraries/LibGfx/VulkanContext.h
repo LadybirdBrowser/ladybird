@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <LibGfx/Export.h>
+
 #ifdef USE_VULKAN
 
 #    include <vulkan/vulkan.h>
@@ -20,7 +22,7 @@ struct VulkanContext {
     VkQueue graphics_queue { VK_NULL_HANDLE };
 };
 
-ErrorOr<VulkanContext> create_vulkan_context();
+GFX_API ErrorOr<VulkanContext> create_vulkan_context();
 
 }
 

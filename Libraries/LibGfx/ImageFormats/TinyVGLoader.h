@@ -10,6 +10,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/PaintStyle.h>
@@ -37,7 +38,7 @@ namespace Gfx {
 
 struct TinyVGHeader;
 
-class TinyVGDecodedImageData final : public VectorGraphic {
+class GFX_API TinyVGDecodedImageData final : public VectorGraphic {
 public:
     using Style = Variant<Color, NonnullRefPtr<SVGGradientPaintStyle>>;
 
@@ -76,7 +77,7 @@ private:
 
 struct TinyVGLoadingContext;
 
-class TinyVGImageDecoderPlugin final : public ImageDecoderPlugin {
+class GFX_API TinyVGImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);

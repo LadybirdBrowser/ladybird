@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <LibGfx/Export.h>
 
 namespace Gfx {
 
@@ -25,7 +26,7 @@ struct BMPWriterOptions {
     Optional<ReadonlyBytes> icc_data;
 };
 
-class BMPWriter {
+class GFX_API BMPWriter {
 public:
     using Options = BMPWriterOptions;
     static ErrorOr<ByteBuffer> encode(Bitmap const&, Options options = Options {});

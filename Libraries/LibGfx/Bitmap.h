@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 
@@ -63,7 +64,7 @@ inline StorageFormat determine_storage_format(BitmapFormat format)
 
 struct BackingStore;
 
-class Bitmap : public AtomicRefCounted<Bitmap> {
+class GFX_API Bitmap : public AtomicRefCounted<Bitmap> {
 public:
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize);
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize);
