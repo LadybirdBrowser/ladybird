@@ -2073,6 +2073,8 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
         compute_inset(grid_item.box, grid_area_rect.size());
 
         auto available_space_for_children = AvailableSpace(AvailableSize::make_definite(grid_item.used_values.content_width()), AvailableSize::make_definite(grid_item.used_values.content_height()));
+        grid_item.used_values.set_has_definite_width(true);
+        grid_item.used_values.set_has_definite_height(true);
         if (auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, available_space_for_children))
             independent_formatting_context->parent_context_did_dimension_child_root_box();
     }
