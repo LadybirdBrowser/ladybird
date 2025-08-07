@@ -907,7 +907,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         request->set_reload_navigation(true);
 
     // 6. Otherwise, if entry's document state's ever populated is true, then set request's history-navigation flag.
-    if (entry->document_state()->ever_populated())
+    else if (entry->document_state()->ever_populated())
         request->set_history_navigation(true);
 
     // 7. If sourceSnapshotParams's has transient activation is true, then set request's user-activation to true.
