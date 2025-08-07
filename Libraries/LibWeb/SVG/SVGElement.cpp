@@ -240,6 +240,13 @@ void SVGElement::removed_from(Node* old_parent, Node& old_root)
 {
     Base::removed_from(old_parent, old_root);
 
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(root())) {
+        // If this element is in a shadow root hosted by a use element,
+        // it already represents a clone and is not itself referenced.
+        if (shadow_root->host() && is<SVGUseElement>(*shadow_root->host()))
+            return;
+    }
+
     remove_from_use_element_that_reference_this();
 }
 
