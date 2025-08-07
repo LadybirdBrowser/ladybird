@@ -1,0 +1,10 @@
+prefix=${pcfiledir}/../..
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: unofficial-dawn-proc
+Description: Dawn procedure loader library
+Version: @VERSION@
+URL: https://dawn.googlesource.com/dawn
+Libs: -L${libdir} -l@DAWN_PROC_LIB@
+Cflags: -I${includedir}

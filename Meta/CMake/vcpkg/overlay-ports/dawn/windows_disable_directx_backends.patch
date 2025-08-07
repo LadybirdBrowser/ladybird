@@ -1,0 +1,17 @@
+diff --git a/scripts/dawn_features.gni b/scripts/dawn_features.gni
+index d43084994e..c17a5a6ad7 100644
+--- a/scripts/dawn_features.gni
++++ b/scripts/dawn_features.gni
+@@ -73,10 +73,10 @@ declare_args() {
+   dawn_complete_static_libs = false
+ 
+   # Enables the compilation of Dawn's D3D11 backend
+-  dawn_enable_d3d11 = is_win
++  dawn_enable_d3d11 = false
+ 
+   # Enables the compilation of Dawn's D3D12 backend
+-  dawn_enable_d3d12 = is_win
++  dawn_enable_d3d12 = false
+ 
+   # Enables the compilation of Dawn's Metal backend
+   dawn_enable_metal = is_mac || is_ios
