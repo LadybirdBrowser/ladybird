@@ -11,6 +11,7 @@
 #include <AK/IPv6Address.h>
 #include <AK/RedBlackTree.h>
 #include <AK/Time.h>
+#include <LibDNS/Export.h>
 
 namespace DNS {
 namespace Messages {
@@ -84,7 +85,7 @@ struct Header {
     NetworkOrdered<u16> additional_count;
 };
 
-struct DomainName {
+struct DNS_API DomainName {
     Vector<ByteString> labels;
 
     static DomainName from_string(StringView);
@@ -201,8 +202,8 @@ enum class ResourceType : u16 {
     TA = 32768,      // DNSSEC Trust Authorities "[Sam_Weiler][Deploying DNSSEC Without a Signed Root.  Technical Report 1999-19, Information Networking Institute, Carnegie Mellon University, April 2004.]"
     DLV = 32769,     // DNSSEC Lookaside Validation (OBSOLETE) [RFC8749][RFC4431]
 };
-StringView to_string(ResourceType);
-Optional<ResourceType> resource_type_from_string(StringView);
+DNS_API StringView to_string(ResourceType);
+DNS_API Optional<ResourceType> resource_type_from_string(StringView);
 
 // Listing from IANA https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-2.
 enum class Class : u16 {
@@ -693,7 +694,7 @@ using Record = Variant<
     // TODO: Add more records.
     ByteBuffer>; // Fallback for unknown records.
 
-struct ResourceRecord {
+struct DNS_API ResourceRecord {
     DomainName name;
     ResourceType type;
     Class class_;
@@ -716,7 +717,7 @@ struct ZoneAuthority {
     u32 minimum_ttl;
 };
 
-struct Message {
+struct DNS_API Message {
     Header header;
     Vector<Question> questions;
     Vector<ResourceRecord> answers;
