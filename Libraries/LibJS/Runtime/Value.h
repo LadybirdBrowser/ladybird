@@ -378,6 +378,7 @@ public:
     ThrowCompletionOr<GC::Ptr<FunctionObject>> get_method(VM&, PropertyKey const&) const;
 
     [[nodiscard]] String to_string_without_side_effects() const;
+    [[nodiscard]] Utf16String to_utf16_string_without_side_effects() const;
 
     [[nodiscard]] GC::Ref<PrimitiveString> typeof_(VM&) const;
 
