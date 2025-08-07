@@ -89,6 +89,7 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -206,38 +207,49 @@ GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<FlyString> const& namespac
     return m_attributes->get_attribute_ns(namespace_, name);
 }
 
-// https://dom.spec.whatwg.org/#dom-element-setattribute
-WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String const& value)
+// FIXME: Trusted Types integration with DOM is still under review https://github.com/whatwg/dom/pull/1268
+// https://whatpr.org/dom/1268.html#dom-element-setattribute
+WebIDL::ExceptionOr<void> Element::set_attribute(FlyString qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
 {
     // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_attribute_local_name(name))
+    if (!is_valid_attribute_local_name(qualified_name))
         return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
 
-    // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
-    bool insert_as_lowercase = namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML;
+    // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to
+    //    qualifiedName in ASCII lowercase.
+    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
+        qualified_name = qualified_name.to_ascii_lowercase();
 
-    // 3. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
-    auto* attribute = attributes()->get_attribute(name);
+    // 3. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
+    //    with qualifiedName, null, this, and value.
+    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(qualified_name, {}, *this, value));
 
-    // 4. If attribute is null, create an attribute whose local name is qualifiedName, value is value, and node document
+    // 4. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
+    auto* attribute = attributes()->get_attribute(qualified_name);
+
+    // 5. If attribute is null, create an attribute whose local name is qualifiedName, value is verifiedValue, and node document
     //    is this’s node document, then append this attribute to this, and then return.
     if (!attribute) {
-        auto new_attribute = Attr::create(document(), insert_as_lowercase ? name.to_ascii_lowercase() : name, value);
+        auto new_attribute = Attr::create(document(), qualified_name, verified_value.to_utf8_but_should_be_ported_to_utf16());
         m_attributes->append_attribute(new_attribute);
 
         return {};
     }
 
-    // 5. Change attribute to value.
-    attribute->change_attribute(value);
+    // 6. Change attribute to verifiedValue.
+    attribute->change_attribute(verified_value.to_utf8_but_should_be_ported_to_utf16());
 
     return {};
 }
 
-// https://dom.spec.whatwg.org/#dom-element-setattribute
-WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, Utf16String const& value)
+// FIXME: Trusted Types integration with DOM is still under review https://github.com/whatwg/dom/pull/1268
+// https://whatpr.org/dom/1268.html#dom-element-setattribute
+WebIDL::ExceptionOr<void> Element::set_attribute(FlyString qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, String> const& value)
 {
-    return set_attribute(name, value.to_utf8_but_should_be_ported_to_utf16());
+    return set_attribute(move(qualified_name),
+        value.visit(
+            [](auto const& trusted_type) -> Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> { return trusted_type; },
+            [](String const& string) -> Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> { return Utf16String::from_utf8(string); }));
 }
 
 // https://dom.spec.whatwg.org/#valid-namespace-prefix
