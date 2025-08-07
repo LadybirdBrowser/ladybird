@@ -84,7 +84,6 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'fetch' with: request @ {}", &request);
 
     auto& vm = realm.vm();
-    auto& heap = vm.heap();
 
     // 1. Assert: request’s mode is "navigate" or processEarlyHintsResponse is null.
     VERIFY(request.mode() == Infrastructure::Request::Mode::Navigate || !algorithms.process_early_hints_response());
@@ -95,7 +94,10 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     // 3. Let crossOriginIsolatedCapability be false.
     auto cross_origin_isolated_capability = HTML::CanUseCrossOriginIsolatedAPIs::No;
 
-    // 4. If request’s client is non-null, then:
+    // 4. Populate request from client given request.
+    populate_request_from_client(realm, request);
+
+    // 5. If request’s client is non-null, then:
     if (request.client() != nullptr) {
         // 1. Set taskDestination to request’s client’s global object.
         task_destination = GC::Ref { request.client()->global_object() };
@@ -104,11 +106,11 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
         cross_origin_isolated_capability = request.client()->cross_origin_isolated_capability();
     }
 
-    // 5. If useParallelQueue is true, then set taskDestination to the result of starting a new parallel queue.
+    // 6. If useParallelQueue is true, then set taskDestination to the result of starting a new parallel queue.
     if (use_parallel_queue == UseParallelQueue::Yes)
         task_destination = HTML::ParallelQueue::create();
 
-    // 6. Let timingInfo be a new fetch timing info whose start time and post-redirect start time are the coarsened
+    // 7. Let timingInfo be a new fetch timing info whose start time and post-redirect start time are the coarsened
     //    shared current time given crossOriginIsolatedCapability, and render-blocking is set to request’s
     //    render-blocking.
     auto timing_info = Infrastructure::FetchTimingInfo::create(vm);
@@ -117,7 +119,7 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     timing_info->set_post_redirect_start_time(now);
     timing_info->set_render_blocking(request.render_blocking());
 
-    // 7. Let fetchParams be a new fetch params whose request is request, timing info is timingInfo, process request
+    // 8. Let fetchParams be a new fetch params whose request is request, timing info is timingInfo, process request
     //    body chunk length is processRequestBodyChunkLength, process request end-of-body is processRequestEndOfBody,
     //    process early hints response is processEarlyHintsResponse, process response is processResponse, process
     //    response consume body is processResponseConsumeBody, process response end-of-body is processResponseEndOfBody,
@@ -127,34 +129,18 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     fetch_params->set_task_destination(task_destination);
     fetch_params->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
 
-    // 8. If request’s body is a byte sequence, then set request’s body to request’s body as a body.
+    // 9. If request’s body is a byte sequence, then set request’s body to request’s body as a body.
     if (auto const* buffer = request.body().get_pointer<ByteBuffer>())
         request.set_body(Infrastructure::byte_sequence_as_body(realm, buffer->bytes()));
 
-    // 9. If request’s window is "client", then set request’s window to request’s client, if request’s client’s global
-    //    object is a Window object; otherwise "no-window".
-    auto const* window = request.traversable_for_user_prompts().get_pointer<Infrastructure::Request::TraversableForUserPrompts>();
-    if (window && *window == Infrastructure::Request::TraversableForUserPrompts::Client) {
-        if (is<HTML::Window>(request.client()->global_object())) {
-            request.set_traversable_for_user_prompts(request.client());
-        } else {
-            request.set_traversable_for_user_prompts(Infrastructure::Request::TraversableForUserPrompts::NoTraversable);
-        }
-    }
-
-    // 10. If request’s origin is "client", then set request’s origin to request’s client’s origin.
-    auto const* origin = request.origin().get_pointer<Infrastructure::Request::Origin>();
-    if (origin && *origin == Infrastructure::Request::Origin::Client)
-        request.set_origin(request.client()->origin());
-
-    // 11. If all of the following conditions are true:
+    // 10. If all of the following conditions are true:
     if (
         // - request’s URL’s scheme is an HTTP(S) scheme
         Infrastructure::is_http_or_https_scheme(request.url().scheme())
         // - request’s mode is "same-origin", "cors", or "no-cors"
         && (request.mode() == Infrastructure::Request::Mode::SameOrigin || request.mode() == Infrastructure::Request::Mode::CORS || request.mode() == Infrastructure::Request::Mode::NoCORS)
-        // - request’s window is an environment settings object
-        && request.traversable_for_user_prompts().has<GC::Ptr<HTML::EnvironmentSettingsObject>>()
+        // - request’s client is not null, and request’s client’s global object is a Window object
+        && request.client() && is<HTML::Window>(request.client()->global_object())
         // - request’s method is `GET`
         && StringView { request.method() }.equals_ignoring_ascii_case("GET"sv)
         // - request’s unsafe-request flag is not set or request’s header list is empty
@@ -180,20 +166,7 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
             fetch_params->set_preloaded_response_candidate(Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag {});
     }
 
-    // 12. If request’s policy container is "client", then:
-    auto const* policy_container = request.policy_container().get_pointer<Infrastructure::Request::PolicyContainer>();
-    if (policy_container) {
-        VERIFY(*policy_container == Infrastructure::Request::PolicyContainer::Client);
-        // 1. If request’s client is non-null, then set request’s policy container to a clone of request’s client’s
-        //    policy container.
-        if (request.client() != nullptr)
-            request.set_policy_container(request.client()->policy_container()->clone(heap));
-        // 2. Otherwise, set request’s policy container to a new policy container.
-        else
-            request.set_policy_container(heap.allocate<HTML::PolicyContainer>(heap));
-    }
-
-    // 13. If request’s header list does not contain `Accept`, then:
+    // 11. If request’s header list does not contain `Accept`, then:
     if (!request.header_list()->contains("Accept"sv.bytes())) {
         // 1. Let value be `*/*`.
         auto value = "*/*"sv;
@@ -240,7 +213,7 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
         request.header_list()->append(move(header));
     }
 
-    // 14. If request’s header list does not contain `Accept-Language`, then user agents should append
+    // 12. If request’s header list does not contain `Accept-Language`, then user agents should append
     //     (`Accept-Language, an appropriate header value) to request’s header list.
     if (!request.header_list()->contains("Accept-Language"sv.bytes())) {
         StringBuilder accept_language;
@@ -250,24 +223,25 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
         request.header_list()->append(move(header));
     }
 
-    // 15. If request’s priority is null, then use request’s initiator, destination, and render-blocking appropriately
-    //     in setting request’s priority to a user-agent-defined object.
+    // 13. If request’s internal priority is null, then use request’s priority, initiator, destination, and
+    //     render-blocking in an implementation-defined manner to set request’s internal priority to an
+    //     implementation-defined object.
     // NOTE: The user-agent-defined object could encompass stream weight and dependency for HTTP/2, and equivalent
     //       information used to prioritize dispatch and processing of HTTP/1 fetches.
 
-    // 16. If request is a subresource request, then:
+    // 14. If request is a subresource request, then:
     if (request.is_subresource_request()) {
         // 1. Let record be a new fetch record whose request is request and controller is fetchParams’s controller.
         auto record = Infrastructure::FetchRecord::create(vm, request, fetch_params->controller());
 
-        // 2. Append record to request’s client’s fetch group list of fetch records.
+        // 2. Append record to request’s client’s fetch group’s fetch records.
         request.client()->fetch_group().append(record);
     }
 
-    // 17. Run main fetch given fetchParams.
+    // 15. Run main fetch given fetchParams.
     (void)TRY(main_fetch(realm, fetch_params));
 
-    // 18. Return fetchParams’s controller.
+    // 16. Return fetchParams’s controller.
     return fetch_params->controller();
 }
 
