@@ -22,7 +22,6 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
-#include <LibWeb/HTML/PolicyContainers.h>
 
 namespace Web::Fetch::Infrastructure {
 

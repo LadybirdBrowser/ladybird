@@ -10,11 +10,21 @@
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/Forward.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EmbedderPolicy.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
+
+// https://w3c.github.io/webappsec-subresource-integrity/#integrity-policy
+struct IntegrityPolicy {
+    Vector<String> sources;
+    Vector<Fetch::Infrastructure::Request::Destination> blocked_destinations;
+    Vector<String> endpoints;
+
+    bool is_empty() const { return sources.is_empty() && blocked_destinations.is_empty() && endpoints.is_empty(); }
+};
 
 // https://html.spec.whatwg.org/multipage/origin.html#policy-container
 // A policy container is a struct containing policies that apply to a Document, a WorkerGlobalScope, or a WorkletGlobalScope. It has the following items:
@@ -36,6 +46,14 @@ public:
     // https://html.spec.whatwg.org/multipage/origin.html#policy-container-referrer-policy
     // A referrer policy, which is a referrer policy. It is initially the default referrer policy.
     ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#policy-container-integrity-policy
+    // An integrity policy, which is an integrity policy, initially a new integrity policy.
+    IntegrityPolicy integrity_policy {};
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#policy-container-report-only-integrity-policy
+    // A report only integrity policy, which is an integrity policy, initially a new integrity policy.
+    IntegrityPolicy report_only_integrity_policy {};
 
     [[nodiscard]] GC::Ref<PolicyContainer> clone(GC::Heap&) const;
     [[nodiscard]] SerializedPolicyContainer serialize() const;
