@@ -147,6 +147,7 @@ public:
 
     struct NavigateParams {
         URL::URL url;
+        // FIXME: source_document should now be nullable, and default to nullptr.
         GC::Ref<DOM::Document> source_document;
         Variant<Empty, String, POSTResource> document_resource = Empty {};
         GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
