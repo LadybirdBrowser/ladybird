@@ -21,6 +21,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
+#include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -162,6 +163,13 @@ bool TrustedTypePolicyFactory::is_html(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedHTML and has an associated data value set, false otherwise.
     return value.is_object() && is<TrustedHTML>(value.as_object());
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-isscript
+bool TrustedTypePolicyFactory::is_script(JS::Value value)
+{
+    // 1. Returns true if value is an instance of TrustedScript and has an associated data value set, false otherwise.
+    return value.is_object() && is<TrustedScript>(value.as_object());
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
