@@ -99,6 +99,14 @@ public:
         });
     }
 
+    template<typename TUnaryPredicate>
+    Vector<Entry> take_all_matching(TUnaryPredicate const& predicate)
+    {
+        return m_table.take_all_matching([&](auto& entry) {
+            return predicate(entry.key, entry.value);
+        });
+    }
+
     using HashTableType = HashTable<Entry, EntryTraits, IsOrdered>;
     using IteratorType = typename HashTableType::Iterator;
     using ConstIteratorType = typename HashTableType::ConstIterator;

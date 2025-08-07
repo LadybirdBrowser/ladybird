@@ -100,6 +100,46 @@ TEST_CASE(remove_all_matching)
     EXPECT_EQ(map.remove_all_matching([&](int, ByteString const&) { return true; }), false);
 }
 
+TEST_CASE(take_all_matching)
+{
+    HashMap<int, ByteString> map;
+
+    map.set(1, "One");
+    map.set(2, "Two");
+    map.set(3, "Three");
+    map.set(4, "Four");
+
+    EXPECT_EQ(map.size(), 4u);
+
+    auto first_entries = map.take_all_matching([&](int key, ByteString const& value) { return key == 1 || value == "Two"; });
+    EXPECT_EQ(first_entries.size(), 2u);
+    auto first_low_index = first_entries[0].key > first_entries[1].key ? 1 : 0;
+    EXPECT_EQ(first_entries[first_low_index].key, 1);
+    EXPECT_EQ(first_entries[first_low_index].value, "One");
+    EXPECT_EQ(first_entries[1 - first_low_index].key, 2);
+    EXPECT_EQ(first_entries[1 - first_low_index].value, "Two");
+    EXPECT_EQ(map.size(), 2u);
+
+    EXPECT(map.take_all_matching([&](int, ByteString const&) { return false; }).is_empty());
+    EXPECT_EQ(map.size(), 2u);
+
+    EXPECT(map.contains(3));
+    EXPECT(map.contains(4));
+
+    auto second_entries = map.take_all_matching([&](int, ByteString const&) { return true; });
+    EXPECT_EQ(second_entries.size(), 2u);
+    auto second_low_index = second_entries[0].key > second_entries[1].key ? 1 : 0;
+    EXPECT_EQ(second_entries[second_low_index].key, 3);
+    EXPECT_EQ(second_entries[second_low_index].value, "Three");
+    EXPECT_EQ(second_entries[1 - second_low_index].key, 4);
+    EXPECT_EQ(second_entries[1 - second_low_index].value, "Four");
+    EXPECT(map.take_all_matching([&](int, ByteString const&) { return false; }).is_empty());
+
+    EXPECT(map.is_empty());
+
+    EXPECT(map.take_all_matching([&](int, ByteString const&) { return true; }).is_empty());
+}
+
 TEST_CASE(case_insensitive)
 {
     HashMap<ByteString, int, CaseInsensitiveStringTraits> casemap;
