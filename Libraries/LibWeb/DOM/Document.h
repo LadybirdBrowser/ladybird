@@ -221,7 +221,7 @@ public:
     String referrer() const;
     void set_referrer(String);
 
-    void set_url(const URL::URL& url) { m_url = url; }
+    void set_url(URL::URL const& url);
     URL::URL url() const { return m_url; }
     URL::URL fallback_base_url() const;
     URL::URL base_url() const;
@@ -229,6 +229,7 @@ public:
     void update_base_element(Badge<HTML::HTMLBaseElement>);
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_href_in_tree_order() const;
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_target_in_tree_order() const;
+    void respond_to_base_url_changes();
 
     String url_string() const { return m_url.to_string(); }
     String document_uri() const { return url_string(); }

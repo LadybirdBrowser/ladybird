@@ -2286,7 +2286,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     if (serialized_data.has_value())
         document.restore_the_history_object_state(new_entry);
 
-    // 8. Set document's URL to newURL.
+    // 8. Set the URL given document to newURL.
     document.set_url(new_url);
 
     // 9. Set document's latest entry to newEntry.
