@@ -18,9 +18,10 @@ class WorkerEnvironmentSettingsObject final
     GC_DECLARE_ALLOCATOR(WorkerEnvironmentSettingsObject);
 
 public:
-    WorkerEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkerGlobalScope> global_scope, URL::Origin origin, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
+    WorkerEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkerGlobalScope> global_scope, URL::Origin origin, bool outside_settings_has_cross_site_ancestor, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
         : EnvironmentSettingsObject(move(execution_context))
         , m_origin(move(origin))
+        , m_outside_settings_has_cross_site_ancestor(outside_settings_has_cross_site_ancestor)
         , m_global_scope(global_scope)
         , m_unsafe_worker_creation_time(unsafe_worker_creation_time)
     {
@@ -30,19 +31,21 @@ public:
 
     virtual ~WorkerEnvironmentSettingsObject() override = default;
 
-    GC::Ptr<DOM::Document> responsible_document() override { return nullptr; }
-    String api_url_character_encoding() const override { return m_api_url_character_encoding; }
-    URL::URL api_base_url() const override;
-    URL::Origin origin() const override;
-    GC::Ref<PolicyContainer> policy_container() const override;
-    CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
-    double time_origin() const override;
+    virtual GC::Ptr<DOM::Document> responsible_document() override { return nullptr; }
+    virtual String api_url_character_encoding() const override { return m_api_url_character_encoding; }
+    virtual URL::URL api_base_url() const override;
+    virtual URL::Origin origin() const override;
+    virtual bool has_cross_site_ancestor() const override;
+    virtual GC::Ref<PolicyContainer> policy_container() const override;
+    virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
+    virtual double time_origin() const override;
 
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     String m_api_url_character_encoding;
     URL::Origin m_origin;
+    bool m_outside_settings_has_cross_site_ancestor;
 
     GC::Ref<WorkerGlobalScope> m_global_scope;
 
