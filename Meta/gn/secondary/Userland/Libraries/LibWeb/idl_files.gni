@@ -30,6 +30,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/Animations/KeyframeEffect.idl",
   "//Userland/Libraries/LibWeb/Clipboard/Clipboard.idl",
   "//Userland/Libraries/LibWeb/Clipboard/ClipboardEvent.idl",
+  "//Userland/Libraries/LibWeb/CookieStore/CookieChangeEvent.idl",
   "//Userland/Libraries/LibWeb/CookieStore/CookieStore.idl",
   "//Userland/Libraries/LibWeb/Crypto/Crypto.idl",
   "//Userland/Libraries/LibWeb/Crypto/CryptoKey.idl",

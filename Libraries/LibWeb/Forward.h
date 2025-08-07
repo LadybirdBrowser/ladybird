@@ -175,6 +175,7 @@ enum class Source;
 
 namespace Web::CookieStore {
 
+class CookieChangeEvent;
 class CookieStore;
 
 }
