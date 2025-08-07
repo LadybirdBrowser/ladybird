@@ -80,6 +80,7 @@ set(SOURCES
     ContentSecurityPolicy/Violation.cpp
     Cookie/Cookie.cpp
     Cookie/ParsedCookie.cpp
+    CookieStore/CookieChangeEvent.cpp
     CookieStore/CookieStore.cpp
     CredentialManagement/Credential.cpp
     CredentialManagement/CredentialsContainer.cpp

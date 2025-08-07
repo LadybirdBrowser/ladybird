@@ -1,0 +1,15 @@
+#import <DOM/Event.idl>
+#import <CookieStore/CookieStore.idl>
+
+dictionary CookieChangeEventInit : EventInit {
+    CookieList changed;
+    CookieList deleted;
+};
+
+// https://cookiestore.spec.whatwg.org/#cookiechangeevent
+[Exposed=Window, SecureContext]
+interface CookieChangeEvent : Event {
+    constructor(DOMString type, optional CookieChangeEventInit eventInitDict = {});
+    [SameObject] readonly attribute FrozenArray<CookieListItem> changed;
+    [SameObject] readonly attribute FrozenArray<CookieListItem> deleted;
+};
