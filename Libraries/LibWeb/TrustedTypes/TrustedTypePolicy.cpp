@@ -340,4 +340,51 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeNa
     });
 }
 
+// https://w3c.github.io/trusted-types/dist/spec/#validate-attribute-mutation
+WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(FlyString const& attribute_name, Optional<Utf16String> attribute_ns, const DOM::Element& element, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> const& new_value)
+{
+    // 1. If attributeNs is the empty string, set attributeNs to null.
+    if (attribute_ns.has_value() && attribute_ns.value().is_empty())
+        attribute_ns.clear();
+
+    // 2. Set attributeData to the result of Get Trusted Type data for attribute algorithm, with the following arguments:
+    //    element
+    //    attributeName
+    //    attributeNs
+    auto const attribute_data = get_trusted_type_data_for_attribute(Utf16String::from_utf8(element.node_name()), Utf16String::from_utf8(attribute_name), attribute_ns);
+
+    // 3. If attributeData is null, then:
+    if (!attribute_data.has_value()) {
+        // 1. If newValue is a string, return newValue.
+        if (new_value.has<Utf16String>())
+            return new_value.get<Utf16String>();
+
+        // 2. Assert: newValue is TrustedHTML or TrustedScript or TrustedScriptURL.
+        VERIFY(new_value.has<GC::Root<TrustedHTML>>() || new_value.has<GC::Root<TrustedScript>>() || new_value.has<GC::Root<TrustedScriptURL>>());
+
+        // 3. Return value’s associated data.
+        // FIXME: This is badly worded in the spec it should say "Return stringified newvalues's"
+        return new_value.downcast<TrustedType>().visit([](auto& value) { return value->to_string(); });
+    }
+
+    // 4. Let expectedType be the value of the fourth member of attributeData.
+    auto const expectedType = attribute_data->trusted_type;
+
+    // 5. Let sink be the value of the fifth member of attributeData.
+    auto const sink = attribute_data->sink;
+
+    // 6. Return the result of executing Get Trusted Type compliant string with the following arguments:
+    //      expectedType
+    //      newValue as input
+    //      element’s node document’s relevant global object as global
+    //      sink
+    //      'script' as sinkGroup
+    return get_trusted_type_compliant_string(
+        expectedType,
+        element.realm().global_object(),
+        new_value,
+        sink,
+        Script.to_string());
+}
+
 }
