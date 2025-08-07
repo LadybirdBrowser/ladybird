@@ -123,7 +123,7 @@ extern HashMap<GC::Ptr<JS::Object>, WebAssemblyCache> s_caches;
                                                                                                         \
     public:                                                                                             \
         static GC::Ref<ClassName> create(JS::Realm&);                                                   \
-        static GC::Ref<ClassName> create(JS::Realm&, String message);                                   \
+        static GC::Ref<ClassName> create(JS::Realm&, Utf16String message);                              \
         static GC::Ref<ClassName> create(JS::Realm&, StringView message);                               \
                                                                                                         \
         explicit ClassName(Object& prototype);                                                          \

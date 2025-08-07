@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(StringView property, Stri
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_string);
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     // 2. If property is not a custom property, follow these substeps:
     Optional<DescriptorID> descriptor_id;
@@ -132,7 +132,7 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(StringView property)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_string);
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     // 2. If property is not a custom property, let property be property converted to ASCII lowercase.
     // AD-HOC: We compare names case-insensitively instead.
@@ -238,7 +238,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(StringView value)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_string);
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     // 2. Empty the declarations.
     m_descriptors.clear();

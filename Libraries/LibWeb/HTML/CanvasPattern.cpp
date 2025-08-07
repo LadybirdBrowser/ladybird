@@ -57,7 +57,7 @@ WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& rea
     // then throw a "SyntaxError" DOMException.
     auto repetition_value = parse_repetition(repetition);
     if (!repetition_value.has_value())
-        return WebIDL::SyntaxError::create(realm, "Repetition value is not valid"_string);
+        return WebIDL::SyntaxError::create(realm, "Repetition value is not valid"_utf16);
 
     // 6. Let pattern be a new CanvasPattern object with the image image and the repetition behavior given by repetition.
     auto pattern = TRY_OR_THROW_OOM(realm.vm(), CanvasPatternPaintStyle::create(image, *repetition_value));

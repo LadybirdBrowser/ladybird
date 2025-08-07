@@ -80,7 +80,7 @@ WebIDL::CallbackType* IDBRequest::onerror()
 {
     // 1. If this's done flag is false, then throw an "InvalidStateError" DOMException.
     if (!m_done)
-        return WebIDL::InvalidStateError::create(realm(), "The request is not done"_string);
+        return WebIDL::InvalidStateError::create(realm(), "The request is not done"_utf16);
 
     // 2. Otherwise, return this's error, or null if no error occurred.
     return m_error;
@@ -91,7 +91,7 @@ WebIDL::CallbackType* IDBRequest::onerror()
 {
     // 1. If this's done flag is false, then throw an "InvalidStateError" DOMException.
     if (!m_done)
-        return WebIDL::InvalidStateError::create(realm(), "The request is not done"_string);
+        return WebIDL::InvalidStateError::create(realm(), "The request is not done"_utf16);
 
     // 2. Otherwise, return this's result, or undefined if the request resulted in an error.
     if (m_error)

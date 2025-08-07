@@ -211,7 +211,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
         // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
         if (!url_record.has_value())
-            return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Invalid URL '{}'", url)));
+            return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
     }
 
     // 5. If target is the empty string, then set target to "_blank".
@@ -475,7 +475,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.
     if (!map)
-        return WebIDL::SecurityError::create(realm, "localStorage is not available"_string);
+        return WebIDL::SecurityError::create(realm, "localStorage is not available"_utf16);
 
     // 4. Let storage be a new Storage object whose map is map.
     auto storage = Storage::create(realm, Storage::Type::Local, *map);
@@ -502,7 +502,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.
     if (!map)
-        return WebIDL::SecurityError::create(realm, "sessionStorage is not available"_string);
+        return WebIDL::SecurityError::create(realm, "sessionStorage is not available"_utf16);
 
     // 4. Let storage be a new Storage object whose map is map.
     auto storage = Storage::create(realm, Storage::Type::Session, *map);
@@ -1183,7 +1183,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
 
         // 2. If parsedURL is failure, then throw a "SyntaxError" DOMException.
         if (!parsed_url.has_value())
-            return WebIDL::SyntaxError::create(target_realm, MUST(String::formatted("Invalid URL for targetOrigin: '{}'", options.target_origin)));
+            return WebIDL::SyntaxError::create(target_realm, Utf16String::formatted("Invalid URL for targetOrigin: '{}'", options.target_origin));
 
         // 3. Set targetOrigin to parsedURL's origin.
         target_origin = parsed_url->origin();

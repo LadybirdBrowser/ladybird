@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> BaseAudioContext::create_stereo_p
 WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_range(JS::Realm& realm, float sample_rate)
 {
     if (sample_rate < MIN_SAMPLE_RATE || sample_rate > MAX_SAMPLE_RATE)
-        return WebIDL::NotSupportedError::create(realm, "Sample rate is outside of allowed range"_string);
+        return WebIDL::NotSupportedError::create(realm, "Sample rate is outside of allowed range"_utf16);
 
     return {};
 }
@@ -196,13 +196,13 @@ WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_
     // A NotSupportedError exception MUST be thrown if any of the arguments is negative, zero, or outside its nominal range.
 
     if (number_of_channels == 0)
-        return WebIDL::NotSupportedError::create(realm, "Number of channels must not be '0'"_string);
+        return WebIDL::NotSupportedError::create(realm, "Number of channels must not be '0'"_utf16);
 
     if (number_of_channels > MAX_NUMBER_OF_CHANNELS)
-        return WebIDL::NotSupportedError::create(realm, "Number of channels is greater than allowed range"_string);
+        return WebIDL::NotSupportedError::create(realm, "Number of channels is greater than allowed range"_utf16);
 
     if (length == 0)
-        return WebIDL::NotSupportedError::create(realm, "Length of buffer must be at least 1"_string);
+        return WebIDL::NotSupportedError::create(realm, "Length of buffer must be at least 1"_utf16);
 
     TRY(verify_audio_options_inside_nominal_range(realm, sample_rate));
 
@@ -226,7 +226,7 @@ GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Root<WebIDL::Bu
     //    promise rejected with "InvalidStateError" DOMException.
     auto const& associated_document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active()) {
-        auto error = WebIDL::InvalidStateError::create(realm, "The document is not fully active."_string);
+        auto error = WebIDL::InvalidStateError::create(realm, "The document is not fully active."_utf16);
         return WebIDL::create_rejected_promise_from_exception(realm, error);
     }
 
@@ -247,7 +247,7 @@ GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Root<WebIDL::Bu
     // 4. Else, execute the following error steps:
     else {
         // 4.1. Let error be a DataCloneError.
-        auto error = WebIDL::DataCloneError::create(realm, "Audio data is not detached."_string);
+        auto error = WebIDL::DataCloneError::create(realm, "Audio data is not detached."_utf16);
 
         // 4.2. Reject promise with error, and remove it from [[pending promises]].
         WebIDL::reject_promise(realm, promise, error);
@@ -298,7 +298,7 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
         // queue a media element task to execute the following steps:
         queue_a_media_element_task(GC::create_function(heap(), [this, &realm, promise, error_callback] {
             // 4.1. Let error be a DOMException whose name is EncodingError.
-            auto error = WebIDL::EncodingError::create(realm, "Unable to decode."_string);
+            auto error = WebIDL::EncodingError::create(realm, "Unable to decode."_utf16);
 
             // 4.1.2. Reject promise with error, and remove it from [[pending promises]].
             WebIDL::reject_promise(realm, promise, error);

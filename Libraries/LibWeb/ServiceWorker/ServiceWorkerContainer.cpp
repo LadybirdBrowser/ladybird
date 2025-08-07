@@ -112,7 +112,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(String const& 
 
     // 6. If the origin of clientURL is not client’s origin, return a promise rejected with a "SecurityError" DOMException.
     if (!parsed_client_url->origin().is_same_origin(client->origin()))
-        return WebIDL::create_rejected_promise(realm, WebIDL::SecurityError::create(realm, "clientURL is not the same origin as the client's origin"_string));
+        return WebIDL::create_rejected_promise(realm, WebIDL::SecurityError::create(realm, "clientURL is not the same origin as the client's origin"_utf16));
 
     // 7. Let promise be a new promise.
     auto promise = WebIDL::create_promise(realm);

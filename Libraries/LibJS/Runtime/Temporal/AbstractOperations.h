@@ -202,7 +202,7 @@ ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOpera
 
 // 13.39 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
 template<typename... Args>
-ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Value argument, ErrorType error_type, Args&&... args)
+ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Value argument, ErrorType const& error_type, Args&&... args)
 {
     // 1. Let number be ? ToNumber(argument).
     auto number = TRY(argument.to_number(vm));
@@ -219,7 +219,7 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Value argument, Err
 // AD-HOC: We often need to use this AO when we have a parsed StringView. This overload allows callers to avoid creating
 //         a PrimitiveString for the primary definition.
 template<typename... Args>
-ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, StringView argument, ErrorType error_type, Args&&... args)
+ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, StringView argument, ErrorType const& error_type, Args&&... args)
 {
     // 1. Let number be ? ToNumber(argument).
     auto number = string_to_number(argument);
@@ -234,7 +234,7 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, StringView argument
 
 // 13.38 ToPositiveIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-topositiveintegerwithtruncation
 template<typename... Args>
-ThrowCompletionOr<double> to_positive_integer_with_truncation(VM& vm, Value argument, ErrorType error_type, Args&&... args)
+ThrowCompletionOr<double> to_positive_integer_with_truncation(VM& vm, Value argument, ErrorType const& error_type, Args&&... args)
 {
     // 1. Let integer be ? ToIntegerWithTruncation(argument).
     auto integer = TRY(to_integer_with_truncation(vm, argument, error_type, args...));

@@ -39,7 +39,7 @@ GC::Ref<Error> Error::create(Realm& realm)
     return realm.create<Error>(realm.intrinsics().error_prototype());
 }
 
-GC::Ref<Error> Error::create(Realm& realm, String message)
+GC::Ref<Error> Error::create(Realm& realm, Utf16String message)
 {
     auto error = Error::create(realm);
     error->set_message(move(message));
@@ -48,7 +48,7 @@ GC::Ref<Error> Error::create(Realm& realm, String message)
 
 GC::Ref<Error> Error::create(Realm& realm, StringView message)
 {
-    return create(realm, MUST(String::from_utf8(message)));
+    return create(realm, Utf16String::from_utf8(message));
 }
 
 Error::Error(Object& prototype)
@@ -75,7 +75,7 @@ ThrowCompletionOr<void> Error::install_error_cause(Value options)
     return {};
 }
 
-void Error::set_message(String message)
+void Error::set_message(Utf16String message)
 {
     auto& vm = this->vm();
 
@@ -169,7 +169,7 @@ String Error::stack_string(CompactTraceback compact) const
         return realm.create<ClassName>(realm.intrinsics().snake_name##_prototype());     \
     }                                                                                    \
                                                                                          \
-    GC::Ref<ClassName> ClassName::create(Realm& realm, String message)                   \
+    GC::Ref<ClassName> ClassName::create(Realm& realm, Utf16String message)              \
     {                                                                                    \
         auto error = ClassName::create(realm);                                           \
         error->set_message(move(message));                                               \
@@ -178,7 +178,7 @@ String Error::stack_string(CompactTraceback compact) const
                                                                                          \
     GC::Ref<ClassName> ClassName::create(Realm& realm, StringView message)               \
     {                                                                                    \
-        return create(realm, MUST(String::from_utf8(message)));                          \
+        return create(realm, Utf16String::from_utf8(message));                           \
     }                                                                                    \
                                                                                          \
     ClassName::ClassName(Object& prototype)                                              \

@@ -679,11 +679,11 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<String> 
 
     // 6. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(realm(), "write() called on XML document."_string);
+        return WebIDL::InvalidStateError::create(realm(), "write() called on XML document."_utf16);
 
     // 7. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_string);
+        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 8. If document's active parser was aborted is true, then return.
     if (m_active_parser_was_aborted)
@@ -726,18 +726,18 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(realm(), "open() called on XML document."_string);
+        return WebIDL::InvalidStateError::create(realm(), "open() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_string);
+        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // FIXME: 3. Let entryDocument be the entry global object's associated Document.
     auto& entry_document = *this;
 
     // 4. If document's origin is not same origin to entryDocument's origin, then throw a "SecurityError" DOMException.
     if (origin() != entry_document.origin())
-        return WebIDL::SecurityError::create(realm(), "Document.origin() not the same as entryDocument's."_string);
+        return WebIDL::SecurityError::create(realm(), "Document.origin() not the same as entryDocument's."_utf16);
 
     // 5. If document has an active parser whose script nesting level is greater than 0, then return document.
     if (m_parser && m_parser->script_nesting_level() > 0)
@@ -806,7 +806,7 @@ WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> Document::open(StringView url, S
 {
     // 1. If this is not fully active, then throw an "InvalidAccessError" DOMException.
     if (!is_fully_active())
-        return WebIDL::InvalidAccessError::create(realm(), "Cannot perform open on a document that isn't fully active."_string);
+        return WebIDL::InvalidAccessError::create(realm(), "Cannot perform open on a document that isn't fully active."_utf16);
 
     // 2. Return the result of running the window open steps with url, name, and features.
     return window()->window_open_steps(url, name, features);
@@ -817,11 +817,11 @@ WebIDL::ExceptionOr<void> Document::close()
 {
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException exception.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(realm(), "close() called on XML document."_string);
+        return WebIDL::InvalidStateError::create(realm(), "close() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_string);
+        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 3. If there is no script-created parser associated with the document, then return.
     if (!m_parser)
@@ -979,7 +979,7 @@ HTML::HTMLElement* Document::body()
 WebIDL::ExceptionOr<void> Document::set_body(HTML::HTMLElement* new_body)
 {
     if (!is<HTML::HTMLBodyElement>(new_body) && !is<HTML::HTMLFrameSetElement>(new_body))
-        return WebIDL::HierarchyRequestError::create(realm(), "Invalid document body element, must be 'body' or 'frameset'"_string);
+        return WebIDL::HierarchyRequestError::create(realm(), "Invalid document body element, must be 'body' or 'frameset'"_utf16);
 
     auto* existing_body = body();
     if (existing_body) {
@@ -989,7 +989,7 @@ WebIDL::ExceptionOr<void> Document::set_body(HTML::HTMLElement* new_body)
 
     auto* document_element = this->document_element();
     if (!document_element)
-        return WebIDL::HierarchyRequestError::create(realm(), "Missing document element"_string);
+        return WebIDL::HierarchyRequestError::create(realm(), "Missing document element"_utf16);
 
     (void)TRY(document_element->append_child(*new_body));
     return {};
@@ -2101,7 +2101,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& loc
 {
     // 1. If localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_element_local_name(local_name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in tag name."_string);
+        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in tag name."_utf16);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
     auto local_name_lower = document_type() == Type::HTML
@@ -2163,11 +2163,11 @@ WebIDL::ExceptionOr<GC::Ref<CDATASection>> Document::create_cdata_section(Utf16S
 {
     // 1. If this is an HTML document, then throw a "NotSupportedError" DOMException.
     if (is_html_document())
-        return WebIDL::NotSupportedError::create(realm(), "This operation is not supported for HTML documents"_string);
+        return WebIDL::NotSupportedError::create(realm(), "This operation is not supported for HTML documents"_utf16);
 
     // 2. If data contains the string "]]>", then throw an "InvalidCharacterError" DOMException.
     if (data.contains("]]>"sv))
-        return WebIDL::InvalidCharacterError::create(realm(), "String may not contain ']]>'"_string);
+        return WebIDL::InvalidCharacterError::create(realm(), "String may not contain ']]>'"_utf16);
 
     // 3. Return a new CDATASection node with its data set to data and node document set to this.
     return realm().create<CDATASection>(*this, move(data));
@@ -2183,11 +2183,11 @@ WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_
 {
     // 1. If target does not match the Name production, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_name(target))
-        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in target name."_string);
+        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in target name."_utf16);
 
     // 2. If data contains the string "?>", then throw an "InvalidCharacterError" DOMException.
     if (data.contains("?>"sv))
-        return WebIDL::InvalidCharacterError::create(realm(), "String may not contain '?>'"_string);
+        return WebIDL::InvalidCharacterError::create(realm(), "String may not contain '?>'"_utf16);
 
     // 3. Return a new ProcessingInstruction node, with target set to target, data set to data, and node document set to this.
     return realm().create<ProcessingInstruction>(*this, move(data), target);
@@ -2252,7 +2252,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
 
     // 3. If constructor is null, then throw a "NotSupportedError" DOMException.
     if (!event) {
-        return WebIDL::NotSupportedError::create(realm, "No constructor for interface found"_string);
+        return WebIDL::NotSupportedError::create(realm, "No constructor for interface found"_utf16);
     }
 
     // FIXME: 4. If the interface indicated by constructor is not exposed on the relevant global object of this, then throw a "NotSupportedError" DOMException.
@@ -2333,7 +2333,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, boo
 {
     // 1. If node is a document or shadow root, then throw a "NotSupportedError" DOMException.
     if (is<Document>(*node) || is<ShadowRoot>(*node))
-        return WebIDL::NotSupportedError::create(realm(), "Cannot import a document or shadow root."_string);
+        return WebIDL::NotSupportedError::create(realm(), "Cannot import a document or shadow root."_utf16);
 
     // 2. Return a clone of node, with this and the clone children flag set if deep is true.
     return node->clone_node(this, deep);
@@ -2407,10 +2407,10 @@ void Document::adopt_node(Node& node)
 WebIDL::ExceptionOr<GC::Ref<Node>> Document::adopt_node_binding(GC::Ref<Node> node)
 {
     if (is<Document>(*node))
-        return WebIDL::NotSupportedError::create(realm(), "Cannot adopt a document into a document"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Cannot adopt a document into a document"_utf16);
 
     if (is<ShadowRoot>(*node))
-        return WebIDL::HierarchyRequestError::create(realm(), "Cannot adopt a shadow root into a document"_string);
+        return WebIDL::HierarchyRequestError::create(realm(), "Cannot adopt a shadow root into a document"_utf16);
 
     if (is<DocumentFragment>(*node) && as<DocumentFragment>(*node).host())
         return node;
@@ -3138,7 +3138,7 @@ WebIDL::ExceptionOr<String> Document::cookie(Cookie::Source source)
 
     // Otherwise, if the Document's origin is an opaque origin, the user agent must throw a "SecurityError" DOMException.
     if (origin().is_opaque())
-        return WebIDL::SecurityError::create(realm(), "Document origin is opaque"_string);
+        return WebIDL::SecurityError::create(realm(), "Document origin is opaque"_utf16);
 
     // Otherwise, the user agent must return the cookie-string for the document's URL for a "non-HTTP" API, decoded using
     // UTF-8 decode without BOM.
@@ -3154,7 +3154,7 @@ WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string, Cookie:
 
     // Otherwise, if the Document's origin is an opaque origin, the user agent must throw a "SecurityError" DOMException.
     if (origin().is_opaque())
-        return WebIDL::SecurityError::create(realm(), "Document origin is opaque"_string);
+        return WebIDL::SecurityError::create(realm(), "Document origin is opaque"_utf16);
 
     // Otherwise, the user agent must act as it would when receiving a set-cookie-string for the document's URL via a
     // "non-HTTP" API, consisting of the new value encoded as UTF-8.
@@ -3866,22 +3866,22 @@ WebIDL::ExceptionOr<void> Document::set_domain(String const& domain)
 
     // 1. If this's browsing context is null, then throw a "SecurityError" DOMException.
     if (!m_browsing_context)
-        return WebIDL::SecurityError::create(realm, "Document.domain setter requires a browsing context"_string);
+        return WebIDL::SecurityError::create(realm, "Document.domain setter requires a browsing context"_utf16);
 
     // 2. If this's active sandboxing flag set has its sandboxed document.domain browsing context flag set, then throw a "SecurityError" DOMException.
     if (has_flag(active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedDocumentDomain))
-        return WebIDL::SecurityError::create(realm, "Document.domain setter is sandboxed"_string);
+        return WebIDL::SecurityError::create(realm, "Document.domain setter is sandboxed"_utf16);
 
     // 3. Let effectiveDomain be this's origin's effective domain.
     auto effective_domain = origin().effective_domain();
 
     // 4. If effectiveDomain is null, then throw a "SecurityError" DOMException.
     if (!effective_domain.has_value())
-        return WebIDL::SecurityError::create(realm, "Document.domain setter called on a Document with a null effective domain"_string);
+        return WebIDL::SecurityError::create(realm, "Document.domain setter called on a Document with a null effective domain"_utf16);
 
     // 5. If the given value is not a registrable domain suffix of and is not equal to effectiveDomain, then throw a "SecurityError" DOMException.
     if (!is_a_registrable_domain_suffix_of_or_is_equal_to(domain, effective_domain.value()))
-        return WebIDL::SecurityError::create(realm, "Document.domain setter called for an invalid domain"_string);
+        return WebIDL::SecurityError::create(realm, "Document.domain setter called for an invalid domain"_utf16);
 
     // FIXME: 6. If the surrounding agent's agent cluster's is origin-keyed is true, then return.
 
@@ -4522,7 +4522,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& loca
 {
     // 1. If localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_attribute_local_name(local_name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in attribute name."_string);
+        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in attribute name."_utf16);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
     // 3. Return a new attribute whose local name is localName and node document is this.

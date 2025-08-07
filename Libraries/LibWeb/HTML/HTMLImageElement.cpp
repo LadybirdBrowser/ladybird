@@ -352,7 +352,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
             if (this->document().is_fully_active())
                 return false;
 
-            auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_string);
+            auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_utf16);
             HTML::TemporaryExecutionContext context(realm);
             WebIDL::reject_promise(realm, promise, exception);
             return true;
@@ -362,7 +362,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
             if (this->current_request().state() != ImageRequest::State::Broken)
                 return false;
 
-            auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_string);
+            auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_utf16);
             HTML::TemporaryExecutionContext context(realm);
             WebIDL::reject_promise(realm, promise, exception);
             return true;
@@ -379,8 +379,8 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
         // 3. Otherwise, in parallel wait for one of the following cases to occur, and perform the corresponding actions:
         Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, promise, &realm, &global] {
             Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, promise, &realm, &global] {
-                auto queue_reject_task = [promise, &realm, &global](String const& message) {
-                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise, message = String(message)] {
+                auto queue_reject_task = [promise, &realm, &global](Utf16String message) {
+                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise, message = move(message)] {
                         auto exception = WebIDL::EncodingError::create(realm, message);
                         HTML::TemporaryExecutionContext context(realm);
                         WebIDL::reject_promise(realm, promise, exception);
@@ -390,7 +390,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
                 // -> This img element's node document stops being fully active
                 if (!document().is_fully_active()) {
                     // Queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
-                    queue_reject_task("Node document not fully active"_string);
+                    queue_reject_task("Node document not fully active"_utf16);
                     return true;
                 }
 
@@ -399,14 +399,14 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
                 // -> FIXME: This img element's current request changes or is mutated
                 if (false) {
                     // Queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
-                    queue_reject_task("Current request changed or was mutated"_string);
+                    queue_reject_task("Current request changed or was mutated"_utf16);
                     return true;
                 }
 
                 // -> This img element's current request's state becomes broken
                 if (state == ImageRequest::State::Broken) {
                     // Queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
-                    queue_reject_task("Current request state is broken"_string);
+                    queue_reject_task("Current request state is broken"_utf16);
                     return true;
                 }
 

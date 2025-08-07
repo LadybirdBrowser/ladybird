@@ -26,9 +26,9 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
         // 1. If value’s constructed flag is not set, or its constructor document is not equal to this
         //    DocumentOrShadowRoot's node document, throw a "NotAllowedError" DOMException.
         if (!style_sheet.constructed())
-            return WebIDL::NotAllowedError::create(document_or_shadow_root.realm(), "StyleSheet's constructed flag is not set."_string);
+            return WebIDL::NotAllowedError::create(document_or_shadow_root.realm(), "StyleSheet's constructed flag is not set."_utf16);
         if (!style_sheet.constructed() || style_sheet.constructor_document().ptr() != &document_or_shadow_root.document())
-            return WebIDL::NotAllowedError::create(document_or_shadow_root.realm(), "Sharing a StyleSheet between documents is not allowed."_string);
+            return WebIDL::NotAllowedError::create(document_or_shadow_root.realm(), "Sharing a StyleSheet between documents is not allowed."_utf16);
 
         style_sheet.add_owning_document_or_shadow_root(document_or_shadow_root);
         document_or_shadow_root.document().style_computer().load_fonts_from_sheet(style_sheet);

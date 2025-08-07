@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<void> WritableStream::transfer_steps(HTML::TransferDataEncod
 
     // 1. If ! IsWritableStreamLocked(value) is true, throw a "DataCloneError" DOMException.
     if (is_writable_stream_locked(*this))
-        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_string);
+        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_utf16);
 
     // 2. Let port1 be a new MessagePort in the current Realm.
     auto port1 = HTML::MessagePort::create(realm);

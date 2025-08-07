@@ -27,7 +27,7 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::construct_impl(JS::Real
         if (options.real.has_value() && options.imag.has_value()) {
             // 1. If the lengths of options.real and options.imag are different or if either length is less than 2, throw an IndexSizeError and abort this algorithm.
             if (options.real.value().size() != options.imag.value().size() || options.real.value().size() < 2)
-                return WebIDL::IndexSizeError::create(realm, "Real and imaginary arrays must have the same length and contain at least 2 elements"_string);
+                return WebIDL::IndexSizeError::create(realm, "Real and imaginary arrays must have the same length and contain at least 2 elements"_utf16);
 
             // 2. Set [[real]] and [[imag]] to new arrays with the same length as options.real.
             // 3. Copy all elements from options.real to [[real]] and options.imag to [[imag]].
@@ -43,7 +43,7 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::construct_impl(JS::Real
         else if (options.real.has_value()) {
             // 1. If length of options.real is less than 2, throw an IndexSizeError and abort this algorithm
             if (options.real.value().size() < 2)
-                return WebIDL::IndexSizeError::create(realm, "Real array must contain at least 2 elements"_string);
+                return WebIDL::IndexSizeError::create(realm, "Real array must contain at least 2 elements"_utf16);
 
             // 2. Set [[real]] and [[imag]] to arrays with the same length as options.real
             // 3. Copy options.real to [[real]] and set [[imag]] to all zeros.
@@ -59,7 +59,7 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::construct_impl(JS::Real
         else if (options.imag.has_value()) {
             // 1. If length of options.imag is less than 2, throw an IndexSizeError and abort this algorithm.
             if (options.imag.value().size() < 2)
-                return WebIDL::IndexSizeError::create(realm, "Imaginary array must contain at least 2 elements"_string);
+                return WebIDL::IndexSizeError::create(realm, "Imaginary array must contain at least 2 elements"_utf16);
 
             // 2. Set [[real]] and [[imag]] to arrays with the same length as options.imag.
             // 3. Copy options.imag to [[imag]] and set [[real]] to all zeros.

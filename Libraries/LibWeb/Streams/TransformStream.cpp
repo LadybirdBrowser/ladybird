@@ -201,11 +201,11 @@ WebIDL::ExceptionOr<void> TransformStream::transfer_steps(HTML::TransferDataEnco
 
     // 3. If ! IsReadableStreamLocked(readable) is true, throw a "DataCloneError" DOMException.
     if (is_readable_stream_locked(readable))
-        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked ReadableStream"_string);
+        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked ReadableStream"_utf16);
 
     // 4. If ! IsWritableStreamLocked(writable) is true, throw a "DataCloneError" DOMException.
     if (is_writable_stream_locked(writable))
-        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_string);
+        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_utf16);
 
     // 5. Set dataHolder.[[readable]] to ! StructuredSerializeWithTransfer(readable, « readable »).
     auto readable_result = MUST(HTML::structured_serialize_with_transfer(vm, readable, { { GC::Root { readable } } }));

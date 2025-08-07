@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(String const& script_url, Wo
     // 4. If this fails, throw a "SyntaxError" DOMException.
     if (!url.has_value()) {
         dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Invalid URL loaded '{}'.", script_url);
-        return WebIDL::SyntaxError::create(document.realm(), "url is not valid"_string);
+        return WebIDL::SyntaxError::create(document.realm(), "url is not valid"_utf16);
     }
 
     // 5. Let worker URL be the resulting URL record.

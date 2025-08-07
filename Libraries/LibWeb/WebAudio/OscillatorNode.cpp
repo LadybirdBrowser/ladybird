@@ -27,7 +27,7 @@ WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::create(JS::Realm& r
 WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
 {
     if (options.type == Bindings::OscillatorType::Custom && !options.periodic_wave)
-        return WebIDL::InvalidStateError::create(realm, "Oscillator node type 'custom' requires PeriodicWave to be provided"_string);
+        return WebIDL::InvalidStateError::create(realm, "Oscillator node type 'custom' requires PeriodicWave to be provided"_utf16);
 
     auto node = realm.create<OscillatorNode>(realm, context, options);
 
@@ -65,7 +65,7 @@ Bindings::OscillatorType OscillatorNode::type() const
 WebIDL::ExceptionOr<void> OscillatorNode::set_type(Bindings::OscillatorType type)
 {
     if (type == Bindings::OscillatorType::Custom && m_type != Bindings::OscillatorType::Custom)
-        return WebIDL::InvalidStateError::create(realm(), "Oscillator node type cannot be changed to 'custom'"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Oscillator node type cannot be changed to 'custom'"_utf16);
 
     // FIXME: An appropriate PeriodicWave should be set here based on the given type.
     set_periodic_wave(nullptr);

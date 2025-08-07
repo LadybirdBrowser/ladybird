@@ -32,7 +32,7 @@ WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::construct_impl(JS::Realm& rea
     // If specified, this value MUST be greater than zero and less than three minutes or a NotSupportedError exception MUST be thrown.
     static constexpr double maximum_delay_time_seconds = 180;
     if (options.max_delay_time <= 0 || options.max_delay_time >= maximum_delay_time_seconds || isnan(options.max_delay_time))
-        return WebIDL::NotSupportedError::create(realm, "Max delay time must be between 0 and 180 seconds exclusive"_string);
+        return WebIDL::NotSupportedError::create(realm, "Max delay time must be between 0 and 180 seconds exclusive"_utf16);
 
     auto node = realm.create<DelayNode>(realm, context, options);
 

@@ -49,7 +49,7 @@ WebIDL::ExceptionOr<Utf16String> CharacterData::substring_data(size_t offset, si
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(realm(), "Substring offset out of range."_string);
+        return WebIDL::IndexSizeError::create(realm(), "Substring offset out of range."_utf16);
 
     // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
     //    to the end of node’s data, and then return.
@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(realm(), "Replacement offset out of range."_string);
+        return WebIDL::IndexSizeError::create(realm(), "Replacement offset out of range."_utf16);
 
     // 3. If offset plus count is greater than length, then set count to length minus offset.
     if (offset + count > length)

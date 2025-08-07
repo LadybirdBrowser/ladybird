@@ -45,7 +45,7 @@ WebIDL::ExceptionOr<void> StereoPannerNode::set_channel_count_mode(Bindings::Cha
     // https://webaudio.github.io/web-audio-api/#audionode-channelcountmode-constraints
     // The channel count mode cannot be set to "max", and a NotSupportedError exception MUST be thrown for any attempt to set it to "max".
     if (mode == Bindings::ChannelCountMode::Max) {
-        return WebIDL::NotSupportedError::create(realm(), "StereoPannerNode does not support 'max' as channelCountMode."_string);
+        return WebIDL::NotSupportedError::create(realm(), "StereoPannerNode does not support 'max' as channelCountMode."_utf16);
     }
 
     // If the mode is valid, call the base class implementation
@@ -58,7 +58,7 @@ WebIDL::ExceptionOr<void> StereoPannerNode::set_channel_count(WebIDL::UnsignedLo
     // https://webaudio.github.io/web-audio-api/#audionode-channelcount-constraints
     // The channel count cannot be greater than two, and a NotSupportedError exception MUST be thrown for any attempt to change it to a value greater than two.
     if (channel_count > 2) {
-        return WebIDL::NotSupportedError::create(realm(), "StereoPannerNode does not support channel count greater than 2"_string);
+        return WebIDL::NotSupportedError::create(realm(), "StereoPannerNode does not support channel count greater than 2"_utf16);
     }
 
     return AudioNode::set_channel_count(channel_count);

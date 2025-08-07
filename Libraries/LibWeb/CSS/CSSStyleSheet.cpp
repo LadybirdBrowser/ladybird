@@ -48,7 +48,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
         // AD-HOC: This isn't explicitly mentioned in the specification, but multiple modern browsers do this.
         Optional<::URL::URL> url = sheet->location().has_value() ? sheet_location_url->complete_url(options->base_url.value()) : ::URL::Parser::basic_parse(options->base_url.value());
         if (!url.has_value())
-            return WebIDL::NotAllowedError::create(realm, "Constructed style sheets must have a valid base URL"_string);
+            return WebIDL::NotAllowedError::create(realm, "Constructed style sheets must have a valid base URL"_utf16);
 
         sheet->set_base_url(url);
     }
@@ -138,18 +138,18 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsign
 
     // If the disallow modification flag is set, throw a NotAllowedError DOMException.
     if (disallow_modification())
-        return WebIDL::NotAllowedError::create(realm(), "Can't call insert_rule() on non-modifiable stylesheets."_string);
+        return WebIDL::NotAllowedError::create(realm(), "Can't call insert_rule() on non-modifiable stylesheets."_utf16);
 
     // 3. Let parsed rule be the return value of invoking parse a rule with rule.
     auto parsed_rule = parse_css_rule(make_parsing_params(), rule);
 
     // 4. If parsed rule is a syntax error, return parsed rule.
     if (!parsed_rule)
-        return WebIDL::SyntaxError::create(realm(), "Unable to parse CSS rule."_string);
+        return WebIDL::SyntaxError::create(realm(), "Unable to parse CSS rule."_utf16);
 
     // 5. If parsed rule is an @import rule, and the constructed flag is set, throw a SyntaxError DOMException.
     if (constructed() && parsed_rule->type() == CSSRule::Type::Import)
-        return WebIDL::SyntaxError::create(realm(), "Can't insert @import rules into a constructed stylesheet."_string);
+        return WebIDL::SyntaxError::create(realm(), "Can't insert @import rules into a constructed stylesheet."_utf16);
 
     // 6. Return the result of invoking insert a CSS rule rule in the CSS rules at index.
     auto result = m_rules->insert_a_css_rule(parsed_rule, index, CSSRuleList::Nested::No, declared_namespaces());
@@ -171,7 +171,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::delete_rule(unsigned index)
 
     // 2. If the disallow modification flag is set, throw a NotAllowedError DOMException.
     if (disallow_modification())
-        return WebIDL::NotAllowedError::create(realm(), "Can't call delete_rule() on non-modifiable stylesheets."_string);
+        return WebIDL::NotAllowedError::create(realm(), "Can't call delete_rule() on non-modifiable stylesheets."_utf16);
 
     // 3. Remove a CSS rule in the CSS rules at index.
     auto result = m_rules->remove_a_css_rule(index);
@@ -191,12 +191,12 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
 
     // 2. If the constructed flag is not set, or the disallow modification flag is set, reject promise with a NotAllowedError DOMException and return promise.
     if (!constructed()) {
-        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Can't call replace() on non-constructed stylesheets"_string));
+        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Can't call replace() on non-constructed stylesheets"_utf16));
         return promise;
     }
 
     if (disallow_modification()) {
-        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Can't call replace() on non-modifiable stylesheets"_string));
+        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Can't call replace() on non-modifiable stylesheets"_utf16));
         return promise;
     }
 
@@ -235,9 +235,9 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
 {
     // 1. If the constructed flag is not set, or the disallow modification flag is set, throw a NotAllowedError DOMException.
     if (!constructed())
-        return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-constructed stylesheets"_string);
+        return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-constructed stylesheets"_utf16);
     if (disallow_modification())
-        return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-modifiable stylesheets"_string);
+        return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-modifiable stylesheets"_utf16);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
     auto rules = CSS::Parser::Parser::create(make_parsing_params(), text).parse_as_stylesheet_contents();

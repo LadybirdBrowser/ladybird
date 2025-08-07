@@ -129,11 +129,11 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, TransferData
         // NOTE: This check is only needed when serializing (and not when deserializing) as the cross-origin isolated capability cannot change
         //       over time and a SharedArrayBuffer cannot leave an agent cluster.
         if (current_principal_settings_object().cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::No)
-            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot serialize SharedArrayBuffer when cross-origin isolated"_string);
+            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot serialize SharedArrayBuffer when cross-origin isolated"_utf16);
 
         // 2. If forStorage is true, then throw a "DataCloneError" DOMException.
         if (for_storage)
-            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot serialize SharedArrayBuffer for storage"_string);
+            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot serialize SharedArrayBuffer for storage"_utf16);
 
         if (!array_buffer.is_fixed_length()) {
             // 3. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "GrowableSharedArrayBuffer",
@@ -155,7 +155,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, TransferData
     else {
         // 1. If IsDetachedBuffer(value) is true, then throw a "DataCloneError" DOMException.
         if (array_buffer.is_detached())
-            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot serialize detached ArrayBuffer"_string);
+            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot serialize detached ArrayBuffer"_utf16);
 
         // 2. Let size be value.[[ArrayBufferByteLength]].
         auto size = array_buffer.byte_length();
@@ -199,10 +199,10 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Trans
     // 1. If IsArrayBufferViewOutOfBounds(value) is true, then throw a "DataCloneError" DOMException.
     if constexpr (IsSame<ViewType, JS::DataView>) {
         if (JS::is_view_out_of_bounds(view_record))
-            return WebIDL::DataCloneError::create(*vm.current_realm(), MUST(String::formatted(JS::ErrorType::BufferOutOfBounds.message(), "DataView"sv)));
+            return WebIDL::DataCloneError::create(*vm.current_realm(), Utf16String::formatted(JS::ErrorType::BufferOutOfBounds.format(), "DataView"sv));
     } else {
         if (JS::is_typed_array_out_of_bounds(view_record))
-            return WebIDL::DataCloneError::create(*vm.current_realm(), MUST(String::formatted(JS::ErrorType::BufferOutOfBounds.message(), "TypedArray"sv)));
+            return WebIDL::DataCloneError::create(*vm.current_realm(), Utf16String::formatted(JS::ErrorType::BufferOutOfBounds.format(), "TypedArray"sv));
     }
 
     // 2. Let buffer be the value of value's [[ViewedArrayBuffer]] internal slot.
@@ -302,7 +302,7 @@ public:
 
         // 5. If value is a Symbol, then throw a "DataCloneError" DOMException.
         if (value.is_symbol())
-            return WebIDL::DataCloneError::create(*m_vm.current_realm(), "Cannot serialize Symbol"_string);
+            return WebIDL::DataCloneError::create(*m_vm.current_realm(), "Cannot serialize Symbol"_utf16);
 
         // 6. Let serialized be an uninitialized value.
         // NOTE: We created the serialized value above.
@@ -398,9 +398,9 @@ public:
                 auto value_message_descriptor = TRY(object.internal_get_own_property(m_vm.names.message));
 
                 // 4. Let message be undefined if IsDataDescriptor(valueMessageDesc) is false, and ? ToString(valueMessageDesc.[[Value]]) otherwise.
-                Optional<String> message;
+                Optional<Utf16String> message;
                 if (value_message_descriptor.has_value() && value_message_descriptor->is_data_descriptor())
-                    message = TRY(value_message_descriptor->value->to_string(m_vm));
+                    message = TRY(value_message_descriptor->value->to_utf16_string(m_vm));
 
                 // 5. Set serialized to { [[Type]]: "Error", [[Name]]: name, [[Message]]: message }.
                 // FIXME: 6. User agents should attach a serialized representation of any interesting accompanying data which are not yet specified, notably the stack property, to serialized.
@@ -439,12 +439,12 @@ public:
 
             // 20. Otherwise, if value is a platform object, then throw a "DataCloneError" DOMException.
             else if (is<Bindings::PlatformObject>(object)) {
-                return throw_completion(WebIDL::DataCloneError::create(*m_vm.current_realm(), "Cannot serialize platform objects"_string));
+                return throw_completion(WebIDL::DataCloneError::create(*m_vm.current_realm(), "Cannot serialize platform objects"_utf16));
             }
 
             // 21. Otherwise, if IsCallable(value) is true, then throw a "DataCloneError" DOMException.
             else if (value.is_function()) {
-                return throw_completion(WebIDL::DataCloneError::create(*m_vm.current_realm(), "Cannot serialize functions"_string));
+                return throw_completion(WebIDL::DataCloneError::create(*m_vm.current_realm(), "Cannot serialize functions"_utf16));
             }
 
             // FIXME: 22. Otherwise, if value has any internal slot other than [[Prototype]] or [[Extensible]], then throw a "DataCloneError" DOMException.
@@ -799,7 +799,7 @@ public:
         // 21. Otherwise, if serialized.[[Type]] is "Error", then:
         case ValueTag::ErrorObject: {
             auto type = m_serialized.decode<ErrorType>();
-            auto message = m_serialized.decode<Optional<String>>();
+            auto message = m_serialized.decode<Optional<Utf16String>>();
 
             GC::Ptr<JS::Error> error;
 
@@ -833,7 +833,7 @@ public:
 
             // 2. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
             if (!is_serializable_interface_exposed_on_target_realm(interface_name, realm))
-                return WebIDL::DataCloneError::create(realm, "Unsupported type"_string);
+                return WebIDL::DataCloneError::create(realm, "Unsupported type"_utf16);
 
             // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
             value = create_serialized_type(interface_name, realm);
@@ -1011,17 +1011,17 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         // 1. If transferable has neither an [[ArrayBufferData]] internal slot nor a [[Detached]] internal slot, then throw a "DataCloneError" DOMException.
         // FIXME: Handle transferring objects with [[Detached]] internal slot.
         if (!as_array_buffer && !is<Bindings::Transferable>(*transferable))
-            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer type"_string);
+            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer type"_utf16);
 
         // 2. If transferable has an [[ArrayBufferData]] internal slot and IsSharedArrayBuffer(transferable) is true, then throw a "DataCloneError" DOMException.
         if (as_array_buffer && as_array_buffer->is_shared_array_buffer())
-            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer shared array buffer"_string);
+            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer shared array buffer"_utf16);
 
         JS::Value transferable_value { transferable };
 
         // 3. If memory[transferable] exists, then throw a "DataCloneError" DOMException.
         if (memory.contains(transferable_value))
-            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer value twice"_string);
+            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer value twice"_utf16);
 
         // 4. Set memory[transferable] to { [[Type]]: an uninitialized value }.
         memory.set(GC::make_root(transferable_value), memory.size());
@@ -1041,12 +1041,12 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
         // 1. If transferable has an [[ArrayBufferData]] internal slot and IsDetachedBuffer(transferable) is true, then throw a "DataCloneError" DOMException.
         if (is_detached)
-            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer detached buffer"_string);
+            return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer detached buffer"_utf16);
 
         // 2. If transferable has a [[Detached]] internal slot and transferable.[[Detached]] is true, then throw a "DataCloneError" DOMException.
         if (auto* transferable_object = as_if<Bindings::Transferable>(*transferable)) {
             if (transferable_object->is_detached())
-                return WebIDL::DataCloneError::create(*vm.current_realm(), "Value already transferred"_string);
+                return WebIDL::DataCloneError::create(*vm.current_realm(), "Value already transferred"_utf16);
         }
 
         // 3. Let dataHolder be memory[transferable].
@@ -1243,7 +1243,7 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(Tra
         // 1. Let interfaceName be transferDataHolder.[[Type]].
         // 2. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
         if (!is_transferable_interface_exposed_on_target_realm(type, target_realm))
-            return WebIDL::DataCloneError::create(target_realm, "Unknown type transferred"_string);
+            return WebIDL::DataCloneError::create(target_realm, "Unknown type transferred"_utf16);
 
         // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
         // 4. Perform the appropriate transfer-receiving steps for the interface identified by interfaceName given transferDataHolder and value.
@@ -1342,7 +1342,7 @@ WebIDL::ExceptionOr<ByteBuffer> TransferDataDecoder::decode_buffer(JS::Realm& re
 
     if (buffer.is_error()) {
         VERIFY(buffer.error().code() == ENOMEM);
-        return WebIDL::DataCloneError::create(realm, "Unable to allocate memory for transferred buffer"_string);
+        return WebIDL::DataCloneError::create(realm, "Unable to allocate memory for transferred buffer"_utf16);
     }
 
     return buffer.release_value();

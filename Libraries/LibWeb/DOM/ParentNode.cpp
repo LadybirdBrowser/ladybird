@@ -56,13 +56,13 @@ static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_m
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_string);
+        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
 
     auto selectors = maybe_selectors.value();
 
     // "Note: Support for namespaces within selectors is not planned and will not be added."
     if (contains_named_namespace(selectors))
-        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_string);
+        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
 
     // 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
     GC::Ptr<Element> single_result;

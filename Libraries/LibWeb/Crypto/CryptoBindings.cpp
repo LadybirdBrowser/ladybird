@@ -38,7 +38,7 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
 
     auto json_value = maybe_json_value.release_value();
     if (!json_value.is_object()) {
-        return vm.throw_completion<WebIDL::SyntaxError>("JSON value is not an object"_string);
+        return vm.throw_completion<WebIDL::SyntaxError>("JSON value is not an object"_utf16);
     }
 
     auto const& json_object = json_value.as_object();
@@ -77,7 +77,7 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
 
     // 6. If the kty field of key is not defined, then throw a DataError.
     if (!key.kty.has_value())
-        return vm.throw_completion<WebIDL::DataError>("kty field is not defined"_string);
+        return vm.throw_completion<WebIDL::DataError>("kty field is not defined"_utf16);
 
     // 7. Return key.
     return key;

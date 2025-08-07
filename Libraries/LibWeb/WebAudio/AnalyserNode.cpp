@@ -260,7 +260,7 @@ WebIDL::ExceptionOr<void> AnalyserNode::get_byte_time_domain_data(GC::Root<WebID
 WebIDL::ExceptionOr<void> AnalyserNode::set_fft_size(unsigned long fft_size)
 {
     if (fft_size < 32 || fft_size > 32768 || !is_power_of_two(fft_size))
-        return WebIDL::IndexSizeError::create(realm(), "Analyser node fftSize not a power of 2 between 32 and 32768"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Analyser node fftSize not a power of 2 between 32 and 32768"_utf16);
 
     // reset previous block to 0s
     m_previous_block = Vector<f32>();
@@ -279,7 +279,7 @@ WebIDL::ExceptionOr<void> AnalyserNode::set_fft_size(unsigned long fft_size)
 WebIDL::ExceptionOr<void> AnalyserNode::set_max_decibels(double max_decibels)
 {
     if (m_min_decibels >= max_decibels)
-        return WebIDL::IndexSizeError::create(realm(), "Analyser node minDecibels greater than maxDecibels"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Analyser node minDecibels greater than maxDecibels"_utf16);
     m_max_decibels = max_decibels;
     return {};
 }
@@ -287,7 +287,7 @@ WebIDL::ExceptionOr<void> AnalyserNode::set_max_decibels(double max_decibels)
 WebIDL::ExceptionOr<void> AnalyserNode::set_min_decibels(double min_decibels)
 {
     if (min_decibels >= m_max_decibels)
-        return WebIDL::IndexSizeError::create(realm(), "Analyser node minDecibels greater than maxDecibels"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Analyser node minDecibels greater than maxDecibels"_utf16);
 
     m_min_decibels = min_decibels;
     return {};
@@ -296,7 +296,7 @@ WebIDL::ExceptionOr<void> AnalyserNode::set_min_decibels(double min_decibels)
 WebIDL::ExceptionOr<void> AnalyserNode::set_smoothing_time_constant(double smoothing_time_constant)
 {
     if (smoothing_time_constant > 1.0 || smoothing_time_constant < 0.0)
-        return WebIDL::IndexSizeError::create(realm(), "Analyser node smoothingTimeConstant not between 0.0 and 1.0"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Analyser node smoothingTimeConstant not between 0.0 and 1.0"_utf16);
 
     m_smoothing_time_constant = smoothing_time_constant;
     return {};
@@ -305,10 +305,10 @@ WebIDL::ExceptionOr<void> AnalyserNode::set_smoothing_time_constant(double smoot
 WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AnalyserOptions const& options)
 {
     if (options.min_decibels >= options.max_decibels)
-        return WebIDL::IndexSizeError::create(realm, "Analyser node minDecibels greater than maxDecibels"_string);
+        return WebIDL::IndexSizeError::create(realm, "Analyser node minDecibels greater than maxDecibels"_utf16);
 
     if (options.smoothing_time_constant > 1.0 || options.smoothing_time_constant < 0.0)
-        return WebIDL::IndexSizeError::create(realm, "Analyser node smoothingTimeConstant not between 0.0 and 1.0"_string);
+        return WebIDL::IndexSizeError::create(realm, "Analyser node smoothingTimeConstant not between 0.0 and 1.0"_utf16);
 
     // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
     // MUST initialize the AudioNode this, with context and options as arguments.

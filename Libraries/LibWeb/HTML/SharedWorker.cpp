@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
 
     // 5. If urlRecord is failure, then throw a "SyntaxError" DOMException.
     if (!url.has_value())
-        return WebIDL::SyntaxError::create(realm, "SharedWorker constructed with invalid URL"_string);
+        return WebIDL::SyntaxError::create(realm, "SharedWorker constructed with invalid URL"_utf16);
 
     // 7. Let outside port be a new MessagePort in outside settings's realm.
     // NOTE: We do this first so that we can store the port as a GC::Ref.

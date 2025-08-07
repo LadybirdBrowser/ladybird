@@ -48,11 +48,11 @@ WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(JS::Real
     // NOTE: Not in spec explicitly, but this should account for detached iframes too. See /close-watcher/frame-removal.html WPT.
     auto navigable = window.navigable();
     if (navigable && navigable->has_been_destroyed())
-        return WebIDL::InvalidStateError::create(realm, "The iframe has been detached"_string);
+        return WebIDL::InvalidStateError::create(realm, "The iframe has been detached"_utf16);
 
     // 1. If this's relevant global object's associated Document is not fully active, then return an "InvalidStateError" DOMException.
     if (!window.associated_document().is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "The document is not fully active."_string);
+        return WebIDL::InvalidStateError::create(realm, "The document is not fully active."_utf16);
 
     // 2. Let close_watcher be the result of establishing a close watcher
     auto close_watcher = establish(window);

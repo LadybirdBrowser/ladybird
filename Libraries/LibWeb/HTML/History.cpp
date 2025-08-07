@@ -61,7 +61,7 @@ WebIDL::ExceptionOr<u64> History::length() const
 {
     // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
     if (!as<Window>(relevant_global_object(*this)).associated_document().is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot perform length on a document that isn't fully active."_string);
+        return WebIDL::SecurityError::create(realm(), "Cannot perform length on a document that isn't fully active."_utf16);
 
     // 2. Return this's length.
     return m_length;
@@ -72,7 +72,7 @@ WebIDL::ExceptionOr<JS::Value> History::state() const
 {
     // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
     if (!as<Window>(relevant_global_object(*this)).associated_document().is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot perform state on a document that isn't fully active."_string);
+        return WebIDL::SecurityError::create(realm(), "Cannot perform state on a document that isn't fully active."_utf16);
 
     // 2. Return this's state.
     return m_state;
@@ -91,7 +91,7 @@ WebIDL::ExceptionOr<void> History::delta_traverse(WebIDL::Long delta)
 
     // 2. If document is not fully active, then throw a "SecurityError" DOMException.
     if (!document.is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot perform go on a document that isn't fully active."_string);
+        return WebIDL::SecurityError::create(realm(), "Cannot perform go on a document that isn't fully active."_utf16);
 
     // 3. If delta is 0, then reload document's node navigable, and return.
     if (delta == 0) {
@@ -178,7 +178,7 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value d
 
     // 2. If document is not fully active, then throw a "SecurityError" DOMException.
     if (!document.is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot perform pushState or replaceState on a document that isn't fully active."_string);
+        return WebIDL::SecurityError::create(realm(), "Cannot perform pushState or replaceState on a document that isn't fully active."_utf16);
 
     // 3. Optionally, throw a "SecurityError" DOMException. (For example, the user agent might disallow calls to these
     //    methods that are invoked on a timer, or from event listeners that are not triggered in response to a clear
@@ -201,14 +201,14 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value d
 
         // 2. If that fails, then throw a "SecurityError" DOMException.
         if (!parsed_url.has_value())
-            return WebIDL::SecurityError::create(realm(), "Cannot pushState or replaceState to incompatible URL"_string);
+            return WebIDL::SecurityError::create(realm(), "Cannot pushState or replaceState to incompatible URL"_utf16);
 
         // 3. Set newURL to the resulting URL record.
         new_url = parsed_url.release_value();
 
         // 4. If document cannot have its URL rewritten to newURL, then throw a "SecurityError" DOMException.
         if (!can_have_its_url_rewritten(document, new_url))
-            return WebIDL::SecurityError::create(realm(), "Cannot pushState or replaceState to incompatible URL"_string);
+            return WebIDL::SecurityError::create(realm(), "Cannot pushState or replaceState to incompatible URL"_utf16);
     }
 
     // 7. Let navigation be history's relevant global object's navigation API.
@@ -236,7 +236,7 @@ WebIDL::ExceptionOr<Bindings::ScrollRestoration> History::scroll_restoration() c
     // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
     auto& this_relevant_global_object = as<Window>(relevant_global_object(*this));
     if (!this_relevant_global_object.associated_document().is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot obtain scroll restoration mode for a document that isn't fully active."_string);
+        return WebIDL::SecurityError::create(realm(), "Cannot obtain scroll restoration mode for a document that isn't fully active."_utf16);
 
     // 2. Return this's relevant global object's navigable's active session history entry's scroll restoration mode.
     auto scroll_restoration_mode = this_relevant_global_object.navigable()->active_session_history_entry()->scroll_restoration_mode();
@@ -255,7 +255,7 @@ WebIDL::ExceptionOr<void> History::set_scroll_restoration(Bindings::ScrollRestor
     // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
     auto& this_relevant_global_object = as<Window>(relevant_global_object(*this));
     if (!this_relevant_global_object.associated_document().is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot set scroll restoration mode for a document that isn't fully active."_string);
+        return WebIDL::SecurityError::create(realm(), "Cannot set scroll restoration mode for a document that isn't fully active."_utf16);
 
     // 2. Set this's relevant global object's navigable's active session history entry's scroll restoration mode to the given value.
     auto active_session_history_entry = this_relevant_global_object.navigable()->active_session_history_entry();

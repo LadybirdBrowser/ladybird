@@ -72,12 +72,12 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
 
     // 2. If name is not a custom property name string, throw a SyntaxError and exit this algorithm.
     if (!is_a_custom_property_name_string(definition.name))
-        return WebIDL::SyntaxError::create(realm, "Invalid property name"_string);
+        return WebIDL::SyntaxError::create(realm, "Invalid property name"_utf16);
 
     // If property set already contains an entry with name as its property name (compared codepoint-wise),
     // throw an InvalidModificationError and exit this algorithm.
     if (document.registered_custom_properties().contains(definition.name))
-        return WebIDL::InvalidModificationError::create(realm, "Property already registered"_string);
+        return WebIDL::InvalidModificationError::create(realm, "Property already registered"_utf16);
 
     auto parsing_params = CSS::Parser::ParsingParams { document };
 
@@ -86,7 +86,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
     auto syntax_component_values = parse_component_values_list(parsing_params, definition.syntax);
     auto maybe_syntax = parse_as_syntax(syntax_component_values);
     if (!maybe_syntax) {
-        return WebIDL::SyntaxError::create(realm, "Invalid syntax definition"_string);
+        return WebIDL::SyntaxError::create(realm, "Invalid syntax definition"_utf16);
     }
 
     RefPtr<StyleValue const> initial_value_maybe;
@@ -104,12 +104,12 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
             // If this fails, throw a SyntaxError and exit this algorithm.
             // Otherwise, let parsed initial value be the parsed result.
             if (!initial_value_maybe) {
-                return WebIDL::SyntaxError::create(realm, "Invalid initial value"_string);
+                return WebIDL::SyntaxError::create(realm, "Invalid initial value"_utf16);
             }
         }
     } else if (!definition.initial_value.has_value()) {
         // Otherwise, if initialValue is not present, throw a SyntaxError and exit this algorithm.
-        return WebIDL::SyntaxError::create(realm, "Initial value must be provided for non-universal syntax"_string);
+        return WebIDL::SyntaxError::create(realm, "Initial value must be provided for non-universal syntax"_utf16);
     } else {
         // Otherwise, parse initialValue according to syntax definition.
         auto initial_value_component_values = parse_component_values_list(parsing_params, definition.initial_value.value());
@@ -121,7 +121,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
 
         // If this fails, throw a SyntaxError and exit this algorithm.
         if (!initial_value_maybe || initial_value_maybe->is_guaranteed_invalid()) {
-            return WebIDL::SyntaxError::create(realm, "Invalid initial value"_string);
+            return WebIDL::SyntaxError::create(realm, "Invalid initial value"_utf16);
         }
         // Otherwise, let parsed initial value be the parsed result.
         // NB: Already done

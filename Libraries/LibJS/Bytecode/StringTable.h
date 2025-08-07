@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/DistinctNumeric.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 
 namespace JS::Bytecode {
@@ -25,13 +25,13 @@ class StringTable {
 public:
     StringTable() = default;
 
-    StringTableIndex insert(String);
-    String const& get(StringTableIndex) const;
+    StringTableIndex insert(Utf16String);
+    Utf16String const& get(StringTableIndex) const;
     void dump() const;
     bool is_empty() const { return m_strings.is_empty(); }
 
 private:
-    Vector<String> m_strings;
+    Vector<Utf16String> m_strings;
 };
 
 }

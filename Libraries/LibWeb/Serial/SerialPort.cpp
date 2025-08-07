@@ -78,7 +78,7 @@ GC::Ref<WebIDL::Promise> SerialPort::open(SerialOptions)
 
     // FIXME: 9. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::open()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, ""_string));
+    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
 }
 
 // https://wicg.github.io/serial/#setsignals-method
@@ -111,7 +111,7 @@ GC::Ref<WebIDL::Promise> SerialPort::set_signals(SerialOutputSignals)
 
     // 5. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::set_signals()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, ""_string));
+    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
 }
 
 // https://wicg.github.io/serial/#getsignals-method
@@ -145,7 +145,7 @@ GC::Ref<WebIDL::Promise> SerialPort::get_signals() const
 
     // 4. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::get_signals()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, ""_string));
+    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
 }
 
 // https://wicg.github.io/serial/#close-method
@@ -197,7 +197,7 @@ GC::Ref<WebIDL::Promise> SerialPort::close()
 
     // 11. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::close()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, ""_string));
+    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
 }
 
 // https://wicg.github.io/serial/#forget-method
@@ -222,7 +222,7 @@ GC::Ref<WebIDL::Promise> SerialPort::forget()
 
     // 7. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::forget()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, ""_string));
+    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
 }
 
 void SerialPort::visit_edges(Cell::Visitor& visitor)

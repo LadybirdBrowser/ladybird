@@ -44,7 +44,7 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
 #undef __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME
 
         if (matched)
-            return WebIDL::SyntaxError::create(realm, MUST(String::formatted("'{}' markName cannot be used in a Window context because it is part of the PerformanceTiming interface", mark_name)));
+            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("'{}' markName cannot be used in a Window context because it is part of the PerformanceTiming interface", mark_name));
     }
 
     // NOTE: Step 2 (creating the entry) is done after determining values, as we set the values once during creation and never change them after.

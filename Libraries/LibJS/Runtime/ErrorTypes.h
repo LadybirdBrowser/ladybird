@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Export.h>
 
 #define JS_ENUMERATE_ERROR_TYPES(M)                                                                                                 \
@@ -314,18 +314,17 @@ public:
     JS_ENUMERATE_ERROR_TYPES(__ENUMERATE_JS_ERROR)
 #undef __ENUMERATE_JS_ERROR
 
-    String message() const
-    {
-        return m_message;
-    }
+    StringView format() const { return m_format; }
+    Utf16String const& message() const;
 
 private:
-    explicit ErrorType(StringView message)
-        : m_message(MUST(String::from_utf8(message)))
+    explicit ErrorType(StringView format)
+        : m_format(format)
     {
     }
 
-    String m_message;
+    StringView m_format;
+    mutable Utf16String m_message;
 };
 
 }

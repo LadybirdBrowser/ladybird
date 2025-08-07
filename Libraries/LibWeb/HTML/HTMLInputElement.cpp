@@ -417,7 +417,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::show_picker()
 
     // 1. If this is not mutable, then throw an "InvalidStateError" DOMException.
     if (!is_mutable())
-        return WebIDL::InvalidStateError::create(realm(), "Element is not mutable"_string);
+        return WebIDL::InvalidStateError::create(realm(), "Element is not mutable"_utf16);
 
     // 2. If this's relevant settings object's origin is not same origin with this's relevant settings object's top-level origin,
     // and this's type attribute is not in the File Upload state or Color state, then throw a "SecurityError" DOMException.
@@ -425,14 +425,14 @@ WebIDL::ExceptionOr<void> HTMLInputElement::show_picker()
     //       and has never been guarded by an origin check.
     if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*this).top_level_origin.value())
         && m_type != TypeAttributeState::FileUpload && m_type != TypeAttributeState::Color) {
-        return WebIDL::SecurityError::create(realm(), "Cross origin pickers are not allowed"_string);
+        return WebIDL::SecurityError::create(realm(), "Cross origin pickers are not allowed"_utf16);
     }
 
     // 3. If this's relevant global object does not have transient activation, then throw a "NotAllowedError" DOMException.
     // FIXME: The global object we get here should probably not need casted to Window to check for transient activation
     auto& global_object = relevant_global_object(*this);
     if (!is<HTML::Window>(global_object) || !static_cast<HTML::Window&>(global_object).has_transient_activation()) {
-        return WebIDL::NotAllowedError::create(realm(), "Too long since user activation to show picker"_string);
+        return WebIDL::NotAllowedError::create(realm(), "Too long since user activation to show picker"_utf16);
     }
 
     // 4. Show the picker, if applicable, for this.
@@ -727,7 +727,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16String const& value)
     case ValueAttributeMode::Filename:
         // On setting, if the new value is the empty string, empty the list of selected files; otherwise, throw an "InvalidStateError" DOMException.
         if (!value.is_empty())
-            return WebIDL::InvalidStateError::create(realm, "Setting value of input type file to non-empty string"_string);
+            return WebIDL::InvalidStateError::create(realm, "Setting value of input type file to non-empty string"_utf16);
 
         m_selected_files = nullptr;
         break;
@@ -2141,7 +2141,7 @@ WebIDL::UnsignedLong HTMLInputElement::size() const
 WebIDL::ExceptionOr<void> HTMLInputElement::set_size(WebIDL::UnsignedLong value)
 {
     if (value == 0)
-        return WebIDL::IndexSizeError::create(realm(), "Size must be greater than zero"_string);
+        return WebIDL::IndexSizeError::create(realm(), "Size must be greater than zero"_utf16);
     if (value > 2147483647)
         value = 20;
     return set_attribute(HTML::AttributeNames::size, String::number(value));
@@ -2683,7 +2683,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(Optional<GC::Root<
 {
     // On setting, if the valueAsDate attribute does not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException;
     if (!value_as_date_applies())
-        return WebIDL::InvalidStateError::create(realm(), "valueAsDate: Invalid input type used"_string);
+        return WebIDL::InvalidStateError::create(realm(), "valueAsDate: Invalid input type used"_utf16);
 
     // otherwise, if the new value is not null and not a Date object throw a TypeError exception;
     if (value.has_value() && !is<JS::Date>(**value))
@@ -2726,7 +2726,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_number(double value)
 
     // Otherwise, if the valueAsNumber attribute does not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException.
     if (!value_as_number_applies())
-        return WebIDL::InvalidStateError::create(realm(), "valueAsNumber: Invalid input type used"_string);
+        return WebIDL::InvalidStateError::create(realm(), "valueAsNumber: Invalid input type used"_utf16);
 
     // Otherwise, if the new value is a Not-a-Number (NaN) value, then set the value of the element to the empty string.
     if (value == NAN) {
@@ -2756,12 +2756,12 @@ WebIDL::ExceptionOr<void> HTMLInputElement::step_up_or_down(bool is_down, WebIDL
 {
     // 1. If the stepDown() and stepUp() methods do not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException.
     if (!step_up_or_down_applies())
-        return WebIDL::InvalidStateError::create(realm(), MUST(String::formatted("{}: Invalid input type used", is_down ? "stepDown()" : "stepUp()")));
+        return WebIDL::InvalidStateError::create(realm(), Utf16String::formatted("{}: Invalid input type used", is_down ? "stepDown()" : "stepUp()"));
 
     // 2. If the element has no allowed value step, then throw an "InvalidStateError" DOMException.
     auto maybe_allowed_value_step = allowed_value_step();
     if (!maybe_allowed_value_step.has_value())
-        return WebIDL::InvalidStateError::create(realm(), "element has no allowed value step"_string);
+        return WebIDL::InvalidStateError::create(realm(), "element has no allowed value step"_utf16);
     double allowed_value_step = *maybe_allowed_value_step;
 
     // 3. If the element has a minimum and a maximum and the minimum is greater than the maximum, then return.

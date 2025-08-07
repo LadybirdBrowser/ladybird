@@ -380,7 +380,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::request_submit(GC::Ptr<Element> submi
 
         // 2. If submitter's form owner is not this form element, then throw a "NotFoundError" DOMException.
         if (form_associated_element->form() != this)
-            return WebIDL::NotFoundError::create(realm(), "The submitter is not owned by this form element"_string);
+            return WebIDL::NotFoundError::create(realm(), "The submitter is not owned by this form element"_utf16);
     }
     // 2. Otherwise, set submitter to this form element.
     else {

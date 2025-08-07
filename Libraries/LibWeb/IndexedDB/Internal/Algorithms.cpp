@@ -86,7 +86,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
         auto maybe_database = Database::create_for_key_and_name(realm, storage_key, name);
 
         if (maybe_database.is_error()) {
-            return WebIDL::OperationError::create(realm, "Unable to create a new database"_string);
+            return WebIDL::OperationError::create(realm, "Unable to create a new database"_utf16);
         }
 
         db = maybe_database.release_value();
@@ -94,7 +94,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
 
     // 7. If db’s version is greater than version, return a newly created "VersionError" DOMException and abort these steps.
     if (db->version() > version) {
-        return WebIDL::VersionError::create(realm, "Database version is greater than the requested version"_string);
+        return WebIDL::VersionError::create(realm, "Database version is greater than the requested version"_utf16);
     }
 
     // 8. Let connection be a new connection to db.
@@ -169,13 +169,13 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
 
         // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
         if (connection->state() == IDBDatabase::ConnectionState::Closed)
-            return WebIDL::AbortError::create(realm, "Connection was closed"_string);
+            return WebIDL::AbortError::create(realm, "Connection was closed"_utf16);
 
         // 8. If the upgrade transaction was aborted, run the steps to close a database connection with connection,
         //    return a newly created "AbortError" DOMException and abort these steps.
         if (upgrade_transaction->aborted()) {
             close_a_database_connection(*connection);
-            return WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_string);
+            return WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_utf16);
         }
     }
 
@@ -330,7 +330,7 @@ void close_a_database_connection(GC::Ref<IDBDatabase> connection, bool forced)
     // 2. If the forced flag is true, then for each transaction created using connection run abort a transaction with transaction and newly created "AbortError" DOMException.
     if (forced) {
         for (auto const& transaction : connection->transactions()) {
-            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Connection was closed"_string));
+            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Connection was closed"_utf16));
         }
     }
 
@@ -414,7 +414,7 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
 
             // 2. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
             if (did_throw)
-                abort_a_transaction(transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_string));
+                abort_a_transaction(transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_utf16));
 
             // AD-HOC:
             // The implementation must attempt to commit a transaction when all requests placed against the transaction have completed
@@ -527,7 +527,7 @@ WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm& realm, StorageAPI::Storage
     // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. "QuotaExceededError" or "UnknownError" DOMException).
     auto maybe_deleted = Database::delete_for_key_and_name(storage_key, name);
     if (maybe_deleted.is_error())
-        return WebIDL::OperationError::create(realm, "Unable to delete database"_string);
+        return WebIDL::OperationError::create(realm, "Unable to delete database"_utf16);
 
     // 12. Return version.
     return version;
@@ -571,7 +571,7 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
             request->set_result(JS::js_undefined());
 
             // 3. Set request’s error to a newly created "AbortError" DOMException.
-            request->set_error(WebIDL::AbortError::create(request->realm(), "Transaction was aborted"_string));
+            request->set_error(WebIDL::AbortError::create(request->realm(), "Transaction was aborted"_utf16));
 
             // 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
             request->dispatch_event(DOM::Event::create(request->realm(), HTML::EventNames::error, { .bubbles = true, .cancelable = true }));
@@ -1070,7 +1070,7 @@ void fire_an_error_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
         // 2. If legacyOutputDidListenersThrowFlag is true, then run abort a transaction with transaction and a newly created "AbortError" DOMException and terminate these steps.
         //    This is done even if event’s canceled flag is false.
         if (legacy_output_did_listeners_throw_flag) {
-            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Error event interrupted by exception"_string));
+            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Error event interrupted by exception"_utf16));
             return;
         }
 
@@ -1114,7 +1114,7 @@ void fire_a_success_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
 
         // 2. If legacyOutputDidListenersThrowFlag is true, then run abort a transaction with transaction and a newly created "AbortError" DOMException.
         if (legacy_output_did_listeners_throw_flag) {
-            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "An error occurred"_string));
+            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "An error occurred"_utf16));
             return;
         }
 
@@ -1343,7 +1343,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
             // 2. If key is failure, then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
             if (maybe_key.is_error())
-                return WebIDL::ConstraintError::create(realm, String::from_utf8_without_validation(maybe_key.error().string_literal().bytes()));
+                return WebIDL::ConstraintError::create(realm, Utf16String::from_utf8_without_validation(maybe_key.error().string_literal()));
 
             key = Key::create_number(realm, static_cast<double>(maybe_key.value()));
 
@@ -1362,7 +1362,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
     //    then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
     auto has_record = store->has_record_with_key(*key);
     if (no_overwrite && has_record)
-        return WebIDL::ConstraintError::create(realm, "Record already exists"_string);
+        return WebIDL::ConstraintError::create(realm, "Record already exists"_utf16);
 
     // 3. If a record already exists in store with its key equal to key, then remove the record from store using delete records from an object store.
     if (has_record) {
@@ -1405,7 +1405,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
         //    then this operation failed with a "ConstraintError" DOMException.
         //    Abort this algorithm without taking any further steps.
         if ((!index_multi_entry || !index_key_is_array) && index_is_unique && index->has_record_with_key(index_key))
-            return WebIDL::ConstraintError::create(realm, "Record already exists in index"_string);
+            return WebIDL::ConstraintError::create(realm, "Record already exists in index"_utf16);
 
         // 4. If index’s multiEntry flag is true and index key is an array key,
         //    and if index already contains a record with key equal to any of the subkeys of index key,
@@ -1415,7 +1415,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
         if (index_multi_entry && index_key_is_array && index_is_unique) {
             for (auto const& subkey : index_key->subkeys()) {
                 if (index->has_record_with_key(*subkey))
-                    return WebIDL::ConstraintError::create(realm, "Record already exists in index"_string);
+                    return WebIDL::ConstraintError::create(realm, "Record already exists in index"_utf16);
             }
         }
 
@@ -1459,7 +1459,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Rea
     // 2. If value is undefined or is null, then throw a "DataError" DOMException if null disallowed flag is true, or return an unbounded key range otherwise.
     if (!value.has_value() || (value.has_value() && (value->is_undefined() || value->is_null()))) {
         if (null_disallowed)
-            return WebIDL::DataError::create(realm, "Value is undefined or null"_string);
+            return WebIDL::DataError::create(realm, "Value is undefined or null"_utf16);
 
         return IDBKeyRange::create(realm, {}, {}, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
     }
@@ -1469,7 +1469,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Rea
 
     // 4. If key is invalid, throw a "DataError" DOMException.
     if (key->is_invalid())
-        return WebIDL::DataError::create(realm, "Value is invalid"_string);
+        return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 5. Return a key range containing only key.
     return IDBKeyRange::create(realm, key, key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);

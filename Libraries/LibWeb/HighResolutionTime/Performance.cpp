@@ -139,7 +139,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
 
     // 5. If endTime is 0, throw an InvalidAccessError.
     if (end_time == 0)
-        return WebIDL::InvalidAccessError::create(realm, MUST(String::formatted("The '{}' entry in the PerformanceTiming interface is equal to 0, meaning it hasn't happened yet", name)));
+        return WebIDL::InvalidAccessError::create(realm, Utf16String::formatted("The '{}' entry in the PerformanceTiming interface is equal to 0, meaning it hasn't happened yet", name));
 
     // 6. Return result of subtracting startTime from endTime.
     return static_cast<HighResolutionTime::DOMHighResTimeStamp>(end_time - start_time);
@@ -170,7 +170,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
         });
 
         if (!maybe_entry.has_value())
-            return WebIDL::SyntaxError::create(realm, MUST(String::formatted("No PerformanceMark object with name '{}' found in the performance timeline", mark_string)));
+            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("No PerformanceMark object with name '{}' found in the performance timeline", mark_string));
 
         return maybe_entry.value()->start_time();
     }

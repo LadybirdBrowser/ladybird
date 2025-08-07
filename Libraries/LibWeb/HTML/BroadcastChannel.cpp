@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Value message)
 
     // 2. If this's closed flag is true, then throw an "InvalidStateError" DOMException.
     if (m_closed_flag)
-        return WebIDL::InvalidStateError::create(realm(), "BroadcastChannel.postMessage() on a closed channel"_string);
+        return WebIDL::InvalidStateError::create(realm(), "BroadcastChannel.postMessage() on a closed channel"_utf16);
 
     // 3. Let serialized be StructuredSerialize(message). Rethrow any exceptions.
     auto serialized = TRY(structured_serialize(vm, message));

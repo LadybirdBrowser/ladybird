@@ -27,7 +27,7 @@ void CacheStorage::initialize(JS::Realm& realm)
 // https://w3c.github.io/ServiceWorker/#cache-storage-open
 GC::Ref<WebIDL::Promise> CacheStorage::open(String const&)
 {
-    return WebIDL::create_rejected_promise(realm(), WebIDL::NotSupportedError::create(realm(), "CacheStorage.open() is not yet implemented"_string));
+    return WebIDL::create_rejected_promise(realm(), WebIDL::NotSupportedError::create(realm(), "CacheStorage.open() is not yet implemented"_utf16));
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-has

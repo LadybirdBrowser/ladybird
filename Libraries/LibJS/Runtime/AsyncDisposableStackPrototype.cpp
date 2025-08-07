@@ -115,8 +115,8 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncDisposableStackPrototype::dispose_async)
     // 3. If asyncDisposableStack does not have an [[AsyncDisposableState]] internal slot, then
     if (!async_disposable_stack_value.is_object() || !is<AsyncDisposableStack>(async_disposable_stack_value.as_object())) {
         // a. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-        auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAnObjectOfType.message(), display_name())));
-        MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAnObjectOfType, display_name());
+        MUST(call(vm, *promise_capability->reject(), js_undefined(), error.value()));
 
         // b. Return promiseCapability.[[Promise]].
         return promise_capability->promise();

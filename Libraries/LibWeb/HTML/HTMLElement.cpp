@@ -193,7 +193,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_e
         MUST(set_attribute(HTML::AttributeNames::contenteditable, "false"_string));
         return {};
     }
-    return WebIDL::SyntaxError::create(realm(), "Invalid contentEditable value, must be 'true', 'false', 'plaintext-only' or 'inherit'"_string);
+    return WebIDL::SyntaxError::create(realm(), "Invalid contentEditable value, must be 'true', 'false', 'plaintext-only' or 'inherit'"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#set-the-inner-text-steps
@@ -230,7 +230,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(Utf16View const& value)
 {
     // 1. If this's parent is null, then throw a "NoModificationAllowedError" DOMException.
     if (!parent())
-        return WebIDL::NoModificationAllowedError::create(realm(), "setOuterText: parent is null"_string);
+        return WebIDL::NoModificationAllowedError::create(realm(), "setOuterText: parent is null"_utf16);
 
     // 2. Let next be this's next sibling.
     auto* next = next_sibling();
@@ -1123,26 +1123,26 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
 {
     // 1. If this's is value is not null, then throw a "NotSupportedError" DOMException.
     if (is_value().has_value())
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to a customized built-in element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to a customized built-in element"_utf16);
 
     // 2. Let definition be the result of looking up a custom element definition given this's node document, its namespace, its local name, and null as the is value.
     auto definition = document().lookup_custom_element_definition(namespace_uri(), local_name(), is_value());
 
     // 3. If definition is null, then throw an "NotSupportedError" DOMException.
     if (!definition)
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to an element that is not a custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to an element that is not a custom element"_utf16);
 
     // 4. If definition's disable internals is true, then throw a "NotSupportedError" DOMException.
     if (definition->disable_internals())
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals are disabled for this custom element"_string);
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals are disabled for this custom element"_utf16);
 
     // 5. If this's attached internals is non-null, then throw an "NotSupportedError" DOMException.
     if (m_attached_internals)
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals already attached"_string);
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals already attached"_utf16);
 
     // 6. If this's custom element state is not "precustomized" or "custom", then throw a "NotSupportedError" DOMException.
     if (!first_is_one_of(custom_element_state(), DOM::CustomElementState::Precustomized, DOM::CustomElementState::Custom))
-        return WebIDL::NotSupportedError::create(realm(), "Custom element is in an invalid state to attach ElementInternals"_string);
+        return WebIDL::NotSupportedError::create(realm(), "Custom element is in an invalid state to attach ElementInternals"_utf16);
 
     // 7. Set this's attached internals to a new ElementInternals instance whose target element is this.
     auto internals = ElementInternals::create(realm(), *this);
@@ -1205,7 +1205,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
     if (ignore_dom_state == IgnoreDomState::No && !popover().has_value()) {
         // 1.1. If throwExceptions is true, then throw a "NotSupportedError" DOMException.
         if (throw_exceptions == ThrowExceptions::Yes)
-            return WebIDL::NotSupportedError::create(realm(), "Element is not a popover"_string);
+            return WebIDL::NotSupportedError::create(realm(), "Element is not a popover"_utf16);
         // 1.2. Return false.
         return false;
     }
@@ -1233,7 +1233,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
         || (ignore_dom_state == IgnoreDomState::No && expected_document && &document() != expected_document)
         || (is<HTMLDialogElement>(*this) && as<HTMLDialogElement>(*this).is_modal())) {
         if (throw_exceptions == ThrowExceptions::Yes)
-            return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_string);
+            return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_utf16);
         return false;
     }
 
@@ -1380,7 +1380,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         if (original_type != popover()) {
             // 1. If throwExceptions is true, then throw an "InvalidStateError" DOMException.
             if (throw_exceptions == ThrowExceptions::Yes)
-                return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_string);
+                return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_utf16);
 
             // 2. Return.
             return {};

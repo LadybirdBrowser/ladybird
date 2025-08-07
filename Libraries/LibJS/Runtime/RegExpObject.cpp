@@ -30,42 +30,42 @@ Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(Utf
         switch (ch) {
         case 'd':
             if (d)
-                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch));
             d = true;
             break;
         case 'g':
             if (g)
-                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch));
             g = true;
             options |= regex::ECMAScriptFlags::Global;
             break;
         case 'i':
             if (i)
-                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch));
             i = true;
             options |= regex::ECMAScriptFlags::Insensitive;
             break;
         case 'm':
             if (m)
-                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch));
             m = true;
             options |= regex::ECMAScriptFlags::Multiline;
             break;
         case 's':
             if (s)
-                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch));
             s = true;
             options |= regex::ECMAScriptFlags::SingleLine;
             break;
         case 'u':
             if (u)
-                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch));
             u = true;
             options |= regex::ECMAScriptFlags::Unicode;
             break;
         case 'y':
             if (y)
-                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch));
             y = true;
             // Now for the more interesting flag, 'sticky' actually unsets 'global', part of which is the default.
             options.reset_flag(regex::ECMAScriptFlags::Global);
@@ -77,12 +77,12 @@ Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(Utf
             break;
         case 'v':
             if (v)
-                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.message(), ch));
+                return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch));
             v = true;
             options |= regex::ECMAScriptFlags::UnicodeSets;
             break;
         default:
-            return MUST(String::formatted(ErrorType::RegExpObjectBadFlag.message(), ch));
+            return MUST(String::formatted(ErrorType::RegExpObjectBadFlag.format(), ch));
         }
     }
 
@@ -93,7 +93,7 @@ Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(Utf
 ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pattern, bool unicode, bool unicode_sets)
 {
     if (unicode && unicode_sets)
-        return ParseRegexPatternError { MUST(String::formatted(ErrorType::RegExpObjectIncompatibleFlags.message(), 'u', 'v')) };
+        return ParseRegexPatternError { MUST(String::formatted(ErrorType::RegExpObjectIncompatibleFlags.format(), 'u', 'v')) };
 
     StringBuilder builder;
 
