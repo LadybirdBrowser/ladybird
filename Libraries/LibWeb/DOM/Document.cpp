@@ -1158,6 +1158,33 @@ GC::Ptr<HTML::HTMLBaseElement> Document::first_base_element_with_target_in_tree_
     return m_first_base_element_with_target_in_tree_order;
 }
 
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#respond-to-base-url-changes
+void Document::respond_to_base_url_changes()
+{
+    // To respond to base URL changes for a Document document:
+
+    // 1. The user agent should update any user interface elements which are displaying affected URLs, or data derived
+    //    from such URLs, to the user. Examples of such user interface elements would be a status bar that displays a
+    //    hyperlink's url, or some user interface which displays the URL specified by a q, blockquote, ins, or del
+    //    element's cite attribute.
+    // FIXME: Update those UI elements.
+
+    // 2. Ensure that the CSS :link/:visited/etc. pseudo-classes are updated appropriately.
+    invalidate_style(StyleInvalidationReason::BaseURLChanged);
+}
+
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#set-the-url
+void Document::set_url(URL::URL const& url)
+{
+    // To set the URL for a Document document to a URL record url:
+
+    // 1. Set document's URL to url.
+    m_url = url;
+
+    // 2. Respond to base URL changes given document.
+    respond_to_base_url_changes();
+}
+
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#fallback-base-url
 URL::URL Document::fallback_base_url() const
 {
@@ -1181,12 +1208,12 @@ URL::URL Document::fallback_base_url() const
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#document-base-url
 URL::URL Document::base_url() const
 {
-    // 1. If there is no base element that has an href attribute in the Document, then return the Document's fallback base URL.
+    // 1. If document has no descendant base element that has an href attribute, then return document's fallback base URL.
     auto base_element = first_base_element_with_href_in_tree_order();
     if (!base_element)
         return fallback_base_url();
 
-    // 2. Otherwise, return the frozen base URL of the first base element in the Document that has an href attribute, in tree order.
+    // 2. Otherwise, return the frozen base URL of the first base element in document that has an href attribute, in tree order.
     return base_element->frozen_base_url();
 }
 
