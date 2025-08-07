@@ -6,7 +6,7 @@ interface TrustedTypePolicyFactory {
     TrustedTypePolicy createPolicy(
         DOMString policyName, optional TrustedTypePolicyOptions policyOptions = {});
     boolean isHTML(any value);
-    [FIXME] boolean isScript(any value);
+    boolean isScript(any value);
     [FIXME] boolean isScriptURL(any value);
     [FIXME] readonly attribute TrustedHTML emptyHTML;
     [FIXME] readonly attribute TrustedScript emptyScript;
