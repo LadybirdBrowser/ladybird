@@ -319,11 +319,13 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
     // 6. Upgrade a mixed content request to a potentially trustworthy URL, if appropriate.
     MixedContent::upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropriate(request);
 
-    // 7. If should request be blocked due to a bad port, should fetching request be blocked as mixed content, or
-    //    should request be blocked by Content Security Policy returns blocked, then set response to a network error.
+    // 7. If should request be blocked due to a bad port, should fetching request be blocked as mixed content, should
+    //    request be blocked by Content Security Policy, or should request be blocked by Integrity Policy Policy
+    //    returns blocked, then set response to a network error.
     if (Infrastructure::block_bad_port(request) == Infrastructure::RequestOrResponseBlocking::Blocked
         || MixedContent::should_fetching_request_be_blocked_as_mixed_content(request) == Infrastructure::RequestOrResponseBlocking::Blocked
-        || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(realm, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(realm, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked
+        || ContentSecurityPolicy::should_request_be_blocked_by_integrity_policy(request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         response = Infrastructure::Response::network_error(vm, "Request was blocked"_string);
     }
 
