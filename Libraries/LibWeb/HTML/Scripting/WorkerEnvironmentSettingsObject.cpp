@@ -30,7 +30,8 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
 
     // 4. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.
-    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker, move(inherited_origin), unsafe_worker_creation_time);
+    // FIXME: Is it enough to cache the has_cross_site_ancestor of outside_settings, or do we need to check the live object somehow?
+    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker, move(inherited_origin), outside_settings.has_cross_site_ancestor, unsafe_worker_creation_time);
     settings_object->target_browsing_context = nullptr;
 
     // FIXME: 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level creation URL to null, target browsing context to null, and active service worker to null.
@@ -53,12 +54,14 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     return settings_object;
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:api-base-url
 URL::URL WorkerEnvironmentSettingsObject::api_base_url() const
 {
     // Return worker global scope's url.
     return m_global_scope->url();
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-origin-2
 URL::Origin WorkerEnvironmentSettingsObject::origin() const
 {
     // Return a unique opaque origin if worker global scope's url's scheme is "data", and inherited origin otherwise.
@@ -67,18 +70,36 @@ URL::Origin WorkerEnvironmentSettingsObject::origin() const
     return m_origin;
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-has-cross-site-ancestor
+bool WorkerEnvironmentSettingsObject::has_cross_site_ancestor() const
+{
+    // 1. If outside settings's has cross-site ancestor is true, then return true.
+    if (m_outside_settings_has_cross_site_ancestor)
+        return true;
+
+    // 2. If worker global scope's url's scheme is "data", then return true.
+    if (m_global_scope->url().scheme() == "data"sv)
+        return true;
+
+    // 3. Return false.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-policy-container
 GC::Ref<PolicyContainer> WorkerEnvironmentSettingsObject::policy_container() const
 {
     // Return worker global scope's policy container.
     return m_global_scope->policy_container();
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-cross-origin-isolated-capability
 CanUseCrossOriginIsolatedAPIs WorkerEnvironmentSettingsObject::cross_origin_isolated_capability() const
 {
     // FIXME: Return worker global scope's cross-origin isolated capability.
     return CanUseCrossOriginIsolatedAPIs::No;
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-time-origin
 double WorkerEnvironmentSettingsObject::time_origin() const
 {
     // Return the result of coarsening unsafeWorkerCreationTime with worker global scope's cross-origin isolated capability.

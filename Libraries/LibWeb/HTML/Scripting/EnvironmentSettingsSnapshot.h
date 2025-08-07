@@ -22,13 +22,14 @@ public:
 
     virtual ~EnvironmentSettingsSnapshot() override;
 
-    GC::Ptr<DOM::Document> responsible_document() override { return nullptr; }
-    String api_url_character_encoding() const override { return m_api_url_character_encoding; }
-    URL::URL api_base_url() const override { return m_url; }
-    URL::Origin origin() const override { return m_origin; }
-    GC::Ref<PolicyContainer> policy_container() const override { return m_policy_container; }
-    CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override { return CanUseCrossOriginIsolatedAPIs::No; }
-    double time_origin() const override { return m_time_origin; }
+    virtual GC::Ptr<DOM::Document> responsible_document() override { return nullptr; }
+    virtual String api_url_character_encoding() const override { return m_api_url_character_encoding; }
+    virtual URL::URL api_base_url() const override { return m_url; }
+    virtual URL::Origin origin() const override { return m_origin; }
+    virtual bool has_cross_site_ancestor() const override { return m_has_cross_site_ancestor; }
+    virtual GC::Ref<PolicyContainer> policy_container() const override { return m_policy_container; }
+    virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override { return CanUseCrossOriginIsolatedAPIs::No; }
+    virtual double time_origin() const override { return m_time_origin; }
 
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -37,6 +38,7 @@ private:
     String m_api_url_character_encoding;
     URL::URL m_url;
     URL::Origin m_origin;
+    bool m_has_cross_site_ancestor;
     GC::Ref<PolicyContainer> m_policy_container;
     double m_time_origin { 0 };
 };

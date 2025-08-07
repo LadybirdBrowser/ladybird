@@ -572,6 +572,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
         .api_url_character_encoding = api_url_character_encoding(),
         .api_base_url = api_base_url(),
         .origin = origin(),
+        .has_cross_site_ancestor = has_cross_site_ancestor(),
         .policy_container = policy_container()->serialize(),
         .cross_origin_isolated_capability = cross_origin_isolated_capability(),
         .time_origin = this->time_origin(),
