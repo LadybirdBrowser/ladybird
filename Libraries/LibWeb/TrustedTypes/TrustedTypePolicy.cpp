@@ -10,7 +10,10 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/Namespace.h>
+#include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
@@ -338,6 +341,70 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeNa
         }
         return trusted_type->to_string();
     });
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#validate-attribute-mutation
+WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(FlyString const& attribute_name, Optional<Utf16String> attribute_ns, const DOM::Element& element, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> const& new_value)
+{
+    // 1. If attributeNs is the empty string, set attributeNs to null.
+    if (attribute_ns.has_value() && attribute_ns.value().is_empty())
+        attribute_ns.clear();
+
+    // 2. Set attributeData to the result of Get Trusted Type data for attribute algorithm, with the following arguments:
+    //    element
+    //    attributeName
+    //    attributeNs
+    auto const attribute_data = get_trusted_type_data_for_attribute(
+        element_interface_name(Utf16String::from_utf8(element.local_name()), attribute_ns.has_value() ? attribute_ns.value() : Utf16String::from_utf8(Namespace::HTML)),
+        Utf16String::from_utf8(attribute_name),
+        attribute_ns);
+
+    // 3. If attributeData is null, then:
+    if (!attribute_data.has_value()) {
+        // 1. If newValue is a string, return newValue.
+        if (new_value.has<Utf16String>())
+            return new_value.get<Utf16String>();
+
+        // 2. Assert: newValue is TrustedHTML or TrustedScript or TrustedScriptURL.
+        VERIFY(new_value.has<GC::Root<TrustedHTML>>() || new_value.has<GC::Root<TrustedScript>>() || new_value.has<GC::Root<TrustedScriptURL>>());
+
+        // 3. Return value’s associated data.
+        // FIXME: This is badly worded in the spec it should say "Return stringified newvalues's"
+        return new_value.downcast<TrustedType>().visit([](auto& value) { return value->to_string(); });
+    }
+
+    // 4. Let expectedType be the value of the fourth member of attributeData.
+    auto const expected_type = attribute_data->trusted_type;
+
+    // 5. Let sink be the value of the fifth member of attributeData.
+    auto const sink = attribute_data->sink;
+
+    // 6. Return the result of executing Get Trusted Type compliant string with the following arguments:
+    //      expectedType
+    //      newValue as input
+    //      element’s node document’s relevant global object as global
+    //      sink
+    //      'script' as sinkGroup
+    return get_trusted_type_compliant_string(
+        expected_type,
+        HTML::relevant_global_object(element.document()),
+        new_value,
+        sink,
+        Script.to_string());
+}
+
+Utf16String element_interface_name(Utf16String const& local_name, Utf16String const& element_ns)
+{
+    // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
+    // we care about in the table in get_trusted_type_data_for_attribute function
+    if (local_name == HTML::TagNames::iframe && element_ns == Namespace::HTML)
+        return "HTMLIFrameElement"_utf16;
+    if (local_name == HTML::TagNames::script && element_ns == Namespace::HTML)
+        return "HTMLScriptElement"_utf16;
+    if (local_name == SVG::TagNames::script && element_ns == Namespace::SVG)
+        return "SVGScriptElement"_utf16;
+
+    return "Element"_utf16;
 }
 
 }

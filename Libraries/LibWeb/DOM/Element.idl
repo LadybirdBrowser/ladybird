@@ -14,6 +14,7 @@
 #import <Geometry/DOMRectList.idl>
 #import <HTML/HTMLSlotElement.idl>
 #import <HTML/Window.idl>
+#import <TrustedTypes/TrustedTypePolicy.idl>
 
 enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
 // https://drafts.csswg.org/cssom-view-1/#dictdef-scrollintoviewoptions
@@ -52,7 +53,7 @@ interface Element : Node {
     sequence<DOMString> getAttributeNames();
     DOMString? getAttribute(DOMString qualifiedName);
     DOMString? getAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions] undefined setAttribute(DOMString qualifiedName, DOMString value);
+    [CEReactions] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
     [CEReactions] undefined setAttributeNS([FlyString] DOMString? namespace , [FlyString] DOMString qualifiedName , DOMString value);
     [CEReactions] undefined removeAttribute([FlyString] DOMString qualifiedName);
     [CEReactions] undefined removeAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
