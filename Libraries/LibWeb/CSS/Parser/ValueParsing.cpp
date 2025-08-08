@@ -4076,6 +4076,7 @@ RefPtr<StyleValue const> Parser::parse_calculated_value(ComponentValue const& co
                 return CalculationContext {
                     .percentages_resolve_as = property_resolves_percentages_relative_to(property_id),
                     .resolve_numbers_as_integers = property_accepts_type(property_id, ValueType::Integer),
+                    .accepted_type_ranges = property_accepted_type_ranges(property_id),
                 };
             },
             [](FunctionContext const& function) -> Optional<CalculationContext> {
@@ -4717,7 +4718,7 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_length_value(tokens);
     case ValueType::Number:
         return parse_number_value(tokens);
-    case ValueType::OpenTypeTag:
+    case ValueType::OpentypeTag:
         return parse_opentype_tag_value(tokens);
     case ValueType::Paint:
         return parse_paint_value(tokens);

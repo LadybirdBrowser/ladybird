@@ -494,22 +494,6 @@ ErrorOr<void> FormatBuilder::put_f64_with_precision(
     StringBuilder string_builder;
     FormatBuilder format_builder { string_builder };
 
-    if (isnan(value) || isinf(value)) [[unlikely]] {
-        if (value < 0.0)
-            TRY(string_builder.try_append('-'));
-        else if (sign_mode == SignMode::Always)
-            TRY(string_builder.try_append('+'));
-        else if (sign_mode == SignMode::Reserved)
-            TRY(string_builder.try_append(' '));
-
-        if (isnan(value))
-            TRY(string_builder.try_append(upper_case ? "NAN"sv : "nan"sv));
-        else
-            TRY(string_builder.try_append(upper_case ? "INF"sv : "inf"sv));
-        TRY(put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill));
-        return {};
-    }
-
     bool is_negative = value < 0.0;
     if (is_negative)
         value = -value;
@@ -584,32 +568,26 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
     SignMode sign_mode,
     RealNumberDisplayMode display_mode)
 {
-    if (precision.has_value() || base != 10)
-        return put_f64_with_precision(value, base, upper_case, zero_pad, use_separator, align, min_width, precision.value_or(6), fill, sign_mode, display_mode);
-
-    // No precision specified, so pick the best precision with roundtrip guarantees.
-    StringBuilder builder;
-
     // Special cases: NaN, inf, -inf, 0 and -0.
     auto const is_nan = isnan(value);
     auto const is_inf = isinf(value);
-    auto const is_zero = value == static_cast<T>(0.0) || value == static_cast<T>(-0.0);
-    if (is_nan || is_inf || is_zero) {
+
+    if (is_nan || is_inf) {
+        StringBuilder special_case_builder;
+
         if (value < 0)
-            TRY(builder.try_append('-'));
+            TRY(special_case_builder.try_append('-'));
         else if (sign_mode == SignMode::Always)
-            TRY(builder.try_append('+'));
+            TRY(special_case_builder.try_append('+'));
         else if (sign_mode == SignMode::Reserved)
-            TRY(builder.try_append(' '));
+            TRY(special_case_builder.try_append(' '));
 
         if (is_nan)
-            TRY(builder.try_append(upper_case ? "NAN"sv : "nan"sv));
+            TRY(special_case_builder.try_append(upper_case ? "NAN"sv : "nan"sv));
         else if (is_inf)
-            TRY(builder.try_append(upper_case ? "INF"sv : "inf"sv));
-        else
-            TRY(builder.try_append('0'));
+            TRY(special_case_builder.try_append(upper_case ? "INF"sv : "inf"sv));
 
-        return put_string(builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
+        return put_string(special_case_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
     }
 
     auto const [sign, mantissa, exponent] = convert_floating_point_to_decimal_exponential_form(value);
@@ -626,6 +604,68 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
     Array<u8, 20> mantissa_digits;
     auto mantissa_length = convert_to_decimal_digits_array(mantissa, mantissa_digits);
 
+    auto const n = exponent + static_cast<i32>(mantissa_length);
+    auto mantissa_text = StringView { mantissa_digits.span().slice(0, mantissa_length) };
+
+    // NOTE: Range from ECMA262, seems like an okay default.
+    if (n < -5 || n > 21) {
+        StringBuilder scientific_notation_builder;
+
+        if (sign)
+            TRY(scientific_notation_builder.try_append('-'));
+        else if (sign_mode == SignMode::Always)
+            TRY(scientific_notation_builder.try_append('+'));
+        else if (sign_mode == SignMode::Reserved)
+            TRY(scientific_notation_builder.try_append(' '));
+
+        auto const exponent_sign = n < 0 ? '-' : '+';
+        Array<u8, 5> exponent_digits;
+        auto const exponent_length = convert_to_decimal_digits_array(abs(n - 1), exponent_digits);
+        auto const exponent_text = StringView { exponent_digits.span().slice(0, exponent_length) };
+
+        if (precision.has_value())
+            mantissa_text = mantissa_text.substring_view(0, min(*precision + 1, mantissa_text.length())).trim("0"sv, TrimMode::Right);
+
+        if (mantissa_text.length() == 1) {
+            // <mantissa>e<exponent>
+            TRY(scientific_notation_builder.try_append(mantissa_text));
+            TRY(scientific_notation_builder.try_append('e'));
+            TRY(scientific_notation_builder.try_append(exponent_sign));
+            TRY(scientific_notation_builder.try_append(exponent_text));
+        } else {
+            // <mantissa>.<mantissa[1..]>e<exponent>
+            TRY(scientific_notation_builder.try_append(mantissa_text.substring_view(0, 1)));
+            TRY(scientific_notation_builder.try_append('.'));
+            TRY(scientific_notation_builder.try_append(mantissa_text.substring_view(1)));
+            TRY(scientific_notation_builder.try_append('e'));
+            TRY(scientific_notation_builder.try_append(exponent_sign));
+            TRY(scientific_notation_builder.try_append(exponent_text));
+        }
+
+        return put_string(scientific_notation_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
+    }
+
+    if (precision.has_value() || base != 10)
+        return put_f64_with_precision(value, base, upper_case, zero_pad, use_separator, align, min_width, precision.value_or(6), fill, sign_mode, display_mode);
+
+    if (value == static_cast<T>(0.0)) {
+        StringBuilder zero_builder;
+
+        if (value < 0)
+            TRY(zero_builder.try_append('-'));
+        else if (sign_mode == SignMode::Always)
+            TRY(zero_builder.try_append('+'));
+        else if (sign_mode == SignMode::Reserved)
+            TRY(zero_builder.try_append(' '));
+
+        TRY(zero_builder.try_append('0'));
+
+        return put_string(zero_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
+    }
+
+    // No precision specified, so pick the best precision with roundtrip guarantees.
+    StringBuilder builder;
+
     if (sign)
         TRY(builder.try_append('-'));
     else if (sign_mode == SignMode::Always)
@@ -633,48 +673,22 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
     else if (sign_mode == SignMode::Reserved)
         TRY(builder.try_append(' '));
 
-    auto const n = exponent + static_cast<i32>(mantissa_length);
-    auto const mantissa_text = StringView { mantissa_digits.span().slice(0, mantissa_length) };
     size_t integral_part_end = 0;
-    // NOTE: Range from ECMA262, seems like an okay default.
-    if (n >= -5 && n <= 21) {
-        if (exponent >= 0) {
-            TRY(builder.try_append(mantissa_text));
-            TRY(builder.try_append_repeated('0', exponent));
-            integral_part_end = builder.length();
-        } else if (n > 0) {
-            TRY(builder.try_append(mantissa_text.substring_view(0, n)));
-            integral_part_end = builder.length();
-            TRY(builder.try_append('.'));
-            TRY(builder.try_append(mantissa_text.substring_view(n)));
-        } else {
-            TRY(builder.try_append("0."sv));
-            TRY(builder.try_append_repeated('0', -n));
-            TRY(builder.try_append(mantissa_text));
-            integral_part_end = 1;
-        }
-    } else {
-        auto const exponent_sign = n < 0 ? '-' : '+';
-        Array<u8, 5> exponent_digits;
-        auto const exponent_length = convert_to_decimal_digits_array(abs(n - 1), exponent_digits);
-        auto const exponent_text = StringView { exponent_digits.span().slice(0, exponent_length) };
-        integral_part_end = 1;
 
-        if (mantissa_length == 1) {
-            // <mantissa>e<exponent>
-            TRY(builder.try_append(mantissa_text));
-            TRY(builder.try_append('e'));
-            TRY(builder.try_append(exponent_sign));
-            TRY(builder.try_append(exponent_text));
-        } else {
-            // <mantissa>.<mantissa[1..]>e<exponent>
-            TRY(builder.try_append(mantissa_text.substring_view(0, 1)));
-            TRY(builder.try_append('.'));
-            TRY(builder.try_append(mantissa_text.substring_view(1)));
-            TRY(builder.try_append('e'));
-            TRY(builder.try_append(exponent_sign));
-            TRY(builder.try_append(exponent_text));
-        }
+    if (exponent >= 0) {
+        TRY(builder.try_append(mantissa_text));
+        TRY(builder.try_append_repeated('0', exponent));
+        integral_part_end = builder.length();
+    } else if (n > 0) {
+        TRY(builder.try_append(mantissa_text.substring_view(0, n)));
+        integral_part_end = builder.length();
+        TRY(builder.try_append('.'));
+        TRY(builder.try_append(mantissa_text.substring_view(n)));
+    } else {
+        TRY(builder.try_append("0."sv));
+        TRY(builder.try_append_repeated('0', -n));
+        TRY(builder.try_append(mantissa_text));
+        integral_part_end = 1;
     }
 
     if (use_separator && integral_part_end > 3) {

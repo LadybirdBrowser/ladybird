@@ -30,7 +30,7 @@ enum class ValueType : u8 {
     Integer,
     Length,
     Number,
-    OpenTypeTag,
+    OpentypeTag,
     Paint,
     Percentage,
     Position,

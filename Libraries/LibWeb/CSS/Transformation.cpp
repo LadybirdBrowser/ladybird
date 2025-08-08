@@ -28,9 +28,9 @@ ErrorOr<Gfx::FloatMatrix4x4> Transformation::to_matrix(Optional<Painting::Painta
         return m_values[index].visit(
             [&](CSS::AngleOrCalculated const& value) -> ErrorOr<float> {
                 if (!value.is_calculated())
-                    return value.value().to_radians();
+                    return fmod(value.value().to_radians(), 2 * AK::Pi<double>);
                 if (auto resolved = value.resolved(context); resolved.has_value())
-                    return resolved->to_radians();
+                    return fmod(resolved->to_radians(), 2 * AK::Pi<double>);
                 return Error::from_string_literal("Transform contains non absolute units");
             },
             [&](CSS::LengthPercentage const& value) -> ErrorOr<float> {

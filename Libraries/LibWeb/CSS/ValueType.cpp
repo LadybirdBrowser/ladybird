@@ -44,7 +44,7 @@ Optional<ValueType> value_type_from_string(StringView string)
     if (string.equals_ignoring_ascii_case("number"sv))
         return ValueType::Number;
     if (string.equals_ignoring_ascii_case("opentype-tag"sv))
-        return ValueType::OpenTypeTag;
+        return ValueType::OpentypeTag;
     if (string.equals_ignoring_ascii_case("paint"sv))
         return ValueType::Paint;
     if (string.equals_ignoring_ascii_case("percentage"sv))
@@ -103,7 +103,7 @@ StringView value_type_to_string(ValueType value_type)
         return "Length"sv;
     case Web::CSS::ValueType::Number:
         return "Number"sv;
-    case Web::CSS::ValueType::OpenTypeTag:
+    case Web::CSS::ValueType::OpentypeTag:
         return "OpenTypeTag"sv;
     case Web::CSS::ValueType::Paint:
         return "Paint"sv;

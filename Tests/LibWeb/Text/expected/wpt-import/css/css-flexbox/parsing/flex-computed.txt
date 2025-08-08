@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 8 tests
 
-7 Pass
-1 Fail
+8 Pass
 Pass	Property flex value 'none'
 Pass	Property flex value '1'
 Pass	Property flex value '2 3'
@@ -11,4 +10,4 @@ Pass	Property flex value '4 5 6px'
 Pass	Property flex value '7% 8'
 Pass	Property flex value '8 auto'
 Pass	Property flex value 'calc(10px + 0.5em)'
-Fail	Property flex value 'calc(10px - 0.5em)'
+Pass	Property flex value 'calc(10px - 0.5em)'

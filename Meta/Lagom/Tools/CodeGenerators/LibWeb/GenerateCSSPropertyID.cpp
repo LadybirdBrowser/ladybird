@@ -257,6 +257,12 @@ bool is_inherited_property(PropertyID);
 NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);
+struct AcceptedTypeRange {
+    float min;
+    float max;
+};
+using AcceptedTypeRangeMap = HashMap<ValueType, AcceptedTypeRange>;
+AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID);
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
@@ -830,59 +836,8 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
                 if (enum_names.contains_slow(type_name))
                     continue;
 
-                if (type_name == "anchor") {
-                    property_generator.appendln("        case ValueType::Anchor:");
-                } else if (type_name == "angle") {
-                    property_generator.appendln("        case ValueType::Angle:");
-                } else if (type_name == "background-position") {
-                    property_generator.appendln("        case ValueType::BackgroundPosition:");
-                } else if (type_name == "basic-shape") {
-                    property_generator.appendln("        case ValueType::BasicShape:");
-                } else if (type_name == "color") {
-                    property_generator.appendln("        case ValueType::Color:");
-                } else if (type_name == "counter") {
-                    property_generator.appendln("        case ValueType::Counter:");
-                } else if (type_name == "custom-ident") {
-                    property_generator.appendln("        case ValueType::CustomIdent:");
-                } else if (type_name == "easing-function") {
-                    property_generator.appendln("        case ValueType::EasingFunction:");
-                } else if (type_name == "fit-content") {
-                    property_generator.appendln("        case ValueType::FitContent:");
-                } else if (type_name == "flex") {
-                    property_generator.appendln("        case ValueType::Flex:");
-                } else if (type_name == "frequency") {
-                    property_generator.appendln("        case ValueType::Frequency:");
-                } else if (type_name == "image") {
-                    property_generator.appendln("        case ValueType::Image:");
-                } else if (type_name == "integer") {
-                    property_generator.appendln("        case ValueType::Integer:");
-                } else if (type_name == "length") {
-                    property_generator.appendln("        case ValueType::Length:");
-                } else if (type_name == "number") {
-                    property_generator.appendln("        case ValueType::Number:");
-                } else if (type_name == "opentype-tag") {
-                    property_generator.appendln("        case ValueType::OpenTypeTag:");
-                } else if (type_name == "paint") {
-                    property_generator.appendln("        case ValueType::Paint:");
-                } else if (type_name == "percentage") {
-                    property_generator.appendln("        case ValueType::Percentage:");
-                } else if (type_name == "position") {
-                    property_generator.appendln("        case ValueType::Position:");
-                } else if (type_name == "ratio") {
-                    property_generator.appendln("        case ValueType::Ratio:");
-                } else if (type_name == "rect") {
-                    property_generator.appendln("        case ValueType::Rect:");
-                } else if (type_name == "resolution") {
-                    property_generator.appendln("        case ValueType::Resolution:");
-                } else if (type_name == "string") {
-                    property_generator.appendln("        case ValueType::String:");
-                } else if (type_name == "time") {
-                    property_generator.appendln("        case ValueType::Time:");
-                } else if (type_name == "url") {
-                    property_generator.appendln("        case ValueType::Url:");
-                } else {
-                    VERIFY_NOT_REACHED();
-                }
+                property_generator.set("type_name", title_casify(type_name));
+                property_generator.appendln("        case ValueType::@type_name@:");
                 did_output_accepted_type = true;
             }
 
@@ -900,6 +855,71 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
     generator.append(R"~~~(
     default:
         return false;
+    }
+}
+
+AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID property_id)
+{
+    switch (property_id) {
+)~~~");
+
+    properties.for_each_member([&](auto& name, auto& value) {
+        VERIFY(value.is_object());
+        auto& object = value.as_object();
+        if (is_legacy_alias(object))
+            return;
+
+        if (auto maybe_valid_types = object.get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
+            auto& valid_types = maybe_valid_types.value();
+            auto property_generator = generator.fork();
+            property_generator.set("name:titlecase", title_casify(name));
+
+            StringBuilder ranges_builder;
+
+            for (auto& type : valid_types.values()) {
+                VERIFY(type.is_string());
+
+                Vector<String> type_parts = MUST(type.as_string().split(' '));
+
+                if (type_parts.size() < 2)
+                    continue;
+
+                auto type_name = type_parts.first();
+
+                if (type_name == "custom-ident")
+                    continue;
+
+                // Drop the brackets on the range e.g. "[-∞,∞]" -> "-∞,∞"
+                auto type_range = MUST(type_parts.get(1)->substring_from_byte_offset(1, type_parts.get(1)->byte_count() - 2));
+
+                auto limits = MUST(type_range.split(','));
+
+                if (limits.size() != 2)
+                    VERIFY_NOT_REACHED();
+
+                // FIXME: Use min and max values for i32 instead of float where applicable (e.g. for "integer")
+                auto min = limits.get(0) == "-∞" ? "AK::NumericLimits<float>::lowest()"_string : *limits.get(0);
+                auto max = limits.get(1) == "∞" ? "AK::NumericLimits<float>::max()"_string : *limits.get(1);
+
+                if (!ranges_builder.is_empty())
+                    ranges_builder.appendff(", ");
+
+                ranges_builder.appendff("{{ ValueType::{}, {{ {}, {} }} }}", title_casify(type_name), min, max);
+            }
+
+            property_generator.set("ranges", ranges_builder.to_string_without_validation());
+
+            property_generator.append(R"~~~(
+    case PropertyID::@name:titlecase@: {
+        return { @ranges@ };
+    })~~~");
+        }
+    });
+
+    generator.append(R"~~~(
+    default: {
+        return { };
+    }
     }
 }
 

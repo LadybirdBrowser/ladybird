@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>CSS Values: typed arithmetic tests</title>
+<link rel="help" href="https://www.w3.org/TR/css-values-4/#calc-type-checking">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/numeric-testcommon.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<style>
+:root {
+  font-size: 10px;
+}
+#target {
+  font-size: 10px;
+}
+</style>
+<div style="width: 100px; container: my-container / inline-size;">
+  <div id="target"></div>
+</div>
+<script>
+function test_zero(expression, { is_negative, type = "integer" }) {
+  test_math_used(`sign(${expression})`, '0', { type: type });
+  // to test zero sign, make it to negative infinity and clamp it between -1 and 1
+  test_math_used(
+    `clamp(-1, 1 / sign(${expression}), 1)`,
+    (is_negative)? '-1' : '1',
+    { type: type },
+  );
+}
+
+const REALLY_LARGE = 1e6;
+const REALLY_LARGE_NEGATIVE = -REALLY_LARGE;
+
+test_math_used("min(1em, 110px / 10px * 1px)", "10px");
+test_math_used("max(10px, 110px / 10px * 1px)", "11px");
+test_math_used("max(1em + 2px, 110px / 10px * 1px)", "12px");
+test_math_used("max(1em + 2%, 110px / 10px * 1px)", "12px", {"prop": "width"});
+test_math_used("clamp(110px / 10px * 1px, 1em + 200%, 200% * 1% / 1em)", "20px");
+test_math_used("calc(3 + sign(10px / 1rem - sign(1em + 1px)))", "3", {"prop": "z-index"});
+test_math_used("calc(10em / 1em)", "10", {"prop": "z-index"});
+test_math_used("calc(10em / 1rem)", "10", {"prop": "z-index"});
+test_math_used("calc(10em / 1px)", "100", {"prop": "z-index"});
+test_math_used("calc(1px / 10em * NaN)", "0", {"prop": "z-index"});
+
+testComputedValueGreaterOrLowerThan("width", "calc(1px * 10em / 0em)", REALLY_LARGE);
+testComputedValueGreaterOrLowerThan("width", "calc(1px / 1px * 10em * infinity)", REALLY_LARGE);
+testComputedValueGreaterOrLowerThan("margin-left", "calc(1px * 10em / -0em)", REALLY_LARGE_NEGATIVE);
+testComputedValueGreaterOrLowerThan("z-index", "calc(10em / 0em)", REALLY_LARGE);
+
+test_zero("-0em / 1px", { is_negative: true });
+test_zero(" 0cqi / 1px", { is_negative: false });
+test_zero('atan2(-0cap / 1px, 0em / 1px)', { is_negative: true });
+test_zero('exp(-1vh / 0px)', { is_negative: false });
+
+test_math_used("calc(20cqw / 1rem)", "2", {"prop": "z-index"});
+
+testComputedValueGreaterOrLowerThan("animation-duration", "calc(2s / (10s - 10s) * 1s)", REALLY_LARGE);
+testTransformValuesCloseTo("rotate(calc((40em - 40px) / 1px * 1deg - 0.5turn))", 0.0001, "rotate(180deg)", "subtraction of angle unit: deg minus turn");
+</script>

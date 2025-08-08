@@ -267,6 +267,12 @@ TEST_CASE(floating_point_numbers)
     EXPECT_EQ(ByteString::formatted("{:'.4}", 1234.5678), "1,234.5678");
     EXPECT_EQ(ByteString::formatted("{:'.4}", -1234.5678), "-1,234.5678");
 
+    EXPECT_EQ(ByteString::formatted("{:.5}", 1.2345678e-15), "1.23456e-15");
+    EXPECT_EQ(ByteString::formatted("{:.5}", AK::NumericLimits<float>::max()), "3.40282e+38");
+    EXPECT_EQ(ByteString::formatted("{:.5}", AK::NumericLimits<float>::lowest()), "-3.40282e+38");
+    EXPECT_EQ(ByteString::formatted("{:.5}", 3.000001e30), "3e+30");
+    EXPECT_EQ(ByteString::formatted("{:.5}", 3.1e30), "3.1e+30");
+
     EXPECT_EQ(ByteString::formatted("{:.30f}", 1.0), "1.000000000000000000000000000000");
     EXPECT_EQ(ByteString::formatted("{:.30f}", 1.5), "1.500000000000000000000000000000");
     EXPECT_EQ(ByteString::formatted("{:.30f}", -2.0), "-2.000000000000000000000000000000");

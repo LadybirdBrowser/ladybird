@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 11 tests
 
-9 Pass
-2 Fail
+10 Pass
+1 Fail
 Pass	Property min-height value 'min-content'
 Pass	Property min-height value 'max-content'
 Pass	Property min-height value '10px'
 Pass	Property min-height value '20%'
 Pass	Property min-height value 'calc(10% + 40px)'
-Fail	Property min-height value 'calc(10px - 0.5em)'
+Pass	Property min-height value 'calc(10px - 0.5em)'
 Pass	Property min-height value 'calc(10px + 0.5em)'
 Pass	Property min-height value 'fit-content(10px)'
 Pass	Property min-height value 'fit-content(20%)'

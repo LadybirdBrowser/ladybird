@@ -63,6 +63,13 @@ constexpr static Matrix4x4<T> rotation_matrix(Vector3<T> const& axis, T angle)
 {
     T c, s;
     AK::sincos(angle, s, c);
+
+    if (abs(c) < AK::NumericLimits<T>::epsilon())
+        c = 0.0;
+
+    if (abs(s) < AK::NumericLimits<T>::epsilon())
+        s = 0.0;
+
     T t = 1 - c;
     T x = axis.x();
     T y = axis.y();

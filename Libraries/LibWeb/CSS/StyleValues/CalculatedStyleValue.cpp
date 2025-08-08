@@ -130,6 +130,66 @@ static NonnullRefPtr<CalculationNode const> simplify_2_children(T const& origina
     return original;
 }
 
+static CalculationNode::NumericValue clamp_and_censor_numeric_value(NumericCalculationNode const& node, CalculationContext const& context)
+{
+    auto value = node.value();
+
+    Optional<AcceptedTypeRange> accepted_range = value.visit(
+        [&](Number const&) { return context.resolve_numbers_as_integers ? context.accepted_type_ranges.get(ValueType::Integer) : context.accepted_type_ranges.get(ValueType::Number); },
+        [&](Angle const&) { return context.accepted_type_ranges.get(ValueType::Angle); },
+        [&](Flex const&) { return context.accepted_type_ranges.get(ValueType::Flex); },
+        [&](Frequency const&) { return context.accepted_type_ranges.get(ValueType::Frequency); },
+        [&](Length const&) { return context.accepted_type_ranges.get(ValueType::Length); },
+        [&](Percentage const&) { return context.accepted_type_ranges.get(ValueType::Percentage); },
+        [&](Resolution const&) { return context.accepted_type_ranges.get(ValueType::Resolution); },
+        [&](Time const&) { return context.accepted_type_ranges.get(ValueType::Time); });
+
+    if (!accepted_range.has_value()) {
+        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Calculation context missing accepted type range {}", node.numeric_type());
+        // FIXME: Min and max values for Integer should be based on i32 rather than float
+        accepted_range = { AK::NumericLimits<float>::lowest(), AK::NumericLimits<float>::max() };
+    }
+
+    auto clamp_and_censor = [&](double value, double min, double max) {
+        // https://drafts.csswg.org/css-values/#calc-ieee
+        // NaN does not escape a top-level calculation; it’s censored into a zero value.
+        if (isnan(value))
+            value = 0;
+
+        // https://drafts.csswg.org/css-values/#calc-range
+        // the value resulting from a top-level calculation must be clamped to the range allowed in the target context.
+        // Clamping is performed on computed values to the extent possible, and also on used values if computation was
+        // unable to sufficiently simplify the expression to allow range-checking.
+        return clamp(value, min, max);
+    };
+
+    return value.visit(
+        [&](Number const& value) -> CalculationNode::NumericValue {
+            return Number { value.type(), clamp_and_censor(context.resolve_numbers_as_integers ? value.integer_value() : value.value(), accepted_range->min, accepted_range->max) };
+        },
+        [&](Angle const& value) -> CalculationNode::NumericValue {
+            return Angle { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+        },
+        [&](Flex const& value) -> CalculationNode::NumericValue {
+            return Flex { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+        },
+        [&](Frequency const& value) -> CalculationNode::NumericValue {
+            return Frequency { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+        },
+        [&](Length const& value) -> CalculationNode::NumericValue {
+            return Length { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+        },
+        [&](Percentage const& value) -> CalculationNode::NumericValue {
+            return Percentage { clamp_and_censor(value.value(), accepted_range->min, accepted_range->max) };
+        },
+        [&](Resolution const& value) -> CalculationNode::NumericValue {
+            return Resolution { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+        },
+        [&](Time const& value) -> CalculationNode::NumericValue {
+            return Time { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+        });
+}
+
 static String serialize_a_calculation_tree(CalculationNode const&, CalculationContext const&, SerializationMode);
 
 // https://drafts.csswg.org/css-values-4/#serialize-a-math-function
@@ -141,8 +201,9 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
     //    the serialization being produced is of a computed value or later, then clamp the value to the range allowed
     //    for its context (if necessary), then serialize the value as normal and return the result.
     if (fn.type() == CalculationNode::Type::Numeric && serialization_mode == SerializationMode::ResolvedValue) {
-        // FIXME: Clamp the value. Note that we might have an infinite/nan value here.
-        return static_cast<NumericCalculationNode const&>(fn).value_to_string();
+        auto clamped_value = clamp_and_censor_numeric_value(static_cast<NumericCalculationNode const&>(fn), context);
+
+        return clamped_value.visit([&](auto const& value) { return value.to_string(serialization_mode); });
     }
 
     // 2. If fn represents an infinite or NaN value:
@@ -2742,7 +2803,7 @@ bool CalculatedStyleValue::equals(StyleValue const& other) const
 }
 
 // https://drafts.csswg.org/css-values-4/#calc-computed-value
-Optional<CalculatedStyleValue::CalculationResult> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context) const
+Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context) const
 {
     // The calculation tree is again simplified at used value time; with used value time information.
     auto simplified_tree = simplify_a_calculation_tree(m_calculation, m_context, resolution_context);
@@ -2754,15 +2815,45 @@ Optional<CalculatedStyleValue::CalculationResult> CalculatedStyleValue::resolve_
 
     VERIFY(value.has_value());
 
+    auto raw_value = value->value();
+
     // https://drafts.csswg.org/css-values/#calc-ieee
-    // FIXME: NaN does not escape a top-level calculation; it’s censored into a zero value.
+    // NaN does not escape a top-level calculation; it’s censored into a zero value.
+    if (isnan(raw_value))
+        raw_value = 0;
 
     // https://drafts.csswg.org/css-values/#calc-range
-    // FIXME: the value resulting from a top-level calculation must be clamped to the range allowed in the target
-    //        context. Clamping is performed on computed values to the extent possible, and also on used values if
-    //        computation was unable to sufficiently simplify the expression to allow range-checking.
+    // the value resulting from a top-level calculation must be clamped to the range allowed in the target context.
+    // Clamping is performed on computed values to the extent possible, and also on used values if computation was
+    // unable to sufficiently simplify the expression to allow range-checking.
+    Optional<AcceptedTypeRange> accepted_range;
 
-    return value;
+    if (value->type()->matches_number(m_context.percentages_resolve_as))
+        accepted_range = m_context.resolve_numbers_as_integers ? m_context.accepted_type_ranges.get(ValueType::Integer) : m_context.accepted_type_ranges.get(ValueType::Number);
+    else if (value->type()->matches_angle_percentage(m_context.percentages_resolve_as))
+        accepted_range = m_context.accepted_type_ranges.get(ValueType::Angle);
+    else if (value->type()->matches_flex(m_context.percentages_resolve_as))
+        accepted_range = m_context.accepted_type_ranges.get(ValueType::Flex);
+    else if (value->type()->matches_frequency_percentage(m_context.percentages_resolve_as))
+        accepted_range = m_context.accepted_type_ranges.get(ValueType::Frequency);
+    else if (value->type()->matches_length_percentage(m_context.percentages_resolve_as))
+        accepted_range = m_context.accepted_type_ranges.get(ValueType::Length);
+    else if (value->type()->matches_percentage())
+        accepted_range = m_context.accepted_type_ranges.get(ValueType::Percentage);
+    else if (value->type()->matches_resolution(m_context.percentages_resolve_as))
+        accepted_range = m_context.accepted_type_ranges.get(ValueType::Resolution);
+    else if (value->type()->matches_time_percentage(m_context.percentages_resolve_as))
+        accepted_range = m_context.accepted_type_ranges.get(ValueType::Time);
+
+    if (!accepted_range.has_value()) {
+        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Calculation context missing accepted type range {}", value->type());
+        // FIXME: Infinity for integers should be i32 max rather than float max
+        accepted_range = { AK::NumericLimits<float>::lowest(), AK::NumericLimits<float>::max() };
+    }
+
+    raw_value = clamp(raw_value, accepted_range->min, accepted_range->max);
+
+    return ResolvedValue { raw_value, value->type() };
 }
 
 Optional<Angle> CalculatedStyleValue::resolve_angle_deprecated(CalculationResolutionContext const& context) const
@@ -2777,8 +2868,8 @@ Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_angle(m_context.percentages_resolve_as))
-        return Angle::make_degrees(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_angle(m_context.percentages_resolve_as))
+        return Angle::make_degrees(result->value);
 
     return {};
 }
@@ -2795,8 +2886,8 @@ Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext c
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_flex(m_context.percentages_resolve_as))
-        return Flex::make_fr(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_flex(m_context.percentages_resolve_as))
+        return Flex::make_fr(result->value);
 
     return {};
 }
@@ -2813,8 +2904,8 @@ Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutio
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_frequency(m_context.percentages_resolve_as))
-        return Frequency::make_hertz(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_frequency(m_context.percentages_resolve_as))
+        return Frequency::make_hertz(result->value);
 
     return {};
 }
@@ -2831,8 +2922,8 @@ Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionConte
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_length(m_context.percentages_resolve_as))
-        return Length::make_px(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_length(m_context.percentages_resolve_as))
+        return Length::make_px(result->value);
 
     return {};
 }
@@ -2849,8 +2940,8 @@ Optional<Percentage> CalculatedStyleValue::resolve_percentage(CalculationResolut
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_percentage())
-        return Percentage { result.value().value() };
+    if (result.has_value() && result->type.has_value() && result->type->matches_percentage())
+        return Percentage { result->value };
 
     return {};
 }
@@ -2867,8 +2958,8 @@ Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolut
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_resolution(m_context.percentages_resolve_as))
-        return Resolution::make_dots_per_pixel(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_resolution(m_context.percentages_resolve_as))
+        return Resolution::make_dots_per_pixel(result->value);
 
     return {};
 }
@@ -2885,8 +2976,8 @@ Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext c
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_time(m_context.percentages_resolve_as))
-        return Time::make_seconds(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_time(m_context.percentages_resolve_as))
+        return Time::make_seconds(result->value);
 
     return {};
 }
@@ -2910,15 +3001,8 @@ Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionConte
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_number(m_context.percentages_resolve_as)) {
-        auto value = result.value().value();
-
-        // FIXME: This can be removed once it is upstreamed to `resolve_value`
-        if (isnan(value))
-            return 0.;
-
-        return result.value().value();
-    }
+    if (result.has_value() && result->type.has_value() && result->type->matches_number(m_context.percentages_resolve_as))
+        return result->value;
 
     return {};
 }
@@ -2935,8 +3019,8 @@ Optional<i64> CalculatedStyleValue::resolve_integer(CalculationResolutionContext
 {
     auto result = resolve_value(context);
 
-    if (result.has_value() && result.value().type().has_value() && result.value().type()->matches_number(m_context.percentages_resolve_as))
-        return llround(result.value().value());
+    if (result.has_value() && result->type.has_value() && result->type->matches_number(m_context.percentages_resolve_as))
+        return llround(result->value);
 
     return {};
 }

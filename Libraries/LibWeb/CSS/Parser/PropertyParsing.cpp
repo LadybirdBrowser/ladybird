@@ -169,7 +169,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Ratio); parsed.has_value())
         return parsed.release_value();
-    if (auto parsed = parse_for_type(ValueType::OpenTypeTag); parsed.has_value())
+    if (auto parsed = parse_for_type(ValueType::OpentypeTag); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Rect); parsed.has_value())
         return parsed.release_value();

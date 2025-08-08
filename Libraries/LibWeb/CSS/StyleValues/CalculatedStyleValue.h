@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -30,6 +31,7 @@ class CalculationNode;
 struct CalculationContext {
     Optional<ValueType> percentages_resolve_as {};
     bool resolve_numbers_as_integers = false;
+    AcceptedTypeRangeMap accepted_type_ranges {};
 };
 
 class CalculatedStyleValue : public StyleValue {
@@ -70,8 +72,6 @@ public:
     virtual String to_string(SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
     virtual bool equals(StyleValue const& other) const override;
-
-    Optional<CalculationResult> resolve_value(CalculationResolutionContext const&) const;
 
     bool resolves_to_angle() const { return m_resolved_type.matches_angle(m_context.percentages_resolve_as); }
     bool resolves_to_angle_percentage() const { return m_resolved_type.matches_angle_percentage(m_context.percentages_resolve_as); }
@@ -125,6 +125,12 @@ private:
         , m_context(move(context))
     {
     }
+
+    struct ResolvedValue {
+        double value;
+        Optional<CSSNumericType> type;
+    };
+    Optional<ResolvedValue> resolve_value(CalculationResolutionContext const&) const;
 
     Optional<ValueType> percentage_resolved_type() const;
 

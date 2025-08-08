@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <LibWeb/CSS/SerializationMode.h>
 #include <math.h>
 
 namespace Web::CSS {
@@ -70,7 +71,7 @@ public:
         return { Type::Number, m_value / other.m_value };
     }
 
-    String to_string() const;
+    String to_string(SerializationMode = SerializationMode::Normal) const;
 
     bool operator==(Number const& other) const
     {
