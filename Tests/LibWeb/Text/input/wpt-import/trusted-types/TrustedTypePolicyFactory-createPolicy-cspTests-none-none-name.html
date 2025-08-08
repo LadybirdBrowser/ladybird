@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+<meta http-equiv="Content-Security-Policy" content="trusted-types 'none' 'none' SomeName">
+<body>
+<script>
+  test(t => {
+    window.trustedTypes.createPolicy('SomeName', { createHTML: s => s } );
+  }, "Can create policy with name 'SomeName'");
+
+  test(t => {
+    assert_throws_js(TypeError, _ => {
+      window.trustedTypes.createPolicy('default', { createHTML: s => s } );
+    });
+  }, "Cannot create policy with name 'default' - policy creation throws");
+</script>

@@ -1,0 +1,22 @@
+#import <TrustedTypes/TrustedHTML.idl>
+#import <TrustedTypes/TrustedScript.idl>
+#import <TrustedTypes/TrustedScriptURL.idl>
+
+// https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy
+[Exposed=(Window,Worker)]
+interface TrustedTypePolicy {
+    readonly attribute Utf16DOMString name;
+    TrustedHTML createHTML(Utf16DOMString input, any... arguments);
+    TrustedScript createScript(Utf16DOMString input, any... arguments);
+    TrustedScriptURL createScriptURL(Utf16DOMString input, any... arguments);
+};
+
+// https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy-options
+dictionary TrustedTypePolicyOptions {
+    CreateHTMLCallback createHTML;
+    CreateScriptCallback createScript;
+    CreateScriptURLCallback createScriptURL;
+};
+callback CreateHTMLCallback = Utf16DOMString? (Utf16DOMString input, any... arguments);
+callback CreateScriptCallback = Utf16DOMString? (Utf16DOMString input, any... arguments);
+callback CreateScriptURLCallback = Utf16USVString? (Utf16DOMString input, any... arguments);

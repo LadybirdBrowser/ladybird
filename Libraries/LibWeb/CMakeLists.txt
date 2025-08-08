@@ -56,6 +56,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/FrameSourceDirective.cpp
     ContentSecurityPolicy/Directives/ImageSourceDirective.cpp
     ContentSecurityPolicy/Directives/KeywordSources.cpp
+    ContentSecurityPolicy/Directives/KeywordTrustedTypes.cpp
     ContentSecurityPolicy/Directives/ManifestSourceDirective.cpp
     ContentSecurityPolicy/Directives/MediaSourceDirective.cpp
     ContentSecurityPolicy/Directives/Names.cpp
@@ -896,6 +897,10 @@ set(SOURCES
     SVG/SVGViewElement.cpp
     SVG/TagNames.cpp
     SVG/ViewBox.cpp
+    TrustedTypes/TrustedHTML.cpp
+    TrustedTypes/TrustedScript.cpp
+    TrustedTypes/TrustedScriptURL.cpp
+    TrustedTypes/TrustedTypePolicy.cpp
     TrustedTypes/TrustedTypePolicyFactory.cpp
     UIEvents/CompositionEvent.cpp
     UIEvents/EventNames.cpp

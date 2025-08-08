@@ -32,6 +32,7 @@ namespace Web::ContentSecurityPolicy::Directives::Names {
     __ENUMERATE_DIRECTIVE_NAME(StyleSrc, "style-src")             \
     __ENUMERATE_DIRECTIVE_NAME(StyleSrcElem, "style-src-elem")    \
     __ENUMERATE_DIRECTIVE_NAME(StyleSrcAttr, "style-src-attr")    \
+    __ENUMERATE_DIRECTIVE_NAME(TrustedTypes, "trusted-types")     \
     __ENUMERATE_DIRECTIVE_NAME(WebRTC, "webrtc")                  \
     __ENUMERATE_DIRECTIVE_NAME(WorkerSrc, "worker-src")
 

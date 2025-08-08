@@ -1,0 +1,6 @@
+// https://w3c.github.io/trusted-types/dist/spec/#trused-script-url
+[Exposed=(Window,Worker)]
+interface TrustedScriptURL {
+    stringifier;
+    Utf16DOMString toJSON();
+};
