@@ -110,10 +110,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
         return root_filter;
     };
 
-    for_each_child([&](auto& node) {
-        if (is<DOM::Text>(node))
-            return IterationDecision::Continue;
-
+    for_each_child_of_type<DOM::Element>([&](auto& node) {
         if (auto* flood_primitive = as_if<SVGFEFloodElement>(node)) {
             root_filter = Gfx::Filter::flood(flood_primitive->flood_color(), flood_primitive->flood_opacity());
             update_result_map(*flood_primitive);
