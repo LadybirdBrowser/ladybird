@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	CSSVariableReferenceValue.variable can updated to a valid custom property name
+Fail	Updating CSSVariableReferenceValue.variable to the empty string throws TypeError
+Fail	Updating CSSVariableReferenceValue.variable to an invalid custom property name throws TypeError

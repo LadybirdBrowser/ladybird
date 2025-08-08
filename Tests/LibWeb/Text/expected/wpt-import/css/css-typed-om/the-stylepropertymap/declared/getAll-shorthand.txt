@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	StylePropertyMap.getAll() with a shorthand property set explicitly in css rule returns a base CSSStyleValue
+Fail	StylePropertyMap.getAll() with a shorthand property that is partially in css rule returns empty list

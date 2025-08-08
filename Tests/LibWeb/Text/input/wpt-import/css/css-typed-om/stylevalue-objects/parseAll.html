@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSStyleValue.parseAll</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parseall">
+<meta name="assert" content="Test CSSStyleValue.parseAll returns CSSStyleValues" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  const result = CSSStyleValue.parseAll('width', '10px');
+  assert_equals(result.length, 1, 'Result must be a list with one element');
+  assert_true(result[0] instanceof CSSStyleValue,
+              'Only element in result must be a subclass of CSSStyleValue');
+}, 'CSSStyleValue.parseAll() with a valid property returns a list with a single CSSStyleValue');
+
+test(() => {
+  const result = CSSStyleValue.parseAll('WiDtH', '10px');
+  assert_equals(result.length, 1, 'Result must be a list with one element');
+  assert_true(result[0] instanceof CSSStyleValue,
+              'Only element in result must be a subclass of CSSStyleValue');
+}, 'CSSStyleValue.parseAll() is not case sensitive');
+
+test(() => {
+  const result = CSSStyleValue.parseAll('transition-duration', '1s, 2s, 3s');
+  assert_equals(result.length, 3, 'Result must be a list with three elements');
+  for (const item of result) {
+    assert_true(item instanceof CSSStyleValue,
+                'All elements in result must be a subclass of CSSStyleValue');
+  }
+}, 'CSSStyleValue.parseAll() with a valid list-valued property returns a list with a single CSSStyleValue');
+
+test(() => {
+  const result = CSSStyleValue.parseAll('margin', '1px 2px 3px 4px');
+  assert_equals(result.length, 1, 'Result must be a list with one element');
+  assert_true(result[0] instanceof CSSStyleValue,
+              'Only element in result must be a subclass of CSSStyleValue');
+}, 'CSSStyleValue.parseAll() with a valid shorthand property returns a CSSStyleValue');
+
+test(() => {
+  const result = CSSStyleValue.parseAll('--foo', 'auto');
+  assert_equals(result.length, 1, 'Result must be a list with one element');
+  assert_true(result[0] instanceof CSSStyleValue,
+              'Only element in result must be a subclass of CSSStyleValue');
+}, 'CSSStyleValue.parseAll() with a valid custom property returns a list with a single CSSStyleValue');
+
+</script>

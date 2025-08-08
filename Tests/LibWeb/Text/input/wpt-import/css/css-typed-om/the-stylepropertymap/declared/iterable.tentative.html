@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>StylePropertyMap iterable tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#the-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, '');
+  assert_array_equals([...styleMap.entries()], []);
+}, 'Iterating over an empty StylePropertyMap gives a zero-length array');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, '--A: A; width: 10px; --C: C; transition-duration: 1s, 2s; color: red; --B: B;');
+  assert_array_equals([...styleMap.keys()],
+    ['--A', 'width', '--C', 'transition-duration', 'color', '--B']);
+}, 'StylePropertyMap iterates properties in correct order');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, 'width: 10px; height: 5px');
+  const keys = [...styleMap.keys()], values = [...styleMap.values()];
+
+  assert_array_equals(keys, ['width', 'height']);
+  assert_style_value_array_equals(values[0], [CSS.px(10)]);
+  assert_style_value_array_equals(values[1], [CSS.px(5)]);
+}, 'StylePropertyMap iterator returns CSS properties with the correct CSSStyleValue');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, 'transition-duration: 1s, 2s');
+  const keys = [...styleMap.keys()], values = [...styleMap.values()];
+
+  assert_array_equals(keys, ['transition-duration']);
+  assert_style_value_array_equals(values[0], [CSS.s(1), CSS.s(2)]);
+}, 'StylePropertyMap iterator returns list-valued properties with the correct CSSStyleValue');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, '--A: A; --B: B; --C: C');
+  const keys = [...styleMap.keys()], values = [...styleMap.values()];
+
+  assert_array_equals(keys, ['--A', '--B', '--C']);
+  assert_style_value_array_equals(values[0], [new CSSUnparsedValue(['A'])]);
+  assert_style_value_array_equals(values[1], [new CSSUnparsedValue(['B'])]);
+  assert_style_value_array_equals(values[2], [new CSSUnparsedValue(['C'])]);
+}, 'StylePropertyMap iterator returns custom properties with the correct CSSStyleValue');
+
+</script>

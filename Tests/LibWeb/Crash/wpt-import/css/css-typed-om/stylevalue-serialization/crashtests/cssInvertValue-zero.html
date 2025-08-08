@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/1232775">
+<title>Do not crash when serializing inverted zero via CSSTransformValue</title>
+<script>
+  const inverted = new CSSMathInvert(new CSSUnitValue(0, 'number'));
+  const rotate = new CSSRotate(inverted, 0, 0, CSS.deg(0));
+  const transform = new CSSTransformValue([rotate]);
+  inverted.toString();
+  rotate.toString();
+  transform.toString();
+</script>

@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSUnparsedValue Indexed Getter and Setter</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-__getter__-index-index">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-__setter__-index-val-val">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  const result = new CSSUnparsedValue(['foo', 'bar']);
+  assert_equals(result[3], undefined, 'result from out of range index');
+  assert_equals(result[-1], undefined, 'result from negative index');
+}, 'Getting invalid index in CSSUnparsedValue returns undefined');
+
+test(() => {
+  let result = new CSSUnparsedValue([new CSSVariableReferenceValue('--foo')]);
+  result[0] = 'A';
+  assert_equals(result[0], 'A', 'fragment reflects new value');
+}, 'Can update fragment in CSSUnparsedValue to a String');
+
+test(() => {
+  let result = new CSSUnparsedValue(['foo']);
+  result[0] = new CSSVariableReferenceValue('--A');
+  assert_style_value_equals(result[0], new CSSVariableReferenceValue('--A'),
+                            'fragment reflects new value');
+}, 'Can update fragment in CSSUnparsedValue to a CSSVariableReference');
+
+test(() => {
+  let result = new CSSUnparsedValue([]);
+  result[0] = 'foo';
+  assert_equals(result[0], 'foo', 'new fragment is appended');
+}, 'Setting one past the last fragment in a CSSUnparsedValue to a String ' +
+   'appends the new fragment');
+
+test(() => {
+  let result = new CSSUnparsedValue([' ']);
+  result[1] = new CSSVariableReferenceValue('--A');
+  assert_style_value_equals(result[1], new CSSVariableReferenceValue('--A'),
+                            'new fragment is appended');
+}, 'Setting one past the last fragment in a CSSUnparsedValue to a ' +
+   'CSSVariableReferenceValue appends the new fragment');
+
+test(() => {
+  let result = new CSSUnparsedValue(['foo', 'bar']);
+  assert_throws_js(RangeError, () => result[3] = 'foo');
+  assert_equals(result[3], undefined, 'fragment does not change');
+}, 'Setting out of range index in CSSUnparsedValue throws RangeError');
+
+</script>

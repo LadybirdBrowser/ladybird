@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>StylePropertyMap.getAll tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t);
+  assert_throws_js(TypeError, () => styleMap.getAll('lemon'));
+}, 'Calling StylePropertyMap.getAll with an unsupported property throws a TypeError');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t);
+  assert_style_value_array_equals(styleMap.getAll('height'), []);
+}, 'Calling StylePropertyMap.getAll with a property not in the property model returns an empty list');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, '--foo: auto');
+  assert_style_value_array_equals(styleMap.getAll('--Foo'), []);
+}, 'Calling StylePropertyMap.getAll with a custom property not in the property model returns an empty list');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, 'width: 10px; height: 20px');
+  assert_style_value_array_equals(styleMap.getAll('width'), [CSS.px(10)]);
+}, 'Calling StylePropertyMap.getAll with a valid property returns a single element list with the correct entry');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, 'height: 20px; width: 10px');
+  assert_style_value_array_equals(styleMap.getAll('wIdTh'), [CSS.px(10)]);
+}, 'StylePropertyMap.getAll is case-insensitive');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, '--foo: auto; --bar: 10px');
+  assert_style_value_array_equals(styleMap.getAll('--foo'), [new CSSUnparsedValue(['auto'])]);
+}, 'Calling StylePropertyMap.getAll with a valid custom property returns a single element list with the correct entry');
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t, 'width: 10px; transition-duration: 1s, 2s; height: 20px');
+  assert_style_value_array_equals(styleMap.getAll('transition-duration'), [CSS.s(1), CSS.s(2)]);
+}, 'Calling StylePropertyMap.getAll with a list-valued property returns all the values');
+
+</script>

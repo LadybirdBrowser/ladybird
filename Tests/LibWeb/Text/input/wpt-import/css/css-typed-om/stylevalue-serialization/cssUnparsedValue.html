@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>IDL-constructed CSSUnparsedValue serialization tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#unparsedvalue-serialization">
+<meta name="assert" content="Test CSSUnparsedValue are serialized similar to getComputedStyle()" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<div id="tag"></div>
+<div id="elem" style="color-scheme: bar/*comment*/var(--foo)"></div>
+<script>
+'use strict';
+
+test(() => {
+  assert_equals(new CSSUnparsedValue(['lem', 'on', 'ade']).toString(), 'lem/**/on/**/ade');
+}, 'CSSUnparsedValue containing strings serializes to its tokenized contents');
+
+test(() => {
+  assert_equals(new CSSUnparsedValue([
+      new CSSVariableReferenceValue('--A',
+        new CSSUnparsedValue([new CSSVariableReferenceValue('--B')])),
+      new CSSVariableReferenceValue('--C')]).toString(),
+    'var(--A,var(--B))var(--C)');
+}, 'CSSUnparsedValue containing variable references serializes its ' +
+   'tokenized contents');
+
+test(() => {
+  assert_equals(new CSSUnparsedValue(['foo', 'bar ',
+      new CSSVariableReferenceValue('--A',
+        new CSSUnparsedValue(['baz ',
+          new CSSVariableReferenceValue('--B'), 'lemon'])),
+      new CSSVariableReferenceValue('--C',
+        new CSSUnparsedValue(['ade']))]).toString(),
+    'foo/**/bar var(--A,baz var(--B)lemon)var(--C,ade)');
+}, 'CSSUnparsedValue containing mix of strings and variable references ' +
+   'serializes to its tokenized contents');
+
+test(() => {
+  let fallback = new CSSUnparsedValue([new CSSVariableReferenceValue('--B')]);
+  let var_ref = new CSSVariableReferenceValue('--A',fallback);
+  assert_equals(new CSSUnparsedValue([var_ref, var_ref]).toString(),
+    'var(--A,var(--B))var(--A,var(--B))');
+}, 'CSSUnparsedValue can hold same object in multiple places');
+
+test(() => {
+  assert_equals(
+      elem.attributeStyleMap.get("color-scheme").toString(),
+      'bar/**/var(--foo)');
+}, 'attributeStyleMap round-trips correctly, though the comment is gone');
+
+</script>

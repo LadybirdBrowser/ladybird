@@ -1,0 +1,86 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSTransformComponent.toMatrix tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix">
+<meta name="assert" content="Test CSSTransformComponent.toMatrix for each type of component" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gEpsilon = 1e-6;
+
+test(() => {
+  const component = new CSSTranslate(
+    new CSSUnitValue(1, 'px'),
+    new CSSUnitValue(2, 'px'),
+    new CSSUnitValue(3, 'px')
+  );
+  const expectedMatrix = (new DOMMatrixReadOnly()).translate(1, 2, 3);
+  assert_matrix_approx_equals(component.toMatrix(), expectedMatrix, 1e-8);
+}, 'CSSTranslate.toMatrix() returns correct matrix');
+
+test(() => {
+  const component = new CSSRotate(
+    new CSSUnitValue(1, 'number'),
+    new CSSUnitValue(2, 'number'),
+    new CSSUnitValue(3, 'number'),
+    new CSSUnitValue(90, 'deg')
+  );
+  const expectedMatrix = (new DOMMatrixReadOnly()).rotateAxisAngle(1, 2, 3, 90);
+  assert_matrix_approx_equals(component.toMatrix(), expectedMatrix, gEpsilon);
+}, 'CSSRotate.toMatrix() returns correct matrix');
+
+test(() => {
+  const component = new CSSScale(1, 2, 3);
+  const expectedMatrix = (new DOMMatrixReadOnly()).scale(1, 2, 3);
+  assert_matrix_approx_equals(component.toMatrix(), expectedMatrix, gEpsilon);
+}, 'CSSScale.toMatrix() returns correct matrix');
+
+test(() => {
+  const alpha = 10, beta = 20;
+  const component = new CSSSkew(
+    new CSSUnitValue(alpha, 'rad'),
+    new CSSUnitValue(beta, 'rad')
+  );
+  const expectedMatrix = new DOMMatrixReadOnly(
+        [1, Math.tan(beta), 0, 0, Math.tan(alpha), 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  assert_matrix_approx_equals(component.toMatrix(), expectedMatrix, gEpsilon);
+}, 'CSSSkew.toMatrix() returns correct matrix');
+
+test(() => {
+  const component = new CSSSkewX(
+    new CSSUnitValue(10, 'deg'),
+  );
+  const expectedMatrix = (new DOMMatrixReadOnly()).skewX(10);
+  assert_matrix_approx_equals(component.toMatrix(), expectedMatrix, gEpsilon);
+}, 'CSSSkewX.toMatrix() returns correct matrix');
+
+test(() => {
+  const component = new CSSSkewY(
+    new CSSUnitValue(10, 'deg'),
+  );
+  const expectedMatrix = (new DOMMatrixReadOnly()).skewY(10);
+  assert_matrix_approx_equals(component.toMatrix(), expectedMatrix, gEpsilon);
+}, 'CSSSkewY.toMatrix() returns correct matrix');
+
+test(() => {
+  const length = 10;
+  const component = new CSSPerspective(new CSSUnitValue(length, 'px'));
+  const expectedMatrix = new DOMMatrixReadOnly(
+        [1, 0, 0, 0,
+         0, 1, 0, 0,
+         0, 0, 1, -1/length,
+         0, 0, 0, 1]);
+  assert_matrix_approx_equals(component.toMatrix(), expectedMatrix, gEpsilon);
+}, 'CSSPerspective.toMatrix() returns correct matrix');
+
+test(() => {
+  const matrix = new DOMMatrixReadOnly(
+          [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+  const component = new CSSMatrixComponent(matrix);
+  assert_matrix_approx_equals(component.toMatrix(), matrix, gEpsilon);
+}, 'CSSMatrixComponent.toMatrix() returns correct matrix');
+
+</script>

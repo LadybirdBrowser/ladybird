@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:0xdevssh@gmail.com">
+<link rel="help" href="https://crbug.com/1238543">
+<link rel="help" href="https://www.w3.org/TR/css-typed-om-1/">
+<meta name="assert" content="The renderer should not crash.">
+
+<p>This test passes if it does not crash.</p>
+<script>
+    var inverted = new CSSMathInvert(CSS.number(0));
+    var converted = inverted.to('number');
+    converted.toString()
+</script>

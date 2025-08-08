@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Clearing an empty inline style is a no-op
+Fail	Can clear an inline style containing properties
+Fail	Inline StylePropertyMap.clear updates the element inline style

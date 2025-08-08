@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	CSS.Hz() produces hz frequency
+Fail	CSS.kHz() produces khz frequency

@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Inline StylePropertyMap.clear</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-clear">
+<meta name="assert" content="Test inline StylePropertyMap.clear" />
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '');
+  styleMap.clear();
+  assert_array_equals([...styleMap], []);
+}, 'Clearing an empty inline style is a no-op');
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '--foo: auto; width: 10px; transition-duration: 1s, 2s');
+
+  styleMap.clear();
+  assert_equals(styleMap.get('--foo'), undefined,
+    'Custom properties should be cleared');
+  assert_equals(styleMap.get('width'), undefined,
+    'CSS properties should be cleared');
+  assert_equals(styleMap.get('transition-duration'), undefined,
+    'List-valued properties should be cleared');
+  assert_array_equals([...styleMap], []);
+}, 'Can clear an inline style containing properties');
+
+test(t => {
+  let [elem, styleMap] = createElementWithInlineStyleMap(t, 'width: 10px;');
+  styleMap.clear();
+
+  assert_equals(elem.style.width, '', 'Element inline style should be cleared');
+}, 'Inline StylePropertyMap.clear updates the element inline style');
+
+</script>

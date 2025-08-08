@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	CSS identifiers are normalized from String to CSSKeywordValues
+Fail	CSS identifiers are normalized from CSSOM to CSSKeywordValues

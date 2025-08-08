@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Declared StylePropertyMap.delete</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#delete-a-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(t => {
+  let [rule, styleMap] = createRuleWithDeclaredStyleMap(t, '');
+  assert_equals(rule.style.getPropertyValue('width'), '');
+
+  styleMap.delete('width');
+  assert_equals(rule.style.getPropertyValue('width'), '');
+}, 'Deleting a property not in the css rule is a no-op');
+
+test(t => {
+  let [rule, styleMap] = createRuleWithDeclaredStyleMap(t, 'width: 10px');
+  assert_not_equals(rule.style.getPropertyValue('width'), '');
+
+  styleMap.delete('width');
+  assert_equals(rule.style.getPropertyValue('width'), '');
+}, 'Deleting a property in the css rule removes it from the css rule');
+
+test(t => {
+  let [rule, styleMap] = createRuleWithDeclaredStyleMap(t, '--Foo: 10px');
+  assert_not_equals(rule.style.getPropertyValue('--Foo'), '');
+
+  styleMap.delete('--Foo');
+  assert_equals(rule.style.getPropertyValue('--Foo'), '');
+}, 'Deleting a custom property in the css rule removes it from the ' +
+   'css rule');
+
+test(t => {
+  let [rule, styleMap] = createRuleWithDeclaredStyleMap(t,
+      'transition-duration: 1s, 2s');
+  assert_not_equals(rule.style.getPropertyValue('transition-duration'), '');
+
+  styleMap.delete('transition-duration');
+  assert_equals(rule.style.getPropertyValue('transition-duration'), '');
+}, 'Deleting a list-valued property in the css rule removes it from ' +
+   'the css rule');
+
+test(t => {
+  let [rule, styleMap] = createRuleWithDeclaredStyleMap(t, 'width: 10px');
+  assert_not_equals(rule.style.getPropertyValue('width'), '');
+
+  styleMap.delete('wIdTh');
+  assert_equals(rule.style.getPropertyValue('width'), '');
+}, 'Declared StylePropertyMap.delete is not case-sensitive');
+
+</script>

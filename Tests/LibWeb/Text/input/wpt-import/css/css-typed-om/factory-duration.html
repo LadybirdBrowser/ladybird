@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>CSSOM Test: Numeric Factory Functions for duration</title>
+        <link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+        <link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory">
+        <meta name="assert" content="CSS factory functions produce expected CSSUnitValue">
+        <script src="../../resources/testharness.js"></script>
+        <script src="../../resources/testharnessreport.js"></script>
+    </head>
+    <body>
+      <script>
+          'use strict';
+          test(function(){
+              var duration = CSS.s(10);
+              assert_true(duration instanceof CSSUnitValue);
+              assert_equals(duration.value, 10);
+              assert_equals(duration.unit, 's');
+          }, 'CSS.s() produces s duration');
+
+          test(function(){
+              var duration = CSS.ms(20);
+              assert_true(duration instanceof CSSUnitValue);
+              assert_equals(duration.value, 20);
+              assert_equals(duration.unit, 'ms');
+          }, 'CSS.ms() produces ms duration');
+      </script>
+    </body>
+</html>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	CSSStyleValue parsed from string serializes to given string
+Fail	Shorthand CSSStyleValue parsed from string serializes to given string

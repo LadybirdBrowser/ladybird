@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Computed StylePropertyMap.getAll with shorthands</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-getall">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createComputedStyleMap(t, 'margin: 1px 2px 3px 4px');
+  const result = styleMap.getAll('margin');
+  assert_not_equals(result, null, 'Result must not be null');
+  assert_equals(result.length, 1, 'Result must be a list with one item');
+  assert_class_string(result[0], 'CSSStyleValue',
+    'Only item in result must be a base CSSStyleValue');
+}, 'StylePropertyMap.getAll() with a shorthand property set explicitly in ' +
+   'computed style returns a list containing a base CSSStyleValue');
+
+test(t => {
+  const styleMap = createComputedStyleMap(t);
+  const result = styleMap.getAll('margin');
+  assert_not_equals(result, null, 'Result must not be null');
+  assert_equals(result.length, 1, 'Result must be a list with one item');
+  assert_class_string(result[0], 'CSSStyleValue',
+    'Only item in result must be a base CSSStyleValue');
+}, 'StylePropertyMap.getAll() with a shorthand property from initial ' +
+   'computed style returns a list containing a base CSSStyleValue');
+
+</script>

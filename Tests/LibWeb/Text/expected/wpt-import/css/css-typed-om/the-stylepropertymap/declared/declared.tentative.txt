@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	Declared StylePropertyMap only contains properties in the style rule
+Fail	Declared StylePropertyMap contains CSS property declarations in style rules
+Fail	Declared StylePropertyMap does not contain inline styles
+Fail	Declared StylePropertyMap contains custom property declarations
+Fail	Declared StylePropertyMap does not contain properties with invalid values
+Fail	Declared StylePropertyMap contains properties with their last valid value
+Fail	Declared StylePropertyMap is live

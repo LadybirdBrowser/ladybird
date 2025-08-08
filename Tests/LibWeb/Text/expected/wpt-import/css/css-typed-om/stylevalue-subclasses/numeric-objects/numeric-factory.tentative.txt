@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 34 tests
+
+34 Fail
+Fail	CSS.number returns a CSSUnitValue with correct value and unit
+Fail	CSS.percent returns a CSSUnitValue with correct value and unit
+Fail	CSS.em returns a CSSUnitValue with correct value and unit
+Fail	CSS.ex returns a CSSUnitValue with correct value and unit
+Fail	CSS.ch returns a CSSUnitValue with correct value and unit
+Fail	CSS.ic returns a CSSUnitValue with correct value and unit
+Fail	CSS.rem returns a CSSUnitValue with correct value and unit
+Fail	CSS.lh returns a CSSUnitValue with correct value and unit
+Fail	CSS.rlh returns a CSSUnitValue with correct value and unit
+Fail	CSS.vw returns a CSSUnitValue with correct value and unit
+Fail	CSS.vh returns a CSSUnitValue with correct value and unit
+Fail	CSS.vi returns a CSSUnitValue with correct value and unit
+Fail	CSS.vb returns a CSSUnitValue with correct value and unit
+Fail	CSS.vmin returns a CSSUnitValue with correct value and unit
+Fail	CSS.vmax returns a CSSUnitValue with correct value and unit
+Fail	CSS.cm returns a CSSUnitValue with correct value and unit
+Fail	CSS.mm returns a CSSUnitValue with correct value and unit
+Fail	CSS.Q returns a CSSUnitValue with correct value and unit
+Fail	CSS.in returns a CSSUnitValue with correct value and unit
+Fail	CSS.pt returns a CSSUnitValue with correct value and unit
+Fail	CSS.pc returns a CSSUnitValue with correct value and unit
+Fail	CSS.px returns a CSSUnitValue with correct value and unit
+Fail	CSS.deg returns a CSSUnitValue with correct value and unit
+Fail	CSS.grad returns a CSSUnitValue with correct value and unit
+Fail	CSS.rad returns a CSSUnitValue with correct value and unit
+Fail	CSS.turn returns a CSSUnitValue with correct value and unit
+Fail	CSS.s returns a CSSUnitValue with correct value and unit
+Fail	CSS.ms returns a CSSUnitValue with correct value and unit
+Fail	CSS.Hz returns a CSSUnitValue with correct value and unit
+Fail	CSS.kHz returns a CSSUnitValue with correct value and unit
+Fail	CSS.dpi returns a CSSUnitValue with correct value and unit
+Fail	CSS.dpcm returns a CSSUnitValue with correct value and unit
+Fail	CSS.dppx returns a CSSUnitValue with correct value and unit
+Fail	CSS.fr returns a CSSUnitValue with correct value and unit

@@ -1,0 +1,167 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>IDL-constructed CSSTransformValue serialization tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#positionvalue-serialization">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gTestCases = [
+  {
+    value: new CSSTranslate(CSS.percent(1), CSS.px(1)),
+    cssText: 'translate(1%, 1px)',
+    desc: 'CSSTranslate with 2 arguments'
+  },
+  {
+    value: new CSSTranslate(CSS.px(1), CSS.percent(2), CSS.px(3)),
+    cssText: 'translate3d(1px, 2%, 3px)',
+    desc: 'CSSTranslate with 3 arguments'
+  },
+  {
+    value: new CSSScale(CSS.number(2), CSS.number(3)),
+    cssText: 'scale(2, 3)',
+    desc: 'CSSScale with 2 arguments'
+  },
+  {
+    value: new CSSScale(CSS.number(1), CSS.number(2), CSS.number(3)),
+    cssText: 'scale3d(1, 2, 3)',
+    desc: 'CSSScale with 3 arguments'
+  },
+  {
+    value: new CSSRotate(CSS.deg(90)),
+    cssText: 'rotate(90deg)',
+    desc: 'CSSRotate with 1 argument'
+  },
+  {
+    value: new CSSRotate(CSS.number(1), CSS.number(2), CSS.number(3), CSS.deg(90)),
+    cssText: 'rotate3d(1, 2, 3, 90deg)',
+    desc: 'CSSRotate with 4 arguments'
+  },
+  {
+    value: new CSSSkew(CSS.deg(90), CSS.deg(45)),
+    cssText: 'skew(90deg, 45deg)',
+    desc: 'CSSSkew'
+  },
+  {
+    value: new CSSSkew(CSS.deg(90), CSS.turn(0)),
+    cssText: 'skew(90deg)',
+    desc: 'CSSSkew with Y which is 0 value'
+  },
+  {
+    value: new CSSSkewX(CSS.deg(90)),
+    cssText: 'skewX(90deg)',
+    desc: 'CSSSkewX'
+  },
+  {
+    value: new CSSSkewY(CSS.deg(90)),
+    cssText: 'skewY(90deg)',
+    desc: 'CSSSkewY'
+  },
+  {
+    value: new CSSPerspective(CSS.px(1)),
+    cssText: 'perspective(1px)',
+    desc: 'CSSPerspective'
+  },
+  {
+    value: new CSSPerspective(CSS.px(-1)),
+    cssText: 'perspective(calc(-1px))',
+    desc: 'CSSPerspective with negative length'
+  },
+  {
+    value: new CSSPerspective("none"),
+    cssText: 'perspective(none)',
+    desc: 'CSSPerspective with none as string'
+  },
+  {
+    value: new CSSPerspective(new CSSKeywordValue("none")),
+    cssText: 'perspective(none)',
+    desc: 'CSSPerspective with none as CSSKeyword'
+  },
+  {
+    value: new CSSTransformValue([new CSSPerspective(CSS.px(1))]),
+    cssText: 'perspective(1px)',
+    desc: 'CSSTransformValue with a single transform'
+  },
+  {
+    value: new CSSTransformValue([
+      new CSSTranslate(CSS.px(1), CSS.px(0)),
+      new CSSRotate(CSS.deg(90)),
+      new CSSPerspective(CSS.px(1)),
+      new CSSSkew(CSS.deg(90), CSS.deg(45)),
+      new CSSScale(CSS.number(1), CSS.number(2), CSS.number(3)),
+    ]),
+    cssText: 'translate(1px, 0px) rotate(90deg) perspective(1px) skew(90deg, 45deg) scale3d(1, 2, 3)',
+    desc: 'CSSTransformValue with multiple transforms'
+  },
+  {
+    value: new CSSTransformValue([
+      new CSSTranslate(new CSSMathSum(CSS.px(1), CSS.em(1)), CSS.px(0)),
+      new CSSRotate(new CSSMathSum(CSS.deg(90), CSS.turn(1))),
+      new CSSPerspective(new CSSMathSum(CSS.px(1), CSS.em(1))),
+      new CSSSkew(new CSSMathProduct(CSS.deg(90), 2), new CSSMathProduct(CSS.turn(1), 2)),
+      new CSSScale(
+        new CSSMathProduct(CSS.number(1), CSS.number(2)),
+        new CSSMathSum(CSS.number(1), CSS.number(1)),
+        new CSSMathProduct(CSS.number(3))
+      ),
+    ]),
+    cssText: 'translate(calc(1em + 1px), 0px) rotate(calc(90deg + 360deg)) perspective(calc(1em + 1px)) skew(calc(2 * 90deg), calc(2 * 360deg)) scale3d(calc(1 * 2), calc(1 + 1), calc(3))',
+    desc: 'CSSTransformValue containing CSSMathValues'
+  },
+  {
+    value: new CSSTransformValue([
+      new CSSRotate(
+        new CSSMathInvert(
+          new CSSUnitValue(0, 'number')),
+        0, 0, CSS.deg(0))
+      ]),
+    cssText:'rotate3d(calc(1 / 0), 0, 0, 0deg)',
+    desc: 'CSSMathInvert with 0 parameter'
+  },
+  {
+    value: new CSSTransformValue([
+      new CSSRotate(
+        0, 0, 0,
+          new CSSMathProduct(CSS.deg(1),
+            new CSSMathInvert(
+              new CSSUnitValue(0, 'number')))
+        )
+      ]),
+    cssText:'rotate3d(0, 0, 0, calc(1deg * (1 / 0)))',
+    desc: 'CSSMathInvert with 0 parameter and nested'
+  },
+  {
+    value: new CSSMatrixComponent(new DOMMatrixReadOnly([1, 2, 3, 4, 5, 6])),
+    cssText: 'matrix(1, 2, 3, 4, 5, 6)',
+    desc: 'CSSMatrixComponent with 6 elements'
+  },
+  {
+    value: new CSSMatrixComponent(new DOMMatrixReadOnly([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])),
+    cssText: 'matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)',
+    desc: 'CSSMatrixComponent with 16 elements'
+  },
+];
+
+for (const {value, cssText, desc} of gTestCases) {
+  test(() => {
+    assert_equals(value.toString(), cssText);
+  }, desc + ' serializes correctly');
+}
+
+test(() => {
+  let result = new CSSTransformValue([
+    new CSSTranslate(CSS.px(1), CSS.px(2), CSS.px(3)),
+    new CSSRotate(1, 2, 3, CSS.deg(90)),
+    new CSSScale(1, 2, 3),
+  ]);
+
+  for (const transform of result) {
+    transform.is2D = true;
+  }
+
+  assert_equals(result.toString(), 'translate(1px, 2px) rotate(90deg) scale(1, 2)');
+}, 'CSSTransformValue with updated is2D serializes as 2D transforms');
+
+</script>

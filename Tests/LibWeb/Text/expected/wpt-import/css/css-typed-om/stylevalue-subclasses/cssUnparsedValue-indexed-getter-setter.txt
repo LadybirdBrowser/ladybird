@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Getting invalid index in CSSUnparsedValue returns undefined
+Fail	Can update fragment in CSSUnparsedValue to a String
+Fail	Can update fragment in CSSUnparsedValue to a CSSVariableReference
+Fail	Setting one past the last fragment in a CSSUnparsedValue to a String appends the new fragment
+Fail	Setting one past the last fragment in a CSSUnparsedValue to a CSSVariableReferenceValue appends the new fragment
+Fail	Setting out of range index in CSSUnparsedValue throws RangeError
