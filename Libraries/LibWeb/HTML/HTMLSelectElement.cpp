@@ -633,7 +633,7 @@ void HTMLSelectElement::update_inner_text_element()
     // Update inner text element to the label of the selected option
     for (auto const& option_element : m_cached_list_of_options) {
         if (option_element->selected()) {
-            m_inner_text_element->set_text_content(Infra::strip_and_collapse_whitespace(Utf16String::from_utf8(option_element->label())));
+            MUST(m_inner_text_element->set_text_content(Infra::strip_and_collapse_whitespace(Utf16String::from_utf8(option_element->label()))));
             return;
         }
     }
