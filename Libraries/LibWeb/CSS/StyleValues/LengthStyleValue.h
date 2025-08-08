@@ -10,18 +10,18 @@
 #pragma once
 
 #include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/StyleValues/CSSUnitValue.h>
+#include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
 
 namespace Web::CSS {
 
-class LengthStyleValue final : public CSSUnitValue {
+class LengthStyleValue final : public DimensionStyleValue {
 public:
     static ValueComparingNonnullRefPtr<LengthStyleValue const> create(Length const&);
     virtual ~LengthStyleValue() override = default;
 
     Length const& length() const { return m_length; }
-    virtual double value() const override { return m_length.raw_value(); }
-    virtual StringView unit() const override { return m_length.unit_name(); }
+    virtual double raw_value() const override { return m_length.raw_value(); }
+    virtual StringView unit_name() const override { return m_length.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_length.to_string(serialization_mode); }
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
@@ -30,7 +30,7 @@ public:
 
 private:
     explicit LengthStyleValue(Length const& length)
-        : CSSUnitValue(Type::Length)
+        : DimensionStyleValue(Type::Length)
         , m_length(length)
     {
     }

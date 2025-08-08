@@ -7,11 +7,11 @@
 #pragma once
 
 #include <LibWeb/CSS/Resolution.h>
-#include <LibWeb/CSS/StyleValues/CSSUnitValue.h>
+#include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
 
 namespace Web::CSS {
 
-class ResolutionStyleValue : public CSSUnitValue {
+class ResolutionStyleValue : public DimensionStyleValue {
 public:
     static ValueComparingNonnullRefPtr<ResolutionStyleValue const> create(Resolution resolution)
     {
@@ -20,8 +20,8 @@ public:
     virtual ~ResolutionStyleValue() override = default;
 
     Resolution const& resolution() const { return m_resolution; }
-    virtual double value() const override { return m_resolution.raw_value(); }
-    virtual StringView unit() const override { return m_resolution.unit_name(); }
+    virtual double raw_value() const override { return m_resolution.raw_value(); }
+    virtual StringView unit_name() const override { return m_resolution.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_resolution.to_string(serialization_mode); }
 
@@ -35,7 +35,7 @@ public:
 
 private:
     explicit ResolutionStyleValue(Resolution resolution)
-        : CSSUnitValue(Type::Resolution)
+        : DimensionStyleValue(Type::Resolution)
         , m_resolution(move(resolution))
     {
     }

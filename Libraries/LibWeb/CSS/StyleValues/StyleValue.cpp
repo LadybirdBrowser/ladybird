@@ -110,6 +110,12 @@ AbstractImageStyleValue const& StyleValue::as_abstract_image() const
     return static_cast<AbstractImageStyleValue const&>(*this);
 }
 
+DimensionStyleValue const& StyleValue::as_dimension() const
+{
+    VERIFY(is_dimension());
+    return static_cast<DimensionStyleValue const&>(*this);
+}
+
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
     style_value_class_name const& StyleValue::as_##snake_case() const                    \
     {                                                                                    \

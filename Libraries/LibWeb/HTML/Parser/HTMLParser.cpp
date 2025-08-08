@@ -5486,7 +5486,7 @@ RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView string)
         return nullptr;
 
     // 4. If value is zero, return an error.
-    if (value->is_length() && value->as_length().length().raw_value() == 0)
+    if (value->is_length() && value->as_length().raw_value() == 0)
         return nullptr;
     if (value->is_percentage() && value->as_percentage().percentage().value() == 0)
         return nullptr;

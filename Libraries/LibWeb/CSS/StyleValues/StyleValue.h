@@ -172,6 +172,13 @@ public:
     AbstractImageStyleValue const& as_abstract_image() const;
     AbstractImageStyleValue& as_abstract_image() { return const_cast<AbstractImageStyleValue&>(const_cast<StyleValue const&>(*this).as_abstract_image()); }
 
+    bool is_dimension() const
+    {
+        return first_is_one_of(type(), Type::Angle, Type::Flex, Type::Frequency, Type::Length, Type::Percentage, Type::Resolution, Type::Time);
+    }
+    DimensionStyleValue const& as_dimension() const;
+    DimensionStyleValue& as_dimension() { return const_cast<DimensionStyleValue&>(const_cast<StyleValue const&>(*this).as_dimension()); }
+
     virtual bool is_color_function() const { return false; }
 
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \

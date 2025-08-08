@@ -252,6 +252,7 @@ class CSSStyleSheet;
 class CSSSupportsRule;
 class CursorStyleValue;
 class CustomIdentStyleValue;
+class DimensionStyleValue;
 class Display;
 class DisplayStyleValue;
 class EasingStyleValue;

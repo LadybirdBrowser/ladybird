@@ -28,7 +28,7 @@ Optional<Color> CSSRGB::to_color(ColorResolutionContext color_resolution_context
             return normalized(style_value.as_number().number());
 
         if (style_value.is_percentage())
-            return normalized(style_value.as_percentage().value() * 255 / 100);
+            return normalized(style_value.as_percentage().raw_value() * 255 / 100);
 
         if (style_value.is_calculated()) {
             auto const& calculated = style_value.as_calculated();
