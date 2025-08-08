@@ -280,7 +280,7 @@ public:
 
     Utf16String descendant_text_content() const;
     Optional<Utf16String> text_content() const;
-    void set_text_content(Optional<Utf16String> const&);
+    WebIDL::ExceptionOr<void> set_text_content(Optional<Utf16String> const&);
 
     WebIDL::ExceptionOr<void> normalize();
 
