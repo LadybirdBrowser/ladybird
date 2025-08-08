@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLSummaryElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLSummaryElement, HTMLElement);
+    WEB_NON_IDL_PLATFORM_OBJECT(HTMLSummaryElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSummaryElement);
 
 public:

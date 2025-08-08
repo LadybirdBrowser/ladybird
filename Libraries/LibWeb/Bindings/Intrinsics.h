@@ -66,9 +66,6 @@ public:
         return *m_constructors.find(class_name)->value;
     }
 
-    template<typename PrototypeType>
-    bool is_interface_exposed(JS::Realm&) const;
-
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
