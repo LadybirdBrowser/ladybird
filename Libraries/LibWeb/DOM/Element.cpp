@@ -361,14 +361,25 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
     return QualifiedName { local_name, prefix, namespace_ };
 }
 
-// https://dom.spec.whatwg.org/#dom-element-setattributens
-WebIDL::ExceptionOr<void> Element::set_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& qualified_name, String const& value)
+// FIXME: Trusted Types integration with DOM is still under review https://github.com/whatwg/dom/pull/1268
+// https://whatpr.org/dom/1268.html#dom-element-setattributens
+WebIDL::ExceptionOr<void> Element::set_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "element".
     auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Element));
 
-    // 2. Set an attribute value for this using localName, value, and also prefix and namespace.
-    set_attribute_value(extracted_qualified_name.local_name(), value, extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
+    // 2. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
+    //    with localName, namespace, element, and value.
+    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
+        extracted_qualified_name.local_name(),
+        extracted_qualified_name.namespace_().has_value() ? Utf16String::from_utf8(extracted_qualified_name.namespace_().value()) : Optional<Utf16String>(),
+        *this,
+        value.visit(
+            [](auto const& trusted_type) -> Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> { return trusted_type; },
+            [](String const& string) -> Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> { return Utf16String::from_utf8(string); })));
+
+    // 3. Set an attribute value for this using localName, verifiedValue, and also prefix and namespace.
+    set_attribute_value(extracted_qualified_name.local_name(), verified_value.to_utf8_but_should_be_ported_to_utf16(), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
 
     return {};
 }

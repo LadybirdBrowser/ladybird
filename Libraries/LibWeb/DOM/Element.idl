@@ -54,7 +54,7 @@ interface Element : Node {
     DOMString? getAttribute(DOMString qualifiedName);
     DOMString? getAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
     [CEReactions] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
-    [CEReactions] undefined setAttributeNS([FlyString] DOMString? namespace , [FlyString] DOMString qualifiedName , DOMString value);
+    [CEReactions] undefined setAttributeNS([FlyString] DOMString? namespace , [FlyString] DOMString qualifiedName , (TrustedType or Utf16DOMString) value);
     [CEReactions] undefined removeAttribute([FlyString] DOMString qualifiedName);
     [CEReactions] undefined removeAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
     [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
