@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSKeywordValue.h"
+#include "KeywordStyleValue.h"
 #include <LibGfx/Palette.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
@@ -16,12 +16,12 @@
 
 namespace Web::CSS {
 
-String CSSKeywordValue::to_string(SerializationMode) const
+String KeywordStyleValue::to_string(SerializationMode) const
 {
     return MUST(String::from_utf8(string_from_keyword(keyword())));
 }
 
-bool CSSKeywordValue::is_color(Keyword keyword)
+bool KeywordStyleValue::is_color(Keyword keyword)
 {
     switch (keyword) {
     case Keyword::Accentcolor:
@@ -130,12 +130,12 @@ bool CSSKeywordValue::is_color(Keyword keyword)
     }
 }
 
-bool CSSKeywordValue::has_color() const
+bool KeywordStyleValue::has_color() const
 {
     return is_color(keyword());
 }
 
-Optional<Color> CSSKeywordValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     if (keyword() == Keyword::Currentcolor) {
         return color_resolution_context.current_color.value_or(Color::Black);
@@ -342,7 +342,7 @@ Optional<Color> CSSKeywordValue::to_color(ColorResolutionContext color_resolutio
     }
 }
 
-Vector<Parser::ComponentValue> CSSKeywordValue::tokenize() const
+Vector<Parser::ComponentValue> KeywordStyleValue::tokenize() const
 {
     return { Parser::Token::create_ident(FlyString::from_utf8_without_validation(string_from_keyword(m_keyword).bytes())) };
 }

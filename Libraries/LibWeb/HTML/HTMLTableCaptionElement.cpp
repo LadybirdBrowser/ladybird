@@ -7,7 +7,7 @@
 #include <LibWeb/Bindings/HTMLTableCaptionElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/HTMLTableCaptionElement.h>
 
 namespace Web::HTML {
@@ -42,7 +42,7 @@ void HTMLTableCaptionElement::apply_presentational_hints(GC::Ref<CSS::CascadedPr
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
             if (value == "bottom"sv)
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::CaptionSide, CSS::CSSKeywordValue::create(CSS::Keyword::Bottom));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::CaptionSide, CSS::KeywordStyleValue::create(CSS::Keyword::Bottom));
         }
     });
 }

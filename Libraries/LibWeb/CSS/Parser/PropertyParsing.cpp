@@ -23,7 +23,6 @@
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -42,6 +41,7 @@
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -142,8 +142,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
             if (auto property = any_property_accepts_keyword(property_ids, keyword.value()); property.has_value()) {
                 tokens.discard_a_token();
                 if (auto resolved_keyword = resolve_legacy_value_alias(property.value(), keyword.value()); resolved_keyword.has_value())
-                    return PropertyAndValue { *property, CSSKeywordValue::create(resolved_keyword.value()) };
-                return PropertyAndValue { *property, CSSKeywordValue::create(keyword.value()) };
+                    return PropertyAndValue { *property, KeywordStyleValue::create(resolved_keyword.value()) };
+                return PropertyAndValue { *property, KeywordStyleValue::create(keyword.value()) };
             }
         }
 
@@ -1948,15 +1948,15 @@ RefPtr<StyleValue const> Parser::parse_columns_value(TokenStream<ComponentValue>
         return nullptr;
 
     if (found_autos == 2) {
-        column_count = CSSKeywordValue::create(Keyword::Auto);
-        column_width = CSSKeywordValue::create(Keyword::Auto);
+        column_count = KeywordStyleValue::create(Keyword::Auto);
+        column_width = KeywordStyleValue::create(Keyword::Auto);
     }
 
     if (found_autos == 1) {
         if (!column_count)
-            column_count = CSSKeywordValue::create(Keyword::Auto);
+            column_count = KeywordStyleValue::create(Keyword::Auto);
         if (!column_width)
-            column_width = CSSKeywordValue::create(Keyword::Auto);
+            column_width = KeywordStyleValue::create(Keyword::Auto);
     }
 
     if (!column_count)
@@ -2441,7 +2441,7 @@ RefPtr<StyleValue const> Parser::parse_flex_shorthand_value(TokenStream<Componen
         case PropertyID::Flex: {
             if (value->is_keyword() && value->to_keyword() == Keyword::None) {
                 auto zero = NumberStyleValue::create(0);
-                return make_flex_shorthand(zero, zero, CSSKeywordValue::create(Keyword::Auto));
+                return make_flex_shorthand(zero, zero, KeywordStyleValue::create(Keyword::Auto));
             }
             break;
         }
@@ -2585,7 +2585,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
                     PropertyID::FontVariantPosition },
                 {
                     property_initial_value(PropertyID::FontVariantAlternates),
-                    CSSKeywordValue::create(Keyword::SmallCaps),
+                    KeywordStyleValue::create(Keyword::SmallCaps),
                     property_initial_value(PropertyID::FontVariantEastAsian),
                     property_initial_value(PropertyID::FontVariantEmoji),
                     property_initial_value(PropertyID::FontVariantLigatures),
@@ -2675,7 +2675,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
         line_height = property_initial_value(PropertyID::LineHeight);
 
     transaction.commit();
-    auto initial_value = CSSKeywordValue::create(Keyword::Initial);
+    auto initial_value = KeywordStyleValue::create(Keyword::Initial);
     return ShorthandStyleValue::create(PropertyID::Font,
         {
             // Set explicitly https://drafts.csswg.org/css-fonts/#set-explicitly
@@ -2730,7 +2730,7 @@ RefPtr<StyleValue const> Parser::parse_font_family_value(TokenStream<ComponentVa
             if (maybe_keyword.has_value() && keyword_to_generic_font_family(maybe_keyword.value()).has_value()) {
                 inner_tokens.discard_a_token(); // Ident
                 inner_tokens.discard_whitespace();
-                return CSSKeywordValue::create(maybe_keyword.value());
+                return KeywordStyleValue::create(maybe_keyword.value());
             }
         }
 
@@ -3145,7 +3145,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>&
         }
     }
 
-    auto normal_value = CSSKeywordValue::create(Keyword::Normal);
+    auto normal_value = KeywordStyleValue::create(Keyword::Normal);
     auto resolve_list = [&normal_value](StyleValueVector values) -> NonnullRefPtr<StyleValue const> {
         if (values.is_empty())
             return normal_value;
@@ -3506,14 +3506,14 @@ RefPtr<StyleValue const> Parser::parse_list_style_value(TokenStream<ComponentVal
     if (found_nones == 2) {
         if (list_image || list_type)
             return nullptr;
-        auto none = CSSKeywordValue::create(Keyword::None);
+        auto none = KeywordStyleValue::create(Keyword::None);
         list_image = none;
         list_type = none;
 
     } else if (found_nones == 1) {
         if (list_image && list_type)
             return nullptr;
-        auto none = CSSKeywordValue::create(Keyword::None);
+        auto none = KeywordStyleValue::create(Keyword::None);
         if (!list_image)
             list_image = none;
         if (!list_type)
@@ -4262,7 +4262,7 @@ RefPtr<StyleValue const> Parser::parse_transform_value(TokenStream<ComponentValu
                     && argument_tokens.next_token().is_ident("none"sv)) {
 
                     argument_tokens.discard_a_token(); // none
-                    values.append(CSSKeywordValue::create(Keyword::None));
+                    values.append(KeywordStyleValue::create(Keyword::None));
                     break;
                 }
                 return nullptr;
@@ -4362,9 +4362,9 @@ RefPtr<StyleValue const> Parser::parse_transform_origin_value(TokenStream<Compon
         switch (single_value->axis) {
         case Axis::None:
         case Axis::X:
-            return make_list(single_value->offset, CSSKeywordValue::create(Keyword::Center), zero_value);
+            return make_list(single_value->offset, KeywordStyleValue::create(Keyword::Center), zero_value);
         case Axis::Y:
-            return make_list(CSSKeywordValue::create(Keyword::Center), single_value->offset, zero_value);
+            return make_list(KeywordStyleValue::create(Keyword::Center), single_value->offset, zero_value);
         }
         VERIFY_NOT_REACHED();
     }
@@ -4529,7 +4529,7 @@ RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentVal
         }
 
         if (!transition.property_name)
-            transition.property_name = CSSKeywordValue::create(Keyword::All);
+            transition.property_name = KeywordStyleValue::create(Keyword::All);
 
         if (!transition.easing)
             transition.easing = EasingStyleValue::create(EasingStyleValue::CubicBezier::ease());
@@ -5626,16 +5626,16 @@ RefPtr<StyleValue const> Parser::parse_white_space_shorthand(TokenStream<Compone
 
     // normal | pre | pre-wrap | pre-line
     if (parse_all_as_single_keyword_value(tokens, Keyword::Normal))
-        return make_whitespace_shorthand(CSSKeywordValue::create(Keyword::Collapse), CSSKeywordValue::create(Keyword::Wrap), CSSKeywordValue::create(Keyword::None));
+        return make_whitespace_shorthand(KeywordStyleValue::create(Keyword::Collapse), KeywordStyleValue::create(Keyword::Wrap), KeywordStyleValue::create(Keyword::None));
 
     if (parse_all_as_single_keyword_value(tokens, Keyword::Pre))
-        return make_whitespace_shorthand(CSSKeywordValue::create(Keyword::Preserve), CSSKeywordValue::create(Keyword::Nowrap), CSSKeywordValue::create(Keyword::None));
+        return make_whitespace_shorthand(KeywordStyleValue::create(Keyword::Preserve), KeywordStyleValue::create(Keyword::Nowrap), KeywordStyleValue::create(Keyword::None));
 
     if (parse_all_as_single_keyword_value(tokens, Keyword::PreWrap))
-        return make_whitespace_shorthand(CSSKeywordValue::create(Keyword::Preserve), CSSKeywordValue::create(Keyword::Wrap), CSSKeywordValue::create(Keyword::None));
+        return make_whitespace_shorthand(KeywordStyleValue::create(Keyword::Preserve), KeywordStyleValue::create(Keyword::Wrap), KeywordStyleValue::create(Keyword::None));
 
     if (parse_all_as_single_keyword_value(tokens, Keyword::PreLine))
-        return make_whitespace_shorthand(CSSKeywordValue::create(Keyword::PreserveBreaks), CSSKeywordValue::create(Keyword::Wrap), CSSKeywordValue::create(Keyword::None));
+        return make_whitespace_shorthand(KeywordStyleValue::create(Keyword::PreserveBreaks), KeywordStyleValue::create(Keyword::Wrap), KeywordStyleValue::create(Keyword::None));
 
     // <'white-space-collapse'> || <'text-wrap-mode'> || <'white-space-trim'>
     RefPtr<StyleValue const> white_space_collapse;

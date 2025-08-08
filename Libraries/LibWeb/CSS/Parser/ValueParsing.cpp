@@ -30,7 +30,6 @@
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSHSL.h>
 #include <LibWeb/CSS/StyleValues/CSSHWB.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CSSLCHLike.h>
 #include <LibWeb/CSS/StyleValues/CSSLabLike.h>
 #include <LibWeb/CSS/StyleValues/CSSLightDark.h>
@@ -52,6 +51,7 @@
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -824,7 +824,7 @@ RefPtr<StyleValue const> Parser::parse_number_percentage_none_value(TokenStream<
 
     if (tokens.next_token().is_ident("none"sv)) {
         tokens.discard_a_token(); // keyword none
-        return CSSKeywordValue::create(Keyword::None);
+        return KeywordStyleValue::create(Keyword::None);
     }
 
     return nullptr;
@@ -1334,7 +1334,7 @@ RefPtr<StyleValue const> Parser::parse_keyword_value(TokenStream<ComponentValue>
         auto keyword = keyword_from_string(peek_token.token().ident());
         if (keyword.has_value()) {
             tokens.discard_a_token(); // ident
-            return CSSKeywordValue::create(keyword.value());
+            return KeywordStyleValue::create(keyword.value());
         }
     }
 
@@ -1436,7 +1436,7 @@ RefPtr<StyleValue const> Parser::parse_hue_none_value(TokenStream<ComponentValue
         return number;
     if (tokens.next_token().is_ident("none"sv)) {
         tokens.discard_a_token(); // keyword none
-        return CSSKeywordValue::create(Keyword::None);
+        return KeywordStyleValue::create(Keyword::None);
     }
 
     return nullptr;
@@ -2487,7 +2487,7 @@ RefPtr<StyleValue const> Parser::parse_paint_value(TokenStream<ComponentValue>& 
                 switch (*maybe_keyword) {
                 case Keyword::None:
                     tokens.discard_a_token();
-                    return CSSKeywordValue::create(*maybe_keyword);
+                    return KeywordStyleValue::create(*maybe_keyword);
                 default:
                     return nullptr;
                 }
@@ -3485,23 +3485,23 @@ RefPtr<StyleValue const> Parser::parse_builtin_value(TokenStream<ComponentValue>
         auto ident = component_value.token().ident();
         if (ident.equals_ignoring_ascii_case("inherit"sv)) {
             transaction.commit();
-            return CSSKeywordValue::create(Keyword::Inherit);
+            return KeywordStyleValue::create(Keyword::Inherit);
         }
         if (ident.equals_ignoring_ascii_case("initial"sv)) {
             transaction.commit();
-            return CSSKeywordValue::create(Keyword::Initial);
+            return KeywordStyleValue::create(Keyword::Initial);
         }
         if (ident.equals_ignoring_ascii_case("unset"sv)) {
             transaction.commit();
-            return CSSKeywordValue::create(Keyword::Unset);
+            return KeywordStyleValue::create(Keyword::Unset);
         }
         if (ident.equals_ignoring_ascii_case("revert"sv)) {
             transaction.commit();
-            return CSSKeywordValue::create(Keyword::Revert);
+            return KeywordStyleValue::create(Keyword::Revert);
         }
         if (ident.equals_ignoring_ascii_case("revert-layer"sv)) {
             transaction.commit();
-            return CSSKeywordValue::create(Keyword::RevertLayer);
+            return KeywordStyleValue::create(Keyword::RevertLayer);
         }
     }
 

@@ -11,9 +11,9 @@
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
@@ -236,7 +236,7 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
         if (tokens.consume_a_token().is_ident(ident_node.ident())) {
             transaction.commit();
             if (auto keyword = keyword_from_string(ident_node.ident()); keyword.has_value())
-                return CSSKeywordValue::create(keyword.release_value());
+                return KeywordStyleValue::create(keyword.release_value());
             return CustomIdentStyleValue::create(ident_node.ident());
         }
         return nullptr;
