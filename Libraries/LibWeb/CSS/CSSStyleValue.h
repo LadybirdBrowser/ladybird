@@ -29,6 +29,66 @@
 
 namespace Web::CSS {
 
+#define ENUMERATE_CSS_STYLE_VALUE_TYPES                                                                        \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Anchor, anchor, AnchorStyleValue)                                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(AnchorSize, anchor_size, AnchorSizeStyleValue)                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Angle, angle, AngleStyleValue)                                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BackgroundSize, background_size, BackgroundSizeStyleValue)                \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BasicShape, basic_shape, BasicShapeStyleValue)                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderImageSlice, border_image_slice, BorderImageSliceStyleValue)         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadius, border_radius, BorderRadiusStyleValue)                      \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Calculated, calculated, CalculatedStyleValue)                             \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Color, color, CSSColorValue)                                              \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ColorScheme, color_scheme, ColorSchemeStyleValue)                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ConicGradient, conic_gradient, ConicGradientStyleValue)                   \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Content, content, ContentStyleValue)                                      \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Counter, counter, CounterStyleValue)                                      \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(CounterDefinitions, counter_definitions, CounterDefinitionsStyleValue)    \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Cursor, cursor, CursorStyleValue)                                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(CustomIdent, custom_ident, CustomIdentStyleValue)                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Display, display, DisplayStyleValue)                                      \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Easing, easing, EasingStyleValue)                                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Edge, edge, EdgeStyleValue)                                               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(FilterValueList, filter_value_list, FilterValueListStyleValue)            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(FitContent, fit_content, FitContentStyleValue)                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Flex, flex, FlexStyleValue)                                               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(FontSource, font_source, FontSourceStyleValue)                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(FontStyle, font_style, FontStyleStyleValue)                               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Frequency, frequency, FrequencyStyleValue)                                \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridAutoFlow, grid_auto_flow, GridAutoFlowStyleValue)                     \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTemplateArea, grid_template_area, GridTemplateAreaStyleValue)         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTrackPlacement, grid_track_placement, GridTrackPlacementStyleValue)   \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTrackSizeList, grid_track_size_list, GridTrackSizeListStyleValue)     \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GuaranteedInvalid, guaranteed_invalid, GuaranteedInvalidStyleValue)       \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Image, image, ImageStyleValue)                                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Integer, integer, IntegerStyleValue)                                      \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Keyword, keyword, CSSKeywordValue)                                        \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Length, length, LengthStyleValue)                                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(LinearGradient, linear_gradient, LinearGradientStyleValue)                \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(MathDepth, math_depth, MathDepthStyleValue)                               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Number, number, NumberStyleValue)                                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(OpenTypeTagged, open_type_tagged, OpenTypeTaggedStyleValue)               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(PendingSubstitution, pending_substitution, PendingSubstitutionStyleValue) \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Percentage, percentage, PercentageStyleValue)                             \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Position, position, PositionStyleValue)                                   \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(RadialGradient, radial_gradient, RadialGradientStyleValue)                \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Ratio, ratio, RatioStyleValue)                                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Rect, rect, RectStyleValue)                                               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(RepeatStyle, repeat_style, RepeatStyleStyleValue)                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Resolution, resolution, ResolutionStyleValue)                             \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ScrollbarColor, scrollbar_color, ScrollbarColorStyleValue)                \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ScrollbarGutter, scrollbar_gutter, ScrollbarGutterStyleValue)             \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Shadow, shadow, ShadowStyleValue)                                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Shorthand, shorthand, ShorthandStyleValue)                                \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(String, string, StringStyleValue)                                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Time, time, TimeStyleValue)                                               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transformation, transformation, TransformationStyleValue)                 \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transition, transition, TransitionStyleValue)                             \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(UnicodeRange, unicode_range, UnicodeRangeStyleValue)                      \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Unresolved, unresolved, UnresolvedStyleValue)                             \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(URL, url, URLStyleValue)                                                  \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)
+
 template<typename T>
 struct ValueComparingNonnullRefPtr : public NonnullRefPtr<T> {
     using NonnullRefPtr<T>::NonnullRefPtr;
@@ -99,64 +159,9 @@ public:
     virtual ~CSSStyleValue() = default;
 
     enum class Type {
-        Anchor,
-        AnchorSize,
-        Angle,
-        BackgroundSize,
-        BasicShape,
-        BorderImageSlice,
-        BorderRadius,
-        Calculated,
-        Color,
-        ColorScheme,
-        ConicGradient,
-        Content,
-        Counter,
-        CounterDefinitions,
-        Cursor,
-        CustomIdent,
-        Display,
-        Easing,
-        Edge,
-        FilterValueList,
-        FitContent,
-        Flex,
-        FontSource,
-        FontStyle,
-        Frequency,
-        GridAutoFlow,
-        GridTemplateArea,
-        GridTrackPlacement,
-        GridTrackSizeList,
-        GuaranteedInvalid,
-        Image,
-        Integer,
-        Keyword,
-        Length,
-        LinearGradient,
-        MathDepth,
-        Number,
-        OpenTypeTagged,
-        PendingSubstitution,
-        Percentage,
-        Position,
-        RadialGradient,
-        Ratio,
-        Rect,
-        RepeatStyle,
-        Resolution,
-        ScrollbarColor,
-        ScrollbarGutter,
-        Shadow,
-        Shorthand,
-        String,
-        Time,
-        Transformation,
-        Transition,
-        UnicodeRange,
-        Unresolved,
-        URL,
-        ValueList,
+#define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) title_case,
+        ENUMERATE_CSS_STYLE_VALUE_TYPES
+#undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
     };
 
     Type type() const { return m_type; }
@@ -168,238 +173,14 @@ public:
     AbstractImageStyleValue const& as_abstract_image() const;
     AbstractImageStyleValue& as_abstract_image() { return const_cast<AbstractImageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_abstract_image()); }
 
-    bool is_anchor() const { return type() == Type::Anchor; }
-    AnchorStyleValue const& as_anchor() const;
-    AnchorStyleValue& as_anchor() { return const_cast<AnchorStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_anchor()); }
-
-    bool is_anchor_size() const { return type() == Type::AnchorSize; }
-    AnchorSizeStyleValue const& as_anchor_size() const;
-    AnchorSizeStyleValue& as_anchor_size() { return const_cast<AnchorSizeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_anchor_size()); }
-
-    bool is_angle() const { return type() == Type::Angle; }
-    AngleStyleValue const& as_angle() const;
-    AngleStyleValue& as_angle() { return const_cast<AngleStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_angle()); }
-
-    bool is_background_size() const { return type() == Type::BackgroundSize; }
-    BackgroundSizeStyleValue const& as_background_size() const;
-    BackgroundSizeStyleValue& as_background_size() { return const_cast<BackgroundSizeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_background_size()); }
-
-    bool is_basic_shape() const { return type() == Type::BasicShape; }
-    BasicShapeStyleValue const& as_basic_shape() const;
-    BasicShapeStyleValue& as_basic_shape() { return const_cast<BasicShapeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_basic_shape()); }
-
-    bool is_border_image_slice() const { return type() == Type::BorderImageSlice; }
-    BorderImageSliceStyleValue const& as_border_image_slice() const;
-    BorderImageSliceStyleValue& as_border_image_slice() { return const_cast<BorderImageSliceStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_border_image_slice()); }
-
-    bool is_border_radius() const { return type() == Type::BorderRadius; }
-    BorderRadiusStyleValue const& as_border_radius() const;
-    BorderRadiusStyleValue& as_border_radius() { return const_cast<BorderRadiusStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_border_radius()); }
-
-    bool is_calculated() const { return type() == Type::Calculated; }
-    CalculatedStyleValue const& as_calculated() const;
-    CalculatedStyleValue& as_calculated() { return const_cast<CalculatedStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_calculated()); }
-
-    bool is_color() const { return type() == Type::Color; }
-    CSSColorValue const& as_color() const;
-    CSSColorValue& as_color() { return const_cast<CSSColorValue&>(const_cast<CSSStyleValue const&>(*this).as_color()); }
     virtual bool is_color_function() const { return false; }
 
-    bool is_color_scheme() const { return type() == Type::ColorScheme; }
-    ColorSchemeStyleValue const& as_color_scheme() const;
-    ColorSchemeStyleValue& as_color_scheme() { return const_cast<ColorSchemeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_color_scheme()); }
-
-    bool is_conic_gradient() const { return type() == Type::ConicGradient; }
-    ConicGradientStyleValue const& as_conic_gradient() const;
-    ConicGradientStyleValue& as_conic_gradient() { return const_cast<ConicGradientStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_conic_gradient()); }
-
-    bool is_content() const { return type() == Type::Content; }
-    ContentStyleValue const& as_content() const;
-    ContentStyleValue& as_content() { return const_cast<ContentStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_content()); }
-
-    bool is_counter() const { return type() == Type::Counter; }
-    CounterStyleValue const& as_counter() const;
-    CounterStyleValue& as_counter() { return const_cast<CounterStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_counter()); }
-
-    bool is_counter_definitions() const { return type() == Type::CounterDefinitions; }
-    CounterDefinitionsStyleValue const& as_counter_definitions() const;
-    CounterDefinitionsStyleValue& as_counter_definitions() { return const_cast<CounterDefinitionsStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_counter_definitions()); }
-
-    bool is_cursor() const { return type() == Type::Cursor; }
-    CursorStyleValue const& as_cursor() const;
-    CursorStyleValue& as_cursor() { return const_cast<CursorStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_cursor()); }
-
-    bool is_custom_ident() const { return type() == Type::CustomIdent; }
-    CustomIdentStyleValue const& as_custom_ident() const;
-    CustomIdentStyleValue& as_custom_ident() { return const_cast<CustomIdentStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_custom_ident()); }
-
-    bool is_display() const { return type() == Type::Display; }
-    DisplayStyleValue const& as_display() const;
-    DisplayStyleValue& as_display() { return const_cast<DisplayStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_display()); }
-
-    bool is_easing() const { return type() == Type::Easing; }
-    EasingStyleValue const& as_easing() const;
-    EasingStyleValue& as_easing() { return const_cast<EasingStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_easing()); }
-
-    bool is_edge() const { return type() == Type::Edge; }
-    EdgeStyleValue const& as_edge() const;
-    EdgeStyleValue& as_edge() { return const_cast<EdgeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_edge()); }
-
-    bool is_filter_value_list() const { return type() == Type::FilterValueList; }
-    FilterValueListStyleValue const& as_filter_value_list() const;
-    FilterValueListStyleValue& as_filter_value_list() { return const_cast<FilterValueListStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_filter_value_list()); }
-
-    [[nodiscard]] bool is_fit_content() const { return type() == Type::FitContent; }
-    [[nodiscard]] FitContentStyleValue const& as_fit_content() const;
-    [[nodiscard]] FitContentStyleValue& as_fit_content() { return const_cast<FitContentStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_fit_content()); }
-
-    bool is_flex() const { return type() == Type::Flex; }
-    FlexStyleValue const& as_flex() const;
-    FlexStyleValue& as_flex() { return const_cast<FlexStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_flex()); }
-
-    bool is_font_source() const { return type() == Type::FontSource; }
-    FontSourceStyleValue const& as_font_source() const;
-    FontSourceStyleValue& as_font_source() { return const_cast<FontSourceStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_font_source()); }
-
-    bool is_font_style() const { return type() == Type::FontStyle; }
-    FontStyleStyleValue const& as_font_style() const;
-    FontStyleStyleValue& as_font_style() { return const_cast<FontStyleStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_font_style()); }
-
-    bool is_frequency() const { return type() == Type::Frequency; }
-    FrequencyStyleValue const& as_frequency() const;
-    FrequencyStyleValue& as_frequency() { return const_cast<FrequencyStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_frequency()); }
-
-    bool is_grid_auto_flow() const { return type() == Type::GridAutoFlow; }
-    GridAutoFlowStyleValue const& as_grid_auto_flow() const;
-    GridAutoFlowStyleValue& as_grid_auto_flow() { return const_cast<GridAutoFlowStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_auto_flow()); }
-
-    bool is_grid_template_area() const { return type() == Type::GridTemplateArea; }
-    GridTemplateAreaStyleValue const& as_grid_template_area() const;
-    GridTemplateAreaStyleValue& as_grid_template_area() { return const_cast<GridTemplateAreaStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_template_area()); }
-
-    bool is_grid_track_placement() const { return type() == Type::GridTrackPlacement; }
-    GridTrackPlacementStyleValue const& as_grid_track_placement() const;
-    GridTrackPlacementStyleValue& as_grid_track_placement() { return const_cast<GridTrackPlacementStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_track_placement()); }
-
-    bool is_grid_track_size_list() const { return type() == Type::GridTrackSizeList; }
-    GridTrackSizeListStyleValue const& as_grid_track_size_list() const;
-    GridTrackSizeListStyleValue& as_grid_track_size_list() { return const_cast<GridTrackSizeListStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_track_size_list()); }
-
-    bool is_guaranteed_invalid() const { return type() == Type::GuaranteedInvalid; }
-    GuaranteedInvalidStyleValue const& as_guaranteed_invalid() const;
-    GuaranteedInvalidStyleValue& as_guaranteed_invalid() { return const_cast<GuaranteedInvalidStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_guaranteed_invalid()); }
-
-    bool is_image() const { return type() == Type::Image; }
-    ImageStyleValue const& as_image() const;
-    ImageStyleValue& as_image() { return const_cast<ImageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_image()); }
-
-    bool is_integer() const { return type() == Type::Integer; }
-    IntegerStyleValue const& as_integer() const;
-    IntegerStyleValue& as_integer() { return const_cast<IntegerStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_integer()); }
-
-    bool is_keyword() const { return type() == Type::Keyword; }
-    CSSKeywordValue const& as_keyword() const;
-    CSSKeywordValue& as_keyword() { return const_cast<CSSKeywordValue&>(const_cast<CSSStyleValue const&>(*this).as_keyword()); }
-
-    bool is_length() const { return type() == Type::Length; }
-    LengthStyleValue const& as_length() const;
-    LengthStyleValue& as_length() { return const_cast<LengthStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_length()); }
-
-    bool is_linear_gradient() const { return type() == Type::LinearGradient; }
-    LinearGradientStyleValue const& as_linear_gradient() const;
-    LinearGradientStyleValue& as_linear_gradient() { return const_cast<LinearGradientStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_linear_gradient()); }
-
-    bool is_math_depth() const { return type() == Type::MathDepth; }
-    MathDepthStyleValue const& as_math_depth() const;
-    MathDepthStyleValue& as_math_depth() { return const_cast<MathDepthStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_math_depth()); }
-
-    bool is_number() const { return type() == Type::Number; }
-    NumberStyleValue const& as_number() const;
-    NumberStyleValue& as_number() { return const_cast<NumberStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_number()); }
-
-    bool is_open_type_tagged() const { return type() == Type::OpenTypeTagged; }
-    OpenTypeTaggedStyleValue const& as_open_type_tagged() const;
-    OpenTypeTaggedStyleValue& as_open_type_tagged() { return const_cast<OpenTypeTaggedStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_open_type_tagged()); }
-
-    bool is_pending_substitution() const { return type() == Type::PendingSubstitution; }
-    PendingSubstitutionStyleValue const& as_pending_substitution() const;
-    PendingSubstitutionStyleValue& as_pending_substitution() { return const_cast<PendingSubstitutionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_pending_substitution()); }
-
-    bool is_percentage() const { return type() == Type::Percentage; }
-    PercentageStyleValue const& as_percentage() const;
-    PercentageStyleValue& as_percentage() { return const_cast<PercentageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_percentage()); }
-
-    bool is_position() const { return type() == Type::Position; }
-    PositionStyleValue const& as_position() const;
-
-    PositionStyleValue& as_position() { return const_cast<PositionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_position()); }
-    bool is_radial_gradient() const { return type() == Type::RadialGradient; }
-    RadialGradientStyleValue const& as_radial_gradient() const;
-    RadialGradientStyleValue& as_radial_gradient() { return const_cast<RadialGradientStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_radial_gradient()); }
-
-    bool is_ratio() const { return type() == Type::Ratio; }
-    RatioStyleValue const& as_ratio() const;
-    RatioStyleValue& as_ratio() { return const_cast<RatioStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_ratio()); }
-
-    bool is_rect() const { return type() == Type::Rect; }
-    RectStyleValue const& as_rect() const;
-    RectStyleValue& as_rect() { return const_cast<RectStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_rect()); }
-
-    bool is_repeat_style() const { return type() == Type::RepeatStyle; }
-    RepeatStyleStyleValue const& as_repeat_style() const;
-    RepeatStyleStyleValue& as_repeat_style() { return const_cast<RepeatStyleStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_repeat_style()); }
-
-    bool is_resolution() const { return type() == Type::Resolution; }
-    ResolutionStyleValue const& as_resolution() const;
-    ResolutionStyleValue& as_resolution() { return const_cast<ResolutionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_resolution()); }
-
-    bool is_scrollbar_color() const { return type() == Type::ScrollbarColor; }
-    ScrollbarColorStyleValue const& as_scrollbar_color() const;
-    ScrollbarColorStyleValue& as_scrollbar_color() { return const_cast<ScrollbarColorStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_scrollbar_color()); }
-
-    bool is_scrollbar_gutter() const { return type() == Type::ScrollbarGutter; }
-    ScrollbarGutterStyleValue const& as_scrollbar_gutter() const;
-    ScrollbarGutterStyleValue& as_scrollbar_gutter() { return const_cast<ScrollbarGutterStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_scrollbar_gutter()); }
-
-    bool is_shadow() const { return type() == Type::Shadow; }
-    ShadowStyleValue const& as_shadow() const;
-    ShadowStyleValue& as_shadow() { return const_cast<ShadowStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_shadow()); }
-
-    bool is_shorthand() const { return type() == Type::Shorthand; }
-    ShorthandStyleValue const& as_shorthand() const;
-    ShorthandStyleValue& as_shorthand() { return const_cast<ShorthandStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_shorthand()); }
-
-    bool is_string() const { return type() == Type::String; }
-    StringStyleValue const& as_string() const;
-    StringStyleValue& as_string() { return const_cast<StringStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_string()); }
-
-    bool is_time() const { return type() == Type::Time; }
-    TimeStyleValue const& as_time() const;
-    TimeStyleValue& as_time() { return const_cast<TimeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_time()); }
-
-    bool is_transformation() const { return type() == Type::Transformation; }
-    TransformationStyleValue const& as_transformation() const;
-    TransformationStyleValue& as_transformation() { return const_cast<TransformationStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_transformation()); }
-
-    bool is_transition() const { return type() == Type::Transition; }
-    TransitionStyleValue const& as_transition() const;
-    TransitionStyleValue& as_transition() { return const_cast<TransitionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_transition()); }
-
-    bool is_unicode_range() const { return type() == Type::UnicodeRange; }
-    UnicodeRangeStyleValue const& as_unicode_range() const;
-    UnicodeRangeStyleValue& as_unicode_range() { return const_cast<UnicodeRangeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_unicode_range()); }
-
-    bool is_unresolved() const { return type() == Type::Unresolved; }
-    UnresolvedStyleValue const& as_unresolved() const;
-    UnresolvedStyleValue& as_unresolved() { return const_cast<UnresolvedStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_unresolved()); }
-
-    bool is_url() const { return type() == Type::URL; }
-    URLStyleValue const& as_url() const;
-    URLStyleValue& as_url() { return const_cast<URLStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_url()); }
-
-    bool is_value_list() const { return type() == Type::ValueList; }
-    StyleValueList const& as_value_list() const;
-    StyleValueList& as_value_list() { return const_cast<StyleValueList&>(const_cast<CSSStyleValue const&>(*this).as_value_list()); }
+#define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
+    bool is_##snake_case() const { return type() == Type::title_case; }                  \
+    style_value_class_name const& as_##snake_case() const;                               \
+    style_value_class_name& as_##snake_case() { return const_cast<style_value_class_name&>(const_cast<CSSStyleValue const&>(*this).as_##snake_case()); }
+    ENUMERATE_CSS_STYLE_VALUE_TYPES
+#undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
 
     // https://www.w3.org/TR/css-values-4/#common-keywords
     // https://drafts.csswg.org/css-cascade-4/#valdef-all-revert
