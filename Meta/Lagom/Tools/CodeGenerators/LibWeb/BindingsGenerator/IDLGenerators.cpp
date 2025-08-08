@@ -5128,6 +5128,7 @@ void generate_constructor_implementation(IDL::Interface const& interface, String
     generator.append(R"~~~(
 #include <LibIDL/Types.h>
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/GlobalObject.h>
