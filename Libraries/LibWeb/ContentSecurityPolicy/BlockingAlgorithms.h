@@ -14,6 +14,7 @@ namespace Web::ContentSecurityPolicy {
 
 void report_content_security_policy_violations_for_request(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request>);
 Directives::Directive::Result should_request_be_blocked_by_content_security_policy(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request>);
+Directives::Directive::Result should_request_be_blocked_by_integrity_policy(GC::Ref<Fetch::Infrastructure::Request>);
 Directives::Directive::Result should_response_to_request_be_blocked_by_content_security_policy(JS::Realm&, GC::Ref<Fetch::Infrastructure::Response>, GC::Ref<Fetch::Infrastructure::Request>);
 
 Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_content_security_policy(GC::Ref<Fetch::Infrastructure::Request> navigation_request, Directives::Directive::NavigationType navigation_type);
