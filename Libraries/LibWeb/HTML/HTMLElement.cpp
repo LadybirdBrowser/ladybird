@@ -284,7 +284,7 @@ GC::Ref<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(Utf16View con
         // 2. If text is not the empty string, then append a new Text node whose data is text and node document is
         //    document to fragment.
         if (!text.is_empty()) {
-            MUST(fragment->append_child(document().create_text_node(Utf16String::from_utf16_without_validation(text))));
+            MUST(fragment->append_child(document().create_text_node(Utf16String::from_utf16(text))));
         }
 
         // 3. While position is not past the end of input, and the code point at position is either U+000A LF or U+000D CR:
@@ -453,7 +453,7 @@ Utf16String HTMLElement::get_the_text_steps()
     }
 
     // 7. Return the concatenation of the string items in results.
-    return builder.to_utf16_string_without_validation();
+    return builder.to_utf16_string();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-innertext

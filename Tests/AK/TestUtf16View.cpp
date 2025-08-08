@@ -237,82 +237,52 @@ TEST_CASE(validate_invalid_utf16)
     {
         // Lonely high surrogate.
         invalid = u"\xd800"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 1uz);
 
         invalid = u"\xdbff"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 1uz);
     }
     {
         // Lonely low surrogate.
         invalid = u"\xdc00"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 1uz);
 
         invalid = u"\xdfff"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 1uz);
     }
     {
         // High surrogate followed by non-surrogate.
         invalid = u"\xd800\x0000"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 2uz);
 
         invalid = u"\xd800\xe000"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 2uz);
     }
     {
         // High surrogate followed by high surrogate.
         invalid = u"\xd800\xd800"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 2uz);
 
         invalid = u"\xd800\xdbff"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 2uz);
     }
     {
         // Valid UTF-16 followed by invalid code units.
         invalid = u"\x0041\x0041\xd800"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 2uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 3uz);
 
         invalid = u"\x0041\x0041\xd800"sv;
-        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
+        EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 2uz);
-
-        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
-        EXPECT_EQ(valid_code_units, 3uz);
     }
 }
 

@@ -85,7 +85,6 @@ public:
     ErrorOr<FlyString> to_fly_string() const;
 
     Utf16String to_utf16_string();
-    Utf16String to_utf16_string_without_validation();
 
     [[nodiscard]] ErrorOr<ByteBuffer> to_byte_buffer() const;
 

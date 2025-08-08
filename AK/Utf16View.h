@@ -345,13 +345,9 @@ public:
         return all_of(utf16_span(), AK::is_ascii_space);
     }
 
-    [[nodiscard]] ALWAYS_INLINE bool validate(AllowLonelySurrogates allow_lonely_surrogates = AllowLonelySurrogates::Yes) const
-    {
-        size_t valid_code_units = 0;
-        return validate(valid_code_units, allow_lonely_surrogates);
-    }
-
-    [[nodiscard]] bool validate(size_t& valid_code_units, AllowLonelySurrogates = AllowLonelySurrogates::Yes) const;
+    // Note that these do not allow lonely surrogates. The string may be assumed to always be valid WTF-16.
+    [[nodiscard]] bool validate() const;
+    [[nodiscard]] bool validate(size_t& valid_code_units) const;
 
     [[nodiscard]] constexpr size_t length_in_code_units() const { return m_length_in_code_units & ~(1uz << Detail::UTF16_FLAG); }
 

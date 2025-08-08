@@ -174,7 +174,7 @@ Utf16String Node::descendant_text_content() const
         return TraversalDecision::Continue;
     });
 
-    return builder.to_utf16_string_without_validation();
+    return builder.to_utf16_string();
 }
 
 // https://dom.spec.whatwg.org/#dom-node-textcontent
