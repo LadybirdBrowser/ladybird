@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 250 tests
 
-212 Pass
-38 Fail
+215 Pass
+35 Fail
 Pass	CSS Transitions: property <z-index> from neutral to [5] at (-0.3) should be [-4]
 Pass	CSS Transitions: property <z-index> from neutral to [5] at (0) should be [-2]
 Pass	CSS Transitions: property <z-index> from neutral to [5] at (0.3) should be [0]
 Pass	CSS Transitions: property <z-index> from neutral to [5] at (0.6) should be [2]
 Pass	CSS Transitions: property <z-index> from neutral to [5] at (1) should be [5]
-Fail	CSS Transitions: property <z-index> from neutral to [5] at (1.5) should be [9]
+Pass	CSS Transitions: property <z-index> from neutral to [5] at (1.5) should be [9]
 Fail	CSS Transitions with transition: all: property <z-index> from neutral to [5] at (-0.3) should be [-4]
 Fail	CSS Transitions with transition: all: property <z-index> from neutral to [5] at (0) should be [-2]
 Fail	CSS Transitions with transition: all: property <z-index> from neutral to [5] at (0.3) should be [0]
@@ -21,13 +21,13 @@ Pass	CSS Animations: property <z-index> from neutral to [5] at (0) should be [-2
 Pass	CSS Animations: property <z-index> from neutral to [5] at (0.3) should be [0]
 Pass	CSS Animations: property <z-index> from neutral to [5] at (0.6) should be [2]
 Pass	CSS Animations: property <z-index> from neutral to [5] at (1) should be [5]
-Fail	CSS Animations: property <z-index> from neutral to [5] at (1.5) should be [9]
+Pass	CSS Animations: property <z-index> from neutral to [5] at (1.5) should be [9]
 Pass	Web Animations: property <z-index> from neutral to [5] at (-0.3) should be [-4]
 Pass	Web Animations: property <z-index> from neutral to [5] at (0) should be [-2]
 Pass	Web Animations: property <z-index> from neutral to [5] at (0.3) should be [0]
 Pass	Web Animations: property <z-index> from neutral to [5] at (0.6) should be [2]
 Pass	Web Animations: property <z-index> from neutral to [5] at (1) should be [5]
-Fail	Web Animations: property <z-index> from neutral to [5] at (1.5) should be [9]
+Pass	Web Animations: property <z-index> from neutral to [5] at (1.5) should be [9]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <z-index> from [initial] to [5] at (-0.3) should be [initial]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <z-index> from [initial] to [5] at (0) should be [initial]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <z-index> from [initial] to [5] at (0.3) should be [initial]

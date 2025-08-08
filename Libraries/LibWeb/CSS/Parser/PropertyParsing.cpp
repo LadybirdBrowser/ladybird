@@ -2180,7 +2180,7 @@ RefPtr<StyleValue const> Parser::parse_stroke_dasharray_value(TokenStream<Compon
 
         // A <dasharray> is a list of comma and/or white space separated <number> or <length-percentage> values. A <number> value represents a value in user units.
         auto value = parse_number_value(tokens);
-        if (value && value->is_number() && value->as_number().value() < 0)
+        if (value && value->is_number() && value->as_number().number() < 0)
             return {};
 
         if (value) {
@@ -2836,7 +2836,7 @@ RefPtr<StyleValue const> Parser::parse_font_feature_settings_value(TokenStream<C
         RefPtr<StyleValue const> value;
         if (tag_tokens.has_next_token()) {
             if (auto integer = parse_integer_value(tag_tokens)) {
-                if (integer->is_integer() && integer->as_integer().value() < 0)
+                if (integer->is_integer() && integer->as_integer().integer() < 0)
                     return nullptr;
                 value = integer;
             } else {

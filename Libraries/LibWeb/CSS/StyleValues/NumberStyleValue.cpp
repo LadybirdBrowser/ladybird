@@ -8,6 +8,7 @@
  */
 
 #include "NumberStyleValue.h"
+#include <LibWeb/CSS/Parser/ComponentValue.h>
 
 namespace Web::CSS {
 
