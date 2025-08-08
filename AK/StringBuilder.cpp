@@ -98,6 +98,29 @@ inline ErrorOr<void> StringBuilder::will_append(size_t size_in_bytes)
     return {};
 }
 
+ErrorOr<void> StringBuilder::ensure_storage_is_utf16()
+{
+    if (!exchange(m_utf16_builder_is_ascii, false))
+        return {};
+    if (is_empty())
+        return {};
+
+    auto ascii_length = this->length();
+    TRY(m_buffer.try_resize(m_buffer.size() + ascii_length));
+
+    Bytes source { data(), ascii_length };
+    Span<char16_t> target { reinterpret_cast<char16_t*>(data()), ascii_length };
+
+    for (size_t i = ascii_length; i > 0; --i) {
+        auto index = i - 1;
+
+        auto ch = static_cast<char16_t>(source[index]);
+        target.overwrite(index, &ch, sizeof(char16_t));
+    }
+
+    return {};
+}
+
 size_t StringBuilder::length() const
 {
     return m_buffer.size() - string_builder_prefix_size(m_mode);
@@ -122,16 +145,15 @@ ErrorOr<void> StringBuilder::try_append(StringView string)
     if (string.is_empty())
         return {};
 
-    switch (m_mode) {
-    case StringBuilder::Mode::UTF8:
+    if (m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && string.is_ascii())) {
         TRY(will_append(string.length()));
         TRY(m_buffer.try_append(string.characters_without_null_termination(), string.length()));
-        break;
-    case StringBuilder::Mode::UTF16:
+    } else {
+        TRY(ensure_storage_is_utf16());
+
         TRY(will_append(string.length() * 2));
         for (auto code_point : Utf8View { string })
             TRY(try_append_code_point(code_point));
-        break;
     }
 
     return {};
@@ -139,14 +161,12 @@ ErrorOr<void> StringBuilder::try_append(StringView string)
 
 ErrorOr<void> StringBuilder::try_append(char ch)
 {
-    switch (m_mode) {
-    case StringBuilder::Mode::UTF8:
+    if (m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && is_ascii(ch))) {
         TRY(will_append(1));
         TRY(m_buffer.try_append(ch));
-        break;
-    case StringBuilder::Mode::UTF16:
+    } else {
+        TRY(ensure_storage_is_utf16());
         TRY(try_append_code_unit(ch));
-        break;
     }
 
     return {};
@@ -154,14 +174,12 @@ ErrorOr<void> StringBuilder::try_append(char ch)
 
 ErrorOr<void> StringBuilder::try_append_code_unit(char16_t ch)
 {
-    switch (m_mode) {
-    case StringBuilder::Mode::UTF8:
+    if (m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && is_ascii(ch))) {
         TRY(try_append_code_point(ch));
-        break;
-    case StringBuilder::Mode::UTF16:
+    } else {
+        TRY(ensure_storage_is_utf16());
         TRY(will_append(2));
         TRY(m_buffer.try_append(&ch, sizeof(ch)));
-        break;
     }
 
     return {};
@@ -169,9 +187,12 @@ ErrorOr<void> StringBuilder::try_append_code_unit(char16_t ch)
 
 ErrorOr<void> StringBuilder::try_append_repeated(char ch, size_t n)
 {
-    TRY(will_append(n * (m_mode == Mode::UTF8 ? 1 : 2)));
+    auto append_as_utf8 = m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && is_ascii(ch));
+    TRY(will_append(n * (append_as_utf8 ? 1 : 2)));
+
     for (size_t i = 0; i < n; ++i)
         TRY(try_append(ch));
+
     return {};
 }
 
@@ -180,7 +201,7 @@ ErrorOr<void> StringBuilder::try_append_repeated(StringView string, size_t n)
     if (string.is_empty())
         return {};
 
-    if (m_mode == Mode::UTF8) {
+    if (m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && string.is_ascii())) {
         TRY(will_append(string.length() * n));
     } else {
         auto utf16_length = simdutf::utf16_length_from_utf8(string.characters_without_null_termination(), string.length());
@@ -198,7 +219,7 @@ ErrorOr<void> StringBuilder::try_append_repeated(Utf16View const& string, size_t
     if (string.is_empty())
         return {};
 
-    if (m_mode == Mode::UTF8) {
+    if (m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && string.is_ascii())) {
         if (string.has_ascii_storage()) {
             TRY(will_append(string.length_in_code_units() * n));
         } else {
@@ -299,16 +320,12 @@ ErrorOr<FlyString> StringBuilder::to_fly_string() const
 Utf16String StringBuilder::to_utf16_string()
 {
     VERIFY(m_mode == Mode::UTF16);
-    if (m_buffer.is_inline())
-        return Utf16String::from_utf16(utf16_string_view());
     return Utf16String::from_string_builder({}, *this);
 }
 
 Utf16String StringBuilder::to_utf16_string_without_validation()
 {
     VERIFY(m_mode == Mode::UTF16);
-    if (m_buffer.is_inline())
-        return Utf16String::from_utf16_without_validation(utf16_string_view());
     return Utf16String::from_string_builder_without_validation({}, *this);
 }
 
@@ -333,6 +350,8 @@ Utf16View StringBuilder::utf16_string_view() const
     VERIFY(m_mode == Mode::UTF16);
     auto view = m_buffer.span().slice(string_builder_prefix_size(m_mode));
 
+    if (m_utf16_builder_is_ascii)
+        return { reinterpret_cast<char const*>(view.data()), view.size() };
     return { reinterpret_cast<char16_t const*>(view.data()), view.size() / 2 };
 }
 
@@ -348,13 +367,12 @@ ErrorOr<void> StringBuilder::try_append_code_point(u32 code_point)
         return {};
     }
 
-    switch (m_mode) {
-    case Mode::UTF8:
+    if (m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && is_ascii(code_point))) {
         TRY(AK::UnicodeUtils::try_code_point_to_utf8(code_point, [this](char c) { return try_append(c); }));
-        break;
-    case Mode::UTF16:
+    } else {
+        TRY(ensure_storage_is_utf16());
+
         TRY(AK::UnicodeUtils::try_code_point_to_utf16(code_point, [this](char16_t c) { return m_buffer.try_append(&c, sizeof(c)); }));
-        break;
     }
 
     return {};
@@ -367,7 +385,10 @@ void StringBuilder::append_code_point(u32 code_point)
         return;
     }
 
-    if (m_mode == Mode::UTF16) {
+    auto append_as_utf8 = m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && is_ascii(code_point));
+
+    if (!append_as_utf8) {
+        MUST(ensure_storage_is_utf16());
         (void)(will_append(2));
 
         if (code_point < UnicodeUtils::FIRST_SUPPLEMENTARY_PLANE_CODE_POINT) {
@@ -415,7 +436,10 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
     if (utf16_view.has_ascii_storage())
         return try_append(utf16_view.bytes());
 
-    if (m_mode == Mode::UTF16) {
+    auto append_as_utf8 = m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && utf16_view.is_ascii());
+
+    if (!append_as_utf8) {
+        TRY(ensure_storage_is_utf16());
         TRY(will_append(utf16_view.length_in_code_units() * 2));
 
         for (size_t i = 0; i < utf16_view.length_in_code_units(); ++i)
