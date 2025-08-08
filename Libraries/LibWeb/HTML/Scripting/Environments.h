@@ -99,6 +99,9 @@ public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
     virtual URL::Origin origin() const = 0;
 
+    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-has-cross-site-ancestor
+    virtual bool has_cross_site_ancestor() const = 0;
+
     // A policy container https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-policy-container
     virtual GC::Ref<PolicyContainer> policy_container() const = 0;
 

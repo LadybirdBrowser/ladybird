@@ -20,6 +20,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedEnvironmentSettingsO
     TRY(encoder.encode(object.api_url_character_encoding));
     TRY(encoder.encode(object.api_base_url));
     TRY(encoder.encode(object.origin));
+    TRY(encoder.encode(object.has_cross_site_ancestor));
     TRY(encoder.encode(object.policy_container));
     TRY(encoder.encode(object.cross_origin_isolated_capability));
     TRY(encoder.encode(object.time_origin));
@@ -38,6 +39,7 @@ ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder& decoder)
         .api_url_character_encoding = TRY(decoder.decode<String>()),
         .api_base_url = TRY(decoder.decode<URL::URL>()),
         .origin = TRY(decoder.decode<URL::Origin>()),
+        .has_cross_site_ancestor = TRY(decoder.decode<bool>()),
         .policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
         .cross_origin_isolated_capability = TRY(decoder.decode<Web::HTML::CanUseCrossOriginIsolatedAPIs>()),
         .time_origin = TRY(decoder.decode<double>()),

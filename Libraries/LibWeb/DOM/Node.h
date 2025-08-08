@@ -50,6 +50,7 @@ enum class ShouldComputeRole {
 
 #define ENUMERATE_STYLE_INVALIDATION_REASONS(X)     \
     X(AdoptedStyleSheetsList)                       \
+    X(BaseURLChanged)                               \
     X(CSSFontLoaded)                                \
     X(CSSImportRule)                                \
     X(CSSStylePropertiesRemoveProperty)             \

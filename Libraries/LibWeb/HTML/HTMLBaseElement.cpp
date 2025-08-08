@@ -95,6 +95,9 @@ void HTMLBaseElement::set_the_frozen_base_url()
 
     // 4. Set element's frozen base URL to urlRecord.
     m_frozen_base_url = url_record.release_value();
+
+    // 5. Respond to base URL changes given document.
+    document.respond_to_base_url_changes();
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-base-href

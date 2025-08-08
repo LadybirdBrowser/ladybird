@@ -110,6 +110,28 @@ URL::Origin WindowEnvironmentSettingsObject::origin() const
     return m_window->associated_document().origin();
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects:concept-settings-object-has-cross-site-ancestor
+bool WindowEnvironmentSettingsObject::has_cross_site_ancestor() const
+{
+    // 1. If window's navigable's parent is null, then return false.
+    if (m_window->navigable()->parent() == nullptr)
+        return false;
+
+    // 2. Let parentDocument be window's navigable's parent's active document.
+    auto parent_document = m_window->navigable()->parent()->active_document();
+
+    // 3. If parentDocument's relevant settings object's has cross-site ancestor is true, then return true.
+    if (parent_document->relevant_settings_object().has_cross_site_ancestor())
+        return true;
+
+    // 4. If parentDocument's origin is not same site with window's associated Document's origin, then return true.
+    if (!parent_document->origin().is_same_site(m_window->associated_document().origin()))
+        return true;
+
+    // 5. Return false.
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-policy-container
 GC::Ref<PolicyContainer> WindowEnvironmentSettingsObject::policy_container() const
 {
