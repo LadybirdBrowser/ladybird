@@ -165,6 +165,8 @@
 #include <LibWeb/SVG/SVGStyleElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/UIEvents/CompositionEvent.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/FocusEvent.h>
@@ -644,41 +646,56 @@ GC::Ptr<Selection::Selection> Document::get_selection() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-write
-WebIDL::ExceptionOr<void> Document::write(Vector<String> const& text)
+WebIDL::ExceptionOr<void> Document::write(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
 {
     // The document.write(...text) method steps are to run the document write steps with this, text, false, and "Document write".
     return run_the_document_write_steps(text, AddLineFeed::No, TrustedTypes::InjectionSink::Documentwrite);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-writeln
-WebIDL::ExceptionOr<void> Document::writeln(Vector<String> const& text)
+WebIDL::ExceptionOr<void> Document::writeln(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
 {
     // The document.writeln(...text) method steps are to run the document write steps with this, text, true, and "Document writeln".
     return run_the_document_write_steps(text, AddLineFeed::Yes, TrustedTypes::InjectionSink::Documentwriteln);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#document-write-steps
-WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<String> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink)
+WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedTypes::TrustedHTMLOrString> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink)
 {
     // 1. Let string be the empty string.
     StringBuilder string;
 
     // 2. Let isTrusted be false if text contains a string; otherwise true.
-    // FIXME: We currently only accept strings. Revisit this once we support the TrustedHTML type.
     auto is_trusted = true;
+    for (auto const& value : text) {
+        if (value.has<Utf16String>()) {
+            is_trusted = false;
+            break;
+        }
+    }
 
     // 3. For each value of text:
     for (auto const& value : text) {
-        // FIXME: 1. If value is a TrustedHTML object, then append value's associated data to string.
-
-        // 2. Otherwise, append value to string.
-        string.append(value);
+        string.append(value.visit(
+                               // 1. If value is a TrustedHTML object, then append value's associated data to string.
+                               [](GC::Root<TrustedTypes::TrustedHTML> const& value) { return value->to_string(); },
+                               // 2. Otherwise, append value to string.
+                               [](Utf16String const& value) { return value; })
+                .to_utf8_but_should_be_ported_to_utf16());
     }
 
-    // FIXME: 4. If isTrusted is false, set string to the result of invoking the Get Trusted Type compliant string algorithm
+    // 4. If isTrusted is false, set string to the result of invoking the Get Trusted Type compliant string algorithm
     //    with TrustedHTML, this's relevant global object, string, sink, and "script".
-    (void)is_trusted;
-    (void)sink;
+    if (!is_trusted) {
+        auto const new_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+            TrustedTypes::TrustedTypeName::TrustedHTML,
+            relevant_global_object(*this),
+            Utf16String::from_utf8(MUST(string.to_string())),
+            sink,
+            TrustedTypes::Script.to_string()));
+        string.clear();
+        string.append(new_string.to_utf8_but_should_be_ported_to_utf16());
+    }
 
     // 5. If lineFeed is true, append U+000A LINE FEED to string.
     if (line_feed == AddLineFeed::Yes)
@@ -6345,10 +6362,19 @@ void Document::parse_html_from_a_string(StringView html)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
-GC::Ref<Document> Document::parse_html_unsafe(JS::VM& vm, StringView html)
+WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM& vm, TrustedTypes::TrustedHTMLOrString const& html)
 {
     auto& realm = *vm.current_realm();
-    // FIXME: 1. Let compliantHTML to the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
+
+    // FIXME: update description once https://github.com/whatwg/html/issues/11778 gets solved
+    // 1. Let compliantHTML to the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
+    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::current_principal_global_object(),
+        html,
+        TrustedTypes::InjectionSink::DocumentparseHTMLUnsafe,
+        TrustedTypes::Script.to_string()));
 
     // 2. Let document be a new Document, whose content type is "text/html".
     auto document = Document::create_for_fragment_parsing(realm);
@@ -6357,8 +6383,8 @@ GC::Ref<Document> Document::parse_html_unsafe(JS::VM& vm, StringView html)
     // 3. Set document's allow declarative shadow roots to true.
     document->set_allow_declarative_shadow_roots(true);
 
-    // 4. Parse HTML from a string given document and compliantHTML. // FIXME: Use compliantHTML.
-    document->parse_html_from_a_string(html);
+    // 4. Parse HTML from a string given document and compliantHTML.
+    document->parse_html_from_a_string(compliant_html.to_utf8_but_should_be_ported_to_utf16());
 
     // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
     auto& associated_document = as<HTML::Window>(realm.global_object()).associated_document();

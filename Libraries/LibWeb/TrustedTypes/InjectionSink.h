@@ -17,6 +17,7 @@ namespace Web::TrustedTypes {
 
 // https://w3c.github.io/trusted-types/dist/spec/#injection-sink
 #define ENUMERATE_INJECTION_SINKS                                                                  \
+    __ENUMERATE_INJECTION_SINKS(DocumentparseHTMLUnsafe, "Document parseHTMLUnsafe")               \
     __ENUMERATE_INJECTION_SINKS(Documentwrite, "Document write")                                   \
     __ENUMERATE_INJECTION_SINKS(Documentwriteln, "Document writeln")                               \
     __ENUMERATE_INJECTION_SINKS(DocumentexecCommand, "Document execCommand")                       \
