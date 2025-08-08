@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csshsl
-class CSSHSL final : public CSSColorValue {
+class CSSHSL final : public ColorStyleValue {
 public:
     static ValueComparingNonnullRefPtr<CSSHSL const> create(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> s, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingRefPtr<StyleValue const> alpha, ColorSyntax color_syntax)
     {
@@ -37,7 +37,7 @@ public:
 
 private:
     CSSHSL(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> s, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> alpha, ColorSyntax color_syntax)
-        : CSSColorValue(ColorType::HSL, color_syntax)
+        : ColorStyleValue(ColorType::HSL, color_syntax)
         , m_properties { .h = move(h), .s = move(s), .l = move(l), .alpha = move(alpha) }
     {
     }

@@ -7,11 +7,11 @@
 #pragma once
 
 #include <LibWeb/CSS/CalculatedOr.h>
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 
 namespace Web::CSS {
 
-class ColorMixStyleValue final : public CSSColorValue {
+class ColorMixStyleValue final : public ColorStyleValue {
 public:
     virtual ~ColorMixStyleValue() override = default;
 

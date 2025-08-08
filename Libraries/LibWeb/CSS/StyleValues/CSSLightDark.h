@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-color-5/#funcdef-light-dark
-class CSSLightDark final : public CSSColorValue {
+class CSSLightDark final : public ColorStyleValue {
 public:
     virtual ~CSSLightDark() override = default;
 
@@ -26,7 +26,7 @@ public:
 
 private:
     CSSLightDark(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
-        : CSSColorValue(CSSColorValue::ColorType::LightDark, ColorSyntax::Modern)
+        : ColorStyleValue(ColorStyleValue::ColorType::LightDark, ColorSyntax::Modern)
         , m_properties { .light = move(light), .dark = move(dark) }
     {
     }

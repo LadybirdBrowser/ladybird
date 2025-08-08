@@ -27,7 +27,6 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSHSL.h>
 #include <LibWeb/CSS/StyleValues/CSSHWB.h>
 #include <LibWeb/CSS/StyleValues/CSSLCHLike.h>
@@ -36,6 +35,7 @@
 #include <LibWeb/CSS/StyleValues/CSSRGB.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorMixStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
@@ -2206,7 +2206,7 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
         auto color = Color::from_string(ident);
         if (color.has_value()) {
             transaction.commit();
-            return CSSColorValue::create_from_color(color.release_value(), ColorSyntax::Legacy, ident);
+            return ColorStyleValue::create_from_color(color.release_value(), ColorSyntax::Legacy, ident);
         }
         // Otherwise, fall through to the hashless-hex-color case
     }
@@ -2215,7 +2215,7 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
         auto color = Color::from_string(MUST(String::formatted("#{}", component_value.token().hash_value())));
         if (color.has_value()) {
             transaction.commit();
-            return CSSColorValue::create_from_color(color.release_value(), ColorSyntax::Legacy);
+            return ColorStyleValue::create_from_color(color.release_value(), ColorSyntax::Legacy);
         }
         return {};
     }
@@ -2299,7 +2299,7 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
             auto color = Color::from_string(MUST(String::formatted("#{}", serialization)));
             if (color.has_value()) {
                 transaction.commit();
-                return CSSColorValue::create_from_color(color.release_value(), ColorSyntax::Legacy);
+                return ColorStyleValue::create_from_color(color.release_value(), ColorSyntax::Legacy);
             }
         }
     }

@@ -6,12 +6,11 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 
 namespace Web::CSS {
 
-// https://drafts.css-houdini.org/css-typed-om-1/#csscolor
-class ColorFunctionStyleValue final : public CSSColorValue {
+class ColorFunctionStyleValue final : public ColorStyleValue {
 public:
     virtual ~ColorFunctionStyleValue() override = default;
 
@@ -27,7 +26,7 @@ public:
 
 private:
     ColorFunctionStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> c1, ValueComparingNonnullRefPtr<StyleValue const> c2, ValueComparingNonnullRefPtr<StyleValue const> c3, ValueComparingNonnullRefPtr<StyleValue const> alpha)
-        : CSSColorValue(color_type, ColorSyntax::Modern)
+        : ColorStyleValue(color_type, ColorSyntax::Modern)
         , m_properties { .channels = { move(c1), move(c2), move(c3) }, .alpha = move(alpha) }
     {
     }

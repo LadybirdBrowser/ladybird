@@ -20,11 +20,10 @@ enum class ColorSyntax : u8 {
     Modern,
 };
 
-// https://drafts.css-houdini.org/css-typed-om-1/#csscolorvalue
-class CSSColorValue : public StyleValue {
+class ColorStyleValue : public StyleValue {
 public:
-    static ValueComparingNonnullRefPtr<CSSColorValue const> create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name = {});
-    virtual ~CSSColorValue() override = default;
+    static ValueComparingNonnullRefPtr<ColorStyleValue const> create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name = {});
+    virtual ~ColorStyleValue() override = default;
 
     virtual bool has_color() const override { return true; }
 
@@ -51,7 +50,7 @@ public:
     ColorSyntax color_syntax() const { return m_color_syntax; }
 
 protected:
-    explicit CSSColorValue(ColorType color_type, ColorSyntax color_syntax)
+    explicit ColorStyleValue(ColorType color_type, ColorSyntax color_syntax)
         : StyleValue(Type::Color)
         , m_color_type(color_type)
         , m_color_syntax(color_syntax)

@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csshwb
-class CSSHWB final : public CSSColorValue {
+class CSSHWB final : public ColorStyleValue {
 public:
     static ValueComparingNonnullRefPtr<CSSHWB const> create(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> w, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingRefPtr<StyleValue const> alpha = {})
     {
@@ -37,7 +37,7 @@ public:
 
 private:
     CSSHWB(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> w, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
-        : CSSColorValue(ColorType::HWB, ColorSyntax::Modern)
+        : ColorStyleValue(ColorType::HWB, ColorSyntax::Modern)
         , m_properties { .h = move(h), .w = move(w), .b = move(b), .alpha = move(alpha) }
     {
     }
