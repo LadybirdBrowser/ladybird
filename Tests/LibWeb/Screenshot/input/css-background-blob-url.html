@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" class="reftest-wait">
+    <head>
+        <link rel="match" href="../expected/css-background-blob-url-ref.html" />
+        <style>
+            #background {
+                width: 50px;
+                height: 50px;
+                border: 2px solid blue;
+                background-repeat: no-repeat;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="background"></div>
+
+        <script>
+            fetch("../data/smiley.png")
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    background.style.backgroundImage = `url('${url}')`;
+
+                    // FIXME: This is pretty hacky. We don't have a way to wait for the background image URL to load to
+                    //        signal that the test is done. So we load a second blob URL using Image, which we can wait
+                    //        upon. Since these are sequential, the second image load indicates that the first is done.
+                    requestAnimationFrame(() => {
+                        const image = new Image();
+                        image.addEventListener("load", () => {
+                            requestAnimationFrame(() => {
+                                document.documentElement.classList.remove("reftest-wait");
+                            });
+                        });
+                        image.src = URL.createObjectURL(blob);
+                    });
+                });
+        </script>
+    </body>
+</html>

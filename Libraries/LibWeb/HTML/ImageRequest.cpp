@@ -6,7 +6,7 @@
 
 #include <AK/HashTable.h>
 #include <LibGfx/Bitmap.h>
-#include <LibURL/Parser.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -71,8 +71,9 @@ void ImageRequest::set_state(State state)
 void ImageRequest::set_current_url(JS::Realm& realm, String url)
 {
     m_current_url = move(url);
-    if (auto url = URL::Parser::basic_parse(m_current_url); url.has_value())
-        m_shared_resource_request = SharedResourceRequest::get_or_create(realm, m_page, url.release_value());
+
+    if (auto parsed_url = DOMURL::parse(m_current_url); parsed_url.has_value())
+        m_shared_resource_request = SharedResourceRequest::get_or_create(realm, m_page, parsed_url.release_value());
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request
