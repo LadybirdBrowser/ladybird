@@ -60,11 +60,11 @@ public:
     Optional<JS::Value> get_extern_value(Wasm::ExternAddress address) { return m_extern_values.get(address); }
     Optional<GC::Ptr<WebAssembly::Global>> get_global_instance(Wasm::GlobalAddress address) { return m_global_instances.get(address); }
 
-    HashMap<Wasm::FunctionAddress, GC::Ptr<JS::NativeFunction>> function_instances() const { return m_function_instances; }
-    HashMap<Wasm::ExternAddress, JS::Value> extern_values() const { return m_extern_values; }
-    HashMap<JS::Value, Wasm::ExternAddress> inverse_extern_values() const { return m_inverse_extern_values; }
-    HashMap<Wasm::GlobalAddress, GC::Ptr<WebAssembly::Global>> global_instances() const { return m_global_instances; }
-    HashTable<GC::Ptr<JS::Object>> imported_objects() const { return m_imported_objects; }
+    HashMap<Wasm::FunctionAddress, GC::Ptr<JS::NativeFunction>> const& function_instances() const { return m_function_instances; }
+    HashMap<Wasm::ExternAddress, JS::Value> const& extern_values() const { return m_extern_values; }
+    HashMap<JS::Value, Wasm::ExternAddress> const& inverse_extern_values() const { return m_inverse_extern_values; }
+    HashMap<Wasm::GlobalAddress, GC::Ptr<WebAssembly::Global>> const& global_instances() const { return m_global_instances; }
+    HashTable<GC::Ptr<JS::Object>> const& imported_objects() const { return m_imported_objects; }
     Wasm::AbstractMachine& abstract_machine() { return m_abstract_machine; }
 
 private:
