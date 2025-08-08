@@ -672,6 +672,7 @@ public:
     }
 
 private:
+    friend StringBuilder;
     friend Detail::Utf16StringBase;
     friend Detail::Utf16StringData;
 
