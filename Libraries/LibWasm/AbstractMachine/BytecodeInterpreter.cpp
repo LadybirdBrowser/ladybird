@@ -2539,7 +2539,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 {
     CompiledInstructions result;
     result.dispatches.ensure_capacity(expression.instructions().size());
-    result.extra_instruction_storage.ensure_capacity(ceil_div(expression.instructions().size(), 2ul)); // At most half of the instructions can be replaced with synthetic instructions, as the detected sequences are 3 long.
+    result.extra_instruction_storage.ensure_capacity(ceil_div(expression.instructions().size(), 2uz)); // At most half of the instructions can be replaced with synthetic instructions, as the detected sequences are 3 long.
     i32 i32_const_value { 0 };
     LocalIndex local_index_0 { 0 };
     LocalIndex local_index_1 { 0 };

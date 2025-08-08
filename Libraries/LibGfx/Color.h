@@ -13,6 +13,7 @@
 #include <AK/Forward.h>
 #include <AK/Math.h>
 #include <AK/StdLibExtras.h>
+#include <LibGfx/Export.h>
 #include <LibIPC/Forward.h>
 
 namespace Gfx {
@@ -52,7 +53,7 @@ struct Oklab {
     float b { 0 };
 };
 
-class Color {
+class GFX_API Color {
 public:
     enum class NamedColor {
         Transparent,
@@ -758,7 +759,7 @@ public:
 };
 
 template<>
-struct Formatter<Gfx::Color> : public Formatter<StringView> {
+struct GFX_API Formatter<Gfx::Color> : public Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder&, Gfx::Color);
 };
 

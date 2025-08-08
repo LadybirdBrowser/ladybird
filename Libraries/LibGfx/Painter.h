@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
@@ -17,7 +18,7 @@
 
 namespace Gfx {
 
-class Painter {
+class GFX_API Painter {
 public:
     static NonnullOwnPtr<Gfx::Painter> create(NonnullRefPtr<Gfx::Bitmap>);
 

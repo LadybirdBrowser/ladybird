@@ -9,11 +9,12 @@
 #include <AK/Concepts.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 
 namespace Gfx {
 
-class AffineTransform {
+class GFX_API AffineTransform {
 public:
     AffineTransform()
         : m_values { 1, 0, 0, 1, 0, 0 }

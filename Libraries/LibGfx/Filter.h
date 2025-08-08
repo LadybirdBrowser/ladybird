@@ -9,6 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/Export.h>
 
 namespace Gfx {
 
@@ -24,7 +25,7 @@ enum class ColorFilterType {
 
 struct FilterImpl;
 
-class Filter {
+class GFX_API Filter {
 public:
     Filter(Filter const&);
     Filter& operator=(Filter const&);

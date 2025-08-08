@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/Typeface.h>
 
@@ -50,7 +51,7 @@ enum FontWidth {
 
 constexpr float text_shaping_resolution = 64;
 
-class Font : public RefCounted<Font> {
+class GFX_API Font : public RefCounted<Font> {
 public:
     Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x = DEFAULT_DPI, unsigned dpi_y = DEFAULT_DPI);
     ScaledFontMetrics metrics() const;
