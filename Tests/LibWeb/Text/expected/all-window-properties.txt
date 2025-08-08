@@ -233,6 +233,7 @@ IDBIndex
 IDBKeyRange
 IDBObjectStore
 IDBOpenDBRequest
+IDBRecord
 IDBRequest
 IDBTransaction
 IDBVersionChangeEvent
