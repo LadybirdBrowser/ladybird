@@ -10,19 +10,23 @@
 #include <AK/MemoryStream.h>
 #include <AK/StackInfo.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
 #include <LibFileSystem/FileSystem.h>
-#include <LibLine/Editor.h>
+#if !defined(AK_OS_WINDOWS)
+#    include <LibLine/Editor.h>
+#endif
 #include <LibMain/Main.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/Printer/Printer.h>
 #include <LibWasm/Types.h>
-#include <LibWasm/Wasi.h>
+#if !defined(AK_OS_WINDOWS)
+#    include <LibWasm/Wasi.h>
+#endif
 #include <math.h>
 #include <signal.h>
-#include <unistd.h>
 
 static OwnPtr<Stream> g_stdout {};
 static OwnPtr<Wasm::Printer> g_printer {};
@@ -277,7 +281,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool print_compiled = false;
     bool attempt_instantiate = false;
     bool export_all_imports = false;
-    bool wasi = false;
+    [[maybe_unused]] bool wasi = false;
     ByteString exported_function_to_execute;
     Vector<ParsedValue> values_to_push;
     Vector<ByteString> modules_to_link_in;
@@ -291,7 +295,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     parser.add_option(attempt_instantiate, "Attempt to instantiate the module", "instantiate", 'i');
     parser.add_option(exported_function_to_execute, "Attempt to execute the named exported function from the module (implies -i)", "execute", 'e', "name");
     parser.add_option(export_all_imports, "Export noop functions corresponding to imports", "export-noop");
+#if !defined(AK_OS_WINDOWS)
     parser.add_option(wasi, "Enable WASI", "wasi", 'w');
+#endif
     parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Directory mappings to expose via WASI",
@@ -356,6 +362,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (attempt_instantiate || print_compiled) {
         Wasm::AbstractMachine machine;
+#if !defined(AK_OS_WINDOWS)
         Optional<Wasm::Wasi::Implementation> wasi_impl;
 
         if (wasi) {
@@ -383,6 +390,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     return paths; },
             });
         }
+#endif
 
         Core::EventLoop main_loop;
         // First, resolve the linked modules
@@ -416,6 +424,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         for (auto& instance : linked_instances)
             linker.link(*instance);
 
+#if !defined(AK_OS_WINDOWS)
         if (wasi) {
             HashMap<Wasm::Linker::Name, Wasm::ExternValue> wasi_exports;
             for (auto& entry : linker.unresolved_imports()) {
@@ -432,6 +441,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
             linker.link(wasi_exports);
         }
+#endif
 
         if (export_all_imports) {
             HashMap<Wasm::Linker::Name, Wasm::ExternValue> exports;
