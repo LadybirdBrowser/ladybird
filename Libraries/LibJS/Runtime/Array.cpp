@@ -299,34 +299,35 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Array::internal_get_own_property
     return Object::internal_get_own_property(property_key);
 }
 
+bool Array::default_prototype_chain_intact() const
+{
+    auto const& intrinsics = m_realm->intrinsics();
+    auto const* array_prototype = shape().prototype();
+    if (!array_prototype)
+        return false;
+    if (!array_prototype->indexed_properties().is_empty())
+        return false;
+    auto const& array_prototype_shape = shape().prototype()->shape();
+    if (intrinsics.default_array_prototype_shape().ptr() != &array_prototype_shape)
+        return false;
+
+    auto const* object_prototype = array_prototype_shape.prototype();
+    if (!object_prototype)
+        return false;
+    if (!object_prototype->indexed_properties().is_empty())
+        return false;
+    auto const& object_prototype_shape = array_prototype_shape.prototype()->shape();
+    if (intrinsics.default_object_prototype_shape().ptr() != &object_prototype_shape)
+        return false;
+    if (object_prototype_shape.prototype())
+        return false;
+
+    return true;
+}
+
 ThrowCompletionOr<bool> Array::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
 {
     auto& vm = this->vm();
-
-    auto default_prototype_chain_intact = [&] {
-        auto const& intrinsics = m_realm->intrinsics();
-        auto* array_prototype = shape().prototype();
-        if (!array_prototype)
-            return false;
-        if (!array_prototype->indexed_properties().is_empty())
-            return false;
-        auto& array_prototype_shape = shape().prototype()->shape();
-        if (intrinsics.default_array_prototype_shape().ptr() != &array_prototype_shape)
-            return false;
-
-        auto* object_prototype = array_prototype_shape.prototype();
-        if (!object_prototype)
-            return false;
-        if (!object_prototype->indexed_properties().is_empty())
-            return false;
-        auto& object_prototype_shape = array_prototype_shape.prototype()->shape();
-        if (intrinsics.default_object_prototype_shape().ptr() != &object_prototype_shape)
-            return false;
-        if (object_prototype_shape.prototype())
-            return false;
-
-        return true;
-    };
 
     VERIFY(receiver.is_object());
     auto& receiver_object = receiver.as_object();
