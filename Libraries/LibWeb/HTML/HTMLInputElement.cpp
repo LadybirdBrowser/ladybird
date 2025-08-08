@@ -1195,15 +1195,15 @@ void HTMLInputElement::update_file_input_shadow_tree()
         return;
 
     auto files_label = has_attribute(HTML::AttributeNames::multiple) ? "files"sv : "file"sv;
-    m_file_button->set_text_content(Utf16String::formatted("Select {}...", files_label));
+    MUST(m_file_button->set_text_content(Utf16String::formatted("Select {}...", files_label)));
 
     if (m_selected_files && m_selected_files->length() > 0) {
         if (m_selected_files->length() == 1)
-            m_file_label->set_text_content(Utf16String::from_utf8(m_selected_files->item(0)->name()));
+            MUST(m_file_label->set_text_content(Utf16String::from_utf8(m_selected_files->item(0)->name())));
         else
-            m_file_label->set_text_content(Utf16String::formatted("{} files selected.", m_selected_files->length()));
+            MUST(m_file_label->set_text_content(Utf16String::formatted("{} files selected.", m_selected_files->length())));
     } else {
-        m_file_label->set_text_content(Utf16String::formatted("No {} selected.", files_label));
+        MUST(m_file_label->set_text_content(Utf16String::formatted("No {} selected.", files_label)));
     }
 }
 
