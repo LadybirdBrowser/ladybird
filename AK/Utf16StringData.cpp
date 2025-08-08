@@ -177,9 +177,6 @@ ErrorOr<NonnullRefPtr<Utf16StringData>> Utf16StringData::from_ipc_stream(Stream&
 
         Bytes bytes { reinterpret_cast<u8*>(string->m_utf16_data), length_in_code_units * sizeof(char16_t) };
         TRY(stream.read_until_filled(bytes));
-
-        if (!string->utf16_view().validate())
-            return Error::from_string_literal("Stream contains invalid UTF-16 data");
     }
 
     return string.release_nonnull();

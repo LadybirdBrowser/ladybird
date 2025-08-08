@@ -254,7 +254,7 @@ void RopeString::resolve(EncodingPreference preference) const
                 builder.append(current->utf16_string_view());
         }
 
-        m_utf16_string = builder.to_utf16_string_without_validation();
+        m_utf16_string = builder.to_utf16_string();
         m_is_rope = false;
         m_lhs = nullptr;
         m_rhs = nullptr;

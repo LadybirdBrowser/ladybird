@@ -98,7 +98,7 @@ Optional<size_t> string_index_of(Utf16View const& string, Utf16View const& searc
 static bool is_string_well_formed_unicode(Utf16View string)
 {
     // OPTIMIZATION: simdutf can do this much faster.
-    return string.validate(AllowLonelySurrogates::No);
+    return string.validate();
 }
 
 // 11.1.4 CodePointAt ( string, position ), https://tc39.es/ecma262/#sec-codepointat

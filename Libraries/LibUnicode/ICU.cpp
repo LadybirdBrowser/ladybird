@@ -166,7 +166,7 @@ Utf16String icu_string_to_utf16_string(icu::UnicodeString const& string)
 
 Utf16String icu_string_to_utf16_string(UChar const* string, i32 length)
 {
-    return Utf16String::from_utf16_without_validation({ string, static_cast<size_t>(length) });
+    return Utf16String::from_utf16({ string, static_cast<size_t>(length) });
 }
 
 Utf16View icu_string_to_utf16_view(icu::UnicodeString const& string)
