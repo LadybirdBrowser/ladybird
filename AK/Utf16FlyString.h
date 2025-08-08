@@ -27,7 +27,6 @@ public:
     static Utf16FlyString from_utf8_but_should_be_ported_to_utf16(StringView string) { return from_utf8_without_validation(string); }
 
     static Utf16FlyString from_utf16(Utf16View const&);
-    static Utf16FlyString from_utf16_without_validation(Utf16View const&);
 
     template<typename T>
     requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
@@ -193,8 +192,5 @@ inline constexpr bool IsHashCompatible<Utf16FlyString, Utf16String> = true;
 
 [[nodiscard]] ALWAYS_INLINE AK::Utf16FlyString operator""_utf16_fly_string(char16_t const* string, size_t length)
 {
-    AK::Utf16View view { string, length };
-
-    ASSERT(view.validate());
-    return AK::Utf16FlyString::from_utf16_without_validation(view);
+    return AK::Utf16FlyString::from_utf16({ string, length });
 }

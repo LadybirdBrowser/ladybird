@@ -323,12 +323,6 @@ Utf16String StringBuilder::to_utf16_string()
     return Utf16String::from_string_builder({}, *this);
 }
 
-Utf16String StringBuilder::to_utf16_string_without_validation()
-{
-    VERIFY(m_mode == Mode::UTF16);
-    return Utf16String::from_string_builder_without_validation({}, *this);
-}
-
 u8* StringBuilder::data()
 {
     return m_buffer.data() + string_builder_prefix_size(m_mode);

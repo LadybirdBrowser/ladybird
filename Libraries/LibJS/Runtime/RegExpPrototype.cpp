@@ -320,7 +320,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
             //     2. Set captureEnd to ! GetStringIndex(S, Input, captureEnd).
             // iv. Let capture be the Match { [[StartIndex]]: captureStart, [[EndIndex]: captureEnd }.
             // v. Let capturedValue be ! GetMatchString(S, capture).
-            auto capture_as_utf16_string = Utf16String::from_utf16_without_validation(capture.view.u16_view());
+            auto capture_as_utf16_string = Utf16String::from_utf16(capture.view.u16_view());
             captured_value = PrimitiveString::create(vm, capture_as_utf16_string);
             // vi. Append capture to indices.
             indices.append(Match::create(capture));

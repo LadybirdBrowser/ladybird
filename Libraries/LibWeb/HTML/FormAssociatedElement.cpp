@@ -807,7 +807,7 @@ void FormAssociatedTextControlElement::handle_insert(Utf16String const& data)
     if (auto max_length = text_node->max_length(); max_length.has_value()) {
         auto remaining_length = *max_length - text_node->length_in_utf16_code_units();
         if (remaining_length < data.length_in_code_units())
-            data_for_insertion = Utf16String::from_utf16_without_validation(data.substring_view(0, remaining_length));
+            data_for_insertion = Utf16String::from_utf16(data.substring_view(0, remaining_length));
     }
 
     auto selection_start = this->selection_start();

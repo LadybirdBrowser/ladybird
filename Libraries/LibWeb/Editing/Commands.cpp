@@ -567,7 +567,7 @@ bool command_font_size_action(DOM::Document& document, Utf16String const& value)
     resulting_value = font_sizes[number - 1];
 
     // 12. Set the selection's value to value.
-    set_the_selections_value(document, CommandNames::fontSize, Utf16String::from_utf16_without_validation(resulting_value));
+    set_the_selections_value(document, CommandNames::fontSize, Utf16String::from_utf16(resulting_value));
 
     // 13. Return true.
     return true;
@@ -622,10 +622,9 @@ bool command_format_block_action(DOM::Document& document, Utf16String const& val
 {
     // 1. If value begins with a "<" character and ends with a ">" character, remove the first and last characters from
     //    it.
-    auto resulting_value = Utf16String::from_utf16_without_validation(
-        value.starts_with('<') && value.ends_with('>')
-            ? value.substring_view(1, value.length_in_code_units() - 2)
-            : value);
+    auto resulting_value = value;
+    if (value.starts_with('<') && value.ends_with('>'))
+        resulting_value = Utf16String::from_utf16(value.substring_view(1, value.length_in_code_units() - 2));
 
     // 2. Let value be converted to ASCII lowercase.
     resulting_value = resulting_value.to_ascii_lowercase();

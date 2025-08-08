@@ -63,34 +63,15 @@ public:
         return from_utf8_without_validation(utf8_string);
     }
 
-    ALWAYS_INLINE static Utf16String from_utf16(Utf16View const& utf16_string)
-    {
-        VERIFY(utf16_string.validate());
-        return from_utf16_without_validation(utf16_string);
-    }
-
-    ALWAYS_INLINE static ErrorOr<Utf16String> try_from_utf16(Utf16View const& utf16_string)
-    {
-        if (!utf16_string.validate())
-            return Error::from_string_literal("Input was not valid UTF-16");
-        return from_utf16_without_validation(utf16_string);
-    }
-
     static Utf16String from_utf8_without_validation(StringView);
-    static Utf16String from_utf16_without_validation(Utf16View const&);
-    static Utf16String from_utf32(Utf32View const&);
+
+    static Utf16String from_utf16(Utf16View const& utf16_string);
 
     template<typename T>
     requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
     static Utf16String from_utf16(T&&) = delete;
 
-    template<typename T>
-    requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
-    static ErrorOr<Utf16String> try_from_utf16(T&&) = delete;
-
-    template<typename T>
-    requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
-    static Utf16String from_utf16_without_validation(T&&) = delete;
+    static Utf16String from_utf32(Utf32View const&);
 
     ALWAYS_INLINE static Utf16String from_code_point(u32 code_point)
     {
@@ -101,7 +82,7 @@ public:
             code_units[length_in_code_units++] = code_unit;
         });
 
-        return from_utf16_without_validation({ code_units.data(), length_in_code_units });
+        return from_utf16({ code_units.data(), length_in_code_units });
     }
 
     template<typename... Parameters>
@@ -131,19 +112,6 @@ public:
     }
 
     static Utf16String repeated(u32 code_point, size_t count);
-
-    ALWAYS_INLINE static Utf16String from_string_builder(Badge<StringBuilder>, StringBuilder& builder)
-    {
-        VERIFY(builder.utf16_string_view().validate());
-        return from_string_builder_without_validation(builder);
-    }
-
-    ALWAYS_INLINE static Utf16String from_string_builder_without_validation(Badge<StringBuilder>, StringBuilder& builder)
-    {
-        return from_string_builder_without_validation(builder);
-    }
-
-    static ErrorOr<Utf16String> from_ipc_stream(Stream&, size_t length_in_code_units, bool is_ascii);
 
     Utf16String to_well_formed() const;
     String to_well_formed_utf8() const;
@@ -223,7 +191,7 @@ public:
         if (!needs_trimming)
             return *this;
 
-        return Utf16String::from_utf16_without_validation(utf16_view().trim(code_units, mode));
+        return Utf16String::from_utf16(utf16_view().trim(code_units, mode));
     }
 
     ALWAYS_INLINE Utf16String trim_ascii_whitespace(TrimMode mode = TrimMode::Both) const
@@ -233,13 +201,14 @@ public:
 
     ALWAYS_INLINE Utf16String escape_html_entities() const { return utf16_view().escape_html_entities(); }
 
+    static Utf16String from_string_builder(Badge<StringBuilder>, StringBuilder& builder);
+    static ErrorOr<Utf16String> from_ipc_stream(Stream&, size_t length_in_code_units, bool is_ascii);
+
 private:
     ALWAYS_INLINE explicit Utf16String(NonnullRefPtr<Detail::Utf16StringData const> value)
         : Utf16StringBase(move(value))
     {
     }
-
-    static Utf16String from_string_builder_without_validation(StringBuilder&);
 };
 
 template<>
@@ -264,8 +233,5 @@ struct Traits<Utf16String> : public DefaultTraits<Utf16String> {
 
 [[nodiscard]] ALWAYS_INLINE AK::Utf16String operator""_utf16(char16_t const* string, size_t length)
 {
-    AK::Utf16View view { string, length };
-
-    ASSERT(view.validate());
-    return AK::Utf16String::from_utf16_without_validation(view);
+    return AK::Utf16String::from_utf16({ string, length });
 }

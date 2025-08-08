@@ -54,10 +54,10 @@ WebIDL::ExceptionOr<Utf16String> CharacterData::substring_data(size_t offset, si
     // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
     //    to the end of node’s data, and then return.
     if (offset + count > length)
-        return Utf16String::from_utf16_without_validation(m_data.substring_view(offset));
+        return Utf16String::from_utf16(m_data.substring_view(offset));
 
     // 4. Return a string whose value is the code units from the offsetth code unit to the offset+countth code unit in node’s data.
-    return Utf16String::from_utf16_without_validation(m_data.substring_view(offset, count));
+    return Utf16String::from_utf16(m_data.substring_view(offset, count));
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-replace
