@@ -6,11 +6,9 @@
 
 #pragma once
 
-#include <AK/Error.h>
-#include <AK/OwnPtr.h>
 #include <LibGC/Function.h>
-#include <LibGC/Root.h>
-#include <LibGfx/Size.h>
+#include <LibGC/Ptr.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 
