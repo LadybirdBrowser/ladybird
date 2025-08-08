@@ -105,7 +105,7 @@ String ColorFunctionStyleValue::to_string(SerializationMode mode) const
 {
     auto convert_percentage = [&](ValueComparingNonnullRefPtr<StyleValue const> const& value) -> RemoveReference<decltype(value)> {
         if (value->is_percentage())
-            return NumberStyleValue::create(value->as_percentage().value() / 100);
+            return NumberStyleValue::create(value->as_percentage().raw_value() / 100);
         if (mode == SerializationMode::ResolvedValue && value->is_calculated()) {
             // FIXME: Figure out how to get the proper calculation resolution context here
             CalculationResolutionContext context {};

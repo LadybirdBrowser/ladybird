@@ -10,11 +10,11 @@
 #pragma once
 
 #include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/StyleValues/CSSUnitValue.h>
+#include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
 
 namespace Web::CSS {
 
-class AngleStyleValue : public CSSUnitValue {
+class AngleStyleValue : public DimensionStyleValue {
 public:
     static ValueComparingNonnullRefPtr<AngleStyleValue const> create(Angle angle)
     {
@@ -23,8 +23,8 @@ public:
     virtual ~AngleStyleValue() override;
 
     Angle const& angle() const { return m_angle; }
-    virtual double value() const override { return m_angle.raw_value(); }
-    virtual StringView unit() const override { return m_angle.unit_name(); }
+    virtual double raw_value() const override { return m_angle.raw_value(); }
+    virtual StringView unit_name() const override { return m_angle.unit_name(); }
 
     virtual String to_string(SerializationMode) const override;
 

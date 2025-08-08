@@ -2032,9 +2032,9 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             if (!maybe_blur_radius)
                 continue;
             blur_radius = maybe_blur_radius;
-            if (blur_radius->is_length() && blur_radius->as_length().length().raw_value() < 0)
+            if (blur_radius->is_length() && blur_radius->as_length().raw_value() < 0)
                 return nullptr;
-            if (blur_radius->is_percentage() && blur_radius->as_percentage().value() < 0)
+            if (blur_radius->is_percentage() && blur_radius->as_percentage().raw_value() < 0)
                 return nullptr;
             tokens.discard_a_token();
 
@@ -2189,9 +2189,9 @@ RefPtr<StyleValue const> Parser::parse_stroke_dasharray_value(TokenStream<Compon
             auto value = parse_length_percentage_value(tokens);
             if (!value)
                 return {};
-            if (value->is_percentage() && value->as_percentage().value() < 0)
+            if (value->is_percentage() && value->as_percentage().raw_value() < 0)
                 return {};
-            if (value->is_length() && value->as_length().length().raw_value() < 0)
+            if (value->is_length() && value->as_length().raw_value() < 0)
                 return {};
             dashes.append(value.release_nonnull());
         }

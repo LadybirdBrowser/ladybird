@@ -12,7 +12,7 @@
 namespace Web::CSS {
 
 AngleStyleValue::AngleStyleValue(Angle angle)
-    : CSSUnitValue(Type::Angle)
+    : DimensionStyleValue(Type::Angle)
     , m_angle(move(angle))
 {
 }

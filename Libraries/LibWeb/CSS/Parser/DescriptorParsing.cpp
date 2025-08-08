@@ -133,13 +133,13 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
                     // <length [0,∞]>{1,2}
                     if (auto first_length = parse_length_value(tokens)) {
-                        if (first_length->is_length() && first_length->as_length().length().raw_value() < 0)
+                        if (first_length->is_length() && first_length->as_length().raw_value() < 0)
                             return nullptr;
 
                         tokens.discard_whitespace();
 
                         if (auto second_length = parse_length_value(tokens)) {
-                            if (second_length->is_length() && second_length->as_length().length().raw_value() < 0)
+                            if (second_length->is_length() && second_length->as_length().raw_value() < 0)
                                 return nullptr;
 
                             return StyleValueList::create(StyleValueVector { first_length.release_nonnull(), second_length.release_nonnull() }, StyleValueList::Separator::Space);
@@ -186,7 +186,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                 case DescriptorMetadata::ValueType::PositivePercentage: {
                     if (auto percentage_value = parse_percentage_value(tokens)) {
                         if (percentage_value->is_percentage()) {
-                            if (percentage_value->as_percentage().value() < 0)
+                            if (percentage_value->as_percentage().raw_value() < 0)
                                 return nullptr;
                             return percentage_value.release_nonnull();
                         }

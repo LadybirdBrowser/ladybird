@@ -10,11 +10,11 @@
 #pragma once
 
 #include <LibWeb/CSS/Frequency.h>
-#include <LibWeb/CSS/StyleValues/CSSUnitValue.h>
+#include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
 
 namespace Web::CSS {
 
-class FrequencyStyleValue final : public CSSUnitValue {
+class FrequencyStyleValue final : public DimensionStyleValue {
 public:
     static ValueComparingNonnullRefPtr<FrequencyStyleValue const> create(Frequency frequency)
     {
@@ -23,8 +23,8 @@ public:
     virtual ~FrequencyStyleValue() override = default;
 
     Frequency const& frequency() const { return m_frequency; }
-    virtual double value() const override { return m_frequency.raw_value(); }
-    virtual StringView unit() const override { return m_frequency.unit_name(); }
+    virtual double raw_value() const override { return m_frequency.raw_value(); }
+    virtual StringView unit_name() const override { return m_frequency.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_frequency.to_string(serialization_mode); }
 
@@ -38,7 +38,7 @@ public:
 
 private:
     explicit FrequencyStyleValue(Frequency frequency)
-        : CSSUnitValue(Type::Frequency)
+        : DimensionStyleValue(Type::Frequency)
         , m_frequency(move(frequency))
     {
     }

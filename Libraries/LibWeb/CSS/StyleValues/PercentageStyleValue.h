@@ -10,11 +10,11 @@
 #pragma once
 
 #include <LibWeb/CSS/Percentage.h>
-#include <LibWeb/CSS/StyleValues/CSSUnitValue.h>
+#include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
 
 namespace Web::CSS {
 
-class PercentageStyleValue final : public CSSUnitValue {
+class PercentageStyleValue final : public DimensionStyleValue {
 public:
     static ValueComparingNonnullRefPtr<PercentageStyleValue const> create(Percentage percentage)
     {
@@ -23,8 +23,8 @@ public:
     virtual ~PercentageStyleValue() override = default;
 
     Percentage const& percentage() const { return m_percentage; }
-    virtual double value() const override { return m_percentage.value(); }
-    virtual StringView unit() const override { return "percent"sv; }
+    virtual double raw_value() const override { return m_percentage.value(); }
+    virtual StringView unit_name() const override { return "percent"sv; }
 
     virtual String to_string(SerializationMode) const override { return m_percentage.to_string(); }
 
@@ -38,7 +38,7 @@ public:
 
 private:
     PercentageStyleValue(Percentage&& percentage)
-        : CSSUnitValue(Type::Percentage)
+        : DimensionStyleValue(Type::Percentage)
         , m_percentage(percentage)
     {
     }

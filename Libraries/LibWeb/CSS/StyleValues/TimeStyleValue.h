@@ -9,12 +9,12 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/CSSUnitValue.h>
+#include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
 
-class TimeStyleValue : public CSSUnitValue {
+class TimeStyleValue : public DimensionStyleValue {
 public:
     static ValueComparingNonnullRefPtr<TimeStyleValue const> create(Time time)
     {
@@ -23,8 +23,8 @@ public:
     virtual ~TimeStyleValue() override = default;
 
     Time const& time() const { return m_time; }
-    virtual double value() const override { return m_time.raw_value(); }
-    virtual StringView unit() const override { return m_time.unit_name(); }
+    virtual double raw_value() const override { return m_time.raw_value(); }
+    virtual StringView unit_name() const override { return m_time.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_time.to_string(serialization_mode); }
 
@@ -38,7 +38,7 @@ public:
 
 private:
     explicit TimeStyleValue(Time time)
-        : CSSUnitValue(Type::Time)
+        : DimensionStyleValue(Type::Time)
         , m_time(move(time))
     {
     }
