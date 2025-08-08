@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Getting an shorthand property set explicitly in computed style returns a base CSSStyleValue
+Fail	Getting a shorthand property from initial computed style returns a base CSSStyleValue

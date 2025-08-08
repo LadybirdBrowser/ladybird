@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Constructing a CSSVariableReferenceValue with an empty variable name throws a TypeError
+Fail	Constructing a CSSVariableReferenceValue with an invalid variable name throws SyntaxError

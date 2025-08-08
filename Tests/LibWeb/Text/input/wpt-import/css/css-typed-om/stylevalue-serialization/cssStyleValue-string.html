@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSStyleValue serialization from parsing</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#stylevalue-serialization">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  const result = CSSStyleValue.parse('color', 'red');
+  assert_equals(result.toString(), 'red');
+}, 'CSSStyleValue parsed from string serializes to given string');
+
+test(() => {
+  const result = CSSStyleValue.parse('background', 'blue');
+  assert_equals(result.toString(), 'blue');
+}, 'Shorthand CSSStyleValue parsed from string serializes to given string');
+
+</script>

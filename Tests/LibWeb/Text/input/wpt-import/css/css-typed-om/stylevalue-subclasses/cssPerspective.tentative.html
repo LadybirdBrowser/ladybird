@@ -1,0 +1,80 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSPerspective tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssperspective">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gInvalidTestCases = [
+  { length: 'auto', desc: 'a keyword other than none (string)'},
+  { length: new CSSKeywordValue('auto'), desc: 'a keyword other than none (CSSKeywordValue)'},
+  { length: 3.14, desc: 'a double'},
+  { length: 0, desc: 'a unitless zero'},
+  { length: '10px', desc: 'a string length'},
+  { length: CSS.number(10), desc: 'a number CSSUnitValue'},
+  { length: CSS.s(10), desc: 'a time dimension CSSUnitValue'},
+  { length: new CSSMathSum(CSS.deg(1)), desc: 'a CSSMathValue of angle type' },
+];
+
+for (const {length, desc} of gInvalidTestCases) {
+  test(() => {
+    assert_throws_js(TypeError, () => new CSSPerspective(length));
+  }, 'Constructing a CSSPerspective with ' + desc + ' throws a TypeError');
+}
+
+for (const {length, desc} of gInvalidTestCases) {
+  test(() => {
+    let perspective = new CSSPerspective(CSS.px(0));
+    assert_throws_js(TypeError, () => perspective.length = length);
+    assert_style_value_equals(perspective.length, CSS.px(0));
+  }, 'Updating CSSPerspective.length with ' + desc + ' throws a TypeError');
+}
+
+const gValidTestCases = [
+  { length: CSS.px(-3.14), desc: 'a length CSSUnitValue' },
+  { length: new CSSMathSum(CSS.px(1)), desc: 'a CSSMathValue of length type' },
+  { length: new CSSKeywordValue('none'), desc: 'none (CSSKeywordValue)' },
+];
+
+for (const {length, desc} of gValidTestCases) {
+  test(() => {
+    const perspective = new CSSPerspective(length);
+    assert_equals(perspective.length, length);
+    assert_false(perspective.is2D);
+  }, 'CSSPerspective can be constructed from ' + desc);
+
+  test(() => {
+    let perspective = new CSSPerspective(CSS.px(0), CSS.px(0));
+    perspective.length = length;
+    assert_style_value_equals(perspective.length, length);
+  }, 'CSSPerspective.length can be updated to ' + desc);
+}
+
+const gConvertingValidTestCases = [
+  { length: "none", expected: new CSSKeywordValue('none'), desc: 'none (string)' },
+];
+
+for (const {length, expected, desc} of gConvertingValidTestCases) {
+  test(() => {
+    const perspective = new CSSPerspective(length);
+    assert_style_value_equals(perspective.length, expected);
+    assert_false(perspective.is2D);
+  }, 'CSSPerspective can be constructed from ' + desc);
+
+  test(() => {
+    let perspective = new CSSPerspective(CSS.px(0), CSS.px(0));
+    perspective.length = length;
+    assert_style_value_equals(perspective.length, expected);
+  }, 'CSSPerspective.length can be updated to ' + desc);
+}
+
+test(() => {
+  let perspective = new CSSPerspective(CSS.px(0), CSS.px(0));
+  perspective.is2D = true;
+  assert_false(perspective.is2D);
+}, 'Modifying CSSPerspective.is2D is a no-op');
+
+</script>

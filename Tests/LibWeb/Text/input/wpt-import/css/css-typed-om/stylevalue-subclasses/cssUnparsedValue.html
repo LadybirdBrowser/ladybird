@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSUnparsedValue Constructor</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-cssunparsedvalue">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+const gTestArguments = [
+  {
+    description: 'no arguments',
+    fragments: [],
+  },
+  {
+    description: 'a single empty string',
+    fragments: [''],
+  },
+  {
+    description: 'a single CSSVariableReferenceValue',
+    fragments: [new CSSVariableReferenceValue('--foo')],
+  },
+  {
+    description: 'a mix of strings and CSSVariableReferenceValues',
+    fragments: [
+      'foo',
+      'bar',
+      new CSSVariableReferenceValue('--A'),
+      'baz',
+      new CSSVariableReferenceValue('--B')
+    ],
+  },
+];
+
+for (const args of gTestArguments) {
+  test(() => {
+    const result = new CSSUnparsedValue(args.fragments);
+    assert_not_equals(result, null, 'a CSSUnparsedValue is created');
+    assert_style_value_array_equals(result, args.fragments,
+                                    'fragments are same as given by constructor');
+  }, `CSSUnparsedValue can be constructed from ${args.description}`);
+}
+
+</script>

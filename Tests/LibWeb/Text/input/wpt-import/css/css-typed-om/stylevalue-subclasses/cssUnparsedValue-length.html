@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSUnparsedValue.length</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-length">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  const result = new CSSUnparsedValue([]);
+  assert_equals(result.length, 0, 'length');
+}, 'Length of CSSUnparsedValue with no fragments is zero');
+
+test(() => {
+  const result = new CSSUnparsedValue([
+    ' ', new CSSVariableReferenceValue('--A')
+  ]);
+  assert_equals(result.length, 2, 'length');
+}, 'Length of CSSUnparsedValue with multiple fragments is the number of ' +
+   'fragments');
+
+test(() => {
+  let result = new CSSUnparsedValue([' ']);
+  assert_equals(result.length, 1, 'initial length');
+
+  result[1] = new CSSVariableReferenceValue('--A');
+  assert_equals(result.length, 2, 'length after appending once');
+
+  result[2] = 'lemon';
+  assert_equals(result.length, 3, 'length after appending twice');
+}, 'Length of CSSUnparsedValue updates when fragments are appended');
+
+test(() => {
+  let result = new CSSUnparsedValue([' ']);
+  assert_equals(result.length, 1, 'initial length');
+
+  result[0] = new CSSVariableReferenceValue('--A');
+  assert_equals(result.length, 1, 'length after modification');
+
+  result[0] = 'lemon';
+  assert_equals(result.length, 1, 'length after modification');
+}, 'Length of CSSUnparsedValue does not change when fragments are modified');
+
+</script>

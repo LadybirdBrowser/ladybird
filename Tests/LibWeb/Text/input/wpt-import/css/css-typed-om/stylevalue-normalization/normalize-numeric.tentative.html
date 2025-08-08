@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Numeric normalization tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#normalize-numeric">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+function test_numeric_normalization(test, property, cssText, expected) {
+  assert_style_value_equals(CSSNumericValue.parse(cssText), expected);
+  assert_style_value_equals(CSSStyleValue.parse(property, cssText), expected);
+  assert_style_value_equals(
+      createInlineStyleMap(test, property + ': ' + cssText).get(property),
+      expected);
+}
+
+test(t => {
+  test_numeric_normalization(t, 'line-height', '3.14', CSS.number(3.14));
+}, 'Normalizing a <number> returns a number CSSUnitValue');
+
+test(t => {
+  test_numeric_normalization(t, 'width', '3.14%', CSS.percent(3.14));
+}, 'Normalizing a <percentage> returns a percent CSSUnitValue');
+
+test(t => {
+  test_numeric_normalization(t, 'width', '3.14px', CSS.px(3.14));
+}, 'Normalizing a <dimension> returns a CSSUnitValue with the correct unit');
+
+test(t => {
+  test_numeric_normalization(t, 'opacity', '0', CSS.number(0));
+}, 'Normalizing a <number> with a unitless zero returns 0');
+
+test(t => {
+  test_numeric_normalization(t, 'width',
+      'calc(1px + calc(1px) + calc(1px * 2) + 1%)',
+      new CSSMathSum(CSS.px(4), CSS.percent(1)));
+}, 'Normalizing a <calc> returns simplified expression');
+
+test(t => {
+  assert_style_value_equals(CSSStyleValue.parse('width', '0px'), CSS.px(0));
+  assert_style_value_equals(
+      createInlineStyleMap(t, 'width: 0').get('width'),
+      CSS.px(0));
+}, 'Normalizing a <dimension> with a unitless zero returns 0px');
+
+</script>

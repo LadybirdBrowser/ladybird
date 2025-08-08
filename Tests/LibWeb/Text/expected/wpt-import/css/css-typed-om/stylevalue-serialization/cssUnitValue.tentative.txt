@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	CSSUnitValue with length unit constructed from IDL serializes correctly
+Fail	CSSUnitValue with unit "percent" constructed from IDL serializes correctly
+Fail	CSSUnitValue with unit "number" constructed from IDL serializes correctly
+Fail	CSSUnitValue with integer values constructed from IDL serializes correctly
+Fail	CSSKeywordValue from DOMString modified by "value" setter serializes correctly
+Fail	CSSKeywordValue from CSSOM modified by "value" setter serializes correctly

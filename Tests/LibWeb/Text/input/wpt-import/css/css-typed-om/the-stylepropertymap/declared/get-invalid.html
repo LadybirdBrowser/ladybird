@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Declared StylePropertyMap.get Error Handling</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#get-a-value-from-a-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createDeclaredStyleMap(t);
+  assert_throws_js(TypeError, () => styleMap.get('lemon'));
+}, 'Calling StylePropertyMap.get with an unsupported property throws a TypeError');
+
+</script>

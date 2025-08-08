@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSVariableReferenceValue Constructor</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssvariablereferencevalue-cssvariablereferencevalue">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  const result = new CSSVariableReferenceValue('--foo');
+  assert_not_equals(result, null, 'a CSSVariableReferenceValue is created');
+  assert_equals(result.variable, '--foo',
+                'variable is same as passed by constructor');
+  assert_equals(result.fallback, null, 'fallback');
+}, 'CSSVariableReferenceValue can be constructed with no fallback');
+
+test(() => {
+  const result = new CSSVariableReferenceValue('--foo', null);
+  assert_not_equals(result, null, 'a CSSVariableReferenceValue is created');
+  assert_equals(result.variable, '--foo',
+                'variable is same as passed by constructor');
+  assert_equals(result.fallback, null, 'fallback');
+}, 'CSSVariableReferenceValue can be constructed with null fallback');
+
+test(() => {
+  const result = new CSSVariableReferenceValue('--foo',
+      new CSSUnparsedValue(['lemon']));
+  assert_not_equals(result, null, 'a CSSVariableReferenceValue is created');
+  assert_equals(result.variable, '--foo',
+                'variable is same as passed by constructor');
+  assert_not_equals(result.fallback, null, 'fallback');
+  assert_style_value_equals(result.fallback, new CSSUnparsedValue(['lemon']),
+                            'fallback is same as passed by constructor');
+}, 'CSSVariableReferenceValue can be constructed with valid fallback');
+
+</script>

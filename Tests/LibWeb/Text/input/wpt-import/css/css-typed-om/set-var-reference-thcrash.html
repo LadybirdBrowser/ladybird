@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>Don't crash when setting a CSSVariableReferenceValue</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssvariablereferencevalue">
+<link rel="help" href="https://crbug.com/986710<">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  :root { --x: green; }
+</style>
+<div id="target"></div>
+<script>
+  test(function(){
+    let ref = new CSSVariableReferenceValue('--x')
+    let unparsed = new CSSUnparsedValue([' ', ref]);
+    target.attributeStyleMap.set('color', unparsed);
+    assert_equals('rgb(0, 128, 0)', target.computedStyleMap().get('color').toString());
+  }, 'Do not crash when referencing a variable with CSSVariableReferenceValue');
+</script>

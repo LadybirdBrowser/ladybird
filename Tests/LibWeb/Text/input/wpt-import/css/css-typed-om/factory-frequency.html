@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>CSSOM Test: Numeric Factory Functions for frequency</title>
+        <link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+        <link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory">
+        <meta name="assert" content="CSS factory functions produce expected CSSUnitValue">
+        <script src="../../resources/testharness.js"></script>
+        <script src="../../resources/testharnessreport.js"></script>
+    </head>
+    <body>
+      <script>
+          'use strict';
+          test(function(){
+              var frequency = CSS.Hz(10);
+              assert_true(frequency instanceof CSSUnitValue);
+              assert_equals(frequency.value, 10);
+              assert_equals(frequency.unit, 'hz');
+          }, 'CSS.Hz() produces hz frequency');
+
+          test(function(){
+              var frequency = CSS.kHz(20);
+              assert_true(frequency instanceof CSSUnitValue);
+              assert_equals(frequency.value, 20);
+              assert_equals(frequency.unit, 'khz');
+          }, 'CSS.kHz() produces khz frequency');
+      </script>
+    </body>
+</html>

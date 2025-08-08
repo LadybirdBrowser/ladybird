@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSUnitValue Constructor</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunitvalue-cssunitvalue">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(() => {
+  assert_throws_js(TypeError, () => new CSSUnitValue(0, 'lemon'));
+}, 'Constructing CSSUnitValue with an unknown unit throws a TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => new CSSUnitValue(0, ''));
+}, 'Constructing CSSUnitValue with a empty string unit throws a TypeError');
+
+for (const unit of gValidUnits) {
+  test(() => {
+    const result = new CSSUnitValue(-3.14, unit);
+    assert_not_equals(result, null, 'a CSSUnitValue is created');
+    assert_equals(result.value, -3.14,
+                  'value is same as given by constructor');
+    assert_equals(result.unit, unit.toLowerCase(),
+                  'unit is same as given by constructor');
+  }, 'CSSUnitValue can be constructed with ' + unit);
+}
+
+</script>

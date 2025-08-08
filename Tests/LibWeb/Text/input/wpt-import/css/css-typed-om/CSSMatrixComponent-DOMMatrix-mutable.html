@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSSMatrixComponent's matrix attribute is mutable</title>
+<meta name="author" title="Shane Stephens">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+  <div id="log"></div>
+  <script>
+    test(function() {
+      var component = new CSSMatrixComponent(new DOMMatrix());
+      assert_equals(component.matrix.m11, 1, 'DOMMatrix expected to be initialized to identity');
+      component.matrix.m11 = 2;
+      assert_equals(component.matrix.m11, 2, 'modification of m11 component of DOMMatrix expected to succeed');
+    });
+  </script>

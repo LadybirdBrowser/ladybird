@@ -1,0 +1,7 @@
+Harness status: Error
+
+Found 2 tests
+
+2 Fail
+Fail	Normalizing a matrix() returns a CSSMatrixComponent
+Fail	Normalizing a matrix3d() returns a CSSMatrixComponent

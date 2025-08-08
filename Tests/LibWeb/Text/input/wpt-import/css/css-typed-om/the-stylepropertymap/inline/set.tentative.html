@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>StylePropertyMap.set</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#set-a-value-on-a-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+const gInvalidTestCases = [
+  { property: 'lemon', values: ['ade'], desc: 'an unsupported property name' },
+  { property: null, values: ['foo'], desc: 'an null property name' },
+  { property: 'src', values: [new CSSUnparsedValue(['foo'])], desc: 'a descriptor' },
+  { property: 'width', values: [CSS.deg(0)], desc: 'an invalid CSSStyleValue' },
+  { property: 'width', values: ['10s'], desc: 'an invalid String' },
+];
+
+for (const {property, values, desc} of gInvalidTestCases) {
+  test(t => {
+    let styleMap = createInlineStyleMap(t, '');
+    assert_throws_js(TypeError, () => styleMap.set(property, ...values));
+  }, 'Setting a StylePropertyMap with ' + desc + ' throws TypeError');
+}
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '');
+  assert_throws_js(TypeError, () => styleMap.set('width', CSS.px(10), CSS.px(10)));
+}, 'Setting a non list-valued property with multiple arguments throws TypeError');
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '');
+  assert_throws_js(TypeError, () => styleMap.set('width', '1s, 2s'));
+}, 'Setting a non list-valued property with list-valued string throws TypeError');
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '');
+  assert_throws_js(TypeError, () => {
+    styleMap.set('transition-duration', '1s', new CSSUnparsedValue([]));
+  });
+}, 'Setting a list-valued property with a CSSUnparsedValue and other ' +
+   'values throws TypeError');
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '');
+  assert_throws_js(TypeError, () => {
+    styleMap.set('transition-duration', '1s', 'var(--A)');
+  });
+}, 'Setting a list-valued property with a var ref() and other values ' +
+   'throws TypeError');
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '');
+
+  styleMap.set('width', CSS.px(10));
+  assert_style_value_array_equals(styleMap.get('width'), CSS.px(10));
+
+  styleMap.set('width', '20px');
+  assert_style_value_array_equals(styleMap.get('width'), CSS.px(20));
+}, 'Setting a property with CSSStyleValue or String updates its value');
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '');
+
+  styleMap.set('transition-duration', CSS.s(1), '2s');
+  assert_style_value_array_equals(styleMap.getAll('transition-duration'), [CSS.s(1), CSS.s(2)]);
+
+  styleMap.set('transition-duration', '3s', CSS.s(4));
+  assert_style_value_array_equals(styleMap.getAll('transition-duration'), [CSS.s(3), CSS.s(4)]);
+}, 'Setting a list-valued property with CSSStyleValue or String updates its values');
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '');
+
+  styleMap.set('transition-duration', '1s, 2s');
+  assert_style_value_array_equals(styleMap.getAll('transition-duration'), [CSS.s(1), CSS.s(2)]);
+}, 'Setting a list-valued property with a list-valued string updates its value');
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, '');
+
+  styleMap.set('--foo', new CSSUnparsedValue(['auto']));
+  assert_style_value_array_equals(styleMap.get('--foo'), new CSSUnparsedValue(['auto']));
+
+  styleMap.set('--foo', '20px');
+  assert_style_value_array_equals(styleMap.get('--foo'), new CSSUnparsedValue(['20px']));
+}, 'Setting a custom property with CSSStyleValue or String updates its value');
+
+test(t => {
+  let styleMap = createInlineStyleMap(t, 'transition-duration: 5s, 10s');
+
+  styleMap.set('tRaNsItIoN-dUrAtIoN', '1s', CSS.s(2));
+  const result = styleMap.getAll('transition-duration');
+  assert_style_value_array_equals(result, [CSS.s(1), CSS.s(2)]);
+}, 'StylePropertyMap.set is case-insensitive');
+
+</script>

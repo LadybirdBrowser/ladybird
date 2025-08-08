@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Computed StylePropertyMap.get("position")</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#get-a-value-from-a-stylepropertymap">
+<meta name="assert" content="Test computed StylePropertyMap.get" />
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createComputedStyleMap(t, 'display: table-column; position: sticky');
+  assert_style_value_equals(styleMap.get('position'), new CSSKeywordValue('sticky'));
+}, 'Computed position sticky even if it does not apply');
+
+test(t => {
+  const styleMap = createComputedStyleMap(t, 'display: table-column; position: absolute');
+  assert_style_value_equals(styleMap.get('position'), new CSSKeywordValue('absolute'));
+}, 'Computed position absolute even if it does not apply');
+
+</script>

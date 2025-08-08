@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	CSSStyleValue.parseAll() with a valid property returns a list with a single CSSStyleValue
+Fail	CSSStyleValue.parseAll() is not case sensitive
+Fail	CSSStyleValue.parseAll() with a valid list-valued property returns a list with a single CSSStyleValue
+Fail	CSSStyleValue.parseAll() with a valid shorthand property returns a CSSStyleValue
+Fail	CSSStyleValue.parseAll() with a valid custom property returns a list with a single CSSStyleValue

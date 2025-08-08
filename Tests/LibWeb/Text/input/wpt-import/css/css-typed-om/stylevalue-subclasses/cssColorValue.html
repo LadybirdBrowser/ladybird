@@ -1,0 +1,107 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSColorValue Tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#csscolorvalue">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const rgb_attributes = ['r', 'g', 'b', 'alpha']
+const hsl_attributes = ['h', 's', 'l', 'alpha']
+const hwb_attributes = ['h', 'w', 'b', 'alpha']
+
+const PARSING_COLOR_TEST_CASES = [
+  {
+    value: 'rgb(255,255,255)',
+    expected: new CSSRGB(CSS.number(255), CSS.number(255), CSS.number(255)),
+  },
+  {
+    value: 'rgba(100,255,255, 1)',
+    expected: new CSSRGB(CSS.number(100), CSS.number(255), CSS.number(255), CSS.percent(100)),
+  },
+  {
+    value: "#00bfff",
+    expected: new CSSRGB(CSS.number(0), CSS.number(191), CSS.number(255)),
+  },
+  {
+    value: "hsl(195, 100%, 50%)",
+    expected: new CSSHSL(CSS.deg(195), CSS.percent(100), CSS.percent(50)),
+  },
+  {
+    value: "hsla(123, 100%, 20%, .5)",
+    expected: new CSSHSL(CSS.deg(123), CSS.percent(100), CSS.percent(20), CSS.percent(50)),
+  },
+  {
+    value: "hwb(200 31% 38%)",
+    expected: new CSSHWB(CSS.deg(200), CSS.percent(31), CSS.percent(38)),
+  },
+  {
+    value: "hwb(200 31% 38% / 0.5)",
+    expected: new CSSHWB(CSS.deg(200), CSS.percent(31), CSS.percent(38), CSS.percent(50)),
+  },
+  {
+    value: "blue",
+    expected: new CSSRGB(CSS.number(0), CSS.number(0), CSS.number(255)),
+  },
+  {
+    value: "transparent",
+    expected: new CSSRGB(CSS.number(0), CSS.number(0), CSS.number(0), CSS.percent(0)),
+  },
+]
+
+for(const testCase of PARSING_COLOR_TEST_CASES) {
+  test(()=> {
+    const parsedColor = CSSColorValue.parse(testCase.value)
+    let attrs;
+    switch(testCase.expected.constructor.name) {
+      case "CSSRGB":
+        attrs = rgb_attributes;
+        break;
+      case "CSSHSL":
+        attrs = hsl_attributes;
+        break;
+      case "CSSHWB":
+        attrs = hwb_attributes
+    }
+
+    for (const attr of attrs) {
+      assert_color_channel_approx_equals(parsedColor[attr], testCase.expected[attr]);
+    }
+  }, `Parsing the color string "${testCase.value}"`)
+}
+
+const INVALID_COLOR_TEST_CASES = [
+  "abcdef",
+  "--foo",
+  "--bar",
+  "abc()",
+  "initial",
+  "inherit",
+  "unset",
+  "revert",
+  "revert-layer"
+]
+
+for(const testCase of INVALID_COLOR_TEST_CASES) {
+test(()=> {
+  assert_throws_dom("SyntaxError",
+  () => CSSColorValue.parse(testCase));
+}, `throwing invalid color string "${testCase}`)
+}
+
+const SYSTEM_COLORS = [
+  'GrayText',
+  'Canvas'
+]
+
+for(const testCase of SYSTEM_COLORS) {
+  test(()=>{
+    const parsedColor = CSSColorValue.parse(testCase)
+    assert_equals(parsedColor.constructor.name, 'CSSKeywordValue')
+    assert_equals(parsedColor.toString(), testCase.toLowerCase())
+  })
+}
+
+</script>

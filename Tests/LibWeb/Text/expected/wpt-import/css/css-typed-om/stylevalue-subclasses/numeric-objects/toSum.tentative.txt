@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+2 Pass
+9 Fail
+Fail	Converting a CSSNumericValue to a sum with invalid units throws SyntaxError
+Fail	Converting a CSSNumericValue with an invalid sum value to a sum throws TypeError
+Fail	Converting a CSSNumericValue with compound units to a sum throws TypeError
+Pass	Converting a CSSNumericValue to a sum with an incompatible unit throws TypeError
+Pass	Converting a CSSNumericValue to a sum with units that are not addable throws TypeError
+Fail	Converting a CSSNumericValue with leftover units to a sum throws TypeError
+Fail	Converting CSSNumericValue to a sum with its own unit returns itself
+Fail	Converting CSSNumericValue to a sum with no arguments returns all the units in sorted order
+Fail	Converting CSSNumericValue to a sum with a relative unit converts correctly
+Fail	Converting CSSNumericValue to a sum containing extra units returns zero for those units
+Fail	CSSNumericValue.toSum converts greedily

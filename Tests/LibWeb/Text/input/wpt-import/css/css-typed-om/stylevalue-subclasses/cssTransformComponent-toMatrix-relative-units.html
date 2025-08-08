@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSTransformComponent.toMatrix with Relative Units</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix">
+<meta name="assert" content="Test CSSTransformComponent.toMatrix throws when given relative units" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+test(() => {
+  assert_throws_js(TypeError, () => {
+    return new CSSTranslate(
+      new CSSUnitValue(1, 'px'),
+      new CSSUnitValue(1, 'em')
+    ).toMatrix();
+  });
+}, 'CSSTranslate.toMatrix() containing relative units throws TypeError');
+
+test(() => {
+  assert_throws_js(TypeError, () => {
+    return new CSSPerspective(new CSSUnitValue(1, 'em')).toMatrix();
+  });
+}, 'CSSPerspective.toMatrix() containing relative units throws TypeError');
+
+</script>

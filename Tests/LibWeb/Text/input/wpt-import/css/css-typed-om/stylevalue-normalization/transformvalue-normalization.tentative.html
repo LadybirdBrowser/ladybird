@@ -1,0 +1,187 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Transform normalization tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#transformvalue-normalization">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/comparisons.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+function test_transform_normalization(test, cssText, expected) {
+  assert_style_value_equals(CSSStyleValue.parse('transform', cssText), expected);
+  assert_style_value_equals(
+      createInlineStyleMap(test, 'transform: ' + cssText).get('transform'),
+      expected);
+}
+
+test(t => {
+  test_transform_normalization(t, 'matrix(1, 2, 3, 4, 5, 6)',
+      new CSSTransformValue([
+        new CSSMatrixComponent(new DOMMatrixReadOnly([1, 2, 3, 4, 5, 6]))
+      ]));
+}, 'Normalizing a matrix() returns a CSSMatrixComponent');
+
+test(t => {
+  test_transform_normalization(t,
+      'matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)',
+      new CSSTransformValue([
+        new CSSMatrixComponent(new DOMMatrixReadOnly([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]))
+      ]));
+}, 'Normalizing a matrix3d() returns a CSSMatrixComponent');
+
+const gTestCases = [
+  {
+    cssText: 'translate(1px)',
+    expected: new CSSTranslate(CSS.px(1), CSS.px(0)),
+    desc: 'translate() with X'
+  },
+  {
+    cssText: 'translate(1%, 1px)',
+    expected: new CSSTranslate(CSS.percent(1), CSS.px(1)),
+    desc: 'translate() with X and Y'
+  },
+  {
+    cssText: 'translateX(1%)',
+    expected: new CSSTranslate(CSS.percent(1), CSS.px(0)),
+    desc: 'translateX()'
+  },
+  {
+    cssText: 'translateY(1px)',
+    expected: new CSSTranslate(CSS.px(0), CSS.px(1)),
+    desc: 'translateY()'
+  },
+  {
+    cssText: 'translate3d(1px, 2%, 3px)',
+    expected: new CSSTranslate(CSS.px(1), CSS.percent(2), CSS.px(3)),
+    desc: 'translate3d()'
+  },
+  {
+    cssText: 'translateZ(1px)',
+    expected: new CSSTranslate(CSS.px(0), CSS.px(0), CSS.px(1)),
+    desc: 'translateZ()'
+  },
+  {
+    cssText: 'scale(2)',
+    expected: new CSSScale(CSS.number(2), CSS.number(2)),
+    desc: 'scale() with one argument'
+  },
+  {
+    cssText: 'scale(2, 3)',
+    expected: new CSSScale(CSS.number(2), CSS.number(3)),
+    desc: 'scale() with two arguments'
+  },
+  {
+    cssText: 'scaleX(2)',
+    expected: new CSSScale(CSS.number(2), CSS.number(1)),
+    desc: 'scaleX()'
+  },
+  {
+    cssText: 'scaleY(2)',
+    expected: new CSSScale(CSS.number(1), CSS.number(2)),
+    desc: 'scaleY()'
+  },
+  {
+    cssText: 'scale3d(1, 2, 3)',
+    expected: new CSSScale(CSS.number(1), CSS.number(2), CSS.number(3)),
+    desc: 'scale3d()'
+  },
+  {
+    cssText: 'scaleZ(2)',
+    expected: new CSSScale(CSS.number(1), CSS.number(1), CSS.number(2)),
+    desc: 'scaleZ()'
+  },
+  {
+    cssText: 'rotate(90deg)',
+    expected: new CSSRotate(CSS.deg(90)),
+    desc: 'rotate()'
+  },
+  {
+    cssText: 'rotate3d(1, 2, 3, 90deg)',
+    expected: new CSSRotate(CSS.number(1), CSS.number(2), CSS.number(3), CSS.deg(90)),
+    desc: 'rotate3d()'
+  },
+  {
+    cssText: 'rotateX(90deg)',
+    expected: new CSSRotate(CSS.number(1), CSS.number(0), CSS.number(0), CSS.deg(90)),
+    desc: 'rotateX()'
+  },
+  {
+    cssText: 'rotateY(90deg)',
+    expected: new CSSRotate(CSS.number(0), CSS.number(1), CSS.number(0), CSS.deg(90)),
+    desc: 'rotateY()'
+  },
+  {
+    cssText: 'rotateZ(90deg)',
+    expected: new CSSRotate(CSS.number(0), CSS.number(0), CSS.number(1), CSS.deg(90)),
+    desc: 'rotateZ()'
+  },
+  {
+    cssText: 'skew(90deg)',
+    expected: new CSSSkew(CSS.deg(90), CSS.deg(0)),
+    desc: 'skew() with only X'
+  },
+  {
+    cssText: 'skew(90deg, 0deg)',
+    expected: new CSSSkew(CSS.deg(90), CSS.deg(0)),
+    desc: 'skew() with X and Y which is 0 value'
+  },
+  {
+    cssText: 'skew(90deg, 45deg)',
+    expected: new CSSSkew(CSS.deg(90), CSS.deg(45)),
+    desc: 'skew() with X and Y'
+  },
+  {
+    cssText: 'skewX(90deg)',
+    expected: new CSSSkewX(CSS.deg(90)),
+    desc: 'skewX()'
+  },
+  {
+    cssText: 'skewY(90deg)',
+    expected: new CSSSkewY(CSS.deg(90)),
+    desc: 'skewY()'
+  },
+  {
+    cssText: 'perspective(1px)',
+    expected: new CSSPerspective(CSS.px(1)),
+    desc: 'perspective()'
+  },
+  {
+    cssText: 'perspective(none)',
+    expected: new CSSPerspective(new CSSKeywordValue('none')),
+    desc: 'perspective(none)'
+  },
+];
+
+for (const {cssText, expected, desc} of gTestCases) {
+  test(t => {
+    test_transform_normalization(t, cssText, new CSSTransformValue([expected]));
+  }, 'Normalizing a ' + desc + ' returns a ' + expected.constructor.name);
+}
+
+test(t => {
+  test_transform_normalization(t,
+      'translate(1px) rotateX(90deg) perspective(1px) skew(90deg) skewX(20deg) skewY(30deg) scale3d(1, 2, 3)',
+      new CSSTransformValue([
+        new CSSTranslate(CSS.px(1), CSS.px(0)),
+        new CSSRotate(CSS.number(1), CSS.number(0), CSS.number(0), CSS.deg(90)),
+        new CSSPerspective(CSS.px(1)),
+        new CSSSkew(CSS.deg(90), CSS.deg(0)),
+        new CSSSkewX(CSS.deg(20)),
+        new CSSSkewY(CSS.deg(30)),
+        new CSSScale(CSS.number(1), CSS.number(2), CSS.number(3)),
+      ]));
+}, 'Normalizing a <transform-list> returns a CSSTransformValue containing all the transforms');
+
+test(t => {
+  test_transform_normalization(t,
+      'translate(calc(1px + 1em)) perspective(calc(1px + 1em))',
+      new CSSTransformValue([
+        new CSSTranslate(new CSSMathSum(CSS.px(1), CSS.em(1)), CSS.px(0)),
+        new CSSPerspective(new CSSMathSum(CSS.px(1), CSS.em(1))),
+      ]));
+}, 'Normalizing transforms with calc values contains CSSMathValues');
+
+</script>

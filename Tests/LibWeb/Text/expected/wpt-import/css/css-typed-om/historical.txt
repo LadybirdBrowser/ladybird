@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+1 Pass
+10 Fail
+Pass	Support for CSSPositionValue
+Fail	toRGB should not exist on CSSColorValue
+Fail	toHSL should not exist on CSSColorValue
+Fail	toHWB should not exist on CSSColorValue
+Fail	toGray should not exist on CSSColorValue
+Fail	toLCH should not exist on CSSColorValue
+Fail	toLab should not exist on CSSColorValue
+Fail	toColor should not exist on CSSColorValue
+Fail	toDeviceCMYK should not exist on CSSColorValue
+Fail	to should not exist on CSSColorValue
+Fail	colorSpace should not exist on CSSColorValue

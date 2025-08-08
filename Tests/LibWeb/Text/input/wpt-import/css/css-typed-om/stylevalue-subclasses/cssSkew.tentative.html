@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSSkew tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssskew">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gInvalidTestCases = [
+  { value: 'auto', desc: 'a keyword'},
+  { value: 3.14, desc: 'a double'},
+  { value: 0, desc: 'a unitless zero'},
+  { value: '10deg', desc: 'a string angle'},
+  { value: CSS.number(10), desc: 'a number CSSUnitValue'},
+  { value: CSS.s(10), desc: 'a time dimension CSSUnitValue'},
+  { value: new CSSMathSum(CSS.px(1)), desc: 'a CSSMathValue of length type' },
+];
+
+for (const {value, desc} of gInvalidTestCases) {
+  test(() => {
+    assert_throws_js(TypeError, () => new CSSSkew(value, CSS.deg(0)));
+    assert_throws_js(TypeError, () => new CSSSkew(CSS.deg(0), value));
+  }, 'Constructing a CSSSkew with ' + desc + ' throws a TypeError');
+}
+
+for (const attr of ['ax', 'ay']) {
+  for (const {value, desc} of gInvalidTestCases) {
+    test(() => {
+      let skew = new CSSSkew(CSS.deg(0), CSS.deg(0));
+      assert_throws_js(TypeError, () => skew[attr] = value);
+      assert_style_value_equals(skew[attr], CSS.deg(0));
+    }, 'Updating CSSSkew.' + attr + ' with ' + desc + ' throws a TypeError');
+  }
+}
+
+const gValidTestCases = [
+  { value: CSS.deg(-3.14), desc: 'an angle CSSUnitValue' },
+  { value: new CSSMathSum(CSS.deg(1)), desc: 'a CSSMathValue of angle type' },
+];
+
+for (const {value: ax, desc: axDesc} of gValidTestCases) {
+  for (const {value: ay, desc: ayDesc} of gValidTestCases) {
+    test(() => {
+      const skew = new CSSSkew(ax, ay);
+      assert_equals(skew.ax, ax);
+      assert_equals(skew.ay, ay);
+      assert_true(skew.is2D);
+    }, 'CSSSkew can be constructed from ' + axDesc + ' and ' + ayDesc);
+  }
+}
+
+for (const attr of ['ax', 'ay']) {
+  for (const {value, desc} of gValidTestCases) {
+    test(() => {
+      let skew = new CSSSkew(CSS.deg(0), CSS.deg(0));
+      skew[attr] = value;
+      assert_style_value_equals(skew[attr], value);
+    }, 'CSSSkew.' + attr + ' can be updated to ' + desc);
+  }
+}
+
+test(() => {
+  let skew = new CSSSkew(CSS.deg(0), CSS.deg(0));
+  skew.is2D = false;
+  assert_true(skew.is2D);
+}, 'Modifying CSSSkew.is2D is a no-op');
+
+</script>

@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Inline StylePropertyMap.get</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#get-a-value-from-a-stylepropertymap">
+<meta name="assert" content="Test inline StylePropertyMap.get" />
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<div id="log">
+<script>
+'use strict';
+
+test(t => {
+  const styleMap = createInlineStyleMap(t, '--foo: auto');
+  assert_equals(styleMap.get('--Foo'), undefined);
+}, 'Getting a custom property not in the inline style returns undefined');
+
+test(t => {
+  const styleMap = createInlineStyleMap(t, '');
+  assert_equals(styleMap.get('width'), undefined);
+}, 'Getting a valid property not in the inline style returns undefined');
+
+test(t => {
+  const styleMap = createInlineStyleMap(t, 'width: 10px; height: 20px');
+  assert_style_value_equals(styleMap.get('width'), new CSSUnitValue(10, 'px'));
+}, 'Getting a valid property from inline style returns the correct entry');
+
+test(t => {
+  const styleMap = createInlineStyleMap(t, '--foo: auto; --bar: 10px');
+  assert_style_value_equals(styleMap.get('--foo'),
+      new CSSUnparsedValue(['auto']));
+}, 'Getting a valid custom property from inline style returns the ' +
+   'correct entry');
+
+test(t => {
+  const styleMap = createInlineStyleMap(t,
+      'width: 10px; transition-duration: 1s, 2s; height: 10px;');
+  assert_style_value_equals(styleMap.get('transition-duration'),
+      new CSSUnitValue(1, 's'));
+}, 'Getting a list-valued property from inline style returns only ' +
+   'the first value');
+
+test(t => {
+  const styleMap = createInlineStyleMap(t, 'height: 20px; width: 10px;');
+  assert_style_value_equals(styleMap.get('wIdTh'), new CSSUnitValue(10, 'px'));
+}, 'Declared StylePropertyMap.get is not case-sensitive');
+
+test(t => {
+  const [elem, styleMap] = createElementWithInlineStyleMap(t, 'width: 10px;');
+  assert_style_value_equals(styleMap.get('width'), new CSSUnitValue(10, 'px'));
+  elem.style.width = '20px';
+  assert_style_value_equals(styleMap.get('width'), new CSSUnitValue(20, 'px'));
+}, 'Declared StylePropertyMap.get reflects changes in the inline style');
+
+</script>

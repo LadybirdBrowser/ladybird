@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Deleting a shorthand property not in the css rule is a no-op
+Fail	Deleting a shorthand property in the css rule removes both it and its longhands
+Fail	Deleting a longhand property in the css rule removes both it and its shorthand

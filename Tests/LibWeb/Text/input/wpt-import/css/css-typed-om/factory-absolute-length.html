@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>CSSOM Test: Numeric Factory Functions for absolute length</title>
+        <link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+        <link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory">
+        <meta name="assert" content="CSS factory functions produce expected CSSUnitValue">
+        <script src="../../resources/testharness.js"></script>
+        <script src="../../resources/testharnessreport.js"></script>
+    </head>
+    <body>
+      <script>
+          'use strict';
+          test(function(){
+              var length = CSS.cm(10);
+              assert_true(length instanceof CSSUnitValue);
+              assert_equals(length.value, 10);
+              assert_equals(length.unit, 'cm');
+          }, 'CSS.cm() produces cm length');
+
+          test(function(){
+              var length = CSS.mm(20);
+              assert_true(length instanceof CSSUnitValue);
+              assert_equals(length.value, 20);
+              assert_equals(length.unit, 'mm');
+          }, 'CSS.mm() produces mm length');
+
+          test(function(){
+              var length = CSS.Q(30);
+              assert_true(length instanceof CSSUnitValue);
+              assert_equals(length.value, 30);
+              assert_equals(length.unit, 'q');
+          }, 'CSS.Q() produces q length');
+
+          test(function(){
+              var length = CSS.in(40);
+              assert_true(length instanceof CSSUnitValue);
+              assert_equals(length.value, 40);
+              assert_equals(length.unit, 'in');
+          }, 'CSS.in() produces in length');
+
+          test(function(){
+              var length = CSS.pt(50);
+              assert_true(length instanceof CSSUnitValue);
+              assert_equals(length.value, 50);
+              assert_equals(length.unit, 'pt');
+          }, 'CSS.pt() produces pt length');
+
+          test(function(){
+              var length = CSS.pc(60);
+              assert_true(length instanceof CSSUnitValue);
+              assert_equals(length.value, 60);
+              assert_equals(length.unit, 'pc');
+          }, 'CSS.pc() produces pc length');
+
+          test(function(){
+              var length = CSS.px(70);
+              assert_true(length instanceof CSSUnitValue);
+              assert_equals(length.value, 70);
+              assert_equals(length.unit, 'px');
+          }, 'CSS.px() produces px length');
+      </script>
+    </body>
+</html>

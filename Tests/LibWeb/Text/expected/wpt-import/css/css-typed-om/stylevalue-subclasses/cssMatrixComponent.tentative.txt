@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Fail
+Fail	CSSMatrixComponent can be constructed from a 2D matrix with is2D true
+Fail	CSSMatrixComponent can be constructed from a 2D matrix with is2D false
+Fail	CSSMatrixComponent can be constructed from a 2D matrix without a CSSMatrixComponentOptions
+Fail	CSSMatrixComponent can be constructed from a 2D matrix with an invalid CSSMatrixComponentOptions
+Fail	CSSMatrixComponent.matrix can be updated to a 2D matrix
+Fail	CSSMatrixComponent can be constructed from a 3D matrix with is2D true
+Fail	CSSMatrixComponent can be constructed from a 3D matrix with is2D false
+Fail	CSSMatrixComponent can be constructed from a 3D matrix without a CSSMatrixComponentOptions
+Fail	CSSMatrixComponent can be constructed from a 3D matrix with an invalid CSSMatrixComponentOptions
+Fail	CSSMatrixComponent.matrix can be updated to a 3D matrix

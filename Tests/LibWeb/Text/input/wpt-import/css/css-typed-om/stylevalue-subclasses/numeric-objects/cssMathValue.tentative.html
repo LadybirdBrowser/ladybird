@@ -1,0 +1,80 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSMathValue subclass tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#complex-numeric">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gVariadicMathValueSubclasses = [
+  { subclass: CSSMathSum, operator: 'sum' },
+  { subclass: CSSMathProduct, operator: 'product' },
+  { subclass: CSSMathMin, operator: 'min' },
+  { subclass: CSSMathMax, operator: 'max' },
+];
+
+for (const {subclass, operator} of gVariadicMathValueSubclasses) {
+  test(() => {
+    assert_throws_dom("SyntaxError", () => new subclass());
+  }, 'Constructing a ' + subclass.name + ' with no arguments throws a SyntaxError');
+
+  test(() => {
+    const result = new subclass(CSS.number(0));
+    assert_equals(result.operator, operator);
+    assert_style_value_array_equals(result.values, [CSS.number(0)]);
+  }, subclass.name + ' can be constructed from a single number CSSUnitValue');
+
+  test(() => {
+    const args = [CSS.number(1), CSS.number(2), CSS.number(3), CSS.number(4), CSS.number(5)]
+    const result = new subclass(...args);
+    assert_equals(result.operator, operator);
+    assert_style_value_array_equals(result.values, args);
+  }, subclass.name + ' can be constructed from more than one number CSSUnitValue');
+
+  test(() => {
+    let result = new subclass(CSS.number(1), CSS.number(2));
+    assert_throws_js(TypeError, () => result.operator = 'foo');
+  }, subclass.name + '.operator is readonly');
+}
+
+const gUnaryMathValueSubclasses = [
+  { subclass: CSSMathNegate, operator: 'negate' },
+  { subclass: CSSMathInvert, operator: 'invert' },
+]
+
+for (const {subclass, operator} of gUnaryMathValueSubclasses) {
+  test(() => {
+    const result1 = new subclass(CSS.number(0));
+    assert_equals(result1.operator, operator);
+    assert_style_value_equals(result1.value, CSS.number(0));
+
+    const result2 = new subclass(0);
+    assert_equals(result2.operator, operator);
+    assert_style_value_equals(result2.value, CSS.number(0));
+  }, subclass.name + ' can be constructed from a single numberish value');
+
+  test(() => {
+    let result = new subclass(CSS.number(1));
+    assert_throws_js(TypeError, () => result.operator = 'foo');
+  }, subclass.name + '.operator is readonly');
+}
+
+// CSSMathClamp test
+test(() => {
+  assert_throws_js(TypeError, () => new CSSMathClamp());
+  assert_throws_js(TypeError, () => new CSSMathClamp(CSS.number(1)));
+  assert_throws_js(TypeError, () => new CSSMathClamp(CSS.number(1), CSS.number(2)));
+}, 'Constructing a ' + CSSMathClamp.name + ' with less than 3 arguments throws a SyntaxError');
+
+test(() => {
+  assert_throws_js(TypeError, () => new CSSMathClamp(CSS.number(1), CSS.px(2), CSS.number(3)));
+}, 'Constructing a ' + CSSMathClamp.name + ' with different unit arguments throws a SyntaxError');
+
+test(() => {
+  let result = new CSSMathClamp(CSS.number(1), CSS.number(2), CSS.number(3));
+  assert_throws_js(TypeError, () => result.operator = 'foo');
+}, CSSMathClamp.name + '.operator is readonly');
+
+</script>

@@ -1,0 +1,52 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSTransformValue.toMatrix</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix">
+<meta name="assert" content="Test CSSTransformValue.toMatrix multiplies component matrices" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gEpsilon = 1e-6;
+
+test(() => {
+  const transformMatrix = new DOMMatrixReadOnly([1, 1, 1, 1, 1, 1]);
+  const transformArray = [
+    new CSSScale(2, 2),
+    new CSSMatrixComponent(transformMatrix),
+    new CSSScale(5, 6)
+  ];
+
+  let expectedMatrix = new DOMMatrix();
+  expectedMatrix.scaleSelf(2, 2);
+  expectedMatrix.multiplySelf(transformMatrix);
+  expectedMatrix.scaleSelf(5, 6);
+
+  const transform = new CSSTransformValue(transformArray);
+  assert_matrix_approx_equals(transform.toMatrix(), expectedMatrix, gEpsilon);
+}, 'CSSTransformValue.toMatrix() multiplies its component matrices');
+
+test(() => {
+  const transformMatrix = new DOMMatrixReadOnly([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+  let transformArray = [
+    new CSSTranslate(CSS.px(1), CSS.px(1), CSS.px(1)),
+    new CSSRotate(1, 2, 3, CSS.deg(90)),
+    new CSSScale(2, 3, 2),
+    new CSSMatrixComponent(transformMatrix),
+  ];
+
+  transformArray.forEach(transform => transform.is2D = true);
+
+  let expectedMatrix = new DOMMatrix();
+  expectedMatrix.translateSelf(1, 1);
+  expectedMatrix.rotateSelf(90);
+  expectedMatrix.scaleSelf(2, 3);
+  expectedMatrix.multiplySelf(new DOMMatrixReadOnly([1, 2, 5, 6, 13, 14]));
+
+  const transform = new CSSTransformValue(transformArray);
+  assert_matrix_approx_equals(transform.toMatrix(), expectedMatrix, gEpsilon);
+}, 'CSSTransformValue.toMatrix() respects is2D changes in its components');
+
+</script>

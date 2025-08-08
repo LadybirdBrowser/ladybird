@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Computed position sticky even if it does not apply
+Fail	Computed position absolute even if it does not apply

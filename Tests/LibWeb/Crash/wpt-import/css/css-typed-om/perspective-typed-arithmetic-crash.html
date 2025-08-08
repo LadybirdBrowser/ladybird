@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>Don't crash when setting a CSS-wide keyword on a custom property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssperspective">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-create-a-type">
+<link rel="help" href="https://crbug.com/1240638<">
+<div id="target">
+  Don't crash
+</div>
+<script>
+  String(new CSSPerspective(CSS.px(1).mul(CSS.px(1)).div(CSS.px(1))));
+</script>

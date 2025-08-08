@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Parsing calc(1% + 2em + 3px)
+Fail	Parsing calc(1px + 2% + 3em)

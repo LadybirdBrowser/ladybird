@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	An inflow flex-item computed StylePropertyMap.get reports the auto minimum size correctly.
+Fail	An absolute flex-child computed StylePropertyMap.get reports the auto minimum size correctly.
+Fail	An inflow grid-item computed StylePropertyMap.get reports the auto minimum size correctly.
+Fail	An absolute grid-child computed StylePropertyMap.get reports the auto minimum size correctly.
+Fail	An inflow block computed StylePropertyMap.get reports the auto minimum size correctly.
+Fail	An absolute block computed StylePropertyMap.get reports the auto minimum size correctly.

@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>StylePropertyMap.append tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#append-to-a-stylepropertymap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+const gInvalidTestCases = [
+  { property: 'lemon', values: ['ade'], desc: 'an unsupported property name' },
+  { property: null, values: ['foo'], desc: 'an null property name' },
+  { property: 'width', values: ['10px'], desc: 'a property that is not list valued' },
+  { property: 'margin', values: ['10px'], desc: 'a shorthand property' },
+  { property: 'transition-duration', values: [CSS.px(10)], desc: 'an invalid CSSStyleValue' },
+  { property: 'transition-duration', values: ['10px'], desc: 'an invalid String value' },
+  { property: 'transition-duration', values: [CSS.s(1), '10px', CSS.px(10)], desc: 'a mix of valid and invalid values' },
+  { property: 'transition-duration', values: [new CSSUnparsedValue([])], desc: 'a CSSUnparsedValue' },
+  { property: 'transition-duration', values: ['var(--A)'], desc: 'a var ref' },
+];
+
+for (const {property, values, desc} of gInvalidTestCases) {
+  test(t => {
+    let styleMap = createDeclaredStyleMap(t, '');
+    assert_throws_js(TypeError, () => styleMap.append(property, ...values));
+  }, 'Calling StylePropertyMap.append with ' + desc + ' throws TypeError');
+}
+
+test(t => {
+  let styleMap = createDeclaredStyleMap(t, '');
+
+  styleMap.append('transition-duration', CSS.s(1), '2s');
+  assert_style_value_array_equals(styleMap.getAll('transition-duration'),
+      [CSS.s(1), CSS.s(2)]);
+
+  styleMap.append('transition-duration', '3s', CSS.s(4));
+  assert_style_value_array_equals(styleMap.getAll('transition-duration'),
+      [CSS.s(1), CSS.s(2), CSS.s(3), CSS.s(4)]);
+}, 'Appending a list-valued property with CSSStyleValue or String updates its values');
+
+test(t => {
+  let styleMap = createDeclaredStyleMap(t, '');
+
+  styleMap.append('transition-duration', '1s, 2s');
+  assert_style_value_array_equals(styleMap.getAll('transition-duration'),
+      [CSS.s(1), CSS.s(2)]);
+
+  styleMap.append('transition-duration', '3s, 4s');
+  assert_style_value_array_equals(styleMap.getAll('transition-duration'),
+      [CSS.s(1), CSS.s(2), CSS.s(3), CSS.s(4)]);
+}, 'Appending a list-valued property with list-valued string updates its values');
+
+test(t => {
+  let styleMap = createDeclaredStyleMap(t, 'transition-duration: 5s, 10s');
+
+  styleMap.append('tRaNsItIoN-dUrAtIoN', '1s', CSS.s(2));
+  const result = styleMap.getAll('transition-duration');
+  assert_style_value_array_equals(result,
+      [CSS.s(5), CSS.s(10), CSS.s(1), CSS.s(2)]);
+}, 'StylePropertyMap.append is case-insensitive');
+
+test(t => {
+  let styleMap = createDeclaredStyleMap(t, 'transition-duration: var(--a)');
+  assert_throws_js(TypeError, () => styleMap.append('transition-duration', CSS.s(1)));
+}, 'Appending to a list containing a variable reference should throw');
+
+test(t => {
+  let styleMap = createDeclaredStyleMap(t, 'transition: var(--a)');
+  assert_throws_js(TypeError, () => styleMap.append('transition-duration', CSS.s(1)));
+}, 'Appending to a longhand list containing a variable reference should throw');
+
+</script>

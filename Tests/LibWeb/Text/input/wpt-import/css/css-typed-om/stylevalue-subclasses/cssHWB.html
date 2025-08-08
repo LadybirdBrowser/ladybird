@@ -1,0 +1,91 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSHWB tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#csshwb">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<script>
+'use strict';
+
+const gValidHueInputs = [
+  {hue: CSS.deg(180), desc: 'degrees'},
+  {hue: CSS.rad(1), desc: 'radians'},
+  {hue: CSS.grad(81), desc: 'gradians'},
+];
+
+const gInvalidHueInputsNotNumericValue = [
+  {hue: 180, desc: "a number"},
+  {hue: undefined, desc: "undefined"},
+]
+
+const gInvalidHueInputsNumericValue = [
+  {hue: CSS.px(1), desc: "css pixels"},
+]
+
+for (const {hue, desc} of gValidHueInputs) {
+  test(() => {
+    const result = new CSSHWB(hue, 0.5, 0.5);
+    assert_color_channel_approx_equals(result.h, hue);
+  }, `Constructing a CSSHWB with ${desc} for the hue works as intended.`);
+
+  test(() => {
+    const result = new CSSHWB(CSS.deg(0), 0.5, 0.5);
+    result.h = hue;
+    assert_color_channel_approx_equals(result.h, hue);
+  }, `CSSHWB.h can be updated with a ${desc}.`);
+}
+
+for (const {hue, desc} of gInvalidHueInputsNotNumericValue) {
+  test(() => {
+    assert_throws_js(TypeError, () => new CSSHWB(hue, 0, 0));
+  }, `Constructing a CSSHWB with ${desc} for hue throws a TypeError.`);
+}
+
+for (const {hue, desc} of gInvalidHueInputsNumericValue) {
+  test(() => {
+    assert_throws_dom("SyntaxError", () => new CSSHWB(hue, 0, 0));
+  }, `Constructing a CSSHWB with ${desc} for hue throws a SyntaxError.`);
+}
+
+test(() => {
+  const result = new CSSHWB(CSS.deg(27), 0.7, CSS.percent(91));
+  assert_color_channel_approx_equals(result.h, CSS.deg(27));
+  assert_color_channel_approx_equals(result.w, CSS.percent(70));
+  assert_color_channel_approx_equals(result.b, CSS.percent(91));
+  assert_color_channel_approx_equals(result.alpha, CSS.percent(100));
+}, 'CSSHWB can be constructed from three numbers and will get an alpha of 100%.');
+
+test(() => {
+  const result = new CSSHWB(CSS.grad(101), 0.2, 0.3, CSS.percent(0.4));
+  assert_color_channel_approx_equals(result.h, CSS.grad(101));
+  assert_color_channel_approx_equals(result.w, CSS.percent(20));
+  assert_color_channel_approx_equals(result.b, CSS.percent(30));
+  assert_color_channel_approx_equals(result.alpha, CSS.percent(0.4));
+}, 'CSSHWB can be constructed from four numbers.');
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => new CSSHWB(CSS.deg(0), CSS.number(1), 0, 0));
+  assert_throws_dom("SyntaxError", () => new CSSHWB(CSS.deg(0), 0, CSS.number(1), 0));
+  assert_throws_dom("SyntaxError", () => new CSSHWB(CSS.deg(0), 0, 0, CSS.number(1)));
+}, `Constructing a CSSHWB with CSS.number for s, l or alpha throws a SyntaxError`);
+
+for (const attr of ['w', 'b', 'alpha']) {
+  test(() => {
+    const result = new CSSHWB(CSS.deg(0), 0, 0);
+    assert_throws_dom("SyntaxError", () => result[attr] = CSS.number(1));
+  }, `Updating a CSSHWB with CSS.number for ${attr} throws a SyntaxError`);
+
+  test(() => {
+    const result = new CSSHWB(CSS.deg(0), 0, 0);
+    result[attr] = 0.5;
+    assert_color_channel_approx_equals(result[attr], CSS.percent(50));
+  }, 'CSSHWB.' + attr + ' can be updated to a number.');
+
+  test(() => {
+    const result = new CSSHWB(CSS.deg(0), 0, 0);
+    result[attr] = CSS.percent(50);
+    assert_color_channel_approx_equals(result[attr], CSS.percent(50));
+  }, 'CSSHWB.' + attr + ' can be updated with a CSS percent.');
+}
+</script>

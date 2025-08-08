@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>IDL-constructed CSSKeywordValue serialization tests</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#unparsedvalue-serialization">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/testhelper.js"></script>
+<body>
+<script>
+'use strict';
+
+test(() => {
+  assert_equals(new CSSKeywordValue('auto').toString(), 'auto');
+  assert_equals(new CSSKeywordValue('inherit').toString(), 'inherit');
+  assert_equals(new CSSKeywordValue('lemon').toString(), 'lemon');
+}, 'CSSKeywordValue constructed from IDL serializes correctly');
+
+test(() => {
+  assert_equals(new CSSKeywordValue(' Hello World').toString(), CSS.escape(' Hello World'));
+  assert_equals(new CSSKeywordValue('3').toString(), CSS.escape('3'));
+}, 'CSSKeywordValue constructed from IDL serializes to escaped strings');
+
+test(() => {
+  let result = CSSStyleValue.parse('width', 'auto');
+  result.value = 'lemon';
+  assert_equals(result.toString(), 'lemon');
+}, 'CSSKeywordValue from DOMString modified through "value" setter serializes correctly');
+
+test(t => {
+  let result = createInlineStyleMap(t, 'width: auto').get('width');
+  result.value = 'lemon';
+  assert_equals(result.toString(), 'lemon');
+}, 'CSSKeywordValue from CSSOM modified through "value" setter serializes correctly');
+
+</script>
