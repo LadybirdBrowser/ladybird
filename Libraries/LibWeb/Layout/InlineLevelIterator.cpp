@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/Font/FontVariant.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineLevelIterator.h>
@@ -496,15 +497,28 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         else
             m_text_node_context->is_first_chunk = false;
 
-        auto chunk_opt = m_text_node_context->chunk_iterator.next();
-        if (!chunk_opt.has_value()) {
-            m_text_node_context = {};
-            skip_to_next();
-            return next_without_lookahead();
-        }
-
         if (!m_text_node_context->chunk_iterator.peek(0).has_value())
             m_text_node_context->is_last_chunk = true;
+
+        auto chunk_opt = m_text_node_context->chunk_iterator.next();
+        auto is_empty_editable = false;
+        if (!chunk_opt.has_value()) {
+            auto const is_only_chunk = m_text_node_context->is_first_chunk && m_text_node_context->is_last_chunk;
+            if (is_only_chunk && text_node->text_for_rendering().is_empty()) {
+                if (auto const* shadow_root = as_if<DOM::ShadowRoot>(text_node->dom_node().root()))
+                    if (auto const* form_associated_element = as_if<HTML::FormAssociatedTextControlElement>(shadow_root->host()))
+                        is_empty_editable = form_associated_element->is_mutable();
+                is_empty_editable |= text_node->dom_node().parent() && text_node->dom_node().parent()->is_editing_host();
+            }
+
+            if (is_empty_editable) {
+                chunk_opt = m_text_node_context->chunk_iterator.create_empty_chunk();
+            } else {
+                m_text_node_context = {};
+                skip_to_next();
+                return next_without_lookahead();
+            }
+        }
 
         auto& chunk = chunk_opt.value();
         auto text_type = chunk.text_type;
@@ -583,7 +597,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width() + x);
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
-        bool is_generated_empty_string = text_node->is_generated_for_pseudo_element() && chunk.length == 0;
+        bool is_generated_empty_string = is_empty_editable || (text_node->is_generated_for_pseudo_element() && chunk.length == 0);
         auto collapse_whitespace = m_text_node_context->chunk_iterator.should_collapse_whitespace();
 
         Item item {
