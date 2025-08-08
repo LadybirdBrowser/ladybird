@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
+#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -64,6 +65,22 @@ WebIDL::ExceptionOr<GC::Root<TrustedScript>> TrustedTypePolicy::create_script(St
     return trusted_type.get<GC::Root<TrustedScript>>();
 }
 
+// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createscripturl
+WebIDL::ExceptionOr<GC::Root<TrustedScriptURL>> TrustedTypePolicy::create_script_url(String const& input, GC::RootVector<JS::Value> const& arguments)
+{
+    // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
+    //    policy
+    //      this value
+    //    trustedTypeName
+    //      "TrustedScriptURL"
+    //    value
+    //      input
+    //    arguments
+    //      arguments
+    auto const trusted_type = TRY(create_a_trusted_type(TrustedTypeName::TrustedScriptURL, input, arguments));
+    return trusted_type.get<GC::Root<TrustedScriptURL>>();
+}
+
 // https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
 TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName trusted_type_name, String const& value, GC::RootVector<JS::Value> const& arguments)
 {
@@ -99,6 +116,8 @@ TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName tr
         return realm.create<TrustedHTML>(realm, move(data_string));
     case TrustedTypeName::TrustedScript:
         return realm.create<TrustedScript>(realm, move(data_string));
+    case TrustedTypeName::TrustedScriptURL:
+        return realm.create<TrustedScriptURL>(realm, move(data_string));
     default:
         VERIFY_NOT_REACHED();
     }
