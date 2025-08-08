@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
-class FitContentStyleValue final : public CSSStyleValue {
+class FitContentStyleValue final : public StyleValue {
 public:
     static ValueComparingNonnullRefPtr<FitContentStyleValue const> create()
     {
@@ -30,7 +30,7 @@ public:
         return MUST(String::formatted("fit-content({})", m_length_percentage.to_string(mode)));
     }
 
-    bool equals(CSSStyleValue const& other) const override
+    bool equals(StyleValue const& other) const override
     {
         if (type() != other.type())
             return false;
@@ -41,7 +41,7 @@ public:
 
 private:
     FitContentStyleValue(LengthPercentage length_percentage)
-        : CSSStyleValue(Type::FitContent)
+        : StyleValue(Type::FitContent)
         , m_length_percentage(move(length_percentage))
     {
     }

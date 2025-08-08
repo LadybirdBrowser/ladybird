@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
@@ -19,11 +19,11 @@ public:
         Counters,
     };
 
-    static ValueComparingNonnullRefPtr<CounterStyleValue const> create_counter(FlyString counter_name, ValueComparingNonnullRefPtr<CSSStyleValue const> counter_style)
+    static ValueComparingNonnullRefPtr<CounterStyleValue const> create_counter(FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style)
     {
         return adopt_ref(*new (nothrow) CounterStyleValue(CounterFunction::Counter, move(counter_name), move(counter_style), {}));
     }
-    static ValueComparingNonnullRefPtr<CounterStyleValue const> create_counters(FlyString counter_name, FlyString join_string, ValueComparingNonnullRefPtr<CSSStyleValue const> counter_style)
+    static ValueComparingNonnullRefPtr<CounterStyleValue const> create_counters(FlyString counter_name, FlyString join_string, ValueComparingNonnullRefPtr<StyleValue const> counter_style)
     {
         return adopt_ref(*new (nothrow) CounterStyleValue(CounterFunction::Counters, move(counter_name), move(counter_style), move(join_string)));
     }
@@ -41,12 +41,12 @@ public:
     bool properties_equal(CounterStyleValue const& other) const;
 
 private:
-    explicit CounterStyleValue(CounterFunction, FlyString counter_name, ValueComparingNonnullRefPtr<CSSStyleValue const> counter_style, FlyString join_string);
+    explicit CounterStyleValue(CounterFunction, FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, FlyString join_string);
 
     struct Properties {
         CounterFunction function;
         FlyString counter_name;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> counter_style;
+        ValueComparingNonnullRefPtr<StyleValue const> counter_style;
         FlyString join_string;
         bool operator==(Properties const&) const = default;
     } m_properties;

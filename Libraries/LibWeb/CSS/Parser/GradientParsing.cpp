@@ -31,7 +31,7 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
         if (!tokens.has_next_token())
             return ElementType::Garbage;
 
-        RefPtr<CSSStyleValue const> color;
+        RefPtr<StyleValue const> color;
         Optional<typename TElement::PositionType> position;
         Optional<typename TElement::PositionType> second_position;
         if (position = parse_position(tokens); position.has_value()) {

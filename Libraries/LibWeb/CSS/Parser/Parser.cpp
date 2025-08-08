@@ -1377,7 +1377,7 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
         Vector<StyleProperty> expanded_properties;
         for (auto& property : properties) {
             if (property_is_shorthand(property.property_id)) {
-                StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, [&](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+                StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, [&](PropertyID longhand_property_id, StyleValue const& longhand_value) {
                     expanded_properties.append(CSS::StyleProperty {
                         .important = property.important,
                         .property_id = longhand_property_id,
@@ -1696,7 +1696,7 @@ Vector<ComponentValue> Parser::parse_as_list_of_component_values()
     return parse_a_list_of_component_values(m_token_stream);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_as_css_value(PropertyID property_id)
+RefPtr<StyleValue const> Parser::parse_as_css_value(PropertyID property_id)
 {
     auto component_values = parse_a_list_of_component_values(m_token_stream);
     auto tokens = TokenStream(component_values);
@@ -1706,7 +1706,7 @@ RefPtr<CSSStyleValue const> Parser::parse_as_css_value(PropertyID property_id)
     return parsed_value.release_value();
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, DescriptorID descriptor_id)
+RefPtr<StyleValue const> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, DescriptorID descriptor_id)
 {
     auto component_values = parse_a_list_of_component_values(m_token_stream);
     auto tokens = TokenStream(component_values);

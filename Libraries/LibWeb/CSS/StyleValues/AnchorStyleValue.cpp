@@ -10,15 +10,15 @@ namespace Web::CSS {
 
 ValueComparingNonnullRefPtr<AnchorStyleValue const> AnchorStyleValue::create(
     Optional<FlyString> const& anchor_name,
-    ValueComparingNonnullRefPtr<CSSStyleValue const> const& anchor_side,
-    ValueComparingRefPtr<CSSStyleValue const> const& fallback_value)
+    ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
+    ValueComparingRefPtr<StyleValue const> const& fallback_value)
 {
     return adopt_ref(*new (nothrow) AnchorStyleValue(anchor_name, anchor_side, fallback_value));
 }
 
 AnchorStyleValue::AnchorStyleValue(Optional<FlyString> const& anchor_name,
-    ValueComparingNonnullRefPtr<CSSStyleValue const> const& anchor_side,
-    ValueComparingRefPtr<CSSStyleValue const> const& fallback_value)
+    ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
+    ValueComparingRefPtr<StyleValue const> const& fallback_value)
     : StyleValueWithDefaultOperators(Type::Anchor)
     , m_properties { .anchor_name = anchor_name, .anchor_side = anchor_side, .fallback_value = fallback_value }
 {

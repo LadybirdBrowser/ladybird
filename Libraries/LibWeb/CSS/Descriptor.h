@@ -16,7 +16,7 @@ struct Descriptor {
     ~Descriptor();
 
     DescriptorID descriptor_id;
-    NonnullRefPtr<CSSStyleValue const> value;
+    NonnullRefPtr<StyleValue const> value;
 };
 
 }

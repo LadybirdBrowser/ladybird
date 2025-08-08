@@ -9,9 +9,9 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
@@ -28,7 +28,7 @@ public:
     LengthPercentage size_y() const { return m_properties.size_y; }
 
     virtual String to_string(SerializationMode) const override;
-    virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
 
     bool properties_equal(BackgroundSizeStyleValue const& other) const { return m_properties == other.m_properties; }
 

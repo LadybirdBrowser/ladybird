@@ -24,7 +24,7 @@ String AngleStyleValue::to_string(SerializationMode serialization_mode) const
     return m_angle.to_string(serialization_mode);
 }
 
-bool AngleStyleValue::equals(CSSStyleValue const& other) const
+bool AngleStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

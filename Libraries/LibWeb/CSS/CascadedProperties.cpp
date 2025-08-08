@@ -70,7 +70,7 @@ void CascadedProperties::resolve_unresolved_properties(GC::Ref<DOM::Element> ele
     }
 }
 
-void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<CSSStyleValue const> value, Important important, CascadeOrigin origin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source)
+void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important, CascadeOrigin origin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source)
 {
     auto& entries = m_properties.ensure(property_id);
 
@@ -99,9 +99,9 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<CSSS
     });
 }
 
-void CascadedProperties::set_property_from_presentational_hint(PropertyID property_id, NonnullRefPtr<CSSStyleValue const> value)
+void CascadedProperties::set_property_from_presentational_hint(PropertyID property_id, NonnullRefPtr<StyleValue const> value)
 {
-    StyleComputer::for_each_property_expanding_shorthands(property_id, value, [this](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+    StyleComputer::for_each_property_expanding_shorthands(property_id, value, [this](PropertyID longhand_property_id, StyleValue const& longhand_value) {
         auto& entries = m_properties.ensure(longhand_property_id);
 
         entries.append(Entry {
@@ -117,7 +117,7 @@ void CascadedProperties::set_property_from_presentational_hint(PropertyID proper
     });
 }
 
-RefPtr<CSSStyleValue const> CascadedProperties::property(PropertyID property_id) const
+RefPtr<StyleValue const> CascadedProperties::property(PropertyID property_id) const
 {
     auto it = m_properties.find(property_id);
     if (it == m_properties.end())

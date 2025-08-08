@@ -85,7 +85,7 @@ void ComputedProperties::set_property_inherited(PropertyID property_id, Inherite
         m_property_inherited[n / 8] &= ~(1 << (n % 8));
 }
 
-void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<CSSStyleValue const> value, Inherited inherited, Important important)
+void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
 {
     m_property_values[to_underlying(id)] = move(value);
     set_property_important(id, important);
@@ -99,7 +99,7 @@ void ComputedProperties::revert_property(PropertyID id, ComputedProperties const
     set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
 }
 
-void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<CSSStyleValue const> value)
+void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<StyleValue const> value)
 {
     m_animated_property_values.set(id, move(value));
 }
@@ -109,7 +109,7 @@ void ComputedProperties::reset_animated_properties(Badge<Animations::KeyframeEff
     m_animated_property_values.clear();
 }
 
-CSSStyleValue const& ComputedProperties::property(PropertyID property_id, WithAnimationsApplied return_animated_value) const
+StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
     if (return_animated_value == WithAnimationsApplied::Yes) {
         if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
@@ -120,7 +120,7 @@ CSSStyleValue const& ComputedProperties::property(PropertyID property_id, WithAn
     return *m_property_values[to_underlying(property_id)];
 }
 
-CSSStyleValue const* ComputedProperties::maybe_null_property(PropertyID property_id) const
+StyleValue const* ComputedProperties::maybe_null_property(PropertyID property_id) const
 {
     if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
         return animated_value.value();
@@ -359,7 +359,7 @@ Optional<int> ComputedProperties::z_index() const
     return {};
 }
 
-float ComputedProperties::resolve_opacity_value(CSSStyleValue const& value)
+float ComputedProperties::resolve_opacity_value(StyleValue const& value)
 {
     float unclamped_opacity = 1.0f;
 
@@ -581,7 +581,7 @@ JustifySelf ComputedProperties::justify_self() const
     return keyword_to_justify_self(value.to_keyword()).release_value();
 }
 
-Vector<Transformation> ComputedProperties::transformations_for_style_value(CSSStyleValue const& value)
+Vector<Transformation> ComputedProperties::transformations_for_style_value(StyleValue const& value)
 {
     if (value.is_keyword() && value.to_keyword() == Keyword::None)
         return {};
@@ -629,7 +629,7 @@ Optional<Transformation> ComputedProperties::scale() const
     return value.as_transformation().to_transformation();
 }
 
-static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValue const& value)
+static Optional<LengthPercentage> length_percentage_for_style_value(StyleValue const& value)
 {
     if (value.is_length())
         return value.as_length().length();
@@ -648,7 +648,7 @@ TransformBox ComputedProperties::transform_box() const
 
 TransformOrigin ComputedProperties::transform_origin() const
 {
-    auto length_percentage_with_keywords_resolved = [](CSSStyleValue const& value) -> Optional<LengthPercentage> {
+    auto length_percentage_with_keywords_resolved = [](StyleValue const& value) -> Optional<LengthPercentage> {
         if (value.is_keyword()) {
             auto keyword = value.to_keyword();
             if (keyword == Keyword::Left || keyword == Keyword::Top)
@@ -1170,7 +1170,7 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
 {
     auto const& value = property(property_id);
 
-    auto resolve_to_length = [&layout_node](NonnullRefPtr<CSSStyleValue const> const& value) -> Optional<Length> {
+    auto resolve_to_length = [&layout_node](NonnullRefPtr<StyleValue const> const& value) -> Optional<Length> {
         if (value->is_length())
             return value->as_length().length();
         if (value->is_calculated())

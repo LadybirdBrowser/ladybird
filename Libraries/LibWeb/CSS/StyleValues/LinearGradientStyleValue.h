@@ -48,7 +48,7 @@ public:
 
     virtual String to_string(SerializationMode) const override;
     virtual ~LinearGradientStyleValue() override = default;
-    virtual bool equals(CSSStyleValue const& other) const override;
+    virtual bool equals(StyleValue const& other) const override;
 
     Vector<LinearColorStopListElement> const& color_stop_list() const
     {

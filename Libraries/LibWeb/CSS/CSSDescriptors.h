@@ -27,8 +27,8 @@ public:
     virtual StringView get_property_priority(StringView property) const override;
 
     Vector<Descriptor> const& descriptors() const { return m_descriptors; }
-    RefPtr<CSSStyleValue const> descriptor(DescriptorID) const;
-    RefPtr<CSSStyleValue const> descriptor_or_initial_value(DescriptorID) const;
+    RefPtr<StyleValue const> descriptor(DescriptorID) const;
+    RefPtr<StyleValue const> descriptor_or_initial_value(DescriptorID) const;
     virtual String serialized() const override;
 
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
@@ -37,7 +37,7 @@ protected:
     CSSDescriptors(JS::Realm&, AtRuleID, Vector<Descriptor>);
 
 private:
-    bool set_a_css_declaration(DescriptorID, NonnullRefPtr<CSSStyleValue const>, Important);
+    bool set_a_css_declaration(DescriptorID, NonnullRefPtr<StyleValue const>, Important);
 
     virtual void visit_edges(Visitor&) override;
 
@@ -46,6 +46,6 @@ private:
 };
 
 bool is_shorthand(AtRuleID, DescriptorID);
-void for_each_expanded_longhand(AtRuleID, DescriptorID, RefPtr<CSSStyleValue const>, Function<void(DescriptorID, RefPtr<CSSStyleValue const>)>);
+void for_each_expanded_longhand(AtRuleID, DescriptorID, RefPtr<StyleValue const>, Function<void(DescriptorID, RefPtr<StyleValue const>)>);
 
 }

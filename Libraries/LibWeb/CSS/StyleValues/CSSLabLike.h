@@ -14,7 +14,7 @@ namespace Web::CSS {
 class CSSLabLike : public CSSColorValue {
 public:
     template<typename T>
-    static ValueComparingNonnullRefPtr<T const> create(ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingRefPtr<CSSStyleValue const> alpha = {})
+    static ValueComparingNonnullRefPtr<T const> create(ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingRefPtr<StyleValue const> alpha = {})
     {
         // alpha defaults to 1
         if (!alpha)
@@ -25,25 +25,25 @@ public:
 
     virtual ~CSSLabLike() override = default;
 
-    CSSStyleValue const& l() const { return *m_properties.l; }
-    CSSStyleValue const& a() const { return *m_properties.a; }
-    CSSStyleValue const& b() const { return *m_properties.b; }
-    CSSStyleValue const& alpha() const { return *m_properties.alpha; }
+    StyleValue const& l() const { return *m_properties.l; }
+    StyleValue const& a() const { return *m_properties.a; }
+    StyleValue const& b() const { return *m_properties.b; }
+    StyleValue const& alpha() const { return *m_properties.alpha; }
 
-    virtual bool equals(CSSStyleValue const& other) const override;
+    virtual bool equals(StyleValue const& other) const override;
 
 protected:
-    CSSLabLike(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
+    CSSLabLike(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : CSSColorValue(color_type, ColorSyntax::Modern)
         , m_properties { .l = move(l), .a = move(a), .b = move(b), .alpha = move(alpha) }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<CSSStyleValue const> l;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> a;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> b;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> alpha;
+        ValueComparingNonnullRefPtr<StyleValue const> l;
+        ValueComparingNonnullRefPtr<StyleValue const> a;
+        ValueComparingNonnullRefPtr<StyleValue const> b;
+        ValueComparingNonnullRefPtr<StyleValue const> alpha;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };
@@ -54,7 +54,7 @@ public:
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 
-    CSSOKLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
+    CSSOKLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : CSSLabLike(ColorType::OKLab, move(l), move(a), move(b), move(alpha))
     {
     }
@@ -66,7 +66,7 @@ public:
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 
-    CSSLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> a, ValueComparingNonnullRefPtr<CSSStyleValue const> b, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
+    CSSLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : CSSLabLike(ColorType::Lab, move(l), move(a), move(b), move(alpha))
     {
     }

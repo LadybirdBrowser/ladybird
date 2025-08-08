@@ -28,7 +28,7 @@ public:
 
     virtual String to_string(SerializationMode) const override { return m_percentage.to_string(); }
 
-    bool equals(CSSStyleValue const& other) const override
+    bool equals(StyleValue const& other) const override
     {
         if (type() != other.type())
             return false;

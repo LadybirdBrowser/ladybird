@@ -6645,7 +6645,7 @@ HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>>& Document::registered_cus
     return m_registered_custom_properties;
 }
 
-NonnullRefPtr<CSS::CSSStyleValue const> Document::custom_property_initial_value(FlyString const& name) const
+NonnullRefPtr<CSS::StyleValue const> Document::custom_property_initial_value(FlyString const& name) const
 {
     auto maybe_custom_property = m_registered_custom_properties.get(name);
     if (maybe_custom_property.has_value()) {

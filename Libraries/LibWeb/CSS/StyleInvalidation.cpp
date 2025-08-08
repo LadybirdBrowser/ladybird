@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, RefPtr<CSSStyleValue const> const& old_value, RefPtr<CSSStyleValue const> const& new_value)
+RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, RefPtr<StyleValue const> const& old_value, RefPtr<StyleValue const> const& new_value)
 {
     RequiredInvalidationAfterStyleChange invalidation;
 

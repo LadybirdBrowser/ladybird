@@ -720,7 +720,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
     Optional<FlyString> syntax_maybe;
     Optional<bool> inherits_maybe;
-    RefPtr<CSSStyleValue const> initial_value_maybe;
+    RefPtr<StyleValue const> initial_value_maybe;
 
     rule.for_each_as_declaration_list([&](auto& declaration) {
         if (auto descriptor = convert_to_descriptor(AtRuleID::Property, declaration); descriptor.has_value()) {

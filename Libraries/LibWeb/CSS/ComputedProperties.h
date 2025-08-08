@@ -48,7 +48,7 @@ public:
         Yes
     };
 
-    HashMap<PropertyID, NonnullRefPtr<CSSStyleValue const>> const& animated_property_values() const { return m_animated_property_values; }
+    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& animated_property_values() const { return m_animated_property_values; }
     void reset_animated_properties(Badge<Animations::KeyframeEffect>);
 
     bool is_property_important(PropertyID property_id) const;
@@ -56,14 +56,14 @@ public:
     void set_property_important(PropertyID, Important);
     void set_property_inherited(PropertyID, Inherited);
 
-    void set_property(PropertyID, NonnullRefPtr<CSSStyleValue const> value, Inherited = Inherited::No, Important = Important::No);
-    void set_animated_property(PropertyID, NonnullRefPtr<CSSStyleValue const> value);
+    void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
+    void set_animated_property(PropertyID, NonnullRefPtr<StyleValue const> value);
     enum class WithAnimationsApplied {
         No,
         Yes,
     };
-    CSSStyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
-    CSSStyleValue const* maybe_null_property(PropertyID) const;
+    StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+    StyleValue const* maybe_null_property(PropertyID) const;
     void revert_property(PropertyID, ComputedProperties const& style_for_revert);
 
     GC::Ptr<CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
@@ -176,7 +176,7 @@ public:
     MixBlendMode mix_blend_mode() const;
     Optional<FlyString> view_transition_name() const;
 
-    static Vector<Transformation> transformations_for_style_value(CSSStyleValue const& value);
+    static Vector<Transformation> transformations_for_style_value(StyleValue const& value);
     Vector<Transformation> transformations() const;
     TransformBox transform_box() const;
     TransformOrigin transform_origin() const;
@@ -238,7 +238,7 @@ public:
 
     static NonnullRefPtr<Gfx::Font const> font_fallback(bool monospace, bool bold, float point_size);
 
-    static float resolve_opacity_value(CSSStyleValue const& value);
+    static float resolve_opacity_value(StyleValue const& value);
 
     bool has_attempted_match_against_pseudo_class(PseudoClass pseudo_class) const
     {
@@ -263,11 +263,11 @@ private:
     GC::Ptr<CSSStyleDeclaration const> m_animation_name_source;
     GC::Ptr<CSSStyleDeclaration const> m_transition_property_source;
 
-    Array<RefPtr<CSSStyleValue const>, number_of_properties> m_property_values;
+    Array<RefPtr<StyleValue const>, number_of_properties> m_property_values;
     Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
     Array<u8, ceil_div(number_of_properties, 8uz)> m_property_inherited {};
 
-    HashMap<PropertyID, NonnullRefPtr<CSSStyleValue const>> m_animated_property_values;
+    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_animated_property_values;
 
     int m_math_depth { InitialValues::math_depth() };
     RefPtr<Gfx::FontCascadeList const> m_font_list;

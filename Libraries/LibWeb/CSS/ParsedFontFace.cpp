@@ -22,7 +22,7 @@
 
 namespace Web::CSS {
 
-static FlyString extract_font_name(CSSStyleValue const& value)
+static FlyString extract_font_name(StyleValue const& value)
 {
     if (value.is_string())
         return value.as_string().string_value();
@@ -31,7 +31,7 @@ static FlyString extract_font_name(CSSStyleValue const& value)
     return FlyString {};
 }
 
-Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(CSSStyleValue const& style_value)
+Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(StyleValue const& style_value)
 {
     Vector<Source> sources;
     auto add_source = [&sources](FontSourceStyleValue const& font_source) {
@@ -55,7 +55,7 @@ Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(CSSStyle
 
 ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& descriptors)
 {
-    auto extract_percentage_or_normal = [](CSSStyleValue const& value) -> Optional<Percentage> {
+    auto extract_percentage_or_normal = [](StyleValue const& value) -> Optional<Percentage> {
         if (value.is_percentage())
             return value.as_percentage().percentage();
         if (value.is_calculated()) {

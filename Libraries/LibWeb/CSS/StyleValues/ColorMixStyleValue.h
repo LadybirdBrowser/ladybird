@@ -22,14 +22,14 @@ public:
     };
 
     struct ColorMixComponent {
-        ValueComparingNonnullRefPtr<CSSStyleValue const> color;
+        ValueComparingNonnullRefPtr<StyleValue const> color;
         Optional<PercentageOrCalculated> percentage;
         bool operator==(ColorMixComponent const&) const = default;
     };
 
     static ValueComparingNonnullRefPtr<ColorMixStyleValue const> create(ColorInterpolationMethod, ColorMixComponent first_component, ColorMixComponent second_component);
 
-    virtual bool equals(CSSStyleValue const&) const override;
+    virtual bool equals(StyleValue const&) const override;
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 

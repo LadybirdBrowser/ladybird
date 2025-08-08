@@ -214,12 +214,12 @@ OwnPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_value
     return AlternativesSyntaxNode::create(move(syntax_components));
 }
 
-NonnullRefPtr<CSSStyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element)
+NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element)
 {
     return Parser::create(parsing_params, ""sv).parse_with_a_syntax(input, syntax, element);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node, Optional<DOM::AbstractElement> const& element)
+RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node, Optional<DOM::AbstractElement> const& element)
 {
     auto transaction = tokens.begin_transaction();
 
@@ -301,7 +301,7 @@ RefPtr<CSSStyleValue const> Parser::parse_according_to_syntax_node(TokenStream<C
 }
 
 // https://drafts.csswg.org/css-values-5/#parse-with-a-syntax
-NonnullRefPtr<CSSStyleValue const> Parser::parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element)
+NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element)
 {
     // 1. Parse a list of component values from values, and let raw parse be the result.
     // NB: Already done before this point.

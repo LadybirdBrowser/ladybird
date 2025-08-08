@@ -410,7 +410,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                 return 1;
         };
 
-        auto value_for_layer = [](auto const& style_value, size_t layer_index) -> RefPtr<CSS::CSSStyleValue const> {
+        auto value_for_layer = [](auto const& style_value, size_t layer_index) -> RefPtr<CSS::StyleValue const> {
             if (style_value.is_value_list())
                 return style_value.as_value_list().value_at(layer_index, true);
             return style_value;

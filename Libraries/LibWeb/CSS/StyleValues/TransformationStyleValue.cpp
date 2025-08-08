@@ -64,7 +64,7 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
 {
     // https://drafts.csswg.org/css-transforms-2/#individual-transform-serialization
     if (m_properties.property == PropertyID::Rotate) {
-        auto resolve_to_number = [](ValueComparingNonnullRefPtr<CSSStyleValue const> const& value) -> Optional<double> {
+        auto resolve_to_number = [](ValueComparingNonnullRefPtr<StyleValue const> const& value) -> Optional<double> {
             if (value->is_number())
                 return value->as_number().number();
             if (value->is_calculated() && value->as_calculated().resolves_to_number())
@@ -117,7 +117,7 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         return MUST(String::formatted("{} {} {} {}", rotation_x->to_string(mode), rotation_y->to_string(mode), rotation_z->to_string(mode), angle->to_string(mode)));
     }
     if (m_properties.property == PropertyID::Scale) {
-        auto resolve_to_string = [mode](CSSStyleValue const& value) -> String {
+        auto resolve_to_string = [mode](StyleValue const& value) -> String {
             Optional<double> raw_value;
 
             if (value.is_number())
@@ -160,7 +160,7 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         return builder.to_string_without_validation();
     }
     if (m_properties.property == PropertyID::Translate) {
-        auto resolve_to_string = [mode](CSSStyleValue const& value) -> Optional<String> {
+        auto resolve_to_string = [mode](StyleValue const& value) -> Optional<String> {
             auto string_value = value.to_string(mode);
 
             if (string_value == "0px"_string)

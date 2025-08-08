@@ -158,7 +158,7 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
 
     // 4. If the easing member of input exists but cannot be parsed using the <easing-function> production
     //    [CSS-EASING-1], throw a TypeError and abort this procedure.
-    RefPtr<CSS::CSSStyleValue const> easing_value;
+    RefPtr<CSS::StyleValue const> easing_value;
     if (timing.easing.has_value()) {
         easing_value = parse_easing_string(timing.easing.value());
         if (!easing_value)
@@ -604,7 +604,7 @@ Optional<double> AnimationEffect::transformed_progress() const
     return m_timing_function.evaluate_at(directed_progress.value(), before_flag);
 }
 
-RefPtr<CSS::CSSStyleValue const> AnimationEffect::parse_easing_string(StringView value)
+RefPtr<CSS::StyleValue const> AnimationEffect::parse_easing_string(StringView value)
 {
     if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value, CSS::PropertyID::AnimationTimingFunction)) {
         if (style_value->is_easing())
@@ -631,7 +631,7 @@ void AnimationEffect::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_associated_animation);
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_for_animated_properties(HashMap<CSS::PropertyID, NonnullRefPtr<CSS::CSSStyleValue const>> const& old_properties, HashMap<CSS::PropertyID, NonnullRefPtr<CSS::CSSStyleValue const>> const& new_properties)
+static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_for_animated_properties(HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& old_properties, HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& new_properties)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
     auto old_and_new_properties = MUST(Bitmap::create(to_underlying(CSS::last_property_id) + 1, 0));

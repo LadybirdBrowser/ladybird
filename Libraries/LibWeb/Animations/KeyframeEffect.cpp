@@ -563,7 +563,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
         if (!easing_value)
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid animation easing value: \"{}\"", easing_string)) };
 
-        keyframe.easing.set(NonnullRefPtr<CSS::CSSStyleValue const> { *easing_value });
+        keyframe.easing.set(NonnullRefPtr<CSS::StyleValue const> { *easing_value });
     }
 
     // 9. Parse each of the values in unused easings using the CSS syntax defined for easing member of the EffectTiming
@@ -591,7 +591,7 @@ void KeyframeEffect::generate_initial_and_final_frames(RefPtr<KeyFrameSet> keyfr
         initial_keyframe = keyframe_set->keyframes_by_key.find(0);
     }
 
-    auto expanded_properties = [&](HashMap<CSS::PropertyID, Variant<KeyFrameSet::UseInitial, NonnullRefPtr<CSS::CSSStyleValue const>>>& properties) {
+    auto expanded_properties = [&](HashMap<CSS::PropertyID, Variant<KeyFrameSet::UseInitial, NonnullRefPtr<CSS::StyleValue const>>>& properties) {
         HashTable<CSS::PropertyID> result;
 
         for (auto property : properties) {
@@ -827,7 +827,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
             auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
             TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), ShouldThrowExceptions::Yes));
             TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), ShouldThrowExceptions::Yes));
-            auto easing_value = keyframe.easing.get<NonnullRefPtr<CSS::CSSStyleValue const>>();
+            auto easing_value = keyframe.easing.get<NonnullRefPtr<CSS::StyleValue const>>();
             TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value->to_string(CSS::SerializationMode::Normal)), ShouldThrowExceptions::Yes));
 
             if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
@@ -881,7 +881,7 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(Optional<GC::Root<JS::Ob
                 property_value = CSS::Parser::Parser::resolve_unresolved_style_value(CSS::Parser::ParsingParams { target->document() }, *target, pseudo_element_type(), property_id, property_value->as_unresolved());
 
             resolved_keyframe.properties.set(property_id, property_value);
-            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, [&](CSS::PropertyID longhand_id, CSS::CSSStyleValue const&) {
+            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, [&](CSS::PropertyID longhand_id, CSS::StyleValue const&) {
                 m_target_properties.set(longhand_id);
             });
         }

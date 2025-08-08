@@ -7,15 +7,15 @@
 
 #include "CSSLabLike.h"
 #include <AK/TypeCasts.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
-bool CSSLabLike::equals(CSSStyleValue const& other) const
+bool CSSLabLike::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

@@ -14,7 +14,7 @@ namespace Web::CSS {
 // https://drafts.css-houdini.org/css-typed-om-1/#csshsl
 class CSSHSL final : public CSSColorValue {
 public:
-    static ValueComparingNonnullRefPtr<CSSHSL const> create(ValueComparingNonnullRefPtr<CSSStyleValue const> h, ValueComparingNonnullRefPtr<CSSStyleValue const> s, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingRefPtr<CSSStyleValue const> alpha, ColorSyntax color_syntax)
+    static ValueComparingNonnullRefPtr<CSSHSL const> create(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> s, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingRefPtr<StyleValue const> alpha, ColorSyntax color_syntax)
     {
         // alpha defaults to 1
         if (!alpha)
@@ -24,29 +24,29 @@ public:
     }
     virtual ~CSSHSL() override = default;
 
-    CSSStyleValue const& h() const { return *m_properties.h; }
-    CSSStyleValue const& s() const { return *m_properties.s; }
-    CSSStyleValue const& l() const { return *m_properties.l; }
-    CSSStyleValue const& alpha() const { return *m_properties.alpha; }
+    StyleValue const& h() const { return *m_properties.h; }
+    StyleValue const& s() const { return *m_properties.s; }
+    StyleValue const& l() const { return *m_properties.l; }
+    StyleValue const& alpha() const { return *m_properties.alpha; }
 
     virtual Optional<Color> to_color(ColorResolutionContext color_resolution_context) const override;
 
     virtual String to_string(SerializationMode) const override;
 
-    virtual bool equals(CSSStyleValue const& other) const override;
+    virtual bool equals(StyleValue const& other) const override;
 
 private:
-    CSSHSL(ValueComparingNonnullRefPtr<CSSStyleValue const> h, ValueComparingNonnullRefPtr<CSSStyleValue const> s, ValueComparingNonnullRefPtr<CSSStyleValue const> l, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha, ColorSyntax color_syntax)
+    CSSHSL(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> s, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> alpha, ColorSyntax color_syntax)
         : CSSColorValue(ColorType::HSL, color_syntax)
         , m_properties { .h = move(h), .s = move(s), .l = move(l), .alpha = move(alpha) }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<CSSStyleValue const> h;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> s;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> l;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> alpha;
+        ValueComparingNonnullRefPtr<StyleValue const> h;
+        ValueComparingNonnullRefPtr<StyleValue const> s;
+        ValueComparingNonnullRefPtr<StyleValue const> l;
+        ValueComparingNonnullRefPtr<StyleValue const> alpha;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };

@@ -9,8 +9,8 @@
 
 #include <AK/String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/StyleProperty.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
 
 namespace Web::CSS {

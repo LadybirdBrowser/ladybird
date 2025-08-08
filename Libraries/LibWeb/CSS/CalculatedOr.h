@@ -39,7 +39,7 @@ public:
         return m_value.template get<T>();
     }
 
-    NonnullRefPtr<CSSStyleValue const> as_style_value() const
+    NonnullRefPtr<StyleValue const> as_style_value() const
     {
         if (is_calculated())
             return calculated();
@@ -104,7 +104,7 @@ protected:
     {
         return static_cast<Self const*>(this)->resolve_calculated(calculated, context);
     }
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const
+    NonnullRefPtr<StyleValue const> create_style_value() const
     {
         return static_cast<Self const*>(this)->create_style_value();
     }
@@ -118,7 +118,7 @@ public:
     using CalculatedOr::CalculatedOr;
 
     Optional<Angle> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
 class FlexOrCalculated : public CalculatedOr<FlexOrCalculated, Flex> {
@@ -126,7 +126,7 @@ public:
     using CalculatedOr::CalculatedOr;
 
     Optional<Flex> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
 class FrequencyOrCalculated : public CalculatedOr<FrequencyOrCalculated, Frequency> {
@@ -134,7 +134,7 @@ public:
     using CalculatedOr::CalculatedOr;
 
     Optional<Frequency> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
 class IntegerOrCalculated : public CalculatedOr<IntegerOrCalculated, i64> {
@@ -142,7 +142,7 @@ public:
     using CalculatedOr::CalculatedOr;
 
     Optional<i64> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
 class LengthOrCalculated : public CalculatedOr<LengthOrCalculated, Length> {
@@ -150,7 +150,7 @@ public:
     using CalculatedOr::CalculatedOr;
 
     Optional<Length> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
 class NumberOrCalculated : public CalculatedOr<NumberOrCalculated, double> {
@@ -158,7 +158,7 @@ public:
     using CalculatedOr::CalculatedOr;
 
     Optional<double> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
 class PercentageOrCalculated : public CalculatedOr<PercentageOrCalculated, Percentage> {
@@ -166,7 +166,7 @@ public:
     using CalculatedOr::CalculatedOr;
 
     Optional<Percentage> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
 class ResolutionOrCalculated : public CalculatedOr<ResolutionOrCalculated, Resolution> {
@@ -174,7 +174,7 @@ public:
     using CalculatedOr::CalculatedOr;
 
     Optional<Resolution> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
 class TimeOrCalculated : public CalculatedOr<TimeOrCalculated, Time> {
@@ -182,7 +182,7 @@ public:
     using CalculatedOr::CalculatedOr;
 
     Optional<Time> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
-    NonnullRefPtr<CSSStyleValue const> create_style_value() const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
 }

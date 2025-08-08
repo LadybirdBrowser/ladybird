@@ -38,7 +38,7 @@ Optional<Color> CSSHWB::to_color(ColorResolutionContext color_resolution_context
     return Color::from_hsv(h_val.value(), saturation, value).with_opacity(alpha_val.value());
 }
 
-bool CSSHWB::equals(CSSStyleValue const& other) const
+bool CSSHWB::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

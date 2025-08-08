@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
 namespace Web::CSS {
@@ -16,7 +16,7 @@ namespace Web::CSS {
 class FontSourceStyleValue final : public StyleValueWithDefaultOperators<FontSourceStyleValue> {
 public:
     struct Local {
-        NonnullRefPtr<CSSStyleValue const> name;
+        NonnullRefPtr<StyleValue const> name;
     };
     using Source = Variant<Local, URL>;
 

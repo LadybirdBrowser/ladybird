@@ -6,23 +6,23 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 class BorderImageSliceStyleValue final : public StyleValueWithDefaultOperators<BorderImageSliceStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<BorderImageSliceStyleValue const> create(ValueComparingNonnullRefPtr<CSSStyleValue const> top, ValueComparingNonnullRefPtr<CSSStyleValue const> right, ValueComparingNonnullRefPtr<CSSStyleValue const> bottom, ValueComparingNonnullRefPtr<CSSStyleValue const> left, bool fill)
+    static ValueComparingNonnullRefPtr<BorderImageSliceStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> top, ValueComparingNonnullRefPtr<StyleValue const> right, ValueComparingNonnullRefPtr<StyleValue const> bottom, ValueComparingNonnullRefPtr<StyleValue const> left, bool fill)
     {
         return adopt_ref(*new (nothrow) BorderImageSliceStyleValue(top, right, bottom, left, fill));
     }
 
     virtual ~BorderImageSliceStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<CSSStyleValue const> top() const { return m_properties.top; }
-    ValueComparingNonnullRefPtr<CSSStyleValue const> left() const { return m_properties.left; }
-    ValueComparingNonnullRefPtr<CSSStyleValue const> bottom() const { return m_properties.bottom; }
-    ValueComparingNonnullRefPtr<CSSStyleValue const> right() const { return m_properties.right; }
+    ValueComparingNonnullRefPtr<StyleValue const> top() const { return m_properties.top; }
+    ValueComparingNonnullRefPtr<StyleValue const> left() const { return m_properties.left; }
+    ValueComparingNonnullRefPtr<StyleValue const> bottom() const { return m_properties.bottom; }
+    ValueComparingNonnullRefPtr<StyleValue const> right() const { return m_properties.right; }
 
     bool fill() const { return m_properties.fill; }
 
@@ -31,17 +31,17 @@ public:
     bool properties_equal(BorderImageSliceStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:
-    BorderImageSliceStyleValue(ValueComparingNonnullRefPtr<CSSStyleValue const> top, ValueComparingNonnullRefPtr<CSSStyleValue const> right, ValueComparingNonnullRefPtr<CSSStyleValue const> bottom, ValueComparingNonnullRefPtr<CSSStyleValue const> left, bool fill)
+    BorderImageSliceStyleValue(ValueComparingNonnullRefPtr<StyleValue const> top, ValueComparingNonnullRefPtr<StyleValue const> right, ValueComparingNonnullRefPtr<StyleValue const> bottom, ValueComparingNonnullRefPtr<StyleValue const> left, bool fill)
         : StyleValueWithDefaultOperators(Type::BorderImageSlice)
         , m_properties { .top = move(top), .right = move(right), .bottom = move(bottom), .left = move(left), .fill = fill }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<CSSStyleValue const> top;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> right;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> bottom;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> left;
+        ValueComparingNonnullRefPtr<StyleValue const> top;
+        ValueComparingNonnullRefPtr<StyleValue const> right;
+        ValueComparingNonnullRefPtr<StyleValue const> bottom;
+        ValueComparingNonnullRefPtr<StyleValue const> left;
         bool fill;
         bool operator==(Properties const&) const = default;
     } m_properties;

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
@@ -20,21 +20,21 @@ public:
         FontFeatureSettings,
         FontVariationSettings,
     };
-    static ValueComparingNonnullRefPtr<OpenTypeTaggedStyleValue const> create(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<CSSStyleValue const> value)
+    static ValueComparingNonnullRefPtr<OpenTypeTaggedStyleValue const> create(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
     {
         return adopt_ref(*new (nothrow) OpenTypeTaggedStyleValue(mode, move(tag), move(value)));
     }
     virtual ~OpenTypeTaggedStyleValue() override = default;
 
     FlyString const& tag() const { return m_tag; }
-    ValueComparingNonnullRefPtr<CSSStyleValue const> const& value() const { return m_value; }
+    ValueComparingNonnullRefPtr<StyleValue const> const& value() const { return m_value; }
 
     virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(OpenTypeTaggedStyleValue const&) const;
 
 private:
-    explicit OpenTypeTaggedStyleValue(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<CSSStyleValue const> value)
+    explicit OpenTypeTaggedStyleValue(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
         : StyleValueWithDefaultOperators(Type::OpenTypeTagged)
         , m_mode(mode)
         , m_tag(move(tag))
@@ -44,7 +44,7 @@ private:
 
     Mode m_mode;
     FlyString m_tag;
-    ValueComparingNonnullRefPtr<CSSStyleValue const> m_value;
+    ValueComparingNonnullRefPtr<StyleValue const> m_value;
 };
 
 }

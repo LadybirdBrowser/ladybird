@@ -6,18 +6,18 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
-class CSSNumericValue : public CSSStyleValue {
+class CSSNumericValue : public StyleValue {
 public:
     virtual ~CSSNumericValue() override = default;
 
 protected:
     explicit CSSNumericValue(Type type)
-        : CSSStyleValue(type)
+        : StyleValue(type)
     {
     }
 };

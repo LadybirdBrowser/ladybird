@@ -15,25 +15,25 @@ class CSSLightDark final : public CSSColorValue {
 public:
     virtual ~CSSLightDark() override = default;
 
-    static ValueComparingNonnullRefPtr<CSSLightDark const> create(ValueComparingNonnullRefPtr<CSSStyleValue const> light, ValueComparingNonnullRefPtr<CSSStyleValue const> dark)
+    static ValueComparingNonnullRefPtr<CSSLightDark const> create(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
     {
         return AK::adopt_ref(*new (nothrow) CSSLightDark(move(light), move(dark)));
     }
 
-    virtual bool equals(CSSStyleValue const&) const override;
+    virtual bool equals(StyleValue const&) const override;
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 
 private:
-    CSSLightDark(ValueComparingNonnullRefPtr<CSSStyleValue const> light, ValueComparingNonnullRefPtr<CSSStyleValue const> dark)
+    CSSLightDark(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
         : CSSColorValue(CSSColorValue::ColorType::LightDark, ColorSyntax::Modern)
         , m_properties { .light = move(light), .dark = move(dark) }
     {
     }
 
     struct Properties {
-        ValueComparingNonnullRefPtr<CSSStyleValue const> light;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> dark;
+        ValueComparingNonnullRefPtr<StyleValue const> light;
+        ValueComparingNonnullRefPtr<StyleValue const> dark;
         bool operator==(Properties const&) const = default;
     };
 

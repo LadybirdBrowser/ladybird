@@ -10,12 +10,12 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
-class UnresolvedStyleValue final : public CSSStyleValue {
+class UnresolvedStyleValue final : public StyleValue {
 public:
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Optional<Parser::SubstitutionFunctionsPresence> = {}, Optional<String> original_source_text = {});
     virtual ~UnresolvedStyleValue() override = default;
@@ -28,7 +28,7 @@ public:
     bool includes_attr_function() const { return m_substitution_functions_presence.attr; }
     bool includes_var_function() const { return m_substitution_functions_presence.var; }
 
-    virtual bool equals(CSSStyleValue const& other) const override;
+    virtual bool equals(StyleValue const& other) const override;
 
 private:
     UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text);

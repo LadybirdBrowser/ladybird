@@ -13,12 +13,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPropertyRule);
 
-GC::Ref<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, RefPtr<CSSStyleValue const> initial_value)
+GC::Ref<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
 {
     return realm.create<CSSPropertyRule>(realm, move(name), move(syntax), inherits, move(initial_value));
 }
 
-CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, RefPtr<CSSStyleValue const> initial_value)
+CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
     : CSSRule(realm, Type::Property)
     , m_name(move(name))
     , m_syntax(move(syntax))

@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
@@ -17,7 +17,7 @@ namespace Web::CSS {
 class TransitionStyleValue final : public StyleValueWithDefaultOperators<TransitionStyleValue> {
 public:
     struct Transition {
-        ValueComparingRefPtr<CSSStyleValue const> property_name;
+        ValueComparingRefPtr<StyleValue const> property_name;
         TimeOrCalculated duration { CSS::Time::make_seconds(0.0) };
         TimeOrCalculated delay { CSS::Time::make_seconds(0.0) };
         ValueComparingRefPtr<EasingStyleValue const> easing;

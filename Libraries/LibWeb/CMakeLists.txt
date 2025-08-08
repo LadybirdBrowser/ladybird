@@ -125,7 +125,6 @@ set(SOURCES
     CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
     CSS/CSSStyleSheet.cpp
-    CSS/CSSStyleValue.cpp
     CSS/CSSSupportsRule.cpp
     CSS/CSSTransition.cpp
     CSS/Descriptor.cpp
@@ -234,6 +233,7 @@ set(SOURCES
     CSS/StyleValues/ScrollbarColorStyleValue.cpp
     CSS/StyleValues/ShadowStyleValue.cpp
     CSS/StyleValues/ShorthandStyleValue.cpp
+    CSS/StyleValues/StyleValue.cpp
     CSS/StyleValues/StyleValueList.cpp
     CSS/StyleValues/TransformationStyleValue.cpp
     CSS/StyleValues/TransitionStyleValue.cpp

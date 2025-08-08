@@ -132,11 +132,11 @@ bool has_visible_children(GC::Ref<DOM::Node>);
 bool is_heading(FlyString const&);
 Utf16String justify_alignment_to_string(JustifyAlignment);
 Array<Utf16View, 7> named_font_sizes();
-Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element>, CSS::PropertyID);
+Optional<NonnullRefPtr<CSS::StyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element>, CSS::PropertyID);
 Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node>);
 Optional<CSS::Keyword> resolved_keyword(GC::Ref<DOM::Node>, CSS::PropertyID);
-Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::Node>, CSS::PropertyID);
+Optional<NonnullRefPtr<CSS::StyleValue const>> resolved_value(GC::Ref<DOM::Node>, CSS::PropertyID);
 void take_the_action_for_command(DOM::Document&, FlyString const&, Utf16String const&);
-bool value_contains_keyword(CSS::CSSStyleValue const&, CSS::Keyword);
+bool value_contains_keyword(CSS::StyleValue const&, CSS::Keyword);
 
 }

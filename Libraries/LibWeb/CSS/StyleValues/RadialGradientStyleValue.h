@@ -54,7 +54,7 @@ public:
 
     void paint(DisplayListRecordingContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 
-    virtual bool equals(CSSStyleValue const& other) const override;
+    virtual bool equals(StyleValue const& other) const override;
 
     Vector<LinearColorStopListElement> const& color_stop_list() const
     {

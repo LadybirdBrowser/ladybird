@@ -10,7 +10,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibGfx/Font/FontWeight.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
@@ -64,6 +63,7 @@
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -99,19 +99,19 @@ ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout
     };
 }
 
-CSSStyleValue::CSSStyleValue(Type type)
+StyleValue::StyleValue(Type type)
     : m_type(type)
 {
 }
 
-AbstractImageStyleValue const& CSSStyleValue::as_abstract_image() const
+AbstractImageStyleValue const& StyleValue::as_abstract_image() const
 {
     VERIFY(is_abstract_image());
     return static_cast<AbstractImageStyleValue const&>(*this);
 }
 
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
-    style_value_class_name const& CSSStyleValue::as_##snake_case() const                 \
+    style_value_class_name const& StyleValue::as_##snake_case() const                    \
     {                                                                                    \
         VERIFY(is_##snake_case());                                                       \
         return static_cast<style_value_class_name const&>(*this);                        \
@@ -119,24 +119,24 @@ AbstractImageStyleValue const& CSSStyleValue::as_abstract_image() const
 ENUMERATE_CSS_STYLE_VALUE_TYPES
 #undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> CSSStyleValue::absolutized(CSSPixelRect const&, Length::FontMetrics const&, Length::FontMetrics const&) const
+ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(CSSPixelRect const&, Length::FontMetrics const&, Length::FontMetrics const&) const
 {
     return *this;
 }
 
-bool CSSStyleValue::has_auto() const
+bool StyleValue::has_auto() const
 {
     return is_keyword() && as_keyword().keyword() == Keyword::Auto;
 }
 
-Vector<Parser::ComponentValue> CSSStyleValue::tokenize() const
+Vector<Parser::ComponentValue> StyleValue::tokenize() const
 {
     // This is an inefficient way of producing ComponentValues, but it's guaranteed to work for types that round-trip.
     // FIXME: Implement better versions in the subclasses.
     return Parser::Parser::create(Parser::ParsingParams {}, to_string(SerializationMode::Normal)).parse_as_list_of_component_values();
 }
 
-int CSSStyleValue::to_font_weight() const
+int StyleValue::to_font_weight() const
 {
     if (is_keyword()) {
         switch (as_keyword().keyword()) {
@@ -165,7 +165,7 @@ int CSSStyleValue::to_font_weight() const
     return Gfx::FontWeight::Regular;
 }
 
-int CSSStyleValue::to_font_slope() const
+int StyleValue::to_font_slope() const
 {
     // FIXME: Implement oblique <angle>
     if (is_font_style()) {
@@ -186,7 +186,7 @@ int CSSStyleValue::to_font_slope() const
     return normal_slope;
 }
 
-int CSSStyleValue::to_font_width() const
+int StyleValue::to_font_width() const
 {
     int width = Gfx::FontWidth::Normal;
     if (is_keyword()) {

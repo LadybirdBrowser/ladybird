@@ -664,11 +664,11 @@ CalculatedStyleValue::CalculationResult NumericCalculationNode::resolve(Calculat
     return CalculatedStyleValue::CalculationResult::from_value(m_value, context, numeric_type());
 }
 
-RefPtr<CSSStyleValue const> NumericCalculationNode::to_style_value(CalculationContext const& context) const
+RefPtr<StyleValue const> NumericCalculationNode::to_style_value(CalculationContext const& context) const
 {
     // TODO: Clamp values to the range allowed by the context.
     return m_value.visit(
-        [&](Number const& number) -> RefPtr<CSSStyleValue const> {
+        [&](Number const& number) -> RefPtr<StyleValue const> {
             // FIXME: Returning infinity or NaN as a NumberStyleValue isn't valid.
             //        This is a temporary fix until value-clamping is implemented here.
             //        In future, we can remove these two lines and return NonnullRefPtr again.
@@ -679,13 +679,13 @@ RefPtr<CSSStyleValue const> NumericCalculationNode::to_style_value(CalculationCo
                 return IntegerStyleValue::create(llround(number.value()));
             return NumberStyleValue::create(number.value());
         },
-        [](Angle const& angle) -> RefPtr<CSSStyleValue const> { return AngleStyleValue::create(angle); },
-        [](Flex const& flex) -> RefPtr<CSSStyleValue const> { return FlexStyleValue::create(flex); },
-        [](Frequency const& frequency) -> RefPtr<CSSStyleValue const> { return FrequencyStyleValue::create(frequency); },
-        [](Length const& length) -> RefPtr<CSSStyleValue const> { return LengthStyleValue::create(length); },
-        [](Percentage const& percentage) -> RefPtr<CSSStyleValue const> { return PercentageStyleValue::create(percentage); },
-        [](Resolution const& resolution) -> RefPtr<CSSStyleValue const> { return ResolutionStyleValue::create(resolution); },
-        [](Time const& time) -> RefPtr<CSSStyleValue const> { return TimeStyleValue::create(time); });
+        [](Angle const& angle) -> RefPtr<StyleValue const> { return AngleStyleValue::create(angle); },
+        [](Flex const& flex) -> RefPtr<StyleValue const> { return FlexStyleValue::create(flex); },
+        [](Frequency const& frequency) -> RefPtr<StyleValue const> { return FrequencyStyleValue::create(frequency); },
+        [](Length const& length) -> RefPtr<StyleValue const> { return LengthStyleValue::create(length); },
+        [](Percentage const& percentage) -> RefPtr<StyleValue const> { return PercentageStyleValue::create(percentage); },
+        [](Resolution const& resolution) -> RefPtr<StyleValue const> { return ResolutionStyleValue::create(resolution); },
+        [](Time const& time) -> RefPtr<StyleValue const> { return TimeStyleValue::create(time); });
 }
 
 Optional<NonFiniteValue> NumericCalculationNode::infinite_or_nan_value() const
@@ -2661,7 +2661,7 @@ String CalculatedStyleValue::to_string(SerializationMode serialization_mode) con
     return serialize_a_math_function(m_calculation, m_context, serialization_mode);
 }
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> CalculatedStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
     Length::ResolutionContext length_resolution_context {
         .viewport_rect = viewport_rect,
@@ -2672,7 +2672,7 @@ ValueComparingNonnullRefPtr<CSSStyleValue const> CalculatedStyleValue::absolutiz
     return CalculatedStyleValue::create(simplify_a_calculation_tree(m_calculation, m_context, { .length_resolution_context = length_resolution_context }), m_resolved_type, m_context);
 }
 
-bool CalculatedStyleValue::equals(CSSStyleValue const& other) const
+bool CalculatedStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

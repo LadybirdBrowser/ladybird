@@ -113,7 +113,7 @@ Optional<DescriptorID> descriptor_id_from_string(AtRuleID, StringView);
 FlyString to_string(DescriptorID);
 
 bool at_rule_supports_descriptor(AtRuleID, DescriptorID);
-RefPtr<CSSStyleValue const> descriptor_initial_value(AtRuleID, DescriptorID);
+RefPtr<StyleValue const> descriptor_initial_value(AtRuleID, DescriptorID);
 
 struct DescriptorMetadata {
     enum class ValueType {
@@ -150,7 +150,7 @@ ErrorOr<void> generate_implementation_file(JsonObject const& at_rules_data, Core
 
     generator.append(R"~~~(
 #include <LibWeb/CSS/DescriptorID.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 
 namespace Web::CSS {
@@ -276,12 +276,12 @@ bool at_rule_supports_descriptor(AtRuleID at_rule_id, DescriptorID descriptor_id
 }
 
 
-RefPtr<CSSStyleValue const> descriptor_initial_value(AtRuleID at_rule_id, DescriptorID descriptor_id)
+RefPtr<StyleValue const> descriptor_initial_value(AtRuleID at_rule_id, DescriptorID descriptor_id)
 {
     if (!at_rule_supports_descriptor(at_rule_id, descriptor_id))
         return nullptr;
 
-    static Array<Array<RefPtr<CSSStyleValue const>, @descriptor_count@>, @at_rule_count@> initial_values;
+    static Array<Array<RefPtr<StyleValue const>, @descriptor_count@>, @at_rule_count@> initial_values;
     if (auto initial_value = initial_values[to_underlying(at_rule_id)][to_underlying(descriptor_id)])
         return initial_value.release_nonnull();
 

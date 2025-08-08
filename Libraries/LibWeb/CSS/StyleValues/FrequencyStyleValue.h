@@ -28,7 +28,7 @@ public:
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_frequency.to_string(serialization_mode); }
 
-    bool equals(CSSStyleValue const& other) const override
+    bool equals(StyleValue const& other) const override
     {
         if (type() != other.type())
             return false;

@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 Optional<Color> CSSRGB::to_color(ColorResolutionContext color_resolution_context) const
 {
-    auto resolve_rgb_to_u8 = [&color_resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
+    auto resolve_rgb_to_u8 = [&color_resolution_context](StyleValue const& style_value) -> Optional<u8> {
         // <number> | <percentage> | none
         auto normalized = [](double number) {
             if (isnan(number))
@@ -54,7 +54,7 @@ Optional<Color> CSSRGB::to_color(ColorResolutionContext color_resolution_context
         return 0;
     };
 
-    auto resolve_alpha_to_u8 = [&color_resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
+    auto resolve_alpha_to_u8 = [&color_resolution_context](StyleValue const& style_value) -> Optional<u8> {
         auto alpha_0_1 = resolve_alpha(style_value, color_resolution_context.calculation_resolution_context);
         if (alpha_0_1.has_value())
             return llround(clamp(alpha_0_1.value() * 255.0f, 0.0f, 255.0f));
@@ -72,7 +72,7 @@ Optional<Color> CSSRGB::to_color(ColorResolutionContext color_resolution_context
     return Color(r_val.value(), g_val.value(), b_val.value(), alpha_val.value());
 }
 
-bool CSSRGB::equals(CSSStyleValue const& other) const
+bool CSSRGB::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

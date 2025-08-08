@@ -24,7 +24,7 @@ String ShadowStyleValue::to_string(SerializationMode mode) const
         builder.append(' ');
     builder.appendff("{} {}", m_properties.offset_x->to_string(mode), m_properties.offset_y->to_string(mode));
 
-    auto append_value = [&](ValueComparingRefPtr<CSSStyleValue const> const& value) {
+    auto append_value = [&](ValueComparingRefPtr<StyleValue const> const& value) {
         if (!value)
             return;
         if (!builder.is_empty())
@@ -39,28 +39,28 @@ String ShadowStyleValue::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> ShadowStyleValue::color() const
+ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::color() const
 {
     if (!m_properties.color)
         return CSSKeywordValue::create(Keyword::Currentcolor);
     return *m_properties.color;
 }
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> ShadowStyleValue::blur_radius() const
+ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::blur_radius() const
 {
     if (!m_properties.blur_radius)
         return LengthStyleValue::create(Length::make_px(0));
     return *m_properties.blur_radius;
 }
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> ShadowStyleValue::spread_distance() const
+ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::spread_distance() const
 {
     if (!m_properties.spread_distance)
         return LengthStyleValue::create(Length::make_px(0));
     return *m_properties.spread_distance;
 }
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> ShadowStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
     auto absolutized_offset_x = offset_x()->absolutized(viewport_rect, font_metrics, root_font_metrics);
     auto absolutized_offset_y = offset_y()->absolutized(viewport_rect, font_metrics, root_font_metrics);

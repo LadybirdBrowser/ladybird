@@ -25,7 +25,7 @@ Optional<Color> CSSHSL::to_color(ColorResolutionContext color_resolution_context
     return Color::from_hsla(h_val.value(), s_val.value() / 100.0f, l_val.value() / 100.0f, alpha_val.value());
 }
 
-bool CSSHSL::equals(CSSStyleValue const& other) const
+bool CSSHSL::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

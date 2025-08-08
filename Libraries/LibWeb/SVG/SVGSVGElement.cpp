@@ -49,7 +49,7 @@ GC::Ptr<Layout::Node> SVGSVGElement::create_layout_node(GC::Ref<CSS::ComputedPro
     return heap().allocate<Layout::SVGSVGBox>(document(), *this, move(style));
 }
 
-RefPtr<CSS::CSSStyleValue const> SVGSVGElement::width_style_value_from_attribute() const
+RefPtr<CSS::StyleValue const> SVGSVGElement::width_style_value_from_attribute() const
 {
     auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     auto width_attribute = attribute(SVG::AttributeNames::width);
@@ -65,7 +65,7 @@ RefPtr<CSS::CSSStyleValue const> SVGSVGElement::width_style_value_from_attribute
     return nullptr;
 }
 
-RefPtr<CSS::CSSStyleValue const> SVGSVGElement::height_style_value_from_attribute() const
+RefPtr<CSS::StyleValue const> SVGSVGElement::height_style_value_from_attribute() const
 {
     auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     auto height_attribute = attribute(SVG::AttributeNames::height);

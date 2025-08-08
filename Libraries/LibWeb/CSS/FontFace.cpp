@@ -96,7 +96,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
     font_face->m_ascent_override = try_parse_descriptor(DescriptorID::AscentOverride, descriptors.ascent_override);
     font_face->m_descent_override = try_parse_descriptor(DescriptorID::DescentOverride, descriptors.descent_override);
     font_face->m_line_gap_override = try_parse_descriptor(DescriptorID::LineGapOverride, descriptors.line_gap_override);
-    RefPtr<CSSStyleValue const> parsed_source;
+    RefPtr<StyleValue const> parsed_source;
     if (auto* source_string = source.get_pointer<String>()) {
         parsed_source = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorID::Src, *source_string);
         if (!parsed_source) {

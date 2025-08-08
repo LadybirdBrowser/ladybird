@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
@@ -26,7 +26,7 @@ public:
 
     size_t size() const { return m_properties.values.size(); }
     StyleValueVector const& values() const { return m_properties.values; }
-    ValueComparingNonnullRefPtr<CSSStyleValue const> value_at(size_t i, bool allow_loop) const
+    ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i, bool allow_loop) const
     {
         if (allow_loop)
             return m_properties.values[i % size()];
@@ -36,7 +36,7 @@ public:
     virtual String to_string(SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
 
-    virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
 
     bool properties_equal(StyleValueList const& other) const { return m_properties == other.m_properties; }
 

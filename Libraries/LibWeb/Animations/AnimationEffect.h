@@ -62,7 +62,7 @@ Bindings::PlaybackDirection css_animation_direction_to_bindings_playback_directi
 // This object lives for the duration of an animation update, and is used to store per-element data about animated CSS properties.
 struct AnimationUpdateContext {
     struct ElementData {
-        using PropertyMap = HashMap<CSS::PropertyID, NonnullRefPtr<CSS::CSSStyleValue const>>;
+        using PropertyMap = HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>>;
         PropertyMap animated_properties_before_update;
         GC::Ptr<CSS::ComputedProperties> target_style;
     };
@@ -79,7 +79,7 @@ class AnimationEffect : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(AnimationEffect);
 
 public:
-    static RefPtr<CSS::CSSStyleValue const> parse_easing_string(StringView value);
+    static RefPtr<CSS::StyleValue const> parse_easing_string(StringView value);
 
     EffectTiming get_timing() const;
     ComputedEffectTiming get_computed_timing() const;

@@ -141,7 +141,7 @@ private:
     using RefPtr<T>::operator==;
 };
 
-using StyleValueVector = Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>;
+using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
 
 struct ColorResolutionContext {
     Optional<PreferredColorScheme> color_scheme;
@@ -153,10 +153,9 @@ struct ColorResolutionContext {
     [[nodiscard]] static ColorResolutionContext for_layout_node_with_style(Layout::NodeWithStyle const&);
 };
 
-// https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue
-class CSSStyleValue : public RefCounted<CSSStyleValue> {
+class StyleValue : public RefCounted<StyleValue> {
 public:
-    virtual ~CSSStyleValue() = default;
+    virtual ~StyleValue() = default;
 
     enum class Type {
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) title_case,
@@ -171,14 +170,14 @@ public:
         return AK::first_is_one_of(type(), Type::Image, Type::LinearGradient, Type::ConicGradient, Type::RadialGradient);
     }
     AbstractImageStyleValue const& as_abstract_image() const;
-    AbstractImageStyleValue& as_abstract_image() { return const_cast<AbstractImageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_abstract_image()); }
+    AbstractImageStyleValue& as_abstract_image() { return const_cast<AbstractImageStyleValue&>(const_cast<StyleValue const&>(*this).as_abstract_image()); }
 
     virtual bool is_color_function() const { return false; }
 
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
     bool is_##snake_case() const { return type() == Type::title_case; }                  \
     style_value_class_name const& as_##snake_case() const;                               \
-    style_value_class_name& as_##snake_case() { return const_cast<style_value_class_name&>(const_cast<CSSStyleValue const&>(*this).as_##snake_case()); }
+    style_value_class_name& as_##snake_case() { return const_cast<style_value_class_name&>(const_cast<StyleValue const&>(*this).as_##snake_case()); }
     ENUMERATE_CSS_STYLE_VALUE_TYPES
 #undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
 
@@ -194,7 +193,7 @@ public:
     bool has_auto() const;
     virtual bool has_color() const { return false; }
 
-    virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
 
     virtual Optional<Color> to_color(ColorResolutionContext) const { return {}; }
     Keyword to_keyword() const;
@@ -209,26 +208,26 @@ public:
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) { }
     virtual void visit_edges(JS::Cell::Visitor&) const { }
 
-    virtual bool equals(CSSStyleValue const& other) const = 0;
+    virtual bool equals(StyleValue const& other) const = 0;
 
-    bool operator==(CSSStyleValue const& other) const
+    bool operator==(StyleValue const& other) const
     {
         return this->equals(other);
     }
 
 protected:
-    explicit CSSStyleValue(Type);
+    explicit StyleValue(Type);
 
 private:
     Type m_type;
 };
 
 template<typename T>
-struct StyleValueWithDefaultOperators : public CSSStyleValue {
-    using CSSStyleValue::CSSStyleValue;
-    using Base = CSSStyleValue;
+struct StyleValueWithDefaultOperators : public StyleValue {
+    using StyleValue::StyleValue;
+    using Base = StyleValue;
 
-    virtual bool equals(CSSStyleValue const& other) const override
+    virtual bool equals(StyleValue const& other) const override
     {
         if (type() != other.type())
             return false;
@@ -240,21 +239,21 @@ struct StyleValueWithDefaultOperators : public CSSStyleValue {
 }
 
 template<>
-struct AK::Formatter<Web::CSS::CSSStyleValue> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSStyleValue const& style_value)
+struct AK::Formatter<Web::CSS::StyleValue> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::StyleValue const& style_value)
     {
         return Formatter<StringView>::format(builder, style_value.to_string(Web::CSS::SerializationMode::Normal));
     }
 };
 
 template<>
-struct AK::Formatter<Web::CSS::CSSStyleValue::Type> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSStyleValue::Type type)
+struct AK::Formatter<Web::CSS::StyleValue::Type> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::StyleValue::Type type)
     {
         StringView type_name;
         switch (type) {
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
-    case Web::CSS::CSSStyleValue::Type::title_case:                                      \
+    case Web::CSS::StyleValue::Type::title_case:                                         \
         type_name = #title_case##sv;                                                     \
         break;
             ENUMERATE_CSS_STYLE_VALUE_TYPES

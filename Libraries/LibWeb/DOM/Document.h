@@ -915,7 +915,7 @@ public:
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
     HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>>& registered_custom_properties();
 
-    NonnullRefPtr<CSS::CSSStyleValue const> custom_property_initial_value(FlyString const& name) const;
+    NonnullRefPtr<CSS::StyleValue const> custom_property_initial_value(FlyString const& name) const;
 
 protected:
     virtual void initialize(JS::Realm&) override;

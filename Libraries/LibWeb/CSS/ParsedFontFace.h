@@ -24,7 +24,7 @@ public:
         Vector<FontTech> tech;
     };
 
-    static Vector<Source> sources_from_style_value(CSSStyleValue const&);
+    static Vector<Source> sources_from_style_value(StyleValue const&);
     static ParsedFontFace from_descriptors(CSSFontFaceDescriptors const&);
 
     ParsedFontFace(GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings);

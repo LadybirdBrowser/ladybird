@@ -628,7 +628,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         auto& old_values = value_list.values();
 
         auto new_values = old_values;
-        auto was_removed = new_values.remove_all_matching([&](CSS::ValueComparingNonnullRefPtr<CSS::CSSStyleValue const> const& value) {
+        auto was_removed = new_values.remove_all_matching([&](CSS::ValueComparingNonnullRefPtr<CSS::StyleValue const> const& value) {
             return value->is_keyword() && value->as_keyword().keyword() == keyword_to_delete;
         });
         if (!was_removed)
@@ -4672,7 +4672,7 @@ Array<Utf16View, 7> named_font_sizes()
     return { "x-small"sv, "small"sv, "medium"sv, "large"sv, "x-large"sv, "xx-large"sv, "xxx-large"sv };
 }
 
-Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element> element, CSS::PropertyID property_id)
+Optional<NonnullRefPtr<CSS::StyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element> element, CSS::PropertyID property_id)
 {
     auto inline_style = element->inline_style();
     if (!inline_style)
@@ -4702,7 +4702,7 @@ Optional<CSS::Keyword> resolved_keyword(GC::Ref<DOM::Node> node, CSS::PropertyID
     return resolved_property.value()->as_keyword().keyword();
 }
 
-Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::Node> node, CSS::PropertyID property_id)
+Optional<NonnullRefPtr<CSS::StyleValue const>> resolved_value(GC::Ref<DOM::Node> node, CSS::PropertyID property_id)
 {
     // Find the nearest inclusive ancestor of node that is an Element. This allows for passing in a DOM::Text node.
     GC::Ptr<DOM::Node> element = node;
@@ -4725,7 +4725,7 @@ void take_the_action_for_command(DOM::Document& document, FlyString const& comma
     command_definition->action(document, value);
 }
 
-bool value_contains_keyword(CSS::CSSStyleValue const& value, CSS::Keyword keyword)
+bool value_contains_keyword(CSS::StyleValue const& value, CSS::Keyword keyword)
 {
     if (value.is_value_list()) {
         for (auto& css_style_value : value.as_value_list().values()) {

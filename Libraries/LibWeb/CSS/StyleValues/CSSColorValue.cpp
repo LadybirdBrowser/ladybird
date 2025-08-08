@@ -30,7 +30,7 @@ ValueComparingNonnullRefPtr<CSSColorValue const> CSSColorValue::create_from_colo
         name);
 }
 
-Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value, CalculationResolutionContext const& resolution_context)
+Optional<double> CSSColorValue::resolve_hue(StyleValue const& style_value, CalculationResolutionContext const& resolution_context)
 {
     // <number> | <angle> | none
     auto normalized = [](double number) {
@@ -74,7 +74,7 @@ Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value, Ca
     return 0;
 }
 
-Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const& style_value, float one_hundred_percent_value, CalculationResolutionContext const& resolution_context)
+Optional<double> CSSColorValue::resolve_with_reference_value(StyleValue const& style_value, float one_hundred_percent_value, CalculationResolutionContext const& resolution_context)
 {
     // <percentage> | <number> | none
     auto normalize_percentage = [one_hundred_percent_value](Percentage const& percentage) {
@@ -111,7 +111,7 @@ Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const
     return 0;
 }
 
-Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value, CalculationResolutionContext const& resolution_context)
+Optional<double> CSSColorValue::resolve_alpha(StyleValue const& style_value, CalculationResolutionContext const& resolution_context)
 {
     // <number> | <percentage> | none
     auto normalized = [](double number) {
@@ -153,7 +153,7 @@ Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value, 
     return 1;
 }
 
-void CSSColorValue::serialize_color_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min, Optional<double> clamp_max) const
+void CSSColorValue::serialize_color_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min, Optional<double> clamp_max) const
 {
     if (component.to_keyword() == Keyword::None) {
         builder.append("none"sv);
@@ -185,7 +185,7 @@ void CSSColorValue::serialize_color_component(StringBuilder& builder, Serializat
     builder.append(resolved_string);
 }
 
-void CSSColorValue::serialize_alpha_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const
+void CSSColorValue::serialize_alpha_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const
 {
     if (component.to_keyword() == Keyword::None) {
         builder.append("none"sv);
@@ -206,7 +206,7 @@ void CSSColorValue::serialize_alpha_component(StringBuilder& builder, Serializat
     builder.appendff("{}", maybe_resolved_value.value());
 }
 
-void CSSColorValue::serialize_hue_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const
+void CSSColorValue::serialize_hue_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const
 {
     if (component.to_keyword() == Keyword::None) {
         builder.append("none"sv);

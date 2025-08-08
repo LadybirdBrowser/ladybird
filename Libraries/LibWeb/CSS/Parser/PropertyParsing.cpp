@@ -15,7 +15,6 @@
 
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/CharacterTypes.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -56,6 +55,7 @@
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -72,7 +72,7 @@ static void remove_property(Vector<PropertyID>& properties, PropertyID property_
     properties.remove_first_matching([&](auto it) { return it == property_to_remove; });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_all_as_single_keyword_value(TokenStream<ComponentValue>& tokens, Keyword keyword)
+RefPtr<StyleValue const> Parser::parse_all_as_single_keyword_value(TokenStream<ComponentValue>& tokens, Keyword keyword)
 {
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
@@ -86,9 +86,9 @@ RefPtr<CSSStyleValue const> Parser::parse_all_as_single_keyword_value(TokenStrea
     return keyword_value;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_simple_comma_separated_value_list(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_simple_comma_separated_value_list(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
-    return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) -> RefPtr<CSSStyleValue const> {
+    return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) -> RefPtr<StyleValue const> {
         if (auto value = parse_css_value_for_property(property_id, tokens))
             return value;
         tokens.reconsume_current_input_token();
@@ -96,7 +96,7 @@ RefPtr<CSSStyleValue const> Parser::parse_simple_comma_separated_value_list(Prop
     });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_css_value_for_property(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_css_value_for_property(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     return parse_css_value_for_properties({ &property_id, 1 }, tokens)
         .map([](auto& it) { return it.style_value; })
@@ -391,7 +391,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     return OptionalNone {};
 }
 
-Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& unprocessed_tokens, Optional<String> original_source_text)
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& unprocessed_tokens, Optional<String> original_source_text)
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
@@ -801,7 +801,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         break;
     }
 
-    // If there's only 1 ComponentValue, we can only produce a single CSSStyleValue.
+    // If there's only 1 ComponentValue, we can only produce a single StyleValue.
     if (component_values.size() == 1) {
         auto stream = TokenStream { component_values };
         if (auto parsed_value = parse_css_value_for_property(property_id, stream))
@@ -816,7 +816,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         }
 
         if (!stream.has_next_token()) {
-            // Some types (such as <ratio>) can be made from multiple ComponentValues, so if we only made 1 CSSStyleValue, return it directly.
+            // Some types (such as <ratio>) can be made from multiple ComponentValues, so if we only made 1 StyleValue, return it directly.
             if (parsed_values.size() == 1)
                 return *parsed_values.take_first();
 
@@ -832,7 +832,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
 
     auto stream = TokenStream { component_values };
 
-    HashMap<UnderlyingType<PropertyID>, Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>> assigned_values;
+    HashMap<UnderlyingType<PropertyID>, Vector<ValueComparingNonnullRefPtr<StyleValue const>>> assigned_values;
 
     while (stream.has_next_token() && !unassigned_properties.is_empty()) {
         auto property_and_value = parse_css_value_for_properties(unassigned_properties, stream);
@@ -882,7 +882,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
     return { ShorthandStyleValue::create(property_id, move(longhand_properties), move(longhand_values)) };
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_color_scheme_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_color_scheme_value(TokenStream<ComponentValue>& tokens)
 {
     // normal | [ light | dark | <custom-ident> ]+ && only?
 
@@ -947,7 +947,7 @@ RefPtr<CSSStyleValue const> Parser::parse_color_scheme_value(TokenStream<Compone
     return ColorSchemeStyleValue::create(schemes, only);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_counter_definitions_value(TokenStream<ComponentValue>& tokens, AllowReversed allow_reversed, i32 default_value_if_not_reversed)
+RefPtr<StyleValue const> Parser::parse_counter_definitions_value(TokenStream<ComponentValue>& tokens, AllowReversed allow_reversed, i32 default_value_if_not_reversed)
 {
     // If AllowReversed is Yes, parses:
     //   [ <counter-name> <integer>? | <reversed-counter-name> <integer>? ]+
@@ -1008,7 +1008,7 @@ RefPtr<CSSStyleValue const> Parser::parse_counter_definitions_value(TokenStream<
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-increment
-RefPtr<CSSStyleValue const> Parser::parse_counter_increment_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_counter_increment_value(TokenStream<ComponentValue>& tokens)
 {
     // [ <counter-name> <integer>? ]+ | none
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
@@ -1018,7 +1018,7 @@ RefPtr<CSSStyleValue const> Parser::parse_counter_increment_value(TokenStream<Co
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-reset
-RefPtr<CSSStyleValue const> Parser::parse_counter_reset_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_counter_reset_value(TokenStream<ComponentValue>& tokens)
 {
     // [ <counter-name> <integer>? | <reversed-counter-name> <integer>? ]+ | none
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
@@ -1028,7 +1028,7 @@ RefPtr<CSSStyleValue const> Parser::parse_counter_reset_value(TokenStream<Compon
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-set
-RefPtr<CSSStyleValue const> Parser::parse_counter_set_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_counter_set_value(TokenStream<ComponentValue>& tokens)
 {
     // [ <counter-name> <integer>? ]+ | none
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
@@ -1038,7 +1038,7 @@ RefPtr<CSSStyleValue const> Parser::parse_counter_set_value(TokenStream<Componen
 }
 
 // https://drafts.csswg.org/css-ui-4/#cursor
-RefPtr<CSSStyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValue>& tokens)
 {
     // <cursor-image>#? <cursor-predefined>
     // <cursor-image> = <url> <number>{2}?
@@ -1105,11 +1105,11 @@ RefPtr<CSSStyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValu
 }
 
 // https://www.w3.org/TR/css-sizing-4/#aspect-ratio
-RefPtr<CSSStyleValue const> Parser::parse_aspect_ratio_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_aspect_ratio_value(TokenStream<ComponentValue>& tokens)
 {
     // `auto || <ratio>`
-    RefPtr<CSSStyleValue const> auto_value;
-    RefPtr<CSSStyleValue const> ratio_value;
+    RefPtr<StyleValue const> auto_value;
+    RefPtr<StyleValue const> ratio_value;
 
     auto transaction = tokens.begin_transaction();
     while (tokens.has_next_token()) {
@@ -1154,7 +1154,7 @@ RefPtr<CSSStyleValue const> Parser::parse_aspect_ratio_value(TokenStream<Compone
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
 
@@ -1172,7 +1172,7 @@ RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<Component
     StyleValueVector background_attachments;
     StyleValueVector background_clips;
     StyleValueVector background_origins;
-    RefPtr<CSSStyleValue const> background_color;
+    RefPtr<StyleValue const> background_color;
 
     auto initial_background_image = property_initial_value(PropertyID::BackgroundImage);
     auto initial_background_position_x = property_initial_value(PropertyID::BackgroundPositionX);
@@ -1185,14 +1185,14 @@ RefPtr<CSSStyleValue const> Parser::parse_background_value(TokenStream<Component
     auto initial_background_color = property_initial_value(PropertyID::BackgroundColor);
 
     // Per-layer values
-    RefPtr<CSSStyleValue const> background_image;
-    RefPtr<CSSStyleValue const> background_position_x;
-    RefPtr<CSSStyleValue const> background_position_y;
-    RefPtr<CSSStyleValue const> background_size;
-    RefPtr<CSSStyleValue const> background_repeat;
-    RefPtr<CSSStyleValue const> background_attachment;
-    RefPtr<CSSStyleValue const> background_clip;
-    RefPtr<CSSStyleValue const> background_origin;
+    RefPtr<StyleValue const> background_image;
+    RefPtr<StyleValue const> background_position_x;
+    RefPtr<StyleValue const> background_position_y;
+    RefPtr<StyleValue const> background_size;
+    RefPtr<StyleValue const> background_repeat;
+    RefPtr<StyleValue const> background_attachment;
+    RefPtr<StyleValue const> background_clip;
+    RefPtr<StyleValue const> background_origin;
 
     bool has_multiple_layers = false;
     // BackgroundSize is always parsed as part of BackgroundPosition, so we don't include it here.
@@ -1407,7 +1407,7 @@ static Optional<LengthPercentage> style_value_to_length_percentage(auto value)
     return {};
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_single_background_position_x_or_y_value(TokenStream<ComponentValue>& tokens, PropertyID property)
+RefPtr<StyleValue const> Parser::parse_single_background_position_x_or_y_value(TokenStream<ComponentValue>& tokens, PropertyID property)
 {
     Optional<PositionEdge> relative_edge {};
 
@@ -1464,11 +1464,11 @@ RefPtr<CSSStyleValue const> Parser::parse_single_background_position_x_or_y_valu
     return EdgeStyleValue::create(relative_edge, {});
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(PropertyID property, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_single_background_size_value(PropertyID property, TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
 
-    auto get_length_percentage = [](CSSStyleValue const& style_value) -> Optional<LengthPercentage> {
+    auto get_length_percentage = [](StyleValue const& style_value) -> Optional<LengthPercentage> {
         if (style_value.has_auto())
             return LengthPercentage { Length::make_auto() };
         if (style_value.is_percentage())
@@ -1512,11 +1512,11 @@ RefPtr<CSSStyleValue const> Parser::parse_single_background_size_value(PropertyI
     return BackgroundSizeStyleValue::create(x_size.release_value(), y_size.release_value());
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_border_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_border_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
-    RefPtr<CSSStyleValue const> border_width;
-    RefPtr<CSSStyleValue const> border_color;
-    RefPtr<CSSStyleValue const> border_style;
+    RefPtr<StyleValue const> border_width;
+    RefPtr<StyleValue const> border_color;
+    RefPtr<StyleValue const> border_style;
 
     auto color_property = PropertyID::Invalid;
     auto style_property = PropertyID::Invalid;
@@ -1582,16 +1582,16 @@ RefPtr<CSSStyleValue const> Parser::parse_border_value(PropertyID property_id, T
 }
 
 // https://drafts.csswg.org/css-backgrounds/#border-image
-RefPtr<CSSStyleValue const> Parser::parse_border_image_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_border_image_value(TokenStream<ComponentValue>& tokens)
 {
     // <'border-image-source'> || <'border-image-slice'> [ / <'border-image-width'> | / <'border-image-width'>? / <'border-image-outset'> ]? || <'border-image-repeat'>
     auto transaction = tokens.begin_transaction();
 
-    RefPtr<CSSStyleValue const> source_value;
-    RefPtr<CSSStyleValue const> slice_value;
-    RefPtr<CSSStyleValue const> width_value;
-    RefPtr<CSSStyleValue const> outset_value;
-    RefPtr<CSSStyleValue const> repeat_value;
+    RefPtr<StyleValue const> source_value;
+    RefPtr<StyleValue const> slice_value;
+    RefPtr<StyleValue const> width_value;
+    RefPtr<StyleValue const> outset_value;
+    RefPtr<StyleValue const> repeat_value;
 
     auto make_border_image_shorthand = [&]() {
         transaction.commit();
@@ -1611,7 +1611,7 @@ RefPtr<CSSStyleValue const> Parser::parse_border_image_value(TokenStream<Compone
             { source_value.release_nonnull(), slice_value.release_nonnull(), width_value.release_nonnull(), outset_value.release_nonnull(), repeat_value.release_nonnull() });
     };
 
-    auto parse_value_list = [&](PropertyID property_id, TokenStream<ComponentValue>& inner_tokens, Optional<char> delimiter = {}) -> RefPtr<CSSStyleValue const> {
+    auto parse_value_list = [&](PropertyID property_id, TokenStream<ComponentValue>& inner_tokens, Optional<char> delimiter = {}) -> RefPtr<StyleValue const> {
         auto inner_transaction = inner_tokens.begin_transaction();
 
         auto remaining_values = property_maximum_value_count(property_id);
@@ -1709,15 +1709,15 @@ RefPtr<CSSStyleValue const> Parser::parse_border_image_value(TokenStream<Compone
 }
 
 // https://drafts.csswg.org/css-backgrounds/#border-image-slice
-RefPtr<CSSStyleValue const> Parser::parse_border_image_slice_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<ComponentValue>& tokens)
 {
     // [<number [0,∞]> | <percentage [0,∞]>]{1,4} && fill?
     auto transaction = tokens.begin_transaction();
     auto fill = false;
-    RefPtr<CSSStyleValue const> top;
-    RefPtr<CSSStyleValue const> right;
-    RefPtr<CSSStyleValue const> bottom;
-    RefPtr<CSSStyleValue const> left;
+    RefPtr<StyleValue const> top;
+    RefPtr<StyleValue const> right;
+    RefPtr<StyleValue const> bottom;
+    RefPtr<StyleValue const> left;
 
     auto parse_fill = [](TokenStream<ComponentValue>& fill_tokens) {
         if (fill_tokens.next_token().is_ident("fill"sv)) {
@@ -1730,7 +1730,7 @@ RefPtr<CSSStyleValue const> Parser::parse_border_image_slice_value(TokenStream<C
     if (parse_fill(tokens))
         fill = true;
 
-    Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> number_percentages;
+    Vector<ValueComparingNonnullRefPtr<StyleValue const>> number_percentages;
     while (number_percentages.size() <= 4 && tokens.has_next_token()) {
         auto number_percentage = parse_number_percentage_value(tokens);
         if (!number_percentage)
@@ -1788,7 +1788,7 @@ RefPtr<CSSStyleValue const> Parser::parse_border_image_slice_value(TokenStream<C
         fill);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_border_radius_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_border_radius_value(TokenStream<ComponentValue>& tokens)
 {
     if (tokens.remaining_token_count() == 2) {
         auto transaction = tokens.begin_transaction();
@@ -1812,7 +1812,7 @@ RefPtr<CSSStyleValue const> Parser::parse_border_radius_value(TokenStream<Compon
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream<ComponentValue>& tokens)
 {
     auto top_left = [&](Vector<LengthPercentage>& radii) { return radii[0]; };
     auto top_right = [&](Vector<LengthPercentage>& radii) {
@@ -1902,13 +1902,13 @@ RefPtr<CSSStyleValue const> Parser::parse_border_radius_shorthand_value(TokenStr
         { move(top_left_radius), move(top_right_radius), move(bottom_right_radius), move(bottom_left_radius) });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_columns_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_columns_value(TokenStream<ComponentValue>& tokens)
 {
     if (tokens.remaining_token_count() > 2)
         return nullptr;
 
-    RefPtr<CSSStyleValue const> column_count;
-    RefPtr<CSSStyleValue const> column_width;
+    RefPtr<StyleValue const> column_count;
+    RefPtr<StyleValue const> column_width;
 
     Vector<PropertyID> remaining_longhands { PropertyID::ColumnCount, PropertyID::ColumnWidth };
     int found_autos = 0;
@@ -1970,7 +1970,7 @@ RefPtr<CSSStyleValue const> Parser::parse_columns_value(TokenStream<ComponentVal
         { column_count.release_nonnull(), column_width.release_nonnull() });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_shadow_value(TokenStream<ComponentValue>& tokens, AllowInsetKeyword allow_inset_keyword)
+RefPtr<StyleValue const> Parser::parse_shadow_value(TokenStream<ComponentValue>& tokens, AllowInsetKeyword allow_inset_keyword)
 {
     // "none"
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
@@ -1981,18 +1981,18 @@ RefPtr<CSSStyleValue const> Parser::parse_shadow_value(TokenStream<ComponentValu
     });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_single_shadow_value(TokenStream<ComponentValue>& tokens, AllowInsetKeyword allow_inset_keyword)
+RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<ComponentValue>& tokens, AllowInsetKeyword allow_inset_keyword)
 {
     auto transaction = tokens.begin_transaction();
 
-    RefPtr<CSSStyleValue const> color;
-    RefPtr<CSSStyleValue const> offset_x;
-    RefPtr<CSSStyleValue const> offset_y;
-    RefPtr<CSSStyleValue const> blur_radius;
-    RefPtr<CSSStyleValue const> spread_distance;
+    RefPtr<StyleValue const> color;
+    RefPtr<StyleValue const> offset_x;
+    RefPtr<StyleValue const> offset_y;
+    RefPtr<StyleValue const> blur_radius;
+    RefPtr<StyleValue const> spread_distance;
     Optional<ShadowPlacement> placement;
 
-    auto possibly_dynamic_length = [&](ComponentValue const& token) -> RefPtr<CSSStyleValue const> {
+    auto possibly_dynamic_length = [&](ComponentValue const& token) -> RefPtr<StyleValue const> {
         auto tokens = TokenStream<ComponentValue>::of_single_token(token);
         auto maybe_length = parse_length(tokens);
         if (!maybe_length.has_value())
@@ -2076,7 +2076,7 @@ RefPtr<CSSStyleValue const> Parser::parse_single_shadow_value(TokenStream<Compon
     return ShadowStyleValue::create(color, offset_x.release_nonnull(), offset_y.release_nonnull(), blur_radius, spread_distance, placement.release_value());
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>& tokens)
 {
     // Value:	none | <angle> | [ x | y | z | <number>{3} ] && <angle>
 
@@ -2165,7 +2165,7 @@ RefPtr<CSSStyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValu
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_stroke_dasharray_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_stroke_dasharray_value(TokenStream<ComponentValue>& tokens)
 {
     // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
     // Value: none | <dasharray>
@@ -2174,7 +2174,7 @@ RefPtr<CSSStyleValue const> Parser::parse_stroke_dasharray_value(TokenStream<Com
 
     // https://svgwg.org/svg2-draft/painting.html#DataTypeDasharray
     // <dasharray> = [ [ <length-percentage> | <number> ]+ ]#
-    Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> dashes;
+    Vector<ValueComparingNonnullRefPtr<StyleValue const>> dashes;
     while (tokens.has_next_token()) {
         tokens.discard_whitespace();
 
@@ -2204,7 +2204,7 @@ RefPtr<CSSStyleValue const> Parser::parse_stroke_dasharray_value(TokenStream<Com
     return StyleValueList::create(move(dashes), StyleValueList::Separator::Comma);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_content_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_content_value(TokenStream<ComponentValue>& tokens)
 {
     // FIXME: `content` accepts several kinds of function() type, which we don't handle in property_accepts_value() yet.
 
@@ -2273,7 +2273,7 @@ RefPtr<CSSStyleValue const> Parser::parse_content_value(TokenStream<ComponentVal
 }
 
 // https://www.w3.org/TR/css-display-3/#the-display-properties
-RefPtr<CSSStyleValue const> Parser::parse_display_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_display_value(TokenStream<ComponentValue>& tokens)
 {
     auto parse_single_component_display = [this](TokenStream<ComponentValue>& tokens) -> Optional<Display> {
         auto transaction = tokens.begin_transaction();
@@ -2407,11 +2407,11 @@ RefPtr<CSSStyleValue const> Parser::parse_display_value(TokenStream<ComponentVal
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_flex_shorthand_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_flex_shorthand_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
 
-    auto make_flex_shorthand = [&](NonnullRefPtr<CSSStyleValue const> flex_grow, NonnullRefPtr<CSSStyleValue const> flex_shrink, NonnullRefPtr<CSSStyleValue const> flex_basis) {
+    auto make_flex_shorthand = [&](NonnullRefPtr<StyleValue const> flex_grow, NonnullRefPtr<StyleValue const> flex_shrink, NonnullRefPtr<StyleValue const> flex_basis) {
         transaction.commit();
         return ShorthandStyleValue::create(PropertyID::Flex,
             { PropertyID::FlexGrow, PropertyID::FlexShrink, PropertyID::FlexBasis },
@@ -2452,9 +2452,9 @@ RefPtr<CSSStyleValue const> Parser::parse_flex_shorthand_value(TokenStream<Compo
         return nullptr;
     }
 
-    RefPtr<CSSStyleValue const> flex_grow;
-    RefPtr<CSSStyleValue const> flex_shrink;
-    RefPtr<CSSStyleValue const> flex_basis;
+    RefPtr<StyleValue const> flex_grow;
+    RefPtr<StyleValue const> flex_shrink;
+    RefPtr<StyleValue const> flex_basis;
 
     // NOTE: FlexGrow has to be before FlexBasis. `0` is a valid FlexBasis, but only
     //       if FlexGrow (along with optional FlexShrink) have already been specified.
@@ -2501,10 +2501,10 @@ RefPtr<CSSStyleValue const> Parser::parse_flex_shorthand_value(TokenStream<Compo
     return make_flex_shorthand(flex_grow.release_nonnull(), flex_shrink.release_nonnull(), flex_basis.release_nonnull());
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_flex_flow_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_flex_flow_value(TokenStream<ComponentValue>& tokens)
 {
-    RefPtr<CSSStyleValue const> flex_direction;
-    RefPtr<CSSStyleValue const> flex_wrap;
+    RefPtr<StyleValue const> flex_direction;
+    RefPtr<StyleValue const> flex_wrap;
 
     auto remaining_longhands = Vector { PropertyID::FlexDirection, PropertyID::FlexWrap };
     auto transaction = tokens.begin_transaction();
@@ -2542,16 +2542,16 @@ RefPtr<CSSStyleValue const> Parser::parse_flex_flow_value(TokenStream<ComponentV
 }
 
 // https://drafts.csswg.org/css-fonts-4/#font-prop
-RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& tokens)
 {
     // [ [ <'font-style'> || <font-variant-css2> || <'font-weight'> || <font-width-css3> ]? <'font-size'> [ / <'line-height'> ]? <'font-family'># ] | <system-family-name>
-    RefPtr<CSSStyleValue const> font_style;
-    RefPtr<CSSStyleValue const> font_variant;
-    RefPtr<CSSStyleValue const> font_weight;
-    RefPtr<CSSStyleValue const> font_width;
-    RefPtr<CSSStyleValue const> font_size;
-    RefPtr<CSSStyleValue const> line_height;
-    RefPtr<CSSStyleValue const> font_families;
+    RefPtr<StyleValue const> font_style;
+    RefPtr<StyleValue const> font_variant;
+    RefPtr<StyleValue const> font_weight;
+    RefPtr<StyleValue const> font_width;
+    RefPtr<StyleValue const> font_size;
+    RefPtr<StyleValue const> line_height;
+    RefPtr<StyleValue const> font_families;
 
     // FIXME: Handle <system-family-name>. (caption, icon, menu, message-box, small-caption, status-bar)
 
@@ -2716,12 +2716,12 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
 }
 
 // https://drafts.csswg.org/css-fonts-4/#font-family-prop
-RefPtr<CSSStyleValue const> Parser::parse_font_family_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_family_value(TokenStream<ComponentValue>& tokens)
 {
     // [ <family-name> | <generic-family> ]#
     // FIXME: We currently require font-family to always be a list, even with one item.
     //        Maybe change that?
-    auto result = parse_comma_separated_value_list(tokens, [this](auto& inner_tokens) -> RefPtr<CSSStyleValue const> {
+    auto result = parse_comma_separated_value_list(tokens, [this](auto& inner_tokens) -> RefPtr<StyleValue const> {
         inner_tokens.discard_whitespace();
 
         // <generic-family>
@@ -2748,7 +2748,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_family_value(TokenStream<Componen
     return StyleValueList::create(StyleValueVector { result.release_nonnull() }, StyleValueList::Separator::Comma);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_font_language_override_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-fonts/#propdef-font-language-override
     // This is `normal | <string>` but with the constraint that the string has to be 4 characters long:
@@ -2808,7 +2808,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_language_override_value(TokenStre
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_font_feature_settings_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_feature_settings_value(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-fonts/#propdef-font-feature-settings
     // normal | <feature-tag-value>#
@@ -2833,7 +2833,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_feature_settings_value(TokenStrea
         tag_tokens.discard_whitespace();
         auto opentype_tag = parse_opentype_tag_value(tag_tokens);
         tag_tokens.discard_whitespace();
-        RefPtr<CSSStyleValue const> value;
+        RefPtr<StyleValue const> value;
         if (tag_tokens.has_next_token()) {
             if (auto integer = parse_integer_value(tag_tokens)) {
                 if (integer->is_integer() && integer->as_integer().value() < 0)
@@ -2881,7 +2881,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_feature_settings_value(TokenStrea
     return StyleValueList::create(move(feature_tags), StyleValueList::Separator::Comma);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-fonts/#font-style-prop
     // normal | italic | left | right | oblique <angle [-90deg,90deg]>?
@@ -2909,7 +2909,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_style_value(TokenStream<Component
     return FontStyleStyleValue::create(*font_style);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_font_variation_settings_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_variation_settings_value(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-fonts/#propdef-font-variation-settings
     // normal | [ <opentype-tag> <number> ]#
@@ -2955,7 +2955,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variation_settings_value(TokenStr
     return StyleValueList::create(move(axis_tags), StyleValueList::Separator::Comma);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_variant(TokenStream<ComponentValue>& tokens)
 {
     // 6.11 https://drafts.csswg.org/css-fonts/#propdef-font-variant
     // normal | none |
@@ -2984,10 +2984,10 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant(TokenStream<ComponentValu
     bool has_east_asian_variant = false;
     bool has_east_asian_width = false;
     bool has_east_asian_ruby = false;
-    RefPtr<CSSStyleValue const> alternates_value {};
-    RefPtr<CSSStyleValue const> caps_value {};
-    RefPtr<CSSStyleValue const> emoji_value {};
-    RefPtr<CSSStyleValue const> position_value {};
+    RefPtr<StyleValue const> alternates_value {};
+    RefPtr<StyleValue const> caps_value {};
+    RefPtr<StyleValue const> emoji_value {};
+    RefPtr<StyleValue const> position_value {};
     StyleValueVector east_asian_values;
     StyleValueVector ligatures_values;
     StyleValueVector numeric_values;
@@ -3146,7 +3146,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant(TokenStream<ComponentValu
     }
 
     auto normal_value = CSSKeywordValue::create(Keyword::Normal);
-    auto resolve_list = [&normal_value](StyleValueVector values) -> NonnullRefPtr<CSSStyleValue const> {
+    auto resolve_list = [&normal_value](StyleValueVector values) -> NonnullRefPtr<StyleValue const> {
         if (values.is_empty())
             return normal_value;
         if (values.size() == 1)
@@ -3191,7 +3191,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant(TokenStream<ComponentValu
         });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_font_variant_alternates_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream<ComponentValue>& tokens)
 {
     // 6.8 https://drafts.csswg.org/css-fonts/#font-variant-alternates-prop
     // normal |
@@ -3220,7 +3220,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant_alternates_value(TokenStr
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_font_variant_east_asian_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_variant_east_asian_value(TokenStream<ComponentValue>& tokens)
 {
     // 6.10 https://drafts.csswg.org/css-fonts/#propdef-font-variant-east-asian
     // normal | [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]
@@ -3232,9 +3232,9 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant_east_asian_value(TokenStr
         return normal.release_nonnull();
 
     // [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]
-    RefPtr<CSSStyleValue const> ruby_value;
-    RefPtr<CSSStyleValue const> variant_value;
-    RefPtr<CSSStyleValue const> width_value;
+    RefPtr<StyleValue const> ruby_value;
+    RefPtr<StyleValue const> variant_value;
+    RefPtr<StyleValue const> width_value;
 
     while (tokens.has_next_token()) {
         auto maybe_value = parse_keyword_value(tokens);
@@ -3287,7 +3287,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant_east_asian_value(TokenStr
     return StyleValueList::create(move(values), StyleValueList::Separator::Space);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_font_variant_ligatures_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_variant_ligatures_value(TokenStream<ComponentValue>& tokens)
 {
     // 6.4 https://drafts.csswg.org/css-fonts/#propdef-font-variant-ligatures
     // normal | none | [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ]
@@ -3305,10 +3305,10 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant_ligatures_value(TokenStre
         return none.release_nonnull();
 
     // [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ]
-    RefPtr<CSSStyleValue const> common_ligatures_value;
-    RefPtr<CSSStyleValue const> discretionary_ligatures_value;
-    RefPtr<CSSStyleValue const> historical_ligatures_value;
-    RefPtr<CSSStyleValue const> contextual_value;
+    RefPtr<StyleValue const> common_ligatures_value;
+    RefPtr<StyleValue const> discretionary_ligatures_value;
+    RefPtr<StyleValue const> historical_ligatures_value;
+    RefPtr<StyleValue const> contextual_value;
 
     while (tokens.has_next_token()) {
         auto maybe_value = parse_keyword_value(tokens);
@@ -3371,7 +3371,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant_ligatures_value(TokenStre
     return StyleValueList::create(move(values), StyleValueList::Separator::Space);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_font_variant_numeric_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_font_variant_numeric_value(TokenStream<ComponentValue>& tokens)
 {
     // 6.7 https://drafts.csswg.org/css-fonts/#propdef-font-variant-numeric
     // normal | [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero]
@@ -3383,11 +3383,11 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant_numeric_value(TokenStream
     if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
         return normal.release_nonnull();
 
-    RefPtr<CSSStyleValue const> figures_value;
-    RefPtr<CSSStyleValue const> spacing_value;
-    RefPtr<CSSStyleValue const> fractions_value;
-    RefPtr<CSSStyleValue const> ordinals_value;
-    RefPtr<CSSStyleValue const> slashed_zero_value;
+    RefPtr<StyleValue const> figures_value;
+    RefPtr<StyleValue const> spacing_value;
+    RefPtr<StyleValue const> fractions_value;
+    RefPtr<StyleValue const> ordinals_value;
+    RefPtr<StyleValue const> slashed_zero_value;
 
     // [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero]
     while (tokens.has_next_token()) {
@@ -3456,11 +3456,11 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant_numeric_value(TokenStream
     return StyleValueList::create(move(values), StyleValueList::Separator::Space);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_list_style_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_list_style_value(TokenStream<ComponentValue>& tokens)
 {
-    RefPtr<CSSStyleValue const> list_position;
-    RefPtr<CSSStyleValue const> list_image;
-    RefPtr<CSSStyleValue const> list_type;
+    RefPtr<StyleValue const> list_position;
+    RefPtr<StyleValue const> list_image;
+    RefPtr<StyleValue const> list_type;
     int found_nones = 0;
 
     Vector<PropertyID> remaining_longhands { PropertyID::ListStyleImage, PropertyID::ListStylePosition, PropertyID::ListStyleType };
@@ -3533,7 +3533,7 @@ RefPtr<CSSStyleValue const> Parser::parse_list_style_value(TokenStream<Component
         { list_position.release_nonnull(), list_image.release_nonnull(), list_type.release_nonnull() });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.fxtf.org/css-masking-1/#the-mask
     // <mask-layer>#
@@ -3573,14 +3573,14 @@ RefPtr<CSSStyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>
     auto initial_mask_mode = property_initial_value(PropertyID::MaskMode);
 
     // Per-layer values
-    RefPtr<CSSStyleValue const> mask_image;
-    RefPtr<CSSStyleValue const> mask_position;
-    RefPtr<CSSStyleValue const> mask_size;
-    RefPtr<CSSStyleValue const> mask_repeat;
-    RefPtr<CSSStyleValue const> mask_origin;
-    RefPtr<CSSStyleValue const> mask_clip;
-    RefPtr<CSSStyleValue const> mask_composite;
-    RefPtr<CSSStyleValue const> mask_mode;
+    RefPtr<StyleValue const> mask_image;
+    RefPtr<StyleValue const> mask_position;
+    RefPtr<StyleValue const> mask_size;
+    RefPtr<StyleValue const> mask_repeat;
+    RefPtr<StyleValue const> mask_origin;
+    RefPtr<StyleValue const> mask_clip;
+    RefPtr<StyleValue const> mask_composite;
+    RefPtr<StyleValue const> mask_mode;
 
     bool has_multiple_layers = false;
     // MaskSize is always parsed as part of MaskPosition, so we don't include it here.
@@ -3771,7 +3771,7 @@ RefPtr<CSSStyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>
         mask_mode.release_nonnull());
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentValue>& tokens)
 {
     // https://w3c.github.io/mathml-core/#propdef-math-depth
     // auto-add | add(<integer>) | <integer>
@@ -3811,7 +3811,7 @@ RefPtr<CSSStyleValue const> Parser::parse_math_depth_value(TokenStream<Component
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_opacity_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_opacity_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     auto value = parse_css_value_for_property(property_id, tokens);
     if (!value)
@@ -3833,7 +3833,7 @@ RefPtr<CSSStyleValue const> Parser::parse_opacity_value(PropertyID property_id, 
     return value;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_overflow_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_overflow_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
     auto maybe_x_value = parse_css_value_for_property(PropertyID::OverflowX, tokens);
@@ -3851,7 +3851,7 @@ RefPtr<CSSStyleValue const> Parser::parse_overflow_value(TokenStream<ComponentVa
         { *maybe_x_value, *maybe_x_value });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_place_content_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_place_content_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
     auto maybe_align_content_value = parse_css_value_for_property(PropertyID::AlignContent, tokens);
@@ -3876,7 +3876,7 @@ RefPtr<CSSStyleValue const> Parser::parse_place_content_value(TokenStream<Compon
         { maybe_align_content_value.release_nonnull(), maybe_justify_content_value.release_nonnull() });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_place_items_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_place_items_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
     auto maybe_align_items_value = parse_css_value_for_property(PropertyID::AlignItems, tokens);
@@ -3901,7 +3901,7 @@ RefPtr<CSSStyleValue const> Parser::parse_place_items_value(TokenStream<Componen
         { *maybe_align_items_value, *maybe_justify_items_value });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_place_self_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_place_self_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
     auto maybe_align_self_value = parse_css_value_for_property(PropertyID::AlignSelf, tokens);
@@ -3926,7 +3926,7 @@ RefPtr<CSSStyleValue const> Parser::parse_place_self_value(TokenStream<Component
         { *maybe_align_self_value, *maybe_justify_self_value });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValue>& tokens)
 {
     // https://www.w3.org/TR/css-content-3/#quotes-property
     // auto | none | [ <string> <string> ]+
@@ -3958,11 +3958,11 @@ RefPtr<CSSStyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValu
     return StyleValueList::create(move(string_values), StyleValueList::Separator::Space);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_single_repeat_style_value(PropertyID property, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_single_repeat_style_value(PropertyID property, TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
 
-    auto is_directional_repeat = [](CSSStyleValue const& value) -> bool {
+    auto is_directional_repeat = [](StyleValue const& value) -> bool {
         auto keyword = value.to_keyword();
         return keyword == Keyword::RepeatX || keyword == Keyword::RepeatY;
     };
@@ -4018,12 +4018,12 @@ RefPtr<CSSStyleValue const> Parser::parse_single_repeat_style_value(PropertyID p
     return RepeatStyleStyleValue::create(x_repeat.value(), y_repeat.value());
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_text_decoration_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_text_decoration_value(TokenStream<ComponentValue>& tokens)
 {
-    RefPtr<CSSStyleValue const> decoration_line;
-    RefPtr<CSSStyleValue const> decoration_thickness;
-    RefPtr<CSSStyleValue const> decoration_style;
-    RefPtr<CSSStyleValue const> decoration_color;
+    RefPtr<StyleValue const> decoration_line;
+    RefPtr<StyleValue const> decoration_thickness;
+    RefPtr<StyleValue const> decoration_style;
+    RefPtr<StyleValue const> decoration_color;
 
     auto remaining_longhands = Vector { PropertyID::TextDecorationColor, PropertyID::TextDecorationLine, PropertyID::TextDecorationStyle, PropertyID::TextDecorationThickness };
 
@@ -4080,7 +4080,7 @@ RefPtr<CSSStyleValue const> Parser::parse_text_decoration_value(TokenStream<Comp
         { decoration_line.release_nonnull(), decoration_thickness.release_nonnull(), decoration_style.release_nonnull(), decoration_color.release_nonnull() });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_text_decoration_line_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_text_decoration_line_value(TokenStream<ComponentValue>& tokens)
 {
     StyleValueVector style_values;
 
@@ -4128,7 +4128,7 @@ RefPtr<CSSStyleValue const> Parser::parse_text_decoration_line_value(TokenStream
 }
 
 // https://www.w3.org/TR/pointerevents/#the-touch-action-css-property
-RefPtr<CSSStyleValue const> Parser::parse_touch_action_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_touch_action_value(TokenStream<ComponentValue>& tokens)
 {
     // auto | none | [ [ pan-x | pan-left | pan-right ] || [ pan-y | pan-up | pan-down ] ] | manipulation
 
@@ -4189,7 +4189,7 @@ RefPtr<CSSStyleValue const> Parser::parse_touch_action_value(TokenStream<Compone
 }
 
 // https://www.w3.org/TR/css-transforms-1/#transform-property
-RefPtr<CSSStyleValue const> Parser::parse_transform_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_transform_value(TokenStream<ComponentValue>& tokens)
 {
     // <transform> = none | <transform-list>
     // <transform-list> = <transform-function>+
@@ -4302,7 +4302,7 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_value(TokenStream<ComponentV
 }
 
 // https://www.w3.org/TR/css-transforms-1/#propdef-transform-origin
-RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_transform_origin_value(TokenStream<ComponentValue>& tokens)
 {
     enum class Axis {
         None,
@@ -4312,10 +4312,10 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<Com
 
     struct AxisOffset {
         Axis axis;
-        NonnullRefPtr<CSSStyleValue const> offset;
+        NonnullRefPtr<StyleValue const> offset;
     };
 
-    auto to_axis_offset = [](RefPtr<CSSStyleValue const> value) -> Optional<AxisOffset> {
+    auto to_axis_offset = [](RefPtr<StyleValue const> value) -> Optional<AxisOffset> {
         if (!value)
             return OptionalNone {};
         if (value->is_percentage())
@@ -4346,12 +4346,12 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<Com
 
     auto transaction = tokens.begin_transaction();
 
-    auto make_list = [&transaction](NonnullRefPtr<CSSStyleValue const> const& x_value, NonnullRefPtr<CSSStyleValue const> const& y_value, NonnullRefPtr<CSSStyleValue const> const& z_value) -> NonnullRefPtr<StyleValueList> {
+    auto make_list = [&transaction](NonnullRefPtr<StyleValue const> const& x_value, NonnullRefPtr<StyleValue const> const& y_value, NonnullRefPtr<StyleValue const> const& z_value) -> NonnullRefPtr<StyleValueList> {
         transaction.commit();
         return StyleValueList::create(StyleValueVector { x_value, y_value, z_value }, StyleValueList::Separator::Space);
     };
 
-    static CSSStyleValue const& zero_value = LengthStyleValue::create(Length::make_px(0));
+    static StyleValue const& zero_value = LengthStyleValue::create(Length::make_px(0));
 
     if (tokens.remaining_token_count() == 1) {
         auto single_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
@@ -4387,8 +4387,8 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<Com
     if (!third_value)
         third_value = zero_value;
 
-    RefPtr<CSSStyleValue const> x_value;
-    RefPtr<CSSStyleValue const> y_value;
+    RefPtr<StyleValue const> x_value;
+    RefPtr<StyleValue const> y_value;
 
     if (first_value->axis == Axis::X) {
         x_value = first_value->offset;
@@ -4428,7 +4428,7 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<Com
     return make_list(x_value.release_nonnull(), y_value.release_nonnull(), third_value.release_nonnull());
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
         return none;
@@ -4546,7 +4546,7 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
     return TransitionStyleValue::create(move(transitions));
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_list_of_time_values(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_list_of_time_values(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
     auto time_values = parse_a_comma_separated_list_of_component_values(tokens);
@@ -4567,7 +4567,7 @@ RefPtr<CSSStyleValue const> Parser::parse_list_of_time_values(PropertyID propert
     return StyleValueList::create(move(time_value_list), StyleValueList::Separator::Comma);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_transition_property_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_transition_property_value(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-transitions/#transition-property-property
     // none | <single-transition-property>#
@@ -4598,7 +4598,7 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_property_value(TokenStream<
     return StyleValueList::create(move(transition_properties), StyleValueList::Separator::Comma);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_translate_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_translate_value(TokenStream<ComponentValue>& tokens)
 {
     if (tokens.remaining_token_count() == 1) {
         // "none"
@@ -4635,7 +4635,7 @@ RefPtr<CSSStyleValue const> Parser::parse_translate_value(TokenStream<ComponentV
     return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate3d, { maybe_x.release_nonnull(), maybe_y.release_nonnull(), maybe_z.release_nonnull() });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue>& tokens)
 {
     if (tokens.remaining_token_count() == 1) {
         // "none"
@@ -4672,7 +4672,7 @@ RefPtr<CSSStyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue
 }
 
 // https://drafts.csswg.org/css-scrollbars/#propdef-scrollbar-color
-RefPtr<CSSStyleValue const> Parser::parse_scrollbar_color_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_scrollbar_color_value(TokenStream<ComponentValue>& tokens)
 {
     // auto | <color>{2}
     if (!tokens.has_next_token())
@@ -4698,7 +4698,7 @@ RefPtr<CSSStyleValue const> Parser::parse_scrollbar_color_value(TokenStream<Comp
 }
 
 // https://drafts.csswg.org/css-overflow/#propdef-scrollbar-gutter
-RefPtr<CSSStyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<ComponentValue>& tokens)
 {
     // auto | stable && both-edges?
     if (!tokens.has_next_token())
@@ -4761,7 +4761,7 @@ RefPtr<CSSStyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<Com
     return ScrollbarGutterStyleValue::create(gutter_value);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_grid_track_placement_shorthand_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_grid_track_placement_shorthand_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     auto start_property = (property_id == PropertyID::GridColumn) ? PropertyID::GridColumnStart : PropertyID::GridRowStart;
     auto end_property = (property_id == PropertyID::GridColumn) ? PropertyID::GridColumnEnd : PropertyID::GridRowEnd;
@@ -4820,10 +4820,10 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_track_placement_shorthand_value(P
 
 // https://www.w3.org/TR/css-grid-2/#explicit-grid-shorthand
 // 7.4. Explicit Grid Shorthand: the grid-template property
-RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list_shorthand_value(PropertyID property_id, TokenStream<ComponentValue>& tokens, bool include_grid_auto_properties)
+RefPtr<StyleValue const> Parser::parse_grid_track_size_list_shorthand_value(PropertyID property_id, TokenStream<ComponentValue>& tokens, bool include_grid_auto_properties)
 {
     Vector<PropertyID> sub_properties;
-    Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> values;
+    Vector<ValueComparingNonnullRefPtr<StyleValue const>> values;
     if (include_grid_auto_properties) {
         sub_properties.append(PropertyID::GridAutoFlow);
         sub_properties.append(PropertyID::GridAutoRows);
@@ -4924,7 +4924,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list_shorthand_value(P
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_grid_area_shorthand_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_grid_area_shorthand_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
 
@@ -5013,7 +5013,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_area_shorthand_value(TokenStream<
         { GridTrackPlacementStyleValue::create(row_start), GridTrackPlacementStyleValue::create(column_start), GridTrackPlacementStyleValue::create(row_end), GridTrackPlacementStyleValue::create(column_end) });
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_grid_shorthand_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<ComponentValue>& tokens)
 {
     // <'grid-template'>
     if (auto grid_template = parse_grid_track_size_list_shorthand_value(PropertyID::Grid, tokens, true)) {
@@ -5044,7 +5044,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Compo
     };
 
     // [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
-    auto parse_shorthand_branch_1 = [&] -> RefPtr<CSSStyleValue const> {
+    auto parse_shorthand_branch_1 = [&] -> RefPtr<StyleValue const> {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
 
@@ -5074,7 +5074,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Compo
     };
 
     // <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>?
-    auto parse_shorthand_branch_2 = [&] -> RefPtr<CSSStyleValue const> {
+    auto parse_shorthand_branch_2 = [&] -> RefPtr<StyleValue const> {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
 
@@ -5115,7 +5115,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Compo
 }
 
 // https://www.w3.org/TR/css-grid-1/#grid-template-areas-property
-RefPtr<CSSStyleValue const> Parser::parse_grid_template_areas_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<ComponentValue>& tokens)
 {
     // none | <string>+
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
@@ -5176,7 +5176,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_template_areas_value(TokenStream<
     return GridTemplateAreaStyleValue::create(grid_area_rows);
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_grid_auto_track_sizes(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_grid_auto_track_sizes(TokenStream<ComponentValue>& tokens)
 {
     // https://www.w3.org/TR/css-grid-2/#auto-tracks
     // <track-size>+
@@ -5248,7 +5248,7 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
 }
 
 // https://www.w3.org/TR/css-grid-2/#track-sizing
-RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_grid_track_size_list(TokenStream<ComponentValue>& tokens)
 {
     // none | <track-list> | <auto-track-list> | FIXME subgrid <line-name-list>?
 
@@ -5277,7 +5277,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list(TokenStream<Compo
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
         return none;
@@ -5465,7 +5465,7 @@ RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<Co
     return FilterValueListStyleValue::create(move(filter_value_list));
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_contain_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_contain_value(TokenStream<ComponentValue>& tokens)
 {
     // none | strict | content | [ [size | inline-size] || layout || style || paint ]
     auto transaction = tokens.begin_transaction();
@@ -5493,10 +5493,10 @@ RefPtr<CSSStyleValue const> Parser::parse_contain_value(TokenStream<ComponentVal
     if (!tokens.has_next_token())
         return {};
 
-    RefPtr<CSSStyleValue const> size_value;
-    RefPtr<CSSStyleValue const> layout_value;
-    RefPtr<CSSStyleValue const> style_value;
-    RefPtr<CSSStyleValue const> paint_value;
+    RefPtr<StyleValue const> size_value;
+    RefPtr<StyleValue const> layout_value;
+    RefPtr<StyleValue const> style_value;
+    RefPtr<StyleValue const> paint_value;
 
     while (tokens.has_next_token()) {
         tokens.discard_whitespace();
@@ -5546,7 +5546,7 @@ RefPtr<CSSStyleValue const> Parser::parse_contain_value(TokenStream<ComponentVal
 }
 
 // https://www.w3.org/TR/css-text-4/#white-space-trim
-RefPtr<CSSStyleValue const> Parser::parse_white_space_trim_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_white_space_trim_value(TokenStream<ComponentValue>& tokens)
 {
     // none | discard-before || discard-after || discard-inner
 
@@ -5555,9 +5555,9 @@ RefPtr<CSSStyleValue const> Parser::parse_white_space_trim_value(TokenStream<Com
 
     auto transaction = tokens.begin_transaction();
 
-    RefPtr<CSSStyleValue const> discard_before;
-    RefPtr<CSSStyleValue const> discard_after;
-    RefPtr<CSSStyleValue const> discard_inner;
+    RefPtr<StyleValue const> discard_before;
+    RefPtr<StyleValue const> discard_after;
+    RefPtr<StyleValue const> discard_inner;
 
     while (auto parsed_value = parse_css_value_for_property(PropertyID::WhiteSpaceTrim, tokens)) {
         switch (parsed_value->as_keyword().keyword()) {
@@ -5600,13 +5600,13 @@ RefPtr<CSSStyleValue const> Parser::parse_white_space_trim_value(TokenStream<Com
 }
 
 // https://www.w3.org/TR/css-text-4/#white-space-property
-RefPtr<CSSStyleValue const> Parser::parse_white_space_shorthand(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_white_space_shorthand(TokenStream<ComponentValue>& tokens)
 {
     // normal | pre | pre-wrap | pre-line | <'white-space-collapse'> || <'text-wrap-mode'> || <'white-space-trim'>
 
     auto transaction = tokens.begin_transaction();
 
-    auto make_whitespace_shorthand = [&](RefPtr<CSSStyleValue const> white_space_collapse, RefPtr<CSSStyleValue const> text_wrap_mode, RefPtr<CSSStyleValue const> white_space_trim) {
+    auto make_whitespace_shorthand = [&](RefPtr<StyleValue const> white_space_collapse, RefPtr<StyleValue const> text_wrap_mode, RefPtr<StyleValue const> white_space_trim) {
         transaction.commit();
 
         if (!white_space_collapse)
@@ -5638,9 +5638,9 @@ RefPtr<CSSStyleValue const> Parser::parse_white_space_shorthand(TokenStream<Comp
         return make_whitespace_shorthand(CSSKeywordValue::create(Keyword::PreserveBreaks), CSSKeywordValue::create(Keyword::Wrap), CSSKeywordValue::create(Keyword::None));
 
     // <'white-space-collapse'> || <'text-wrap-mode'> || <'white-space-trim'>
-    RefPtr<CSSStyleValue const> white_space_collapse;
-    RefPtr<CSSStyleValue const> text_wrap_mode;
-    RefPtr<CSSStyleValue const> white_space_trim;
+    RefPtr<StyleValue const> white_space_collapse;
+    RefPtr<StyleValue const> text_wrap_mode;
+    RefPtr<StyleValue const> white_space_trim;
 
     while (tokens.has_next_token()) {
         if (auto value = parse_css_value_for_property(PropertyID::WhiteSpaceCollapse, tokens)) {

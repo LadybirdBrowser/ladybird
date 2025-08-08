@@ -12,13 +12,13 @@
 #include <AK/Function.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/CSSNumericType.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
@@ -32,7 +32,7 @@ struct CalculationContext {
     bool resolve_numbers_as_integers = false;
 };
 
-class CalculatedStyleValue : public CSSStyleValue {
+class CalculatedStyleValue : public StyleValue {
 public:
     class CalculationResult {
     public:
@@ -68,8 +68,8 @@ public:
     }
 
     virtual String to_string(SerializationMode) const override;
-    virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
-    virtual bool equals(CSSStyleValue const& other) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
+    virtual bool equals(StyleValue const& other) const override;
 
     Optional<CalculationResult> resolve_value(CalculationResolutionContext const&) const;
 
@@ -119,7 +119,7 @@ public:
 
 private:
     explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode const> calculation, CSSNumericType resolved_type, CalculationContext context)
-        : CSSStyleValue(Type::Calculated)
+        : StyleValue(Type::Calculated)
         , m_resolved_type(move(resolved_type))
         , m_calculation(move(calculation))
         , m_context(move(context))
@@ -269,7 +269,7 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override { return *this; }
 
-    RefPtr<CSSStyleValue const> to_style_value(CalculationContext const&) const;
+    RefPtr<StyleValue const> to_style_value(CalculationContext const&) const;
 
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
     NumericValue const& value() const { return m_value; }
