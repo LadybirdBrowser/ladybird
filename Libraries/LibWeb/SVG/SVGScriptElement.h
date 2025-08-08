@@ -23,6 +23,7 @@ public:
 
     void set_parser_inserted(Badge<HTML::HTMLParser>) { m_parser_inserted = true; }
     void set_source_line_number(Badge<HTML::HTMLParser>, size_t source_line_number) { m_source_line_number = source_line_number; }
+    void set_properly_closed(Badge<HTML::HTMLParser>) { m_properly_closed = true; }
 
     virtual void inserted() override;
     virtual void children_changed(ChildrenChangedMetadata const*) override;
@@ -40,6 +41,7 @@ private:
 
     bool m_already_processed { false };
     bool m_parser_inserted { false };
+    bool m_properly_closed { false };
 
     GC::Ptr<HTML::ClassicScript> m_script;
 
