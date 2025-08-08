@@ -479,6 +479,16 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::peek(size_t count)
     return m_peek_queue[count];
 }
 
+TextNode::Chunk TextNode::ChunkIterator::create_empty_chunk()
+{
+    return TextNode::Chunk {
+        .view = {},
+        .font = m_font_cascade_list.first(),
+        .is_all_whitespace = true,
+        .text_type = Gfx::GlyphRun::TextType::Common,
+    };
+}
+
 Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 {
     if (m_current_index >= m_view.length_in_code_units())

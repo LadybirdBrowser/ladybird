@@ -762,6 +762,36 @@ void HTMLInputElement::commit_pending_changes()
     dispatch_event(change_event);
 }
 
+// https://www.w3.org/TR/css-ui-4/#input-rules
+static GC::Ref<CSS::CSSStyleProperties> inner_text_style_when_visible()
+{
+    static GC::Root<CSS::CSSStyleProperties> style;
+    if (!style) {
+        style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
+        style->set_declarations_from_text(R"~~~(
+                width: 100%;
+                height: 1lh;
+                align-items: center;
+                text-overflow: clip;
+                white-space: nowrap;
+            )~~~"sv);
+    }
+    return *style;
+}
+
+static GC::Ref<CSS::CSSStyleProperties> inner_text_style_when_hidden()
+{
+    static GC::Root<CSS::CSSStyleProperties> style;
+    if (!style) {
+        style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
+        style->set_declarations_from_text(R"~~~(
+                width: 0;
+                display: inline;
+            )~~~"sv);
+    }
+    return *style;
+}
+
 static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
 {
     static GC::Root<CSS::CSSStyleProperties> style;
@@ -772,7 +802,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
                 align-items: center;
                 text-overflow: clip;
                 white-space: nowrap;
-                display: block;
+                display: inline;
             )~~~"sv);
     }
     return *style;
@@ -792,10 +822,13 @@ void HTMLInputElement::update_placeholder_visibility()
 {
     if (!m_placeholder_element)
         return;
-    if (this->placeholder_value().has_value())
+    if (this->placeholder_value().has_value()) {
+        m_inner_text_element->set_inline_style(inner_text_style_when_hidden());
         m_placeholder_element->set_inline_style(placeholder_style_when_visible());
-    else
+    } else {
+        m_inner_text_element->set_inline_style(inner_text_style_when_visible());
         m_placeholder_element->set_inline_style(placeholder_style_when_hidden());
+    }
 }
 
 Utf16String HTMLInputElement::button_label() const
@@ -1011,7 +1044,6 @@ void HTMLInputElement::create_text_input_shadow_tree()
     auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
 
-    auto initial_value = m_value;
     auto element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     {
         static GC::Root<CSS::CSSStyleProperties> style;
@@ -1029,15 +1061,6 @@ void HTMLInputElement::create_text_input_shadow_tree()
         element->set_inline_style(*style);
     }
     MUST(shadow_root->append_child(element));
-
-    m_placeholder_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_placeholder_element->set_use_pseudo_element(CSS::PseudoElement::Placeholder);
-    update_placeholder_visibility();
-
-    MUST(element->append_child(*m_placeholder_element));
-
-    m_placeholder_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(placeholder()));
-    MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     // https://www.w3.org/TR/css-ui-4/#input-rules
     m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
@@ -1057,11 +1080,19 @@ void HTMLInputElement::create_text_input_shadow_tree()
     }
     MUST(element->append_child(*m_inner_text_element));
 
-    m_text_node = realm().create<DOM::Text>(document(), move(initial_value));
+    m_text_node = realm().create<DOM::Text>(document(), Utf16String {});
     if (type_state() == TypeAttributeState::Password)
         m_text_node->set_is_password_input({}, true);
+    m_text_node->set_text_content(m_value);
     handle_maxlength_attribute();
     MUST(m_inner_text_element->append_child(*m_text_node));
+
+    m_placeholder_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    m_placeholder_element->set_use_pseudo_element(CSS::PseudoElement::Placeholder);
+    MUST(element->append_child(*m_placeholder_element));
+
+    m_placeholder_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(placeholder()));
+    MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     update_placeholder_visibility();
 
