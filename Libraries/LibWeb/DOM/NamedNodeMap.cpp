@@ -220,7 +220,7 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
         return &attribute;
 
     // 5. Set attr’s value to verifiedValue.
-    attribute.set_value(verifiedValue.to_utf8_but_should_be_ported_to_utf16());
+    TRY(attribute.set_value(verifiedValue.to_utf8_but_should_be_ported_to_utf16()));
 
     // 6. If oldAttr is non-null, then replace oldAttr with attr.
     if (old_attribute) {

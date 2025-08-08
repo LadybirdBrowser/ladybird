@@ -221,7 +221,8 @@ void Node::set_text_content(Optional<Utf16String> const& maybe_content)
 
     // If Attr, set an existing attribute value with this and the given value.
     else if (auto* attribute = as_if<Attr>(*this)) {
-        attribute->set_value(content.to_utf8_but_should_be_ported_to_utf16());
+        // FIXME: This should propagate
+        MUST(attribute->set_value(content.to_utf8_but_should_be_ported_to_utf16()));
     }
 
     // Otherwise, do nothing.
@@ -368,7 +369,7 @@ Optional<String> Node::node_value() const
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dom-node-nodevalue%E2%91%A0
-void Node::set_node_value(Optional<String> const& maybe_value)
+WebIDL::ExceptionOr<void> Node::set_node_value(Optional<String> const& maybe_value)
 {
     // The nodeValue setter steps are to, if the given value is null, act as if it was the empty string instead,
     // and then do as described below, switching on the interface this implements:
@@ -376,13 +377,14 @@ void Node::set_node_value(Optional<String> const& maybe_value)
 
     // If Attr, set an existing attribute value with this and the given value.
     if (auto* attr = as_if<Attr>(this)) {
-        attr->set_value(move(value));
+        TRY(attr->set_value(move(value)));
     } else if (auto* character_data = as_if<CharacterData>(this)) {
         // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
         character_data->set_data(Utf16String::from_utf8(value));
     }
 
     // Otherwise, do nothing.
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable
