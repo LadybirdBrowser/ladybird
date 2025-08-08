@@ -114,7 +114,7 @@ bool AbstractElement::has_non_empty_counters_set() const
     return m_element->has_non_empty_counters_set();
 }
 
-Optional<CSS::CountersSet const&> AbstractElement::counters_set() const
+Optional<CSS::CountersSet&> AbstractElement::counters_set() const
 {
     if (m_pseudo_element.has_value())
         return m_element->get_pseudo_element(*m_pseudo_element)->counters_set();
