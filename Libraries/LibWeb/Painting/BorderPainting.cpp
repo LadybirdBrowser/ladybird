@@ -7,7 +7,7 @@
  */
 
 #include <AK/CircularQueue.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -584,7 +584,7 @@ Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, 
     if (outline_style == CSS::OutlineStyle::Auto) {
         // `auto` lets us do whatever we want for the outline. 2px of the accent colour seems reasonable.
         line_style = CSS::LineStyle::Solid;
-        outline_color = CSS::CSSKeywordValue::create(CSS::Keyword::Accentcolor)->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*static_cast<Layout::NodeWithStyle const*>(&layout_node))).value();
+        outline_color = CSS::KeywordStyleValue::create(CSS::Keyword::Accentcolor)->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*static_cast<Layout::NodeWithStyle const*>(&layout_node))).value();
         outline_width = 2;
     } else {
         line_style = CSS::keyword_to_line_style(CSS::to_keyword(outline_style)).value_or(CSS::LineStyle::None);

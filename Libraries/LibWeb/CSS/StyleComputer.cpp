@@ -48,7 +48,6 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
@@ -58,6 +57,7 @@
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -835,11 +835,11 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     if (property_id == CSS::PropertyID::Transition) {
         if (value.to_keyword() == Keyword::None) {
             // Handle `none` as a shorthand for `all 0s ease 0s`.
-            set_longhand_property(CSS::PropertyID::TransitionProperty, CSSKeywordValue::create(Keyword::All));
+            set_longhand_property(CSS::PropertyID::TransitionProperty, KeywordStyleValue::create(Keyword::All));
             set_longhand_property(CSS::PropertyID::TransitionDuration, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionDelay, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionTimingFunction, EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()));
-            set_longhand_property(CSS::PropertyID::TransitionBehavior, CSSKeywordValue::create(Keyword::Normal));
+            set_longhand_property(CSS::PropertyID::TransitionBehavior, KeywordStyleValue::create(Keyword::Normal));
         } else if (value.is_transition()) {
             auto const& transitions = value.as_transition().transitions();
             Array<Vector<ValueComparingNonnullRefPtr<StyleValue const>>, 5> transition_values;
@@ -849,7 +849,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
                 transition_values[2].append(transition.delay.as_style_value());
                 if (transition.easing)
                     transition_values[3].append(*transition.easing);
-                transition_values[4].append(CSSKeywordValue::create(to_keyword(transition.transition_behavior)));
+                transition_values[4].append(KeywordStyleValue::create(to_keyword(transition.transition_behavior)));
             }
 
             set_longhand_property(CSS::PropertyID::TransitionProperty, StyleValueList::create(move(transition_values[0]), StyleValueList::Separator::Comma));
@@ -932,7 +932,7 @@ void StyleComputer::cascade_declarations(
                 else {
                     // Either the property’s inherited value or its initial value depending on whether the property is
                     // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
-                    property_value = CSSKeywordValue::create(Keyword::Unset);
+                    property_value = KeywordStyleValue::create(Keyword::Unset);
                 }
             }
 
@@ -1188,7 +1188,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         } else {
             // If interpolate_property() fails, the element should not be rendered
             dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal));
-            computed_properties.set_animated_property(PropertyID::Visibility, CSSKeywordValue::create(Keyword::Hidden));
+            computed_properties.set_animated_property(PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden));
         }
     }
 }
@@ -1383,7 +1383,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
         [] { return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()); });
     auto transition_behaviors = normalize_transition_length_list(
         PropertyID::TransitionBehavior,
-        [] { return CSSKeywordValue::create(Keyword::None); });
+        [] { return KeywordStyleValue::create(Keyword::None); });
 
     element.add_transitioned_properties(pseudo_element, move(properties), move(delays), move(durations), move(timing_functions), move(transition_behaviors));
 }
@@ -2280,13 +2280,13 @@ void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style)
     auto overflow_y_is_visible_or_clip = overflow_y == Overflow::Visible || overflow_y == Overflow::Clip;
     if (!overflow_x_is_visible_or_clip || !overflow_y_is_visible_or_clip) {
         if (overflow_x == CSS::Overflow::Visible)
-            style.set_property(CSS::PropertyID::OverflowX, CSSKeywordValue::create(Keyword::Auto));
+            style.set_property(CSS::PropertyID::OverflowX, KeywordStyleValue::create(Keyword::Auto));
         if (overflow_x == CSS::Overflow::Clip)
-            style.set_property(CSS::PropertyID::OverflowX, CSSKeywordValue::create(Keyword::Hidden));
+            style.set_property(CSS::PropertyID::OverflowX, KeywordStyleValue::create(Keyword::Hidden));
         if (overflow_y == CSS::Overflow::Visible)
-            style.set_property(CSS::PropertyID::OverflowY, CSSKeywordValue::create(Keyword::Auto));
+            style.set_property(CSS::PropertyID::OverflowY, KeywordStyleValue::create(Keyword::Auto));
         if (overflow_y == CSS::Overflow::Clip)
-            style.set_property(CSS::PropertyID::OverflowY, CSSKeywordValue::create(Keyword::Hidden));
+            style.set_property(CSS::PropertyID::OverflowY, KeywordStyleValue::create(Keyword::Hidden));
     }
 }
 
@@ -2311,17 +2311,17 @@ static void compute_text_align(ComputedProperties& style, DOM::Element const& el
             switch (parent_text_align.to_keyword()) {
             case Keyword::Start:
                 if (parent_direction == Direction::Ltr) {
-                    style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Left));
+                    style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
                 } else {
-                    style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Right));
+                    style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
                 }
                 break;
 
             case Keyword::End:
                 if (parent_direction == Direction::Ltr) {
-                    style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Right));
+                    style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
                 } else {
-                    style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Left));
+                    style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
                 }
                 break;
 
@@ -2329,7 +2329,7 @@ static void compute_text_align(ComputedProperties& style, DOM::Element const& el
                 style.set_property(PropertyID::TextAlign, parent_text_align);
             }
         } else {
-            style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Start));
+            style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Start));
         }
     }
 }
@@ -2677,9 +2677,9 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
 
         if (value->is_unset()) {
             if (is_inherited_property(property_id))
-                value = CSSKeywordValue::create(Keyword::Inherit);
+                value = KeywordStyleValue::create(Keyword::Inherit);
             else
-                value = CSSKeywordValue::create(Keyword::Initial);
+                value = KeywordStyleValue::create(Keyword::Initial);
         }
 
         computed_style->set_property(property_id, value.release_nonnull(), inherited);

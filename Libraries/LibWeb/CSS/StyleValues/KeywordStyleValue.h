@@ -14,38 +14,36 @@
 
 namespace Web::CSS {
 
-// https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
-class CSSKeywordValue : public StyleValueWithDefaultOperators<CSSKeywordValue> {
+class KeywordStyleValue : public StyleValueWithDefaultOperators<KeywordStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<CSSKeywordValue const> create(Keyword keyword)
+    static ValueComparingNonnullRefPtr<KeywordStyleValue const> create(Keyword keyword)
     {
-        // NOTE: We'll have to be much more careful with caching once we expose CSSKeywordValue to JS, as it's mutable.
         switch (keyword) {
         case Keyword::Inherit: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const inherit_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Inherit));
+            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const inherit_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Inherit));
             return inherit_instance;
         }
         case Keyword::Initial: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const initial_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Initial));
+            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const initial_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Initial));
             return initial_instance;
         }
         case Keyword::Revert: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const revert_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Revert));
+            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const revert_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Revert));
             return revert_instance;
         }
         case Keyword::RevertLayer: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const revert_layer_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::RevertLayer));
+            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const revert_layer_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::RevertLayer));
             return revert_layer_instance;
         }
         case Keyword::Unset: {
-            static ValueComparingNonnullRefPtr<CSSKeywordValue const> const unset_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Unset));
+            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const unset_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Unset));
             return unset_instance;
         }
         default:
-            return adopt_ref(*new (nothrow) CSSKeywordValue(keyword));
+            return adopt_ref(*new (nothrow) KeywordStyleValue(keyword));
         }
     }
-    virtual ~CSSKeywordValue() override = default;
+    virtual ~KeywordStyleValue() override = default;
 
     Keyword keyword() const { return m_keyword; }
 
@@ -55,10 +53,10 @@ public:
     virtual String to_string(SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
 
-    bool properties_equal(CSSKeywordValue const& other) const { return m_keyword == other.m_keyword; }
+    bool properties_equal(KeywordStyleValue const& other) const { return m_keyword == other.m_keyword; }
 
 private:
-    explicit CSSKeywordValue(Keyword keyword)
+    explicit KeywordStyleValue(Keyword keyword)
         : StyleValueWithDefaultOperators(Type::Keyword)
         , m_keyword(keyword)
     {
@@ -70,7 +68,7 @@ private:
 inline Keyword StyleValue::to_keyword() const
 {
     if (is_keyword())
-        return static_cast<CSSKeywordValue const&>(*this).keyword();
+        return static_cast<KeywordStyleValue const&>(*this).keyword();
     return Keyword::Invalid;
 }
 

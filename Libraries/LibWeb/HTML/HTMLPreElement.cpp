@@ -7,7 +7,7 @@
 #include <LibWeb/Bindings/HTMLPreElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/HTMLPreElement.h>
 #include <LibWeb/HTML/Numbers.h>
 
@@ -42,7 +42,7 @@ void HTMLPreElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties>
 
     for_each_attribute([&](auto const& name, auto const&) {
         if (name == HTML::AttributeNames::wrap) {
-            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextWrapMode, CSS::CSSKeywordValue::create(CSS::Keyword::Wrap));
+            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextWrapMode, CSS::KeywordStyleValue::create(CSS::Keyword::Wrap));
         }
     });
 }

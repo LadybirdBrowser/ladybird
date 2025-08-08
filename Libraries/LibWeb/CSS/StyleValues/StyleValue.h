@@ -62,7 +62,7 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(GuaranteedInvalid, guaranteed_invalid, GuaranteedInvalidStyleValue)       \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Image, image, ImageStyleValue)                                            \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Integer, integer, IntegerStyleValue)                                      \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Keyword, keyword, CSSKeywordValue)                                        \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Keyword, keyword, KeywordStyleValue)                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Length, length, LengthStyleValue)                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(LinearGradient, linear_gradient, LinearGradientStyleValue)                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(MathDepth, math_depth, MathDepthStyleValue)                               \

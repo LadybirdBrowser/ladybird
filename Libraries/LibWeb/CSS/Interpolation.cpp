@@ -15,11 +15,11 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -503,7 +503,7 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
                     return from;
                 if (delta >= 1)
                     return to;
-                return CSSKeywordValue::create(Keyword::Visible);
+                return KeywordStyleValue::create(Keyword::Visible);
             }
 
             return interpolate_discrete(from, to, delta, allow_discrete);
@@ -1135,7 +1135,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
     case StyleValue::Type::FontStyle: {
         auto const& from_font_style = from.as_font_style();
         auto const& to_font_style = to.as_font_style();
-        auto interpolated_font_style = interpolate_value(element, calculation_context, CSSKeywordValue::create(to_keyword(from_font_style.font_style())), CSSKeywordValue::create(to_keyword(to_font_style.font_style())), delta, allow_discrete);
+        auto interpolated_font_style = interpolate_value(element, calculation_context, KeywordStyleValue::create(to_keyword(from_font_style.font_style())), KeywordStyleValue::create(to_keyword(to_font_style.font_style())), delta, allow_discrete);
         if (!interpolated_font_style)
             return {};
         if (from_font_style.angle() && to_font_style.angle()) {

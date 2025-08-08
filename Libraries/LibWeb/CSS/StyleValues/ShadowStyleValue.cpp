@@ -8,7 +8,7 @@
  */
 
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 
@@ -42,7 +42,7 @@ String ShadowStyleValue::to_string(SerializationMode mode) const
 ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::color() const
 {
     if (!m_properties.color)
-        return CSSKeywordValue::create(Keyword::Currentcolor);
+        return KeywordStyleValue::create(Keyword::Currentcolor);
     return *m_properties.color;
 }
 

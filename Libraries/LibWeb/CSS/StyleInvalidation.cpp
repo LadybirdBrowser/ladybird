@@ -7,7 +7,7 @@
 
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 
 namespace Web::CSS {
 

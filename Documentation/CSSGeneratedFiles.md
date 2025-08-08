@@ -159,7 +159,7 @@ This generates `Keyword.h` and `Keyword.cpp`.
 All keyword values used by any property or media-feature need to be defined here.
 
 The generated code provides:
-- A `Keyword` enum as used by `CSSKeywordValue`
+- A `Keyword` enum as used by `KeywordStyleValue`
 - `Optional<Keyword> keyword_from_string(StringView)` to attempt to convert a string into a Keyword
 - `StringView string_from_keyword(Keyword)` to convert a Keyword back into a string
 - `bool is_css_wide_keyword(StringView)` which returns whether the string is one of the special "CSS-wide keywords"

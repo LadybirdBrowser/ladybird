@@ -203,7 +203,6 @@ set(SOURCES
     CSS/StyleValues/CSSColorValue.cpp
     CSS/StyleValues/CSSHSL.cpp
     CSS/StyleValues/CSSHWB.cpp
-    CSS/StyleValues/CSSKeywordValue.cpp
     CSS/StyleValues/CSSLabLike.cpp
     CSS/StyleValues/CSSLCHLike.cpp
     CSS/StyleValues/CSSLightDark.cpp
@@ -221,6 +220,7 @@ set(SOURCES
     CSS/StyleValues/GridTrackSizeListStyleValue.cpp
     CSS/StyleValues/ImageStyleValue.cpp
     CSS/StyleValues/IntegerStyleValue.cpp
+    CSS/StyleValues/KeywordStyleValue.cpp
     CSS/StyleValues/LengthStyleValue.cpp
     CSS/StyleValues/LinearGradientStyleValue.cpp
     CSS/StyleValues/MathDepthStyleValue.cpp

@@ -12,9 +12,9 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -328,7 +328,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_i
 static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
     if (length_percentage.is_auto())
-        return CSSKeywordValue::create(Keyword::Auto);
+        return KeywordStyleValue::create(Keyword::Auto);
     if (length_percentage.is_percentage())
         return PercentageStyleValue::create(length_percentage.percentage());
     if (length_percentage.is_length())
@@ -339,19 +339,19 @@ static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthP
 static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
 {
     if (size.is_none())
-        return CSSKeywordValue::create(Keyword::None);
+        return KeywordStyleValue::create(Keyword::None);
     if (size.is_percentage())
         return PercentageStyleValue::create(size.percentage());
     if (size.is_length())
         return LengthStyleValue::create(size.length());
     if (size.is_auto())
-        return CSSKeywordValue::create(Keyword::Auto);
+        return KeywordStyleValue::create(Keyword::Auto);
     if (size.is_calculated())
         return size.calculated();
     if (size.is_min_content())
-        return CSSKeywordValue::create(Keyword::MinContent);
+        return KeywordStyleValue::create(Keyword::MinContent);
     if (size.is_max_content())
-        return CSSKeywordValue::create(Keyword::MaxContent);
+        return KeywordStyleValue::create(Keyword::MaxContent);
     if (size.is_fit_content())
         return FitContentStyleValue::create(size.fit_content_available_space());
     TODO();
@@ -360,7 +360,7 @@ static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
 static RefPtr<StyleValue const> style_value_for_shadow(Vector<ShadowData> const& shadow_data)
 {
     if (shadow_data.is_empty())
-        return CSSKeywordValue::create(Keyword::None);
+        return KeywordStyleValue::create(Keyword::None);
 
     auto make_shadow_style_value = [](ShadowData const& shadow) {
         return ShadowStyleValue::create(
@@ -698,7 +698,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::Transform: {
         auto transformations = layout_node.computed_values().transformations();
         if (transformations.is_empty())
-            return CSSKeywordValue::create(Keyword::None);
+            return KeywordStyleValue::create(Keyword::None);
 
         // https://drafts.csswg.org/css-transforms-2/#serialization-of-the-computed-value
         // The transform property is a resolved value special case property. [CSSOM]
@@ -800,9 +800,9 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         auto const& contain = layout_node.computed_values().contain();
         if (contain.layout_containment && contain.style_containment && contain.paint_containment) {
             if (contain.size_containment)
-                return CSSKeywordValue::create(Keyword::Strict);
+                return KeywordStyleValue::create(Keyword::Strict);
             if (!contain.inline_size_containment)
-                return CSSKeywordValue::create(Keyword::Content);
+                return KeywordStyleValue::create(Keyword::Content);
         }
 
         return get_computed_value(property_id);
@@ -834,7 +834,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::WebkitTextFillColor:
         return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().webkit_text_fill_color());
     case PropertyID::Invalid:
-        return CSSKeywordValue::create(Keyword::Invalid);
+        return KeywordStyleValue::create(Keyword::Invalid);
     case PropertyID::Custom:
         dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for custom properties was requested (?)");
         return nullptr;
