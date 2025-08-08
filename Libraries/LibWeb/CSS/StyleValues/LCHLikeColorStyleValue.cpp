@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSLCHLike.h"
+#include "LCHLikeColorStyleValue.h"
 #include <AK/Math.h>
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -16,18 +16,18 @@
 
 namespace Web::CSS {
 
-bool CSSLCHLike::equals(StyleValue const& other) const
+bool LCHLikeColorStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;
     auto const& other_color = other.as_color();
     if (color_type() != other_color.color_type())
         return false;
-    auto const& other_oklch_like = as<CSSLCHLike>(other_color);
+    auto const& other_oklch_like = as<LCHLikeColorStyleValue>(other_color);
     return m_properties == other_oklch_like.m_properties;
 }
 
-Optional<Color> CSSLCH::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Color> LCHColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto raw_l_val = resolve_with_reference_value(m_properties.l, 100, color_resolution_context.calculation_resolution_context);
     auto c_val = resolve_with_reference_value(m_properties.c, 150, color_resolution_context.calculation_resolution_context);
@@ -44,7 +44,7 @@ Optional<Color> CSSLCH::to_color(ColorResolutionContext color_resolution_context
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-lab-lch
-String CSSLCH::to_string(SerializationMode mode) const
+String LCHColorStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     builder.append("lch("sv);
@@ -63,7 +63,7 @@ String CSSLCH::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-Optional<Color> CSSOKLCH::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Color> OKLCHColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto raw_l_val = resolve_with_reference_value(m_properties.l, 1.0, color_resolution_context.calculation_resolution_context);
     auto raw_c_val = resolve_with_reference_value(m_properties.c, 0.4, color_resolution_context.calculation_resolution_context);
@@ -81,7 +81,7 @@ Optional<Color> CSSOKLCH::to_color(ColorResolutionContext color_resolution_conte
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-oklab-oklch
-String CSSOKLCH::to_string(SerializationMode mode) const
+String OKLCHColorStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     builder.append("oklch("sv);

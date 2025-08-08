@@ -11,13 +11,13 @@
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-color-5/#funcdef-light-dark
-class CSSLightDark final : public ColorStyleValue {
+class LightDarkStyleValue final : public ColorStyleValue {
 public:
-    virtual ~CSSLightDark() override = default;
+    virtual ~LightDarkStyleValue() override = default;
 
-    static ValueComparingNonnullRefPtr<CSSLightDark const> create(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
+    static ValueComparingNonnullRefPtr<LightDarkStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
     {
-        return AK::adopt_ref(*new (nothrow) CSSLightDark(move(light), move(dark)));
+        return AK::adopt_ref(*new (nothrow) LightDarkStyleValue(move(light), move(dark)));
     }
 
     virtual bool equals(StyleValue const&) const override;
@@ -25,7 +25,7 @@ public:
     virtual String to_string(SerializationMode) const override;
 
 private:
-    CSSLightDark(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
+    LightDarkStyleValue(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
         : ColorStyleValue(ColorStyleValue::ColorType::LightDark, ColorSyntax::Modern)
         , m_properties { .light = move(light), .dark = move(dark) }
     {

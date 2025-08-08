@@ -28,7 +28,7 @@ public:
     virtual bool has_color() const override { return true; }
 
     enum class ColorType {
-        RGB, // This is used by CSSRGB for rgb(...) and rgba(...).
+        RGB, // This is used by RGBColorStyleValue for rgb(...) and rgba(...).
         A98RGB,
         DisplayP3,
         HSL,
@@ -37,13 +37,13 @@ public:
         LCH,
         OKLab,
         OKLCH,
-        sRGB, // This is used by CSSColor for color(srgb ...).
+        sRGB, // This is used by ColorFunctionStyleValue for color(srgb ...).
         sRGBLinear,
         ProPhotoRGB,
         Rec2020,
         XYZD50,
         XYZD65,
-        LightDark, // This is used by CSSLightDark for light-dark(..., ...).
+        LightDark, // This is used by LightDarkStyleValue for light-dark(..., ...).
         ColorMix,
     };
     ColorType color_type() const { return m_color_type; }

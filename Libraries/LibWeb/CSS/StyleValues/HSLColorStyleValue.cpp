@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSHSL.h"
+#include "HSLColorStyleValue.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-Optional<Color> CSSHSL::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Color> HSLColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto h_val = resolve_hue(m_properties.h, color_resolution_context.calculation_resolution_context);
     auto s_val = resolve_with_reference_value(m_properties.s, 100.0, color_resolution_context.calculation_resolution_context);
@@ -25,19 +25,19 @@ Optional<Color> CSSHSL::to_color(ColorResolutionContext color_resolution_context
     return Color::from_hsla(h_val.value(), s_val.value() / 100.0f, l_val.value() / 100.0f, alpha_val.value());
 }
 
-bool CSSHSL::equals(StyleValue const& other) const
+bool HSLColorStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;
     auto const& other_color = other.as_color();
     if (color_type() != other_color.color_type())
         return false;
-    auto const& other_hsl = as<CSSHSL>(other_color);
+    auto const& other_hsl = as<HSLColorStyleValue>(other_color);
     return m_properties == other_hsl.m_properties;
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-String CSSHSL::to_string(SerializationMode mode) const
+String HSLColorStyleValue::to_string(SerializationMode mode) const
 {
     if (auto color = to_color({}); color.has_value())
         return serialize_a_srgb_value(color.value());

@@ -11,18 +11,17 @@
 
 namespace Web::CSS {
 
-// https://drafts.css-houdini.org/css-typed-om-1/#csshwb
-class CSSHWB final : public ColorStyleValue {
+class HWBColorStyleValue final : public ColorStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<CSSHWB const> create(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> w, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingRefPtr<StyleValue const> alpha = {})
+    static ValueComparingNonnullRefPtr<HWBColorStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> w, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingRefPtr<StyleValue const> alpha = {})
     {
         // alpha defaults to 1
         if (!alpha)
-            return adopt_ref(*new (nothrow) CSSHWB(move(h), move(w), move(b), NumberStyleValue::create(1)));
+            return adopt_ref(*new (nothrow) HWBColorStyleValue(move(h), move(w), move(b), NumberStyleValue::create(1)));
 
-        return adopt_ref(*new (nothrow) CSSHWB(move(h), move(w), move(b), alpha.release_nonnull()));
+        return adopt_ref(*new (nothrow) HWBColorStyleValue(move(h), move(w), move(b), alpha.release_nonnull()));
     }
-    virtual ~CSSHWB() override = default;
+    virtual ~HWBColorStyleValue() override = default;
 
     StyleValue const& h() const { return *m_properties.h; }
     StyleValue const& w() const { return *m_properties.w; }
@@ -36,7 +35,7 @@ public:
     virtual bool equals(StyleValue const& other) const override;
 
 private:
-    CSSHWB(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> w, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
+    HWBColorStyleValue(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> w, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : ColorStyleValue(ColorType::HWB, ColorSyntax::Modern)
         , m_properties { .h = move(h), .w = move(w), .b = move(b), .alpha = move(alpha) }
     {

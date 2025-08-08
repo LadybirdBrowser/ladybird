@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-class CSSLabLike : public ColorStyleValue {
+class LabLikeColorStyleValue : public ColorStyleValue {
 public:
     template<typename T>
     static ValueComparingNonnullRefPtr<T const> create(ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingRefPtr<StyleValue const> alpha = {})
@@ -23,7 +23,7 @@ public:
         return adopt_ref(*new (nothrow) T({}, move(l), move(a), move(b), alpha.release_nonnull()));
     }
 
-    virtual ~CSSLabLike() override = default;
+    virtual ~LabLikeColorStyleValue() override = default;
 
     StyleValue const& l() const { return *m_properties.l; }
     StyleValue const& a() const { return *m_properties.a; }
@@ -33,7 +33,7 @@ public:
     virtual bool equals(StyleValue const& other) const override;
 
 protected:
-    CSSLabLike(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
+    LabLikeColorStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : ColorStyleValue(color_type, ColorSyntax::Modern)
         , m_properties { .l = move(l), .a = move(a), .b = move(b), .alpha = move(alpha) }
     {
@@ -48,26 +48,24 @@ protected:
     } m_properties;
 };
 
-// https://drafts.css-houdini.org/css-typed-om-1/#cssoklab
-class CSSOKLab final : public CSSLabLike {
+class OKLabColorStyleValue final : public LabLikeColorStyleValue {
 public:
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 
-    CSSOKLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
-        : CSSLabLike(ColorType::OKLab, move(l), move(a), move(b), move(alpha))
+    OKLabColorStyleValue(Badge<LabLikeColorStyleValue>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
+        : LabLikeColorStyleValue(ColorType::OKLab, move(l), move(a), move(b), move(alpha))
     {
     }
 };
 
-// https://drafts.css-houdini.org/css-typed-om-1/#csslab
-class CSSLab final : public CSSLabLike {
+class LabColorStyleValue final : public LabLikeColorStyleValue {
 public:
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 
-    CSSLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
-        : CSSLabLike(ColorType::Lab, move(l), move(a), move(b), move(alpha))
+    LabColorStyleValue(Badge<LabLikeColorStyleValue>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
+        : LabLikeColorStyleValue(ColorType::Lab, move(l), move(a), move(b), move(alpha))
     {
     }
 };
