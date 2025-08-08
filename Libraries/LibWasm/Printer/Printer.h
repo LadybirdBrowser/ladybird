@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWasm/Export.h>
 #include <LibWasm/Types.h>
 
 namespace Wasm {
@@ -16,7 +17,7 @@ class Value;
 ByteString instruction_name(OpCode const& opcode);
 Optional<OpCode> instruction_from_name(StringView name);
 
-struct Printer {
+struct WASM_API Printer {
     explicit Printer(Stream& stream, size_t initial_indent = 0)
         : m_stream(stream)
         , m_indent(initial_indent)

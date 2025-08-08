@@ -7,6 +7,7 @@ set(SOURCES
     Printer/Printer.cpp
 )
 
+# FIXME: Add Windows support
 if (NOT WIN32)
     list(APPEND SOURCES WASI/Wasi.cpp)
 endif()

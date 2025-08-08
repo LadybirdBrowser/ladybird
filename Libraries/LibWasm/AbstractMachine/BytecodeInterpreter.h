@@ -9,10 +9,11 @@
 #include <AK/StackInfo.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
 #include <LibWasm/AbstractMachine/Interpreter.h>
+#include <LibWasm/Export.h>
 
 namespace Wasm {
 
-struct BytecodeInterpreter final : public Interpreter {
+struct WASM_API BytecodeInterpreter final : public Interpreter {
     explicit BytecodeInterpreter(StackInfo const& stack_info)
         : m_stack_info(stack_info)
     {
