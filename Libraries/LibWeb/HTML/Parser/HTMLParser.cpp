@@ -5096,6 +5096,14 @@ Vector<GC::Root<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& contex
         context_element.document().adopt_node(*child);
         children.append(GC::make_root(*child));
     }
+
+    // AD-HOC: Update the document of scheduled tasks as they will not run otherwise
+    for (auto task : HTML::main_thread_event_loop().task_queue().tasks()) {
+        if (task->document() == temp_document) {
+            task->set_document(context_element.document());
+        }
+    }
+
     return children;
 }
 

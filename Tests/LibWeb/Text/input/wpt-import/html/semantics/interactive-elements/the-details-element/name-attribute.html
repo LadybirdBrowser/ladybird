@@ -1,0 +1,496 @@
+<!DOCTYPE HTML>
+<meta charset=UTF-8>
+<title>Test for the name attribute creating exclusive accordions from details elements</title>
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-details-element">
+<link rel="help" href="https://open-ui.org/components/accordion.explainer">
+<link rel="help" href="https://github.com/openui/open-ui/issues/725">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1444057">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<div id="container">
+</div>
+
+<script>
+
+function assert_element_states(elements, expectations, description) {
+  assert_array_equals(elements.map(e => Number(e.open)), expectations, description);
+}
+
+let container = document.getElementById("container");
+
+promise_test(async t => {
+  container.innerHTML = `
+    <details name="a">
+      <summary>1</summary>
+      This is the first item.
+    </details>
+
+    <details name="a">
+      <summary>2</summary>
+      This is the second item.
+    </details>
+  `;
+  let first = container.firstElementChild;
+  let second = first.nextElementSibling;
+  assert_false(first.open);
+  assert_false(second.open);
+  first.open = true;
+  assert_true(first.open);
+  assert_false(second.open);
+  second.open = true;
+  assert_false(first.open);
+  assert_true(second.open);
+  second.open = true;
+  assert_false(first.open);
+  assert_true(second.open);
+  second.open = false;
+  assert_false(first.open);
+  assert_false(second.open);
+}, "basic handling of mutually exclusive details");
+
+promise_test(async t => {
+  container.innerHTML = `
+    <details name="a" open>
+      <summary>1</summary>
+      This is the first item.
+    </details>
+
+    <details name="a">
+      <summary>2</summary>
+      This is the second item.
+    </details>
+
+    <details name="a" open>
+      <summary>3</summary>
+      This is the third item.
+    </details>
+  `;
+  let first = container.firstElementChild;
+  let second = first.nextElementSibling;
+  let third = second.nextElementSibling;
+  function assert_states(expected_first, expected_second, expected_third, description) {
+    assert_array_equals([first.open, second.open, third.open], [expected_first, expected_second, expected_third], description);
+  }
+
+  assert_states(true, false, false, "initial states from open attribute");
+  first.open = true;
+  assert_states(true, false, false, "non-mutation doesn't change state");
+  second.open = true;
+  assert_states(false, true, false, "mutation closes multiple open elements");
+  third.setAttribute("open", "");
+  assert_states(false, false, true, "setAttribute closes other open element");
+}, "more complex handling of mutually exclusive details");
+
+promise_test(async t => {
+  let details_elements_string = `
+    <details name="a"></details>
+    <details name="a" open></details>
+    <details name="b"></details>
+    <details name="b"></details>
+  `;
+  container.innerHTML = `
+    ${details_elements_string}
+    <div id="shadow_host"></div>
+  `;
+  let shadow_root = document.getElementById("shadow_host").attachShadow({ mode: "open" });
+  shadow_root.innerHTML = details_elements_string;
+  let elements = Array.from(container.querySelectorAll("details")).concat(Array.from(shadow_root.querySelectorAll("details")));
+
+  assert_element_states(elements, [0, 1, 0, 0, 0, 1, 0, 0], "initial states from open attribute");
+  elements[4].open = true;
+  assert_element_states(elements, [0, 1, 0, 0, 1, 0, 0, 0], "after mutation in shadow tree");
+  for (let i = 0; i < 8; ++i) {
+    elements[i].open = true;
+  }
+  assert_element_states(elements, [0, 1, 0, 1, 0, 1, 0, 1], "after setting all elements open");
+  elements[0].open = true;
+  assert_element_states(elements, [1, 0, 0, 1, 0, 1, 0, 1], "after final mutation");
+}, "mutually exclusive details across multiple names and multiple tree scopes");
+
+promise_test(async t => {
+  container.innerHTML = `
+    <details name="a" id="e0" open></details>
+    <details name="a" id="e1"></details>
+    <details name="a" id="e3" open></details>
+  `;
+  let e2 = document.createElement("details");
+  e2.id = "e2";
+  e2.name = "a";
+  e2.open = true;
+  let elements = [ document.getElementById("e0"),
+                   document.getElementById("e1"),
+                   e2,
+                   document.getElementById("e3") ];
+  container.insertBefore(e2, elements[3]);
+
+  let mutation_event_received_ids = [];
+  let mutation_listener = event => {
+    assert_equals(event.type, "DOMSubtreeModified");
+    assert_equals(event.target.nodeType, Node.ELEMENT_NODE);
+    let element = event.target;
+    assert_equals(element.localName, "details");
+    mutation_event_received_ids.push(element.id);
+  };
+  let toggle_event_received_ids = [];
+  let toggle_event_promises = [];
+  for (let element of elements) {
+    element.addEventListener("DOMSubtreeModified", mutation_listener);
+    toggle_event_promises.push(new Promise((resolve, reject) => {
+      element.addEventListener("toggle", event => {
+        assert_equals(event.type, "toggle");
+        assert_equals(event.target, element);
+        toggle_event_received_ids.push(element.id);
+        resolve(undefined);
+      });
+    }));
+  }
+  assert_array_equals(mutation_event_received_ids, []);
+  assert_element_states(elements, [1, 0, 0, 0], "states before mutation");
+  elements[1].open = true;
+  if (mutation_event_received_ids.length == 0) {
+    // ok if mutation events are not supported
+  } else {
+    assert_array_equals(mutation_event_received_ids, ["e1"],
+                        "mutation events received only for open attribute mutation and not for closing other element");
+  }
+  assert_element_states(elements, [0, 1, 0, 0], "states after mutation");
+  assert_array_equals(toggle_event_received_ids, [], "toggle events received before awaiting promises");
+  await Promise.all(toggle_event_promises);
+  assert_array_equals(toggle_event_received_ids, ["e3", "e2", "e1", "e0"], "toggle events received after awaiting promises, including toggle events from parser insertion");
+}, "mutation event and toggle event order");
+
+// This function is used to guard tests that test behavior that is
+// relevant only because of Mutation Events.  If mutation events (for
+// attribute addition/removal) are removed from the web, the tests using
+// this function can be removed.
+function mutation_events_for_attribute_removal_supported() {
+  if (!("MutationEvent" in window)) {
+    return false;
+  }
+  container.innerHTML = `<div id="event-removal-test"></div>`;
+  let element = container.firstChild;
+  let event_fired = false;
+  element.addEventListener("DOMSubtreeModified", event => event_fired = true);
+  element.removeAttribute("id");
+  return event_fired;
+}
+
+promise_test(async t => {
+  if (!mutation_events_for_attribute_removal_supported()) {
+    return;
+  }
+  container.innerHTML = `
+    <details name="a" id="e0" open></details>
+    <details name="a" id="e1"></details>
+    <details name="a" id="e2" open></details>
+  `;
+  let elements = [ document.getElementById("e0"),
+                   document.getElementById("e1"),
+                   document.getElementById("e2") ];
+
+  let received_ids = [];
+  let listener = event => {
+    received_ids.push(event.target.id);
+  };
+  for (let element of elements) {
+    element.addEventListener("DOMSubtreeModified", listener);
+  }
+  assert_array_equals(received_ids, []);
+  assert_element_states(elements, [1, 0, 0], "states before mutation");
+  elements[1].open = true;
+  assert_array_equals(received_ids, ["e1"],
+                      "mutation events received only for open attribute mutation and not for closing other element");
+  assert_element_states(elements, [0, 1, 0], "states after mutation");
+}, "interaction of open attribute changes with mutation events");
+
+promise_test(async t => {
+  container.innerHTML = `
+    <details></details>
+    <details></details>
+    <details name></details>
+    <details name></details>
+    <details name=""></details>
+    <details name=""></details>
+  `;
+  let elements = Array.from(container.querySelectorAll("details"));
+
+  assert_element_states(elements, [0, 0, 0, 0, 0, 0], "initial states from open attribute");
+  for (let i = 0; i < 6; ++i) {
+    elements[i].open = true;
+  }
+  assert_element_states(elements, [1, 1, 1, 1, 1, 1], "after setting all elements open");
+}, "empty and missing name attributes do not create groups");
+
+const connected_scenarios = {
+  "connected": {
+    "create": data => container,
+    "cleanup": data => {},
+  },
+  "disconnected": {
+    "create": data => document.createElement("div"),
+    "cleanup": data => {},
+  },
+  "shadow": {
+    "create": data => {
+      let e = document.createElement("div");
+      container.appendChild(e);
+      data.wrapper = e;
+      let shadowRoot = e.attachShadow({ mode: "open" });
+      let d = document.createElement("div");
+      shadowRoot.appendChild(d);
+      return d;
+    },
+    "cleanup": data => { data.wrapper.remove(); },
+  },
+  "shadow-in-disconnected": {
+    "create": data => {
+      let e = document.createElement("div");
+      let shadowRoot = e.attachShadow({ mode: "open" });
+      let d = document.createElement("div");
+      shadowRoot.appendChild(d);
+      return d;
+    },
+    "cleanup": data => {},
+  },
+  "template-in-disconnected": {
+    "create": data => {
+      let e = document.createElement("div");
+      e.innerHTML = `
+        <template>
+          <div></div>
+        </template>
+      `;
+      return e.firstElementChild.content.firstElementChild;
+    },
+    "cleanup": data => {},
+  },
+  "connected-in-xhr-response": {
+    "create": data => new Promise((resolve, reject) => {
+      let xhr = new XMLHttpRequest();
+      xhr.open("GET", "support/empty-html-document.html");
+      xhr.responseType = "document";
+      xhr.send();
+      xhr.addEventListener("load", event => { resolve(xhr.response.body); });
+      let reject_with_type =
+        event => { reject(`${event.type} event received`); }
+      xhr.addEventListener("error", reject_with_type);
+      xhr.addEventListener("abort", reject_with_type);
+    }),
+    "cleanup": data => {},
+  },
+  "connected-in-implementation-create-document": {
+    "create": data => {
+      let doc = document.implementation.createHTMLDocument("impl-created");
+      return doc.body;
+    },
+    "cleanup": data => {},
+  },
+  "connected-in-template": {
+    "create": data => {
+      container.innerHTML = `
+        <template>
+          <div></div>
+        </template>
+      `;
+      return container.firstElementChild.content.firstElementChild;
+    },
+    "cleanup": data => { container.innerHTML = ""; },
+  },
+};
+
+for (const [scenario, scenario_callbacks] of Object.entries(connected_scenarios)) {
+  promise_test(async t => {
+    let data = {};
+    let container = await scenario_callbacks.create(data);
+    t.add_cleanup(async () => await scenario_callbacks.cleanup(data));
+    assert_true(container instanceof HTMLDivElement ||
+                  container instanceof HTMLBodyElement,
+                "error in test setup");
+
+    container.innerHTML = `
+      <details name="scenariotest" open></details>
+      <details name="scenariotest"></details>
+    `;
+
+    let elements = Array.from(container.querySelectorAll("details[name='scenariotest']"));
+    assert_element_states(elements, [1, 0], "state before toggle");
+    elements[1].open = true;
+    assert_element_states(elements, [0, 1], "state after toggle enforces exclusivity");
+  }, `exclusivity enforcement with attachment scenario ${scenario}`);
+}
+
+promise_test(async t => {
+  container.innerHTML = `
+    <details name="a" id="e0" open></details>
+    <details name="a" id="e1"></details>
+    <details name="b" id="e2" open></details>
+  `;
+  let elements = [ document.getElementById("e0"),
+                   document.getElementById("e1"),
+                   document.getElementById("e2") ];
+
+  let mutation_received_ids = [];
+  let listener = event => {
+    mutation_received_ids.push(event.target.id);
+  };
+  for (let element of elements) {
+    element.addEventListener("DOMSubtreeModified", listener);
+  }
+
+  assert_element_states(elements, [1, 0, 1], "states before first mutation");
+  assert_array_equals(mutation_received_ids, [], "mutation events received before first mutation");
+  elements[2].name = "a";
+  assert_element_states(elements, [1, 0, 0], "states after first mutation");
+  if (mutation_received_ids.length != 0) {
+    // OK to not support mutation events, or to send DOMSubtreeModified
+    // only for attribute addition/removal (open) but not for attribute
+    // change (name)
+    assert_array_equals(mutation_received_ids, ["e2"], "mutation events received after first mutation");
+  }
+  elements[0].name = "c";
+  elements[2].open = true;
+  assert_element_states(elements, [1, 0, 1], "states before second mutation");
+  if (mutation_received_ids.length != 0) { // OK to not support mutation events
+    if (mutation_received_ids.length == 1) {
+      // OK to receive DOMSubtreeModified for attribute addition/removal
+      // (open) but not for attribute change (name)
+      assert_array_equals(mutation_received_ids, ["e2"], "mutation events received before second mutation");
+    } else {
+      assert_array_equals(mutation_received_ids, ["e2", "e0", "e2"], "mutation events received before second mutation");
+    }
+  }
+  elements[0].name = "a";
+  assert_element_states(elements, [0, 0, 1], "states after second mutation");
+  if (mutation_received_ids.length != 0) { // OK to not support mutation events
+    if (mutation_received_ids.length == 1) {
+      // OK to receive DOMSubtreeModified for attribute addition/removal
+      // (open) but not for attribute change (name)
+      assert_array_equals(mutation_received_ids, ["e2"], "mutation events received before second mutation");
+    } else {
+      assert_array_equals(mutation_received_ids, ["e2", "e0", "e2", "e0"], "mutation events received after second mutation");
+    }
+  }
+}, "handling of name attribute changes");
+
+promise_test(async t => {
+  container.innerHTML = `
+    <details name="a" id="e0" open></details>
+    <details name="a" id="e1" open></details>
+    <details open name="a" id="e2"></details>
+  `;
+  let elements = [ document.getElementById("e0"),
+                   document.getElementById("e1"),
+                   document.getElementById("e2") ];
+
+  assert_element_states(elements, [1, 0, 0], "states after insertion by parser");
+}, "closing as a result of parsing doesn't depend on attribute order");
+
+promise_test(async t => {
+  container.innerHTML = `
+    <details name="a" id="e0" open></details>
+    <details name="a" id="e1"></details>
+  `;
+  let elements = [ document.getElementById("e0"),
+                   document.getElementById("e1") ];
+
+  assert_element_states(elements, [1, 0], "states before first mutation");
+
+  let make_details = () => {
+    let e = document.createElement("details");
+    e.setAttribute("name", "a");
+    return e;
+  };
+
+  let watch_e0 = new EventWatcher(t, elements[0], ['toggle']);
+  let watch_e1 = new EventWatcher(t, elements[1], ['toggle']);
+
+  let expect_opening = async (watcher) => {
+    await watcher.wait_for(['toggle'], {record: 'all'}).then((events) => {
+      assert_equals(events[0].oldState, "closed");
+      assert_equals(events[0].newState, "open");
+    });
+  };
+
+  let expect_closing = async (watcher) => {
+    await watcher.wait_for(['toggle'], {record: 'all'}).then((events) => {
+      assert_equals(events[0].oldState, "open");
+      assert_equals(events[0].newState, "closed");
+    });
+  };
+
+  let track_mutations = (element) => {
+    let result = { count: 0 };
+    let listener = event => {
+      ++result.count;
+    };
+    element.addEventListener("DOMSubtreeModified", listener);
+    return result;
+  }
+
+  await expect_opening(watch_e0);
+
+  // Test appending an open element in the group.
+  let new1 = make_details();
+  let mutations1 = track_mutations(new1);
+  let watch_new1 = new EventWatcher(t, new1, ['toggle']);
+  new1.open = true;
+  assert_in_array(mutations1.count, [0, 1], "mutation events count before inserting new1");
+  await expect_opening(watch_new1);
+  container.appendChild(new1);
+  await expect_closing(watch_new1);
+  assert_in_array(mutations1.count, [0, 1], "mutation events count after inserting new1");
+
+  // Test appending a closed element in the group.
+  let new2 = make_details();
+  let mutations2 = track_mutations(new2);
+  let watch_new2 = new EventWatcher(t, new2, ['toggle']);
+  container.appendChild(new2);
+  assert_equals(mutations2.count, 0, "mutation events count after inserting new2");
+
+  // Test inserting an open element at the start of the group.
+  let new3 = make_details();
+  let mutations3 = track_mutations(new3);
+  new3.open = true; // this time do this before creating the EventWatcher
+  let watch_new3 = new EventWatcher(t, new3, ['toggle']);
+  assert_in_array(mutations3.count, [0, 1], "mutation events count before inserting new3");
+  await expect_opening(watch_new3);
+  container.insertBefore(new3, elements[0]);
+  await expect_closing(watch_new3);
+  assert_in_array(mutations3.count, [0, 1], "mutation events count after inserting new3");
+}, "handling of insertion of elements into group");
+
+promise_test(async t => {
+  container.remove();
+  container.innerHTML = `
+    <details name="a">
+      <summary>1</summary>
+      This is the first item.
+    </details>
+
+    <details name="a">
+      <summary>2</summary>
+      This is the second item.
+    </details>
+  `;
+  let first = container.firstElementChild;
+  let second = first.nextElementSibling;
+  assert_false(first.open);
+  assert_false(second.open);
+  first.open = true;
+  assert_true(first.open);
+  assert_false(second.open);
+  second.open = true;
+  assert_false(first.open);
+  assert_true(second.open);
+  second.open = true;
+  assert_false(first.open);
+  assert_true(second.open);
+  second.open = false;
+  assert_false(first.open);
+  assert_false(second.open);
+}, "basic handling of mutually exclusive details when the element isn't connected");
+
+</script>

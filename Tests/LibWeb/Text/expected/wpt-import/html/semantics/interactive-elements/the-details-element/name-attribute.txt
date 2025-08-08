@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+16 Pass
+2 Fail
+Pass	basic handling of mutually exclusive details
+Pass	more complex handling of mutually exclusive details
+Pass	mutually exclusive details across multiple names and multiple tree scopes
+Pass	mutation event and toggle event order
+Pass	interaction of open attribute changes with mutation events
+Pass	empty and missing name attributes do not create groups
+Pass	exclusivity enforcement with attachment scenario connected
+Pass	exclusivity enforcement with attachment scenario disconnected
+Pass	exclusivity enforcement with attachment scenario shadow
+Pass	exclusivity enforcement with attachment scenario shadow-in-disconnected
+Pass	exclusivity enforcement with attachment scenario template-in-disconnected
+Fail	exclusivity enforcement with attachment scenario connected-in-xhr-response
+Pass	exclusivity enforcement with attachment scenario connected-in-implementation-create-document
+Pass	exclusivity enforcement with attachment scenario connected-in-template
+Pass	handling of name attribute changes
+Pass	closing as a result of parsing doesn't depend on attribute order
+Fail	handling of insertion of elements into group
+Pass	basic handling of mutually exclusive details when the element isn't connected
