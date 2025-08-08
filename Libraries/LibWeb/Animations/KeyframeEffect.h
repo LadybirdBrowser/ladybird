@@ -11,13 +11,13 @@
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Bindings/KeyframeEffectPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::Animations {
 
-using EasingValue = Variant<String, NonnullRefPtr<CSS::CSSStyleValue const>>;
+using EasingValue = Variant<String, NonnullRefPtr<CSS::StyleValue const>>;
 
 // https://www.w3.org/TR/web-animations-1/#the-keyframeeffectoptions-dictionary
 struct KeyframeEffectOptions : public EffectTiming {
@@ -39,7 +39,7 @@ struct BasePropertyIndexedKeyframe {
 // https://www.w3.org/TR/web-animations-1/#dictdef-basekeyframe
 struct BaseKeyframe {
     using UnparsedProperties = HashMap<String, String>;
-    using ParsedProperties = HashMap<CSS::PropertyID, NonnullRefPtr<CSS::CSSStyleValue const>>;
+    using ParsedProperties = HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>>;
 
     Optional<double> offset {};
     EasingValue easing { "linear"_string };
@@ -64,9 +64,9 @@ public:
     struct KeyFrameSet : public RefCounted<KeyFrameSet> {
         struct UseInitial { };
         struct ResolvedKeyFrame {
-            // These CSSStyleValue properties can be unresolved, as they may be generated from a @keyframes rule, well
+            // These StyleValue properties can be unresolved, as they may be generated from a @keyframes rule, well
             // before they are applied to an element
-            HashMap<CSS::PropertyID, Variant<UseInitial, NonnullRefPtr<CSS::CSSStyleValue const>>> properties {};
+            HashMap<CSS::PropertyID, Variant<UseInitial, NonnullRefPtr<CSS::StyleValue const>>> properties {};
         };
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
     };

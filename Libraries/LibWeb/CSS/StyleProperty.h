@@ -21,7 +21,7 @@ struct StyleProperty {
 
     Important important { Important::No };
     CSS::PropertyID property_id;
-    NonnullRefPtr<CSSStyleValue const> value;
+    NonnullRefPtr<StyleValue const> value;
     FlyString custom_name {};
 
     bool operator==(StyleProperty const& other) const;

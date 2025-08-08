@@ -18,7 +18,7 @@
 
 namespace Web::CSS {
 
-ShorthandStyleValue::ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> values)
+ShorthandStyleValue::ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>> values)
     : StyleValueWithDefaultOperators(Type::Shorthand)
     , m_properties { shorthand, move(sub_properties), move(values) }
 {
@@ -30,7 +30,7 @@ ShorthandStyleValue::ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID
 
 ShorthandStyleValue::~ShorthandStyleValue() = default;
 
-ValueComparingRefPtr<CSSStyleValue const> ShorthandStyleValue::longhand(PropertyID longhand) const
+ValueComparingRefPtr<StyleValue const> ShorthandStyleValue::longhand(PropertyID longhand) const
 {
     for (auto i = 0u; i < m_properties.sub_properties.size(); ++i) {
         if (m_properties.sub_properties[i] == longhand)
@@ -44,7 +44,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     // If all the longhands are the same CSS-wide keyword, just return that once.
     Optional<Keyword> built_in_keyword;
     bool all_same_keyword = true;
-    StyleComputer::for_each_property_expanding_shorthands(m_properties.shorthand_property, *this, [&](PropertyID name, CSSStyleValue const& value) {
+    StyleComputer::for_each_property_expanding_shorthands(m_properties.shorthand_property, *this, [&](PropertyID name, StyleValue const& value) {
         (void)name;
         if (!value.is_css_wide_keyword()) {
             all_same_keyword = false;
@@ -68,7 +68,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return ""_string;
     }
 
-    auto positional_value_list_shorthand_to_string = [&](Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> values) -> String {
+    auto positional_value_list_shorthand_to_string = [&](Vector<ValueComparingNonnullRefPtr<StyleValue const>> values) -> String {
         switch (values.size()) {
         case 2: {
             auto first_property_serialized = values[0]->to_string(mode);
@@ -187,7 +187,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             return serialize_layer(color->to_string(mode), image->to_string(mode), position_x->to_string(mode), position_y->to_string(mode), size->to_string(mode), repeat->to_string(mode), attachment->to_string(mode), origin->to_string(mode), clip->to_string(mode));
         }
 
-        auto get_layer_value_string = [mode](ValueComparingRefPtr<CSSStyleValue const> const& style_value, size_t index) {
+        auto get_layer_value_string = [mode](ValueComparingRefPtr<StyleValue const> const& style_value, size_t index) {
             if (style_value->is_value_list())
                 return style_value->as_value_list().value_at(index, true)->to_string(mode);
             return style_value->to_string(mode);
@@ -222,7 +222,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             return MUST(String::formatted("{} {}", x_edges->to_string(mode), y_edges->to_string(mode)));
         }
 
-        auto get_layer_value_string = [mode](ValueComparingRefPtr<CSSStyleValue const> const& style_value, size_t index) {
+        auto get_layer_value_string = [mode](ValueComparingRefPtr<StyleValue const> const& style_value, size_t index) {
             if (style_value->is_value_list())
                 return style_value->as_value_list().value_at(index, true)->to_string(mode);
             return style_value->to_string(mode);
@@ -239,7 +239,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return MUST(builder.to_string());
     }
     case PropertyID::Border: {
-        auto all_longhands_same_value = [](ValueComparingRefPtr<CSSStyleValue const> const& shorthand) -> bool {
+        auto all_longhands_same_value = [](ValueComparingRefPtr<StyleValue const> const& shorthand) -> bool {
             VERIFY(shorthand);
 
             // FIXME: This can be removed once we parse border-width, border-style and border-color directly to ShorthandStyleValue
@@ -584,7 +584,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         if (layer_count == 1) {
             serialize_layer(mask_image->to_string(mode), mask_position->to_string(mode), mask_size->to_string(mode), mask_repeat->to_string(mode), mask_origin->to_string(mode), mask_clip->to_string(mode), mask_composite->to_string(mode), mask_mode->to_string(mode));
         } else {
-            auto get_layer_value_string = [mode](ValueComparingRefPtr<CSSStyleValue const> const& style_value, size_t index) {
+            auto get_layer_value_string = [mode](ValueComparingRefPtr<StyleValue const> const& style_value, size_t index) {
                 if (style_value->is_value_list())
                     return style_value->as_value_list().value_at(index, true)->to_string(mode);
                 return style_value->to_string(mode);
@@ -631,7 +631,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto text_wrap_mode_property = longhand(PropertyID::TextWrapMode);
         auto white_space_trim_property = longhand(PropertyID::WhiteSpaceTrim);
 
-        RefPtr<CSSStyleValue const> value;
+        RefPtr<StyleValue const> value;
 
         if (white_space_trim_property->is_keyword() && white_space_trim_property->as_keyword().keyword() == Keyword::None) {
             auto white_space_collapse_keyword = white_space_collapse_property->as_keyword().keyword();
@@ -664,7 +664,7 @@ void ShorthandStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     Base::set_style_sheet(style_sheet);
     for (auto& value : m_properties.values)
-        const_cast<CSSStyleValue&>(*value).set_style_sheet(style_sheet);
+        const_cast<StyleValue&>(*value).set_style_sheet(style_sheet);
 }
 
 }

@@ -41,7 +41,7 @@ String CSSDescriptors::item(size_t index) const
 }
 
 // https://drafts.csswg.org/cssom/#set-a-css-declaration
-bool CSSDescriptors::set_a_css_declaration(DescriptorID descriptor_id, NonnullRefPtr<CSSStyleValue const> value, Important)
+bool CSSDescriptors::set_a_css_declaration(DescriptorID descriptor_id, NonnullRefPtr<StyleValue const> value, Important)
 {
     VERIFY(!is_computed());
 
@@ -89,7 +89,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(StringView property, Stri
         return {};
 
     // 5. Let component value list be the result of parsing value for property property.
-    RefPtr<CSSStyleValue const> component_value_list = parse_css_descriptor(Parser::ParsingParams {}, m_at_rule_id, *descriptor_id, value);
+    RefPtr<StyleValue const> component_value_list = parse_css_descriptor(Parser::ParsingParams {}, m_at_rule_id, *descriptor_id, value);
 
     // 6. If component value list is null, then return.
     if (!component_value_list)
@@ -263,7 +263,7 @@ void CSSDescriptors::visit_edges(Visitor& visitor)
     }
 }
 
-RefPtr<CSSStyleValue const> CSSDescriptors::descriptor(DescriptorID descriptor_id) const
+RefPtr<StyleValue const> CSSDescriptors::descriptor(DescriptorID descriptor_id) const
 {
     auto match = m_descriptors.first_matching([descriptor_id](Descriptor const& descriptor) {
         return descriptor.descriptor_id == descriptor_id;
@@ -273,7 +273,7 @@ RefPtr<CSSStyleValue const> CSSDescriptors::descriptor(DescriptorID descriptor_i
     return nullptr;
 }
 
-RefPtr<CSSStyleValue const> CSSDescriptors::descriptor_or_initial_value(DescriptorID descriptor_id) const
+RefPtr<StyleValue const> CSSDescriptors::descriptor_or_initial_value(DescriptorID descriptor_id) const
 {
     if (auto value = descriptor(descriptor_id))
         return value.release_nonnull();
@@ -289,7 +289,7 @@ bool is_shorthand(AtRuleID at_rule, DescriptorID descriptor)
     return false;
 }
 
-void for_each_expanded_longhand(AtRuleID at_rule, DescriptorID descriptor, RefPtr<CSSStyleValue const> value, Function<void(DescriptorID, RefPtr<CSSStyleValue const>)> callback)
+void for_each_expanded_longhand(AtRuleID at_rule, DescriptorID descriptor, RefPtr<StyleValue const> value, Function<void(DescriptorID, RefPtr<StyleValue const>)> callback)
 {
     if (at_rule == AtRuleID::Page && descriptor == DescriptorID::Margin) {
         if (!value) {

@@ -16,7 +16,7 @@
 
 namespace Web::CSS {
 
-bool CSSLCHLike::equals(CSSStyleValue const& other) const
+bool CSSLCHLike::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

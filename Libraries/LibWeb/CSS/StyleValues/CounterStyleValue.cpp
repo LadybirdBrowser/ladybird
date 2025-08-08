@@ -17,7 +17,7 @@
 
 namespace Web::CSS {
 
-CounterStyleValue::CounterStyleValue(CounterFunction function, FlyString counter_name, ValueComparingNonnullRefPtr<CSSStyleValue const> counter_style, FlyString join_string)
+CounterStyleValue::CounterStyleValue(CounterFunction function, FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, FlyString join_string)
     : StyleValueWithDefaultOperators(Type::Counter)
     , m_properties {
         .function = function,
@@ -31,7 +31,7 @@ CounterStyleValue::CounterStyleValue(CounterFunction function, FlyString counter
 CounterStyleValue::~CounterStyleValue() = default;
 
 // https://drafts.csswg.org/css-counter-styles-3/#generate-a-counter
-static String generate_a_counter_representation(CSSStyleValue const& counter_style, i32 value)
+static String generate_a_counter_representation(StyleValue const& counter_style, i32 value)
 {
     // When asked to generate a counter representation using a particular counter style for a particular
     // counter value, follow these steps:
@@ -149,7 +149,7 @@ String CounterStyleValue::to_string(SerializationMode mode) const
 
     // 4. Let list be a list of CSS component values belonging to <counter>,
     //    omitting the last CSS component value if it is "decimal".
-    Vector<RefPtr<CSSStyleValue const>> list;
+    Vector<RefPtr<StyleValue const>> list;
     list.append(CustomIdentStyleValue::create(m_properties.counter_name));
     if (m_properties.function == CounterFunction::Counters)
         list.append(StringStyleValue::create(m_properties.join_string.to_string()));

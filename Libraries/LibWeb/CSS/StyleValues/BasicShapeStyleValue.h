@@ -9,10 +9,10 @@
 
 #include <AK/Variant.h>
 #include <LibGfx/WindingRule.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/SVG/AttributeParser.h>
 
 namespace Web::CSS {

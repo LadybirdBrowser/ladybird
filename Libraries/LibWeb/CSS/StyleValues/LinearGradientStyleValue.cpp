@@ -72,7 +72,7 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-bool LinearGradientStyleValue::equals(CSSStyleValue const& other_) const
+bool LinearGradientStyleValue::equals(StyleValue const& other_) const
 {
     if (type() != other_.type())
         return false;

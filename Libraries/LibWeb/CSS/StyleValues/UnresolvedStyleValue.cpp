@@ -29,7 +29,7 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 }
 
 UnresolvedStyleValue::UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<String> original_source_text)
-    : CSSStyleValue(Type::Unresolved)
+    : StyleValue(Type::Unresolved)
     , m_values(move(values))
     , m_substitution_functions_presence(substitution_presence)
     , m_original_source_text(move(original_source_text))
@@ -44,7 +44,7 @@ String UnresolvedStyleValue::to_string(SerializationMode) const
     return serialize_a_series_of_component_values(m_values, InsertWhitespace::Yes);
 }
 
-bool UnresolvedStyleValue::equals(CSSStyleValue const& other) const
+bool UnresolvedStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

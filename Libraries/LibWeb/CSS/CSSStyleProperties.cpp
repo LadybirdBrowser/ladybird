@@ -83,7 +83,7 @@ Vector<StyleProperty> CSSStyleProperties::convert_declarations_to_specified_orde
     Vector<StyleProperty> specified_order_declarations;
 
     for (auto declaration : declarations) {
-        StyleComputer::for_each_property_expanding_shorthands(declaration.property_id, declaration.value, [&](CSS::PropertyID longhand_id, CSS::CSSStyleValue const& longhand_property_value) {
+        StyleComputer::for_each_property_expanding_shorthands(declaration.property_id, declaration.value, [&](CSS::PropertyID longhand_id, CSS::StyleValue const& longhand_property_value) {
             auto existing_entry_index = specified_order_declarations.find_first_index_if([&](StyleProperty const& existing_declaration) { return existing_declaration.property_id == longhand_id; });
 
             if (existing_entry_index.has_value()) {
@@ -282,7 +282,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(StringView property_n
     // 8. If property is a shorthand property,
     if (property_is_shorthand(property_id)) {
         // then for each longhand property longhand that property maps to, in canonical order, follow these substeps:
-        StyleComputer::for_each_property_expanding_shorthands(property_id, *component_value_list, [this, &updated, priority](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+        StyleComputer::for_each_property_expanding_shorthands(property_id, *component_value_list, [this, &updated, priority](PropertyID longhand_property_id, StyleValue const& longhand_value) {
             // 1. Let longhand result be the result of set the CSS declaration longhand with the appropriate value(s) from component value list,
             //    with the important flag set if priority is not the empty string, and unset otherwise, and with the list of declarations being the declarations.
             // 2. If longhand result is true, let updated be true.
@@ -325,7 +325,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_i
     return set_property(string_from_property_id(property_id), css_text, priority);
 }
 
-static NonnullRefPtr<CSSStyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
+static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
     if (length_percentage.is_auto())
         return CSSKeywordValue::create(Keyword::Auto);
@@ -336,7 +336,7 @@ static NonnullRefPtr<CSSStyleValue const> style_value_for_length_percentage(Leng
     return length_percentage.calculated();
 }
 
-static NonnullRefPtr<CSSStyleValue const> style_value_for_size(Size const& size)
+static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
 {
     if (size.is_none())
         return CSSKeywordValue::create(Keyword::None);
@@ -357,7 +357,7 @@ static NonnullRefPtr<CSSStyleValue const> style_value_for_size(Size const& size)
     TODO();
 }
 
-static RefPtr<CSSStyleValue const> style_value_for_shadow(Vector<ShadowData> const& shadow_data)
+static RefPtr<StyleValue const> style_value_for_shadow(Vector<ShadowData> const& shadow_data)
 {
     if (shadow_data.is_empty())
         return CSSKeywordValue::create(Keyword::None);
@@ -432,7 +432,7 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID pro
     // 2. If property is a shorthand property, then follow these substeps:
     if (property_is_shorthand(property_id)) {
         // 1. Let list be a new empty array.
-        Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> list;
+        Vector<ValueComparingNonnullRefPtr<StyleValue const>> list;
         Optional<Important> last_important_flag;
 
         // 2. For each longhand property longhand that property maps to, in canonical order, follow these substeps:
@@ -469,7 +469,7 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID pro
     return property(property_id);
 }
 
-static RefPtr<CSSStyleValue const> resolve_color_style_value(CSSStyleValue const& style_value, Color computed_color)
+static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color)
 {
     if (style_value.is_color_function())
         return style_value;
@@ -482,7 +482,7 @@ static RefPtr<CSSStyleValue const> resolve_color_style_value(CSSStyleValue const
     return CSSColorValue::create_from_color(computed_color, ColorSyntax::Modern);
 }
 
-RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_property(Layout::NodeWithStyle const& layout_node, PropertyID property_id) const
+RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(Layout::NodeWithStyle const& layout_node, PropertyID property_id) const
 {
     if (!owner_node().has_value()) {
         dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for CSSStyleProperties without owner node was requested");
@@ -1189,7 +1189,7 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
     // 3. Otherwise, serialize a CSS value from a hypothetical declaration of the property shorthand with its value representing the combined values of the declarations in list.
     Function<ValueComparingNonnullRefPtr<ShorthandStyleValue const>(PropertyID)> make_shorthand_value = [&](PropertyID shorthand_id) {
         auto longhand_ids = longhands_for_shorthand(shorthand_id);
-        Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> longhand_values;
+        Vector<ValueComparingNonnullRefPtr<StyleValue const>> longhand_values;
 
         for (auto longhand_id : longhand_ids) {
             if (property_is_shorthand(longhand_id))
@@ -1236,7 +1236,7 @@ void CSSStyleProperties::invalidate_owners(DOM::StyleInvalidationReason reason)
 }
 
 // https://drafts.csswg.org/cssom/#set-a-css-declaration
-bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRefPtr<CSSStyleValue const> value, Important important)
+bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important)
 {
     VERIFY(!is_computed());
 

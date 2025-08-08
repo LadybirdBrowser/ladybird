@@ -8,11 +8,11 @@
 #pragma once
 
 #include <LibWeb/Animations/Animation.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
@@ -23,8 +23,8 @@ class CSSTransition : public Animations::Animation {
 
 public:
     static GC::Ref<CSSTransition> start_a_transition(DOM::Element&, Optional<PseudoElement>, PropertyID,
-        size_t transition_generation, double start_time, double end_time, NonnullRefPtr<CSSStyleValue const> start_value,
-        NonnullRefPtr<CSSStyleValue const> end_value, NonnullRefPtr<CSSStyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor);
+        size_t transition_generation, double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value,
+        NonnullRefPtr<StyleValue const> end_value, NonnullRefPtr<StyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor);
 
     StringView transition_property() const { return string_from_property_id(m_transition_property); }
 
@@ -33,9 +33,9 @@ public:
 
     double transition_start_time() const { return m_start_time; }
     double transition_end_time() const { return m_end_time; }
-    NonnullRefPtr<CSSStyleValue const> transition_start_value() const { return m_start_value; }
-    NonnullRefPtr<CSSStyleValue const> transition_end_value() const { return m_end_value; }
-    NonnullRefPtr<CSSStyleValue const> reversing_adjusted_start_value() const { return m_reversing_adjusted_start_value; }
+    NonnullRefPtr<StyleValue const> transition_start_value() const { return m_start_value; }
+    NonnullRefPtr<StyleValue const> transition_end_value() const { return m_end_value; }
+    NonnullRefPtr<StyleValue const> reversing_adjusted_start_value() const { return m_reversing_adjusted_start_value; }
     double reversing_shortening_factor() const { return m_reversing_shortening_factor; }
 
     double timing_function_output_at_time(double t) const;
@@ -53,8 +53,8 @@ public:
 
 private:
     CSSTransition(JS::Realm&, DOM::Element&, Optional<PseudoElement>, PropertyID, size_t transition_generation,
-        double start_time, double end_time, NonnullRefPtr<CSSStyleValue const> start_value, NonnullRefPtr<CSSStyleValue const> end_value,
-        NonnullRefPtr<CSSStyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor);
+        double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value, NonnullRefPtr<StyleValue const> end_value,
+        NonnullRefPtr<StyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -73,13 +73,13 @@ private:
     double m_end_time;
 
     // https://drafts.csswg.org/css-transitions/#transition-start-value
-    NonnullRefPtr<CSS::CSSStyleValue const> m_start_value;
+    NonnullRefPtr<CSS::StyleValue const> m_start_value;
 
     // https://drafts.csswg.org/css-transitions/#transition-end-value
-    NonnullRefPtr<CSS::CSSStyleValue const> m_end_value;
+    NonnullRefPtr<CSS::StyleValue const> m_end_value;
 
     // https://drafts.csswg.org/css-transitions/#transition-reversing-adjusted-start-value
-    NonnullRefPtr<CSS::CSSStyleValue const> m_reversing_adjusted_start_value;
+    NonnullRefPtr<CSS::StyleValue const> m_reversing_adjusted_start_value;
 
     // https://drafts.csswg.org/css-transitions/#transition-reversing-shortening-factor
     double m_reversing_shortening_factor;

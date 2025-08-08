@@ -627,7 +627,7 @@ static void sort_matching_rules(Vector<MatchingRule const*>& matching_rules)
     });
 }
 
-void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, CSSStyleValue const& value, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property)
+void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, StyleValue const& value, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property)
 {
     if (property_is_shorthand(property_id) && (value.is_unresolved() || value.is_pending_substitution())) {
         // If a shorthand property contains an arbitrary substitution function in its value, the longhand properties
@@ -655,7 +655,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
 
     // FIXME: We should add logic in parse_css_value to parse "positional-value-list-shorthand"s as
     //        ShorthandStyleValues to avoid the need for this (and assign_start_and_end_values).
-    auto assign_edge_values = [&](PropertyID top_property, PropertyID right_property, PropertyID bottom_property, PropertyID left_property, CSSStyleValue const& value) {
+    auto assign_edge_values = [&](PropertyID top_property, PropertyID right_property, PropertyID bottom_property, PropertyID left_property, StyleValue const& value) {
         if (value.is_value_list()) {
             auto values = value.as_value_list().values();
 
@@ -842,7 +842,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             set_longhand_property(CSS::PropertyID::TransitionBehavior, CSSKeywordValue::create(Keyword::Normal));
         } else if (value.is_transition()) {
             auto const& transitions = value.as_transition().transitions();
-            Array<Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>, 5> transition_values;
+            Array<Vector<ValueComparingNonnullRefPtr<StyleValue const>>, 5> transition_values;
             for (auto const& transition : transitions) {
                 transition_values[0].append(*transition.property_name);
                 transition_values[1].append(transition.duration.as_style_value());
@@ -936,7 +936,7 @@ void StyleComputer::cascade_declarations(
                 }
             }
 
-            for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+            for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
                 // If we're a PSV that's already been seen, that should mean that our shorthand already got
                 // resolved and gave us a value, so we don't want to overwrite it with a PSV.
                 if (seen_properties.get(to_underlying(longhand_id)) && property_value->is_pending_substitution())
@@ -1057,7 +1057,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
 
     // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
     auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element, this](auto const& keyframe_values) {
-        HashMap<PropertyID, RefPtr<CSSStyleValue const>> result;
+        HashMap<PropertyID, RefPtr<StyleValue const>> result;
         HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
         auto property_is_set_by_use_initial = MUST(Bitmap::create(to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1, false));
 
@@ -1108,7 +1108,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             bool is_use_initial = false;
 
             auto style_value = value.visit(
-                [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<CSSStyleValue const> {
+                [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<StyleValue const> {
                     if (refresh == AnimationRefresh::Yes)
                         return {};
                     if (property_is_shorthand(property_id))
@@ -1116,7 +1116,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                     is_use_initial = true;
                     return computed_properties.property(property_id);
                 },
-                [&](RefPtr<CSSStyleValue const> value) -> RefPtr<CSSStyleValue const> {
+                [&](RefPtr<StyleValue const> value) -> RefPtr<StyleValue const> {
                     return value;
                 });
 
@@ -1135,7 +1135,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             if (style_value->is_unresolved())
                 style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, property_id, style_value->as_unresolved());
 
-            for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+            for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
                 auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, LogicalAliasMappingContext { computed_properties.writing_mode(), computed_properties.direction() });
                 auto physical_longhand_id_bitmap_index = to_underlying(physical_longhand_id) - to_underlying(first_longhand_property_id);
 
@@ -1154,8 +1154,8 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         }
         return result;
     };
-    HashMap<PropertyID, RefPtr<CSSStyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
-    HashMap<PropertyID, RefPtr<CSSStyleValue const>> computed_end_values = compute_keyframe_values(keyframe_end_values);
+    HashMap<PropertyID, RefPtr<StyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
+    HashMap<PropertyID, RefPtr<StyleValue const>> computed_end_values = compute_keyframe_values(keyframe_end_values);
 
     for (auto const& it : computed_start_values) {
         auto resolved_start_property = it.value;
@@ -1677,7 +1677,7 @@ DOM::Element const* element_to_inherit_style_from(DOM::Element const* element, O
     return parent_element;
 }
 
-NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element)
+NonnullRefPtr<StyleValue const> StyleComputer::get_inherit_value(CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element)
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
@@ -1909,7 +1909,7 @@ CSSPixelFraction StyleComputer::absolute_size_mapping(Keyword keyword)
     }
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth) const
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
@@ -2560,7 +2560,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
     return computed_properties;
 }
 
-static bool is_monospace(CSSStyleValue const& value)
+static bool is_monospace(StyleValue const& value)
 {
     if (value.to_keyword() == Keyword::Monospace)
         return true;
@@ -2579,7 +2579,7 @@ static bool is_monospace(CSSStyleValue const& value)
 //       instead of the default font size (16px).
 //       See this blog post for a lot more details about this weirdness:
 //       https://manishearth.github.io/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/
-RefPtr<CSSStyleValue const> StyleComputer::recascade_font_size_if_needed(
+RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(
     DOM::Element& element,
     Optional<CSS::PseudoElement> pseudo_element,
     CascadedProperties& cascaded_properties) const
@@ -2603,7 +2603,7 @@ RefPtr<CSSStyleValue const> StyleComputer::recascade_font_size_if_needed(
     for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element())
         ancestors.append(*ancestor);
 
-    NonnullRefPtr<CSSStyleValue const> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));
+    NonnullRefPtr<StyleValue const> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));
     CSSPixels current_size_in_px = default_monospace_font_size_in_px;
 
     for (auto& ancestor : ancestors.in_reverse()) {
@@ -2959,9 +2959,9 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                 auto const& keyframe_style = *keyframe.style();
                 for (auto const& it : keyframe_style.properties()) {
                     // Unresolved properties will be resolved in collect_animation_into()
-                    for_each_property_expanding_shorthands(it.property_id, it.value, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
+                    for_each_property_expanding_shorthands(it.property_id, it.value, [&](PropertyID shorthand_id, StyleValue const& shorthand_value) {
                         animated_properties.set(shorthand_id);
-                        resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSSStyleValue const> { shorthand_value });
+                        resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<StyleValue const> { shorthand_value });
                     });
                 }
 
@@ -3169,7 +3169,7 @@ void StyleComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     }
 }
 
-NonnullRefPtr<CSSStyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
 {
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
@@ -3247,7 +3247,7 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element c
     }
     auto const& math_depth = value.as_math_depth();
 
-    auto resolve_integer = [&](CSSStyleValue const& integer_value) {
+    auto resolve_integer = [&](StyleValue const& integer_value) {
         if (integer_value.is_integer())
             return integer_value.as_integer().integer();
         if (integer_value.is_calculated())

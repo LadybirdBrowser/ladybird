@@ -88,7 +88,7 @@ void AbstractElement::set_custom_properties(HashMap<FlyString, CSS::StylePropert
     m_element->set_custom_properties(m_pseudo_element, move(custom_properties));
 }
 
-RefPtr<CSS::CSSStyleValue const> AbstractElement::get_custom_property(FlyString const& name) const
+RefPtr<CSS::StyleValue const> AbstractElement::get_custom_property(FlyString const& name) const
 {
     // FIXME: We should be producing computed values for custom properties, just like regular properties.
     if (m_pseudo_element.has_value()) {

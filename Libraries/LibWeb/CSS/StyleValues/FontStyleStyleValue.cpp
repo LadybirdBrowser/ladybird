@@ -5,13 +5,13 @@
  */
 
 #include "FontStyleStyleValue.h"
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
-FontStyleStyleValue::FontStyleStyleValue(FontStyle font_style, ValueComparingRefPtr<CSSStyleValue const> angle_value)
+FontStyleStyleValue::FontStyleStyleValue(FontStyle font_style, ValueComparingRefPtr<StyleValue const> angle_value)
     : StyleValueWithDefaultOperators(Type::FontStyle)
     , m_font_style(font_style)
     , m_angle_value(angle_value)

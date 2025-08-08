@@ -28,7 +28,7 @@ public:
 
     virtual String to_string(SerializationMode) const override;
 
-    bool equals(CSSStyleValue const& other) const override;
+    bool equals(StyleValue const& other) const override;
 
 private:
     explicit AngleStyleValue(Angle angle);

@@ -26,7 +26,7 @@ ColorMixStyleValue::ColorMixStyleValue(ColorInterpolationMethod color_interpolat
 {
 }
 
-bool ColorMixStyleValue::equals(CSSStyleValue const& other) const
+bool ColorMixStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

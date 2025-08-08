@@ -15,9 +15,9 @@ class ColorFunctionStyleValue final : public CSSColorValue {
 public:
     virtual ~ColorFunctionStyleValue() override = default;
 
-    static ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue const> c1, ValueComparingNonnullRefPtr<CSSStyleValue const> c2, ValueComparingNonnullRefPtr<CSSStyleValue const> c3, ValueComparingRefPtr<CSSStyleValue const> alpha = {});
+    static ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> create(StringView color_space, ValueComparingNonnullRefPtr<StyleValue const> c1, ValueComparingNonnullRefPtr<StyleValue const> c2, ValueComparingNonnullRefPtr<StyleValue const> c3, ValueComparingRefPtr<StyleValue const> alpha = {});
 
-    virtual bool equals(CSSStyleValue const&) const override;
+    virtual bool equals(StyleValue const&) const override;
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual String to_string(SerializationMode) const override;
 
@@ -26,15 +26,15 @@ public:
     static constexpr Array s_supported_color_space = { "a98-rgb"sv, "display-p3"sv, "srgb"sv, "srgb-linear"sv, "prophoto-rgb"sv, "rec2020"sv, "xyz"sv, "xyz-d50"sv, "xyz-d65"sv };
 
 private:
-    ColorFunctionStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue const> c1, ValueComparingNonnullRefPtr<CSSStyleValue const> c2, ValueComparingNonnullRefPtr<CSSStyleValue const> c3, ValueComparingNonnullRefPtr<CSSStyleValue const> alpha)
+    ColorFunctionStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> c1, ValueComparingNonnullRefPtr<StyleValue const> c2, ValueComparingNonnullRefPtr<StyleValue const> c3, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : CSSColorValue(color_type, ColorSyntax::Modern)
         , m_properties { .channels = { move(c1), move(c2), move(c3) }, .alpha = move(alpha) }
     {
     }
 
     struct Properties {
-        Array<ValueComparingNonnullRefPtr<CSSStyleValue const>, 3> channels;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> alpha;
+        Array<ValueComparingNonnullRefPtr<StyleValue const>, 3> channels;
+        ValueComparingNonnullRefPtr<StyleValue const> alpha;
         bool operator==(Properties const&) const = default;
     };
 

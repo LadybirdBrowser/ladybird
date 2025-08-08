@@ -89,7 +89,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
         return WebIDL::SyntaxError::create(realm, "Invalid syntax definition"_string);
     }
 
-    RefPtr<CSSStyleValue const> initial_value_maybe;
+    RefPtr<StyleValue const> initial_value_maybe;
 
     // 4. If syntax definition is the universal syntax definition, and initialValue is not present,
     if (maybe_syntax->type() == Parser::SyntaxNode::NodeType::Universal) {

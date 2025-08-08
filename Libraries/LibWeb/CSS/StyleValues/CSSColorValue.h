@@ -11,7 +11,7 @@
 
 #include <AK/FlyString.h>
 #include <LibGfx/Color.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
@@ -21,7 +21,7 @@ enum class ColorSyntax : u8 {
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csscolorvalue
-class CSSColorValue : public CSSStyleValue {
+class CSSColorValue : public StyleValue {
 public:
     static ValueComparingNonnullRefPtr<CSSColorValue const> create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name = {});
     virtual ~CSSColorValue() override = default;
@@ -52,19 +52,19 @@ public:
 
 protected:
     explicit CSSColorValue(ColorType color_type, ColorSyntax color_syntax)
-        : CSSStyleValue(Type::Color)
+        : StyleValue(Type::Color)
         , m_color_type(color_type)
         , m_color_syntax(color_syntax)
     {
     }
 
-    static Optional<double> resolve_hue(CSSStyleValue const&, CalculationResolutionContext const&);
-    static Optional<double> resolve_with_reference_value(CSSStyleValue const&, float one_hundred_percent_value, CalculationResolutionContext const&);
-    static Optional<double> resolve_alpha(CSSStyleValue const&, CalculationResolutionContext const&);
+    static Optional<double> resolve_hue(StyleValue const&, CalculationResolutionContext const&);
+    static Optional<double> resolve_with_reference_value(StyleValue const&, float one_hundred_percent_value, CalculationResolutionContext const&);
+    static Optional<double> resolve_alpha(StyleValue const&, CalculationResolutionContext const&);
 
-    void serialize_color_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min = {}, Optional<double> clamp_max = {}) const;
-    void serialize_alpha_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const;
-    void serialize_hue_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const;
+    void serialize_color_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min = {}, Optional<double> clamp_max = {}) const;
+    void serialize_alpha_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const;
+    void serialize_hue_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const;
 
     ColorType m_color_type;
     ColorSyntax m_color_syntax;

@@ -22,7 +22,7 @@ Optional<Angle> AngleOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedSt
     return calculated->resolve_angle_deprecated(context);
 }
 
-NonnullRefPtr<CSSStyleValue const> AngleOrCalculated::create_style_value() const
+NonnullRefPtr<StyleValue const> AngleOrCalculated::create_style_value() const
 {
     return AngleStyleValue::create(value());
 }
@@ -32,7 +32,7 @@ Optional<Flex> FlexOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyl
     return calculated->resolve_flex_deprecated(context);
 }
 
-NonnullRefPtr<CSSStyleValue const> FlexOrCalculated::create_style_value() const
+NonnullRefPtr<StyleValue const> FlexOrCalculated::create_style_value() const
 {
     return FlexStyleValue::create(value());
 }
@@ -42,7 +42,7 @@ Optional<Frequency> FrequencyOrCalculated::resolve_calculated(NonnullRefPtr<Calc
     return calculated->resolve_frequency_deprecated(context);
 }
 
-NonnullRefPtr<CSSStyleValue const> FrequencyOrCalculated::create_style_value() const
+NonnullRefPtr<StyleValue const> FrequencyOrCalculated::create_style_value() const
 {
     return FrequencyStyleValue::create(value());
 }
@@ -52,7 +52,7 @@ Optional<i64> IntegerOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedSt
     return calculated->resolve_integer_deprecated(context);
 }
 
-NonnullRefPtr<CSSStyleValue const> IntegerOrCalculated::create_style_value() const
+NonnullRefPtr<StyleValue const> IntegerOrCalculated::create_style_value() const
 {
     return IntegerStyleValue::create(value());
 }
@@ -62,7 +62,7 @@ Optional<Length> LengthOrCalculated::resolve_calculated(NonnullRefPtr<Calculated
     return calculated->resolve_length_deprecated(context);
 }
 
-NonnullRefPtr<CSSStyleValue const> LengthOrCalculated::create_style_value() const
+NonnullRefPtr<StyleValue const> LengthOrCalculated::create_style_value() const
 {
     return LengthStyleValue::create(value());
 }
@@ -72,7 +72,7 @@ Optional<double> NumberOrCalculated::resolve_calculated(NonnullRefPtr<Calculated
     return calculated->resolve_number_deprecated(context);
 }
 
-NonnullRefPtr<CSSStyleValue const> NumberOrCalculated::create_style_value() const
+NonnullRefPtr<StyleValue const> NumberOrCalculated::create_style_value() const
 {
     return NumberStyleValue::create(value());
 }
@@ -82,7 +82,7 @@ Optional<Percentage> PercentageOrCalculated::resolve_calculated(NonnullRefPtr<Ca
     return calculated->resolve_percentage_deprecated(context);
 }
 
-NonnullRefPtr<CSSStyleValue const> PercentageOrCalculated::create_style_value() const
+NonnullRefPtr<StyleValue const> PercentageOrCalculated::create_style_value() const
 {
     return PercentageStyleValue::create(value());
 }
@@ -92,7 +92,7 @@ Optional<Resolution> ResolutionOrCalculated::resolve_calculated(NonnullRefPtr<Ca
     return calculated->resolve_resolution_deprecated(context);
 }
 
-NonnullRefPtr<CSSStyleValue const> ResolutionOrCalculated::create_style_value() const
+NonnullRefPtr<StyleValue const> ResolutionOrCalculated::create_style_value() const
 {
     return ResolutionStyleValue::create(value());
 }
@@ -102,7 +102,7 @@ Optional<Time> TimeOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyl
     return calculated->resolve_time_deprecated(context);
 }
 
-NonnullRefPtr<CSSStyleValue const> TimeOrCalculated::create_style_value() const
+NonnullRefPtr<StyleValue const> TimeOrCalculated::create_style_value() const
 {
     return TimeStyleValue::create(value());
 }

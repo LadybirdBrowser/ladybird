@@ -43,7 +43,7 @@ void ImageStyleValue::visit_edges(JS::Cell::Visitor& visitor) const
 {
     Base::visit_edges(visitor);
     // FIXME: visit_edges in non-GC allocated classes is confusing pattern.
-    //        Consider making CSSStyleValue to be GC allocated instead.
+    //        Consider making StyleValue to be GC allocated instead.
     visitor.visit(m_resource_request);
     visitor.visit(m_style_sheet);
     visitor.visit(m_timer);
@@ -122,7 +122,7 @@ String ImageStyleValue::to_string(SerializationMode) const
     return m_url.to_string();
 }
 
-bool ImageStyleValue::equals(CSSStyleValue const& other) const
+bool ImageStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;
@@ -186,7 +186,7 @@ void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
     m_style_sheet = style_sheet;
 }
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> ImageStyleValue::absolutized(CSSPixelRect const&, Length::FontMetrics const&, Length::FontMetrics const&) const
+ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(CSSPixelRect const&, Length::FontMetrics const&, Length::FontMetrics const&) const
 {
     if (m_url.url().is_empty())
         return *this;

@@ -17,7 +17,7 @@ Optional<Color> CSSLightDark::to_color(ColorResolutionContext color_resolution_c
     return m_properties.light->to_color(color_resolution_context);
 }
 
-bool CSSLightDark::equals(CSSStyleValue const& other) const
+bool CSSLightDark::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;

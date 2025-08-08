@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Keyword.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
@@ -67,7 +67,7 @@ private:
     Keyword m_keyword { Keyword::Invalid };
 };
 
-inline Keyword CSSStyleValue::to_keyword() const
+inline Keyword StyleValue::to_keyword() const
 {
     if (is_keyword())
         return static_cast<CSSKeywordValue const&>(*this).keyword();

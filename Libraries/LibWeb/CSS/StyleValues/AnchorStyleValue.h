@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
@@ -16,8 +16,8 @@ namespace Web::CSS {
 class AnchorStyleValue final : public StyleValueWithDefaultOperators<AnchorStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<AnchorStyleValue const> create(Optional<FlyString> const& anchor_name,
-        ValueComparingNonnullRefPtr<CSSStyleValue const> const& anchor_side,
-        ValueComparingRefPtr<CSSStyleValue const> const& fallback_value);
+        ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
+        ValueComparingRefPtr<StyleValue const> const& fallback_value);
     virtual ~AnchorStyleValue() override = default;
 
     virtual String to_string(SerializationMode) const override;
@@ -25,22 +25,22 @@ public:
     bool properties_equal(AnchorStyleValue const& other) const { return m_properties == other.m_properties; }
 
     Optional<FlyString const&> anchor_name() const { return m_properties.anchor_name; }
-    ValueComparingNonnullRefPtr<CSSStyleValue const> anchor_side() const
+    ValueComparingNonnullRefPtr<StyleValue const> anchor_side() const
     {
         return m_properties.anchor_side;
     }
-    ValueComparingRefPtr<CSSStyleValue const> fallback_value() const
+    ValueComparingRefPtr<StyleValue const> fallback_value() const
     {
         return m_properties.fallback_value;
     }
 
 private:
-    AnchorStyleValue(Optional<FlyString> const& anchor_name, ValueComparingNonnullRefPtr<CSSStyleValue const> const& anchor_side, ValueComparingRefPtr<CSSStyleValue const> const& fallback_value);
+    AnchorStyleValue(Optional<FlyString> const& anchor_name, ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side, ValueComparingRefPtr<StyleValue const> const& fallback_value);
 
     struct Properties {
         Optional<FlyString> anchor_name;
-        ValueComparingNonnullRefPtr<CSSStyleValue const> anchor_side;
-        ValueComparingRefPtr<CSSStyleValue const> fallback_value;
+        ValueComparingNonnullRefPtr<StyleValue const> anchor_side;
+        ValueComparingRefPtr<StyleValue const> fallback_value;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };

@@ -254,7 +254,7 @@ Optional<PropertyID> property_id_from_string(StringView);
 [[nodiscard]] FlyString const& string_from_property_id(PropertyID);
 [[nodiscard]] FlyString const& camel_case_string_from_property_id(PropertyID);
 bool is_inherited_property(PropertyID);
-NonnullRefPtr<CSSStyleValue const> property_initial_value(PropertyID);
+NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);
 bool property_accepts_keyword(PropertyID, Keyword);
@@ -449,8 +449,8 @@ ErrorOr<void> generate_implementation_file(JsonObject& properties, JsonObject& l
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyName.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/Infra/Strings.h>
 
@@ -706,9 +706,9 @@ bool property_affects_stacking_context(PropertyID property_id)
     }
 }
 
-NonnullRefPtr<CSSStyleValue const> property_initial_value(PropertyID property_id)
+NonnullRefPtr<StyleValue const> property_initial_value(PropertyID property_id)
 {
-    static Array<RefPtr<CSSStyleValue const>, to_underlying(last_property_id) + 1> initial_values;
+    static Array<RefPtr<StyleValue const>, to_underlying(last_property_id) + 1> initial_values;
     if (auto initial_value = initial_values[to_underlying(property_id)])
         return initial_value.release_nonnull();
 

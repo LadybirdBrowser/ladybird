@@ -21,7 +21,7 @@ class CSSPropertyRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSPropertyRule);
 
 public:
-    static GC::Ref<CSSPropertyRule> create(JS::Realm&, FlyString name, FlyString syntax, bool inherits, RefPtr<CSSStyleValue const> initial_value);
+    static GC::Ref<CSSPropertyRule> create(JS::Realm&, FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value);
 
     virtual ~CSSPropertyRule() = default;
 
@@ -29,10 +29,10 @@ public:
     FlyString const& syntax() const { return m_syntax; }
     bool inherits() const { return m_inherits; }
     Optional<String> initial_value() const;
-    RefPtr<CSSStyleValue const> initial_style_value() const { return m_initial_value; }
+    RefPtr<StyleValue const> initial_style_value() const { return m_initial_value; }
 
 private:
-    CSSPropertyRule(JS::Realm&, FlyString name, FlyString syntax, bool inherits, RefPtr<CSSStyleValue const> initial_value);
+    CSSPropertyRule(JS::Realm&, FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value);
 
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
@@ -40,7 +40,7 @@ private:
     FlyString m_name;
     FlyString m_syntax;
     bool m_inherits;
-    RefPtr<CSSStyleValue const> m_initial_value;
+    RefPtr<StyleValue const> m_initial_value;
 };
 
 template<>
