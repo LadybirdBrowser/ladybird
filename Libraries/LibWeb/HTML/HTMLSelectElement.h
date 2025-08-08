@@ -64,6 +64,7 @@ public:
     bool will_validate();
     bool check_validity();
     bool report_validity();
+    virtual String format_validation_message() override;
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-select-element

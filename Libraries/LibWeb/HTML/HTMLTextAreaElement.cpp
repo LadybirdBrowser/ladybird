@@ -251,6 +251,25 @@ bool HTMLTextAreaElement::report_validity()
     return report_validity_steps();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validationmessage
+String HTMLTextAreaElement::format_validation_message()
+{
+    if (suffering_from_being_missing()) {
+        return "Please input a value."_string;
+    }
+    if (suffering_from_being_too_long()) {
+        return MUST(String::formatted("Please limit your character count to {} characters.", max_length()));
+    }
+    if (suffering_from_being_too_short()) {
+        return MUST(String::formatted("Please increase your character count to {} characters.", min_length()));
+    }
+    if (suffering_from_bad_input()) {
+        return "Please input a valid value."_string;
+    }
+
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-maxlength
 WebIDL::Long HTMLTextAreaElement::max_length() const
 {
