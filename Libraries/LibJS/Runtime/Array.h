@@ -57,7 +57,10 @@ public:
 
     [[nodiscard]] bool length_is_writable() const { return m_length_writable; }
 
+    bool is_proxy_target() const { return m_is_proxy_target; }
     void set_is_proxy_target(bool is_proxy_target) { m_is_proxy_target = is_proxy_target; }
+
+    bool default_prototype_chain_intact() const;
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
