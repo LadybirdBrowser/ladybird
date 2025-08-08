@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Forward.h>
 

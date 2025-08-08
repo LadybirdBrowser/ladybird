@@ -364,7 +364,7 @@ static RefPtr<StyleValue const> style_value_for_shadow(Vector<ShadowData> const&
 
     auto make_shadow_style_value = [](ShadowData const& shadow) {
         return ShadowStyleValue::create(
-            CSSColorValue::create_from_color(shadow.color, ColorSyntax::Modern),
+            ColorStyleValue::create_from_color(shadow.color, ColorSyntax::Modern),
             style_value_for_length_percentage(shadow.offset_x),
             style_value_for_length_percentage(shadow.offset_y),
             style_value_for_length_percentage(shadow.blur_radius),
@@ -474,12 +474,12 @@ static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& styl
     if (style_value.is_color_function())
         return style_value;
     if (style_value.is_color()) {
-        auto& color_style_value = static_cast<CSSColorValue const&>(style_value);
-        if (first_is_one_of(color_style_value.color_type(), CSSColorValue::ColorType::Lab, CSSColorValue::ColorType::OKLab, CSSColorValue::ColorType::LCH, CSSColorValue::ColorType::OKLCH))
+        auto& color_style_value = static_cast<ColorStyleValue const&>(style_value);
+        if (first_is_one_of(color_style_value.color_type(), ColorStyleValue::ColorType::Lab, ColorStyleValue::ColorType::OKLab, ColorStyleValue::ColorType::LCH, ColorStyleValue::ColorType::OKLCH))
             return style_value;
     }
 
-    return CSSColorValue::create_from_color(computed_color, ColorSyntax::Modern);
+    return ColorStyleValue::create_from_color(computed_color, ColorSyntax::Modern);
 }
 
 RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(Layout::NodeWithStyle const& layout_node, PropertyID property_id) const

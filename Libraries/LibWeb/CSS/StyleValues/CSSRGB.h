@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssrgb
-class CSSRGB final : public CSSColorValue {
+class CSSRGB final : public ColorStyleValue {
 public:
     static ValueComparingNonnullRefPtr<CSSRGB const> create(ValueComparingNonnullRefPtr<StyleValue const> r, ValueComparingNonnullRefPtr<StyleValue const> g, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingRefPtr<StyleValue const> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
     {
@@ -37,7 +37,7 @@ public:
 
 private:
     CSSRGB(ValueComparingNonnullRefPtr<StyleValue const> r, ValueComparingNonnullRefPtr<StyleValue const> g, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
-        : CSSColorValue(ColorType::RGB, color_syntax)
+        : ColorStyleValue(ColorType::RGB, color_syntax)
         , m_properties { .r = move(r), .g = move(g), .b = move(b), .alpha = move(alpha), .name = name }
     {
     }

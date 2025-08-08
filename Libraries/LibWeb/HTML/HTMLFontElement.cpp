@@ -9,7 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/HTML/HTMLFontElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -129,7 +129,7 @@ void HTMLFontElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties
             // https://html.spec.whatwg.org/multipage/rendering.html#phrasing-content-3:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, CSS::CSSColorValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, CSS::ColorStyleValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
         } else if (name == AttributeNames::size) {
             // When a font element has a size attribute, the user agent is expected to use the following steps, known as the rules for parsing a legacy font size, to treat the attribute as a presentational hint setting the element's 'font-size' property:
             auto font_size_or_empty = parse_legacy_font_size(value);

@@ -14,8 +14,8 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -936,7 +936,7 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
         values.ensure_capacity(other.size());
         for (size_t i = values.size(); i < other.size(); i++) {
             values.unchecked_append(ShadowStyleValue::create(
-                CSSColorValue::create_from_color(Color::Transparent, ColorSyntax::Legacy),
+                ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Legacy),
                 LengthStyleValue::create(Length::make_px(0)),
                 LengthStyleValue::create(Length::make_px(0)),
                 LengthStyleValue::create(Length::make_px(0)),
@@ -987,7 +987,7 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
             interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
 
         auto result_shadow = ShadowStyleValue::create(
-            CSSColorValue::create_from_color(interpolated_color, ColorSyntax::Modern),
+            ColorStyleValue::create_from_color(interpolated_color, ColorSyntax::Modern),
             *interpolated_offset_x,
             *interpolated_offset_y,
             *interpolated_blur_radius,
@@ -1119,7 +1119,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         if (from_color.has_value() && to_color.has_value())
             interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
 
-        return CSSColorValue::create_from_color(interpolated_color, ColorSyntax::Modern);
+        return ColorStyleValue::create_from_color(interpolated_color, ColorSyntax::Modern);
     }
     case StyleValue::Type::Edge: {
         auto resolved_from = from.as_edge().resolved_value(calculation_context);

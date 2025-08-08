@@ -196,11 +196,11 @@ set(SOURCES
     CSS/StyleValues/ColorFunctionStyleValue.cpp
     CSS/StyleValues/ColorMixStyleValue.cpp
     CSS/StyleValues/ColorSchemeStyleValue.cpp
+    CSS/StyleValues/ColorStyleValue.cpp
     CSS/StyleValues/ConicGradientStyleValue.cpp
     CSS/StyleValues/ContentStyleValue.cpp
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
     CSS/StyleValues/CounterStyleValue.cpp
-    CSS/StyleValues/CSSColorValue.cpp
     CSS/StyleValues/CSSHSL.cpp
     CSS/StyleValues/CSSHWB.cpp
     CSS/StyleValues/CSSLabLike.cpp

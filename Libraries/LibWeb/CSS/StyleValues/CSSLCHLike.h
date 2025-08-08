@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
 
-class CSSLCHLike : public CSSColorValue {
+class CSSLCHLike : public ColorStyleValue {
 public:
     template<DerivedFrom<CSSLCHLike> T>
     static ValueComparingNonnullRefPtr<T const> create(ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingRefPtr<StyleValue const> alpha = {})
@@ -33,7 +33,7 @@ public:
 
 protected:
     CSSLCHLike(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> alpha)
-        : CSSColorValue(color_type, ColorSyntax::Modern)
+        : ColorStyleValue(color_type, ColorSyntax::Modern)
         , m_properties { .l = move(l), .c = move(c), .h = move(h), .alpha = move(alpha) }
     {
     }

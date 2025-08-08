@@ -15,44 +15,44 @@ namespace Web::CSS {
 
 namespace {
 
-CSSColorValue::ColorType color_type_from_string_view(StringView color_space)
+ColorStyleValue::ColorType color_type_from_string_view(StringView color_space)
 {
     if (color_space == "a98-rgb"sv)
-        return CSSColorValue::ColorType::A98RGB;
+        return ColorStyleValue::ColorType::A98RGB;
     if (color_space == "display-p3"sv)
-        return CSSColorValue::ColorType::DisplayP3;
+        return ColorStyleValue::ColorType::DisplayP3;
     if (color_space == "srgb"sv)
-        return CSSColorValue::ColorType::sRGB;
+        return ColorStyleValue::ColorType::sRGB;
     if (color_space == "srgb-linear"sv)
-        return CSSColorValue::ColorType::sRGBLinear;
+        return ColorStyleValue::ColorType::sRGBLinear;
     if (color_space == "prophoto-rgb"sv)
-        return CSSColorValue::ColorType::ProPhotoRGB;
+        return ColorStyleValue::ColorType::ProPhotoRGB;
     if (color_space == "rec2020"sv)
-        return CSSColorValue::ColorType::Rec2020;
+        return ColorStyleValue::ColorType::Rec2020;
     if (color_space == "xyz-d50"sv)
-        return CSSColorValue::ColorType::XYZD50;
+        return ColorStyleValue::ColorType::XYZD50;
     if (color_space == "xyz"sv || color_space == "xyz-d65")
-        return CSSColorValue::ColorType::XYZD65;
+        return ColorStyleValue::ColorType::XYZD65;
     VERIFY_NOT_REACHED();
 }
 
-StringView string_view_from_color_type(CSSColorValue::ColorType color_type)
+StringView string_view_from_color_type(ColorStyleValue::ColorType color_type)
 {
-    if (color_type == CSSColorValue::ColorType::A98RGB)
+    if (color_type == ColorStyleValue::ColorType::A98RGB)
         return "a98-rgb"sv;
-    if (color_type == CSSColorValue::ColorType::DisplayP3)
+    if (color_type == ColorStyleValue::ColorType::DisplayP3)
         return "display-p3"sv;
-    if (color_type == CSSColorValue::ColorType::sRGB)
+    if (color_type == ColorStyleValue::ColorType::sRGB)
         return "srgb"sv;
-    if (color_type == CSSColorValue::ColorType::sRGBLinear)
+    if (color_type == ColorStyleValue::ColorType::sRGBLinear)
         return "srgb-linear"sv;
-    if (color_type == CSSColorValue::ColorType::ProPhotoRGB)
+    if (color_type == ColorStyleValue::ColorType::ProPhotoRGB)
         return "prophoto-rgb"sv;
-    if (color_type == CSSColorValue::ColorType::Rec2020)
+    if (color_type == ColorStyleValue::ColorType::Rec2020)
         return "rec2020"sv;
-    if (color_type == CSSColorValue::ColorType::XYZD50)
+    if (color_type == ColorStyleValue::ColorType::XYZD50)
         return "xyz-d50"sv;
-    if (color_type == CSSColorValue::ColorType::XYZD65)
+    if (color_type == ColorStyleValue::ColorType::XYZD65)
         return "xyz-d65"sv;
     VERIFY_NOT_REACHED();
 }

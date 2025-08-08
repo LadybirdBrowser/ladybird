@@ -8,7 +8,7 @@
 #include <LibWeb/Bindings/HTMLHRElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/HTML/HTMLHRElement.h>
@@ -68,7 +68,7 @@ void HTMLHRElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
         // the user agent is expected to treat the attribute as a presentational hint setting the element's 'color' property to the resulting color.
         if (name == HTML::AttributeNames::color) {
             if (auto parsed_value = parse_legacy_color_value(value); parsed_value.has_value()) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, CSS::CSSColorValue::create_from_color(*parsed_value, CSS::ColorSyntax::Legacy));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, CSS::ColorStyleValue::create_from_color(*parsed_value, CSS::ColorSyntax::Legacy));
             }
         }
         // https://html.spec.whatwg.org/multipage/rendering.html#the-hr-element-2:maps-to-the-dimension-property

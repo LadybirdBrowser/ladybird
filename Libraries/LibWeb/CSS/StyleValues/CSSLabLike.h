@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
 
-class CSSLabLike : public CSSColorValue {
+class CSSLabLike : public ColorStyleValue {
 public:
     template<typename T>
     static ValueComparingNonnullRefPtr<T const> create(ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingRefPtr<StyleValue const> alpha = {})
@@ -34,7 +34,7 @@ public:
 
 protected:
     CSSLabLike(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
-        : CSSColorValue(color_type, ColorSyntax::Modern)
+        : ColorStyleValue(color_type, ColorSyntax::Modern)
         , m_properties { .l = move(l), .a = move(a), .b = move(b), .alpha = move(alpha) }
     {
     }

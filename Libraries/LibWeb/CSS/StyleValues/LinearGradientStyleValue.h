@@ -13,7 +13,7 @@
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/Painting/GradientPainting.h>
 
 namespace Web::CSS {
