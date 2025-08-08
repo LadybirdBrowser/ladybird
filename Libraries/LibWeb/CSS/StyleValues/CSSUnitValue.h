@@ -9,12 +9,12 @@
 #include <AK/FlyString.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Parser/Token.h>
-#include <LibWeb/CSS/StyleValues/CSSNumericValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunitvalue
-class CSSUnitValue : public CSSNumericValue {
+class CSSUnitValue : public StyleValue {
 public:
     virtual ~CSSUnitValue() override = default;
 
@@ -27,7 +27,7 @@ public:
 
 protected:
     explicit CSSUnitValue(Type type)
-        : CSSNumericValue(type)
+        : StyleValue(type)
     {
     }
 };
