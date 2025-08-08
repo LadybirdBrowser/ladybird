@@ -27,12 +27,6 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CSSHSL.h>
-#include <LibWeb/CSS/StyleValues/CSSHWB.h>
-#include <LibWeb/CSS/StyleValues/CSSLCHLike.h>
-#include <LibWeb/CSS/StyleValues/CSSLabLike.h>
-#include <LibWeb/CSS/StyleValues/CSSLightDark.h>
-#include <LibWeb/CSS/StyleValues/CSSRGB.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorMixStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -49,14 +43,20 @@
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
+#include <LibWeb/CSS/StyleValues/HSLColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/HWBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LCHLikeColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LabLikeColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
@@ -1582,7 +1582,7 @@ RefPtr<StyleValue const> Parser::parse_rgb_color_value(TokenStream<ComponentValu
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return CSSRGB::create(red.release_nonnull(), green.release_nonnull(), blue.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
+    return RGBColorStyleValue::create(red.release_nonnull(), green.release_nonnull(), blue.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-hsl
@@ -1694,7 +1694,7 @@ RefPtr<StyleValue const> Parser::parse_hsl_color_value(TokenStream<ComponentValu
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return CSSHSL::create(h.release_nonnull(), s.release_nonnull(), l.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
+    return HSLColorStyleValue::create(h.release_nonnull(), s.release_nonnull(), l.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-hwb
@@ -1748,7 +1748,7 @@ RefPtr<StyleValue const> Parser::parse_hwb_color_value(TokenStream<ComponentValu
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return CSSHWB::create(h.release_nonnull(), w.release_nonnull(), b.release_nonnull(), alpha.release_nonnull());
+    return HWBColorStyleValue::create(h.release_nonnull(), w.release_nonnull(), b.release_nonnull(), alpha.release_nonnull());
 }
 
 Optional<Array<RefPtr<StyleValue const>, 4>> Parser::parse_lab_like_color_value(TokenStream<ComponentValue>& outer_tokens, StringView function_name)
@@ -1817,7 +1817,7 @@ RefPtr<StyleValue const> Parser::parse_lab_color_value(TokenStream<ComponentValu
 
     auto& color_values = *maybe_color_values;
 
-    return CSSLabLike::create<CSSLab>(color_values[0].release_nonnull(),
+    return LabLikeColorStyleValue::create<LabColorStyleValue>(color_values[0].release_nonnull(),
         color_values[1].release_nonnull(),
         color_values[2].release_nonnull(),
         color_values[3].release_nonnull());
@@ -1837,7 +1837,7 @@ RefPtr<StyleValue const> Parser::parse_oklab_color_value(TokenStream<ComponentVa
 
     auto& color_values = *maybe_color_values;
 
-    return CSSLabLike::create<CSSOKLab>(color_values[0].release_nonnull(),
+    return LabLikeColorStyleValue::create<OKLabColorStyleValue>(color_values[0].release_nonnull(),
         color_values[1].release_nonnull(),
         color_values[2].release_nonnull(),
         color_values[3].release_nonnull());
@@ -1905,7 +1905,7 @@ RefPtr<StyleValue const> Parser::parse_lch_color_value(TokenStream<ComponentValu
 
     auto& color_values = *maybe_color_values;
 
-    return CSSLCHLike::create<CSSLCH>(color_values[0].release_nonnull(),
+    return LCHLikeColorStyleValue::create<LCHColorStyleValue>(color_values[0].release_nonnull(),
         color_values[1].release_nonnull(),
         color_values[2].release_nonnull(),
         color_values[3].release_nonnull());
@@ -1925,7 +1925,7 @@ RefPtr<StyleValue const> Parser::parse_oklch_color_value(TokenStream<ComponentVa
 
     auto& color_values = *maybe_color_values;
 
-    return CSSLCHLike::create<CSSOKLCH>(color_values[0].release_nonnull(),
+    return LCHLikeColorStyleValue::create<OKLCHColorStyleValue>(color_values[0].release_nonnull(),
         color_values[1].release_nonnull(),
         color_values[2].release_nonnull(),
         color_values[3].release_nonnull());
@@ -2156,7 +2156,7 @@ RefPtr<StyleValue const> Parser::parse_light_dark_color_value(TokenStream<Compon
         return {};
 
     transaction.commit();
-    return CSSLightDark::create(light.release_nonnull(), dark.release_nonnull());
+    return LightDarkStyleValue::create(light.release_nonnull(), dark.release_nonnull());
 }
 
 // https://www.w3.org/TR/css-color-4/#color-syntax

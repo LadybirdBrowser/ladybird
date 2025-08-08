@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSRGB.h"
+#include "RGBColorStyleValue.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -14,7 +14,7 @@
 
 namespace Web::CSS {
 
-Optional<Color> CSSRGB::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Color> RGBColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto resolve_rgb_to_u8 = [&color_resolution_context](StyleValue const& style_value) -> Optional<u8> {
         // <number> | <percentage> | none
@@ -72,19 +72,19 @@ Optional<Color> CSSRGB::to_color(ColorResolutionContext color_resolution_context
     return Color(r_val.value(), g_val.value(), b_val.value(), alpha_val.value());
 }
 
-bool CSSRGB::equals(StyleValue const& other) const
+bool RGBColorStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;
     auto const& other_color = other.as_color();
     if (color_type() != other_color.color_type())
         return false;
-    auto const& other_rgb = static_cast<CSSRGB const&>(other_color);
+    auto const& other_rgb = static_cast<RGBColorStyleValue const&>(other_color);
     return m_properties == other_rgb.m_properties;
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-String CSSRGB::to_string(SerializationMode mode) const
+String RGBColorStyleValue::to_string(SerializationMode mode) const
 {
     if (mode != SerializationMode::ResolvedValue && m_properties.name.has_value())
         return m_properties.name.value().to_string().to_ascii_lowercase();

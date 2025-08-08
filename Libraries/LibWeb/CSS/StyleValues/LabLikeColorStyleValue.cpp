@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSLabLike.h"
+#include "LabLikeColorStyleValue.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -15,18 +15,18 @@
 
 namespace Web::CSS {
 
-bool CSSLabLike::equals(StyleValue const& other) const
+bool LabLikeColorStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
         return false;
     auto const& other_color = other.as_color();
     if (color_type() != other_color.color_type())
         return false;
-    auto const& other_lab_like = as<CSSLabLike>(other_color);
+    auto const& other_lab_like = as<LabLikeColorStyleValue>(other_color);
     return m_properties == other_lab_like.m_properties;
 }
 
-Optional<Color> CSSOKLab::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Color> OKLabColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto const l_val = resolve_with_reference_value(m_properties.l, 1.0, color_resolution_context.calculation_resolution_context);
     auto const a_val = resolve_with_reference_value(m_properties.a, 0.4, color_resolution_context.calculation_resolution_context);
@@ -40,7 +40,7 @@ Optional<Color> CSSOKLab::to_color(ColorResolutionContext color_resolution_conte
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-oklab-oklch
-String CSSOKLab::to_string(SerializationMode mode) const
+String OKLabColorStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     builder.append("oklab("sv);
@@ -59,7 +59,7 @@ String CSSOKLab::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-Optional<Color> CSSLab::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Color> LabColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto l_val = resolve_with_reference_value(m_properties.l, 100, color_resolution_context.calculation_resolution_context);
     auto a_val = resolve_with_reference_value(m_properties.a, 125, color_resolution_context.calculation_resolution_context);
@@ -73,7 +73,7 @@ Optional<Color> CSSLab::to_color(ColorResolutionContext color_resolution_context
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-lab-lch
-String CSSLab::to_string(SerializationMode mode) const
+String LabColorStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     builder.append("lab("sv);

@@ -11,9 +11,9 @@
 
 namespace Web::CSS {
 
-class CSSLCHLike : public ColorStyleValue {
+class LCHLikeColorStyleValue : public ColorStyleValue {
 public:
-    template<DerivedFrom<CSSLCHLike> T>
+    template<DerivedFrom<LCHLikeColorStyleValue> T>
     static ValueComparingNonnullRefPtr<T const> create(ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingRefPtr<StyleValue const> alpha = {})
     {
         // alpha defaults to 1
@@ -22,7 +22,7 @@ public:
 
         return adopt_ref(*new (nothrow) T({}, move(l), move(c), move(h), alpha.release_nonnull()));
     }
-    virtual ~CSSLCHLike() override = default;
+    virtual ~LCHLikeColorStyleValue() override = default;
 
     StyleValue const& l() const { return *m_properties.l; }
     StyleValue const& c() const { return *m_properties.c; }
@@ -32,7 +32,7 @@ public:
     virtual bool equals(StyleValue const& other) const override;
 
 protected:
-    CSSLCHLike(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> alpha)
+    LCHLikeColorStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : ColorStyleValue(color_type, ColorSyntax::Modern)
         , m_properties { .l = move(l), .c = move(c), .h = move(h), .alpha = move(alpha) }
     {
@@ -47,28 +47,26 @@ protected:
     } m_properties;
 };
 
-// https://drafts.css-houdini.org/css-typed-om-1/#csslch
-class CSSLCH final : public CSSLCHLike {
+class LCHColorStyleValue final : public LCHLikeColorStyleValue {
 public:
-    CSSLCH(Badge<CSSLCHLike>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> alpha)
-        : CSSLCHLike(ColorType::LCH, move(l), move(c), move(h), move(alpha))
+    LCHColorStyleValue(Badge<LCHLikeColorStyleValue>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> alpha)
+        : LCHLikeColorStyleValue(ColorType::LCH, move(l), move(c), move(h), move(alpha))
     {
     }
-    virtual ~CSSLCH() override = default;
+    virtual ~LCHColorStyleValue() override = default;
 
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
 
     virtual String to_string(SerializationMode) const override;
 };
 
-// https://drafts.css-houdini.org/css-typed-om-1/#cssoklch
-class CSSOKLCH final : public CSSLCHLike {
+class OKLCHColorStyleValue final : public LCHLikeColorStyleValue {
 public:
-    CSSOKLCH(Badge<CSSLCHLike>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> alpha)
-        : CSSLCHLike(ColorType::OKLCH, move(l), move(c), move(h), move(alpha))
+    OKLCHColorStyleValue(Badge<LCHLikeColorStyleValue>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> alpha)
+        : LCHLikeColorStyleValue(ColorType::OKLCH, move(l), move(c), move(h), move(alpha))
     {
     }
-    virtual ~CSSOKLCH() override = default;
+    virtual ~OKLCHColorStyleValue() override = default;
 
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
 
