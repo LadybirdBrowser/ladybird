@@ -493,6 +493,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
     if (auto* text_node = as_if<Layout::TextNode>(*m_current_node)) {
         if (!m_text_node_context.has_value())
             enter_text_node(*text_node);
+        else
+            m_text_node_context->is_first_chunk = false;
 
         auto chunk_opt = m_text_node_context->chunk_iterator.next();
         if (!chunk_opt.has_value()) {
