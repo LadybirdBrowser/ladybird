@@ -1,0 +1,8 @@
+// https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue
+// FIXME: [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+[Exposed=(Window, Worker)]
+interface CSSStyleValue {
+    stringifier;
+    [FIXME, Exposed=Window] static CSSStyleValue parse(USVString property, USVString cssText);
+    [FIXME, Exposed=Window] static sequence<CSSStyleValue> parseAll(USVString property, USVString cssText);
+};

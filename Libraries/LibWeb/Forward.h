@@ -252,6 +252,7 @@ class CSSStyleDeclaration;
 class CSSStyleProperties;
 class CSSStyleRule;
 class CSSStyleSheet;
+class CSSStyleValue;
 class CSSSupportsRule;
 class CursorStyleValue;
 class CustomIdentStyleValue;

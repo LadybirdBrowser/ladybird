@@ -128,6 +128,7 @@ set(SOURCES
     CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
     CSS/CSSStyleSheet.cpp
+    CSS/CSSStyleValue.cpp
     CSS/CSSSupportsRule.cpp
     CSS/CSSTransition.cpp
     CSS/Descriptor.cpp
