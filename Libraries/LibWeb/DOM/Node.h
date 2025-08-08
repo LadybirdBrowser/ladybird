@@ -285,7 +285,7 @@ public:
     WebIDL::ExceptionOr<void> normalize();
 
     Optional<String> node_value() const;
-    void set_node_value(Optional<String> const&);
+    WebIDL::ExceptionOr<void> set_node_value(Optional<String> const&);
 
     GC::Ptr<HTML::Navigable> navigable() const;
 
