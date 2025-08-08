@@ -54,6 +54,7 @@ static bool is_platform_object(Type const& type)
         "Credential"sv,
         "CredentialsContainer"sv,
         "CryptoKey"sv,
+        "CSSStyleValue"sv,
         "CustomStateSet"sv,
         "DataTransfer"sv,
         "Document"sv,

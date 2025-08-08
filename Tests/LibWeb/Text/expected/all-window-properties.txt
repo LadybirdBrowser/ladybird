@@ -60,6 +60,7 @@ CSSStyleDeclaration
 CSSStyleProperties
 CSSStyleRule
 CSSStyleSheet
+CSSStyleValue
 CSSSupportsRule
 CSSTransition
 CacheStorage

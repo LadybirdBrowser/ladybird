@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	CSSStyleValue.parse() with empty property name throws TypeError
-Fail	CSSStyleValue.parse() with unsupported property name throws TypeError
-Fail	CSSStyleValue.parse() with invalid value for valid property throws TypeError
-Fail	CSSStyleValue.parse() with invalid value for shorthand property throws TypeError
-Fail	CSSStyleValue.parse() with invalid value for custom property throws TypeError
+5 Pass
+Pass	CSSStyleValue.parse() with empty property name throws TypeError
+Pass	CSSStyleValue.parse() with unsupported property name throws TypeError
+Pass	CSSStyleValue.parse() with invalid value for valid property throws TypeError
+Pass	CSSStyleValue.parse() with invalid value for shorthand property throws TypeError
+Pass	CSSStyleValue.parse() with invalid value for custom property throws TypeError
