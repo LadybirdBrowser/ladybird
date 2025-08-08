@@ -14,7 +14,8 @@ namespace Web::TrustedTypes {
 
 using TrustedTypesVariants = WebIDL::ExceptionOr<Variant<
     GC::Root<TrustedHTML>,
-    GC::Root<TrustedScript>>>;
+    GC::Root<TrustedScript>,
+    GC::Root<TrustedScriptURL>>>;
 
 enum class TrustedTypeName {
     TrustedHTML,
@@ -44,6 +45,7 @@ public:
 
     WebIDL::ExceptionOr<GC::Root<TrustedHTML>> create_html(String const&, GC::RootVector<JS::Value> const&);
     WebIDL::ExceptionOr<GC::Root<TrustedScript>> create_script(String const&, GC::RootVector<JS::Value> const&);
+    WebIDL::ExceptionOr<GC::Root<TrustedScriptURL>> create_script_url(String const&, GC::RootVector<JS::Value> const&);
 
 private:
     explicit TrustedTypePolicy(JS::Realm&, String const&, TrustedTypePolicyOptions const&);
