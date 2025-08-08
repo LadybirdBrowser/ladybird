@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2025, Miguel Sacristán Izcue <miguel_tete17@hotmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +14,7 @@
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::DOM {
 
@@ -69,17 +71,43 @@ void Attr::set_owner_element(Element* owner_element)
     m_owner_element = owner_element;
 }
 
-// https://dom.spec.whatwg.org/#set-an-existing-attribute-value
-void Attr::set_value(String value)
+// FIXME: Trusted Types integration with DOM is still under review https://github.com/whatwg/dom/pull/1268
+// https://whatpr.org/dom/1268.html#set-an-existing-attribute-value
+WebIDL::ExceptionOr<void> Attr::set_value(String value)
 {
     // 1. If attribute’s element is null, then set attribute’s value to value.
     if (!owner_element()) {
         m_value = move(value);
     }
-    // 2. Otherwise, change attribute to value.
+    // 2. Otherwise:
     else {
-        change_attribute(move(value));
+        // 1. Let element be attribute’s element.
+        auto const* element = owner_element();
+
+        // 2. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value with
+        //    attribute’s local name, attribute’s namespace, element, and value.
+        auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
+            local_name(),
+            namespace_uri().has_value() ? Utf16String::from_utf8(namespace_uri().value()) : Optional<Utf16String>(),
+            *element,
+            Utf16String::from_utf8(value)));
+
+        // 3. If attribute’s element is null, then set attribute’s value to verifiedValue, and return.
+        if (!owner_element()) {
+            m_value = verified_value.to_utf8_but_should_be_ported_to_utf16();
+            return {};
+        }
+
+        // 4. If attribute’s element is not element, then return.
+        if (owner_element() != element) {
+            return {};
+        }
+
+        // 5. Change attribute to verifiedValue.
+        change_attribute(verified_value.to_utf8_but_should_be_ported_to_utf16());
     }
+
+    return {};
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-change
