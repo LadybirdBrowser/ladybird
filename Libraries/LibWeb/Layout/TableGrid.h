@@ -27,6 +27,7 @@ public:
         CSSPixels baseline { 0 };
         CSSPixels min_size { 0 };
         CSSPixels max_size { 0 };
+        bool is_collapsed { false };
         bool has_intrinsic_percentage { false };
         double intrinsic_percentage { 0 };
         // Store whether the row is constrained: https://www.w3.org/TR/css-tables-3/#constrainedness

@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<link rel="author" title="Aleks Totic" href="mailto:atotic@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS2/tables.html#dynamic-effects">
+<style>
+  table { background: red;}
+  td { background:green; padding: 0;}
+</style>
+<main>
+  <h1>Visibility collapse changes table height even when its height is fixed</h1>
+
+  <table style="height:150px;border-spacing: 0">
+    <tr>
+      <td style="width:50px">a</td>
+    </tr>
+    <tr style="visibility:collapse">
+      <td style="width:100px">hello</td>
+    </tr>
+    <tr>
+      <td>b</td>
+    </tr>
+  </table>
+</main>
+<script>
+  test(function() {
+    let t = document.querySelector("table");
+    assert_equals(t.offsetWidth, 100);
+    assert_equals(t.offsetHeight, 100);
+  }, "collapsed row shrinks table height");
+</script>
+

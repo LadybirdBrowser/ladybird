@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	row group visibility:collapse doesn't change table width
+Pass	row group visibility:collapse changes table height
+Pass	the first row should be collapsed
+Pass	the second row should be collapsed
+Pass	the third row stays the same

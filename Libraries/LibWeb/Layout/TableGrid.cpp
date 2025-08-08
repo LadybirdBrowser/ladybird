@@ -20,7 +20,7 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
     size_t max_cell_x = 0, max_cell_y = 0;
 
     // Implements https://html.spec.whatwg.org/multipage/tables.html#algorithm-for-processing-rows
-    auto process_row = [&](auto& row) {
+    auto process_row = [&](auto& row, Optional<Box&> row_group = {}) {
         if (y_height == y_current)
             y_height++;
 
@@ -59,7 +59,11 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
             }
         }
 
-        rows.append(Row { row });
+        rows.append(Row {
+            .box = row,
+            .is_collapsed = row.computed_values().visibility() == CSS::Visibility::Collapse
+                || (row_group.has_value() && row_group->computed_values().visibility() == CSS::Visibility::Collapse),
+        });
         y_current++;
     };
 
@@ -78,7 +82,7 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
 
     auto process_row_group = [&](auto& row_group) {
         for_each_child_box_matching(row_group, is_table_row, [&](auto& row_box) {
-            process_row(row_box);
+            process_row(row_box, row_group);
             return IterationDecision::Continue;
         });
     };
