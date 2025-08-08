@@ -2,6 +2,8 @@ include(libweb_generators)
 include(vulkan)
 include(skia)
 
+find_package(serial_cpp CONFIG REQUIRED)
+
 find_package(unofficial-angle CONFIG)
 if(unofficial-angle_FOUND)
     set(ANGLE_TARGETS unofficial::angle::libEGL unofficial::angle::libGLESv2)
@@ -1061,7 +1063,7 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS})
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia serial_cpp::serial_cpp ${ANGLE_TARGETS})
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
