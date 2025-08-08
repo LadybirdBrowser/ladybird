@@ -7,11 +7,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibURL/Parser.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
@@ -208,7 +208,7 @@ ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(CSSPi
     }();
 
     if (base_url.has_value()) {
-        if (auto resolved_url = ::URL::Parser::basic_parse(m_url.url(), *base_url); resolved_url.has_value())
+        if (auto resolved_url = DOMURL::parse(m_url.url(), *base_url); resolved_url.has_value())
             return ImageStyleValue::create(*resolved_url);
     }
 
