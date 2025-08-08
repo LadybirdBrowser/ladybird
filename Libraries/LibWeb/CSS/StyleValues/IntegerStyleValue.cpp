@@ -5,6 +5,7 @@
  */
 
 #include "IntegerStyleValue.h"
+#include <LibWeb/CSS/Parser/ComponentValue.h>
 
 namespace Web::CSS {
 
@@ -15,7 +16,7 @@ String IntegerStyleValue::to_string(SerializationMode) const
 
 Vector<Parser::ComponentValue> IntegerStyleValue::tokenize() const
 {
-    return { Parser::Token::create_number(Number { Number::Type::Integer, value() }) };
+    return { Parser::Token::create_number(Number { Number::Type::Integer, static_cast<double>(m_value) }) };
 }
 
 }

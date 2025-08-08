@@ -1494,7 +1494,7 @@ Optional<HashMap<FlyString, IntegerOrCalculated>> ComputedProperties::font_featu
             auto const& feature_tag = tag_value->as_open_type_tagged();
 
             if (feature_tag.value()->is_integer()) {
-                result.set(feature_tag.tag(), feature_tag.value()->as_integer().value());
+                result.set(feature_tag.tag(), feature_tag.value()->as_integer().integer());
             } else {
                 VERIFY(feature_tag.value()->is_calculated());
                 result.set(feature_tag.tag(), IntegerOrCalculated { feature_tag.value()->as_calculated() });
@@ -1521,7 +1521,7 @@ Optional<HashMap<FlyString, NumberOrCalculated>> ComputedProperties::font_variat
             auto const& axis_tag = tag_value->as_open_type_tagged();
 
             if (axis_tag.value()->is_number()) {
-                result.set(axis_tag.tag(), axis_tag.value()->as_number().value());
+                result.set(axis_tag.tag(), axis_tag.value()->as_number().number());
             } else {
                 VERIFY(axis_tag.value()->is_calculated());
                 result.set(axis_tag.tag(), NumberOrCalculated { axis_tag.value()->as_calculated() });

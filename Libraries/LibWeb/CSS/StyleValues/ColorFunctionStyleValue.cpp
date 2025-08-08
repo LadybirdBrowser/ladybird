@@ -130,11 +130,11 @@ String ColorFunctionStyleValue::to_string(SerializationMode mode) const
 
     bool const is_alpha_required = [&]() {
         if (alpha->is_number())
-            return alpha->as_number().value() < 1;
+            return alpha->as_number().number() < 1;
         return true;
     }();
 
-    if (alpha->is_number() && alpha->as_number().value() < 0)
+    if (alpha->is_number() && alpha->as_number().number() < 0)
         alpha = NumberStyleValue::create(0);
 
     if (is_alpha_required) {

@@ -1151,8 +1151,8 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         // https://drafts.csswg.org/css-values/#combine-integers
         // Interpolation of <integer> is defined as Vresult = round((1 - p) × VA + p × VB);
         // that is, interpolation happens in the real number space as for <number>s, and the result is converted to an <integer> by rounding to the nearest integer.
-        auto interpolated_value = interpolate_raw(from.as_integer().value(), to.as_integer().value(), delta);
-        return IntegerStyleValue::create(round_to<i64>(interpolated_value));
+        auto interpolated_value = interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta);
+        return IntegerStyleValue::create(interpolated_value);
     }
     case StyleValue::Type::Length: {
         auto const& from_length = from.as_length().length();
