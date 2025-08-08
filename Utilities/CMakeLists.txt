@@ -1,7 +1,10 @@
 if(WIN32)
+    # FIXME: Add support for LibLine on Windows
     lagom_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+    lagom_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain)
 else()
     lagom_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+    lagom_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain)
 endif()
 
 # FIXME: Increase support for building targets on Windows
@@ -34,7 +37,6 @@ if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
     target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
 endif()
 
-lagom_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain)
 lagom_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 
 if (NOT CMAKE_SKIP_INSTALL_RULES)
