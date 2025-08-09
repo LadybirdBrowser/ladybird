@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<title>Test showPicker() disabled/readonly requirement</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+<body></body>
+<script type=module>
+import inputTypes from "./input-types.js";
+
+for (const inputType of inputTypes) {
+  test(() => {
+    const input = document.createElement("input");
+    input.setAttribute("type", inputType);
+    input.setAttribute("disabled", "");
+
+    assert_throws_dom('InvalidStateError', () => { input.showPicker(); });
+  }, `input[type=${inputType}] showPicker() throws when disabled`);
+}
+
+const noReadonlySupport = ['button', 'checkbox', 'color', 'file',
+'hidden', 'image', 'radio', 'range', 'reset', 'submit'];
+for (const inputType of inputTypes) {
+  if (!noReadonlySupport.includes(inputType)) {
+    promise_test(async () => {
+      const input = document.createElement("input");
+      input.setAttribute("type", inputType);
+      input.setAttribute("readonly", "");
+
+      await test_driver.bless('show picker');
+      assert_throws_dom('InvalidStateError', () => { input.showPicker(); });
+
+      assert_true(navigator.userActivation.isActive, 'User activation is not consumed for readonly showPicker() call');
+    }, `input[type=${inputType}] showPicker() throws when readonly`);
+  } else {
+    promise_test(async () => {
+      const input = document.createElement("input");
+      input.setAttribute("type", inputType);
+      input.setAttribute("readonly", "");
+      document.body.appendChild(input);
+
+      await test_driver.bless('show picker');
+      input.showPicker();
+      input.blur();
+      input.remove();
+
+      assert_false(navigator.userActivation.isActive, 'User activation is consumed for non-readonly showPicker() call');
+    }, `input[type=${inputType}] showPicker() doesn't throw when readonly`);
+  }
+}
+</script>
