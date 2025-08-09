@@ -117,6 +117,8 @@ public:
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element%3Asuffering-from-being-missing
     virtual bool suffering_from_being_missing() const override;
 
+    virtual bool is_mutable() const override;
+
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
 

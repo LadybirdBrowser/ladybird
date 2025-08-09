@@ -134,6 +134,9 @@ public:
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element%3Asuffering-from-being-missing
     virtual bool suffering_from_being_missing() const override;
 
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-mutable
+    virtual bool is_mutable() const override;
+
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);
 
@@ -147,7 +150,6 @@ private:
 
     void create_shadow_tree_if_needed();
 
-    void handle_readonly_attribute(Optional<String> const& value);
     void handle_maxlength_attribute();
 
     void queue_firing_input_event();

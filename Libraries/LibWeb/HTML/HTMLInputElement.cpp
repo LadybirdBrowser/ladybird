@@ -893,13 +893,6 @@ void HTMLInputElement::handle_maxlength_attribute()
     }
 }
 
-// https://html.spec.whatwg.org/multipage/input.html#attr-input-readonly
-void HTMLInputElement::handle_readonly_attribute(Optional<String> const& maybe_value)
-{
-    // The readonly attribute is a boolean attribute that controls whether or not the user can edit the form control. When specified, the element is not mutable.
-    set_is_mutable(!maybe_value.has_value() || !is_allowed_to_be_readonly(m_type));
-}
-
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element:attr-input-placeholder-3
 static bool is_allowed_to_have_placeholder(HTML::HTMLInputElement::TypeAttributeState state)
 {
@@ -1066,7 +1059,6 @@ void HTMLInputElement::create_text_input_shadow_tree()
     MUST(element->append_child(*m_inner_text_element));
 
     m_text_node = realm().create<DOM::Text>(document(), move(initial_value));
-    handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     if (type_state() == TypeAttributeState::Password)
         m_text_node->set_is_password_input({}, true);
     handle_maxlength_attribute();
@@ -1414,8 +1406,6 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
             m_placeholder_text_node->set_data(Utf16String::from_utf8(placeholder()));
             update_placeholder_visibility();
         }
-    } else if (name == HTML::AttributeNames::readonly) {
-        handle_readonly_attribute(value);
     } else if (name == HTML::AttributeNames::src) {
         handle_src_attribute(value.value_or({})).release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::alt) {
@@ -3561,6 +3551,18 @@ void HTMLInputElement::set_is_open(bool is_open)
 
     m_is_open = is_open;
     invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetIsOpen);
+}
+
+bool HTMLInputElement::is_mutable() const
+{
+    return
+        // https://html.spec.whatwg.org/multipage/input.html#the-input-element:concept-fe-mutable-3
+        // A select element that is not disabled is mutable.
+        enabled()
+
+        // https://html.spec.whatwg.org/multipage/input.html#the-readonly-attribute:concept-fe-mutable
+        // The readonly attribute is a boolean attribute that controls whether or not the user can edit the form control. When specified, the element is not mutable.
+        && !(has_attribute(AttributeNames::readonly) && is_allowed_to_be_readonly(m_type));
 }
 
 }

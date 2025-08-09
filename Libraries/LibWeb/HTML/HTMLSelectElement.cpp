@@ -429,7 +429,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
         return;
 
     // 2. If element is not mutable, then return.
-    if (!enabled())
+    if (!is_mutable())
         return;
 
     // 3. Consume user activation given element's relevant global object.
@@ -494,7 +494,7 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
     // The showPicker() method steps are:
 
     // 1. If this is not mutable, then throw an "InvalidStateError" DOMException.
-    if (!enabled())
+    if (!is_mutable())
         return WebIDL::InvalidStateError::create(realm(), "Element is not mutable"_utf16);
 
     // 2. If this's relevant settings object's origin is not same origin with this's relevant settings object's top-level origin,
@@ -738,6 +738,13 @@ bool HTMLSelectElement::suffering_from_being_missing() const
     // missing.
     auto selected_options = this->selected_options();
     return has_attribute(HTML::AttributeNames::required) && (selected_options->length() == 0 || (selected_options->length() == 1 && selected_options->item(0) == placeholder_label_option()));
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:concept-fe-mutable
+bool HTMLSelectElement::is_mutable() const
+{
+    // A select element that is not disabled is mutable.
+    return enabled();
 }
 
 }

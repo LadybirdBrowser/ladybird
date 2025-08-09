@@ -252,6 +252,8 @@ public:
     virtual bool suffering_from_a_step_mismatch() const override;
     virtual bool suffering_from_bad_input() const override;
 
+    virtual bool is_mutable() const override;
+
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
 
@@ -320,7 +322,6 @@ private:
     void set_checked_within_group();
 
     void handle_maxlength_attribute();
-    void handle_readonly_attribute(Optional<String> const& value);
     WebIDL::ExceptionOr<void> handle_src_attribute(String const& value);
 
     void user_interaction_did_change_input_value();
