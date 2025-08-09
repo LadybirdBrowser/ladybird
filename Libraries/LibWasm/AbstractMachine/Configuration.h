@@ -106,7 +106,7 @@ public:
         u32 sources_and_destination;
     };
 
-    Value regs[Dispatch::RegisterOrStack::CountRegisters] = {
+    Array<Value, Dispatch::RegisterOrStack::CountRegisters> regs = {
         Value(0),
         Value(0),
         Value(0),

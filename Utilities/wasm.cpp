@@ -282,6 +282,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool attempt_instantiate = false;
     bool export_all_imports = false;
     [[maybe_unused]] bool wasi = false;
+    Optional<u64> specific_function_address;
     ByteString exported_function_to_execute;
     Vector<ParsedValue> values_to_push;
     Vector<ByteString> modules_to_link_in;
@@ -292,6 +293,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     parser.add_positional_argument(filename, "File name to parse", "file");
     parser.add_option(print, "Print the parsed module", "print", 'p');
     parser.add_option(print_compiled, "Print the compiled module", "print-compiled");
+    parser.add_option(specific_function_address, "Optional compiled function address to print", "print-function", 'f', "address");
     parser.add_option(attempt_instantiate, "Attempt to instantiate the module", "instantiate", 'i');
     parser.add_option(exported_function_to_execute, "Attempt to execute the named exported function from the module (implies -i)", "execute", 'e', "name");
     parser.add_option(export_all_imports, "Export noop functions corresponding to imports", "export-noop");
@@ -497,7 +499,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto module_instance = result.release_value();
 
         if (print_compiled) {
-            for (auto address : module_instance->functions()) {
+            Span<Wasm::FunctionAddress const> functions = module_instance->functions();
+            Wasm::FunctionAddress spec = specific_function_address.value_or(0);
+
+            if (specific_function_address.has_value())
+                functions = { &spec, 1 };
+            for (auto address : functions) {
                 auto function = machine.store().get(address)->get_pointer<Wasm::WasmFunction>();
                 if (!function)
                     continue;
