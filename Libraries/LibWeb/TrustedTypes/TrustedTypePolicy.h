@@ -23,6 +23,8 @@ enum class TrustedTypeName {
     TrustedScriptURL,
 };
 
+Utf16String to_string(TrustedTypeName);
+
 enum class ThrowIfCallbackMissing {
     Yes,
     No

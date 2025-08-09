@@ -33,6 +33,19 @@ void TrustedTypePolicy::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+Utf16String to_string(TrustedTypeName trusted_type_name)
+{
+    switch (trusted_type_name) {
+    case TrustedTypeName::TrustedHTML:
+        return "TrustedHTML"_utf16;
+    case TrustedTypeName::TrustedScript:
+        return "TrustedScript"_utf16;
+    case TrustedTypeName::TrustedScriptURL:
+        return "TrustedScriptURL"_utf16;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createhtml
 WebIDL::ExceptionOr<GC::Root<TrustedHTML>> TrustedTypePolicy::create_html(Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
 {
