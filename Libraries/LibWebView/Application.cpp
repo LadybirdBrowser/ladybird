@@ -389,6 +389,9 @@ ErrorOr<void> Application::launch_image_decoder_server()
     m_image_decoder_client->on_death = [this]() {
         m_image_decoder_client = nullptr;
 
+        if (Core::EventLoop::current().was_exit_requested())
+            return;
+
         if (auto result = launch_image_decoder_server(); result.is_error()) {
             dbgln("Failed to restart image decoder: {}", result.error());
             VERIFY_NOT_REACHED();
