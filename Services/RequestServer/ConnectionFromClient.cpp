@@ -366,24 +366,49 @@ Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transp
 
 Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
 {
+    auto client_socket = create_client_socket();
+    if (client_socket.is_error()) {
+        dbgln("Failed to create client socket: {}", client_socket.error());
+        return IPC::File {};
+    }
+
+    return client_socket.release_value();
+}
+
+Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)
+{
+    Vector<IPC::File> files;
+    files.ensure_capacity(count);
+
+    for (size_t i = 0; i < count; ++i) {
+        auto client_socket = create_client_socket();
+        if (client_socket.is_error()) {
+            dbgln("Failed to create client socket: {}", client_socket.error());
+            return Vector<IPC::File> {};
+        }
+
+        files.unchecked_append(client_socket.release_value());
+    }
+
+    return files;
+}
+
+ErrorOr<IPC::File> ConnectionFromClient::create_client_socket()
+{
     // TODO: Mach IPC
 
     int socket_fds[2] {};
-    if (auto err = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds); err.is_error()) {
-        dbgln("Failed to create client socketpair: {}", err.error());
-        return IPC::File {};
-    }
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
 
-    auto client_socket_or_error = Core::LocalSocket::adopt_fd(socket_fds[0]);
-    if (client_socket_or_error.is_error()) {
+    auto client_socket = Core::LocalSocket::adopt_fd(socket_fds[0]);
+    if (client_socket.is_error()) {
         close(socket_fds[0]);
         close(socket_fds[1]);
-        dbgln("Failed to adopt client socket: {}", client_socket_or_error.error());
-        return IPC::File {};
+        return client_socket.release_error();
     }
-    auto client_socket = client_socket_or_error.release_value();
+
     // Note: A ref is stored in the static s_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(make<IPC::Transport>(move(client_socket))));
+    auto client = adopt_ref(*new ConnectionFromClient(make<IPC::Transport>(client_socket.release_value())));
 
     return IPC::File::adopt_fd(socket_fds[1]);
 }
