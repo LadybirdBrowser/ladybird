@@ -39,6 +39,8 @@ public:
     bool stop_request(Badge<Request>, Request&);
     bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
 
+    Function<void()> on_request_server_died;
+
 private:
     virtual void die() override;
 
