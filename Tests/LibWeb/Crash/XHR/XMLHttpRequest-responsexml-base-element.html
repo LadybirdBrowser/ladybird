@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script>
+    const client = new XMLHttpRequest();
+    client.open("GET", "../../Assets/minimal.xml");
+    client.send();
+    client.onload = () => {
+        client.responseXML.documentElement.remove();
+        const newBase = document.createElement("base");
+        newBase.href = "http://example.com";
+        client.responseXML.appendChild(newBase);
+    };
+</script>
