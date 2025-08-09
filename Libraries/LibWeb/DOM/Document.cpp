@@ -637,14 +637,14 @@ GC::Ptr<Selection::Selection> Document::get_selection() const
 WebIDL::ExceptionOr<void> Document::write(Vector<String> const& text)
 {
     // The document.write(...text) method steps are to run the document write steps with this, text, false, and "Document write".
-    return run_the_document_write_steps(text, AddLineFeed::No, TrustedTypes::InjectionSink::DocumentWrite);
+    return run_the_document_write_steps(text, AddLineFeed::No, TrustedTypes::InjectionSink::Documentwrite);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-writeln
 WebIDL::ExceptionOr<void> Document::writeln(Vector<String> const& text)
 {
     // The document.writeln(...text) method steps are to run the document write steps with this, text, true, and "Document writeln".
-    return run_the_document_write_steps(text, AddLineFeed::Yes, TrustedTypes::InjectionSink::DocumentWriteln);
+    return run_the_document_write_steps(text, AddLineFeed::Yes, TrustedTypes::InjectionSink::Documentwriteln);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#document-write-steps
