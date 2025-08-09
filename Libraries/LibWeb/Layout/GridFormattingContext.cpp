@@ -2605,9 +2605,21 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
     }
 
     // In all cases, the size suggestion is additionally clamped by the maximum size in the affected axis, if it’s definite.
-    if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length()) {
-        auto maximum_size = css_maximum_size.length().to_px(item.box);
-        result = min(result, maximum_size);
+    auto const& maximum_size = item.maximum_size(dimension);
+    if (maximum_size.is_length()) {
+        auto maximum_size_px = maximum_size.length().to_px(item.box);
+        result = min(result, maximum_size_px);
+    }
+
+    // If the item is a compressible replaced element, and has a definite preferred size or maximum size in the relevant axis,
+    // the size suggestion is capped by those sizes; for this purpose, any indefinite percentages in these sizes are resolved
+    // against zero (and considered definite).
+    // FIXME: "compressible replaced element" includes more elements than is_replaced_box().
+    auto const& preferred_size = item.preferred_size(dimension);
+    if (item.box->is_replaced_box() && (preferred_size.is_percentage() || maximum_size.is_percentage())) {
+        // NOTE: Implements "for this purpose, any indefinite percentages in these sizes are resolved
+        //       against zero (and considered definite)." part.
+        result = 0;
     }
 
     return result;
