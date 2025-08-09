@@ -3,10 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <title>New Tab</title>
+    <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
     <style>
-        html {
-            color-scheme: light dark;
+        body {
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            height: 100vh;
+            width: 100vw;
+            padding: 1rem;
+        }
+
+        nav {
+            display: flex;
+            justify-content: end;
+            gap: 1rem;
+        }
+
+        main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            gap: 1rem;
         }
     </style>
 </head>
+<body>
+    <nav>
+        <a href="about:settings">Settings</a>
+        <a href="about:version">Version</a>
+    </nav>
+    <main>
+        <picture>
+            <source
+                srcset="resource://ladybird/logos/white-purple.png"
+                media="(prefers-color-scheme: dark)"
+            />
+            <img width="414" src="resource://ladybird/logos/black-purple.png" />
+        </picture>
+    </main>
+</body>
 </html>

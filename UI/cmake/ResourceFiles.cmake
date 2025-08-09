@@ -103,6 +103,12 @@ set(CONFIG_RESOURCES
 )
 list(TRANSFORM CONFIG_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/default-config/")
 
+set(LOGOS
+    white-purple.png
+    black-purple.png
+)
+list(TRANSFORM LOGOS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/logos/")
+
 function(copy_resource_set subdir)
     cmake_parse_arguments(PARSE_ARGV 1 "COPY" "" "TARGET;DESTINATION" "RESOURCES")
     set(inputs ${COPY_RESOURCES})
@@ -184,6 +190,10 @@ function(copy_resources_to_build base_directory bundle_target)
     )
 
     copy_resource_set(ladybird/default-config RESOURCES ${CONFIG_RESOURCES}
+        DESTINATION ${base_directory} TARGET ${bundle_target}
+    )
+
+    copy_resource_set(ladybird/logos RESOURCES ${LOGOS}
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
