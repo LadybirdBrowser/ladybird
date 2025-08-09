@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
@@ -376,7 +377,10 @@ void XMLDocumentBuilder::document_end()
         // FIXME: Set the Document object's navigation id to null.
 
         // Set the Document's load timing info's load event end time to the current high resolution time given window.
-        document->load_timing_info().dom_content_loaded_event_end_time = HighResolutionTime::current_high_resolution_time(window);
+        document->load_timing_info().load_event_end_time = HighResolutionTime::current_high_resolution_time(window);
+
+        // Create and queue the navigation timing entry for the completed document.
+        NavigationTiming::PerformanceNavigationTiming::create_and_queue_navigation_timing_entry_for_document(*document);
 
         // Assert: Document's page showing is false.
         VERIFY(!document->page_showing());
