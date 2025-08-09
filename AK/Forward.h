@@ -18,6 +18,9 @@ namespace Detail {
 template<size_t inline_capacity>
 class ByteBuffer;
 
+template<typename CharType>
+class GenericLexer;
+
 class StringData;
 class Utf16StringData;
 
@@ -36,7 +39,6 @@ class CountingStream;
 class Duration;
 class Error;
 class FlyString;
-class GenericLexer;
 class IPv4Address;
 class IPv6Address;
 class JsonArray;
@@ -62,6 +64,9 @@ class Utf8CodePointIterator;
 class Utf8View;
 
 using ByteBuffer = Detail::ByteBuffer<32>;
+
+using GenericLexer = Detail::GenericLexer<char>;
+using Utf16GenericLexer = Detail::GenericLexer<char16_t>;
 
 template<typename T>
 class Span;
@@ -207,6 +212,7 @@ using AK::TrailingCodePointTransformation;
 using AK::Traits;
 using AK::UnixDateTime;
 using AK::Utf16FlyString;
+using AK::Utf16GenericLexer;
 using AK::Utf16String;
 using AK::Utf16View;
 using AK::Utf32CodePointIterator;

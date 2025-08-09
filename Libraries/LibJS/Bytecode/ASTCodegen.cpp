@@ -444,8 +444,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> StringLiteral::generate
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> RegExpLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto source_index = generator.intern_string(m_pattern);
-    auto flags_index = generator.intern_string(m_flags);
+    auto source_index = generator.intern_string(m_pattern.to_utf8_but_should_be_ported_to_utf16());
+    auto flags_index = generator.intern_string(m_flags.to_utf8_but_should_be_ported_to_utf16());
     auto regex_index = generator.intern_regex(Bytecode::ParsedRegex {
         .regex = m_parsed_regex,
         .pattern = m_parsed_pattern,
@@ -1171,7 +1171,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
 
         if (is<StringLiteral>(property->key())) {
             auto& string_literal = static_cast<StringLiteral const&>(property->key());
-            Bytecode::IdentifierTableIndex key_name = generator.intern_identifier(MUST(FlyString::from_utf8(string_literal.value().bytes())));
+            Bytecode::IdentifierTableIndex key_name = generator.intern_identifier(string_literal.value());
 
             Optional<ScopedOperand> value;
             if (property_kind == Bytecode::Op::PropertyKind::ProtoSetter) {
@@ -1179,9 +1179,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             } else {
                 auto identifier = string_literal.value();
                 if (property_kind == Bytecode::Op::PropertyKind::Getter)
-                    identifier = MUST(String::formatted("get {}", identifier));
+                    identifier = Utf16String::formatted("get {}", identifier);
                 else if (property_kind == Bytecode::Op::PropertyKind::Setter)
-                    identifier = MUST(String::formatted("set {}", identifier));
+                    identifier = Utf16String::formatted("set {}", identifier);
+
                 auto name = generator.intern_identifier(identifier);
                 value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name));
             }
@@ -1769,7 +1770,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
 
     Optional<Bytecode::StringTableIndex> expression_string_index;
     if (auto expression_string = this->expression_string(); expression_string.has_value())
-        expression_string_index = generator.intern_string(expression_string.release_value());
+        expression_string_index = generator.intern_string(expression_string->to_utf8_but_should_be_ported_to_utf16());
 
     bool has_spread = any_of(arguments(), [](auto& argument) { return argument.is_spread; });
     auto dst = choose_dst(generator, preferred_dst);

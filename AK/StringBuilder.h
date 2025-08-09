@@ -85,7 +85,6 @@ public:
     ErrorOr<FlyString> to_fly_string() const;
 
     Utf16String to_utf16_string();
-    Utf16String to_utf16_string_without_validation();
 
     [[nodiscard]] ErrorOr<ByteBuffer> to_byte_buffer() const;
 
@@ -125,11 +124,14 @@ private:
     Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction();
 
     ErrorOr<void> will_append(size_t);
+    ErrorOr<void> ensure_storage_is_utf16();
+
     u8* data();
     u8 const* data() const;
 
     Buffer m_buffer;
     Mode m_mode { DEFAULT_MODE };
+    bool m_utf16_builder_is_ascii { true };
 };
 
 }

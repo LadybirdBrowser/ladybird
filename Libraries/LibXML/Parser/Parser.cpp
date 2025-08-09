@@ -5,6 +5,7 @@
  */
 
 #include <AK/StringConversions.h>
+#include <AK/Utf8View.h>
 #include <LibXML/DOM/Document.h>
 #include <LibXML/Parser/Parser.h>
 
@@ -523,7 +524,7 @@ ErrorOr<void, ParseError> Parser::parse_processing_instruction()
     auto target = TRY(parse_processing_instruction_target());
     ByteString data;
     if (auto result = skip_whitespace(Required::Yes); !result.is_error())
-        data = m_lexer.consume_until("?>");
+        data = m_lexer.consume_until("?>"sv);
     TRY(expect("?>"sv));
 
     append_processing_instruction(target, data);
@@ -1714,7 +1715,7 @@ ErrorOr<StringView, ParseError> Parser::parse_cdata_section()
     auto accept = accept_rule();
 
     auto section_start = m_lexer.tell();
-    while (!m_lexer.next_is("]]>")) {
+    while (!m_lexer.next_is("]]>"sv)) {
         if (m_lexer.is_eof())
             break;
         m_lexer.ignore();

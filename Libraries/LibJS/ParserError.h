@@ -22,7 +22,7 @@ struct JS_API ParserError {
 
     String to_string() const;
     ByteString to_byte_string() const;
-    ByteString source_location_hint(StringView source, char const spacer = ' ', char const indicator = '^') const;
+    ByteString source_location_hint(Utf16View const& source, char spacer = ' ', char indicator = '^') const;
 };
 
 }

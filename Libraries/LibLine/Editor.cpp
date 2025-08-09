@@ -84,23 +84,23 @@ Configuration Configuration::from_config(StringView libname)
                 key = key_lexer.consume_escaped_character();
                 escape = false;
             } else {
-                if (key_lexer.next_is("alt+")) {
+                if (key_lexer.next_is("alt+"sv)) {
                     alt = key_lexer.consume_specific("alt+"sv);
                     continue;
                 }
-                if (key_lexer.next_is("^[")) {
+                if (key_lexer.next_is("^["sv)) {
                     alt = key_lexer.consume_specific("^["sv);
                     continue;
                 }
-                if (key_lexer.next_is("^")) {
+                if (key_lexer.next_is("^"sv)) {
                     has_ctrl = key_lexer.consume_specific("^"sv);
                     continue;
                 }
-                if (key_lexer.next_is("ctrl+")) {
+                if (key_lexer.next_is("ctrl+"sv)) {
                     has_ctrl = key_lexer.consume_specific("ctrl+"sv);
                     continue;
                 }
-                if (key_lexer.next_is("\\")) {
+                if (key_lexer.next_is("\\"sv)) {
                     escape = true;
                     continue;
                 }

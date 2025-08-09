@@ -508,7 +508,7 @@ Optional<DateAndTime> parse_a_local_date_and_time_string(StringView input_view)
         return {};
     // 4. If position is beyond the end of input or if the character at position is neither a U+0054 LATIN CAPITAL
     //    LETTER T character (T) nor a U+0020 SPACE character, then fail. Otherwise, move position forwards one character.
-    if (!input.consume_specific("T") && !input.consume_specific(" "))
+    if (!input.consume_specific('T') && !input.consume_specific(' '))
         return {};
     // 5. Parse a time component to obtain hour, minute, and second. If this returns nothing, then fail.
     auto hour_minute_second = parse_a_time_component(input);

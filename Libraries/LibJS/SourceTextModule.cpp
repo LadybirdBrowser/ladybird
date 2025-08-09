@@ -296,7 +296,7 @@ Vector<Utf16FlyString> SourceTextModule::get_exported_names(VM& vm, HashTable<Mo
         VERIFY(entry.export_name.has_value());
 
         // c. Append e.[[ExportName]] to exportedNames.
-        exported_names.empend(Utf16FlyString::from_utf8(entry.export_name.value()));
+        exported_names.empend(entry.export_name.value());
     }
 
     // 7. For each ExportEntry Record e of module.[[IndirectExportEntries]], do
@@ -308,7 +308,7 @@ Vector<Utf16FlyString> SourceTextModule::get_exported_names(VM& vm, HashTable<Mo
         VERIFY(entry.export_name.has_value());
 
         // c. Append e.[[ExportName]] to exportedNames.
-        exported_names.empend(Utf16FlyString::from_utf8(entry.export_name.value()));
+        exported_names.empend(entry.export_name.value());
     }
 
     // 8. For each ExportEntry Record e of module.[[StarExportEntries]], do
@@ -346,7 +346,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
         VERIFY(entry.export_name.has_value());
 
         // a. Let resolution be module.ResolveExport(e.[[ExportName]]).
-        auto resolution = resolve_export(vm, Utf16FlyString::from_utf8(entry.export_name.value()));
+        auto resolution = resolve_export(vm, entry.export_name.value());
 
         // b. If resolution is either null or AMBIGUOUS, throw a SyntaxError exception.
         if (!resolution.is_valid())
@@ -371,8 +371,6 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
 
     // 7. For each ImportEntry Record in of module.[[ImportEntries]], do
     for (auto const& import_entry : m_import_entries) {
-        auto local_name = Utf16FlyString::from_utf8(import_entry.local_name);
-
         // a. Let importedModule be GetImportedModule(module, in.[[ModuleRequest]]).
         auto imported_module = get_imported_module(import_entry.module_request());
 
@@ -382,14 +380,14 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
             auto namespace_ = imported_module->get_module_namespace(vm);
 
             // ii. Perform ! env.CreateImmutableBinding(in.[[LocalName]], true).
-            MUST(environment->create_immutable_binding(vm, local_name, true));
+            MUST(environment->create_immutable_binding(vm, import_entry.local_name, true));
 
             // iii. Perform ! env.InitializeBinding(in.[[LocalName]], namespace, normal).
-            MUST(environment->initialize_binding(vm, local_name, namespace_, Environment::InitializeBindingHint::Normal));
+            MUST(environment->initialize_binding(vm, import_entry.local_name, namespace_, Environment::InitializeBindingHint::Normal));
         }
         // c. Else,
         else {
-            auto import_name = Utf16FlyString::from_utf8(import_entry.import_name.value());
+            auto const& import_name = import_entry.import_name.value();
 
             // i. Let resolution be importedModule.ResolveExport(in.[[ImportName]]).
             auto resolution = imported_module->resolve_export(vm, import_name);
@@ -404,15 +402,15 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
                 auto namespace_ = resolution.module->get_module_namespace(vm);
 
                 // 2. Perform ! env.CreateImmutableBinding(in.[[LocalName]], true).
-                MUST(environment->create_immutable_binding(vm, local_name, true));
+                MUST(environment->create_immutable_binding(vm, import_entry.local_name, true));
 
                 // 3. Perform ! env.InitializeBinding(in.[[LocalName]], namespace, normal).
-                MUST(environment->initialize_binding(vm, local_name, namespace_, Environment::InitializeBindingHint::Normal));
+                MUST(environment->initialize_binding(vm, import_entry.local_name, namespace_, Environment::InitializeBindingHint::Normal));
             }
             // iv. Else,
             else {
                 // 1. Perform env.CreateImportBinding(in.[[LocalName]], resolution.[[Module]], resolution.[[BindingName]]).
-                MUST(environment->create_import_binding(local_name, resolution.module, resolution.export_name));
+                MUST(environment->create_import_binding(import_entry.local_name, resolution.module, resolution.export_name));
             }
         }
     }
@@ -458,7 +456,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
     // NOTE: Due to the use of MUST with `create_mutable_binding` and `initialize_binding` below,
     //       an exception should not result from `for_each_var_declared_identifier`.
     MUST(m_ecmascript_code->for_each_var_declared_identifier([&](Identifier const& identifier) {
-        auto name = Utf16FlyString::from_utf8(identifier.string());
+        auto const& name = identifier.string();
 
         // i. If dn is not an element of declaredVarNames, then
         if (!declared_var_names.contains_slow(name)) {
@@ -484,7 +482,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
     MUST(m_ecmascript_code->for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
         // a. For each element dn of the BoundNames of d, do
         MUST(declaration.for_each_bound_identifier([&](Identifier const& identifier) {
-            auto name = Utf16FlyString::from_utf8(identifier.string());
+            auto const& name = identifier.string();
 
             // i. If IsConstantDeclaration of d is true, then
             if (declaration.is_constant_declaration()) {
@@ -505,12 +503,12 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
                 // 1. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
                 // NOTE: Special case if the function is a default export of an anonymous function
                 //       it has name "*default*" but internally should have name "default".
-                FlyString function_name = function_declaration.name();
+                auto function_name = function_declaration.name();
                 if (function_name == ExportStatement::local_name_for_default)
-                    function_name = "default"_fly_string;
+                    function_name = "default"_utf16_fly_string;
                 auto function = ECMAScriptFunctionObject::create_from_function_node(
                     function_declaration,
-                    Utf16FlyString::from_utf8(function_name),
+                    move(function_name),
                     realm,
                     environment,
                     private_environment);
@@ -528,7 +526,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
         VERIFY(m_default_export->has_statement());
 
         if (auto const& statement = m_default_export->statement(); !is<Declaration>(statement)) {
-            auto name = Utf16FlyString::from_utf8(m_default_export->entries()[0].local_or_import_name.value());
+            auto const& name = m_default_export->entries()[0].local_or_import_name.value();
             dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] Adding default export to lexical declarations: local name: {}, Expression: {}", name, statement.class_name());
 
             // 1. Perform ! env.CreateMutableBinding(dn, false).
@@ -581,7 +579,7 @@ ResolvedBinding SourceTextModule::resolve_export(VM& vm, Utf16FlyString const& e
         return ResolvedBinding {
             ResolvedBinding::Type::BindingName,
             this,
-            Utf16FlyString::from_utf8(entry.local_or_import_name.value()),
+            entry.local_or_import_name.value(),
         };
     }
 
@@ -613,7 +611,7 @@ ResolvedBinding SourceTextModule::resolve_export(VM& vm, Utf16FlyString const& e
             // FIXME: What does this mean? / How do we check this
 
             // 2. Return importedModule.ResolveExport(e.[[ImportName]], resolveSet).
-            return imported_module->resolve_export(vm, Utf16FlyString::from_utf8(entry.local_or_import_name.value()), resolve_set);
+            return imported_module->resolve_export(vm, entry.local_or_import_name.value(), resolve_set);
         }
     }
 

@@ -64,7 +64,7 @@ JS_DEFINE_NATIVE_FUNCTION(ShadowRealmPrototype::import_value)
     auto object = TRY(typed_this_object(vm));
 
     // 3. Let specifierString be ? ToString(specifier).
-    auto specifier_string = TRY(specifier.to_string(vm));
+    auto specifier_string = TRY(specifier.to_utf16_string(vm));
 
     // 4. If Type(exportName) is not String, throw a TypeError exception.
     if (!export_name.is_string())
@@ -77,7 +77,7 @@ JS_DEFINE_NATIVE_FUNCTION(ShadowRealmPrototype::import_value)
     auto& eval_realm = object->shadow_realm();
 
     // 7. Return ShadowRealmImportValue(specifierString, exportName, callerRealm, evalRealm).
-    return shadow_realm_import_value(vm, move(specifier_string), export_name.as_string().utf8_string(), *caller_realm, eval_realm);
+    return shadow_realm_import_value(vm, specifier_string, export_name.as_string().utf16_string(), *caller_realm, eval_realm);
 }
 
 }

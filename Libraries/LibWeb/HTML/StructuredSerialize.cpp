@@ -605,6 +605,11 @@ public:
             return JS::PrimitiveString::create(m_vm, string);
         };
 
+        auto decode_utf16_string = [&]() {
+            auto string = m_serialized.decode<Utf16String>();
+            return JS::PrimitiveString::create(m_vm, string);
+        };
+
         auto decode_big_int = [&]() {
             auto string = m_serialized.decode<String>();
             return JS::BigInt::create(m_vm, MUST(::Crypto::SignedBigInteger::from_base(10, string)));
@@ -665,8 +670,8 @@ public:
         // 11. Otherwise, if serialized.[[Type]] is "RegExp", then set value to a new RegExp object in targetRealm whose [[RegExpMatcher]] internal slot value is serialized.[[RegExpMatcher]],
         //     whose [[OriginalSource]] internal slot value is serialized.[[OriginalSource]], and whose [[OriginalFlags]] internal slot value is serialized.[[OriginalFlags]].
         case ValueTag::RegExpObject: {
-            auto pattern = decode_string();
-            auto flags = decode_string();
+            auto pattern = decode_utf16_string();
+            auto flags = decode_utf16_string();
 
             value = MUST(JS::regexp_create(m_vm, pattern, flags));
             break;

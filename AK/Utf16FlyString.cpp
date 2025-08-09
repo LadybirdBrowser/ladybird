@@ -41,7 +41,7 @@ Optional<Utf16FlyString> Utf16FlyString::create_fly_string_from_cache(ViewType c
             return Utf16String::from_utf8_without_validation(string);
     } else {
         if (string.length_in_code_units() <= Detail::MAX_SHORT_STRING_BYTE_COUNT && string.is_ascii())
-            return Utf16String::from_utf16_without_validation(string);
+            return Utf16String::from_utf16(string);
     }
 
     if (auto it = all_utf16_fly_strings().find(string.hash(), [&](auto const& entry) { return *entry == string; }); it != all_utf16_fly_strings().end())
@@ -69,13 +69,6 @@ Utf16FlyString Utf16FlyString::from_utf16(Utf16View const& string)
     if (auto result = create_fly_string_from_cache(string); result.has_value())
         return result.release_value();
     return Utf16String::from_utf16(string);
-}
-
-Utf16FlyString Utf16FlyString::from_utf16_without_validation(Utf16View const& string)
-{
-    if (auto result = create_fly_string_from_cache(string); result.has_value())
-        return result.release_value();
-    return Utf16String::from_utf16_without_validation(string);
 }
 
 Utf16FlyString::Utf16FlyString(Utf16String const& string)

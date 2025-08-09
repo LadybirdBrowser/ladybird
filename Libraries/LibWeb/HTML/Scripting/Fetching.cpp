@@ -76,7 +76,7 @@ String module_type_from_module_request(JS::ModuleRequest const& module_request)
             module_type = ""_string; // FIXME: This should be null!
         // 2. Otherwise, set moduleType to entry.[[Value]].
         else
-            module_type = entry.value;
+            module_type = entry.value.to_utf8_but_should_be_ported_to_utf16();
     }
 
     // 3. Return moduleType.

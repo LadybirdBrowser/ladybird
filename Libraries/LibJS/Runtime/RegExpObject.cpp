@@ -19,12 +19,14 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(RegExpObject);
 
-Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(StringView flags)
+Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(Utf16View const& flags)
 {
     bool d = false, g = false, i = false, m = false, s = false, u = false, y = false, v = false;
     auto options = RegExpObject::default_flags;
 
-    for (auto ch : flags) {
+    for (size_t index = 0; index < flags.length_in_code_units(); ++index) {
+        auto ch = flags.code_unit_at(index);
+
         switch (ch) {
         case 'd':
             if (d)
@@ -88,18 +90,17 @@ Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(Str
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets)
+ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pattern, bool unicode, bool unicode_sets)
 {
     if (unicode && unicode_sets)
         return ParseRegexPatternError { MUST(String::formatted(ErrorType::RegExpObjectIncompatibleFlags.message(), 'u', 'v')) };
 
-    auto utf16_pattern = Utf16String::from_utf8(pattern);
     StringBuilder builder;
 
     // FIXME: We need to escape multi-byte code units for LibRegex to parse since the lexer there doesn't handle unicode.
     auto previous_code_unit_was_backslash = false;
-    for (size_t i = 0; i < utf16_pattern.length_in_code_units(); ++i) {
-        u16 code_unit = utf16_pattern.code_unit_at(i);
+    for (size_t i = 0; i < pattern.length_in_code_units(); ++i) {
+        u16 code_unit = pattern.code_unit_at(i);
 
         if (code_unit > 0x7f) {
             // Incorrectly escaping this code unit will result in a wildly different regex than intended
@@ -123,7 +124,7 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, 
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ThrowCompletionOr<String> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets)
+ThrowCompletionOr<String> parse_regex_pattern(VM& vm, Utf16View const& pattern, bool unicode, bool unicode_sets)
 {
     auto result = parse_regex_pattern(pattern, unicode, unicode_sets);
     if (result.is_error())
@@ -137,7 +138,7 @@ GC::Ref<RegExpObject> RegExpObject::create(Realm& realm)
     return realm.create<RegExpObject>(realm.intrinsics().regexp_prototype());
 }
 
-GC::Ref<RegExpObject> RegExpObject::create(Realm& realm, Regex<ECMA262> regex, String pattern, String flags)
+GC::Ref<RegExpObject> RegExpObject::create(Realm& realm, Regex<ECMA262> regex, Utf16String pattern, Utf16String flags)
 {
     return realm.create<RegExpObject>(move(regex), move(pattern), move(flags), realm.intrinsics().regexp_prototype());
 }
@@ -147,10 +148,12 @@ RegExpObject::RegExpObject(Object& prototype)
 {
 }
 
-static RegExpObject::Flags to_flag_bits(StringView flags)
+static RegExpObject::Flags to_flag_bits(Utf16View const& flags)
 {
     RegExpObject::Flags flag_bits = static_cast<RegExpObject::Flags>(0);
-    for (auto ch : flags) {
+
+    for (size_t i = 0; i < flags.length_in_code_units(); ++i) {
+        auto ch = flags.code_unit_at(i);
         switch (ch) {
 #define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char) \
     case #flag_char[0]:                                          \
@@ -165,7 +168,7 @@ static RegExpObject::Flags to_flag_bits(StringView flags)
     return flag_bits;
 }
 
-RegExpObject::RegExpObject(Regex<ECMA262> regex, String pattern, String flags, Object& prototype)
+RegExpObject::RegExpObject(Regex<ECMA262> regex, Utf16String pattern, Utf16String flags, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_pattern(move(pattern))
     , m_flags(move(flags))
@@ -189,14 +192,14 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
     // 1. If pattern is undefined, let P be the empty String.
     // 2. Else, let P be ? ToString(pattern).
     auto pattern = pattern_value.is_undefined()
-        ? String {}
-        : TRY(pattern_value.to_string(vm));
+        ? Utf16String {}
+        : TRY(pattern_value.to_utf16_string(vm));
 
     // 3. If flags is undefined, let F be the empty String.
     // 4. Else, let F be ? ToString(flags).
     auto flags = flags_value.is_undefined()
-        ? String {}
-        : TRY(flags_value.to_string(vm));
+        ? Utf16String {}
+        : TRY(flags_value.to_utf16_string(vm));
 
     // 5. If F contains any code unit other than "d", "g", "i", "m", "s", "u", "v", or "y", or if F contains any code unit more than once, throw a SyntaxError exception.
     // 6. If F contains "i", let i be true; else let i be false.
@@ -271,9 +274,9 @@ String RegExpObject::escape_regexp_pattern() const
 
     // FIXME: Check the 'u' and 'v' flags and escape accordingly
     StringBuilder builder;
-    auto pattern = Utf8View { m_pattern };
     auto escaped = false;
-    for (auto code_point : pattern) {
+
+    for (auto code_point : m_pattern) {
         if (escaped) {
             escaped = false;
             builder.append_code_point('\\');

@@ -7,21 +7,21 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibJS/Module.h>
 
 namespace JS {
 
 struct ModuleWithSpecifier {
-    String specifier;       // [[Specifier]]
+    Utf16String specifier;  // [[Specifier]]
     GC::Ref<Module> module; // [[Module]]
 };
 
 // https://tc39.es/ecma262/#importattribute-record
 struct ImportAttribute {
-    String key;
-    String value;
+    Utf16String key;
+    Utf16String value;
 
     bool operator==(ImportAttribute const&) const = default;
 };
@@ -30,19 +30,19 @@ struct ImportAttribute {
 struct ModuleRequest {
     ModuleRequest() = default;
 
-    explicit ModuleRequest(FlyString specifier)
+    explicit ModuleRequest(Utf16FlyString specifier)
         : module_specifier(move(specifier))
     {
     }
 
-    ModuleRequest(FlyString specifier, Vector<ImportAttribute> attributes);
+    ModuleRequest(Utf16FlyString specifier, Vector<ImportAttribute> attributes);
 
-    void add_attribute(String key, String value)
+    void add_attribute(Utf16String key, Utf16String value)
     {
         attributes.empend(move(key), move(value));
     }
 
-    FlyString module_specifier;         // [[Specifier]]
+    Utf16FlyString module_specifier;    // [[Specifier]]
     Vector<ImportAttribute> attributes; // [[Attributes]]
 
     bool operator==(ModuleRequest const&) const = default;

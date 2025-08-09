@@ -915,7 +915,7 @@ static Optional<String> expression_identifier(Expression const& expression)
 {
     if (expression.is_identifier()) {
         auto const& identifier = static_cast<Identifier const&>(expression);
-        return identifier.string().to_string();
+        return identifier.string().view().to_utf8_but_should_be_ported_to_utf16();
     }
 
     if (expression.is_numeric_literal()) {

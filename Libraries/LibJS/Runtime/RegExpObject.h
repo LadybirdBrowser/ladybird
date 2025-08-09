@@ -19,12 +19,12 @@ namespace JS {
 JS_API ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_create(VM&, Value pattern, Value flags);
 ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_alloc(VM&, FunctionObject& new_target);
 
-Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(StringView flags);
+Result<regex::RegexOptions<ECMAScriptFlags>, String> regex_flags_from_string(Utf16View const& flags);
 struct ParseRegexPatternError {
     String error;
 };
-ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets);
-ThrowCompletionOr<String> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets);
+ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pattern, bool unicode, bool unicode_sets);
+ThrowCompletionOr<String> parse_regex_pattern(VM& vm, Utf16View const& pattern, bool unicode, bool unicode_sets);
 
 class RegExpObject : public Object {
     JS_OBJECT(RegExpObject, Object);
@@ -51,7 +51,7 @@ public:
     };
 
     static GC::Ref<RegExpObject> create(Realm&);
-    static GC::Ref<RegExpObject> create(Realm&, Regex<ECMA262> regex, String pattern, String flags);
+    static GC::Ref<RegExpObject> create(Realm&, Regex<ECMA262> regex, Utf16String pattern, Utf16String flags);
 
     ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_initialize(VM&, Value pattern, Value flags);
     String escape_regexp_pattern() const;
@@ -59,8 +59,8 @@ public:
     virtual void initialize(Realm&) override;
     virtual ~RegExpObject() override = default;
 
-    String const& pattern() const { return m_pattern; }
-    String const& flags() const { return m_flags; }
+    Utf16String const& pattern() const { return m_pattern; }
+    Utf16String const& flags() const { return m_flags; }
     Flags flag_bits() const { return m_flag_bits; }
     Regex<ECMA262> const& regex() { return *m_regex; }
     Regex<ECMA262> const& regex() const { return *m_regex; }
@@ -72,13 +72,13 @@ public:
 
 private:
     RegExpObject(Object& prototype);
-    RegExpObject(Regex<ECMA262> regex, String pattern, String flags, Object& prototype);
+    RegExpObject(Regex<ECMA262> regex, Utf16String pattern, Utf16String flags, Object& prototype);
 
     virtual bool is_regexp_object() const final { return true; }
     virtual void visit_edges(Visitor&) override;
 
-    String m_pattern;
-    String m_flags;
+    Utf16String m_pattern;
+    Utf16String m_flags;
     Flags m_flag_bits { 0 };
     bool m_legacy_features_enabled { false }; // [[LegacyFeaturesEnabled]]
     // Note: This is initialized in RegExpAlloc, but will be non-null afterwards

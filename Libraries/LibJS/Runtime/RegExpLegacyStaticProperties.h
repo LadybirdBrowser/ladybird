@@ -26,20 +26,20 @@ public:
     Optional<Utf16String> const& last_match() const
     {
         if (!m_last_match_string.has_value())
-            m_last_match_string = Utf16String::from_utf16_without_validation(m_last_match);
+            m_last_match_string = Utf16String::from_utf16(m_last_match);
         return m_last_match_string;
     }
     Optional<Utf16String> const& last_paren() const { return m_last_paren; }
     Optional<Utf16String> const& left_context() const
     {
         if (!m_left_context_string.has_value())
-            m_left_context_string = Utf16String::from_utf16_without_validation(m_left_context);
+            m_left_context_string = Utf16String::from_utf16(m_left_context);
         return m_left_context_string;
     }
     Optional<Utf16String> const& right_context() const
     {
         if (!m_right_context_string.has_value())
-            m_right_context_string = Utf16String::from_utf16_without_validation(m_right_context);
+            m_right_context_string = Utf16String::from_utf16(m_right_context);
         return m_right_context_string;
     }
     Optional<Utf16String> const& $1() const { return m_$1; }

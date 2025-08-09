@@ -283,7 +283,7 @@ public:
     Function<HashMap<PropertyKey, Value>(SourceTextModule&)> host_get_import_meta_properties;
     Function<void(Object*, SourceTextModule const&)> host_finalize_import_meta;
 
-    Function<Vector<String>()> host_get_supported_import_attributes;
+    Function<Vector<Utf16String>()> host_get_supported_import_attributes;
 
     void set_dynamic_imports_allowed(bool value) { m_dynamic_imports_allowed = value; }
 
@@ -351,7 +351,7 @@ private:
         bool has_once_started_linking { false };
     };
 
-    StoredModule* get_stored_module(ImportedModuleReferrer const& script_or_module, ByteString const& filename, String const& type);
+    StoredModule* get_stored_module(ImportedModuleReferrer const& script_or_module, ByteString const& filename, Utf16String const& type);
 
     Vector<StoredModule> m_loaded_modules;
 

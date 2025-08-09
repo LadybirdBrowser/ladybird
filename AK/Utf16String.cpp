@@ -33,7 +33,7 @@ Utf16String Utf16String::from_utf8_with_replacement_character(StringView utf8_st
             builder.append_code_point(code_point);
     }
 
-    return builder.to_utf16_string_without_validation();
+    return builder.to_utf16_string();
 }
 
 Utf16String Utf16String::from_utf8_without_validation(StringView utf8_string)
@@ -51,7 +51,7 @@ Utf16String Utf16String::from_utf8_without_validation(StringView utf8_string)
     return Utf16String { Detail::Utf16StringData::from_utf8(utf8_string, Detail::Utf16StringData::AllowASCIIStorage::Yes) };
 }
 
-Utf16String Utf16String::from_utf16_without_validation(Utf16View const& utf16_string)
+Utf16String Utf16String::from_utf16(Utf16View const& utf16_string)
 {
     if (utf16_string.length_in_code_units() <= Detail::MAX_SHORT_STRING_BYTE_COUNT && utf16_string.is_ascii()) {
         Utf16String string;
@@ -86,6 +86,23 @@ Utf16String Utf16String::from_utf32(Utf32View const& utf32_string)
     return Utf16String { Detail::Utf16StringData::from_utf32(utf32_string) };
 }
 
+Utf16String Utf16String::from_string_builder(Badge<StringBuilder>, StringBuilder& builder)
+{
+    auto view = builder.utf16_string_view();
+
+    if (view.length_in_code_units() <= Detail::MAX_SHORT_STRING_BYTE_COUNT && view.has_ascii_storage()) {
+        Utf16String string;
+        string.m_value.short_ascii_string = Detail::ShortString::create_with_byte_count(view.length_in_code_units());
+
+        auto result = view.bytes().copy_to(string.m_value.short_ascii_string.storage);
+        VERIFY(result == view.length_in_code_units());
+
+        return string;
+    }
+
+    return Utf16String { Detail::Utf16StringData::from_string_builder(builder) };
+}
+
 ErrorOr<Utf16String> Utf16String::from_ipc_stream(Stream& stream, size_t length_in_code_units, bool is_ascii)
 {
     if (is_ascii && length_in_code_units <= Detail::MAX_SHORT_STRING_BYTE_COUNT) {
@@ -102,11 +119,6 @@ ErrorOr<Utf16String> Utf16String::from_ipc_stream(Stream& stream, size_t length_
     }
 
     return Utf16String { TRY(Detail::Utf16StringData::from_ipc_stream(stream, length_in_code_units, is_ascii)) };
-}
-
-Utf16String Utf16String::from_string_builder_without_validation(StringBuilder& builder)
-{
-    return Utf16String { Detail::Utf16StringData::from_string_builder(builder) };
 }
 
 Utf16String Utf16String::repeated(u32 code_point, size_t count)
@@ -135,14 +147,14 @@ Utf16String Utf16String::repeated(u32 code_point, size_t count)
 
 Utf16String Utf16String::to_well_formed() const
 {
-    if (utf16_view().validate(AllowLonelySurrogates::No))
+    if (utf16_view().validate())
         return *this;
     return Utf16String { Detail::Utf16StringData::to_well_formed(*this) };
 }
 
 String Utf16String::to_well_formed_utf8() const
 {
-    if (utf16_view().validate(AllowLonelySurrogates::No))
+    if (utf16_view().validate())
         return to_utf8(AllowLonelySurrogates::No);
     return to_well_formed().to_utf8(AllowLonelySurrogates::No);
 }

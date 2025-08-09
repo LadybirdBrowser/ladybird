@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/StringView.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
 
@@ -70,9 +71,9 @@ struct Tag {
     Type type;
 };
 
-ByteString kind_name(Kind);
-ByteString class_name(Class);
-ByteString type_name(Type);
+StringView kind_name(Kind);
+StringView class_name(Class);
+StringView type_name(Type);
 
 Optional<UnixDateTime> parse_utc_time(StringView);
 Optional<UnixDateTime> parse_generalized_time(StringView);

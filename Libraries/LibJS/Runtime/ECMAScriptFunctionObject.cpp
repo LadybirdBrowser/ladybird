@@ -210,7 +210,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
         parameter.binding.visit(
             [&](Identifier const& identifier) {
-                if (m_parameter_names.set(Utf16FlyString::from_utf8(identifier.string()), identifier.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) != AK::HashSetResult::InsertedNewEntry)
+                if (m_parameter_names.set(identifier.string(), identifier.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) != AK::HashSetResult::InsertedNewEntry)
                     m_has_duplicates = true;
                 else if (!identifier.is_local())
                     ++parameters_in_environment;
@@ -221,7 +221,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
                 // NOTE: Nothing in the callback throws an exception.
                 MUST(pattern->for_each_bound_identifier([&](auto& identifier) {
-                    if (m_parameter_names.set(Utf16FlyString::from_utf8(identifier.string()), identifier.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) != AK::HashSetResult::InsertedNewEntry)
+                    if (m_parameter_names.set(identifier.string(), identifier.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) != AK::HashSetResult::InsertedNewEntry)
                         m_has_duplicates = true;
                     else if (!identifier.is_local())
                         ++parameters_in_environment;
@@ -253,9 +253,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     if (scope_body) {
         // NOTE: Nothing in the callback throws an exception.
         MUST(scope_body->for_each_var_function_declaration_in_reverse_order([&](FunctionDeclaration const& function) {
-            auto name = Utf16FlyString::from_utf8(function.name());
-
-            if (function_names.set(name) == AK::HashSetResult::InsertedNewEntry)
+            if (function_names.set(function.name()) == AK::HashSetResult::InsertedNewEntry)
                 m_functions_to_initialize.append(function);
         }));
 
@@ -325,7 +323,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
             // c. For each element n of varNames, do
             MUST(scope_body->for_each_var_declared_identifier([&](Identifier const& id) {
                 // i. If instantiatedVarNames does not contain n, then
-                if (instantiated_var_names.set(Utf16FlyString::from_utf8(id.string()), id.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) == AK::HashSetResult::InsertedNewEntry) {
+                if (instantiated_var_names.set(id.string(), id.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) == AK::HashSetResult::InsertedNewEntry) {
                     // 1. Append n to instantiatedVarNames.
                     // Following steps will be executed in function_declaration_instantiation:
                     // 2. Perform ! env.CreateMutableBinding(n, false).
@@ -356,7 +354,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
         // e. For each element n of varNames, do
         if (scope_body) {
             MUST(scope_body->for_each_var_declared_identifier([&](Identifier const& id) {
-                auto name = Utf16FlyString::from_utf8(id.string());
+                auto const& name = id.string();
 
                 // 1. Append n to instantiatedVarNames.
                 // Following steps will be executed in function_declaration_instantiation:
@@ -380,7 +378,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     // B.3.2.1 Changes to FunctionDeclarationInstantiation, https://tc39.es/ecma262/#sec-web-compat-functiondeclarationinstantiation
     if (!m_strict && scope_body) {
         MUST(scope_body->for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) {
-            auto function_name = Utf16FlyString::from_utf8(function_declaration.name());
+            auto function_name = function_declaration.name();
             if (parameter_bindings.contains(function_name))
                 return;
 
