@@ -140,6 +140,12 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::File image_decoder_sock
         on_image_decoder_connection(image_decoder_socket);
 }
 
+void ConnectionFromClient::connect_to_request_server(IPC::File request_server_socket)
+{
+    if (on_request_server_connection)
+        on_request_server_connection(request_server_socket);
+}
+
 void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer)
 {
     auto page = this->page(page_id);

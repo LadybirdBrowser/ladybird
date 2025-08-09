@@ -215,7 +215,13 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
 
     additional_headers.set("User-Agent", ResourceLoader::the().user_agent().to_byte_string());
 
-    m_websocket = ResourceLoader::the().request_client().websocket_connect(url_record, origin_string, protocol_byte_strings, {}, additional_headers);
+    auto request_client = ResourceLoader::the().request_client();
+
+    // FIXME: We could put this request in a queue until the client connection is re-established.
+    if (!request_client)
+        return Error::from_string_literal("RequestServer is currently unavailable");
+
+    m_websocket = request_client->websocket_connect(url_record, origin_string, protocol_byte_strings, {}, additional_headers);
 
     m_websocket->on_open = [weak_this = make_weak_ptr<WebSocket>()] {
         if (!weak_this)
