@@ -5,10 +5,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/Quad.h>
+#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
+#include <LibWeb/SVG/AttributeNames.h>
+#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/SVGImageElement.h>
+#include <LibWeb/SVG/SVGUseElement.h>
+#include <LibWeb/SVG/TagNames.h>
 
 namespace Web::Painting {
 
@@ -117,14 +124,20 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             .paint_style_or_color = *paint_style,
             .winding_rule = winding_rule,
         });
-    } else if (auto fill_color = graphics_element.fill_color(); fill_color.has_value()) {
-        context.display_list_recorder().fill_path({
-            .path = closed_path(),
-            .paint_style_or_color = fill_color->with_opacity(fill_opacity),
-            .winding_rule = winding_rule,
-        });
+    } else {
+        // Fallback
+        // Pattern not handled; fall back to color if available
+        if (auto fill_color = graphics_element.fill_color(); fill_color.has_value()) {
+            dbgln("[SVGPathPaintable] using COLOR for FILL {}", fill_color->to_string());
+            context.display_list_recorder().fill_path({
+                .path = closed_path(),
+                .paint_style_or_color = fill_color->with_opacity(fill_opacity),
+                .winding_rule = winding_rule,
+            });
+        } else {
+            dbgln("[SVGPathPaintable] no FILL applied");
+        }
     }
-
     Gfx::Path::CapStyle cap_style;
     switch (graphics_element.stroke_linecap().value_or(CSS::InitialValues::stroke_linecap())) {
     case CSS::StrokeLinecap::Butt:

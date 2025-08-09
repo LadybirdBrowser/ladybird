@@ -14,6 +14,7 @@
 #include <LibWeb/SVG/SVGAnimatedTransformList.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
+#include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/SVG/ViewBox.h>
 
