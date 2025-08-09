@@ -373,8 +373,31 @@ ErrorOr<void> Application::launch_services()
 
 ErrorOr<void> Application::launch_request_server()
 {
-    // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
     m_request_server_client = TRY(launch_request_server_process());
+
+    m_request_server_client->on_request_server_died = [this]() {
+        m_request_server_client = nullptr;
+
+        if (Core::EventLoop::current().was_exit_requested())
+            return;
+
+        if (auto result = launch_request_server(); result.is_error()) {
+            warnln("\033[31;1mUnable to launch replacement RequestServer: {}\033[0m", result.error());
+            VERIFY_NOT_REACHED();
+        }
+
+        auto client_count = WebContentClient::client_count();
+        auto request_server_sockets = m_request_server_client->send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClients>(client_count);
+        if (!request_server_sockets || request_server_sockets->sockets().is_empty()) {
+            warnln("\033Failed to connect {} new clients to ImageDecoder\033[0m", client_count);
+            VERIFY_NOT_REACHED();
+        }
+
+        WebContentClient::for_each_client([sockets = request_server_sockets->take_sockets()](WebContentClient& client) mutable {
+            client.async_connect_to_request_server(sockets.take_last());
+            return IterationDecision::Continue;
+        });
+    };
 
     if (m_browser_options.dns_settings.has_value())
         m_settings.set_dns_settings(m_browser_options.dns_settings.value(), true);
@@ -388,6 +411,9 @@ ErrorOr<void> Application::launch_image_decoder_server()
 
     m_image_decoder_client->on_death = [this]() {
         m_image_decoder_client = nullptr;
+
+        if (Core::EventLoop::current().was_exit_requested())
+            return;
 
         if (auto result = launch_image_decoder_server(); result.is_error()) {
             dbgln("Failed to restart image decoder: {}", result.error());
@@ -535,7 +561,11 @@ void Application::process_did_exit(Process&& process)
         }
         break;
     case ProcessType::RequestServer:
-        dbgln_if(WEBVIEW_PROCESS_DEBUG, "FIXME: Restart request server");
+        if (auto client = process.client<Requests::RequestClient>(); client.has_value()) {
+            dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart request server");
+            if (auto on_request_server_died = move(client->on_request_server_died))
+                on_request_server_died();
+        }
         break;
     case ProcessType::WebContent:
         if (auto client = process.client<WebContentClient>(); client.has_value()) {

@@ -53,6 +53,17 @@ ResourceLoader::ResourceLoader(GC::Heap& heap, NonnullRefPtr<Requests::RequestCl
     , m_preferred_languages({ "en-US"_string })
     , m_navigator_compatibility_mode(default_navigator_compatibility_mode)
 {
+    m_request_client->on_request_server_died = [this]() {
+        m_request_client = nullptr;
+    };
+}
+
+void ResourceLoader::set_client(NonnullRefPtr<Requests::RequestClient> request_client)
+{
+    m_request_client = move(request_client);
+    m_request_client->on_request_server_died = [this]() {
+        m_request_client = nullptr;
+    };
 }
 
 void ResourceLoader::prefetch_dns(URL::URL const& url)
@@ -65,7 +76,9 @@ void ResourceLoader::prefetch_dns(URL::URL const& url)
         return;
     }
 
-    m_request_client->ensure_connection(url, RequestServer::CacheLevel::ResolveOnly);
+    // FIXME: We could put this request in a queue until the client connection is re-established.
+    if (m_request_client)
+        m_request_client->ensure_connection(url, RequestServer::CacheLevel::ResolveOnly);
 }
 
 void ResourceLoader::preconnect(URL::URL const& url)
@@ -78,7 +91,9 @@ void ResourceLoader::preconnect(URL::URL const& url)
         return;
     }
 
-    m_request_client->ensure_connection(url, RequestServer::CacheLevel::CreateConnection);
+    // FIXME: We could put this request in a queue until the client connection is re-established.
+    if (m_request_client)
+        m_request_client->ensure_connection(url, RequestServer::CacheLevel::CreateConnection);
 }
 
 static HashMap<LoadRequest, NonnullRefPtr<Resource>> s_resource_cache;
@@ -530,6 +545,12 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
 
     if (!headers.contains("User-Agent"))
         headers.set("User-Agent", m_user_agent.to_byte_string());
+
+    // FIXME: We could put this request in a queue until the client connection is re-established.
+    if (!m_request_client) {
+        log_failure(request, "RequestServer is currently unavailable"sv);
+        return nullptr;
+    }
 
     auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), headers, request.body(), proxy);
     if (!protocol_request) {
