@@ -13,12 +13,13 @@
 #include <AK/Types.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
 class HTMLTokenizer;
 
-class HTMLToken {
+class WEB_API HTMLToken {
     AK_MAKE_NONCOPYABLE(HTMLToken);
     AK_MAKE_DEFAULT_MOVABLE(HTMLToken);
 

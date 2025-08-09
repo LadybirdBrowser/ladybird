@@ -10,10 +10,11 @@
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Export.h>
 
 namespace Web::WebDriver {
 
-class HeapTimer : public JS::Cell {
+class WEB_API HeapTimer : public JS::Cell {
     GC_CELL(HeapTimer, JS::Cell);
     GC_DECLARE_ALLOCATOR(HeapTimer);
 

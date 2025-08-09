@@ -7,12 +7,13 @@
 #pragma once
 
 #include <LibIPC/ConnectionToServer.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
 #include <LibWeb/Worker/WebWorkerServerEndpoint.h>
 
 namespace Web::HTML {
 
-class WebWorkerClient final
+class WEB_API WebWorkerClient final
     : public IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>
     , public WebWorkerClientEndpoint {
     C_OBJECT_ABSTRACT(WebWorkerClient);

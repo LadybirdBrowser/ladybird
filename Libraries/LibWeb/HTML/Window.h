@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WindowGlobalMixin.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/BarProp.h>
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
@@ -64,7 +65,7 @@ struct SpecifierResolution {
     bool specifier_is_null_or_url_like_that_is_special { false };
 };
 
-class Window final
+class WEB_API Window final
     : public DOM::EventTarget
     , public GlobalEventHandlers
     , public WindowEventHandlers

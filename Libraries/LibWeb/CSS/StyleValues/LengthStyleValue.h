@@ -11,10 +11,11 @@
 
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class LengthStyleValue final : public DimensionStyleValue {
+class WEB_API LengthStyleValue final : public DimensionStyleValue {
 public:
     static ValueComparingNonnullRefPtr<LengthStyleValue const> create(Length const&);
     virtual ~LengthStyleValue() override = default;

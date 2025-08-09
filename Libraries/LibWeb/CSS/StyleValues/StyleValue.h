@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/SerializationMode.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -153,7 +154,7 @@ struct ColorResolutionContext {
     [[nodiscard]] static ColorResolutionContext for_layout_node_with_style(Layout::NodeWithStyle const&);
 };
 
-class StyleValue : public RefCounted<StyleValue> {
+class WEB_API StyleValue : public RefCounted<StyleValue> {
 public:
     virtual ~StyleValue() = default;
 

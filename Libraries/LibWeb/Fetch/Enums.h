@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Forward.h>
@@ -15,7 +16,7 @@ namespace Web::Fetch {
 
 [[nodiscard]] ReferrerPolicy::ReferrerPolicy from_bindings_enum(Bindings::ReferrerPolicy);
 [[nodiscard]] Infrastructure::Request::Mode from_bindings_enum(Bindings::RequestMode);
-[[nodiscard]] Infrastructure::Request::CredentialsMode from_bindings_enum(Bindings::RequestCredentials);
+[[nodiscard]] WEB_API Infrastructure::Request::CredentialsMode from_bindings_enum(Bindings::RequestCredentials);
 [[nodiscard]] Infrastructure::Request::CacheMode from_bindings_enum(Bindings::RequestCache);
 [[nodiscard]] Infrastructure::Request::RedirectMode from_bindings_enum(Bindings::RequestRedirect);
 [[nodiscard]] Infrastructure::Request::Priority from_bindings_enum(Bindings::RequestPriority);

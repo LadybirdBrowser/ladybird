@@ -89,7 +89,7 @@ private:
 };
 
 // 16.2.1.4 Abstract Module Records, https://tc39.es/ecma262/#sec-abstract-module-records
-class Module : public Cell {
+class JS_API Module : public Cell {
     GC_CELL(Module, Cell);
     GC_DECLARE_ALLOCATOR(Module);
 

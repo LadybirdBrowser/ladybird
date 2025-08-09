@@ -13,6 +13,7 @@
 #include <AK/IDAllocator.h>
 #include <AK/Variant.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ImageBitmap.h>
@@ -27,7 +28,7 @@ namespace Web::HTML {
 using TimerHandler = Variant<GC::Ref<WebIDL::CallbackType>, String>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope
-class WindowOrWorkerGlobalScopeMixin {
+class WEB_API WindowOrWorkerGlobalScopeMixin {
 public:
     virtual ~WindowOrWorkerGlobalScopeMixin();
 

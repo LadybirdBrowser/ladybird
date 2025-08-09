@@ -12,6 +12,7 @@
 
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
@@ -88,7 +89,7 @@ public:
         String to_string(SerializationMode) const;
     };
 
-    struct Function : public Variant<Linear, CubicBezier, Steps> {
+    struct WEB_API Function : public Variant<Linear, CubicBezier, Steps> {
         using Variant::Variant;
 
         double evaluate_at(double input_progress, bool before_flag) const;

@@ -10,10 +10,11 @@
 #include <AK/Error.h>
 #include <AK/Function.h>
 #include <AK/Swift.h>
+#include <LibWeb/Export.h>
 
 namespace Web {
 
-class FileRequest {
+class WEB_API FileRequest {
 public:
     FileRequest(ByteString path, ESCAPING Function<void(ErrorOr<i32>)> on_file_request_finish);
 

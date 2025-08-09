@@ -13,9 +13,13 @@ add_subdirectory(LibTLS)
 add_subdirectory(LibUnicode)
 add_subdirectory(LibURL)
 add_subdirectory(LibWasm)
+add_subdirectory(LibXML)
 
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibGfx)
+    add_subdirectory(LibMedia)
+    add_subdirectory(LibWeb)
+    add_subdirectory(LibWebView)
 endif()
 
 # FIXME: Increase support for building targets on Windows
@@ -24,13 +28,6 @@ if (WIN32 AND ENABLE_WINDOWS_CI)
 endif()
 
 add_subdirectory(LibDNS)
-add_subdirectory(LibXML)
-
-if (ENABLE_GUI_TARGETS)
-    add_subdirectory(LibMedia)
-    add_subdirectory(LibWeb)
-    add_subdirectory(LibWebView)
-endif()
 
 if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
     add_subdirectory(ClangPlugins)

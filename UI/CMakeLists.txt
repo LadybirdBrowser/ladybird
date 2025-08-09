@@ -76,6 +76,10 @@ target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Services/)
 
+if(WIN32)
+    target_link_libraries(${LADYBIRD_TARGET} LibDevTools)
+endif()
+
 function(set_helper_process_properties)
     set(targets ${ARGV})
     if (APPLE)
@@ -107,7 +111,10 @@ endif()
 set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
 
 add_dependencies(ladybird ${ladybird_helper_processes})
-add_dependencies(WebDriver ladybird)
+# FIXME: Increase support for building targets on Windows
+if (NOT WIN32)
+    add_dependencies(WebDriver ladybird)
+endif()
 
 set_helper_process_properties(${ladybird_helper_processes})
 if (APPLE)

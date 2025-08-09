@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Crypto {
@@ -36,6 +37,6 @@ private:
     GC::Ptr<SubtleCrypto> m_subtle;
 };
 
-ErrorOr<String> generate_random_uuid();
+WEB_API ErrorOr<String> generate_random_uuid();
 
 }

@@ -29,7 +29,7 @@ ErrorOr<String> generate_new_blob_url();
 ErrorOr<String> add_entry_to_blob_url_store(GC::Ref<Blob> object);
 bool check_for_same_partition_blob_url_usage(URL::BlobURLEntry const&, GC::Ref<HTML::Environment>);
 struct NavigationEnvironment { };
-Optional<URL::BlobURLEntry::Object> obtain_a_blob_object(URL::BlobURLEntry const&, Variant<GC::Ref<HTML::Environment>, NavigationEnvironment> environment);
+WEB_API Optional<URL::BlobURLEntry::Object> obtain_a_blob_object(URL::BlobURLEntry const&, Variant<GC::Ref<HTML::Environment>, NavigationEnvironment> environment);
 void remove_entry_from_blob_url_store(URL::URL const& url);
 Optional<BlobURLEntry const&> resolve_a_blob_url(URL::URL const&);
 

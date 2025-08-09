@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibIDL/Types.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Export.h>
 
 namespace Web::WebIDL {
 
@@ -24,6 +25,6 @@ struct ResolvedOverload {
 };
 
 // https://webidl.spec.whatwg.org/#es-overloads
-JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM&, IDL::EffectiveOverloadSet&, ReadonlySpan<StringView> interface_dictionaries);
+WEB_API JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM&, IDL::EffectiveOverloadSet&, ReadonlySpan<StringView> interface_dictionaries);
 
 }

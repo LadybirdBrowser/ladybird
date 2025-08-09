@@ -20,7 +20,7 @@
 
 namespace JS {
 
-class TypedArrayBase : public Object {
+class JS_API TypedArrayBase : public Object {
     JS_OBJECT(TypedArrayBase, Object);
 
 public:

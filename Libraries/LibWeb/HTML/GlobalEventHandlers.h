@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 #define ENUMERATE_GLOBAL_EVENT_HANDLERS(E)                                    \
@@ -103,7 +104,7 @@
 
 namespace Web::HTML {
 
-class GlobalEventHandlers {
+class WEB_API GlobalEventHandlers {
 public:
     virtual ~GlobalEventHandlers();
 

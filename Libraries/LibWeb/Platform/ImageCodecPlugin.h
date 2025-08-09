@@ -12,6 +12,7 @@
 #include <LibCore/Promise.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Platform {
 
@@ -27,7 +28,7 @@ struct DecodedImage {
     Gfx::ColorSpace color_space;
 };
 
-class ImageCodecPlugin {
+class WEB_API ImageCodecPlugin {
 public:
     static ImageCodecPlugin& the();
     static void install(ImageCodecPlugin&);

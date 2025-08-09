@@ -9,6 +9,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/String.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
@@ -18,7 +19,7 @@ struct TabDescription {
     String url;
 };
 
-class TabActor final : public Actor {
+class DEVTOOLS_API TabActor final : public Actor {
 public:
     static constexpr auto base_name = "tab"sv;
 

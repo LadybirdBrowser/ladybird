@@ -9,6 +9,7 @@
 #include <AK/DistinctNumeric.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
@@ -109,14 +110,14 @@ private:
     GC::Ptr<DOM::Document const> m_document;
 };
 
-struct UniqueTaskSource {
+struct WEB_API UniqueTaskSource {
     UniqueTaskSource();
     ~UniqueTaskSource();
 
     Task::Source const source;
 };
 
-class ParallelQueue : public RefCounted<ParallelQueue> {
+class WEB_API ParallelQueue : public RefCounted<ParallelQueue> {
 public:
     static NonnullRefPtr<ParallelQueue> create();
     TaskID enqueue(GC::Ref<GC::Function<void()>>);

@@ -9,12 +9,13 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/MediaList.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom-1/#the-stylesheet-interface
-class StyleSheet : public Bindings::PlatformObject {
+class WEB_API StyleSheet : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(StyleSheet, Bindings::PlatformObject);
 
 public:
