@@ -6,7 +6,6 @@
 
 #include "WebSocketImplCurl.h"
 
-#include <AK/Badge.h>
 #include <AK/IDAllocator.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/ElapsedTimer.h>
