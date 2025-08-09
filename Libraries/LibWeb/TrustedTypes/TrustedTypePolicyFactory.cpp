@@ -319,7 +319,7 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&
 #define __ENUMERATE(attribute_name, event_name)                                                                                                      \
     if (attribute == HTML::AttributeNames::attribute_name) {                                                                                         \
         /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                                           \
-        return TrustedTypeData { "Element"_utf16, {}, attribute, TrustedTypeName::TrustedScript, "Element " #attribute_name ""_utf16 }; \
+        return TrustedTypeData { "Element"_utf16, {}, attribute.to_utf8(), TrustedTypeName::TrustedScript, InjectionSink::Element##attribute_name }; \
     }
         ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
         ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
@@ -327,10 +327,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&
     }
 
     static Vector<TrustedTypeData> const table {
-        { "HTMLIFrameElement"_utf16, {}, "srcdoc"_utf16, TrustedTypeName::TrustedHTML, "HTMLIFrameElement srcdoc"_utf16 },
-        { "HTMLScriptElement"_utf16, {}, "src"_utf16, TrustedTypeName::TrustedScriptURL, "HTMLScriptElement src"_utf16 },
-        { "SVGScriptElement"_utf16, {}, "href"_utf16, TrustedTypeName::TrustedScriptURL, "SVGScriptElement href"_utf16 },
-        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), "href"_utf16, TrustedTypeName::TrustedScriptURL, "SVGScriptElement href"_utf16 },
+        { "HTMLIFrameElement"_utf16, {}, HTML::AttributeNames::srcdoc, TrustedTypeName::TrustedHTML, InjectionSink::HTMLIFrameElementsrcdoc },
+        { "HTMLScriptElement"_utf16, {}, HTML::AttributeNames::src, TrustedTypeName::TrustedScriptURL, InjectionSink::HTMLScriptElementsrc },
+        { "SVGScriptElement"_utf16, {}, HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElementhref },
+        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElementhref },
     };
 
     // 3. Find the row in the following table, where element is in the first column, attributeNs is in the second column,

@@ -912,6 +912,7 @@ set(SOURCES
     SVG/SVGViewElement.cpp
     SVG/TagNames.cpp
     SVG/ViewBox.cpp
+    TrustedTypes/InjectionSink.cpp
     TrustedTypes/TrustedHTML.cpp
     TrustedTypes/TrustedScript.cpp
     TrustedTypes/TrustedScriptURL.cpp

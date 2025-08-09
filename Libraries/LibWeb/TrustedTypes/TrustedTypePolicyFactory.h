@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/TrustedTypePolicyFactoryPrototype.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::TrustedTypes {
@@ -63,9 +64,9 @@ private:
 struct TrustedTypeData {
     Utf16String element;
     Optional<Utf16String> attribute_ns;
-    Utf16String attribute_local_name;
+    FlyString attribute_local_name;
     TrustedTypeName trusted_type;
-    Utf16String sink;
+    InjectionSink sink;
 };
 
 Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&, Utf16String const&, Optional<Utf16String> const&);
