@@ -44,10 +44,10 @@ else
     echo -e "[${GREEN}SKIP${NC}]: IPCMagicLinter (in Meta/lint-ci.sh)"
 fi
 
-if Meta/lint-clang-format.sh --overwrite-inplace "$@" && git diff --exit-code -- ':*.cpp' ':*.h' ':*.mm'; then
-    echo -e "[${GREEN}OK${NC}]: Meta/lint-clang-format.sh"
+if Meta/lint-clang-format.py --overwrite-inplace "$@" && git diff --exit-code -- ':*.cpp' ':*.h' ':*.mm'; then
+    echo -e "[${GREEN}OK${NC}]: Meta/lint-clang-format.py"
 else
-    echo -e "[${BOLD_RED}FAIL${NC}]: Meta/lint-clang-format.sh"
+    echo -e "[${BOLD_RED}FAIL${NC}]: Meta/lint-clang-format.py"
     ((FAILURES+=1))
 fi
 
