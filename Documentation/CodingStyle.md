@@ -4,7 +4,7 @@ For low-level styling (spaces, parentheses, brace placement, etc), all code shou
 
 **Important: Make sure you use the correct version of `clang-format`!**
 
-See [lint-clang-format.sh](../Meta/lint-clang-format.sh) for the version enforced in CI.
+See [lint-clang-format.py](../Meta/lint-clang-format.py) for the version enforced in CI.
 
 See [AdvancedBuildInstructions.md](AdvancedBuildInstructions.md#clang-format-updates) for instructions on how to get an
 up-to-date version if your OS distribution does not ship the correct version.
