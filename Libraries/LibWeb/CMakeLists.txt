@@ -723,6 +723,7 @@ set(SOURCES
     Namespace.cpp
     NavigationTiming/EntryNames.cpp
     NavigationTiming/PerformanceNavigation.cpp
+    NavigationTiming/PerformanceNavigationTiming.cpp
     NavigationTiming/PerformanceTiming.cpp
     Page/DragAndDropEventHandler.cpp
     Page/EventHandler.cpp
