@@ -513,6 +513,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
 
             // NOTE: CURLOPT_POSTFIELDS automatically sets the Content-Type header.
             //       Set it to empty if the headers passed in don't contain a content type.
+            request_headers.saniteze_request_headers_for_method(method);
             if (did_set_body && !request_headers.contains("Content-Type"))
                 curl_headers = curl_slist_append(curl_headers, "Content-Type:");
 
