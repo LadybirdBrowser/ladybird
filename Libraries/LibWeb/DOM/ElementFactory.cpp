@@ -499,7 +499,7 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
     if (local_name == SVG::TagNames::polyline)
         return realm.create<SVG::SVGPolylineElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::pattern)
-        return realm.create<SVG::SVGElement>(document, move(qualified_name));
+        return realm.create<SVG::SVGPatternElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::radialGradient)
         return realm.create<SVG::SVGRadialGradientElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::rect)
