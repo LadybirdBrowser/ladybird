@@ -76,7 +76,7 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String c
 
     // 8. If attributeData is not null, then set expectedType to the interface’s name of the value of the fourth member of attributeData.
     if (attribute_data.has_value()) {
-        expected_type = attribute_data.value().trusted_type;
+        expected_type = to_string(attribute_data.value().trusted_type);
     }
 
     // 9. Return expectedType.
@@ -108,24 +108,30 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16String co
     // 4. Let expectedType be null.
     Optional<Utf16String> expected_type;
 
-    static Vector<Array<Utf16String, 3>> const table {
-        { "HTMLIFrameElement"_utf16, "srcdoc"_utf16, "TrustedHTML"_utf16 },
-        { "HTMLScriptElement"_utf16, "innerText"_utf16, "TrustedScript"_utf16 },
-        { "HTMLScriptElement"_utf16, "src"_utf16, "TrustedScriptURL"_utf16 },
-        { "HTMLScriptElement"_utf16, "text"_utf16, "TrustedScript"_utf16 },
-        { "HTMLScriptElement"_utf16, "textContent"_utf16, "TrustedScript"_utf16 },
-        { "*"_utf16, "innerHTML"_utf16, "TrustedHTML"_utf16 },
-        { "*"_utf16, "outerHTML"_utf16, "TrustedHTML"_utf16 },
+    struct TrustedTypesPropertyTypeData {
+        Utf16String interface;
+        Utf16String property;
+        TrustedTypeName trusted_type;
+    };
+
+    static Vector<TrustedTypesPropertyTypeData> const table {
+        { "HTMLIFrameElement"_utf16, "srcdoc"_utf16, TrustedTypeName::TrustedHTML },
+        { "HTMLScriptElement"_utf16, "innerText"_utf16, TrustedTypeName::TrustedScript },
+        { "HTMLScriptElement"_utf16, "src"_utf16, TrustedTypeName::TrustedScriptURL },
+        { "HTMLScriptElement"_utf16, "text"_utf16, TrustedTypeName::TrustedScript },
+        { "HTMLScriptElement"_utf16, "textContent"_utf16, TrustedTypeName::TrustedScript },
+        { "*"_utf16, "innerHTML"_utf16, TrustedTypeName::TrustedHTML },
+        { "*"_utf16, "outerHTML"_utf16, TrustedTypeName::TrustedHTML },
     };
 
     // 5. Find the row in the following table, where the first column is "*" or interface’s name, and property is in the second column.
     // If a matching row is found, set expectedType to the interface’s name of the value of the third column.
     auto const matching_row = table.first_matching([&interface, &property](auto const& row) {
-        return (row[0] == interface || row[0] == "*"sv) && row[1] == property;
+        return (row.interface == interface || row.interface == "*"sv) && row.property == property;
     });
 
     if (matching_row.has_value()) {
-        expected_type = matching_row.value()[2];
+        expected_type = to_string(matching_row.value().trusted_type);
     }
 
     // 6. Return expectedType.
@@ -293,10 +299,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&
     // 2. If attributeNs is null, and attribute is the name of an event handler content attribute, then:
     if (!attribute_ns.has_value()) {
 #undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)                                                                                \
-    if (attribute == HTML::AttributeNames::attribute_name) {                                                                   \
-        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                     \
-        return TrustedTypeData { "Element"_utf16, {}, attribute, "TrustedScript"_utf16, "Element " #attribute_name ""_utf16 }; \
+#define __ENUMERATE(attribute_name, event_name)                                                                                                      \
+    if (attribute == HTML::AttributeNames::attribute_name) {                                                                                         \
+        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                                           \
+        return TrustedTypeData { "Element"_utf16, {}, attribute, TrustedTypeName::TrustedScript, "Element " #attribute_name ""_utf16 }; \
     }
         ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
         ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
@@ -304,10 +310,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&
     }
 
     static Vector<TrustedTypeData> const table {
-        { "HTMLIFrameElement"_utf16, {}, "srcdoc"_utf16, "TrustedHTML"_utf16, "HTMLIFrameElement srcdoc"_utf16 },
-        { "HTMLScriptElement"_utf16, {}, "src"_utf16, "TrustedScriptURL"_utf16, "HTMLScriptElement src"_utf16 },
-        { "SVGScriptElement"_utf16, {}, "href"_utf16, "TrustedScriptURL"_utf16, "SVGScriptElement href"_utf16 },
-        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), "href"_utf16, "TrustedScriptURL"_utf16, "SVGScriptElement href"_utf16 },
+        { "HTMLIFrameElement"_utf16, {}, "srcdoc"_utf16, TrustedTypeName::TrustedHTML, "HTMLIFrameElement srcdoc"_utf16 },
+        { "HTMLScriptElement"_utf16, {}, "src"_utf16, TrustedTypeName::TrustedScriptURL, "HTMLScriptElement src"_utf16 },
+        { "SVGScriptElement"_utf16, {}, "href"_utf16, TrustedTypeName::TrustedScriptURL, "SVGScriptElement href"_utf16 },
+        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), "href"_utf16, TrustedTypeName::TrustedScriptURL, "SVGScriptElement href"_utf16 },
     };
 
     // 3. Find the row in the following table, where element is in the first column, attributeNs is in the second column,

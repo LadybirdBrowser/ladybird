@@ -57,7 +57,7 @@ struct TrustedTypeData {
     Utf16String element;
     Optional<Utf16String> attribute_ns;
     Utf16String attribute_local_name;
-    Utf16String trusted_type;
+    TrustedTypeName trusted_type;
     Utf16String sink;
 };
 
