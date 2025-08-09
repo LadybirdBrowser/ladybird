@@ -974,11 +974,18 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
 
             auto& hit_paintable = static_cast<Painting::TextPaintable const&>(*result->paintable);
             auto& hit_dom_node = const_cast<DOM::Text&>(as<DOM::Text>(*hit_paintable.dom_node()));
-            auto previous_boundary = hit_dom_node.word_segmenter().previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
-            auto next_boundary = hit_dom_node.word_segmenter().next_boundary(result->index_in_node).value_or(hit_dom_node.length());
 
-            auto target = document.active_input_events_target();
-            if (target) {
+            size_t previous_boundary = 0;
+            size_t next_boundary = 0;
+
+            if (hit_dom_node.is_password_input()) {
+                next_boundary = hit_dom_node.length_in_utf16_code_units();
+            } else {
+                previous_boundary = hit_dom_node.word_segmenter().previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
+                next_boundary = hit_dom_node.word_segmenter().next_boundary(result->index_in_node).value_or(hit_dom_node.length());
+            }
+
+            if (auto* target = document.active_input_events_target()) {
                 target->set_selection_anchor(hit_dom_node, previous_boundary);
                 target->set_selection_focus(hit_dom_node, next_boundary);
             } else if (auto selection = node->document().get_selection()) {
