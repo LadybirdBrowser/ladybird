@@ -157,6 +157,23 @@ void BytecodeInterpreter::interpret_impl(Configuration& configuration, Expressio
             case Instructions::synthetic_local_seti32_const.value():
                 configuration.local(instruction->local_index()) = Value(instruction->arguments().get<i32>());
                 RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::No);
+            case Instructions::synthetic_call_00.value():
+            case Instructions::synthetic_call_01.value():
+            case Instructions::synthetic_call_10.value():
+            case Instructions::synthetic_call_11.value():
+            case Instructions::synthetic_call_20.value():
+            case Instructions::synthetic_call_21.value():
+            case Instructions::synthetic_call_30.value():
+            case Instructions::synthetic_call_31.value(): {
+                auto regs_copy = configuration.regs;
+                auto index = instruction->arguments().get<FunctionIndex>();
+                auto address = configuration.frame().module().functions()[index.value()];
+                dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
+                if (call_address(configuration, address))
+                    return;
+                configuration.regs = regs_copy;
+                RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::Yes);
+            }
             case Instructions::unreachable.value():
                 m_trap = Trap::from_string("Unreachable");
                 return;
@@ -2399,12 +2416,14 @@ bool BytecodeInterpreter::call_address(Configuration& configuration, FunctionAdd
         TRAP_IF_NOT(type->parameters().size() <= configuration.value_stack().size());
     }
     Vector<Value> args;
-    args.ensure_capacity(type->parameters().size());
-    auto span = configuration.value_stack().span().slice_from_end(type->parameters().size());
-    for (auto& value : span)
-        args.unchecked_append(value);
+    if (!type->parameters().is_empty()) {
+        args.ensure_capacity(type->parameters().size());
+        auto span = configuration.value_stack().span().slice_from_end(type->parameters().size());
+        for (auto& value : span)
+            args.unchecked_append(value);
 
-    configuration.value_stack().remove(configuration.value_stack().size() - span.size(), span.size());
+        configuration.value_stack().remove(configuration.value_stack().size() - span.size(), span.size());
+    }
 
     Result result { Trap::from_string("") };
     if (instance->has<WasmFunction>()) {
@@ -2419,9 +2438,11 @@ bool BytecodeInterpreter::call_address(Configuration& configuration, FunctionAdd
         return true;
     }
 
-    configuration.value_stack().ensure_capacity(configuration.value_stack().size() + result.values().size());
-    for (auto& entry : result.values().in_reverse())
-        configuration.value_stack().unchecked_append(entry);
+    if (!result.values().is_empty()) {
+        configuration.value_stack().ensure_capacity(configuration.value_stack().size() + result.values().size());
+        for (auto& entry : result.values().in_reverse())
+            configuration.value_stack().unchecked_append(entry);
+    }
 
     return false;
 }
@@ -2535,11 +2556,11 @@ double BytecodeInterpreter::read_value<double>(ReadonlyBytes data)
     return bit_cast<double>(read_value<u64>(data));
 }
 
-CompiledInstructions try_compile_instructions(Expression const& expression, Span<FunctionType const>)
+CompiledInstructions try_compile_instructions(Expression const& expression, Span<FunctionType const> functions)
 {
     CompiledInstructions result;
     result.dispatches.ensure_capacity(expression.instructions().size());
-    result.extra_instruction_storage.ensure_capacity(ceil_div(expression.instructions().size(), 2uz)); // At most half of the instructions can be replaced with synthetic instructions, as the detected sequences are 3 long.
+    result.extra_instruction_storage.ensure_capacity(expression.instructions().size());
     i32 i32_const_value { 0 };
     LocalIndex local_index_0 { 0 };
     LocalIndex local_index_1 { 0 };
@@ -2560,6 +2581,19 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     };
 
     for (auto& instruction : expression.instructions()) {
+        if (instruction.opcode() == Instructions::call) {
+            auto& function = functions[instruction.arguments().get<FunctionIndex>().value()];
+            if (function.results().size() <= 1 && function.parameters().size() < 4) {
+                pattern_state = InsnPatternState::Nothing;
+                OpCode op { Instructions::synthetic_call_00.value() + function.parameters().size() * 2 + function.results().size() };
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    op,
+                    instruction.arguments()));
+                result.dispatches.unchecked_append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                continue;
+            }
+        }
+
         switch (pattern_state) {
         case InsnPatternState::Nothing:
             if (instruction.opcode() == Instructions::local_get) {
@@ -2784,6 +2818,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     // - Any instruction that produces polymorphic stack, or requires its inputs on the stack must sink all active values to the stack.
     // - All instructions must have the same location for their last input and their destination value (if any).
     // - Any value left at the end of the expression must be on the stack.
+    // - All inputs and outputs of call instructions with <4 inputs and <=1 output must be on the stack.
 
     using ValueID = DistinctNumeric<size_t, struct ValueIDTag, AK::DistinctNumericFeature::Comparison, AK::DistinctNumericFeature::Arithmetic, AK::DistinctNumericFeature::Increment>;
     using IP = DistinctNumeric<size_t, struct IPTag, AK::DistinctNumericFeature::Comparison>;
@@ -2866,6 +2901,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         Vector<ValueID> dependent_ids;
 
         bool variadic_or_unknown = false;
+        auto const is_known_call = opcode == Instructions::synthetic_call_00 || opcode == Instructions::synthetic_call_01
+            || opcode == Instructions::synthetic_call_10 || opcode == Instructions::synthetic_call_11
+            || opcode == Instructions::synthetic_call_20 || opcode == Instructions::synthetic_call_21
+            || opcode == Instructions::synthetic_call_30 || opcode == Instructions::synthetic_call_31;
 
         switch (opcode.value()) {
 #define M(name, _, ins, outs)                    \
@@ -2923,6 +2962,9 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             auto& value = values.get(input_value).value();
             value.uses.append(i);
             value.last_use = max(value.last_use, i);
+
+            if (is_known_call)
+                forced_stack_values.append(input_value);
         }
         instr_to_input_values.set(i, input_ids);
         instr_to_dependent_values.set(i, dependent_ids);
@@ -2935,6 +2977,9 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             instr_to_output_value.set(i, id);
             output_id = id;
             ensure_id_space(id);
+
+            if (is_known_call)
+                forced_stack_values.append(id);
         }
 
         // Alias the output with the last input, if one exists.
@@ -2962,6 +3007,31 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     for (size_t i = 0; i < final_roots.size(); ++i)
         final_roots[i] = find_root(i);
+
+    // One more pass to ensure that all inputs and outputs of known calls are forced to the stack after aliases are resolved.
+    for (size_t i = 0; i < result.dispatches.size(); ++i) {
+        auto const opcode = result.dispatches[i].instruction->opcode();
+        auto const is_known_call = opcode == Instructions::synthetic_call_00 || opcode == Instructions::synthetic_call_01
+            || opcode == Instructions::synthetic_call_10 || opcode == Instructions::synthetic_call_11
+            || opcode == Instructions::synthetic_call_20 || opcode == Instructions::synthetic_call_21
+            || opcode == Instructions::synthetic_call_30 || opcode == Instructions::synthetic_call_31;
+
+        if (is_known_call) {
+            if (auto input_ids = instr_to_input_values.get(i); input_ids.has_value()) {
+                for (auto input_id : *input_ids) {
+                    if (input_id.value() < final_roots.size()) {
+                        stack_forced_roots.set(final_roots[input_id.value()]);
+                    }
+                }
+            }
+
+            if (auto output_id = instr_to_output_value.get(i); output_id.has_value()) {
+                if (output_id->value() < final_roots.size()) {
+                    stack_forced_roots.set(final_roots[output_id->value()]);
+                }
+            }
+        }
+    }
 
     struct LiveInterval {
         ValueID value_id;
