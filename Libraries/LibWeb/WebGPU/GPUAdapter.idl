@@ -1,0 +1,18 @@
+// https://www.w3.org/TR/webgpu/#enumdef-gpupowerpreference
+enum GPUPowerPreference {
+    "low-power",
+    "high-performance",
+};
+
+// https://www.w3.org/TR/webgpu/#dictdef-gpurequestadapteroptions
+dictionary GPURequestAdapterOptions {
+    DOMString featureLevel = "core";
+    GPUPowerPreference powerPreference;
+    boolean forceFallbackAdapter = false;
+    // FIXME: Support xrCompatible
+};
+
+// https://www.w3.org/TR/webgpu/#gpuadapter
+[Exposed=(Window,Worker), SecureContext]
+interface GPUAdapter {
+};

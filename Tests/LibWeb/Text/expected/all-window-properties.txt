@@ -140,6 +140,8 @@ FontFaceSet
 FormData
 FormDataEvent
 Function
+GPU
+GPUAdapter
 GainNode
 Gamepad
 Geolocation
@@ -450,6 +452,7 @@ ValidityState
 VideoTrack
 VideoTrackList
 VisualViewport
+WGSLLanguageFeatures
 WeakMap
 WeakRef
 WeakSet

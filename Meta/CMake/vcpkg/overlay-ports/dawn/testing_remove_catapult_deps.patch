@@ -1,0 +1,20 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 83538d4..c596d1c 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -78,7 +78,6 @@ group("run_perf_test") {
+ 
+   data_deps = [
+     ":test_scripts_shared",
+-    "//third_party/catapult/tracing:convert_chart_json",
+   ]
+ 
+   if (is_android) {
+@@ -101,7 +100,6 @@ group("testing_pytype") {
+     "//testing/unexpected_passes_common/",
+     "//testing/flake_suppressor_common/",
+     "//third_party/blink/tools/",
+-    "//third_party/catapult/third_party/typ/",
+   ]
+ 
+   data_deps = [ ":pytype_dependencies" ]
