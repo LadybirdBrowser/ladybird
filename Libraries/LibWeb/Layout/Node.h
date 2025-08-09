@@ -203,6 +203,8 @@ public:
     [[nodiscard]] bool has_been_wrapped_in_table_wrapper() const { return m_has_been_wrapped_in_table_wrapper; }
     void set_has_been_wrapped_in_table_wrapper(bool value) { m_has_been_wrapped_in_table_wrapper = value; }
 
+    bool skip_vertical_align() const;
+
 protected:
     Node(DOM::Document&, DOM::Node*);
 
@@ -358,6 +360,13 @@ inline Gfx::Font const& NodeWithStyle::first_available_font() const
     // https://drafts.csswg.org/css-fonts/#first-available-font
     // First font for which the character U+0020 (space) is not excluded by a unicode-range
     return computed_values().font_list().font_for_code_point(' ');
+}
+
+inline bool Node::skip_vertical_align() const
+{
+    bool is_flex_item = parent() && parent()->display().is_flex_inside();
+    bool is_flex_container = display().is_flex_inside();
+    return (is_flex_item || is_flex_container) && !document().in_quirks_mode();
 }
 
 }
