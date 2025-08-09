@@ -1442,10 +1442,6 @@ CSSPixels FormattingContext::calculate_fit_content_height(Layout::Box const& box
 
 CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box) const
 {
-    if (box.is_replaced_box() && box.computed_values().width().is_percentage()) {
-        return 0;
-    }
-
     if (box.has_natural_width())
         return *box.natural_width();
 
