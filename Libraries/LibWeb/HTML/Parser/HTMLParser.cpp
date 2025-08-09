@@ -46,6 +46,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/TagNames.h>
 
@@ -411,6 +412,9 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
 
         // 8. Set the Document's load timing info's load event end time to the current high resolution time given window.
         document->load_timing_info().load_event_end_time = HighResolutionTime::current_high_resolution_time(window);
+
+        // 8.1. Create and queue the navigation timing entry for the completed document.
+        NavigationTiming::PerformanceNavigationTiming::create_and_queue_navigation_timing_entry_for_document(*document);
 
         // 9. Assert: Document's page showing is false.
         VERIFY(!document->page_showing());
