@@ -2091,14 +2091,14 @@ void Node::string_replace_all(Utf16String string)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-serializing-algorithm-steps
-WebIDL::ExceptionOr<String> Node::serialize_fragment(HTML::RequireWellFormed require_well_formed, FragmentSerializationMode fragment_serialization_mode) const
+WebIDL::ExceptionOr<Utf16String> Node::serialize_fragment(HTML::RequireWellFormed require_well_formed, FragmentSerializationMode fragment_serialization_mode) const
 {
     // 1. Let context document be the value of node's node document.
     auto const& context_document = document();
 
     // 2. If context document is an HTML document, return the result of HTML fragment serialization algorithm with node, false, and « ».
     if (context_document.is_html_document())
-        return HTML::HTMLParser::serialize_html_fragment(*this, HTML::HTMLParser::SerializableShadowRoots::No, {}, fragment_serialization_mode);
+        return Utf16String::from_utf8(HTML::HTMLParser::serialize_html_fragment(*this, HTML::HTMLParser::SerializableShadowRoots::No, {}, fragment_serialization_mode));
 
     // 3. Return the XML serialization of node given require well-formed.
     // AD-HOC: XML serialization algorithm returns the "outer" XML serialization of the node.
@@ -2109,9 +2109,9 @@ WebIDL::ExceptionOr<String> Node::serialize_fragment(HTML::RequireWellFormed req
             auto child_markup = TRY(HTML::serialize_node_to_xml_string(*child, require_well_formed));
             markup.append(child_markup.bytes_as_string_view());
         }
-        return MUST(markup.to_string());
+        return Utf16String::from_utf8(MUST(markup.to_string()));
     }
-    return HTML::serialize_node_to_xml_string(*this, require_well_formed);
+    return Utf16String::from_utf8(TRY(HTML::serialize_node_to_xml_string(*this, require_well_formed)));
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#unsafely-set-html

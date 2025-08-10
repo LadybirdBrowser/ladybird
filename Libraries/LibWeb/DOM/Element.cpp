@@ -89,6 +89,7 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -369,7 +370,7 @@ WebIDL::ExceptionOr<void> Element::set_attribute_ns(Optional<FlyString> const& n
     auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Element));
 
     // 2. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
-    //    with localName, namespace, element, and value.
+    //    with localName, namespace, this, and value.
     auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
         extracted_qualified_name.local_name(),
         extracted_qualified_name.namespace_().has_value() ? Utf16String::from_utf8(extracted_qualified_name.namespace_().value()) : Optional<Utf16String>(),
@@ -1056,15 +1057,22 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
-WebIDL::ExceptionOr<void> Element::set_inner_html(StringView value)
+WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrString const& value)
 {
-    // FIXME: 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, the given value, "Element innerHTML", and "script".
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, the given value, "Element innerHTML", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(*this),
+        value,
+        TrustedTypes::InjectionSink::ElementinnerHTML,
+        TrustedTypes::Script.to_string()));
 
     // 2. Let context be this.
     DOM::Node* context = this;
 
-    // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString. FIXME: Use compliantString.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(value));
+    // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
+    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
     // 4. If context is a template element, then set context to the template element's template contents (a DocumentFragment).
     auto* template_element = as_if<HTML::HTMLTemplateElement>(*context);
@@ -1088,9 +1096,9 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(StringView value)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
-WebIDL::ExceptionOr<String> Element::inner_html() const
+WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> Element::inner_html() const
 {
-    return serialize_fragment(HTML::RequireWellFormed::Yes);
+    return TRY(serialize_fragment(HTML::RequireWellFormed::Yes));
 }
 
 bool Element::is_focused() const
@@ -2096,15 +2104,22 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Stri
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
-WebIDL::ExceptionOr<String> Element::outer_html() const
+WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> Element::outer_html() const
 {
-    return serialize_fragment(HTML::RequireWellFormed::Yes, FragmentSerializationMode::Outer);
+    return TRY(serialize_fragment(HTML::RequireWellFormed::Yes, FragmentSerializationMode::Outer));
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
-WebIDL::ExceptionOr<void> Element::set_outer_html(String const& value)
+WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrString const& value)
 {
-    // 1. FIXME: Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, the given value, "Element outerHTML", and "script".
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, the given value, "Element outerHTML", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(*this),
+        value,
+        TrustedTypes::InjectionSink::ElementouterHTML,
+        TrustedTypes::Script.to_string()));
 
     // 2. Let parent be this's parent.
     auto* parent = this->parent();
@@ -2121,8 +2136,8 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(String const& value)
     if (parent->is_document_fragment())
         parent = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
 
-    // 6. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and compliantString. FIXME: Use compliantString.
-    auto fragment = TRY(as<Element>(*parent).parse_fragment(value));
+    // 6. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and compliantString.
+    auto fragment = TRY(as<Element>(*parent).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
     // 6. Replace this with fragment within this's parent.
     TRY(parent->replace_child(fragment, *this));
@@ -2131,12 +2146,21 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#the-insertadjacenthtml()-method
-WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, String const& string)
+WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const& string)
 {
-    // 1. Let context be null.
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, string, "Element insertAdjacentHTML", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(*this),
+        string,
+        TrustedTypes::InjectionSink::ElementinsertAdjacentHTML,
+        TrustedTypes::Script.to_string()));
+
+    // 2. Let context be null.
     GC::Ptr<Node> context;
 
-    // 2. Use the first matching item from this list:
+    // 3. Use the first matching item from this list:
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
     // - If position is an ASCII case-insensitive match for the string "afterend"
     if (position.equals_ignoring_ascii_case("beforebegin"sv)
@@ -2161,7 +2185,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
         return WebIDL::SyntaxError::create(realm(), "insertAdjacentHTML: invalid position argument"_utf16);
     }
 
-    // 3. If context is not an Element or the following are all true:
+    // 4. If context is not an Element or the following are all true:
     //    - context's node document is an HTML document,
     //    - context's local name is "html", and
     //    - context's namespace is the HTML namespace;
@@ -2173,10 +2197,10 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
         context = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
     }
 
-    // 4. Let fragment be the result of invoking the fragment parsing algorithm steps with context and string.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(string));
+    // 5. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
+    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
-    // 5. Use the first matching item from this list:
+    // 6. Use the first matching item from this list:
 
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
     if (position.equals_ignoring_ascii_case("beforebegin"sv)) {
@@ -3934,17 +3958,24 @@ WebIDL::ExceptionOr<String> Element::get_html(GetHTMLOptions const& options) con
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-sethtmlunsafe
-WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
+WebIDL::ExceptionOr<void> Element::set_html_unsafe(TrustedTypes::TrustedHTMLOrString const& html)
 {
-    // FIXME: 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, html, "Element setHTMLUnsafe", and "script".
+    // 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, html, "Element setHTMLUnsafe", and "script".
+    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(*this),
+        html,
+        TrustedTypes::InjectionSink::ElementsetHTMLUnsafe,
+        TrustedTypes::Script.to_string()));
 
     // 2. Let target be this's template contents if this is a template element; otherwise this.
     DOM::Node* target = this;
     if (is<HTML::HTMLTemplateElement>(*this))
         target = as<HTML::HTMLTemplateElement>(*this).content().ptr();
 
-    // 3. Unsafe set HTML given target, this, and compliantHTML. FIXME: Use compliantHTML.
-    TRY(target->unsafely_set_html(*this, html));
+    // 3. Unsafe set HTML given target, this, and compliantHTML.
+    TRY(target->unsafely_set_html(*this, compliant_html.to_utf8_but_should_be_ported_to_utf16()));
 
     return {};
 }
