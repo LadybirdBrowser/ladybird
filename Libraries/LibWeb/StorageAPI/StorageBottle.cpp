@@ -134,6 +134,11 @@ void LocalStorageBottle::remove(String const& key)
     m_page->client().page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string(), key);
 }
 
+u64 LocalStorageBottle::usage() const
+{
+    return m_page->client().page_did_request_storage_usage(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string());
+}
+
 size_t SessionStorageBottle::size() const
 {
     return m_map.size();
@@ -178,6 +183,16 @@ void SessionStorageBottle::clear()
 void SessionStorageBottle::remove(String const& key)
 {
     m_map.remove(key);
+}
+
+u64 SessionStorageBottle::usage() const
+{
+    u64 total_size = 0;
+    for (auto const& [key, value] : m_map) {
+        total_size += key.bytes().size();
+        total_size += value.bytes().size();
+    }
+    return total_size;
 }
 
 }
