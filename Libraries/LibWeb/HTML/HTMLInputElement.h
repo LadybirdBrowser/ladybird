@@ -401,6 +401,10 @@ private:
     bool m_is_open { false };
 
     void signal_a_type_change();
+
+    bool is_number_underflowing(double number) const;
+    bool is_number_overflowing(double number) const;
+    bool is_number_mismatching_step(double number) const;
 };
 
 }
