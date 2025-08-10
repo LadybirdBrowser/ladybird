@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  'use strict';
+
+  promise_test(async (t) => {
+    await promise_rejects_dom(
+        t, 'SecurityError', navigator.serial.requestPort(),
+        'requestPort() should throw a SecurityError DOMException when called ' +
+        'from a context where the top-level document has an opaque origin.');
+  }, 'Calls to Serial APIs from an origin with opaque top origin get blocked.');
+</script>
