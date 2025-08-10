@@ -51,9 +51,9 @@ bool is_valid_week_string(Utf16View const& value)
     if (parts[1].length_in_code_units() != 3)
         return false;
 
-    for (auto digit : parts[0])
-        if (!is_ascii_digit(digit))
-            return false;
+    auto year = parts[0].to_number<u64>();
+    if (!year.has_value() || *year == 0)
+        return false;
 
     if (!parts[1].starts_with('W'))
         return false;
@@ -62,14 +62,8 @@ bool is_valid_week_string(Utf16View const& value)
     if (!is_ascii_digit(parts[1].code_unit_at(2)))
         return false;
 
-    u64 year = 0;
-    for (auto d : parts[0]) {
-        year *= 10;
-        year += parse_ascii_digit(d);
-    }
-
     auto week = (parse_ascii_digit(parts[1].code_unit_at(1)) * 10) + parse_ascii_digit(parts[1].code_unit_at(2));
-    return week >= 1 && week <= week_number_of_the_last_day(year);
+    return week >= 1 && week <= week_number_of_the_last_day(*year);
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-month-string
@@ -90,9 +84,9 @@ bool is_valid_month_string(Utf16View const& value)
     if (parts[1].length_in_code_units() != 2)
         return false;
 
-    for (auto digit : parts[0])
-        if (!is_ascii_digit(digit))
-            return false;
+    auto year = parts[0].to_number<u64>();
+    if (!year.has_value() || *year == 0)
+        return false;
 
     if (!is_ascii_digit(parts[1].code_unit_at(0)))
         return false;
