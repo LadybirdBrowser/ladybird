@@ -15,8 +15,7 @@
 
 namespace Core {
 
-UDPServer::UDPServer(EventReceiver* parent)
-    : EventReceiver(parent)
+UDPServer::UDPServer()
 {
     m_fd = MUST(Core::System::socket(AF_INET, SOCK_DGRAM, 0));
     int option = 1;
