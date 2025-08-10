@@ -37,7 +37,7 @@ public:
     pthread_t owner_thread() const { return m_owner_thread; }
 
 private:
-    Notifier(int fd, Type type, EventReceiver* parent = nullptr);
+    Notifier(int fd, Type type);
 
     int m_fd { -1 };
     bool m_is_enabled { false };

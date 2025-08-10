@@ -60,7 +60,7 @@ ErrorOr<void> TCPServer::listen(IPv4Address const& address, u16 port, AllowAddre
     TRY(Core::System::listen(m_fd, 5));
     m_listening = true;
 
-    m_notifier = Notifier::construct(m_fd, Notifier::Type::Read, this);
+    m_notifier = Notifier::construct(m_fd, Notifier::Type::Read);
     m_notifier->on_activation = [this] {
         if (on_ready_to_accept)
             on_ready_to_accept();
