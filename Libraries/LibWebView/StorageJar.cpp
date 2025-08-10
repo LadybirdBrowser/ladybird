@@ -91,6 +91,13 @@ Vector<String> StorageJar::get_all_keys(StorageEndpointType storage_endpoint, St
     return m_transient_storage.get_keys(storage_endpoint, storage_key);
 }
 
+u64 StorageJar::usage(StorageEndpointType storage_endpoint, String const& storage_key)
+{
+    if (m_persisted_storage.has_value())
+        return m_persisted_storage->usage(storage_endpoint, storage_key);
+    return m_transient_storage.usage(storage_endpoint, storage_key);
+}
+
 StorageOperationError StorageJar::PersistedStorage::set_item(StorageLocation const& key, String const& value)
 {
     size_t current_size = 0;
@@ -165,6 +172,19 @@ Vector<String> StorageJar::PersistedStorage::get_keys(StorageEndpointType storag
     return keys;
 }
 
+u64 StorageJar::PersistedStorage::usage(StorageEndpointType storage_endpoint, String const& storage_key)
+{
+    u64 current_size_in_bytes = 0;
+    database.execute_statement(
+        statements.calculate_size_including_key,
+        [&](auto statement_id) {
+            current_size_in_bytes = database.result_column<int>(statement_id, 0);
+        },
+        static_cast<int>(to_underlying(storage_endpoint)),
+        storage_key);
+    return current_size_in_bytes;
+}
+
 StorageOperationError StorageJar::TransientStorage::set_item(StorageLocation const& key, String const& value)
 {
     u64 current_size = 0;
@@ -217,6 +237,18 @@ Vector<String> StorageJar::TransientStorage::get_keys(StorageEndpointType storag
             keys.append(key.bottle_key);
     }
     return keys;
+}
+
+u64 StorageJar::TransientStorage::usage(StorageEndpointType storage_endpoint, String const& storage_key)
+{
+    u64 current_size_in_bytes = 0;
+    for (auto const& [key, value] : m_storage_items) {
+        if (key.storage_endpoint == storage_endpoint && key.storage_key == storage_key) {
+            current_size_in_bytes += key.bottle_key.bytes().size();
+            current_size_in_bytes += value.bytes().size();
+        }
+    }
+    return current_size_in_bytes;
 }
 
 }
