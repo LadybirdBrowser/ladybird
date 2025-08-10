@@ -1728,6 +1728,8 @@ Utf16String HTMLInputElement::value_sanitization_algorithm(Utf16String const& va
             // as a floating-point number, of the default value.
             auto maybe_value = parse_floating_point_number(value);
             if (!is_valid_floating_point_number(value) ||
+                // AD-HOC: Use the default value if the value has not been set.
+                (!m_dirty_value && !has_attribute(AttributeNames::value)) ||
                 // AD-HOC: The spec doesn't require these checks - but other engines do them.
                 !maybe_value.has_value() || !isfinite(maybe_value.value())) {
                 // The default value is the minimum plus half the difference between the minimum and the maximum, unless

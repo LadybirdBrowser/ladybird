@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 25 tests
 
-23 Pass
-2 Fail
+25 Pass
 Pass	range type support on input element
 Pass	range overflow styles
 Pass	min attribute support on input element
@@ -16,8 +15,8 @@ Pass	the value is set to min when a smaller value than min attribute is given
 Pass	the value is set to max when a larger value than max attribute is given
 Pass	default value of min attribute in input type=range
 Pass	default value of max attribute in input type=range
-Fail	default value when min and max attributes are given (= min plus half the difference between min and max)
-Fail	default value with step control when both min and max attributes are given
+Pass	default value when min and max attributes are given (= min plus half the difference between min and max)
+Pass	default value with step control when both min and max attributes are given
 Pass	default value when both min and max attributes are given, while min > max
 Pass	The default step scale factor is 1, unless min attribute has non-integer value
 Pass	Step scale factor behavior when min attribute has integer value but max attribute is non-integer 
