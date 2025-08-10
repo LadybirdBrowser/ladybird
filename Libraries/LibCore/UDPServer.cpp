@@ -21,8 +21,7 @@
 
 namespace Core {
 
-UDPServer::UDPServer(EventReceiver* parent)
-    : EventReceiver(parent)
+UDPServer::UDPServer()
 {
 #ifdef SOCK_NONBLOCK
     m_fd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);

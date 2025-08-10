@@ -41,7 +41,7 @@ public:
     Function<void()> on_ready_to_receive;
 
 protected:
-    explicit UDPServer(EventReceiver* parent = nullptr);
+    UDPServer();
 
 private:
     int m_fd { -1 };
