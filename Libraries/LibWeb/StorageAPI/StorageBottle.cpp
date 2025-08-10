@@ -37,7 +37,7 @@ StorageBucket::StorageBucket(GC::Ref<Page> page, StorageKey key, StorageType typ
     // 4. For each endpoint of registered storage endpoints whose types contain type, set bucket’s bottle map[endpoint’s identifier] to a new storage bottle whose quota is endpoint’s quota.
     for (auto const& endpoint : StorageEndpoint::registered_endpoints()) {
         if (endpoint.type == type)
-            m_bottle_map[to_underlying(endpoint.identifier)] = StorageBottle::create(heap(), page, type, key, endpoint.quota);
+            m_bottle_map[to_underlying(endpoint.identifier)] = StorageBottle::create(heap(), page, type, endpoint.identifier, key, endpoint.quota);
     }
 
     // 5. Return bucket.
@@ -92,10 +92,10 @@ GC::Ptr<StorageBottle> obtain_a_session_storage_bottle_map(HTML::EnvironmentSett
     return obtain_a_storage_bottle_map(StorageType::Session, environment, identifier);
 }
 
-GC::Ref<StorageBottle> StorageBottle::create(GC::Heap& heap, GC::Ref<Page> page, StorageType type, StorageKey key, Optional<u64> quota)
+GC::Ref<StorageBottle> StorageBottle::create(GC::Heap& heap, GC::Ref<Page> page, StorageType type, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
 {
     if (type == StorageType::Local)
-        return LocalStorageBottle::create(heap, page, key, quota);
+        return LocalStorageBottle::create(heap, page, endpoint_type, key, quota);
     return SessionStorageBottle::create(heap, quota);
 }
 
@@ -107,32 +107,32 @@ void LocalStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
 
 size_t LocalStorageBottle::size() const
 {
-    return m_page->client().page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string()).size();
+    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string()).size();
 }
 
 Vector<String> LocalStorageBottle::keys() const
 {
-    return m_page->client().page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string());
+    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string());
 }
 
 Optional<String> LocalStorageBottle::get(String const& key) const
 {
-    return m_page->client().page_did_request_storage_item(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string(), key);
+    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_storage_key.to_string(), key);
 }
 
 WebView::StorageSetResult LocalStorageBottle::set(String const& key, String const& value)
 {
-    return m_page->client().page_did_set_storage_item(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string(), key, value);
+    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), key, value);
 }
 
 void LocalStorageBottle::clear()
 {
-    m_page->client().page_did_clear_storage(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string());
+    m_page->client().page_did_clear_storage(m_endpoint_type, m_storage_key.to_string());
 }
 
 void LocalStorageBottle::remove(String const& key)
 {
-    m_page->client().page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string(), key);
+    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), key);
 }
 
 size_t SessionStorageBottle::size() const
