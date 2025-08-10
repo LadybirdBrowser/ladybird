@@ -24,7 +24,7 @@ public:
 
     virtual ~DOMParser() override;
 
-    GC::Ref<DOM::Document> parse_from_string(StringView, Bindings::DOMParserSupportedType type);
+    WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_from_string(Utf16String, Bindings::DOMParserSupportedType type);
 
 private:
     explicit DOMParser(JS::Realm&);
