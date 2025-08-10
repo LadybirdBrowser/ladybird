@@ -65,7 +65,7 @@ EventTarget* ShadowRoot::get_parent(Event const& event)
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
 WebIDL::ExceptionOr<String> ShadowRoot::inner_html() const
 {
-    return serialize_fragment(HTML::RequireWellFormed::Yes);
+    return TRY(serialize_fragment(HTML::RequireWellFormed::Yes)).to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
