@@ -30,7 +30,7 @@ There are some optional features that can be enabled during compilation that are
 - `INCLUDE_FLAC_SPEC_TESTS`: downloads and includes the xiph.org FLAC test suite.
 - `LADYBIRD_CACHE_DIR`: sets the location of a shared cache of downloaded files. Should not need to be set manually unless managing a distribution package.
 - `ENABLE_NETWORK_DOWNLOADS`: allows downloading files from the internet during the build. Default on, turning off enables offline builds. For offline builds, the structure of the LADYBIRD_CACHE_DIR must be set up the way that the build expects.
-- `ENABLE_CLANG_PLUGINS`: enables clang plugins which analyze the code for programming mistakes. See [Clang Plugins](#clang-plugins) below.
+- `ENABLE_CLANG_PLUGINS`: enables Clang plugins which analyze the code for programming mistakes. See [Clang Plugins](#clang-plugins) below.
 
 Many parts of the codebase have debug functionality, mostly consisting of additional messages printed to the debug console. This is done via the `<component_name>_DEBUG` macros, which can be enabled individually at build time. They are listed in [this file](../Meta/CMake/all_the_debug_macros.cmake).
 
@@ -77,8 +77,8 @@ edited. The Ladybird source code repository has a top-level `.clangd`
 configuration file in the root directory. One of the configuration
 stanzas in that file specifies the location for a compilation database.
 Depending on your build configuration (e.g., Debug, default, Sanitizer,
-etc), the path to the compilation database in that file may not be
-correct. The result is that clangd will have a difficult time
+etc.), the path to the compilation database in that file may not be
+correct. The result is that `clangd` will have a difficult time
 understanding all your include directories. To resolve the problem, you
 can use the `Meta/configure-clangd.sh` script.
 
@@ -87,10 +87,10 @@ can use the `Meta/configure-clangd.sh` script.
 Clang plugins are used to validate the code at compile time. Currently, they are used to detect JavaScript-related
 garbage collection faux pas, such as neglecting to visit a garbage-collected type.
 
-In order to enable clang plugins, you will need clang's development headers installed. For example, on Ubuntu this is
+In order to enable Clang plugins, you will need Clang's development headers installed. For example, on Ubuntu this is
 the `libclang-dev` package.
 
-When clang plugins are enabled, it is recommended to have the following environment variable set for ccache:
+When Clang plugins are enabled, it is recommended to have the following environment variable set for ccache:
 
 ```bash
 export CCACHE_COMPILERCHECK="%compiler% -v"
@@ -189,51 +189,51 @@ That will restore your git environment to the state it was in before you patched
 
 ## Building with Swift support
 
-There is experimental Swift 6 support in the ladybird codebase. This experiment intends to determine whether Swift 6 and
+There is experimental Swift 6 support in the Ladybird codebase. This experiment intends to determine whether Swift 6 and
 its improved C++ interoperability is a good choice for new memory-safe and concurrent code for Ladybird.
 
 Building with Swift 6 support requires a main snapshot toolchain. The Ladybird team is actively working with the Swift
 team to improve the C++ interop features to meet the needs of our project.
 
-The best way to get started is with `swiftly`. After setting up a swiftly toolchain, any of the existing build presets
+The best way to get started is with `swiftly`. After setting up a `swiftly` toolchain, any of the existing build presets
 can be modified to use the Swift toolchain. However, note that in order to build Swift support into the project, the
-build must use a version of clang that is built from an llvm fork with swift support. The two places this can be found
-are from the swift.org snapshot/release toolchains, and Xcode toolchains. Upstream llvm.org clang does not support
-Swift, and gcc does not support Swift either.
+build must use a version of Clang that is built from an LLVM fork with Swift support. The two places this can be found
+are from the swift.org snapshot/release toolchains, and Xcode toolchains. Upstream llvm.org Clang does not support
+Swift, and GCC does not support Swift either.
 
 ### Get Swiftly
 
 `swiftly` is a tool that helps you manage Swift toolchains. It can be installed from https://www.swift.org/install/linux/
 or https://www.swift.org/install/macos/ as applicable. After following the instructions on the swift.org install page,
-swiftly installs the latest release toolchain. If you wish to save space, add the `--skip-install` flag to the `swiftly
-init` invocation. If you wish to avoid swiftly messing with your shellrc files, add `--no-modify-profile`. On some linux
-platforms, it may be necessary to add a `--platform` flag to the `swiftly init` invocation to instruct swiftly on which
+`swiftly` installs the latest release toolchain. If you wish to save space, add the `--skip-install` flag to the `swiftly
+init` invocation. If you wish to avoid `swiftly` messing with your shellrc files, add `--no-modify-profile`. On some Linux
+platforms, it may be necessary to add a `--platform` flag to the `swiftly init` invocation to instruct `swiftly` on which
 supported platform to masquerade as. This is especially necessary on Fedora or other non-Debian based distributions.
 
 Note that while `$SWIFTLY_HOME_DIR` and `$SWIFTLY_BIN_DIR` can be used
-to set the installed location of the swiftly binary and its associated files, the install location of toolchains is not
-nearly as customizable. On linux they will always be placed in `$XDG_DATA_HOME/swiftly/toolchains`, and on macOS they will always be
+to set the installed location of the `swiftly` binary and its associated files, the install location of toolchains is not
+nearly as customizable. On Linux they will always be placed in `$XDG_DATA_HOME/swiftly/toolchains`, and on macOS they will always be
 placed in `$HOME/Library/Developer/Toolchains`. On macOS, the `.pkg` file will always drop temporary files in `$HOME/.swiftly`,
 so be sure to clear them out if you change the default home/bin directories.
 
 ### Build with Swift
 
-The simplest way to enable swift is to use the `Swift_Release` preset and `ladybird.py`.
+The simplest way to enable Swift is to use the `Swift_Release` preset and `ladybird.py`.
 
 ```bash
 ./Meta/ladybird.py build --preset Swift_Release
 ```
 
 Note that because building with Swift support requires use of `clang` and `clang++` from a Swift toolchain, a standard
-install of clang or gcc will not work. Additional IDE settings are be required to ensure that the IDE uses the correct
+install of Clang or GCC will not work. Additional IDE settings are be required to ensure that the IDE uses the correct
 compiler paths. Trying to use just `clang` or `$SWIFTLY_BIN_DIR/clang` will both fail, due to https://github.com/swiftlang/swiftly/issues/272.
 
 The full paths that must be configured for the C and C++ compilers in your IDE are
 `$(swiftly use --print-location)/usr/bin/clang` and `$(swiftly use --print-location)/usr/bin/clang++`. These paths
-will change depending on the version of the swift toolchain specified in `.swift-version`.
+will change depending on the version of the Swift toolchain specified in `.swift-version`.
 
-As another note, the main-snapshot toolchains from swift.org are `+assertion` builds. This means that both clang and
-swiftc are built with extra assertions that will cause compile-times to be longer than a standard release build.
+As another note, the main-snapshot toolchains from swift.org are `+assertion` builds. This means that both `clang` and
+`swiftc` are built with extra assertions that will cause compile-times to be longer than a standard release build.
 
 To configure the build preset manually, you must first install the specified Swift toolchain, and then set the C and C++
 compiler paths manually.
