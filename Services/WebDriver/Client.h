@@ -23,13 +23,13 @@ class Client final : public Web::WebDriver::Client {
     C_OBJECT_ABSTRACT(Client);
 
 public:
-    static ErrorOr<NonnullRefPtr<Client>> try_create(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallback, Core::EventReceiver* parent);
+    static ErrorOr<NonnullRefPtr<Client>> try_create(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallback);
     virtual ~Client() override;
 
     LaunchBrowserCallback const& launch_browser_callback() const { return m_launch_browser_callback; }
 
 private:
-    Client(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallback, Core::EventReceiver* parent);
+    Client(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallback);
 
     virtual Web::WebDriver::Response new_session(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response delete_session(Web::WebDriver::Parameters parameters, JsonValue payload) override;

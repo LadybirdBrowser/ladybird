@@ -176,9 +176,8 @@ static JsonValue make_success_response(JsonValue value)
     return result;
 }
 
-Client::Client(NonnullOwnPtr<Core::BufferedTCPSocket> socket, Core::EventReceiver* parent)
-    : Core::EventReceiver(parent)
-    , m_socket(move(socket))
+Client::Client(NonnullOwnPtr<Core::BufferedTCPSocket> socket)
+    : m_socket(move(socket))
 {
     m_socket->on_ready_to_read = [this] {
         if (auto result = on_ready_to_read(); result.is_error())
@@ -194,7 +193,10 @@ Client::~Client()
 void Client::die()
 {
     // We defer removing this connection to avoid closing its socket while we are inside the on_ready_to_read callback.
-    deferred_invoke([this] { remove_from_parent(); });
+    deferred_invoke([this] {
+        if (on_death)
+            on_death();
+    });
 }
 
 ErrorOr<void, Client::WrappedError> Client::on_ready_to_read()
