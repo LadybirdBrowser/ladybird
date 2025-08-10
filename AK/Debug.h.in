@@ -154,6 +154,10 @@
 #    cmakedefine01 LIBWEB_CSS_DEBUG
 #endif
 
+#ifndef LIBWEB_SERIAL_DEBUG
+#    cmakedefine01 LIBWEB_SERIAL_DEBUG
+#endif
+
 #ifndef LIBWEB_WASM_DEBUG
 #    cmakedefine01 LIBWEB_WASM_DEBUG
 #endif

@@ -245,6 +245,7 @@ write_cmake_config("ak_debug_gen") {
     "LEXER_DEBUG=",
     "LIBWEB_CSS_ANIMATION_DEBUG=",
     "LIBWEB_CSS_DEBUG=",
+    "LIBWEB_SERIAL_DEBUG=",
     "LIBWEB_WASM_DEBUG=",
     "LINE_EDITOR_DEBUG=",
     "LZW_DEBUG=",

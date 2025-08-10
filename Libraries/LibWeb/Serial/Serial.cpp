@@ -86,6 +86,9 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> Serial::request_port(SerialPortReq
 
         // 3. For each available non-Bluetooth serial port:
         for (auto const& device : serial_cpp::list_ports()) {
+            dbgln_if(LIBWEB_SERIAL_DEBUG, "Discovered device: port={}, description={}, hardware_id={}",
+                device.port.c_str(), device.description.c_str(), device.hardware_id.c_str());
+
             // 1. Let port be a SerialPort representing the port.
             auto port = realm.create<SerialPort>(realm, device);
 
@@ -101,6 +104,8 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> Serial::request_port(SerialPortReq
             // FIXME: Filter ports by options["filters"] if present.
             return serial_port->device().port.c_str() == configured_device_path;
         });
+
+        dbgln_if(LIBWEB_SERIAL_DEBUG, "Selected device: {}", selected_port.has_value() ? selected_port.value()->device().port.c_str() : "null");
 
         // 5. If the user does not choose a port, queue a global task on the relevant global object of this using the
         //    serial port task source to reject promise with a "NotFoundError" DOMException and abort these steps.
