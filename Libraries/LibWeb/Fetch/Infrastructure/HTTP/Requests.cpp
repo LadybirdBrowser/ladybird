@@ -164,14 +164,19 @@ bool Request::is_navigation_request() const
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-tainted-origin
-bool Request::has_redirect_tainted_origin() const
+RedirectTaint Request::redirect_taint() const
 {
-    // A request request has a redirect-tainted origin if these steps return true:
+    // 1. Assert: request’s origin is not "client".
+    if (auto const* origin = m_origin.get_pointer<Origin>())
+        VERIFY(*origin != Origin::Client);
 
-    // 1. Let lastURL be null.
+    // 2. Let lastURL be null.
     Optional<URL::URL const&> last_url;
 
-    // 2. For each url of request’s URL list:
+    // 3. Let taint be "same-origin".
+    auto taint = RedirectTaint::SameOrigin;
+
+    // 4. For each url of request’s URL list:
     for (auto const& url : m_url_list) {
         // 1. If lastURL is null, then set lastURL to url and continue.
         if (!last_url.has_value()) {
@@ -179,29 +184,41 @@ bool Request::has_redirect_tainted_origin() const
             continue;
         }
 
-        // 2. If url’s origin is not same origin with lastURL’s origin and request’s origin is not same origin with lastURL’s origin, then return true.
+        // 2. If url’s origin is not same site with lastURL’s origin and request’s origin is not same site with
+        //    lastURL’s origin, then return "cross-site".
         auto const* request_origin = m_origin.get_pointer<URL::Origin>();
-        if (!url.origin().is_same_origin(last_url->origin())
-            && (request_origin == nullptr || !request_origin->is_same_origin(last_url->origin()))) {
-            return true;
+        if (!url.origin().is_same_site(last_url->origin())
+            && (request_origin == nullptr || !request_origin->is_same_site(last_url->origin()))) {
+            return RedirectTaint::CrossSite;
         }
 
-        // 3. Set lastURL to url.
+        // 3. If url’s origin is not same origin with lastURL’s origin and request’s origin is not same origin with
+        //    lastURL’s origin, then set taint to "same-site".
+        if (!url.origin().is_same_origin(last_url->origin())
+            && (request_origin == nullptr || !request_origin->is_same_origin(last_url->origin()))) {
+            taint = RedirectTaint::SameSite;
+        }
+
+        // 4. Set lastURL to url.
         last_url = url;
     }
 
-    // 3. Return false.
-    return false;
+    // 5. Return taint.
+    return taint;
 }
 
 // https://fetch.spec.whatwg.org/#serializing-a-request-origin
 String Request::serialize_origin() const
 {
-    // 1. If request has a redirect-tainted origin, then return "null".
-    if (has_redirect_tainted_origin())
+    // 1. Assert: request’s origin is not "client".
+    if (auto const* origin = m_origin.get_pointer<Origin>())
+        VERIFY(*origin != Origin::Client);
+
+    // 2. If request’s redirect-taint is not "same-origin", then return "null".
+    if (redirect_taint() != RedirectTaint::SameOrigin)
         return "null"_string;
 
-    // 2. Return request’s origin, serialized.
+    // 3. Return request’s origin, serialized.
     return m_origin.get<URL::Origin>().serialize();
 }
 
@@ -358,25 +375,30 @@ void Request::add_origin_header()
 // https://fetch.spec.whatwg.org/#cross-origin-embedder-policy-allows-credentials
 bool Request::cross_origin_embedder_policy_allows_credentials() const
 {
-    // 1. If request’s mode is not "no-cors", then return true.
+    // 1. Assert: request’s origin is not "client".
+    if (auto const* origin = m_origin.get_pointer<Origin>())
+        VERIFY(*origin != Origin::Client);
+
+    // 2. If request’s mode is not "no-cors", then return true.
     if (m_mode != Mode::NoCORS)
         return true;
 
-    // 2. If request’s client is null, then return true.
+    // 3. If request’s client is null, then return true.
     if (m_client == nullptr)
         return true;
 
-    // 3. If request’s client’s policy container’s embedder policy’s value is not "credentialless", then return true.
+    // 4. If request’s client’s policy container’s embedder policy’s value is not "credentialless", then return true.
     if (m_policy_container.has<GC::Ref<HTML::PolicyContainer>>() && m_policy_container.get<GC::Ref<HTML::PolicyContainer>>()->embedder_policy.value != HTML::EmbedderPolicyValue::Credentialless)
         return true;
 
-    // 4. If request’s origin is same origin with request’s current URL’s origin and request does not have a redirect-tainted origin, then return true.
-    // 5. Return false.
+    // 5. If request’s origin is same origin with request’s current URL’s origin and request’s redirect-taint is not
+    //    "same-origin", then return true.
+    // 6. Return false.
     auto const* request_origin = m_origin.get_pointer<URL::Origin>();
     if (request_origin == nullptr)
         return false;
 
-    return request_origin->is_same_origin(current_url().origin()) && !has_redirect_tainted_origin();
+    return request_origin->is_same_origin(current_url().origin()) && redirect_taint() != RedirectTaint::SameOrigin;
 }
 
 StringView request_destination_to_string(Request::Destination destination)

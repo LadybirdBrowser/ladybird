@@ -16,6 +16,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
@@ -103,8 +104,8 @@ public:
     [[nodiscard]] virtual BodyInfo const& body_info() const { return m_body_info; }
     virtual void set_body_info(BodyInfo body_info) { m_body_info = body_info; }
 
-    [[nodiscard]] bool has_cross_origin_redirects() const { return m_has_cross_origin_redirects; }
-    void set_has_cross_origin_redirects(bool has_cross_origin_redirects) { m_has_cross_origin_redirects = has_cross_origin_redirects; }
+    [[nodiscard]] RedirectTaint redirect_taint() const { return m_redirect_taint; }
+    void set_redirect_taint(RedirectTaint redirect_taint) { m_redirect_taint = move(redirect_taint); }
 
     [[nodiscard]] bool is_aborted_network_error() const;
     [[nodiscard]] bool is_network_error() const;
@@ -188,9 +189,9 @@ private:
     // https://fetch.spec.whatwg.org/#response-service-worker-timing-info
     // FIXME: A response has an associated service worker timing info (null or a service worker timing info), which is initially null.
 
-    // https://fetch.spec.whatwg.org/#response-has-cross-origin-redirects
-    // A response has an associated has-cross-origin-redirects (a boolean), which is initially false.
-    bool m_has_cross_origin_redirects { false };
+    // https://fetch.spec.whatwg.org/#response-redirect-taint
+    // A response has an associated redirect taint ("same-origin", "same-site", or "cross-site"), which is initially "same-origin".
+    RedirectTaint m_redirect_taint { RedirectTaint::SameOrigin };
 
     // FIXME is the type correct?
     u64 current_age() const;

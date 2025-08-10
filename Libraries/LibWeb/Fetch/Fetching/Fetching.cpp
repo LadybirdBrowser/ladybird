@@ -545,9 +545,8 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
             if (internal_response->url_list().is_empty())
                 internal_response->set_url_list(request->url_list());
 
-            // 17. If request has a redirect-tainted origin, then set internalResponse’s has-cross-origin-redirects to true.
-            if (request->has_redirect_tainted_origin())
-                internal_response->set_has_cross_origin_redirects(true);
+            // 17. Set internalResponse’s redirect taint to request’s redirect-taint.
+            internal_response->set_redirect_taint(request->redirect_taint());
 
             // 18. If request’s timing allow failed flag is unset, then set internalResponse’s timing allow passed flag.
             if (!request->timing_allow_failed())
@@ -706,8 +705,8 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             // 6. Let responseStatus be 0.
             auto response_status = 0;
 
-            // 7. If fetchParams’s request’s mode is not "navigate" or response’s has-cross-origin-redirects is false:
-            if (fetch_params.request()->mode() != Infrastructure::Request::Mode::Navigate || !response.has_cross_origin_redirects()) {
+            // 7. If fetchParams’s request’s mode is not "navigate" or response’s redirect taint is "same-origin":
+            if (fetch_params.request()->mode() != Infrastructure::Request::Mode::Navigate || response.redirect_taint() == Infrastructure::RedirectTaint::SameOrigin) {
                 // 1. Set responseStatus to response’s status.
                 response_status = response.status();
 

@@ -19,6 +19,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/HTML/PolicyContainers.h>
@@ -310,7 +311,7 @@ public:
     [[nodiscard]] bool is_non_subresource_request() const;
     [[nodiscard]] bool is_navigation_request() const;
 
-    [[nodiscard]] bool has_redirect_tainted_origin() const;
+    [[nodiscard]] RedirectTaint redirect_taint() const;
 
     [[nodiscard]] String serialize_origin() const;
     [[nodiscard]] ByteBuffer byte_serialize_origin() const;
