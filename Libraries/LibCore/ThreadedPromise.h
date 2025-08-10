@@ -179,10 +179,6 @@ private:
     }
 
     ThreadedPromise() = default;
-    ThreadedPromise(EventReceiver* parent)
-        : EventReceiver(parent)
-    {
-    }
 
     Function<ErrorOr<void>(ResultType&&)> m_resolution_handler;
     Function<void(ErrorType&&)> m_rejection_handler;
