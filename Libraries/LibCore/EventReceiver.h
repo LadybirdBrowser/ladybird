@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -8,7 +8,6 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
-#include <AK/ByteString.h>
 #include <AK/Forward.h>
 #include <AK/Noncopyable.h>
 #include <AK/OwnPtr.h>
@@ -67,9 +66,6 @@ public:
 
     virtual bool is_widget() const { return false; }
 
-    ByteString const& name() const { return m_name; }
-    void set_name(ByteString name) { m_name = move(name); }
-
     Vector<NonnullRefPtr<EventReceiver>>& children() { return m_children; }
     Vector<NonnullRefPtr<EventReceiver>> const& children() const { return m_children; }
 
@@ -85,28 +81,6 @@ public:
     template<typename T, typename Callback>
     void for_each_child_of_type(Callback callback)
     requires IsBaseOf<EventReceiver, T>;
-
-    template<typename T>
-    T* find_child_of_type_named(StringView)
-    requires IsBaseOf<EventReceiver, T>;
-
-    template<typename T, size_t N>
-    ALWAYS_INLINE T* find_child_of_type_named(char const (&string_literal)[N])
-    requires IsBaseOf<EventReceiver, T>
-    {
-        return find_child_of_type_named<T>(StringView { string_literal, N - 1 });
-    }
-
-    template<typename T>
-    T* find_descendant_of_type_named(StringView)
-    requires IsBaseOf<EventReceiver, T>;
-
-    template<typename T, size_t N>
-    ALWAYS_INLINE T* find_descendant_of_type_named(char const (&string_literal)[N])
-    requires IsBaseOf<EventReceiver, T>
-    {
-        return find_descendant_of_type_named<T>(StringView { string_literal, N - 1 });
-    }
 
     bool is_ancestor_of(EventReceiver const&) const;
 
@@ -168,7 +142,6 @@ protected:
 
 private:
     EventReceiver* m_parent { nullptr };
-    ByteString m_name;
     intptr_t m_timer_id { 0 };
     Vector<NonnullRefPtr<EventReceiver>> m_children;
 };
@@ -194,39 +167,6 @@ requires IsBaseOf<EventReceiver, T>
             return callback(static_cast<T&>(child));
         return IterationDecision::Continue;
     });
-}
-
-template<typename T>
-T* EventReceiver::find_child_of_type_named(StringView name)
-requires IsBaseOf<EventReceiver, T>
-{
-    T* found_child = nullptr;
-    for_each_child_of_type<T>([&](auto& child) {
-        if (child.name() == name) {
-            found_child = &child;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-
-    return found_child;
-}
-
-template<typename T>
-T* EventReceiver::find_descendant_of_type_named(StringView name)
-requires IsBaseOf<EventReceiver, T>
-{
-    if (is<T>(*this) && this->name() == name) {
-        return static_cast<T*>(this);
-    }
-    T* found_child = nullptr;
-    for_each_child([&](auto& child) {
-        found_child = child.template find_descendant_of_type_named<T>(name);
-        if (found_child)
-            return IterationDecision::Break;
-        return IterationDecision::Continue;
-    });
-    return found_child;
 }
 
 }
