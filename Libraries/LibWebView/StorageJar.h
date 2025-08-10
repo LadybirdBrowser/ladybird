@@ -41,6 +41,7 @@ public:
     void remove_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& key);
     void clear_storage_key(StorageEndpointType storage_endpoint, String const& storage_key);
     Vector<String> get_all_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+    u64 usage(StorageEndpointType storage_endpoint, String const& storage_key);
 
 private:
     struct Statements {
@@ -59,6 +60,7 @@ private:
         void delete_item(StorageLocation const& key);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+        u64 usage(StorageEndpointType storage_endpoint, String const& storage_key);
 
     private:
         HashMap<StorageLocation, String> m_storage_items;
@@ -70,6 +72,7 @@ private:
         void delete_item(StorageLocation const& key);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+        u64 usage(StorageEndpointType, String const& storage_key);
 
         Database& database;
         Statements statements;
