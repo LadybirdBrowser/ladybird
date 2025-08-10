@@ -185,7 +185,7 @@ Optional<StyleProperty> CSSStyleProperties::property(PropertyID property_id) con
         }
 
         if (!layout_node) {
-            auto style = element.document().style_computer().compute_style(element, pseudo_element);
+            auto style = element.document().style_computer().compute_style(element, pseudo_element, {}, false);
 
             return StyleProperty {
                 .property_id = property_id,
