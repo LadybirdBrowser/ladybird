@@ -359,7 +359,7 @@ if the server supports highlighting DOM nodes. We do support this, and the serve
 << {"from":"server0-inspector7","value":true}
 ```
 
-The client will then asks for box model highlighter. This highlighter indicates when the WebContent process should
+The client will then ask for box model highlighter. This highlighter indicates when the WebContent process should
 render an overlay over a particular node, with information about that node's box model. The server will create this
 highlighter type, and reply:
 
