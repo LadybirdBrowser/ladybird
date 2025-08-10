@@ -10,9 +10,8 @@
 
 namespace Core {
 
-Notifier::Notifier(int fd, Type type, EventReceiver* parent)
-    : EventReceiver(parent)
-    , m_fd(fd)
+Notifier::Notifier(int fd, Type type)
+    : m_fd(fd)
     , m_type(type)
 {
     set_enabled(true);
