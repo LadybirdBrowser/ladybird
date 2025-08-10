@@ -11,8 +11,11 @@
 
 namespace Web::Serial {
 
-SerialPort::SerialPort(JS::Realm& realm)
+GC_DEFINE_ALLOCATOR(SerialPort);
+
+SerialPort::SerialPort(JS::Realm& realm, serial_cpp::PortInfo device)
     : DOM::EventTarget(realm)
+    , m_device(move(device))
 {
 }
 
