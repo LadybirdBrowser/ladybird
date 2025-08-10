@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 15 tests
 
-14 Pass
-1 Fail
+15 Pass
 Pass	year can be more than four digits
 Pass	valid value test
 Pass	year can contain prefixes of zero, as long as there are at least four digits
@@ -15,7 +14,7 @@ Pass	When value is set with invalid value, the value must return empty string.
 Pass	When step attribute is given invalid value, it must ignore the invalid value and use defaul value instead.
 Pass	Month should be <= 13: If the value of the element is not a valid month string, then set it to the empty string instead.
 Pass	Month should be > 0: If the value of the element is not a valid month string, then set it to the empty string instead.>
-Fail	Year should be > 0: If the value of the element is not a valid year string, then set it to the empty string instead.>
+Pass	Year should be > 0: If the value of the element is not a valid year string, then set it to the empty string instead.>
 Pass	Month should be two digits: If the value of the element is not a valid month string, then set it to the empty string instead.>
 Pass	Month should be two digits not characters: If the value of the element is not a valid month string, then set it to the empty string instead.>
 Pass	Value should be two parts: If the value of the element is not a valid month string, then set it to the empty string instead.>
