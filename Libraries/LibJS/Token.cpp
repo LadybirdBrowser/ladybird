@@ -63,23 +63,24 @@ double Token::double_value() const
     }
 
     if (value.length() >= 2 && value.starts_with('0')) {
+        static constexpr auto fallback = NumericLimits<u64>::max();
         auto next = value[1];
 
         // hexadecimal
         if (next == 'x' || next == 'X')
-            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 16).value());
+            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 16).value_or(fallback));
 
         // octal
         if (next == 'o' || next == 'O')
-            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 8).value());
+            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 8).value_or(fallback));
 
         // binary
         if (next == 'b' || next == 'B')
-            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 2).value());
+            return static_cast<double>(value.substring_view(2).to_number<u64>(TrimWhitespace::No, 2).value_or(fallback));
 
         // also octal, but syntax error in strict mode
         if (is_ascii_digit(next) && (!value.contains('8') && !value.contains('9')))
-            return static_cast<double>(value.substring_view(1).to_number<u64>(TrimWhitespace::No, 8).value());
+            return static_cast<double>(value.substring_view(1).to_number<u64>(TrimWhitespace::No, 8).value_or(fallback));
     }
 
     // This should always be a valid double
