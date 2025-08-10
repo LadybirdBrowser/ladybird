@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 60 tests
 
-58 Pass
-2 Fail
+60 Pass
 Pass	valueAsNumber getter on type date (actual value: , expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type date (actual value: 0000-12-10, expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type date (actual value: 2019-00-12, expected valueAsNumber: NaN)
@@ -59,8 +58,8 @@ Pass	valueAsNumber getter on type range (actual value: , expected valueAsNumber:
 Pass	valueAsNumber getter on type range (actual value: 0, expected valueAsNumber: 0)
 Pass	valueAsNumber getter on type range (actual value: 50, expected valueAsNumber: 50)
 Pass	valueAsNumber getter on type range (actual value: 100, expected valueAsNumber: 100)
-Fail	valueAsNumber getter on type range (actual value: -10, expected valueAsNumber: 0)
-Fail	valueAsNumber getter on type range (actual value: 110, expected valueAsNumber: 100)
+Pass	valueAsNumber getter on type range (actual value: -10, expected valueAsNumber: 0)
+Pass	valueAsNumber getter on type range (actual value: 110, expected valueAsNumber: 100)
 Pass	valueAsNumber setter on type range (actual valueAsNumber: 0, expected value: 0)
 Pass	valueAsNumber setter on type range (actual valueAsNumber: 50, expected value: 50)
 Pass	valueAsNumber setter on type range (actual valueAsNumber: 100, expected value: 100)
