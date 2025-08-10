@@ -15,7 +15,7 @@
 
 namespace Core {
 
-ErrorOr<NonnullRefPtr<TCPServer>> TCPServer::try_create(EventReceiver* parent)
+ErrorOr<NonnullRefPtr<TCPServer>> TCPServer::try_create()
 {
     int fd = TRY(Core::System::socket(AF_INET, SOCK_STREAM, 0));
     ArmedScopeGuard close_fd { [fd]() {
@@ -28,12 +28,11 @@ ErrorOr<NonnullRefPtr<TCPServer>> TCPServer::try_create(EventReceiver* parent)
     if (SetHandleInformation(to_handle(fd), HANDLE_FLAG_INHERIT, 0) == 0)
         return Error::from_windows_error();
     close_fd.disarm();
-    return adopt_nonnull_ref_or_enomem(new (nothrow) TCPServer(fd, parent));
+    return adopt_nonnull_ref_or_enomem(new (nothrow) TCPServer(fd));
 }
 
-TCPServer::TCPServer(int fd, EventReceiver* parent)
-    : EventReceiver(parent)
-    , m_fd(fd)
+TCPServer::TCPServer(int fd)
+    : m_fd(fd)
 {
     VERIFY(m_fd >= 0);
 }
