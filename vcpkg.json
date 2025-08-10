@@ -124,8 +124,28 @@
       ]
     },
     {
+      "name": "qtbase",
+      "platform": "windows",
+      "default-features": false,
+      "features": [
+        "doubleconversion",
+        "freetype",
+        "gui",
+        "icu",
+        "jpeg",
+        "network",
+        "opengl",
+        "pcre2",
+        "png",
+        "thread",
+        "vulkan",
+        "widgets",
+        "zstd"
+      ]
+    },
+    {
       "name": "qtmultimedia",
-      "platform": "freebsd"
+      "platform": "windows | freebsd"
     },
     {
       "name": "pthread",
