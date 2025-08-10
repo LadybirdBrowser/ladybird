@@ -49,7 +49,7 @@ private:
         Database::StatementID get_item { 0 };
         Database::StatementID clear { 0 };
         Database::StatementID get_keys { 0 };
-        Database::StatementID calculate_size_excluding_key { 0 };
+        Database::StatementID calculate_size_excluding_bottle { 0 };
     };
 
     class TransientStorage {

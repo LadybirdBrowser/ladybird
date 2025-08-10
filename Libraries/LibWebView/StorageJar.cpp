@@ -32,7 +32,7 @@ ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database& database)
     statements.get_item = TRY(database.prepare_statement("SELECT bottle_value FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
     statements.clear = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
     statements.get_keys = TRY(database.prepare_statement("SELECT bottle_key FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
-    statements.calculate_size_excluding_key = TRY(database.prepare_statement("SELECT SUM(LENGTH(bottle_key) + LENGTH(bottle_value)) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"sv));
+    statements.calculate_size_excluding_bottle = TRY(database.prepare_statement("SELECT SUM(LENGTH(bottle_key) + LENGTH(bottle_value)) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"sv));
 
     return adopt_own(*new StorageJar { PersistedStorage { database, statements } });
 }
@@ -95,7 +95,7 @@ StorageOperationError StorageJar::PersistedStorage::set_item(StorageLocation con
 {
     size_t current_size = 0;
     database.execute_statement(
-        statements.calculate_size_excluding_key,
+        statements.calculate_size_excluding_bottle,
         [&](auto statement_id) {
             current_size = database.result_column<int>(statement_id, 0);
         },
