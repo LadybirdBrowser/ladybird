@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -14,28 +14,24 @@ NonnullRefPtr<Timer> Timer::create()
     return adopt_ref(*new Timer);
 }
 
-NonnullRefPtr<Timer> Timer::create_repeating(int interval_ms, Function<void()>&& timeout_handler, EventReceiver* parent)
+NonnullRefPtr<Timer> Timer::create_repeating(int interval_ms, Function<void()>&& timeout_handler)
 {
-    return adopt_ref(*new Timer(interval_ms, move(timeout_handler), parent));
+    return adopt_ref(*new Timer(interval_ms, move(timeout_handler)));
 }
 
-NonnullRefPtr<Timer> Timer::create_single_shot(int interval_ms, Function<void()>&& timeout_handler, EventReceiver* parent)
+NonnullRefPtr<Timer> Timer::create_single_shot(int interval_ms, Function<void()>&& timeout_handler)
 {
-    auto timer = adopt_ref(*new Timer(interval_ms, move(timeout_handler), parent));
+    auto timer = adopt_ref(*new Timer(interval_ms, move(timeout_handler)));
     timer->set_single_shot(true);
     return timer;
 }
 
 Timer::~Timer() = default;
 
-Timer::Timer(EventReceiver* parent)
-    : EventReceiver(parent)
-{
-}
+Timer::Timer() = default;
 
-Timer::Timer(int interval_ms, Function<void()>&& timeout_handler, EventReceiver* parent)
-    : EventReceiver(parent)
-    , on_timeout(move(timeout_handler))
+Timer::Timer(int interval_ms, Function<void()>&& timeout_handler)
+    : on_timeout(move(timeout_handler))
     , m_interval_ms(interval_ms)
 {
 }
