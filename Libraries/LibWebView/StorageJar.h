@@ -57,7 +57,7 @@ private:
         Database::StatementID update_last_access_time { 0 };
         Database::StatementID clear { 0 };
         Database::StatementID get_keys { 0 };
-        Database::StatementID calculate_size_excluding_key { 0 };
+        Database::StatementID calculate_size_excluding_bottle_key { 0 };
         Database::StatementID estimate_storage_size_accessed_since { 0 };
     };
 
