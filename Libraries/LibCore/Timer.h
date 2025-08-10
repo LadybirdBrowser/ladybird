@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -17,8 +17,8 @@ class Timer final : public EventReceiver {
 
 public:
     static NonnullRefPtr<Timer> create();
-    static NonnullRefPtr<Timer> create_repeating(int interval_ms, Function<void()>&& timeout_handler, EventReceiver* parent = nullptr);
-    static NonnullRefPtr<Timer> create_single_shot(int interval_ms, Function<void()>&& timeout_handler, EventReceiver* parent = nullptr);
+    static NonnullRefPtr<Timer> create_repeating(int interval_ms, Function<void()>&& timeout_handler);
+    static NonnullRefPtr<Timer> create_single_shot(int interval_ms, Function<void()>&& timeout_handler);
 
     virtual ~Timer() override;
 
@@ -46,8 +46,8 @@ public:
     Function<void()> on_timeout;
 
 private:
-    explicit Timer(EventReceiver* parent = nullptr);
-    Timer(int interval_ms, Function<void()>&& timeout_handler, EventReceiver* parent = nullptr);
+    Timer();
+    Timer(int interval_ms, Function<void()>&& timeout_handler);
 
     virtual void timer_event(TimerEvent&) override;
 
