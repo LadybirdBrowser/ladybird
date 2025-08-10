@@ -14,6 +14,7 @@
 #import <Geometry/DOMRectList.idl>
 #import <HTML/HTMLSlotElement.idl>
 #import <HTML/Window.idl>
+#import <TrustedTypes/TrustedHTML.idl>
 #import <TrustedTypes/TrustedTypePolicy.idl>
 
 enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
@@ -109,18 +110,14 @@ interface Element : Node {
     readonly attribute double currentCSSZoom;
 
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
-    // FIXME: [CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
-    [CEReactions] undefined setHTMLUnsafe(DOMString html);
+    [CEReactions] undefined setHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
     DOMString getHTML(optional GetHTMLOptions options = {});
 
-    // FIXME: [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) innerHTML;
-    [CEReactions, LegacyNullToEmptyString] attribute DOMString innerHTML;
+    [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) innerHTML;
 
-    // FIXME: [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) outerHTML;
-    [CEReactions, LegacyNullToEmptyString] attribute DOMString outerHTML;
+    [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) outerHTML;
 
-    // FIXME: [CEReactions] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or DOMString) string);
-    [CEReactions] undefined insertAdjacentHTML(DOMString position, DOMString text);
+    [CEReactions] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or Utf16DOMString) text);
 
     // https://w3c.github.io/pointerevents/#extensions-to-the-element-interface
     undefined setPointerCapture(long pointerId);

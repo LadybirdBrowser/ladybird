@@ -403,7 +403,7 @@ public:
     [[nodiscard]] UniqueNodeID unique_id() const { return m_unique_id; }
     static Node* from_unique_id(UniqueNodeID);
 
-    WebIDL::ExceptionOr<String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
+    WebIDL::ExceptionOr<Utf16String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
     WebIDL::ExceptionOr<void> unsafely_set_html(Element&, StringView);
 
