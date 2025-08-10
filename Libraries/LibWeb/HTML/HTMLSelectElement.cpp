@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -567,8 +568,10 @@ void HTMLSelectElement::form_associated_element_attribute_changed(FlyString cons
     }
 }
 
-void HTMLSelectElement::computed_properties_changed()
+void HTMLSelectElement::computed_properties_changed(GC::Ptr<CSS::ComputedProperties> old_properties, GC::Ptr<CSS::ComputedProperties> new_properties)
 {
+    DOM::Element::computed_properties_changed(old_properties, new_properties);
+
     // Hide chevron icon when appearance is none
     if (m_chevron_icon_element) {
         auto appearance = computed_properties()->appearance();
