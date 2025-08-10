@@ -94,6 +94,9 @@ public:
         // https://w3c.github.io/web-locks/#web-locks-tasks-source
         WebLocks,
 
+        // https://storage.spec.whatwg.org/#task-source
+        Storage,
+
         // !!! IMPORTANT: Keep this field last!
         // This serves as the base value of all unique task sources.
         // Some elements, such as the HTMLMediaElement, must have a unique task source per instance.

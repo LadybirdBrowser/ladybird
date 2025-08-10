@@ -508,7 +508,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
     GC::Ptr<StorageAPI::LocalStorageBottle> map;
     auto storage_key = StorageAPI::obtain_a_storage_key(relevant_settings_object(*this));
     if (storage_key.has_value()) {
-        map = StorageAPI::LocalStorageBottle::create(heap(), page(), storage_key.value(), StorageAPI::StorageEndpoint::LOCAL_STORAGE_QUOTA);
+        map = StorageAPI::LocalStorageBottle::create(heap(), page(), StorageAPI::StorageEndpointType::LocalStorage, storage_key.value(), StorageAPI::StorageEndpoint::LOCAL_STORAGE_QUOTA);
     }
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.

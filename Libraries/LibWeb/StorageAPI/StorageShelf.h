@@ -28,12 +28,19 @@ public:
     BucketMap& bucket_map() { return m_bucket_map; }
     BucketMap const& bucket_map() const { return m_bucket_map; }
 
+    u64 storage_usage() const;
+    u64 storage_quota() const;
+
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
     explicit StorageShelf(GC::Ref<Page>, StorageKey, StorageType);
 
+    GC::Ref<Page> m_page;
+    StorageKey m_key;
     BucketMap m_bucket_map;
 };
+
+GC::Ptr<StorageShelf> obtain_a_local_storage_shelf(HTML::EnvironmentSettingsObject&);
 
 }
