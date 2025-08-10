@@ -165,10 +165,6 @@ private:
     }
 
     Promise() = default;
-    Promise(EventReceiver* parent)
-        : EventReceiver(parent)
-    {
-    }
 
     Optional<ErrorOr<Result, ErrorType>> m_result_or_rejection;
 };
