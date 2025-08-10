@@ -21,6 +21,10 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(Documentwrite, "Document write")                                   \
     __ENUMERATE_INJECTION_SINKS(Documentwriteln, "Document writeln")                               \
     __ENUMERATE_INJECTION_SINKS(DocumentexecCommand, "Document execCommand")                       \
+    __ENUMERATE_INJECTION_SINKS(ElementinnerHTML, "Element innerHTML")                             \
+    __ENUMERATE_INJECTION_SINKS(ElementinsertAdjacentHTML, "Element insertAdjacentHTML")           \
+    __ENUMERATE_INJECTION_SINKS(ElementouterHTML, "Element outerHTML")                             \
+    __ENUMERATE_INJECTION_SINKS(ElementsetHTMLUnsafe, "Element setHTMLUnsafe")                     \
     __ENUMERATE_INJECTION_SINKS(Function, "Function")                                              \
     __ENUMERATE_INJECTION_SINKS(HTMLIFrameElementsrcdoc, "HTMLIFrameElement srcdoc")               \
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElementinnerText, "HTMLScriptElement innerText")         \

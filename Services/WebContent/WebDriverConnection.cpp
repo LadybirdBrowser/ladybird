@@ -1749,14 +1749,14 @@ Web::WebDriver::Response WebDriverConnection::element_clear_impl(StringView elem
     // https://w3c.github.io/webdriver/#dfn-clear-a-content-editable-element
     auto clear_content_editable_element = [&](Web::DOM::Element& element) {
         // 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
-        if (auto result = element.inner_html(); result.is_error() || result.value().is_empty())
+        if (auto result = element.inner_html(); result.is_error() || result.value().get<Utf16String>().is_empty())
             return;
 
         // 2. Run the focusing steps for element.
         Web::HTML::run_focusing_steps(&element);
 
         // 3. Set element's innerHTML IDL attribute to an empty string.
-        (void)element.set_inner_html({});
+        (void)element.set_inner_html(""_utf16);
 
         // 4. Run the unfocusing steps for the element.
         Web::HTML::run_unfocusing_steps(&element);
@@ -2028,7 +2028,7 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
         auto* document = current_browsing_context().active_document();
-        Optional<String> source;
+        Optional<Utf16String> source;
 
         // 3. Let source be the result of invoking the fragment serializing algorithm on a fictional node whose only
         //    child is the document element providing true for the require well-formed flag. If this causes an exception
@@ -2042,7 +2042,7 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
             source = MUST(document->serialize_fragment(Web::HTML::RequireWellFormed::No));
 
         // 5. Return success with data source.
-        async_driver_execution_complete({ source.release_value() });
+        async_driver_execution_complete({ source.release_value().to_utf8_but_should_be_ported_to_utf16() });
     });
 
     return JsonValue {};
