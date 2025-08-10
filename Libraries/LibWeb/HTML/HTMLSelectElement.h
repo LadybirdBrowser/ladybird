@@ -125,7 +125,7 @@ private:
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
 
-    virtual void computed_properties_changed() override;
+    virtual void computed_properties_changed(GC::Ptr<CSS::ComputedProperties> old_properties, GC::Ptr<CSS::ComputedProperties> new_properties) override;
 
     virtual void children_changed(ChildrenChangedMetadata const*) override;
     bool can_skip_children_changed_selectedness_update(ChildrenChangedMetadata const& metadata) const;
