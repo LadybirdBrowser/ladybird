@@ -16,7 +16,7 @@ namespace Core {
 class TCPServer : public EventReceiver {
     C_OBJECT_ABSTRACT(TCPServer)
 public:
-    static ErrorOr<NonnullRefPtr<TCPServer>> try_create(EventReceiver* parent = nullptr);
+    static ErrorOr<NonnullRefPtr<TCPServer>> try_create();
     virtual ~TCPServer() override;
 
     enum class AllowAddressReuse {
@@ -36,7 +36,7 @@ public:
     Function<void()> on_ready_to_accept;
 
 private:
-    explicit TCPServer(int fd, EventReceiver* parent = nullptr);
+    explicit TCPServer(int fd);
 
     int m_fd { -1 };
     bool m_listening { false };
