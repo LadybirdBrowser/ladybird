@@ -21,10 +21,7 @@
 
 namespace Core {
 
-LocalServer::LocalServer(EventReceiver* parent)
-    : EventReceiver(parent)
-{
-}
+LocalServer::LocalServer() = default;
 
 LocalServer::~LocalServer()
 {
