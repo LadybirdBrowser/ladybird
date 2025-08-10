@@ -26,7 +26,7 @@ public:
     Function<void(Error)> on_accept_error;
 
 private:
-    explicit LocalServer(EventReceiver* parent = nullptr);
+    LocalServer();
 
     void setup_notifier();
 
