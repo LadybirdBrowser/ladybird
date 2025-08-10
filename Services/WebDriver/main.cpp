@@ -106,6 +106,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop loop;
     auto server = TRY(Core::TCPServer::try_create());
 
+    HashTable<NonnullRefPtr<WebDriver::Client>> clients;
+
     // FIXME: Propagate errors
     server->on_ready_to_accept = [&] {
         auto maybe_client_socket = server->accept();
@@ -125,11 +127,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             return launch_process("Ladybird"sv, arguments.span());
         };
 
-        auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), move(launch_browser_callback), server);
+        auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), move(launch_browser_callback));
         if (maybe_client.is_error()) {
             warnln("Could not create a WebDriver client: {}", maybe_client.error());
             return;
         }
+
+        auto client = maybe_client.release_value();
+        client->on_death = [&] {
+            clients.remove(client);
+        };
+        clients.set(move(client));
     };
 
     TRY(server->listen(ipv4_address.value(), port, Core::TCPServer::AllowAddressReuse::Yes));

@@ -116,8 +116,10 @@ public:
     // 18. Print, https://w3c.github.io/webdriver/#print
     virtual Response print_page(Parameters parameters, JsonValue payload) = 0;
 
+    Function<void()> on_death;
+
 protected:
-    Client(NonnullOwnPtr<Core::BufferedTCPSocket>, Core::EventReceiver* parent);
+    explicit Client(NonnullOwnPtr<Core::BufferedTCPSocket>);
 
 private:
     using WrappedError = Variant<AK::Error, HTTP::HttpRequest::ParseError, WebDriver::Error>;
