@@ -34,6 +34,8 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(Locationhref, "Location href")                                     \
     __ENUMERATE_INJECTION_SINKS(RangecreateContextualFragment, "Range createContextualFragment")   \
     __ENUMERATE_INJECTION_SINKS(ServiceWorkerContainerregister, "ServiceWorkerContainer register") \
+    __ENUMERATE_INJECTION_SINKS(ShadowRootinnerHTML, "ShadowRoot innerHTML")                       \
+    __ENUMERATE_INJECTION_SINKS(ShadowRootsetHTMLUnsafe, "ShadowRoot setHTMLUnsafe")               \
     __ENUMERATE_INJECTION_SINKS(SharedWorkerconstructor, "SharedWorker constructor")               \
     __ENUMERATE_INJECTION_SINKS(SVGScriptElementhref, "SVGScriptElement href")                     \
     __ENUMERATE_INJECTION_SINKS(Workerconstructor, "Worker constructor")                           \
