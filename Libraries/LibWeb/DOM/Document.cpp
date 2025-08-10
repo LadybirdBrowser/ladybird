@@ -1464,79 +1464,6 @@ void Document::update_layout(UpdateLayoutReason reason)
     }
 }
 
-[[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(Node& node, CSS::StyleComputer& style_computer, bool needs_inherited_style_update, bool recompute_elements_depending_on_custom_properties)
-{
-    bool const needs_full_style_update = node.document().needs_full_style_update();
-    CSS::RequiredInvalidationAfterStyleChange invalidation;
-
-    if (node.is_element())
-        style_computer.push_ancestor(static_cast<Element const&>(node));
-
-    // NOTE: If the current node has `display:none`, we can disregard all invalidation
-    //       caused by its children, as they will not be rendered anyway.
-    //       We will still recompute style for the children, though.
-    bool is_display_none = false;
-
-    bool did_change_custom_properties = false;
-    CSS::RequiredInvalidationAfterStyleChange node_invalidation;
-    if (is<Element>(node)) {
-        auto& element = static_cast<Element&>(node);
-        if (needs_full_style_update || node.needs_style_update() || (recompute_elements_depending_on_custom_properties && element.style_uses_var_css_function())) {
-            node_invalidation = element.recompute_style(did_change_custom_properties);
-        } else if (needs_inherited_style_update) {
-            node_invalidation = element.recompute_inherited_style();
-        }
-        is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
-    }
-    if (node_invalidation.relayout && node.layout_node()) {
-        node.layout_node()->set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
-    }
-    if (node_invalidation.rebuild_layout_tree) {
-        // We mark layout tree for rebuild starting from parent element to correctly invalidate
-        // "display" property change to/from "contents" value.
-        if (auto parent_element = node.parent_element()) {
-            parent_element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
-        } else {
-            node.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
-        }
-    }
-    node.set_needs_style_update(false);
-    invalidation |= node_invalidation;
-
-    if (did_change_custom_properties) {
-        recompute_elements_depending_on_custom_properties = true;
-    }
-
-    bool children_need_inherited_style_update = !invalidation.is_none();
-    if (needs_full_style_update || node.child_needs_style_update() || children_need_inherited_style_update || recompute_elements_depending_on_custom_properties) {
-        if (node.is_element()) {
-            if (auto shadow_root = static_cast<DOM::Element&>(node).shadow_root()) {
-                if (needs_full_style_update || shadow_root->needs_style_update() || shadow_root->child_needs_style_update()) {
-                    auto subtree_invalidation = update_style_recursively(*shadow_root, style_computer, children_need_inherited_style_update, recompute_elements_depending_on_custom_properties);
-                    if (!is_display_none)
-                        invalidation |= subtree_invalidation;
-                }
-            }
-        }
-
-        node.for_each_child([&](auto& child) {
-            if (needs_full_style_update || child.needs_style_update() || children_need_inherited_style_update || child.child_needs_style_update() || recompute_elements_depending_on_custom_properties) {
-                auto subtree_invalidation = update_style_recursively(child, style_computer, children_need_inherited_style_update, recompute_elements_depending_on_custom_properties);
-                if (!is_display_none)
-                    invalidation |= subtree_invalidation;
-            }
-            return IterationDecision::Continue;
-        });
-    }
-
-    node.set_child_needs_style_update(false);
-
-    if (node.is_element())
-        style_computer.pop_ancestor(static_cast<Element const&>(node));
-
-    return invalidation;
-}
-
 void Document::update_style()
 {
     if (!browsing_context())
@@ -1566,7 +1493,7 @@ void Document::update_style()
 
     style_computer().reset_ancestor_filter();
 
-    auto invalidation = update_style_recursively(*this, style_computer(), false, false);
+    auto invalidation = style_computer().update_document_computed_style();
     if (!invalidation.is_none())
         invalidate_display_list();
     if (invalidation.rebuild_stacking_context_tree)

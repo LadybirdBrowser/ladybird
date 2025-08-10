@@ -668,25 +668,8 @@ void Element::run_attribute_change_steps(FlyString const& local_name, Optional<S
     }
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedProperties const& old_style, CSS::ComputedProperties const& new_style)
+void Element::reset_style_invalidation_flags()
 {
-    CSS::RequiredInvalidationAfterStyleChange invalidation;
-
-    if (!old_style.computed_font_list().equals(new_style.computed_font_list()))
-        invalidation.relayout = true;
-
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        auto property_id = static_cast<CSS::PropertyID>(i);
-
-        invalidation |= CSS::compute_property_invalidation(property_id, old_style.property(property_id), new_style.property(property_id));
-    }
-    return invalidation;
-}
-
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_change_custom_properties)
-{
-    VERIFY(parent());
-
     m_style_uses_attr_css_function = false;
     m_style_uses_var_css_function = false;
     m_affected_by_has_pseudo_class_in_subject_position = false;
@@ -697,166 +680,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     m_affected_by_sibling_position_or_count_pseudo_class = false;
     m_affected_by_nth_child_pseudo_class = false;
     m_sibling_invalidation_distance = 0;
-
-    auto& style_computer = document().style_computer();
-    auto new_computed_properties = style_computer.compute_style({ *this }, did_change_custom_properties);
-
-    // Tables must not inherit -libweb-* values for text-align.
-    // FIXME: Find the spec for this.
-    if (is<HTML::HTMLTableElement>(*this)) {
-        auto text_align = new_computed_properties->text_align();
-        if (text_align == CSS::TextAlign::LibwebLeft || text_align == CSS::TextAlign::LibwebCenter || text_align == CSS::TextAlign::LibwebRight)
-            new_computed_properties->set_property(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Start));
-    }
-
-    bool had_list_marker = false;
-
-    CSS::RequiredInvalidationAfterStyleChange invalidation;
-    if (m_computed_properties) {
-        invalidation = compute_required_invalidation(*m_computed_properties, new_computed_properties);
-        had_list_marker = m_computed_properties->display().is_list_item();
-    } else {
-        invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
-    }
-
-    auto old_display_is_none = m_computed_properties ? m_computed_properties->display().is_none() : true;
-    auto new_display_is_none = new_computed_properties->display().is_none();
-
-    set_computed_properties({}, move(new_computed_properties));
-
-    if (old_display_is_none != new_display_is_none) {
-        for_each_shadow_including_inclusive_descendant([&](auto& node) {
-            if (!node.is_element())
-                return TraversalDecision::Continue;
-            auto& element = static_cast<Element&>(node);
-            element.play_or_cancel_animations_after_display_property_change();
-            return TraversalDecision::Continue;
-        });
-    }
-
-    // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
-    auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element) {
-        style_computer.push_ancestor(*this);
-
-        auto pseudo_element_style = computed_properties(pseudo_element);
-        auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties);
-
-        // TODO: Can we be smarter about invalidation?
-        if (pseudo_element_style && new_pseudo_element_style) {
-            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style);
-        } else if (pseudo_element_style || new_pseudo_element_style) {
-            invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
-        }
-
-        set_computed_properties(pseudo_element, move(new_pseudo_element_style));
-        style_computer.pop_ancestor(*this);
-    };
-
-    recompute_pseudo_element_style(CSS::PseudoElement::Before);
-    recompute_pseudo_element_style(CSS::PseudoElement::After);
-    if (m_rendered_in_top_layer)
-        recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
-    if (had_list_marker || m_computed_properties->display().is_list_item())
-        recompute_pseudo_element_style(CSS::PseudoElement::Marker);
-
-    if (invalidation.is_none())
-        return invalidation;
-
-    if (invalidation.repaint && paintable())
-        paintable()->set_needs_paint_only_properties_update(true);
-
-    if (!invalidation.rebuild_layout_tree && layout_node()) {
-        // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
-        layout_node()->apply_style(*m_computed_properties);
-        if (invalidation.repaint && paintable()) {
-            paintable()->set_needs_paint_only_properties_update(true);
-            paintable()->set_needs_display();
-        }
-
-        // Do the same for pseudo-elements.
-        for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
-            auto pseudo_element_type = static_cast<CSS::PseudoElement>(i);
-            auto pseudo_element = get_pseudo_element(pseudo_element_type);
-            if (!pseudo_element.has_value() || !pseudo_element->layout_node())
-                continue;
-
-            auto pseudo_element_style = computed_properties(pseudo_element_type);
-            if (!pseudo_element_style)
-                continue;
-
-            if (auto node_with_style = pseudo_element->layout_node()) {
-                node_with_style->apply_style(*pseudo_element_style);
-                if (invalidation.repaint && node_with_style->first_paintable()) {
-                    node_with_style->first_paintable()->set_needs_paint_only_properties_update(true);
-                    node_with_style->first_paintable()->set_needs_display();
-                }
-            }
-        }
-    }
-
-    return invalidation;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
+CSS::RequiredInvalidationAfterStyleChange Element::update_inherited_computed_style()
 {
-    auto computed_properties = this->computed_properties();
-    if (!m_cascaded_properties || !computed_properties || !layout_node())
-        return {};
-
-    CSS::RequiredInvalidationAfterStyleChange invalidation;
-
-    HashMap<size_t, RefPtr<CSS::StyleValue const>> old_values_with_relative_units;
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        auto property_id = static_cast<CSS::PropertyID>(i);
-        // FIXME: We should use the specified value rather than the cascaded value as the cascaded value may include
-        //        unresolved CSS-wide keywords (e.g. 'initial' or 'inherit') rather than the resolved value.
-        auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
-        RefPtr old_value = computed_properties->property(property_id);
-        // Update property if it uses relative units as it might have been affected by a change in ancestor element style.
-        if (preabsolutized_value && preabsolutized_value->is_length() && preabsolutized_value->as_length().length().is_font_relative()) {
-            auto is_inherited = computed_properties->is_property_inherited(property_id);
-            computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
-            old_values_with_relative_units.set(i, old_value);
-        }
-
-        // FIXME: We should also consider properties which depend on their inherited values for computation (e.g.
-        //        relative font-sizes or font-weights)
-        if (!computed_properties->is_property_inherited(property_id))
-            continue;
-
-        RefPtr<CSS::StyleValue const> old_animated_value = computed_properties->animated_property_values().get(property_id).value_or({});
-        RefPtr<CSS::StyleValue const> new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, { *this })
-                                                               .map([&](auto& value) { return value.ptr(); })
-                                                               .value_or({});
-
-        invalidation |= CSS::compute_property_invalidation(property_id, old_animated_value, new_animated_value);
-
-        if (new_animated_value)
-            computed_properties->set_animated_property(property_id, new_animated_value.release_nonnull(), CSS::ComputedProperties::Inherited::Yes);
-        else if (old_animated_value && computed_properties->is_animated_property_inherited(property_id))
-            computed_properties->remove_animated_property(property_id);
-
-        RefPtr new_value = CSS::StyleComputer::get_non_animated_inherit_value(property_id, { *this });
-        computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
-        invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
-    }
-
-    if (invalidation.is_none() && old_values_with_relative_units.is_empty())
-        return invalidation;
-
-    document().style_computer().compute_font(*computed_properties, AbstractElement { *this });
-    document().style_computer().compute_property_values(*computed_properties);
-
-    for (auto [property_id, old_value] : old_values_with_relative_units) {
-        auto const& new_value = computed_properties->property(static_cast<CSS::PropertyID>(property_id));
-        invalidation |= CSS::compute_property_invalidation(static_cast<CSS::PropertyID>(property_id), old_value, new_value);
-    }
-
-    if (invalidation.is_none())
-        return invalidation;
-
-    layout_node()->apply_style(*computed_properties);
-    return invalidation;
+    return document().style_computer().update_element_inherited_computed_style(*this);
 }
 
 DOMTokenList* Element::class_list()
@@ -3010,8 +2838,10 @@ void Element::set_computed_properties(Optional<CSS::PseudoElement> pseudo_elemen
         ensure_pseudo_element(*pseudo_element_type).set_computed_properties(style);
         return;
     }
+    auto old_properties = m_computed_properties;
+
     m_computed_properties = style;
-    computed_properties_changed();
+    computed_properties_changed(old_properties, m_computed_properties);
 }
 
 Optional<PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement type) const
@@ -3854,6 +3684,22 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
     }
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
+}
+
+void Element::computed_properties_changed(GC::Ptr<CSS::ComputedProperties> old_properties, GC::Ptr<CSS::ComputedProperties> new_properties)
+{
+    auto old_display_is_none = old_properties ? old_properties->display().is_none() : true;
+    auto new_display_is_none = new_properties->display().is_none();
+
+    if (old_display_is_none != new_display_is_none) {
+        for_each_shadow_including_inclusive_descendant([&](auto& node) {
+            if (!node.is_element())
+                return TraversalDecision::Continue;
+            auto& element = static_cast<DOM::Element&>(node);
+            element.play_or_cancel_animations_after_display_property_change();
+            return TraversalDecision::Continue;
+        });
+    }
 }
 
 auto Element::ensure_custom_element_reaction_queue() -> CustomElementReactionQueue&

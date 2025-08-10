@@ -213,6 +213,9 @@ public:
     static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& specified_value, Length::ResolutionContext const&);
     static NonnullRefPtr<StyleValue const> compute_opacity(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const&);
     static NonnullRefPtr<StyleValue const> compute_text_underline_offset(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const&);
+    CSS::RequiredInvalidationAfterStyleChange update_element_computed_style(Web::DOM::Element& element, bool& did_change_custom_properties);
+    CSS::RequiredInvalidationAfterStyleChange update_element_inherited_computed_style(Web::DOM::Element& element);
+    CSS::RequiredInvalidationAfterStyleChange update_document_computed_style();
 
 private:
     virtual void visit_edges(Visitor&) override;
@@ -248,6 +251,7 @@ private:
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::AbstractElement) const;
     void resolve_effective_overflow_values(ComputedProperties&) const;
     void transform_box_type_if_needed(ComputedProperties&, DOM::AbstractElement) const;
+    CSS::RequiredInvalidationAfterStyleChange update_computed_style_recursively(DOM::Node& node, bool needs_inherited_style_update, bool recompute_elements_depending_on_custom_properties);
 
     template<typename Callback>
     void for_each_stylesheet(CascadeOrigin, Callback) const;
