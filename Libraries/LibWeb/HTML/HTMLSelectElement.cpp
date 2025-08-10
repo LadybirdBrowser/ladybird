@@ -612,7 +612,7 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
         height: 16px;
         margin-left: 4px;
     )~~~"_string));
-    MUST(m_chevron_icon_element->set_inner_html(chevron_svg));
+    MUST(m_chevron_icon_element->set_inner_html(Utf16String::from_utf8(chevron_svg)));
     MUST(border->append_child(*m_chevron_icon_element));
 
     update_inner_text_element();

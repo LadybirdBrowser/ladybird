@@ -239,17 +239,17 @@ public:
 
     [[nodiscard]] GC::Ptr<Element const> element_to_inherit_style_from(Optional<CSS::PseudoElement>) const;
 
-    WebIDL::ExceptionOr<String> inner_html() const;
-    WebIDL::ExceptionOr<void> set_inner_html(StringView);
+    WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> inner_html() const;
+    WebIDL::ExceptionOr<void> set_inner_html(TrustedTypes::TrustedHTMLOrString const&);
 
-    WebIDL::ExceptionOr<void> set_html_unsafe(StringView);
+    WebIDL::ExceptionOr<void> set_html_unsafe(TrustedTypes::TrustedHTMLOrString const&);
 
     WebIDL::ExceptionOr<String> get_html(GetHTMLOptions const&) const;
 
-    WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, String const&);
+    WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const&);
 
-    WebIDL::ExceptionOr<String> outer_html() const;
-    WebIDL::ExceptionOr<void> set_outer_html(String const&);
+    WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> outer_html() const;
+    WebIDL::ExceptionOr<void> set_outer_html(TrustedTypes::TrustedHTMLOrString const&);
 
     bool is_focused() const;
     bool is_active() const;
