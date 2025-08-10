@@ -47,6 +47,7 @@ ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database::Database& databa
     statements.clear = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
     statements.get_keys = TRY(database.prepare_statement("SELECT bottle_key FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
     statements.calculate_size_excluding_bottle_key = TRY(database.prepare_statement("SELECT SUM(OCTET_LENGTH(bottle_key) + OCTET_LENGTH(bottle_value)) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"sv));
+    statements.calculate_size = TRY(database.prepare_statement("SELECT COALESCE(SUM(OCTET_LENGTH(bottle_key) + OCTET_LENGTH(bottle_value)), 0) FROM WebStorage WHERE storage_key = ?;"sv));
     statements.estimate_storage_size_accessed_since = TRY(database.prepare_statement("SELECT SUM(OCTET_LENGTH(storage_key)) + SUM(OCTET_LENGTH(bottle_key)) + SUM(OCTET_LENGTH(bottle_value)) FROM WebStorage WHERE last_access_time >= ?;"sv));
 
     return adopt_own(*new StorageJar { PersistedStorage { database, statements } });
@@ -113,6 +114,13 @@ Vector<String> StorageJar::get_all_keys(StorageEndpointType storage_endpoint, St
     if (m_persisted_storage.has_value())
         return m_persisted_storage->get_keys(storage_endpoint, storage_key);
     return m_transient_storage.get_keys(storage_endpoint, storage_key);
+}
+
+u64 StorageJar::usage(String const& storage_key)
+{
+    if (m_persisted_storage.has_value())
+        return m_persisted_storage->usage(storage_key);
+    return m_transient_storage.usage(storage_key);
 }
 
 Requests::CacheSizes StorageJar::estimate_storage_size_accessed_since(UnixDateTime since) const
@@ -299,6 +307,18 @@ Vector<String> StorageJar::PersistedStorage::get_keys(StorageEndpointType storag
     return keys;
 }
 
+u64 StorageJar::PersistedStorage::usage(String const& storage_key)
+{
+    u64 current_size_in_bytes = 0;
+    database.execute_statement(
+        statements.calculate_size,
+        [&](auto statement_id) {
+            current_size_in_bytes = database.result_column<u64>(statement_id, 0);
+        },
+        storage_key);
+    return current_size_in_bytes;
+}
+
 Requests::CacheSizes StorageJar::PersistedStorage::estimate_storage_size_accessed_since(UnixDateTime since) const
 {
     Requests::CacheSizes sizes;
@@ -314,6 +334,18 @@ Requests::CacheSizes StorageJar::PersistedStorage::estimate_storage_size_accesse
         UnixDateTime::earliest());
 
     return sizes;
+}
+
+u64 StorageJar::TransientStorage::usage(String const& storage_key)
+{
+    u64 current_size_in_bytes = 0;
+    for (auto const& [key, entry] : m_storage_items) {
+        if (key.storage_key == storage_key) {
+            current_size_in_bytes += key.bottle_key.bytes().size();
+            current_size_in_bytes += entry.value.bytes().size();
+        }
+    }
+    return current_size_in_bytes;
 }
 
 }

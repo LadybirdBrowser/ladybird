@@ -1316,6 +1316,11 @@ void WebContentClient::did_clear_storage(Web::StorageAPI::StorageEndpointType st
     Application::storage_jar().clear_storage_key(storage_endpoint, storage_key);
 }
 
+Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did_request_storage_usage(String storage_key)
+{
+    return Application::storage_jar().usage(storage_key);
+}
+
 void WebContentClient::did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<String> key, Optional<String> old_value, Optional<String> new_value)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
