@@ -189,6 +189,8 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#concept-submit-button
     virtual bool is_submit_button() const override;
 
+    bool is_readonly() const;
+
     bool is_single_line() const;
 
     virtual void reset_algorithm() override;
@@ -320,7 +322,7 @@ private:
     void set_checked_within_group();
 
     void handle_maxlength_attribute();
-    void handle_readonly_attribute(Optional<String> const& value);
+    void handle_readonly_attribute();
     WebIDL::ExceptionOr<void> handle_src_attribute(String const& value);
 
     void user_interaction_did_change_input_value();

@@ -894,10 +894,10 @@ void HTMLInputElement::handle_maxlength_attribute()
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-readonly
-void HTMLInputElement::handle_readonly_attribute(Optional<String> const& maybe_value)
+void HTMLInputElement::handle_readonly_attribute()
 {
     // The readonly attribute is a boolean attribute that controls whether or not the user can edit the form control. When specified, the element is not mutable.
-    set_is_mutable(!maybe_value.has_value() || !is_allowed_to_be_readonly(m_type));
+    set_is_mutable(!is_readonly());
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element:attr-input-placeholder-3
@@ -1066,7 +1066,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     MUST(element->append_child(*m_inner_text_element));
 
     m_text_node = realm().create<DOM::Text>(document(), move(initial_value));
-    handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
+    handle_readonly_attribute();
     if (type_state() == TypeAttributeState::Password)
         m_text_node->set_is_password_input({}, true);
     handle_maxlength_attribute();
@@ -1415,7 +1415,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
             update_placeholder_visibility();
         }
     } else if (name == HTML::AttributeNames::readonly) {
-        handle_readonly_attribute(value);
+        handle_readonly_attribute();
     } else if (name == HTML::AttributeNames::src) {
         handle_src_attribute(value.value_or({})).release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::alt) {
@@ -2941,6 +2941,12 @@ bool HTMLInputElement::is_submit_button() const
     // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):concept-submit-button
     return type_state() == TypeAttributeState::SubmitButton
         || type_state() == TypeAttributeState::ImageButton;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#attr-input-readonly
+bool HTMLInputElement::is_readonly() const
+{
+    return attribute(HTML::AttributeNames::readonly).has_value() && is_allowed_to_be_readonly(m_type);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#text-(type=text)-state-and-search-state-(type=search)
