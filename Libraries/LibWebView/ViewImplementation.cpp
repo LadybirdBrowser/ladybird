@@ -601,6 +601,9 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     if (auto const& user_agent_preset = Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
         client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, *user_agents.get(*user_agent_preset));
 
+    if (auto const& webserial_device_path = Application::browser_options().webserial_device_path; webserial_device_path.has_value())
+        client().async_debug_request(m_client_state.page_index, "webserial-device-path"sv, *webserial_device_path);
+
     languages_changed();
     autoplay_settings_changed();
     do_not_track_changed();

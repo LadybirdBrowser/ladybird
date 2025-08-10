@@ -121,6 +121,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
     bool disable_scrollbar_painting = false;
+    Optional<StringView> webserial_device_path;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("The Ladybird web browser :^)");
@@ -172,6 +173,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(dns_server_port, "Set the DNS server port", "dns-port", 0, "port (default: 53 or 853 if --dot)");
     args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
     args_parser.add_option(validate_dnssec_locally, "Validate DNSSEC locally", "dnssec");
+    // FIXME: Remove this option once WebSerial is fully implemented using a serial device picker UI component.
+    args_parser.add_option(webserial_device_path, "Enables the WebSerial API and sets device to use", "webserial-device-path", 0, "path");
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
@@ -249,6 +252,9 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     if (webdriver_content_ipc_path.has_value())
         m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
+
+    if (webserial_device_path.has_value())
+        m_browser_options.webserial_device_path = *webserial_device_path;
 
     m_web_content_options = {
         .command_line = MUST(String::join(' ', m_arguments.strings)),
