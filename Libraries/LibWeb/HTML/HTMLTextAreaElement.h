@@ -64,6 +64,9 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return true; }
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#mutability
+    virtual bool is_mutable() const override;
+
     virtual void reset_algorithm() override;
     virtual void clear_algorithm() override;
 
@@ -147,7 +150,6 @@ private:
 
     void create_shadow_tree_if_needed();
 
-    void handle_readonly_attribute(Optional<String> const& value);
     void handle_maxlength_attribute();
 
     void queue_firing_input_event();

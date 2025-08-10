@@ -376,7 +376,6 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     MUST(element->append_child(*m_inner_text_element));
 
     m_text_node = realm().create<DOM::Text>(document(), Utf16String {});
-    handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
     //       Otherwise, it will get filled in whenever that does get called.
     m_text_node->set_text_content(m_raw_value);
@@ -384,13 +383,6 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     MUST(m_inner_text_element->append_child(*m_text_node));
 
     update_placeholder_visibility();
-}
-
-// https://html.spec.whatwg.org/multipage/input.html#attr-input-readonly
-void HTMLTextAreaElement::handle_readonly_attribute(Optional<String> const& maybe_value)
-{
-    // The readonly attribute is a boolean attribute that controls whether or not the user can edit the form control. When specified, the element is not mutable.
-    set_is_mutable(!maybe_value.has_value());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-maxlength
@@ -442,8 +434,6 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
     if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node)
             m_placeholder_text_node->set_data(Utf16String::from_utf8(value.value_or(String {})));
-    } else if (name == HTML::AttributeNames::readonly) {
-        handle_readonly_attribute(value);
     } else if (name == HTML::AttributeNames::maxlength) {
         handle_maxlength_attribute();
     }
@@ -479,6 +469,13 @@ void HTMLTextAreaElement::queue_firing_input_event()
 bool HTMLTextAreaElement::is_focusable() const
 {
     return enabled();
+}
+
+bool HTMLTextAreaElement::is_mutable() const
+{
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-mutable
+    // A textarea element is mutable if it is neither disabled nor has a readonly attribute specified.
+    return enabled() && !attribute(HTML::AttributeNames::readonly).has_value();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element%3Asuffering-from-being-missing
