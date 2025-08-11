@@ -16,7 +16,7 @@ class EventLoopManagerMacOS final : public Core::EventLoopManager {
 public:
     virtual NonnullOwnPtr<Core::EventLoopImplementation> make_implementation() override;
 
-    virtual intptr_t register_timer(Core::EventReceiver&, int interval_milliseconds, bool should_reload, Core::TimerShouldFireWhenNotVisible) override;
+    virtual intptr_t register_timer(Core::EventReceiver&, int interval_milliseconds, bool should_reload) override;
     virtual void unregister_timer(intptr_t timer_id) override;
 
     virtual void register_notifier(Core::Notifier&) override;

@@ -46,14 +46,14 @@ void EventReceiver::custom_event(CustomEvent&)
 {
 }
 
-void EventReceiver::start_timer(int ms, TimerShouldFireWhenNotVisible fire_when_not_visible)
+void EventReceiver::start_timer(int ms)
 {
     if (m_timer_id) {
         dbgln("{} {:p} already has a timer!", class_name(), this);
         VERIFY_NOT_REACHED();
     }
 
-    m_timer_id = Core::EventLoop::register_timer(*this, ms, true, fire_when_not_visible);
+    m_timer_id = Core::EventLoop::register_timer(*this, ms, true);
 }
 
 void EventReceiver::stop_timer()
@@ -72,11 +72,6 @@ void EventReceiver::deferred_invoke(Function<void()> invokee)
 void EventReceiver::dispatch_event(Core::Event& e)
 {
     event(e);
-}
-
-bool EventReceiver::is_visible_for_timer_purposes() const
-{
-    return true;
 }
 
 }

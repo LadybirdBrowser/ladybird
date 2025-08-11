@@ -122,9 +122,9 @@ void EventLoop::unregister_signal(int handler_id)
     EventLoopManager::the().unregister_signal(handler_id);
 }
 
-intptr_t EventLoop::register_timer(EventReceiver& object, int milliseconds, bool should_reload, TimerShouldFireWhenNotVisible fire_when_not_visible)
+intptr_t EventLoop::register_timer(EventReceiver& object, int milliseconds, bool should_reload)
 {
-    return EventLoopManager::the().register_timer(object, milliseconds, should_reload, fire_when_not_visible);
+    return EventLoopManager::the().register_timer(object, milliseconds, should_reload);
 }
 
 void EventLoop::unregister_timer(intptr_t timer_id)
