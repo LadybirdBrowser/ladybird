@@ -201,7 +201,7 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
 
     (void)Core::System::unlink(*m_web_content_socket_path);
 
-    auto server = TRY(Core::LocalServer::try_create());
+    auto server = Core::LocalServer::construct();
     server->listen(*m_web_content_socket_path);
 
     server->on_accept = [this, promise](auto client_socket) {

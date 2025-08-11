@@ -19,21 +19,16 @@
 
 namespace Core {
 
-#define C_OBJECT(klass)                                                                    \
-public:                                                                                    \
-    virtual StringView class_name() const override                                         \
-    {                                                                                      \
-        return #klass##sv;                                                                 \
-    }                                                                                      \
-    template<typename Klass = klass, class... Args>                                        \
-    static NonnullRefPtr<klass> construct(Args&&... args)                                  \
-    {                                                                                      \
-        return adopt_ref(*new Klass(::forward<Args>(args)...));                            \
-    }                                                                                      \
-    template<typename Klass = klass, class... Args>                                        \
-    static ErrorOr<NonnullRefPtr<klass>> try_create(Args&&... args)                        \
-    {                                                                                      \
-        return adopt_nonnull_ref_or_enomem(new (nothrow) Klass(::forward<Args>(args)...)); \
+#define C_OBJECT(klass)                                         \
+public:                                                         \
+    virtual StringView class_name() const override              \
+    {                                                           \
+        return #klass##sv;                                      \
+    }                                                           \
+    template<typename Klass = klass, class... Args>             \
+    static NonnullRefPtr<klass> construct(Args&&... args)       \
+    {                                                           \
+        return adopt_ref(*new Klass(::forward<Args>(args)...)); \
     }
 
 #define C_OBJECT_ABSTRACT(klass)                   \

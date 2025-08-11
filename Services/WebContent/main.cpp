@@ -220,7 +220,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // TODO: Mach IPC
 
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
-    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(make<IPC::Transport>(move(webcontent_socket))));
+    auto webcontent_client = WebContent::ConnectionFromClient::construct(make<IPC::Transport>(move(webcontent_socket)));
 
     webcontent_client->on_request_server_connection = [&](auto const& socket_file) {
         if (auto result = reinitialize_resource_loader(socket_file); result.is_error())
