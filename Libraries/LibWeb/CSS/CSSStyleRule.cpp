@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StylePropertyMap.h>
 
 namespace Web::CSS {
 
@@ -40,12 +41,21 @@ void CSSStyleRule::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_declaration);
+    visitor.visit(m_style_map);
 }
 
 // https://drafts.csswg.org/cssom-1/#dom-cssstylerule-style
 GC::Ref<CSSStyleProperties> CSSStyleRule::style()
 {
     return m_declaration;
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylerule-stylemap
+GC::Ref<StylePropertyMap> CSSStyleRule::style_map()
+{
+    if (!m_style_map)
+        m_style_map = StylePropertyMap::create(realm(), m_declaration);
+    return *m_style_map;
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule

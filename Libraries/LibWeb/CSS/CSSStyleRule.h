@@ -31,6 +31,7 @@ public:
     void set_selector_text(StringView);
 
     GC::Ref<CSSStyleProperties> style();
+    GC::Ref<StylePropertyMap> style_map();
 
     [[nodiscard]] FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
@@ -49,6 +50,7 @@ private:
     SelectorList m_selectors;
     mutable Optional<SelectorList> m_cached_absolutized_selectors;
     GC::Ref<CSSStyleProperties> m_declaration;
+    GC::Ptr<StylePropertyMap> m_style_map;
 };
 
 template<>

@@ -1,5 +1,6 @@
 #import <CSS/CSSGroupingRule.idl>
 #import <CSS/CSSStyleProperties.idl>
+#import <CSS/StylePropertyMap.idl>
 
 // https://drafts.csswg.org/cssom/#the-cssstylerule-interface
 [Exposed=Window]
