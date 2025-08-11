@@ -2,9 +2,10 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	Getting a custom property not in the inline style returns undefined
-Fail	Getting a valid property not in the inline style returns undefined
+2 Pass
+5 Fail
+Pass	Getting a custom property not in the inline style returns undefined
+Pass	Getting a valid property not in the inline style returns undefined
 Fail	Getting a valid property from inline style returns the correct entry
 Fail	Getting a valid custom property from inline style returns the correct entry
 Fail	Getting a list-valued property from inline style returns only the first value

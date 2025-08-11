@@ -26,6 +26,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StylePropertyMap.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -123,6 +124,7 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_cascaded_properties);
     visitor.visit(m_computed_properties);
     visitor.visit(m_computed_style_map_cache);
+    visitor.visit(m_attribute_style_map);
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
             visitor.visit(pseudo_element.value);
@@ -1109,9 +1111,18 @@ GC::Ref<CSS::CSSStyleProperties> Element::style_for_bindings()
     return *m_inline_style;
 }
 
+GC::Ref<CSS::StylePropertyMap> Element::attribute_style_map()
+{
+    if (!m_attribute_style_map)
+        m_attribute_style_map = CSS::StylePropertyMap::create(realm(), style_for_bindings());
+    return *m_attribute_style_map;
+}
+
 void Element::set_inline_style(GC::Ptr<CSS::CSSStyleProperties> style)
 {
     m_inline_style = style;
+    if (m_attribute_style_map)
+        m_attribute_style_map = nullptr;
     set_needs_style_update(true);
 }
 
