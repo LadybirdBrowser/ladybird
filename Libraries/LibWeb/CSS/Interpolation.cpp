@@ -883,6 +883,7 @@ Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax)
     // https://drafts.csswg.org/css-color/#interpolation
     // FIXME: Handle all interpolation methods.
     // FIXME: Handle "analogous", "missing", and "powerless" components, somehow.
+    // FIXME: Remove duplicated code with Color::mixed_with(Color other, float weight)
 
     // https://drafts.csswg.org/css-color/#interpolation-space
     // If the host syntax does not define what color space interpolation should take place in, it defaults to Oklab.
@@ -892,21 +893,30 @@ Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax)
 
     Color result;
     if (syntax == ColorSyntax::Modern) {
-        auto from_oklab = from.to_oklab();
-        auto to_oklab = to.to_oklab();
+        // 5. changing the color components to premultiplied form
+        auto from_oklab = from.to_premultiplied_oklab();
+        auto to_oklab = to.to_premultiplied_oklab();
+
+        // 6. linearly interpolating each component of the computed value of the color separately
+        // 7. undoing premultiplication
+        auto from_alpha = from.alpha() / 255.0f;
+        auto to_alpha = to.alpha() / 255.0f;
+        auto interpolated_alpha = interpolate_raw(from_alpha, to_alpha, delta);
 
         result = Color::from_oklab(
-            interpolate_raw(from_oklab.L, to_oklab.L, delta),
-            interpolate_raw(from_oklab.a, to_oklab.a, delta),
-            interpolate_raw(from_oklab.b, to_oklab.b, delta));
+            interpolate_raw(from_oklab.L, to_oklab.L, delta) / interpolated_alpha,
+            interpolate_raw(from_oklab.a, to_oklab.a, delta) / interpolated_alpha,
+            interpolate_raw(from_oklab.b, to_oklab.b, delta) / interpolated_alpha,
+            interpolated_alpha);
     } else {
         result = Color {
             interpolate_raw(from.red(), to.red(), delta),
             interpolate_raw(from.green(), to.green(), delta),
             interpolate_raw(from.blue(), to.blue(), delta),
+            interpolate_raw(from.alpha(), to.alpha(), delta)
         };
     }
-    result.set_alpha(interpolate_raw(from.alpha(), to.alpha(), delta));
+
     return result;
 }
 
