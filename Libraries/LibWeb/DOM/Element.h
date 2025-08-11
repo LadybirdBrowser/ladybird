@@ -226,6 +226,7 @@ public:
     void set_inline_style(GC::Ptr<CSS::CSSStyleProperties>);
 
     GC::Ref<CSS::CSSStyleProperties> style_for_bindings();
+    GC::Ref<CSS::StylePropertyMap> attribute_style_map();
 
     CSS::StyleSheetList& document_or_shadow_root_style_sheets();
     ElementByIdMap& document_or_shadow_root_element_by_id_map();
@@ -566,6 +567,7 @@ private:
 
     GC::Ptr<NamedNodeMap> m_attributes;
     GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
+    GC::Ptr<CSS::StylePropertyMap> m_attribute_style_map;
     GC::Ptr<DOMTokenList> m_class_list;
     GC::Ptr<ShadowRoot> m_shadow_root;
 
