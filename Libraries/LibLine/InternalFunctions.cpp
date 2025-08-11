@@ -309,7 +309,6 @@ void Editor::enter_search()
 
         m_search_editor = Editor::construct(Configuration { Configuration::Eager, Configuration::NoSignalHandlers }); // Has anyone seen 'Inception'?
         m_search_editor->initialize();
-        add_child(*m_search_editor);
 
         m_search_editor->on_display_refresh = [this](Editor& search_editor) {
             // Remove the search editor prompt before updating ourselves (this avoids artifacts when we move the search editor around).
@@ -402,7 +401,6 @@ void Editor::enter_search()
         // Grab where the search origin last was, anything up to this point will be cleared.
         auto search_end_row = m_search_editor->m_origin_row;
 
-        remove_child(*m_search_editor);
         m_search_editor = nullptr;
         m_is_searching = false;
         m_is_editing = true;
