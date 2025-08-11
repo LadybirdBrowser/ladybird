@@ -1,0 +1,10 @@
+#import <CSS/StylePropertyMapReadOnly.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap
+[Exposed=Window]
+interface StylePropertyMap : StylePropertyMapReadOnly {
+    undefined set(USVString property, (CSSStyleValue or USVString)... values);
+    undefined append(USVString property, (CSSStyleValue or USVString)... values);
+    undefined delete(USVString property);
+    undefined clear();
+};
