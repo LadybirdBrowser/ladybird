@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-static bool is_invalid_custom_property_name_string(StringView string)
+inline bool is_invalid_custom_property_name_string(StringView string)
 {
     // https://drafts.csswg.org/css-variables-2/#typedef-custom-property-name
     // The <custom-property-name> production corresponds to this: it’s defined as any <dashed-ident>
@@ -20,10 +20,18 @@ static bool is_invalid_custom_property_name_string(StringView string)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#custom-property-name-string
-static bool is_a_custom_property_name_string(StringView string)
+inline bool is_a_custom_property_name_string(StringView string)
 {
     // A string is a custom property name string if it starts with two dashes (U+002D HYPHEN-MINUS), like --foo.
     return string.starts_with("--"sv) && !is_invalid_custom_property_name_string(string);
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#valid-css-property
+inline bool is_a_valid_css_property(StringView string)
+{
+    // A string is a valid CSS property if it is a custom property name string, or is a CSS property name recognized by
+    // the user agent.
+    return is_a_custom_property_name_string(string) || property_id_from_string(string).has_value();
 }
 
 }
