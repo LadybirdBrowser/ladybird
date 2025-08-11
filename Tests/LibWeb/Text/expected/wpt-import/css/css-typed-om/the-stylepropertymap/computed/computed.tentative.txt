@@ -1,3 +1,12 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 7 tests
+
+7 Fail
+Fail	Computed StylePropertyMap contains every CSS property
+Fail	Computed StylePropertyMap contains CSS property declarations in style rules
+Fail	Computed StylePropertyMap contains custom property declarations in style rules
+Fail	Computed StylePropertyMap contains CSS property declarations in inline styles
+Fail	Computed StylePropertyMap contains custom property declarations in inline rules
+Fail	Computed StylePropertyMap contains computed values and not resolved values
+Fail	Computed StylePropertyMap is live

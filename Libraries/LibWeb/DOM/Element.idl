@@ -1,5 +1,6 @@
 #import <Animations/Animatable.idl>
 #import <ARIA/ARIAMixin.idl>
+#import <CSS/StylePropertyMapReadOnly.idl>
 #import <DOM/Attr.idl>
 #import <DOM/ChildNode.idl>
 #import <DOM/DOMTokenList.idl>
