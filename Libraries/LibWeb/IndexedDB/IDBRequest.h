@@ -38,10 +38,12 @@ public:
 
     void set_done(bool done) { m_done = done; }
     void set_result(JS::Value result) { m_result = result; }
-    void set_error(GC::Ptr<WebIDL::DOMException> error) { m_error = error; }
+    void set_error(Optional<GC::Ptr<WebIDL::DOMException>> error) { m_error = error; }
     void set_processed(bool processed) { m_processed = processed; }
     void set_source(IDBRequestSource source) { m_source = source; }
     void set_transaction(GC::Ptr<IDBTransaction> transaction) { m_transaction = transaction; }
+
+    bool has_error() const { return m_error.has_value(); }
 
     void set_onsuccess(WebIDL::CallbackType*);
     WebIDL::CallbackType* onsuccess();
@@ -63,7 +65,7 @@ private:
 
     // A request has a result and an error
     JS::Value m_result;
-    GC::Ptr<WebIDL::DOMException> m_error;
+    Optional<GC::Ptr<WebIDL::DOMException>> m_error;
 
     // A request has a source object.
     IDBRequestSource m_source;
