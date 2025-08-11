@@ -64,73 +64,18 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    virtual bool is_widget() const { return false; }
-
-    Vector<NonnullRefPtr<EventReceiver>>& children() { return m_children; }
-    Vector<NonnullRefPtr<EventReceiver>> const& children() const { return m_children; }
-
-    template<typename Callback>
-    void for_each_child(Callback callback)
-    {
-        for (auto& child : m_children) {
-            if (callback(*child) == IterationDecision::Break)
-                return;
-        }
-    }
-
-    template<typename T, typename Callback>
-    void for_each_child_of_type(Callback callback)
-    requires IsBaseOf<EventReceiver, T>;
-
-    bool is_ancestor_of(EventReceiver const&) const;
-
-    EventReceiver* parent() { return m_parent; }
-    EventReceiver const* parent() const { return m_parent; }
-
     void start_timer(int ms, TimerShouldFireWhenNotVisible = TimerShouldFireWhenNotVisible::No);
     void stop_timer();
     bool has_timer() const { return m_timer_id; }
 
-    ErrorOr<void> try_add_child(EventReceiver&);
-
-    void add_child(EventReceiver&);
-    void insert_child_before(EventReceiver& new_child, EventReceiver& before_child);
-    void remove_child(EventReceiver&);
-    void remove_all_children();
-
     void deferred_invoke(Function<void()>);
 
-    void dispatch_event(Core::Event&, EventReceiver* stay_within = nullptr);
-
-    void remove_from_parent()
-    {
-        if (m_parent)
-            m_parent->remove_child(*this);
-
-        // The call to `remove_child` may have deleted the object.
-        // Do not dereference `this` from this point forward.
-    }
-
-    template<class T, class... Args>
-    inline T& add(Args&&... args)
-    {
-        auto child = T::construct(forward<Args>(args)...);
-        add_child(*child);
-        return child;
-    }
-
-    template<class T, class... Args>
-    inline ErrorOr<NonnullRefPtr<T>> try_add(Args&&... args)
-    {
-        auto child = TRY(T::try_create(forward<Args>(args)...));
-        TRY(try_add_child(*child));
-        return child;
-    }
+    void dispatch_event(Core::Event&);
 
     virtual bool is_visible_for_timer_purposes() const;
 
 protected:
-    explicit EventReceiver(EventReceiver* parent = nullptr);
+    EventReceiver();
 
     virtual void event(Core::Event&);
 
@@ -141,9 +86,7 @@ protected:
     virtual void child_event(ChildEvent&);
 
 private:
-    EventReceiver* m_parent { nullptr };
     intptr_t m_timer_id { 0 };
-    Vector<NonnullRefPtr<EventReceiver>> m_children;
 };
 
 }
@@ -155,18 +98,3 @@ struct AK::Formatter<Core::EventReceiver> : AK::Formatter<FormatString> {
         return AK::Formatter<FormatString>::format(builder, "{}({})"sv, value.class_name(), &value);
     }
 };
-
-namespace Core {
-
-template<typename T, typename Callback>
-inline void EventReceiver::for_each_child_of_type(Callback callback)
-requires IsBaseOf<EventReceiver, T>
-{
-    for_each_child([&](auto& child) {
-        if (is<T>(child))
-            return callback(static_cast<T&>(child));
-        return IterationDecision::Continue;
-    });
-}
-
-}
