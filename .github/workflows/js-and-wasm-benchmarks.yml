@@ -45,7 +45,7 @@ jobs:
           sudo apt-get install -y python3-venv
 
       - name: 'Download JS repl artifact'
-        id: download-artifact
+        id: download-js-artifact
         uses: dawidd6/action-download-artifact@v11
         with:
           run_id: ${{ github.event.workflow_run.id }}
@@ -58,14 +58,28 @@ jobs:
           cd js-repl
           tar -xvzf ladybird-js-${{ matrix.os_name }}-${{ matrix.arch }}.tar.gz
 
-      - name: 'Run the JS benchmarks'
+      - name: 'Download Wasm repl artifact'
+        id: download-wasm-artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ladybird-wasm-${{ matrix.package_type }}
+          path: wasm-repl
+
+      - name: 'Extract Wasm repl'
+        shell: bash
+        run: |
+          cd wasm-repl
+          tar -xvzf ladybird-wasm-${{ matrix.os_name }}-${{ matrix.arch }}.tar.gz
+
+      - name: 'Run the JS and Wasm benchmarks'
         shell: bash
         run: |
           cd js-benchmarks
           python3 -m venv .venv
           source .venv/bin/activate
           python3 -m pip install -r requirements.txt
-          ./run.py --executable=${{ github.workspace }}/js-repl/bin/js --iterations=5
+          ./run.py --executable=${{ github.workspace }}/js-repl/bin/js --wasm-executable=${{ github.workspace }}/wasm-repl/bin/wasm --iterations=5
 
       - name: 'Save results as an artifact'
         uses: actions/upload-artifact@v4

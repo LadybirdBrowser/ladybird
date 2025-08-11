@@ -54,7 +54,7 @@ jobs:
           runner_labels: ${{ matrix.runner_labels }}
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
-          cache_key_extra: 'LibJS Artifacts'
+          cache_key_extra: 'LibJS and LibWasm Artifacts'
           ccache_path: ${{ env.CCACHE_DIR }}
           download_cache_path: ${{ github.workspace }}/Build/caches
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
@@ -78,10 +78,19 @@ jobs:
             -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os_name == 'macOS' }}
 
-      - name: Build and package js
+      - name: Build js
         working-directory: Build/distribution
         run: |
           ninja js
+
+      - name: Build wasm
+        working-directory: Build/distribution
+        run: |
+          ninja wasm
+
+      - name: Package js and wasm
+        working-directory: Build/distribution
+        run: |
           cpack
 
       - name: Save Caches
@@ -99,9 +108,20 @@ jobs:
         run: |
           set -e
           tar -xvzf Build/distribution/ladybird-js-${{ matrix.package_type }}.tar.gz
-          ./bin/js -c "console.log('Hello, World\!');" > out.txt
-          if ! grep -q "\"Hello, World\!\"" out.txt; then
+          ./bin/js -c "console.log('Hello, World\!');" > js-repl-out.txt
+          if ! grep -q "\"Hello, World\!\"" js-repl-out.txt; then
               echo "Sanity check failed: \"Hello, World\!\" not found in output."
+              exit 1
+          fi
+
+      - name: Sanity-check the wasm repl
+        shell: bash
+        run: |
+          set -e
+          tar -xvzf Build/distribution/ladybird-wasm-${{ matrix.package_type }}.tar.gz
+          ./bin/wasm -e run_sanity_check -w ${{ github.workspace }}/Libraries/LibWasm/Tests/CI/ci-sanity-check.wasm > wasm-repl-out.txt
+          if ! grep -q "Hello, World\!" wasm-repl-out.txt; then
+              echo "Sanity check failed: Hello, World\! not found in output."
               exit 1
           fi
 
@@ -109,5 +129,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ladybird-js-${{ matrix.package_type }}
-          path: Build/distribution/ladybird-js*.tar.gz
+          path: Build/distribution/ladybird-js-*.tar.gz
+          retention-days: 7
+
+      - name: Upload wasm package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladybird-wasm-${{ matrix.package_type }}
+          path: Build/distribution/ladybird-wasm-*.tar.gz
           retention-days: 7
