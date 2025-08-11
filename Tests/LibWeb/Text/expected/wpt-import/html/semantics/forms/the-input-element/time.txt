@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 32 tests
 
-31 Pass
-1 Fail
+32 Pass
 Pass	time element of default time value
 Pass	step attribute on default value check
 Pass	max  attribute on default value check
@@ -26,7 +25,7 @@ Pass	stepUp on step value hour
 Pass	stepDown on step value hour 
 Pass	stepUp on step value second 
 Pass	stepDown on step value second 
-Fail	stepUp on step value with fractional seconds
+Pass	stepUp on step value with fractional seconds
 Pass	stepDown on step value with fractional seconds
 Pass	stepUp argument 2 times
 Pass	stepDown argument 2 times

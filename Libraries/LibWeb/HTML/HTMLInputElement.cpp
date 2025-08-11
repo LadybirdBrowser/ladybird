@@ -2422,11 +2422,10 @@ static Utf16String convert_number_to_time_string(double input)
     // string that represents the time that is input milliseconds after midnight on a day with no time changes.
     auto seconds = JS::sec_from_time(input);
     auto milliseconds = JS::ms_from_time(input);
-    if (seconds > 0) {
-        if (milliseconds > 0)
-            return Utf16String::formatted("{:02d}:{:02d}:{:02d}.{:3d}", JS::hour_from_time(input), JS::min_from_time(input), seconds, milliseconds);
+    if (milliseconds > 0)
+        return Utf16String::formatted("{:02d}:{:02d}:{:02d}.{:03d}", JS::hour_from_time(input), JS::min_from_time(input), seconds, milliseconds);
+    if (seconds > 0)
         return Utf16String::formatted("{:02d}:{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input), seconds);
-    }
     return Utf16String::formatted("{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input));
 }
 
@@ -2444,12 +2443,10 @@ static Utf16String convert_number_to_local_date_and_time_string(double input)
     auto seconds = JS::sec_from_time(input);
     auto milliseconds = JS::ms_from_time(input);
 
-    if (seconds > 0) {
-        if (milliseconds > 0)
-            return Utf16String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}", year, month, day, hour, minutes, seconds, milliseconds);
+    if (milliseconds > 0)
+        return Utf16String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}", year, month, day, hour, minutes, seconds, milliseconds).trim("0"sv, TrimMode::Right);
+    if (seconds > 0)
         return Utf16String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}", year, month, day, hour, minutes, seconds);
-    }
-
     return Utf16String::formatted("{:04d}-{:02d}-{:02d}T{:02d}:{:02d}", year, month, day, hour, minutes);
 }
 
