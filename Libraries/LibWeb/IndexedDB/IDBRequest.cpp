@@ -39,9 +39,11 @@ GC::Ref<IDBRequest> IDBRequest::create(JS::Realm& realm, IDBRequestSource source
 void IDBRequest::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_error);
     visitor.visit(m_result);
     visitor.visit(m_transaction);
+
+    if (m_error.has_value())
+        visitor.visit(*m_error);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbrequest-onsuccess
@@ -83,7 +85,7 @@ WebIDL::CallbackType* IDBRequest::onerror()
         return WebIDL::InvalidStateError::create(realm(), "The request is not done"_string);
 
     // 2. Otherwise, return this's error, or null if no error occurred.
-    return m_error;
+    return m_error.value_or(nullptr);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbrequest-result
@@ -94,7 +96,7 @@ WebIDL::CallbackType* IDBRequest::onerror()
         return WebIDL::InvalidStateError::create(realm(), "The request is not done"_string);
 
     // 2. Otherwise, return this's result, or undefined if the request resulted in an error.
-    if (m_error)
+    if (m_error.has_value())
         return JS::js_undefined();
 
     return m_result;

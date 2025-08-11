@@ -164,16 +164,15 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
         }));
 
         // 6. Run upgrade a database using connection, version and request.
-        // AD-HOC: https://github.com/w3c/IndexedDB/issues/433#issuecomment-2512330086
-        auto upgrade_transaction = upgrade_a_database(realm, connection, version, request);
+        upgrade_a_database(realm, connection, version, request);
 
         // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
         if (connection->state() == IDBDatabase::ConnectionState::Closed)
             return WebIDL::AbortError::create(realm, "Connection was closed"_string);
 
-        // 8. If the upgrade transaction was aborted, run the steps to close a database connection with connection,
+        // 8. If request's error is set, run the steps to close a database connection with connection,
         //    return a newly created "AbortError" DOMException and abort these steps.
-        if (upgrade_transaction->aborted()) {
+        if (request->has_error()) {
             close_a_database_connection(*connection);
             return WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_string);
         }
@@ -360,7 +359,7 @@ void close_a_database_connection(GC::Ref<IDBDatabase> connection, bool forced)
 }
 
 // https://w3c.github.io/IndexedDB/#upgrade-a-database
-GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 version, GC::Ref<IDBRequest> request)
+void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 version, GC::Ref<IDBRequest> request)
 {
     // 1. Let db be connection’s database.
     auto db = connection->associated_database();
@@ -431,8 +430,6 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
         dbgln_if(IDB_DEBUG, "upgrade_a_database: waiting for step 11");
         return transaction->is_finished();
     }));
-
-    return transaction;
 }
 
 // https://w3c.github.io/IndexedDB/#deleting-a-database
@@ -1209,7 +1206,7 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
                 request->set_result(result.release_value());
 
                 // 2. Set request’s error to undefined.
-                request->set_error(nullptr);
+                request->set_error(Optional<GC::Ptr<WebIDL::DOMException>> {});
 
                 // 3. Fire a success event at request.
                 fire_a_success_event(realm, request);
