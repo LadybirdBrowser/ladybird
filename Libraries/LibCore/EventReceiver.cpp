@@ -31,18 +31,12 @@ void EventReceiver::event(Core::Event& event)
     case Core::Event::Invalid:
         VERIFY_NOT_REACHED();
         break;
-    case Core::Event::Custom:
-        return custom_event(static_cast<CustomEvent&>(event));
     default:
         break;
     }
 }
 
 void EventReceiver::timer_event(Core::TimerEvent&)
-{
-}
-
-void EventReceiver::custom_event(CustomEvent&)
 {
 }
 

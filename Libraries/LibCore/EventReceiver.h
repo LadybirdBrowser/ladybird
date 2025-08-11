@@ -73,7 +73,6 @@ protected:
     virtual void event(Core::Event&);
 
     virtual void timer_event(TimerEvent&);
-    virtual void custom_event(CustomEvent&);
 
 private:
     intptr_t m_timer_id { 0 };
