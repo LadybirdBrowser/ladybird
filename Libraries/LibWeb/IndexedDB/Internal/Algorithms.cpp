@@ -537,22 +537,25 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
     transaction->set_aborted(true);
     dbgln_if(IDB_DEBUG, "abort_a_transaction: transaction {} is aborting", transaction->uuid());
 
-    // FIXME: 1. All the changes made to the database by the transaction are reverted.
+    // 1. If transaction is finished, abort these steps.
+    if (transaction->is_finished())
+        return;
+
+    // FIXME: 2. All the changes made to the database by the transaction are reverted.
     // For upgrade transactions this includes changes to the set of object stores and indexes, as well as the change to the version.
     // Any object stores and indexes which were created during the transaction are now considered deleted for the purposes of other algorithms.
 
-    // FIXME: 2. If transaction is an upgrade transaction, run the steps to abort an upgrade transaction with transaction.
+    // FIXME: 3. If transaction is an upgrade transaction, run the steps to abort an upgrade transaction with transaction.
     // if (transaction.is_upgrade_transaction())
     //     abort_an_upgrade_transaction(transaction);
 
-    // 3. Set transaction’s state to finished.
+    // 4. Set transaction’s state to finished.
     transaction->set_state(IDBTransaction::TransactionState::Finished);
 
-    // 4. If error is not null, set transaction’s error to error.
-    if (error)
-        transaction->set_error(error);
+    // 5. Set transaction’s error to error.
+    transaction->set_error(error);
 
-    // 5. For each request of transaction’s request list,
+    // 6. For each request of transaction’s request list,
     for (auto const& request : transaction->request_list()) {
         // FIXME: abort the steps to asynchronously execute a request for request,
 
@@ -575,7 +578,7 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
         }));
     }
 
-    // 6. Queue a database task to run these steps:
+    // 7. Queue a database task to run these steps:
     queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [transaction]() {
         // 1. If transaction is an upgrade transaction, then set transaction’s connection's associated database's upgrade transaction to null.
         if (transaction->is_upgrade_transaction())
