@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Calling StylePropertyMap.get with an unsupported property throws a TypeError
+1 Pass
+Pass	Calling StylePropertyMap.get with an unsupported property throws a TypeError

@@ -10,3 +10,8 @@ interface StylePropertyMapReadOnly {
     boolean has(USVString property);
     readonly attribute unsigned long size;
 };
+
+// https://drafts.css-houdini.org/css-typed-om-1/#computed-stylepropertymapreadonly-objects
+partial interface Element {
+    [SameObject] StylePropertyMapReadOnly computedStyleMap();
+};
