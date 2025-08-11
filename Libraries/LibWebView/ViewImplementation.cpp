@@ -602,6 +602,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 
     languages_changed();
     autoplay_settings_changed();
+    block_adult_content_changed();
     do_not_track_changed();
 }
 
@@ -665,6 +666,12 @@ void ViewImplementation::autoplay_settings_changed()
         client().async_set_autoplay_allowed_on_all_websites(page_id());
     else
         client().async_set_autoplay_allowlist(page_id(), autoplay_settings.site_filters.values());
+}
+
+void ViewImplementation::block_adult_content_changed()
+{
+    auto block_adult_content = Application::settings().block_adult_content();
+    client().async_set_enable_block_adult_content(page_id(), block_adult_content == BlockAdultContent::Yes);
 }
 
 void ViewImplementation::do_not_track_changed()

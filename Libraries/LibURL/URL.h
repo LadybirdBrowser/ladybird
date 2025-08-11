@@ -205,6 +205,7 @@ bool is_public_suffix(StringView host);
 Optional<String> get_registrable_domain(StringView host);
 
 inline URL about_blank() { return URL::about("blank"_string); }
+inline URL about_blocked() { return URL::about("blocked"_string); }
 inline URL about_srcdoc() { return URL::about("srcdoc"_string); }
 inline URL about_error() { return URL::about("error"_string); }
 inline URL about_version() { return URL::about("version"_string); }

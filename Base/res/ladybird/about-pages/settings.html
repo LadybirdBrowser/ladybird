@@ -378,6 +378,19 @@
         </div>
 
         <div class="card">
+            <div class="card-header">Parental Controls</div>
+            <div class="card-body">
+                <div class="card-group inline-container">
+                    <div>
+                        <label for="adult-content-toggle">Block websites that contain adult content</label>
+                        <p class="description">This will block pages which identify themselves as containing adult content.</p>
+                    </div>
+                    <input id="adult-content-toggle" type="checkbox" switch />
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
             <div class="card-header">Network</div>
             <div class="card-body">
                 <div class="card-group">
@@ -515,6 +528,7 @@
         <script src="resource://ladybird/about-pages/settings/permissions.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/privacy.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/search.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/parentalControls.js" type="module"></script>
 
         <script type="module">
             const restoreDefaults = document.querySelector("#restore-defaults");

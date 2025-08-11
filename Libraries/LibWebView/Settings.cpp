@@ -39,6 +39,8 @@ static constexpr auto site_setting_site_filters_key = "siteFilters"sv;
 
 static constexpr auto autoplay_key = "autoplay"sv;
 
+static constexpr auto block_adult_content_key = "blockAdultContent"sv;
+
 static constexpr auto do_not_track_key = "doNotTrack"sv;
 
 static constexpr auto dns_settings_key = "dnsSettings"sv;
@@ -135,6 +137,9 @@ Settings Settings::create(Badge<Application>)
 
     load_site_setting(settings.m_autoplay, autoplay_key);
 
+    if (auto block_adult_content = settings_json.value().get_bool(block_adult_content_key); block_adult_content.has_value())
+        settings.m_block_adult_content = *block_adult_content ? BlockAdultContent::Yes : BlockAdultContent::No;
+
     if (auto do_not_track = settings_json.value().get_bool(do_not_track_key); do_not_track.has_value())
         settings.m_do_not_track = *do_not_track ? DoNotTrack::Yes : DoNotTrack::No;
 
@@ -207,6 +212,8 @@ JsonValue Settings::serialize_json() const
 
     save_site_setting(m_autoplay, autoplay_key);
 
+    settings.set(block_adult_content_key, m_block_adult_content == BlockAdultContent::Yes);
+
     settings.set(do_not_track_key, m_do_not_track == DoNotTrack::Yes);
 
     // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool }
@@ -244,6 +251,7 @@ void Settings::restore_defaults()
     m_custom_search_engines.clear();
     m_autocomplete_engine.clear();
     m_autoplay = SiteSetting {};
+    m_block_adult_content = BlockAdultContent::No;
     m_do_not_track = DoNotTrack::No;
     m_dns_settings = SystemDNS {};
 
@@ -255,6 +263,7 @@ void Settings::restore_defaults()
         observer.search_engine_changed();
         observer.autocomplete_engine_changed();
         observer.autoplay_settings_changed();
+        observer.block_adult_content_changed();
         observer.do_not_track_changed();
         observer.dns_settings_changed();
     }
@@ -419,6 +428,15 @@ void Settings::remove_all_autoplay_site_filters()
         observer.autoplay_settings_changed();
 }
 
+void Settings::set_block_adult_content(BlockAdultContent block_adult_content)
+{
+    m_block_adult_content = block_adult_content;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.block_adult_content_changed();
+}
+
 void Settings::set_do_not_track(DoNotTrack do_not_track)
 {
     m_do_not_track = do_not_track;
@@ -473,7 +491,6 @@ void Settings::set_dns_settings(DNSSettings const& dns_settings, bool override_b
 void Settings::persist_settings()
 {
     auto settings = serialize_json();
-
     if (auto result = write_settings_file(m_settings_path, settings); result.is_error())
         warnln("Unable to persist Ladybird settings: {}", result.error());
 }

@@ -270,6 +270,7 @@ web_resources = [
 
 about_pages = [
   "//Base/res/ladybird/about-pages/about.html",
+  "//Base/res/ladybird/about-pages/blocked.html",
   "//Base/res/ladybird/about-pages/newtab.html",
 ]
 

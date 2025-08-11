@@ -66,6 +66,9 @@ public:
     bool enable_do_not_track() const { return m_enable_do_not_track; }
     void set_enable_do_not_track(bool enable) { m_enable_do_not_track = enable; }
 
+    bool enable_block_adult_content() const { return m_enable_block_adult_content; }
+    void set_enable_block_adult_content(bool enable) { m_enable_block_adult_content = enable; }
+
     void clear_cache();
     void evict_from_cache(LoadRequest const&);
 
@@ -89,6 +92,7 @@ private:
     Vector<String> m_preferred_languages = { "en"_string };
     NavigatorCompatibilityMode m_navigator_compatibility_mode;
     bool m_enable_do_not_track { false };
+    bool m_enable_block_adult_content { false };
 };
 
 }

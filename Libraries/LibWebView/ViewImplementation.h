@@ -266,6 +266,7 @@ protected:
 
     virtual void languages_changed() override;
     virtual void autoplay_settings_changed() override;
+    virtual void block_adult_content_changed() override;
     virtual void do_not_track_changed() override;
 
     struct SharedBitmap {

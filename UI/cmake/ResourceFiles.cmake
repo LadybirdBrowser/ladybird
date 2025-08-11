@@ -68,6 +68,7 @@ list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladyb
 
 set(ABOUT_PAGES
     about.html
+    blocked.html
     newtab.html
     processes.html
     settings.html
@@ -78,6 +79,7 @@ set(ABOUT_SETTINGS_RESOURCES
     languages.js
     network.js
     new-tab-page.js
+    parentalControls.js
     permissions.js
     privacy.js
     search.js

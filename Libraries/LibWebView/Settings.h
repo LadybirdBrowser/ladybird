@@ -25,6 +25,11 @@ struct SiteSetting {
     OrderedHashTable<String> site_filters;
 };
 
+enum class BlockAdultContent {
+    No,
+    Yes,
+};
+
 enum class DoNotTrack {
     No,
     Yes,
@@ -40,6 +45,7 @@ public:
     virtual void search_engine_changed() { }
     virtual void autocomplete_engine_changed() { }
     virtual void autoplay_settings_changed() { }
+    virtual void block_adult_content_changed() { }
     virtual void do_not_track_changed() { }
     virtual void dns_settings_changed() { }
 };
@@ -75,6 +81,9 @@ public:
     void remove_autoplay_site_filter(String const&);
     void remove_all_autoplay_site_filters();
 
+    BlockAdultContent block_adult_content() const { return m_block_adult_content; }
+    void set_block_adult_content(BlockAdultContent);
+
     DoNotTrack do_not_track() const { return m_do_not_track; }
     void set_do_not_track(DoNotTrack);
 
@@ -100,6 +109,7 @@ private:
     Vector<SearchEngine> m_custom_search_engines;
     Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
+    BlockAdultContent m_block_adult_content { BlockAdultContent::No };
     DoNotTrack m_do_not_track { DoNotTrack::No };
     DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };

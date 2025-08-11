@@ -1135,6 +1135,11 @@ void ConnectionFromClient::set_preferred_languages(u64, Vector<String> preferred
     Web::ResourceLoader::the().set_preferred_languages(move(preferred_languages));
 }
 
+void ConnectionFromClient::set_enable_block_adult_content(u64, bool enable)
+{
+    Web::ResourceLoader::the().set_enable_block_adult_content(enable);
+}
+
 void ConnectionFromClient::set_enable_do_not_track(u64, bool enable)
 {
     Web::ResourceLoader::the().set_enable_do_not_track(enable);

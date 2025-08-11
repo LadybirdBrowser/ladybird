@@ -108,6 +108,7 @@ private:
     virtual void set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast) override;
     virtual void set_preferred_motion(u64 page_id, Web::CSS::PreferredMotion) override;
     virtual void set_preferred_languages(u64 page_id, Vector<String>) override;
+    virtual void set_enable_block_adult_content(u64 page_id, bool) override;
     virtual void set_enable_do_not_track(u64 page_id, bool) override;
     virtual void set_has_focus(u64 page_id, bool) override;
     virtual void set_is_scripting_enabled(u64 page_id, bool) override;

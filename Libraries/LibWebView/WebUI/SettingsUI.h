@@ -34,6 +34,8 @@ private:
     void remove_site_setting_filter(JsonValue const&);
     void remove_all_site_setting_filters(JsonValue const&);
 
+    void set_block_adult_content(JsonValue const&);
+
     void set_do_not_track(JsonValue const&);
 
     void set_dns_settings(JsonValue const&);
