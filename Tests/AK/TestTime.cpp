@@ -554,6 +554,77 @@ TEST_CASE(user_defined_literals)
     static_assert(1_sec != 2_sec, "NE UDL");
 }
 
+TEST_CASE(from_iso8601_week)
+{
+    // 1970-W01
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(1970, 1).offset_to_epoch(), -259'200, 0);
+
+    // First and last weeks of yearEXPECT_DURATION(UnixDateTime::from_iso8601_week(2000, 1).offset_to_epoch(), 946857600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2000, 2).offset_to_epoch(), 947462400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2000, 51).offset_to_epoch(), 977097600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2000, 52).offset_to_epoch(), 977702400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2001, 1).offset_to_epoch(), 978307200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2001, 2).offset_to_epoch(), 978912000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2001, 51).offset_to_epoch(), 1008547200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2001, 52).offset_to_epoch(), 1009152000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2002, 1).offset_to_epoch(), 1009756800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2002, 2).offset_to_epoch(), 1010361600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2002, 51).offset_to_epoch(), 1039996800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2002, 52).offset_to_epoch(), 1040601600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2003, 1).offset_to_epoch(), 1041206400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2003, 2).offset_to_epoch(), 1041811200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2003, 51).offset_to_epoch(), 1071446400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2003, 52).offset_to_epoch(), 1072051200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2004, 1).offset_to_epoch(), 1072656000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2004, 2).offset_to_epoch(), 1073260800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2004, 51).offset_to_epoch(), 1102896000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2004, 52).offset_to_epoch(), 1103500800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2004, 53).offset_to_epoch(), 1104105600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2005, 1).offset_to_epoch(), 1104710400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2005, 2).offset_to_epoch(), 1105315200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2005, 51).offset_to_epoch(), 1134950400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2005, 52).offset_to_epoch(), 1135555200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2006, 1).offset_to_epoch(), 1136160000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2006, 2).offset_to_epoch(), 1136764800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2006, 51).offset_to_epoch(), 1166400000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2006, 52).offset_to_epoch(), 1167004800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2007, 1).offset_to_epoch(), 1167609600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2007, 2).offset_to_epoch(), 1168214400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2007, 51).offset_to_epoch(), 1197849600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2007, 52).offset_to_epoch(), 1198454400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2008, 1).offset_to_epoch(), 1199059200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2008, 2).offset_to_epoch(), 1199664000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2008, 51).offset_to_epoch(), 1229299200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2008, 52).offset_to_epoch(), 1229904000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2009, 1).offset_to_epoch(), 1230508800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2009, 2).offset_to_epoch(), 1231113600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2009, 51).offset_to_epoch(), 1260748800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2009, 52).offset_to_epoch(), 1261353600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2009, 53).offset_to_epoch(), 1261958400, 0);
+
+    // Some random weeks
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2064, 25).offset_to_epoch(), 2980800000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(1976, 20).offset_to_epoch(), 200534400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2036, 6).offset_to_epoch(), 2085696000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2022, 9).offset_to_epoch(), 1646006400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2049, 19).offset_to_epoch(), 2504217600, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2069, 9).offset_to_epoch(), 3128976000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2015, 46).offset_to_epoch(), 1447027200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2056, 42).offset_to_epoch(), 2738880000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2018, 23).offset_to_epoch(), 1528070400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2047, 2).offset_to_epoch(), 2430432000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2033, 41).offset_to_epoch(), 2012515200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2021, 52).offset_to_epoch(), 1640563200, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(1987, 8).offset_to_epoch(), 540432000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(1982, 13).offset_to_epoch(), 386208000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(1979, 36).offset_to_epoch(), 305164800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2057, 43).offset_to_epoch(), 2770934400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(1988, 35).offset_to_epoch(), 588816000, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2060, 50).offset_to_epoch(), 2869516800, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2013, 14).offset_to_epoch(), 1364774400, 0);
+    EXPECT_DURATION(UnixDateTime::from_iso8601_week(2005, 52).offset_to_epoch(), 1135555200, 0);
+}
+
 TEST_CASE(from_unix_time_parts_common_values)
 {
     // Non-negative "common" values.

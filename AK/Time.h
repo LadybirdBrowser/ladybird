@@ -74,14 +74,14 @@ constexpr int day_of_year(int year, unsigned month, int day)
 // Month starts at 1. Month must be >= 1 and <= 12.
 int days_in_month(int year, unsigned month);
 
-constexpr int days_in_year(int year)
+constexpr unsigned int days_in_year(int year)
 {
     return 365 + (is_leap_year(year) ? 1 : 0);
 }
 
-constexpr int weeks_in_year(int year)
+constexpr unsigned int iso8061_weeks_in_year(int year)
 {
-    return is_leap_year(year) ? 53 : 52;
+    return day_of_week(year, 12, 31) == 4 || day_of_week(year - 1, 12, 31) == 3 ? 53 : 52;
 }
 
 namespace Detail {
@@ -391,6 +391,9 @@ public:
     // Creates UNIX time from an ISO 8601 Week, such as 2025-W06, with year 2025 and week 6.
     [[nodiscard]] static UnixDateTime from_iso8601_week(u32 year, u32 week);
 
+    // Creates UNIX time from an ordinal date, such as 2025-100, with year 2025 and day 100.
+    [[nodiscard]] static UnixDateTime from_ordinal_date(u32 year, u32 day);
+
     // Creates UNIX time from a unix timestamp.
     // Note that the returned time is probably not equivalent to the same timestamp in UTC time, since UNIX time does not observe leap seconds.
     [[nodiscard]] constexpr static UnixDateTime from_unix_time_parts(i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second, u16 millisecond)
@@ -639,6 +642,7 @@ using AK::days_in_month;
 using AK::days_in_year;
 using AK::days_since_epoch;
 using AK::is_leap_year;
+using AK::iso8061_weeks_in_year;
 using AK::MonotonicTime;
 using AK::seconds_since_epoch_to_year;
 using AK::timespec_add;
@@ -649,6 +653,5 @@ using AK::timeval_add;
 using AK::timeval_sub;
 using AK::timeval_to_timespec;
 using AK::UnixDateTime;
-using AK::weeks_in_year;
 using AK::years_to_days_since_epoch;
 #endif
