@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+
+<body>
+<script>
+  test(t => {
+    const empty = trustedTypes.emptyHTML;
+    assert_true(trustedTypes.isHTML(empty));
+    assert_equals(empty.toString(), "");
+  }, 'trustedTypes.emptyHTML returns the intended value.');
+
+  test(t => {
+    try { trustedTypes.emptyHTML = 'fake'; } catch { }
+    assert_true(trustedTypes.isHTML(trustedTypes.emptyHTML));
+    assert_equals(trustedTypes.emptyHTML.toString(), "");
+  }, 'trustedTypes.emptyHTML cannot be redefined.');
+
+  test(t => {
+    try { Object.defineProperty(TrustedTypes, 'emptyHTML', 'fake'); } catch { }
+    assert_true(trustedTypes.isHTML(trustedTypes.emptyHTML));
+    assert_equals(trustedTypes.emptyHTML.toString(), "");
+  }, 'trustedTypes.emptyHTML cannot be redefined via defineProperty.');
+
+  test(t => {
+    const empty = trustedTypes.emptyScript;
+    assert_true(trustedTypes.isScript(empty));
+    assert_equals(empty.toString(), "");
+  }, 'trustedTypes.emptyScript returns the intended value.');
+
+  test(t => {
+    try { trustedTypes.emptyScript = 'fake'; } catch { }
+    assert_true(trustedTypes.isScript(trustedTypes.emptyScript));
+    assert_equals(trustedTypes.emptyScript.toString(), "");
+  }, 'trustedTypes.emptyScript cannot be redefined.');
+
+  test(t => {
+    try { Object.defineProperty(TrustedTypes, 'emptyScript', 'fake'); } catch { }
+    assert_true(trustedTypes.isScript(trustedTypes.emptyScript));
+    assert_equals(trustedTypes.emptyScript.toString(), "");
+  }, 'trustedTypes.emptyScript cannot be redefined via defineProperty.');
+</script>

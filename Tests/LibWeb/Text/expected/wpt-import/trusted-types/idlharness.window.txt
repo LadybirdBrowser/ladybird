@@ -1,0 +1,105 @@
+Harness status: OK
+
+Found 100 tests
+
+100 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface mixin WindowOrWorkerGlobalScope: original interface mixin defined
+Pass	Partial interface mixin WindowOrWorkerGlobalScope: member names are unique
+Pass	Partial interface Window: member names are unique
+Pass	Window includes GlobalEventHandlers: member names are unique
+Pass	Window includes WindowEventHandlers: member names are unique
+Pass	Window includes WindowOrWorkerGlobalScope: member names are unique
+Pass	WorkerGlobalScope includes WindowOrWorkerGlobalScope: member names are unique
+Pass	Window includes AnimationFrameProvider: member names are unique
+Pass	Window includes WindowSessionStorage: member names are unique
+Pass	Window includes WindowLocalStorage: member names are unique
+Pass	TrustedHTML interface: existence and properties of interface object
+Pass	TrustedHTML interface object length
+Pass	TrustedHTML interface object name
+Pass	TrustedHTML interface: existence and properties of interface prototype object
+Pass	TrustedHTML interface: existence and properties of interface prototype object's "constructor" property
+Pass	TrustedHTML interface: existence and properties of interface prototype object's @@unscopables property
+Pass	TrustedHTML interface: stringifier
+Pass	TrustedHTML interface: operation toJSON()
+Pass	TrustedHTML must be primary interface of window.trustedTypes.createPolicy("SomeName1", { createHTML: s => s }).createHTML("A string")
+Pass	Stringification of window.trustedTypes.createPolicy("SomeName1", { createHTML: s => s }).createHTML("A string")
+Pass	TrustedHTML interface: window.trustedTypes.createPolicy("SomeName1", { createHTML: s => s }).createHTML("A string") must inherit property "toJSON()" with the proper type
+Pass	TrustedHTML interface: toJSON operation on window.trustedTypes.createPolicy("SomeName1", { createHTML: s => s }).createHTML("A string")
+Pass	TrustedScript interface: existence and properties of interface object
+Pass	TrustedScript interface object length
+Pass	TrustedScript interface object name
+Pass	TrustedScript interface: existence and properties of interface prototype object
+Pass	TrustedScript interface: existence and properties of interface prototype object's "constructor" property
+Pass	TrustedScript interface: existence and properties of interface prototype object's @@unscopables property
+Pass	TrustedScript interface: stringifier
+Pass	TrustedScript interface: operation toJSON()
+Pass	TrustedScript must be primary interface of window.trustedTypes.createPolicy("SomeName2", { createScript: s => s }).createScript("A string")
+Pass	Stringification of window.trustedTypes.createPolicy("SomeName2", { createScript: s => s }).createScript("A string")
+Pass	TrustedScript interface: window.trustedTypes.createPolicy("SomeName2", { createScript: s => s }).createScript("A string") must inherit property "toJSON()" with the proper type
+Pass	TrustedScript interface: toJSON operation on window.trustedTypes.createPolicy("SomeName2", { createScript: s => s }).createScript("A string")
+Pass	TrustedScriptURL interface: existence and properties of interface object
+Pass	TrustedScriptURL interface object length
+Pass	TrustedScriptURL interface object name
+Pass	TrustedScriptURL interface: existence and properties of interface prototype object
+Pass	TrustedScriptURL interface: existence and properties of interface prototype object's "constructor" property
+Pass	TrustedScriptURL interface: existence and properties of interface prototype object's @@unscopables property
+Pass	TrustedScriptURL interface: stringifier
+Pass	TrustedScriptURL interface: operation toJSON()
+Pass	TrustedScriptURL must be primary interface of window.trustedTypes.createPolicy("SomeName3", { createScriptURL: s => s }).createScriptURL("A string")
+Pass	Stringification of window.trustedTypes.createPolicy("SomeName3", { createScriptURL: s => s }).createScriptURL("A string")
+Pass	TrustedScriptURL interface: window.trustedTypes.createPolicy("SomeName3", { createScriptURL: s => s }).createScriptURL("A string") must inherit property "toJSON()" with the proper type
+Pass	TrustedScriptURL interface: toJSON operation on window.trustedTypes.createPolicy("SomeName3", { createScriptURL: s => s }).createScriptURL("A string")
+Pass	TrustedTypePolicyFactory interface: existence and properties of interface object
+Pass	TrustedTypePolicyFactory interface object length
+Pass	TrustedTypePolicyFactory interface object name
+Pass	TrustedTypePolicyFactory interface: existence and properties of interface prototype object
+Pass	TrustedTypePolicyFactory interface: existence and properties of interface prototype object's "constructor" property
+Pass	TrustedTypePolicyFactory interface: existence and properties of interface prototype object's @@unscopables property
+Pass	TrustedTypePolicyFactory interface: operation createPolicy(DOMString, optional TrustedTypePolicyOptions)
+Pass	TrustedTypePolicyFactory interface: operation isHTML(any)
+Pass	TrustedTypePolicyFactory interface: operation isScript(any)
+Pass	TrustedTypePolicyFactory interface: operation isScriptURL(any)
+Pass	TrustedTypePolicyFactory interface: attribute emptyHTML
+Pass	TrustedTypePolicyFactory interface: attribute emptyScript
+Pass	TrustedTypePolicyFactory interface: operation getAttributeType(DOMString, DOMString, optional DOMString?, optional DOMString?)
+Pass	TrustedTypePolicyFactory interface: operation getPropertyType(DOMString, DOMString, optional DOMString?)
+Pass	TrustedTypePolicyFactory interface: attribute defaultPolicy
+Pass	TrustedTypePolicyFactory must be primary interface of window.trustedTypes
+Pass	Stringification of window.trustedTypes
+Pass	TrustedTypePolicyFactory interface: window.trustedTypes must inherit property "createPolicy(DOMString, optional TrustedTypePolicyOptions)" with the proper type
+Pass	TrustedTypePolicyFactory interface: calling createPolicy(DOMString, optional TrustedTypePolicyOptions) on window.trustedTypes with too few arguments must throw TypeError
+Pass	TrustedTypePolicyFactory interface: window.trustedTypes must inherit property "isHTML(any)" with the proper type
+Pass	TrustedTypePolicyFactory interface: calling isHTML(any) on window.trustedTypes with too few arguments must throw TypeError
+Pass	TrustedTypePolicyFactory interface: window.trustedTypes must inherit property "isScript(any)" with the proper type
+Pass	TrustedTypePolicyFactory interface: calling isScript(any) on window.trustedTypes with too few arguments must throw TypeError
+Pass	TrustedTypePolicyFactory interface: window.trustedTypes must inherit property "isScriptURL(any)" with the proper type
+Pass	TrustedTypePolicyFactory interface: calling isScriptURL(any) on window.trustedTypes with too few arguments must throw TypeError
+Pass	TrustedTypePolicyFactory interface: window.trustedTypes must inherit property "emptyHTML" with the proper type
+Pass	TrustedTypePolicyFactory interface: window.trustedTypes must inherit property "emptyScript" with the proper type
+Pass	TrustedTypePolicyFactory interface: window.trustedTypes must inherit property "getAttributeType(DOMString, DOMString, optional DOMString?, optional DOMString?)" with the proper type
+Pass	TrustedTypePolicyFactory interface: calling getAttributeType(DOMString, DOMString, optional DOMString?, optional DOMString?) on window.trustedTypes with too few arguments must throw TypeError
+Pass	TrustedTypePolicyFactory interface: window.trustedTypes must inherit property "getPropertyType(DOMString, DOMString, optional DOMString?)" with the proper type
+Pass	TrustedTypePolicyFactory interface: calling getPropertyType(DOMString, DOMString, optional DOMString?) on window.trustedTypes with too few arguments must throw TypeError
+Pass	TrustedTypePolicyFactory interface: window.trustedTypes must inherit property "defaultPolicy" with the proper type
+Pass	TrustedTypePolicy interface: existence and properties of interface object
+Pass	TrustedTypePolicy interface object length
+Pass	TrustedTypePolicy interface object name
+Pass	TrustedTypePolicy interface: existence and properties of interface prototype object
+Pass	TrustedTypePolicy interface: existence and properties of interface prototype object's "constructor" property
+Pass	TrustedTypePolicy interface: existence and properties of interface prototype object's @@unscopables property
+Pass	TrustedTypePolicy interface: attribute name
+Pass	TrustedTypePolicy interface: operation createHTML(DOMString, any...)
+Pass	TrustedTypePolicy interface: operation createScript(DOMString, any...)
+Pass	TrustedTypePolicy interface: operation createScriptURL(DOMString, any...)
+Pass	TrustedTypePolicy must be primary interface of window.trustedTypes.createPolicy("SomeName", { createHTML: s => s })
+Pass	Stringification of window.trustedTypes.createPolicy("SomeName", { createHTML: s => s })
+Pass	TrustedTypePolicy interface: window.trustedTypes.createPolicy("SomeName", { createHTML: s => s }) must inherit property "name" with the proper type
+Pass	TrustedTypePolicy interface: window.trustedTypes.createPolicy("SomeName", { createHTML: s => s }) must inherit property "createHTML(DOMString, any...)" with the proper type
+Pass	TrustedTypePolicy interface: calling createHTML(DOMString, any...) on window.trustedTypes.createPolicy("SomeName", { createHTML: s => s }) with too few arguments must throw TypeError
+Pass	TrustedTypePolicy interface: window.trustedTypes.createPolicy("SomeName", { createHTML: s => s }) must inherit property "createScript(DOMString, any...)" with the proper type
+Pass	TrustedTypePolicy interface: calling createScript(DOMString, any...) on window.trustedTypes.createPolicy("SomeName", { createHTML: s => s }) with too few arguments must throw TypeError
+Pass	TrustedTypePolicy interface: window.trustedTypes.createPolicy("SomeName", { createHTML: s => s }) must inherit property "createScriptURL(DOMString, any...)" with the proper type
+Pass	TrustedTypePolicy interface: calling createScriptURL(DOMString, any...) on window.trustedTypes.createPolicy("SomeName", { createHTML: s => s }) with too few arguments must throw TypeError
+Pass	Window interface: attribute trustedTypes
