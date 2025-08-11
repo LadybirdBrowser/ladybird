@@ -1,9 +1,9 @@
 queryCommandSupported("selectall"): true
 queryCommandEnabled("selectall"): true
-execCommand("selectall"): PASS
+execCommand("selectall"): 
 queryCommandSupported("SELECTALL"): true
 queryCommandEnabled("SELECTALL"): true
-execCommand("SELECTALL"): PASS
+execCommand("SELECTALL"): 
 queryCommandSupported("SeLeCtAlL"): true
 queryCommandEnabled("SeLeCtAlL"): true
-execCommand("SeLeCtAlL"): PASS
+execCommand("SeLeCtAlL"): 

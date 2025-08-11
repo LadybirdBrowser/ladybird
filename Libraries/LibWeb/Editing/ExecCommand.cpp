@@ -12,13 +12,31 @@
 #include <LibWeb/Editing/Commands.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedHTML.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 
 namespace Web::DOM {
 
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
-WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[maybe_unused]] bool show_ui, Utf16String const& value)
+WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[maybe_unused]] bool show_ui, TrustedTypes::TrustedHTMLOrString const& value)
 {
+    Utf16String compliant_string;
+    if (command.equals_ignoring_ascii_case(Editing::CommandNames::insertHTML)) {
+        // AD-HOC: The spec has been abandoned but there is a WPT tests checking weather this api follows TrustedTypes
+        compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+            TrustedTypes::TrustedTypeName::TrustedHTML,
+            relevant_global_object(*this),
+            value.downcast<TrustedTypes::TrustedHTMLOrString>(),
+            TrustedTypes::InjectionSink::DocumentexecCommand,
+            TrustedTypes::Script.to_string()));
+    } else {
+        compliant_string = value.downcast<TrustedTypes::TrustedHTMLOrString>().visit(
+            [](auto const& value) { return value->to_string(); },
+            [](Utf16String const& value) { return value; });
+    }
+
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
         return WebIDL::InvalidStateError::create(realm(), "execCommand is only supported on HTML documents"_utf16);
@@ -101,7 +119,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     auto old_character_data_version = character_data_version();
 
     // 5. Take the action for command, passing value to the instructions as an argument.
-    auto command_result = command_definition.action(*this, value);
+    auto command_result = command_definition.action(*this, compliant_string);
 
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
     // After taking the action, if the active range is collapsed, it must restore states and values from the recorded
@@ -125,7 +143,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
 
         // AD-HOC: For insertText, we do what other browsers do and set data to value.
         if (command == Editing::CommandNames::insertText)
-            event_init.data = value;
+            event_init.data = compliant_string;
 
         auto event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, event_init);
         event->set_is_trusted(true);

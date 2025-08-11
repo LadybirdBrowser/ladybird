@@ -181,7 +181,7 @@ void EditingHostManager::handle_delete(DeleteDirection direction)
     // the Delete key while the cursor is in an editable node, the user agent must call execCommand("forwarddelete") on
     // the relevant document.
     auto command = direction == DeleteDirection::Backward ? Editing::CommandNames::delete_ : Editing::CommandNames::forwardDelete;
-    auto editing_result = m_document->exec_command(command, false, {});
+    auto editing_result = m_document->exec_command(command, false, ""_utf16);
     if (editing_result.is_exception())
         dbgln("handle_delete(): editing resulted in exception: {}", editing_result.exception());
 }
@@ -200,7 +200,7 @@ EventResult EditingHostManager::handle_return_key(FlyString const& ui_input_type
     auto command = ui_input_type == UIEvents::InputTypes::insertParagraph
         ? Editing::CommandNames::insertParagraph
         : Editing::CommandNames::insertLineBreak;
-    auto editing_result = m_document->exec_command(command, false, {});
+    auto editing_result = m_document->exec_command(command, false, ""_utf16);
     if (editing_result.is_exception()) {
         dbgln("handle_return_key(): editing resulted in exception: {}", editing_result.exception());
         return EventResult::Dropped;
