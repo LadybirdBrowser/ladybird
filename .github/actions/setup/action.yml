@@ -64,7 +64,7 @@ runs:
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: 16.3
+        xcode-version: 16.4
 
     - name: 'Install Swift toolchain'
       if: ${{ inputs.toolchain == 'Swift' }}
