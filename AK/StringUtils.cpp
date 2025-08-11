@@ -16,6 +16,8 @@
 #include <AK/Vector.h>
 #include <string.h>
 
+#include <simdutf.h>
+
 namespace AK {
 
 namespace StringUtils {
@@ -211,15 +213,19 @@ StringView trim_whitespace(StringView str, TrimMode mode)
     return trim(str, " \n\t\v\f\r"sv, mode);
 }
 
-Optional<size_t> find(StringView haystack, char needle, size_t start)
+Optional<size_t> find(StringView haystack, char needle, size_t start_offset)
 {
-    if (start >= haystack.length())
+    if (start_offset >= haystack.length())
         return {};
-    for (size_t i = start; i < haystack.length(); ++i) {
-        if (haystack[i] == needle)
-            return i;
-    }
-    return {};
+
+    auto const* start = haystack.characters_without_null_termination() + start_offset;
+    auto const* end = haystack.characters_without_null_termination() + haystack.length();
+
+    auto const* result = simdutf::find(start, end, needle);
+    if (result == end)
+        return {};
+
+    return result - start + start_offset;
 }
 
 Optional<size_t> find(StringView haystack, StringView needle, size_t start)

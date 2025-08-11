@@ -254,6 +254,27 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
     VERIFY_NOT_REACHED();
 }
 
+Optional<size_t> Utf16View::find_code_unit_offset(char16_t needle, size_t start_offset) const
+{
+    if (start_offset >= length_in_code_units())
+        return {};
+
+    if (has_ascii_storage()) {
+        if (!AK::is_ascii(needle))
+            return {};
+        return StringUtils::find(bytes(), static_cast<char>(needle), start_offset);
+    }
+
+    auto const* start = m_string.utf16 + start_offset;
+    auto const* end = m_string.utf16 + length_in_code_units();
+
+    auto const* result = simdutf::find(start, end, needle);
+    if (result == end)
+        return {};
+
+    return result - start + start_offset;
+}
+
 Vector<Utf16View> Utf16View::split_view(char16_t separator, SplitBehavior split_behavior) const
 {
     Utf16View seperator_view { &separator, 1 };
