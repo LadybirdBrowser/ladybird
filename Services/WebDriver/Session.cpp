@@ -252,7 +252,7 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
 
 ErrorOr<void> Session::start(LaunchBrowserCallback const& launch_browser_callback)
 {
-    auto promise = TRY(ServerPromise::try_create());
+    auto promise = ServerPromise::construct();
 
     m_web_content_socket_path = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), getpid(), m_session_id);
     m_web_content_server = TRY(create_server(promise));

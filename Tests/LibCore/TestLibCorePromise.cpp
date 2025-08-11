@@ -15,7 +15,7 @@ TEST_CASE(promise_await_async_event)
 {
     Core::EventLoop loop;
 
-    auto promise = MUST(Core::Promise<int>::try_create());
+    auto promise = Core::Promise<int>::construct();
 
     loop.deferred_invoke([=] {
         promise->resolve(42);
@@ -30,7 +30,7 @@ TEST_CASE(promise_await_async_event_rejection)
 {
     Core::EventLoop loop;
 
-    auto promise = MUST(Core::Promise<int>::try_create());
+    auto promise = Core::Promise<int>::construct();
 
     loop.deferred_invoke([=] {
         promise->reject(AK::Error::from_string_literal("lol no"));
@@ -48,7 +48,7 @@ TEST_CASE(promise_chain_handlers)
     bool resolved = false;
     bool rejected = false;
 
-    NonnullRefPtr<Core::Promise<int>> promise = MUST(Core::Promise<int>::try_create())
+    NonnullRefPtr<Core::Promise<int>> promise = Core::Promise<int>::construct()
                                                     ->when_resolved([&](int&) -> ErrorOr<void> { resolved = true; return {}; })
                                                     .when_rejected([&](AK::Error const&) { rejected = true; });
 
@@ -68,7 +68,7 @@ TEST_CASE(infallible_promise_chain_handlers)
     bool resolved = false;
     bool rejected = false;
 
-    NonnullRefPtr<Core::Promise<int>> promise = MUST(Core::Promise<int>::try_create())
+    NonnullRefPtr<Core::Promise<int>> promise = Core::Promise<int>::construct()
                                                     ->when_resolved([&](int&) { resolved = true; })
                                                     .when_rejected([&](AK::Error const&) { rejected = true; });
 
@@ -85,7 +85,7 @@ TEST_CASE(promise_map)
 {
     Core::EventLoop loop;
 
-    auto promise = MUST(Core::Promise<int>::try_create());
+    auto promise = Core::Promise<int>::construct();
     auto mapped_promise = promise->map<int>([](int result) {
         return result * 2;
     });
@@ -103,7 +103,7 @@ TEST_CASE(promise_map_already_resolved)
 {
     Core::EventLoop loop;
 
-    auto promise = MUST(Core::Promise<int>::try_create());
+    auto promise = Core::Promise<int>::construct();
     promise->resolve(21);
 
     auto mapped_promise = promise->map<int>([](int result) {
