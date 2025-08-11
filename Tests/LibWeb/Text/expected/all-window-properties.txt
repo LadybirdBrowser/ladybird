@@ -409,6 +409,7 @@ Storage
 StorageEvent
 StorageManager
 String
+StylePropertyMapReadOnly
 StyleSheet
 StyleSheetList
 SubmitEvent

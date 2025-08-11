@@ -186,6 +186,7 @@ set(SOURCES
     CSS/StyleInvalidation.cpp
     CSS/StyleInvalidationData.cpp
     CSS/StyleProperty.cpp
+    CSS/StylePropertyMapReadOnly.cpp
     CSS/StyleSheet.cpp
     CSS/StyleSheetIdentifier.cpp
     CSS/StyleSheetList.cpp
