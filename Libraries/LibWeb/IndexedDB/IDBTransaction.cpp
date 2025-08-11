@@ -87,8 +87,7 @@ WebIDL::ExceptionOr<void> IDBTransaction::abort()
     if (m_state == TransactionState::Committing || m_state == TransactionState::Finished)
         return WebIDL::InvalidStateError::create(realm(), "Transaction is ending"_string);
 
-    // 2. Set this's state to inactive and run abort a transaction with this and null.
-    m_state = TransactionState::Inactive;
+    // 2. Run abort a transaction with this and null.
     abort_a_transaction(*this, nullptr);
     return {};
 }
