@@ -2375,33 +2375,27 @@ static Utf16String convert_number_to_month_string(double input)
     return Utf16String::formatted("{:04d}-{:02d}", static_cast<int>(year), static_cast<int>(months) + 1);
 }
 
-// https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-value-string-number
+// https://html.spec.whatwg.org/multipage/input.html#concept-input-value-number-string
 static Utf16String convert_number_to_week_string(double input)
 {
-    // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid week string that
-    // that represents the week that, in UTC, is current input milliseconds after midnight UTC on the morning of 1970-01-01
-    // (the time represented by the value "1970-01-01T00:00:00.0Z").
+    // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid week string
+    // that represents the week that, in UTC, is current input milliseconds after midnight UTC on the morning of
+    // 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0Z").
 
-    int days_since_epoch = static_cast<int>(input / AK::ms_per_day);
-    int year = 1970;
+    auto year = JS::year_from_time(input);
+    auto month = JS::month_from_time(input) + 1; // Adjust for zero-based month
+    auto day = JS::date_from_time(input);
 
-    while (true) {
-        auto days = days_in_year(year);
-        if (days_since_epoch < days)
-            break;
-        days_since_epoch -= days;
+    constexpr Array normalYearDays = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+    constexpr Array leapYearDays = { 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335 };
+
+    auto ordinal_day = (is_leap_year(year) ? leapYearDays[month - 1] : normalYearDays[month - 1]) + day;
+
+    unsigned week = (10 + ordinal_day - 1) / 7; // -1 because the day of the week is always monday
+    if (week > iso8061_weeks_in_year(year)) {
         ++year;
+        week = 1;
     }
-
-    auto january_1_weekday = day_of_week(year, 1, 1);
-    int offset_to_week_start = (january_1_weekday <= 3) ? january_1_weekday : january_1_weekday - 7;
-    int week = (days_since_epoch + offset_to_week_start) / 7 + 1;
-
-    if (week < 0) {
-        --year;
-        week = weeks_in_year(year) + week;
-    }
-
     return Utf16String::formatted("{:04d}-W{:02d}", year, week);
 }
 

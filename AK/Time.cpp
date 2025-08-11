@@ -282,23 +282,34 @@ MonotonicTime MonotonicTime::now_coarse()
 
 UnixDateTime UnixDateTime::from_iso8601_week(u32 week_year, u32 week)
 {
-    auto january_1_weekday = day_of_week(week_year, 1, 1);
-    i32 offset_to_monday = (january_1_weekday <= 3) ? -january_1_weekday : 7 - january_1_weekday;
-    i32 first_monday_of_year = 1 + offset_to_monday;
-    i32 day_of_year = (first_monday_of_year + (week - 1) * 7) + 1;
+    auto day_of_week_january_4th = (day_of_week(week_year, 1, 4) + 6) % 7;
+    int ordinal_day = (7 * week) - day_of_week_january_4th - 3;
 
-    // FIXME: There should be a more efficient way to do this that doesn't require a loop.
-    u8 month = 1;
-    while (true) {
-        auto days = days_in_month(week_year, month);
-        if (day_of_year <= days)
-            break;
+    if (ordinal_day < 1)
+        return UnixDateTime::from_ordinal_date(week_year - 1, ordinal_day + days_in_year(week_year - 1));
+    if (auto days_in_week_year = days_in_year(week_year); static_cast<unsigned>(ordinal_day) > days_in_week_year)
+        return UnixDateTime::from_ordinal_date(week_year + 1, ordinal_day - days_in_week_year);
+    return UnixDateTime::from_ordinal_date(week_year, ordinal_day);
+}
 
-        day_of_year -= days;
-        ++month;
-    }
+UnixDateTime UnixDateTime::from_ordinal_date(u32 year, u32 day)
+{
+    static constexpr Array<u32, 12> month_starts_normal = { 1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335 };
+    static constexpr Array<u32, 12> month_starts_leap = { 1, 32, 61, 92, 122, 153, 183, 214, 245, 275, 306, 336 };
 
-    return UnixDateTime::from_unix_time_parts(week_year, month, static_cast<u8>(day_of_year), 0, 0, 0, 0);
+    auto const& month_starts = is_leap_year(year) ? month_starts_leap : month_starts_normal;
+
+    // Estimate month using integer division (approx 30.6 days per month)
+    auto estimated_month = (day * 12 + 6) / 367; // Gives 0-based month index
+
+    // Correct month if estimate overshot
+    if (day < month_starts[estimated_month])
+        --estimated_month;
+
+    auto month = estimated_month + 1; // convert to 1-based month
+    auto day_of_month = day - month_starts[estimated_month] + 1;
+
+    return UnixDateTime::from_unix_time_parts(year, month, day_of_month, 0, 0, 0, 0);
 }
 
 UnixDateTime UnixDateTime::now()

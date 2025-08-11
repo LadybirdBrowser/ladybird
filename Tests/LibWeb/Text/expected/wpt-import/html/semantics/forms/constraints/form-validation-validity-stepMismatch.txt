@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 28 tests
 
-24 Pass
-4 Fail
+26 Pass
+2 Fail
 Pass	[INPUT in DATE status] The step attribute is not set
 Pass	[INPUT in DATE status] The value attibute is empty string
 Pass	[INPUT in DATE status] The value must match the step
@@ -14,8 +14,8 @@ Pass	[INPUT in MONTH status] The value must match the step
 Pass	[INPUT in MONTH status] The value must mismatch the step
 Pass	[INPUT in WEEK status] The step attribute is not set
 Pass	[INPUT in WEEK status] The value attibute is empty string
-Fail	[INPUT in WEEK status] The value must match the step
-Fail	[INPUT in WEEK status] The value must mismatch the step
+Pass	[INPUT in WEEK status] The value must match the step
+Pass	[INPUT in WEEK status] The value must mismatch the step
 Pass	[INPUT in TIME status] The step attribute is not set
 Pass	[INPUT in TIME status] The value attibute is empty string
 Pass	[INPUT in TIME status] The value must match the step
