@@ -488,21 +488,7 @@ public:
         return trim(" \n\t\v\f\r"sv, mode);
     }
 
-    constexpr Optional<size_t> find_code_unit_offset(char16_t needle, size_t start_offset = 0) const
-    {
-        if (start_offset >= length_in_code_units())
-            return {};
-
-        if (has_ascii_storage()) {
-            if (!AK::is_ascii(needle))
-                return {};
-
-            auto byte = static_cast<char>(needle);
-            return AK::memmem_optional(m_string.ascii + start_offset, length_in_code_units() - start_offset, &byte, sizeof(byte));
-        }
-
-        return AK::memmem_optional(m_string.utf16 + start_offset, (length_in_code_units() - start_offset) * sizeof(char16_t), &needle, sizeof(needle));
-    }
+    Optional<size_t> find_code_unit_offset(char16_t needle, size_t start_offset = 0) const;
 
     constexpr Optional<size_t> find_code_unit_offset(Utf16View const& needle, size_t start_offset = 0) const
     {
