@@ -14,12 +14,20 @@
 
 namespace Core {
 
-template<typename Result, typename TError>
-class Promise : public EventReceiver {
-    C_OBJECT(Promise);
+class PromiseBase
+    : public RefCounted<PromiseBase>
+    , public Weakable<PromiseBase> {
+public:
+    virtual ~PromiseBase() = default;
+};
 
+template<typename Result, typename TError>
+class Promise : public PromiseBase {
 public:
     using ErrorType = TError;
+
+    virtual ~Promise() = default;
+    static NonnullRefPtr<Promise> construct() { return adopt_ref(*new Promise()); }
 
     Function<ErrorOr<void>(Result&)> on_resolution;
     Function<void(ErrorType&)> on_rejection;
@@ -156,6 +164,8 @@ public:
         return *this;
     }
 
+    void add_child(NonnullRefPtr<PromiseBase> child) { m_children.append(move(child)); }
+
 private:
     template<typename T>
     void possibly_handle_rejection(ErrorOr<T>& result)
@@ -167,6 +177,8 @@ private:
     Promise() = default;
 
     Optional<ErrorOr<Result, ErrorType>> m_result_or_rejection;
+
+    Vector<NonnullRefPtr<PromiseBase>> m_children;
 };
 
 }
