@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+
+<body>
+<script>
+  test(t => {
+    let policy = window.trustedTypes.createPolicy('SomeName', { createHTML: s => s } );
+    assert_equals(policy.name, 'SomeName');
+  }, "CSP supports wildcards.");
+</script>
