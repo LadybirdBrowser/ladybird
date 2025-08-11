@@ -8,3 +8,8 @@ interface StylePropertyMap : StylePropertyMapReadOnly {
     undefined delete(USVString property);
     undefined clear();
 };
+
+// https://drafts.css-houdini.org/css-typed-om-1/#declared-stylepropertymap-objects
+partial interface CSSStyleRule {
+    [SameObject] readonly attribute StylePropertyMap styleMap;
+};
