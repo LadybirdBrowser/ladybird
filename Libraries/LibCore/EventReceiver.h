@@ -19,11 +19,6 @@
 
 namespace Core {
 
-enum class TimerShouldFireWhenNotVisible {
-    No = 0,
-    Yes
-};
-
 #define C_OBJECT(klass)                                                                    \
 public:                                                                                    \
     virtual StringView class_name() const override                                         \
@@ -64,15 +59,13 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    void start_timer(int ms, TimerShouldFireWhenNotVisible = TimerShouldFireWhenNotVisible::No);
+    void start_timer(int ms);
     void stop_timer();
     bool has_timer() const { return m_timer_id; }
 
     void deferred_invoke(Function<void()>);
 
     void dispatch_event(Core::Event&);
-
-    virtual bool is_visible_for_timer_purposes() const;
 
 protected:
     EventReceiver();

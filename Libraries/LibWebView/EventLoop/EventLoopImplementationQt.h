@@ -25,7 +25,7 @@ public:
     virtual ~EventLoopManagerQt() override;
     virtual NonnullOwnPtr<Core::EventLoopImplementation> make_implementation() override;
 
-    virtual intptr_t register_timer(Core::EventReceiver&, int milliseconds, bool should_reload, Core::TimerShouldFireWhenNotVisible) override;
+    virtual intptr_t register_timer(Core::EventReceiver&, int milliseconds, bool should_reload) override;
     virtual void unregister_timer(intptr_t timer_id) override;
 
     virtual void register_notifier(Core::Notifier&) override;

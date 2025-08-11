@@ -53,7 +53,6 @@ namespace Core {
 
 struct EventLoopTimer {
     WeakPtr<EventReceiver> owner;
-    TimerShouldFireWhenNotVisible fire_when_not_visible = TimerShouldFireWhenNotVisible::No;
 };
 
 struct ThreadData {
@@ -135,8 +134,7 @@ size_t EventLoopImplementationWindows::pump(PumpMode)
                 } else {
                     auto& timer = *timers.get(event_handles[i]);
                     if (auto strong_owner = timer.owner.strong_ref())
-                        if (timer.fire_when_not_visible == TimerShouldFireWhenNotVisible::Yes || strong_owner->is_visible_for_timer_purposes())
-                            event_queue.post_event(*strong_owner, make<TimerEvent>());
+                        event_queue.post_event(*strong_owner, make<TimerEvent>());
                 }
             }
         }
@@ -195,7 +193,7 @@ void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
         ThreadData::the()->notifiers.remove_all_matching([&](auto&, auto value) { return value == &notifier; });
 }
 
-intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int milliseconds, bool should_reload, TimerShouldFireWhenNotVisible fire_when_not_visible)
+intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int milliseconds, bool should_reload)
 {
     VERIFY(milliseconds >= 0);
     // FIXME: This is a temporary fix for issue #3641
@@ -211,7 +209,7 @@ intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int mill
 
     auto& timers = ThreadData::the()->timers;
     VERIFY(!timers.get(timer).has_value());
-    timers.set(Handle(timer), { object, fire_when_not_visible });
+    timers.set(Handle(timer), { object });
     return reinterpret_cast<intptr_t>(timer);
 }
 

@@ -85,7 +85,7 @@ NonnullOwnPtr<Core::EventLoopImplementation> ALooperEventLoopManager::make_imple
     return ALooperEventLoopImplementation::create();
 }
 
-intptr_t ALooperEventLoopManager::register_timer(Core::EventReceiver& receiver, int milliseconds, bool should_reload, Core::TimerShouldFireWhenNotVisible visibility)
+intptr_t ALooperEventLoopManager::register_timer(Core::EventReceiver& receiver, int milliseconds, bool should_reload)
 {
     JavaEnvironment env(global_vm);
     auto& thread_data = EventLoopThreadData::the();
@@ -96,7 +96,7 @@ intptr_t ALooperEventLoopManager::register_timer(Core::EventReceiver& receiver, 
     long timer_id = env.get()->CallLongMethod(m_timer_service, m_register_timer, timer, !should_reload, millis);
 
     // FIXME: Is there a race condition here? Maybe we should take a lock on the timers...
-    thread_data.timers.set(timer_id, { receiver.make_weak_ptr(), visibility });
+    thread_data.timers.set(timer_id, { receiver.make_weak_ptr() });
 
     return timer_id;
 }

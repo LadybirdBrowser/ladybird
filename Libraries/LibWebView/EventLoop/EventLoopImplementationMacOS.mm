@@ -207,7 +207,7 @@ NonnullOwnPtr<Core::EventLoopImplementation> EventLoopManagerMacOS::make_impleme
     return EventLoopImplementationMacOS::create();
 }
 
-intptr_t EventLoopManagerMacOS::register_timer(Core::EventReceiver& receiver, int interval_milliseconds, bool should_reload, Core::TimerShouldFireWhenNotVisible should_fire_when_not_visible)
+intptr_t EventLoopManagerMacOS::register_timer(Core::EventReceiver& receiver, int interval_milliseconds, bool should_reload)
 {
     auto& thread_data = ThreadData::the();
 
@@ -223,12 +223,6 @@ intptr_t EventLoopManagerMacOS::register_timer(Core::EventReceiver& receiver, in
             auto receiver = weak_receiver.strong_ref();
             if (!receiver) {
                 return;
-            }
-
-            if (should_fire_when_not_visible == Core::TimerShouldFireWhenNotVisible::No) {
-                if (!receiver->is_visible_for_timer_purposes()) {
-                    return;
-                }
             }
 
             Core::TimerEvent event;

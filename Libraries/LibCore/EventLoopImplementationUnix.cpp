@@ -201,18 +201,11 @@ public:
             }
         }
 
-        // FIXME: While TimerShouldFireWhenNotVisible::Yes prevents the timer callback from being
-        //        called, it doesn't allow event loop to sleep since it needs to constantly check if
-        //        is_visible_for_timer_purposes changed. A better solution will be to unregister a
-        //        timer and register it back again when needed. This also has an added benefit of
-        //        making fire_when_not_visible and is_visible_for_timer_purposes obsolete.
-        if (fire_when_not_visible == TimerShouldFireWhenNotVisible::Yes || strong_owner->is_visible_for_timer_purposes())
-            ThreadEventQueue::current().post_event(*strong_owner, make<TimerEvent>());
+        ThreadEventQueue::current().post_event(*strong_owner, make<TimerEvent>());
     }
 
     AK::Duration interval;
     bool should_reload { false };
-    TimerShouldFireWhenNotVisible fire_when_not_visible { TimerShouldFireWhenNotVisible::No };
     WeakPtr<EventReceiver> owner;
     pthread_t owner_thread { 0 };
     Atomic<bool> is_being_deleted { false };
@@ -618,7 +611,7 @@ void EventLoopManagerUnix::unregister_signal(int handler_id)
         info.signal_handlers.remove(remove_signal_number);
 }
 
-intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int milliseconds, bool should_reload, TimerShouldFireWhenNotVisible fire_when_not_visible)
+intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int milliseconds, bool should_reload)
 {
     VERIFY(milliseconds >= 0);
     auto& thread_data = ThreadData::the();
@@ -628,7 +621,6 @@ intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int millise
     timer->interval = AK::Duration::from_milliseconds(milliseconds);
     timer->reload(MonotonicTime::now_coarse());
     timer->should_reload = should_reload;
-    timer->fire_when_not_visible = fire_when_not_visible;
     thread_data.timeouts.schedule_absolute(timer);
     return bit_cast<intptr_t>(timer);
 }
