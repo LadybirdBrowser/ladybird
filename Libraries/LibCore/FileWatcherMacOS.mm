@@ -65,7 +65,7 @@ public:
 
         // NOTE: This isn't actually used on macOS, but is needed for FileWatcherBase.
         //       Creating it with an FD of -1 will effectively disable the notifier.
-        auto notifier = TRY(Notifier::try_create(-1, Notifier::Type::None));
+        auto notifier = Notifier::construct(-1, Notifier::Type::None);
 
         return adopt_nonnull_ref_or_enomem(new (nothrow) FileWatcherMacOS(move(context), dispatch_queue, move(notifier)));
     }

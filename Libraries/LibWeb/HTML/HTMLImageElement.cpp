@@ -49,7 +49,7 @@ GC_DEFINE_ALLOCATOR(HTMLImageElement);
 HTMLImageElement::HTMLImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
-    m_animation_timer = Core::Timer::try_create().release_value_but_fixme_should_propagate_errors();
+    m_animation_timer = Core::Timer::create();
     m_animation_timer->on_timeout = [this] { animate(); };
 
     document.register_viewport_client(*this);

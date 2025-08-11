@@ -99,7 +99,7 @@ ErrorOr<NonnullRefPtr<FileWatcher>> FileWatcher::create(FileWatcherFlags flags)
     if (watcher_fd < 0)
         return Error::from_errno(errno);
 
-    auto notifier = TRY(Notifier::try_create(watcher_fd, Notifier::Type::Read));
+    auto notifier = Notifier::construct(watcher_fd, Notifier::Type::Read);
     return adopt_nonnull_ref_or_enomem(new (nothrow) FileWatcher(watcher_fd, move(notifier)));
 }
 

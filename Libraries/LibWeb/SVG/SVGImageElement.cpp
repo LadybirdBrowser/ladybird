@@ -23,7 +23,7 @@ namespace Web::SVG {
 SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
 {
-    m_animation_timer = Core::Timer::try_create().release_value_but_fixme_should_propagate_errors();
+    m_animation_timer = Core::Timer::create();
     m_animation_timer->on_timeout = [this] { animate(); };
 }
 

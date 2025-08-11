@@ -67,7 +67,7 @@ ErrorOr<void> BrowserProcess::connect_as_server(ByteString const& socket_path)
     // TODO: Mach IPC
     auto socket_fd = TRY(Process::create_ipc_socket(socket_path));
     m_socket_path = socket_path;
-    auto local_server = TRY(Core::LocalServer::try_create());
+    auto local_server = Core::LocalServer::construct();
     TRY(local_server->take_over_fd(socket_fd));
 
     m_server_connection = TRY(IPC::MultiServer<UIProcessConnectionFromClient>::try_create(move(local_server)));
