@@ -236,6 +236,16 @@ public:
         return from_linear_srgb(red, green, blue, alpha);
     }
 
+    constexpr Oklab to_premultiplied_oklab()
+    {
+        auto oklab = to_oklab();
+        return {
+            oklab.L * alpha() / 255,
+            oklab.a * alpha() / 255,
+            oklab.b * alpha() / 255,
+        };
+    }
+
     // https://bottosson.github.io/posts/oklab/
     constexpr Oklab to_oklab()
     {

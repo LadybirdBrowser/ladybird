@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const div = document.createElement('div');
+        div.style.backgroundColor = 'color-mix(in oklab, red 10%, transparent)';
+        document.body.appendChild(div);
+
+        println(getComputedStyle(div).backgroundColor);
+    });
+</script>
