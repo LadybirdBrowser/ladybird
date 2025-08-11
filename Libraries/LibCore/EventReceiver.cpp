@@ -28,9 +28,6 @@ void EventReceiver::event(Core::Event& event)
         if (!m_timer_id)
             break; // Too late, the timer was already stopped.
         return timer_event(static_cast<TimerEvent&>(event));
-    case Core::Event::ChildAdded:
-    case Core::Event::ChildRemoved:
-        return child_event(static_cast<ChildEvent&>(event));
     case Core::Event::Invalid:
         VERIFY_NOT_REACHED();
         break;
@@ -42,10 +39,6 @@ void EventReceiver::event(Core::Event& event)
 }
 
 void EventReceiver::timer_event(Core::TimerEvent&)
-{
-}
-
-void EventReceiver::child_event(Core::ChildEvent&)
 {
 }
 

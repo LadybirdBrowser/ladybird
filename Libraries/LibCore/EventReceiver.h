@@ -82,9 +82,6 @@ protected:
     virtual void timer_event(TimerEvent&);
     virtual void custom_event(CustomEvent&);
 
-    // NOTE: You may get child events for children that are not yet fully constructed!
-    virtual void child_event(ChildEvent&);
-
 private:
     intptr_t m_timer_id { 0 };
 };

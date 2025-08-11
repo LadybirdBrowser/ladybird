@@ -13,7 +13,6 @@ namespace Core {
 class AnonymousBuffer;
 class ArgsParser;
 class BufferedSocketBase;
-class ChildEvent;
 class ConfigFile;
 class CustomEvent;
 class DateTime;
