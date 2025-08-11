@@ -866,7 +866,10 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     request->set_referrer(entry->document_state()->request_referrer());
     request->set_policy_container(source_snapshot_params.source_policy_container);
 
-    // FIXME: 4. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's document state's initiator origin.
+    // 4. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's
+    //    document state's initiator origin.
+    if (navigable->top_level_traversable()->parent() == nullptr)
+        request->set_top_level_navigation_initiator_origin(entry->document_state()->origin());
 
     // 5. If request's client is null:
     if (request->client() == nullptr) {
