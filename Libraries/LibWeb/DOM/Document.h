@@ -1279,6 +1279,10 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dom.html#render-blocking-element-set
     HashTable<GC::Ref<Element>> m_render_blocking_elements;
+    
+    // Timeout values with jitter for render-blocking checks (prevents timing attacks)
+    double m_render_blocking_timeout_with_jitter { 0.0 };
+    double m_missing_body_timeout_with_jitter { 0.0 };
 
     HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
 
