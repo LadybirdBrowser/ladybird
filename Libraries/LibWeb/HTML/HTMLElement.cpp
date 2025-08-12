@@ -32,6 +32,7 @@
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
+#include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
 #include <LibWeb/HTML/PopoverInvokerElement.h>
 #include <LibWeb/HTML/ToggleEvent.h>
@@ -2091,6 +2092,43 @@ String HTMLElement::access_key_label() const
 {
     dbgln("FIXME: Implement HTMLElement::access_key_label()");
     return String {};
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-draggable
+bool HTMLElement::draggable() const
+{
+    auto attribute = get_attribute(HTML::AttributeNames::draggable);
+
+    // If an element's draggable content attribute has the state True, the draggable IDL attribute must return true.
+    if (attribute.has_value() && attribute->equals_ignoring_ascii_case("true"sv)) {
+        return true;
+    }
+
+    // If an element's draggable content attribute has the state False, the draggable IDL attribute must return false.
+    if (attribute.has_value() && attribute->equals_ignoring_ascii_case("false"sv)) {
+        return false;
+    }
+
+    // Otherwise, the element's draggable content attribute has the state Auto.
+
+    // If the element is an img element, the draggable IDL attribute must return true.
+    if (is<HTML::HTMLImageElement>(*this)) {
+        return true;
+    }
+
+    // If the element is an object element that represents an image, the draggable IDL attribute must return true.
+    if (is<HTML::HTMLObjectElement>(*this)) {
+        if (auto type_attribute = get_attribute(HTML::AttributeNames::type); type_attribute.has_value() && type_attribute->equals_ignoring_ascii_case("image"sv))
+            return true;
+    }
+
+    // If the element is an a element with an href content attribute, the draggable IDL attribute must return true.
+    if (is<HTML::HTMLAnchorElement>(*this) && has_attribute(HTML::AttributeNames::href)) {
+        return true;
+    }
+
+    // Otherwise, the draggable IDL attribute must return false.
+    return false;
 }
 
 }

@@ -73,6 +73,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(dirname, "dirname")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(disabled, "disabled")                                     \
     __ENUMERATE_HTML_ATTRIBUTE(download, "download")                                     \
+    __ENUMERATE_HTML_ATTRIBUTE(draggable, "draggable")                                   \
     __ENUMERATE_HTML_ATTRIBUTE(enctype, "enctype")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(ended, "ended")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(enterkeyhint, "enterkeyhint")                             \

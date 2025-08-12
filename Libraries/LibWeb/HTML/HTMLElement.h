@@ -157,6 +157,9 @@ public:
 
     bool is_inert() const { return m_inert; }
 
+    bool draggable() const;
+    void set_draggable(bool draggable) { MUST(set_attribute(HTML::AttributeNames::draggable, draggable ? "true"_string : "false"_string)); }
+
     virtual bool is_valid_invoker_command(String&) { return false; }
     virtual void invoker_command_steps(DOM::Element&, String&) { }
 
