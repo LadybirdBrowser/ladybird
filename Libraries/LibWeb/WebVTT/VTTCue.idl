@@ -15,7 +15,7 @@ interface VTTCue : TextTrackCue {
     attribute VTTRegion? region;
     attribute DirectionSetting vertical;
     attribute boolean snapToLines;
-    [FIXME] attribute LineAndPositionSetting line;
+    attribute LineAndPositionSetting line;
     attribute LineAlignSetting lineAlign;
     [FIXME] attribute LineAndPositionSetting position;
     attribute PositionAlignSetting positionAlign;
