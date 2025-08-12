@@ -1442,6 +1442,20 @@ CSSPixels FormattingContext::calculate_fit_content_height(Layout::Box const& box
 
 CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box) const
 {
+    if (box.is_replaced_box()) {
+        // https://www.w3.org/TR/css-sizing-3/#replaced-percentage-min-contribution
+        // NOTE: If the box is replaced, a cyclic percentage in the value of any max size property or
+        //       preferred size property (width/max-width/height/max-height), is resolved against zero
+        //       when calculating the min-content contribution in the corresponding axis.
+        // FIXME: If the box also has a preferred aspect ratio, then this min-content contribution is
+        //        floored by any <length-percentage> minimum size from the opposite axis—resolving any
+        //        such percentage against zero—transferred through the preferred aspect ratio.
+        if (auto const& width = box.computed_values().width(); width.is_percentage())
+            return width.to_px(box, 0);
+        if (auto const& max_width = box.computed_values().max_width(); max_width.is_percentage())
+            return max_width.to_px(box, 0);
+    }
+
     if (box.has_natural_width())
         return *box.natural_width();
 
