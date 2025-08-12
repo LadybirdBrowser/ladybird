@@ -575,6 +575,16 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                     builder.append(")"sv);
                     break;
                 }
+                case CSS::PseudoClassMetadata::ParameterType::ANPlusBList: {
+                    builder.append("([\n"sv);
+                    for (auto& an_plus_b : pseudo_class.an_plus_b_patterns) {
+                        indent(builder, indent_levels + 2);
+                        builder.appendff("(step={}, offset={})\n", an_plus_b.step_size, an_plus_b.offset);
+                    }
+                    indent(builder, indent_levels + 1);
+                    builder.append("])"sv);
+                    break;
+                }
                 case CSS::PseudoClassMetadata::ParameterType::CompoundSelector:
                 case CSS::PseudoClassMetadata::ParameterType::ForgivingSelectorList:
                 case CSS::PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:

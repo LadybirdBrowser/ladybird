@@ -70,6 +70,7 @@ struct PseudoClassMetadata {
     enum class ParameterType {
         None,
         ANPlusB,
+        ANPlusBList,
         ANPlusBOf,
         CompoundSelector,
         ForgivingSelectorList,
@@ -168,6 +169,8 @@ PseudoClassMetadata pseudo_class_metadata(PseudoClass pseudo_class)
         if (is_valid_as_function) {
             if (argument_string == "<an+b>"sv) {
                 parameter_type = "ANPlusB"_string;
+            } else if (argument_string == "<an+b>#"sv) {
+                parameter_type = "ANPlusBList"_string;
             } else if (argument_string == "<an+b-of>"sv) {
                 parameter_type = "ANPlusBOf"_string;
             } else if (argument_string == "<compound-selector>"sv) {
