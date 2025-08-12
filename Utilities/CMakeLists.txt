@@ -35,7 +35,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     )
 endif()
 
-if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
+if (ASSERT_FAIL_HAS_INT)
     target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
 endif()
 
