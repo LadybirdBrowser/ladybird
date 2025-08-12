@@ -520,14 +520,6 @@ ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2],
     return {};
 }
 
-ErrorOr<struct utsname> uname()
-{
-    struct utsname uts;
-    if (::uname(&uts) < 0)
-        return Error::from_syscall("uname"sv, errno);
-    return uts;
-}
-
 ErrorOr<int> socket(int domain, int type, int protocol)
 {
     auto fd = ::socket(domain, type, protocol);
