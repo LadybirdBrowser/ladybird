@@ -1032,6 +1032,45 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
             return custom_state_set->has_state(pseudo_class.ident->string_value);
         return false;
     }
+    case CSS::PseudoClass::Heading: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-heading
+        // The :heading pseudo-class must match all h1, h2, h3, h4, h5, and h6 elements.
+
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-heading-functional
+        // The :heading(An+B#) pseudo-class must match all h1, h2, h3, h4, h5, and h6 elements that have a heading level among An+B. [CSSSYNTAX] [CSSVALUES]
+
+        // NB: We combine the "is this an h* element?" and "what is it's level?" checks together here.
+        if (!element.is_html_element())
+            return false;
+        auto heading_level = [](auto& local_name) -> Optional<int> {
+            if (local_name == HTML::TagNames::h1)
+                return 1;
+            if (local_name == HTML::TagNames::h2)
+                return 2;
+            if (local_name == HTML::TagNames::h3)
+                return 3;
+            if (local_name == HTML::TagNames::h4)
+                return 4;
+            if (local_name == HTML::TagNames::h5)
+                return 5;
+            if (local_name == HTML::TagNames::h6)
+                return 6;
+            return {};
+        }(element.lowercased_local_name());
+
+        if (!heading_level.has_value())
+            return false;
+
+        if (pseudo_class.an_plus_b_patterns.is_empty())
+            return true;
+
+        for (auto const& an_plus_b_pattern : pseudo_class.an_plus_b_patterns) {
+            if (an_plus_b_pattern.matches(heading_level.value()))
+                return true;
+        }
+
+        return false;
+    }
     }
 
     return false;
