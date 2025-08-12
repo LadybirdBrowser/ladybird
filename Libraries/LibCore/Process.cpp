@@ -184,25 +184,6 @@ ErrorOr<String> Process::get_name()
 #endif
 }
 
-ErrorOr<void> Process::set_name([[maybe_unused]] StringView name, [[maybe_unused]] SetThreadName set_thread_name)
-{
-#if defined(AK_OS_SERENITY)
-    int rc = set_process_name(name.characters_without_null_termination(), name.length());
-    if (rc != 0)
-        return Error::from_syscall("set_process_name"sv, rc);
-    if (set_thread_name == SetThreadName::No)
-        return {};
-
-    rc = prctl(PR_SET_THREAD_NAME, gettid(), name.characters_without_null_termination(), name.length());
-    if (rc != 0)
-        return Error::from_syscall("set_thread_name"sv, rc);
-    return {};
-#else
-    // FIXME: Implement Process::set_name() for other platforms.
-    return {};
-#endif
-}
-
 ErrorOr<bool> Process::is_being_debugged()
 {
 #if defined(AK_OS_LINUX)
