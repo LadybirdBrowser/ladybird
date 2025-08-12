@@ -190,19 +190,6 @@
 #    define NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
 #endif
 
-#ifdef NAKED
-#    undef NAKED
-#endif
-#if !ARCH(AARCH64) || defined(AK_COMPILER_CLANG)
-#    define NAKED __attribute__((naked))
-#else
-// GCC doesn't support __attribute__((naked)) on AArch64. We use NAKED to mark functions
-// that are entirely written in inline assembly; having these be inlined would cause
-// various problems, such as explicit `ret` instructions accidentally exiting the caller
-// function or GCC discarding function arguments as they appear "dead".
-#    define NAKED NEVER_INLINE
-#endif
-
 #ifdef DISALLOW
 #    undef DISALLOW
 #endif
