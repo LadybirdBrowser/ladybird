@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: "Set up environment"
         uses: ./.github/actions/setup

@@ -27,7 +27,7 @@ jobs:
         os: [macos-14]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set Up Environment
         uses: ./.github/actions/setup

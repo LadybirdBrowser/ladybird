@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: 'Checkout LadybirdBrowser/js-benchmarks'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: LadybirdBrowser/js-benchmarks
           path: js-benchmarks
