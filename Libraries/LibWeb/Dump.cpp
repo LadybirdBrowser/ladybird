@@ -563,7 +563,8 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                     break;
                 case CSS::PseudoClassMetadata::ParameterType::ANPlusB:
                 case CSS::PseudoClassMetadata::ParameterType::ANPlusBOf: {
-                    builder.appendff("(step={}, offset={}", pseudo_class.nth_child_pattern.step_size, pseudo_class.nth_child_pattern.offset);
+                    auto& an_plus_b = pseudo_class.an_plus_b_patterns.first();
+                    builder.appendff("(step={}, offset={}", an_plus_b.step_size, an_plus_b.offset);
                     if (!pseudo_class.argument_selector_list.is_empty()) {
                         builder.append(", selectors=[\n"sv);
                         for (auto const& child_selector : pseudo_class.argument_selector_list)
