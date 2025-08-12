@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2024-2025, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -30,6 +30,8 @@ public:
         VerticalGrowingRight,
     };
 
+    using LineAndPositionSetting = Variant<double, Bindings::AutoKeyword>;
+
     static WebIDL::ExceptionOr<GC::Ref<VTTCue>> construct_impl(JS::Realm&, double start_time, double end_time, String const& text);
     virtual ~VTTCue() override = default;
 
@@ -41,6 +43,9 @@ public:
 
     bool snap_to_lines() const { return m_snap_to_lines; }
     void set_snap_to_lines(bool snap_to_lines) { m_snap_to_lines = snap_to_lines; }
+
+    LineAndPositionSetting line() const { return m_line; }
+    void set_line(LineAndPositionSetting line) { m_line = line; }
 
     Bindings::LineAlignSetting line_align() const { return m_line_alignment; }
     void set_line_align(Bindings::LineAlignSetting line_align) { m_line_alignment = line_align; }
@@ -58,6 +63,7 @@ public:
     void set_text(String const& text) { m_text = text; }
 
 protected:
+    double computed_line();
     Bindings::PositionAlignSetting computed_position_alignment();
 
 private:
@@ -74,6 +80,9 @@ private:
 
     // https://w3c.github.io/webvtt/#webvtt-cue-snap-to-lines-flag
     bool m_snap_to_lines { true };
+
+    // https://w3c.github.io/webvtt/#webvtt-cue-line
+    LineAndPositionSetting m_line { Bindings::AutoKeyword::Auto };
 
     // https://w3c.github.io/webvtt/#webvtt-cue-line-alignment
     Bindings::LineAlignSetting m_line_alignment { Bindings::LineAlignSetting::Start };
