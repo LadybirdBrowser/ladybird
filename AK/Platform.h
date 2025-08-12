@@ -152,24 +152,6 @@
 
 #define ARCH(arch) (AK_IS_ARCH_##arch())
 
-#if ARCH(X86_64) || ARCH(I386)
-#    define VALIDATE_IS_X86()
-#else
-#    define VALIDATE_IS_X86() static_assert(false, "Trying to include x86 only header on non x86 platform");
-#endif
-
-#if ARCH(AARCH64)
-#    define VALIDATE_IS_AARCH64()
-#else
-#    define VALIDATE_IS_AARCH64() static_assert(false, "Trying to include aarch64 only header on non aarch64 platform");
-#endif
-
-#if ARCH(RISCV64)
-#    define VALIDATE_IS_RISCV64()
-#else
-#    define VALIDATE_IS_RISCV64() static_assert(false, "Trying to include riscv64 only header on non riscv64 platform");
-#endif
-
 #ifdef ALWAYS_INLINE
 #    undef ALWAYS_INLINE
 #endif
