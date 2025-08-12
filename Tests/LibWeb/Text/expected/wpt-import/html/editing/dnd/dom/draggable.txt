@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 27 tests
+
+27 Pass
+Pass	an <a> element should have a draggable property
+Pass	a <div> element should have a draggable property
+Pass	an <img> element should have a draggable property
+Pass	an <a> element should be draggable by default
+Pass	a <div> element should not be draggable by default
+Pass	an <img> element should be draggable by default
+Pass	an <a> element with draggable="true" should be draggable
+Pass	a <div> element with draggable="true" should be draggable
+Pass	an <img> element with draggable="true" should be draggable
+Pass	an <a> element with draggable="false" should not be draggable
+Pass	a <div> element with draggable="false" should not be draggable
+Pass	an <img> element with draggable="false" should not be draggable
+Pass	an <a> element with draggable="auto" should be draggable
+Pass	a <div> element with draggable="auto" should not be draggable
+Pass	an <img> element with draggable="auto" should be draggable
+Pass	an <a> element with draggable="foo" should be draggable
+Pass	a <div> element with draggable="foo" should not be draggable
+Pass	an <img> element with draggable="foo" should be draggable
+Pass	an <a> element with the draggable property set to true through a script should be draggable
+Pass	a <div> element with the draggable property set to true through a script should be draggable
+Pass	an <img> element with the draggable property set to true through a script should be draggable
+Pass	an <a> element with the draggable property set to false through a script should not be draggable
+Pass	a <div> element with the draggable property set to false through a script should not be draggable
+Pass	an <img> element with the draggable property set to false through a script should not be draggable
+Pass	an <a> element with the draggable property set to "foo" through a script should be draggable
+Pass	a <div> element with the draggable property set to "foo" through a script should be draggable
+Pass	an <img> element with the draggable property set to "foo" through a script should be draggable
