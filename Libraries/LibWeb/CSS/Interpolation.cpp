@@ -360,8 +360,15 @@ static FloatVector4 slerp(FloatVector4 const& from, FloatVector4 const& to, floa
 
     auto theta = acosf(product);
     auto w = sinf(delta * theta) / sqrtf(1 - (product * product));
+    auto from_multiplier = cosf(delta * theta) - (product * w);
 
-    return from * (cosf(delta * theta) - (product * w)) + to * w;
+    if (abs(w) < AK::NumericLimits<float>::epsilon())
+        return from * from_multiplier;
+
+    if (abs(from_multiplier) < AK::NumericLimits<float>::epsilon())
+        return to * w;
+
+    return from * from_multiplier + to * w;
 }
 
 static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, CalculationContext calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
