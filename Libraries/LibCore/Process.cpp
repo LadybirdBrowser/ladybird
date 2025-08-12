@@ -98,15 +98,6 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
         posix_spawn_file_actions_destroy(&spawn_actions);
     };
 
-    if (options.working_directory.has_value()) {
-#ifdef AK_OS_SERENITY
-        CHECK(posix_spawn_file_actions_addchdir(&spawn_actions, options.working_directory->characters()));
-#else
-        // FIXME: Support ProcessSpawnOptions::working_directory n platforms that support it.
-        TODO();
-#endif
-    }
-
     for (auto const& file_action : options.file_actions) {
         TRY(file_action.visit(
             [&](FileAction::OpenFile const& action) -> ErrorOr<void> {
@@ -143,12 +134,11 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     return Process { pid };
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, KeepAsChild keep_as_child)
 {
     auto process = TRY(spawn({
         .executable = path,
         .arguments = Vector<ByteString> { arguments },
-        .working_directory = working_directory.is_empty() ? Optional<ByteString> {} : Optional<ByteString> { working_directory },
     }));
 
     if (keep_as_child == KeepAsChild::No)
@@ -157,7 +147,7 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> argume
     return process;
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, KeepAsChild keep_as_child)
 {
     Vector<ByteString> backing_strings;
     backing_strings.ensure_capacity(arguments.size());
@@ -167,7 +157,6 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> argume
     auto process = TRY(spawn({
         .executable = path,
         .arguments = backing_strings,
-        .working_directory = working_directory.is_empty() ? Optional<ByteString> {} : Optional<ByteString> { working_directory },
     }));
 
     if (keep_as_child == KeepAsChild::No)
