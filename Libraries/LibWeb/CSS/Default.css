@@ -424,8 +424,8 @@ nobr wbr {
 }
 
 address, blockquote, center, div, figure, figcaption, footer, form, header, hr,
-legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2,
-h3, h4, h5, h6, hgroup, nav, search, section, table, caption, colgroup, col, thead,
+legend, listing, main, p, plaintext, pre, summary, xmp, article, aside,
+:heading, hgroup, nav, search, section, table, caption, colgroup, col, thead,
 tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output,
 [dir=ltr i], [dir=rtl i], [dir=auto i] {
     unicode-bidi: isolate;
@@ -444,7 +444,7 @@ input[dir=auto i]:is([type=search i], [type=tel i], [type=url i],
  * https://html.spec.whatwg.org/multipage/rendering.html#sections-and-headings
  */
 
-article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section {
+article, aside, :heading, hgroup, nav, section {
     display: block;
 }
 
