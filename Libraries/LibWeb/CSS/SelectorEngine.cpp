@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -671,10 +671,6 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::NthOfType:
     case CSS::PseudoClass::NthLastOfType: {
         auto& an_plus_b = pseudo_class.an_plus_b_patterns.first();
-        auto const step_size = an_plus_b.step_size;
-        auto const offset = an_plus_b.offset;
-        if (step_size == 0 && offset == 0)
-            return false; // "If both a and b are equal to zero, the pseudo-class represents no element in the document tree."
 
         auto const* parent = element.parent();
         if (!parent)
@@ -730,38 +726,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         default:
             VERIFY_NOT_REACHED();
         }
-
-        // When "step_size == -1", selector represents first "offset" elements in document tree.
-        if (step_size == -1)
-            return !(offset <= 0 || index > offset);
-
-        // When "step_size == 1", selector represents last "offset" elements in document tree.
-        if (step_size == 1)
-            return !(offset < 0 || index < offset);
-
-        // When "step_size == 0", selector picks only the "offset" element.
-        if (step_size == 0)
-            return index == offset;
-
-        // If both are negative, nothing can match.
-        if (step_size < 0 && offset < 0)
-            return false;
-
-        // Like "a % b", but handles negative integers correctly.
-        auto const canonical_modulo = [](int a, int b) -> int {
-            int c = a % b;
-            if ((c < 0 && b > 0) || (c > 0 && b < 0)) {
-                c += b;
-            }
-            return c;
-        };
-
-        // When "step_size < 0", we start at "offset" and count backwards.
-        if (step_size < 0)
-            return index <= offset && canonical_modulo(index - offset, -step_size) == 0;
-
-        // Otherwise, we start at "offset" and count forwards.
-        return index >= offset && canonical_modulo(index - offset, step_size) == 0;
+        return an_plus_b.matches(index);
     }
     case CSS::PseudoClass::Playing: {
         if (!is<HTML::HTMLMediaElement>(element))

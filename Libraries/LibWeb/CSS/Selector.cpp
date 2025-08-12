@@ -823,4 +823,77 @@ SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors)
     return new_list;
 }
 
+// https://drafts.csswg.org/css-syntax-3/#anb-microsyntax
+bool Selector::SimpleSelector::ANPlusBPattern::matches(int index) const
+{
+    // "If both a and b are equal to zero, the pseudo-class represents no element in the document tree."
+    if (step_size == 0 && offset == 0)
+        return false;
+
+    // When "step_size == -1", selector represents first "offset" elements in document tree.
+    if (step_size == -1)
+        return !(offset <= 0 || index > offset);
+
+    // When "step_size == 1", selector represents last "offset" elements in document tree.
+    if (step_size == 1)
+        return !(offset < 0 || index < offset);
+
+    // When "step_size == 0", selector picks only the "offset" element.
+    if (step_size == 0)
+        return index == offset;
+
+    // If both are negative, nothing can match.
+    if (step_size < 0 && offset < 0)
+        return false;
+
+    // Like "a % b", but handles negative integers correctly.
+    auto const canonical_modulo = [](int a, int b) -> int {
+        int c = a % b;
+        if ((c < 0 && b > 0) || (c > 0 && b < 0)) {
+            c += b;
+        }
+        return c;
+    };
+
+    // When "step_size < 0", we start at "offset" and count backwards.
+    if (step_size < 0)
+        return index <= offset && canonical_modulo(index - offset, -step_size) == 0;
+
+    // Otherwise, we start at "offset" and count forwards.
+    return index >= offset && canonical_modulo(index - offset, step_size) == 0;
+}
+
+// https://drafts.csswg.org/css-syntax-3/#serializing-anb
+String Selector::SimpleSelector::ANPlusBPattern::serialize() const
+{
+    // 1. If A is zero, return the serialization of B.
+    if (step_size == 0)
+        return String::number(offset);
+
+    // 2. Otherwise, let result initially be an empty string.
+    StringBuilder result;
+
+    // 3.
+    // - A is 1: Append "n" to result.
+    if (step_size == 1)
+        result.append('n');
+    // - A is -1: Append "-n" to result.
+    else if (step_size == -1)
+        result.append("-n"sv);
+    // - A is non-zero: Serialize A and append it to result, then append "n" to result.
+    else if (step_size != 0)
+        result.appendff("{}n", step_size);
+
+    // 4.
+    // - B is greater than zero: Append "+" to result, then append the serialization of B to result.
+    if (offset > 0)
+        result.appendff("+{}", offset);
+    // - B is less than zero: Append the serialization of B to result.
+    else if (offset < 0)
+        result.appendff("{}", offset);
+
+    // 5. Return result.
+    return MUST(result.to_string());
+}
+
 }
