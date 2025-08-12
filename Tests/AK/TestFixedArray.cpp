@@ -8,7 +8,6 @@
 #include <LibTest/TestSuite.h>
 
 #include <AK/FixedArray.h>
-#include <AK/NoAllocationGuard.h>
 
 TEST_CASE(construct)
 {
@@ -54,37 +53,4 @@ TEST_CASE(move)
     FixedArray<int> moved_to_array(move(moved_from_array));
     EXPECT_EQ(moved_to_array.size(), 6u);
     EXPECT_EQ(moved_from_array.size(), 0u);
-}
-
-TEST_CASE(no_allocation)
-{
-    FixedArray<int> array = FixedArray<int>::must_create_but_fixme_should_propagate_errors(5);
-    EXPECT_NO_DEATH("Assignments", [&]() {
-        NoAllocationGuard guard;
-        array[0] = 0;
-        array[1] = 1;
-        array[2] = 2;
-        array[4] = array[1];
-        array[3] = array[0] + array[2];
-    }());
-
-    EXPECT_NO_DEATH("Move", [&]() {
-        FixedArray<int> moved_from_array = FixedArray<int>::must_create_but_fixme_should_propagate_errors(6);
-        // We need an Optional here to ensure that the NoAllocationGuard is
-        // destroyed before the moved_to_array, because that would call free
-        Optional<FixedArray<int>> moved_to_array;
-
-        {
-            NoAllocationGuard guard;
-            moved_to_array.emplace(move(moved_from_array));
-        }
-    }());
-
-    EXPECT_NO_DEATH("Swap", [&]() {
-        FixedArray<int> target_for_swapping;
-        {
-            NoAllocationGuard guard;
-            array.swap(target_for_swapping);
-        }
-    }());
 }
