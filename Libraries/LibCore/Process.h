@@ -66,11 +66,6 @@ public:
     static ErrorOr<Process> spawn(StringView path, ReadonlySpan<StringView> arguments, KeepAsChild keep_as_child = KeepAsChild::No);
 
     static ErrorOr<String> get_name();
-    enum class SetThreadName {
-        No,
-        Yes,
-    };
-    static ErrorOr<void> set_name(StringView, SetThreadName = SetThreadName::No);
 
     static void wait_for_debugger_and_break();
     static ErrorOr<bool> is_being_debugged();

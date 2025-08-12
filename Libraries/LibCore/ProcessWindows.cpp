@@ -110,12 +110,6 @@ ErrorOr<String> Process::get_name()
     return MUST(Utf16View { reinterpret_cast<char16_t const*>(path), length }.to_utf8());
 }
 
-ErrorOr<void> Process::set_name(StringView, SetThreadName)
-{
-    // Process::set_name() probably cannot be implemented on Windows.
-    return {};
-}
-
 ErrorOr<bool> Process::is_being_debugged()
 {
     return IsDebuggerPresent();
