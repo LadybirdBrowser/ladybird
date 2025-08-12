@@ -56,12 +56,6 @@
 #    define AK_IS_ARCH_PPC() 0
 #endif
 
-#ifdef __wasm32__
-#    define AK_IS_ARCH_WASM32() 1
-#else
-#    define AK_IS_ARCH_WASM32() 0
-#endif
-
 #if (defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8) || defined(_WIN64)
 #    define AK_ARCH_64_BIT
 #else
@@ -154,10 +148,6 @@
 #    undef STR
 #    undef __STR
 #    define AK_OS_ANDROID
-#endif
-
-#if defined(__EMSCRIPTEN__)
-#    define AK_OS_EMSCRIPTEN
 #endif
 
 #define ARCH(arch) (AK_IS_ARCH_##arch())

@@ -164,7 +164,7 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
         TRY(close(fd));
         return Error::from_errno(saved_errno);
     }
-#elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_EMSCRIPTEN) || defined(AK_OS_HAIKU)
+#elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
     static size_t shared_memory_id = 0;
 
     auto name = ByteString::formatted("/shm-{}-{}", getpid(), shared_memory_id++);
@@ -807,8 +807,6 @@ ErrorOr<ByteString> current_executable_path()
     if (sizeof(info.name) > sizeof(path))
         return Error::from_errno(ENAMETOOLONG);
     strlcpy(path, info.name, sizeof(path) - 1);
-#elif defined(AK_OS_EMSCRIPTEN)
-    return Error::from_string_literal("current_executable_path() unknown on this platform");
 #else
 #    warning "Not sure how to get current_executable_path on this platform!"
     // GetModuleFileName on Windows, unsure about OpenBSD.
