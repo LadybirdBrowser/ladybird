@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>:heading and :heading() pseudo-classes</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-5/#headings">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<h1 data-expect-match="1"></h1>
+<h2 data-expect-match="2"></h2>
+<h3 data-expect-match="3"></h3>
+<h4 data-expect-match="4"></h4>
+<h5 data-expect-match="5"></h5>
+<h6 data-expect-match="6"></h6>
+<h7 data-expect-match=""></h7>
+<h8 data-expect-match=""></h8>
+<h9 data-expect-match=""></h9>
+<h0 data-expect-match=""></h0>
+<h1 data-expect-match="1" aria-level="2"></h1>
+<section><h1 data-expect-match="1"></h1></section>
+<hgroup data-expect-match=""></hgroup>
+<p role="heading" aria-level="1" data-expect-match=""></p>
+
+<script>
+const els = document.querySelectorAll('[data-expect-match]');
+const tests = [
+  {args: ['1'], match: [1]},
+  {args: ['2'], match: [2]},
+  {args: ['3'], match: [3]},
+  {args: ['4'], match: [4]},
+  {args: ['5'], match: [5]},
+  {args: ['6'], match: [6]},
+  {args: ['7'], match: []},
+  {args: ['8'], match: []},
+  {args: ['9'], match: []},
+  {args: ['0'], match: []},
+  {args: ['-1'], match: []},
+  {args: ['0', '1', '2'], match: [1, 2]},
+  {args: ['6', '7'], match: [6]},
+  {args: ['n'], match: [1, 2, 3, 4, 5, 6]},
+  {args: ['2n'], match: [2, 4, 6]},
+  {args: ['2n+1'], match: [1, 3, 5]},
+  {args: ['2n+2'], match: [2, 4, 6]},
+  {args: ['-n+3'], match: [1, 2, 3]},
+  {args: ['2n', '3n'], match: [2, 3, 4, 6]},
+  {args: ['even'], match: [2, 4, 6]},
+  {args: ['odd'], match: [1, 3, 5]},
+];
+for (const el of els) {
+  const testName = el.outerHTML + (el.parentNode === document.body ? '' : ' in ' + el.parentNode.localName);
+
+  test(() => {
+    const matches = el.matches(':heading');
+    const shouldMatch = el.dataset.expectMatch !== "";
+    assert_equals(matches, shouldMatch);
+  }, testName + ' :heading');
+
+  for (const t of tests) {
+    const selector = `:heading(${t.args.join(', ')})`;
+    test(() => {
+      const matches = el.matches(selector);
+      const expectMatchLevel = parseInt(el.dataset.expectMatch, 10);
+      const shouldMatch = t.match.includes(expectMatchLevel);
+      assert_equals(matches, shouldMatch, selector);
+    }, testName + ' ' + selector);
+  }
+}
+</script>

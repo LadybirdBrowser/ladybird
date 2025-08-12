@@ -50,6 +50,9 @@
   "has": {
     "argument": "<relative-selector-list>"
   },
+  "heading": {
+    "argument": "<an+b>#?"
+  },
   "high-value": {
     "argument": ""
   },
