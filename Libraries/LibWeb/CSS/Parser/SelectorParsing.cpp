@@ -664,10 +664,10 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
     }
 
     if (pseudo_class_token.is_function()) {
-        auto parse_nth_child_selector = [this](auto pseudo_class, Vector<ComponentValue> const& function_values, bool allow_of = false) -> ParseErrorOr<Selector::SimpleSelector> {
+        auto parse_an_plus_b_selector = [this](auto pseudo_class, Vector<ComponentValue> const& function_values, bool allow_of) -> ParseErrorOr<Selector::SimpleSelector> {
             auto tokens = TokenStream<ComponentValue>(function_values);
-            auto nth_child_pattern = parse_a_n_plus_b_pattern(tokens);
-            if (!nth_child_pattern.has_value()) {
+            auto an_plus_b_pattern = parse_a_n_plus_b_pattern(tokens);
+            if (!an_plus_b_pattern.has_value()) {
                 ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                     .name = MUST(String::formatted(":{}", pseudo_class_name(pseudo_class))),
                     .value_string = tokens.dump_string(),
@@ -682,7 +682,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                     .type = Selector::SimpleSelector::Type::PseudoClass,
                     .value = Selector::SimpleSelector::PseudoClassSelector {
                         .type = pseudo_class,
-                        .nth_child_pattern = nth_child_pattern.release_value() }
+                        .an_plus_b_patterns = Vector { an_plus_b_pattern.release_value() } }
                 };
             }
 
@@ -705,7 +705,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 .type = Selector::SimpleSelector::Type::PseudoClass,
                 .value = Selector::SimpleSelector::PseudoClassSelector {
                     .type = pseudo_class,
-                    .nth_child_pattern = nth_child_pattern.release_value(),
+                    .an_plus_b_patterns = Vector { an_plus_b_pattern.release_value() },
                     .argument_selector_list = move(selector_list) }
             };
         };
@@ -755,9 +755,9 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
         switch (metadata.parameter_type) {
         case PseudoClassMetadata::ParameterType::ANPlusB:
-            return parse_nth_child_selector(pseudo_class, pseudo_function.value, false);
+            return parse_an_plus_b_selector(pseudo_class, pseudo_function.value, false);
         case PseudoClassMetadata::ParameterType::ANPlusBOf:
-            return parse_nth_child_selector(pseudo_class, pseudo_function.value, true);
+            return parse_an_plus_b_selector(pseudo_class, pseudo_function.value, true);
         case PseudoClassMetadata::ParameterType::CompoundSelector: {
             auto function_token_stream = TokenStream(pseudo_function.value);
             auto compound_selector_or_error = parse_compound_selector(function_token_stream);
