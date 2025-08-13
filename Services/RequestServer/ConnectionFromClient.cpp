@@ -500,11 +500,8 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
 
             auto set_option = [easy](auto option, auto value) {
                 auto result = curl_easy_setopt(easy, option, value);
-                if (result != CURLE_OK) {
+                if (result != CURLE_OK)
                     dbgln("StartRequest: Failed to set curl option: {}", curl_easy_strerror(result));
-                    return false;
-                }
-                return true;
             };
 
             set_option(CURLOPT_PRIVATE, request.ptr());
