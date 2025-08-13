@@ -1,0 +1,124 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSSTransition.startTime</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-transitions-2/#csstransition">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/helper.js"></script>
+<div id="log"></div>
+<script>
+
+'use strict';
+
+test(t => {
+  const div = addDiv(t, {
+    style: 'margin-left: 100px; transition: margin-left 100s linear 100s',
+  });
+  getComputedStyle(div).marginLeft;
+  div.style.marginLeft = '200px';
+  const animation = div.getAnimations()[0];
+
+  assert_equals(animation.startTime, null, 'startTime is unresolved');
+}, 'The start time of a newly-created transition is unresolved');
+
+promise_test(async t => {
+  const div = addDiv(t);
+
+  div.style.left = '0px';
+  div.style.top = '0px';
+  getComputedStyle(div).transitionProperty;
+
+  div.style.transition = 'all 100s';
+  div.style.left = '100px';
+  div.style.top = '100px';
+
+  let animations = div.getAnimations();
+  assert_equals(animations.length, 2);
+  await waitForAllAnimations(animations);
+
+  assert_equals(animations[0].startTime, animations[1].startTime,
+    'CSS transitions started together have the same start time');
+
+  await waitForAnimationFrames(1);
+
+  div.style.backgroundColor = 'green';
+
+  animations = div.getAnimations();
+  assert_equals(animations.length, 3);
+  await waitForAllAnimations(animations);
+
+  assert_less_than(animations[1].startTime, animations[2].startTime,
+    'A CSS transition added in a later frame has a later start time');
+}, 'The start time of transitions is based on when they are generated');
+
+test(t => {
+  const div = addDiv(t, {
+    style: 'margin-left: 100px; transition: margin-left 100s linear 100s',
+  });
+  getComputedStyle(div).marginLeft;
+  div.style.marginLeft = '200px';
+  const animation = div.getAnimations()[0];
+
+  const timelineTime = animation.timeline.currentTime;
+  animation.startTime = timelineTime;
+
+  assert_times_equal(
+    animation.startTime,
+    timelineTime,
+    'Check setting of startTime actually works'
+  );
+}, 'The start time of a transition can be set');
+
+promise_test(async t => {
+  const div = addDiv(t, {
+    style: 'margin-left: 100px; transition: margin-left 100s linear 100s',
+  });
+  getComputedStyle(div).marginLeft;
+  div.style.marginLeft = '200px';
+  const animation = div.getAnimations()[0];
+
+  await animation.ready;
+
+  const timelineTime = animation.timeline.currentTime;
+  const marginLeft = () => parseFloat(getComputedStyle(div).marginLeft);
+
+  animation.startTime = timelineTime - 100 * MS_PER_SEC;
+  assert_equals(marginLeft(), 100);
+
+  animation.startTime = timelineTime - 150 * MS_PER_SEC;
+  assert_equals(marginLeft(), 150);
+}, 'The start time can be set to seek a transition');
+
+promise_test(async t => {
+  const div = addDiv(t, {
+    style: 'margin-left: 100px; transition: margin-left 100s linear 100s',
+  });
+  const eventWatcher = new EventWatcher(t, div, [
+    'transitionstart',
+    'transitionend',
+  ]);
+  getComputedStyle(div).marginLeft;
+  div.style.marginLeft = '200px';
+  const animation = div.getAnimations()[0];
+
+  await animation.ready;
+
+  const timelineTime = animation.timeline.currentTime;
+
+  animation.startTime = timelineTime - 100 * MS_PER_SEC;
+  await frameTimeout(
+    eventWatcher.wait_for('transitionstart'),
+    2,
+    'transitionstart'
+  );
+
+  animation.startTime = timelineTime - 200 * MS_PER_SEC;
+  await frameTimeout(
+    eventWatcher.wait_for('transitionend'),
+    2,
+    'transitionend'
+  );
+}, 'Seeking a transition using start time dispatches transition events');
+
+</script>

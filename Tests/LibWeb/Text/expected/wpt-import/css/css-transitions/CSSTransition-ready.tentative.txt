@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	ready promise is rejected when a transition is canceled by updating transition-property
+Fail	ready promise is rejected when a transition is canceled by changing the transition property to something not interpolable
