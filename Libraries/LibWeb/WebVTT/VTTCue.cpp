@@ -53,7 +53,8 @@ WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, do
     // 11. Let cue’s WebVTT cue line alignment be start alignment.
     cue->m_line_alignment = Bindings::LineAlignSetting::Start;
 
-    // FIXME: 12. Let cue’s WebVTT cue position be auto.
+    // 12. Let cue’s WebVTT cue position be auto.
+    cue->m_position = Bindings::AutoKeyword::Auto;
 
     // 13. Let cue’s WebVTT cue position alignment be auto.
     cue->m_position_alignment = Bindings::PositionAlignSetting::Auto;
@@ -154,6 +155,26 @@ double VTTCue::computed_line()
     // 10. Return n.
     dbgln("FIXME: Stubbed VTTCue.computed_line()");
     return n;
+}
+
+// https://w3c.github.io/webvtt/#cue-computed-position
+double VTTCue::computed_position()
+{
+    // 1. If the position is numeric between 0 and 100, then return the value of the position and abort these steps.
+    //    (Otherwise, the position is the special value auto.)
+    if (m_position.has<double>() && m_position.get<double>() >= 0 && m_position.get<double>() <= 100)
+        return m_position.get<double>();
+
+    // 2. If the cue text alignment is left, return 0 and abort these steps.
+    if (m_text_alignment == Bindings::AlignSetting::Left)
+        return 0;
+
+    // 3. If the cue text alignment is right, return 100 and abort these steps.
+    if (m_text_alignment == Bindings::AlignSetting::Right)
+        return 100;
+
+    // 4. Otherwise, return 50 and abort these steps.
+    return 50;
 }
 
 // https://w3c.github.io/webvtt/#cue-computed-position-alignment
