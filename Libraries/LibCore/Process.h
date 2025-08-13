@@ -50,11 +50,6 @@ class Process {
     AK_MAKE_NONCOPYABLE(Process);
 
 public:
-    enum class KeepAsChild {
-        Yes,
-        No
-    };
-
     Process(Process&& other);
     Process& operator=(Process&& other);
     ~Process();
@@ -62,8 +57,8 @@ public:
     static ErrorOr<Process> spawn(ProcessSpawnOptions const& options);
     static Process current();
 
-    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<ByteString> arguments, KeepAsChild keep_as_child = KeepAsChild::No);
-    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<StringView> arguments, KeepAsChild keep_as_child = KeepAsChild::No);
+    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<ByteString> arguments);
+    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<StringView> arguments);
 
     static ErrorOr<String> get_name();
 
@@ -72,22 +67,16 @@ public:
 
     pid_t pid() const;
 
-#ifndef AK_OS_WINDOWS
-    ErrorOr<void> disown();
-#endif
-
     ErrorOr<int> wait_for_termination();
 
 private:
 #ifndef AK_OS_WINDOWS
     Process(pid_t pid = -1)
         : m_pid(pid)
-        , m_should_disown(true)
     {
     }
 
     pid_t m_pid;
-    bool m_should_disown;
 #else
     Process(void* handle = 0)
         : m_handle(handle)
