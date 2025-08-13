@@ -165,4 +165,25 @@ i8 Key::compare_two_keys(GC::Ref<Key> a, GC::Ref<Key> b)
     VERIFY_NOT_REACHED();
 }
 
+String Key::dump() const
+{
+    return m_value.visit(
+        [](Vector<GC::Root<Key>> const& value) {
+            StringBuilder sb;
+            sb.append("["sv);
+            for (auto const& key : value) {
+                sb.append(key->dump());
+                sb.append(", "sv);
+            }
+            sb.append("]"sv);
+            return MUST(sb.to_string());
+        },
+        [](ByteBuffer const& value) {
+            return MUST(String::formatted("{}", value.span()));
+        },
+        [](auto const& value) {
+            return MUST(String::formatted("{}", value));
+        });
+}
+
 }
