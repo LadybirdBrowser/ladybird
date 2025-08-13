@@ -96,6 +96,8 @@ ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringVi
         resolve_opt_builder.append(formatted_address);
     }
 
+    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Resolve list: {}", resolve_opt_builder.string_view());
+
     return resolve_opt_builder.to_byte_string();
 }
 
@@ -460,6 +462,7 @@ void ConnectionFromClient::start_request(i32, ByteString, URL::URL, HTTP::Header
 #else
 void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
+    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
     auto host = url.serialized_host().to_byte_string();
 
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally })
@@ -475,6 +478,8 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
                 async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
                 return;
             }
+
+            dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: DNS lookup successful");
 
             auto* easy = curl_easy_init();
             if (!easy) {
@@ -554,6 +559,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
                 }
 
                 auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
+                dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Request header: {}", header_string);
                 curl_headers = curl_slist_append(curl_headers, header_string.characters());
             }
 
