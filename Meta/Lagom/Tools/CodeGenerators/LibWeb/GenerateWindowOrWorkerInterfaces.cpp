@@ -521,16 +521,16 @@ ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, InterfaceSets& in
 
     interface_sets.intrinsics.append(interface);
 
-    if (whom & IDL::ExposedTo::Window)
+    if (has_flag(whom, IDL::ExposedTo::Window))
         interface_sets.window_exposed.append(interface);
 
-    if (whom & IDL::ExposedTo::DedicatedWorker)
+    if (has_flag(whom, IDL::ExposedTo::DedicatedWorker))
         interface_sets.dedicated_worker_exposed.append(interface);
 
-    if (whom & IDL::ExposedTo::SharedWorker)
+    if (has_flag(whom, IDL::ExposedTo::SharedWorker))
         interface_sets.shared_worker_exposed.append(interface);
 
-    if (whom & IDL::ExposedTo::ShadowRealm)
+    if (has_flag(whom, IDL::ExposedTo::ShadowRealm))
         interface_sets.shadow_realm_exposed.append(interface);
 
     return {};

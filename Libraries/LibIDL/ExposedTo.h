@@ -10,7 +10,7 @@
 
 namespace IDL {
 
-enum ExposedTo {
+enum class ExposedTo {
     Nobody = 0x0,
     DedicatedWorker = 0x1,
     SharedWorker = 0x2,
