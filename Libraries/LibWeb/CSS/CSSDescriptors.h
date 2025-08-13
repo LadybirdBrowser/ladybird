@@ -33,6 +33,8 @@ public:
 
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
+    virtual bool has_property(StringView property_name) const override;
+
 protected:
     CSSDescriptors(JS::Realm&, AtRuleID, Vector<Descriptor>);
 

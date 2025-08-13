@@ -57,6 +57,8 @@ public:
     [[nodiscard]] bool is_updating() const { return m_updating; }
     void set_is_updating(bool value) { m_updating = value; }
 
+    virtual bool has_property(StringView property_name) const = 0;
+
 protected:
     enum class Computed : u8 {
         No,
