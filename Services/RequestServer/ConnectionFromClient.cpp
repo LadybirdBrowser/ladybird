@@ -271,8 +271,7 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
         client->m_read_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
             auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Read);
             notifier->on_activation = [client, sockfd, multi] {
-                int still_running = 0;
-                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_IN, &still_running);
+                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_IN, nullptr);
                 VERIFY(result == CURLM_OK);
                 client->check_active_requests();
             };
@@ -285,8 +284,7 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
         client->m_write_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
             auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Write);
             notifier->on_activation = [client, sockfd, multi] {
-                int still_running = 0;
-                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_OUT, &still_running);
+                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_OUT, nullptr);
                 VERIFY(result == CURLM_OK);
                 client->check_active_requests();
             };
@@ -331,8 +329,7 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     set_option(CURLMOPT_TIMERDATA, this);
 
     m_timer = Core::Timer::create_single_shot(0, [this] {
-        int still_running = 0;
-        auto result = curl_multi_socket_action(m_curl_multi, CURL_SOCKET_TIMEOUT, 0, &still_running);
+        auto result = curl_multi_socket_action(m_curl_multi, CURL_SOCKET_TIMEOUT, 0, nullptr);
         VERIFY(result == CURLM_OK);
         check_active_requests();
     });
