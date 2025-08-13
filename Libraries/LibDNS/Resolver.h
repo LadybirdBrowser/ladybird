@@ -78,6 +78,11 @@ public:
         return result;
     }
 
+    bool has_cached_addresses() const
+    {
+        return has_record_of_type(Messages::ResourceType::A) || has_record_of_type(Messages::ResourceType::AAAA);
+    }
+
     void check_expiration()
     {
         if (!m_valid)
@@ -110,8 +115,9 @@ public:
     Vector<Messages::ResourceRecord> records() const
     {
         Vector<Messages::ResourceRecord> result;
+        result.ensure_capacity(m_cached_records.size());
         for (auto& re : m_cached_records)
-            result.append(re.record);
+            result.unchecked_append(re.record);
         return result;
     }
 
@@ -164,6 +170,7 @@ public:
 
     bool can_be_removed() const { return !m_valid && m_request_done; }
     bool is_done() const { return m_request_done; }
+    bool is_empty() const { return m_cached_records.is_empty(); }
     void set_dnssec_validated(bool validated) { m_dnssec_validated = validated; }
     bool is_dnssec_validated() const { return m_dnssec_validated; }
     void set_being_dnssec_validated(bool validated) { m_being_dnssec_validated = validated; }

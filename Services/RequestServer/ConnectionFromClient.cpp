@@ -53,7 +53,7 @@ static NonnullRefPtr<Resolver> default_resolver()
                 return Error::from_string_literal("No DNS server configured");
 
             auto resolved = TRY(default_resolver()->dns.lookup(*g_dns_info.server_hostname)->await());
-            if (resolved->cached_addresses().is_empty())
+            if (!resolved->has_cached_addresses())
                 return Error::from_string_literal("Failed to resolve DNS server hostname");
             auto address = resolved->cached_addresses().first().visit([](auto& addr) -> Core::SocketAddress { return { addr, g_dns_info.port }; });
             g_dns_info.server_address = address;
@@ -469,7 +469,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
         })
         .when_resolved([this, request_id, host = move(host), url = move(url), method = move(method), request_body = move(request_body), request_headers = move(request_headers), proxy_data](auto const& dns_result) mutable {
-            if (dns_result->records().is_empty() || dns_result->cached_addresses().is_empty()) {
+            if (dns_result->is_empty() || !dns_result->has_cached_addresses()) {
                 dbgln("StartRequest: DNS lookup failed for '{}'", host);
                 // FIXME: Implement timing info for DNS lookup failure.
                 async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
@@ -821,7 +821,7 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, Byt
             async_websocket_errored(websocket_id, static_cast<i32>(Requests::WebSocket::Error::CouldNotEstablishConnection));
         })
         .when_resolved([this, websocket_id, host = move(host), url = move(url), origin = move(origin), protocols = move(protocols), extensions = move(extensions), additional_request_headers = move(additional_request_headers)](auto const& dns_result) mutable {
-            if (dns_result->records().is_empty() || dns_result->cached_addresses().is_empty()) {
+            if (dns_result->is_empty() || !dns_result->has_cached_addresses()) {
                 dbgln("WebSocketConnect: DNS lookup failed for '{}'", host);
                 async_websocket_errored(websocket_id, static_cast<i32>(Requests::WebSocket::Error::CouldNotEstablishConnection));
                 return;
