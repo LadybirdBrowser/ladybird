@@ -77,7 +77,7 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     return Process(process_info.hProcess);
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, KeepAsChild)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments)
 {
     return spawn({
         .executable = path,
@@ -85,7 +85,7 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> argume
     });
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, KeepAsChild)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments)
 {
     Vector<ByteString> backing_strings;
     backing_strings.ensure_capacity(arguments.size());
