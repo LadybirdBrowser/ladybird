@@ -112,7 +112,7 @@ WebIDL::ExceptionOr<void> IDBTransaction::commit()
 
     // 1. If this's state is not active, then throw an "InvalidStateError" DOMException.
     if (m_state != TransactionState::Active)
-        return WebIDL::InvalidStateError::create(realm, "Transaction is not active while commiting"_string);
+        return WebIDL::InvalidStateError::create(realm, "Transaction is not active while committing"_string);
 
     // 2. Run commit a transaction with this.
     commit_a_transaction(realm, *this);
