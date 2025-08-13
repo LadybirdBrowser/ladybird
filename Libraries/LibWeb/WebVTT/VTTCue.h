@@ -50,6 +50,9 @@ public:
     Bindings::LineAlignSetting line_align() const { return m_line_alignment; }
     void set_line_align(Bindings::LineAlignSetting line_align) { m_line_alignment = line_align; }
 
+    LineAndPositionSetting position() const { return m_position; }
+    void set_position(LineAndPositionSetting position) { m_position = position; }
+
     Bindings::PositionAlignSetting position_align() const { return m_position_alignment; }
     void set_position_align(Bindings::PositionAlignSetting position_align) { m_position_alignment = position_align; }
 
@@ -64,6 +67,7 @@ public:
 
 protected:
     double computed_line();
+    double computed_position();
     Bindings::PositionAlignSetting computed_position_alignment();
 
 private:
@@ -86,6 +90,9 @@ private:
 
     // https://w3c.github.io/webvtt/#webvtt-cue-line-alignment
     Bindings::LineAlignSetting m_line_alignment { Bindings::LineAlignSetting::Start };
+
+    // https://w3c.github.io/webvtt/#webvtt-cue-position
+    LineAndPositionSetting m_position { Bindings::AutoKeyword::Auto };
 
     // https://w3c.github.io/webvtt/#webvtt-cue-position-alignment
     Bindings::PositionAlignSetting m_position_alignment { Bindings::PositionAlignSetting::Auto };
