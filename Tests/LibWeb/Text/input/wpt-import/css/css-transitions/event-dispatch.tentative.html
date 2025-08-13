@@ -1,0 +1,512 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSS transition event dispatch</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions-2/#event-dispatch">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/helper.js"></script>
+<div id="log"></div>
+<script>
+'use strict';
+
+// All transition events should be received on the next animation frame. If
+// two animation frames pass before receiving the expected events then we
+// can immediately fail the current test.
+const transitionEventsTimeout = () => {
+  return waitForAnimationFrames(2);
+};
+
+const setupTransition = (t, transitionStyle) => {
+  const div = addDiv(t, { style: 'transition: ' + transitionStyle });
+  const watcher = new EventWatcher(t, div, [ 'transitionrun',
+                                             'transitionstart',
+                                             'transitionend',
+                                             'transitioncancel' ],
+                                   transitionEventsTimeout);
+  getComputedStyle(div).marginLeft;
+
+  div.style.marginLeft = '100px';
+  const transition = div.getAnimations()[0];
+
+  return { transition, watcher, div };
+};
+
+// On the next frame (i.e. when events are queued), whether or not the
+// transition is still pending depends on the implementation.
+promise_test(async t => {
+  const { transition, watcher } =
+    setupTransition(t, 'margin-left 100s 100s');
+  const evt = await watcher.wait_for('transitionrun');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Idle -> Pending or Before');
+
+promise_test(async t => {
+  const { transition, watcher } =
+    setupTransition(t, 'margin-left 100s 100s');
+  // Force the transition to leave the idle phase
+  transition.startTime = document.timeline.currentTime;
+  const evt = await watcher.wait_for('transitionrun');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Idle -> Before');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s 100s');
+
+  // Seek to Active phase.
+  transition.currentTime = 100 * MS_PER_SEC;
+  transition.pause();
+  const events = await watcher.wait_for(['transitionrun', 'transitionstart'], {
+    record: 'all',
+  });
+  assert_equals(events[0].elapsedTime, 0.0);
+  assert_equals(events[1].elapsedTime, 0.0);
+}, 'Idle or Pending -> Active');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s 100s');
+
+  // Seek to After phase.
+  transition.finish();
+  const events = await watcher.wait_for(
+    ['transitionrun', 'transitionstart', 'transitionend'],
+    {
+      record: 'all',
+    }
+  );
+  assert_equals(events[0].elapsedTime, 0.0);
+  assert_equals(events[1].elapsedTime, 0.0);
+  assert_equals(events[2].elapsedTime, 100.0);
+}, 'Idle or Pending -> After');
+
+promise_test(async t => {
+  const { transition, watcher, div } =
+    setupTransition(t, 'margin-left 100s 100s');
+
+  await Promise.all([ watcher.wait_for('transitionrun'), transition.ready ]);
+
+  // Make idle
+  div.style.display = 'none';
+  getComputedStyle(div).marginLeft;
+  const evt = await watcher.wait_for('transitioncancel');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Before -> Idle (display: none)');
+
+promise_test(async t => {
+  const { transition, watcher } =
+    setupTransition(t, 'margin-left 100s 100s');
+
+  await Promise.all([ watcher.wait_for('transitionrun'), transition.ready ]);
+
+  // Make idle
+  transition.timeline = null;
+  const evt = await watcher.wait_for('transitioncancel');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Before -> Idle (Animation.timeline = null)');
+
+promise_test(async t => {
+  const { transition, watcher } =
+    setupTransition(t, 'margin-left 100s 100s');
+
+  await Promise.all([ watcher.wait_for('transitionrun'), transition.ready ]);
+
+  transition.currentTime = 100 * MS_PER_SEC;
+  const evt = await watcher.wait_for('transitionstart');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Before -> Active');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s 100s');
+
+  await Promise.all([ watcher.wait_for('transitionrun'), transition.ready ]);
+  // Seek to After phase.
+  transition.currentTime = 200 * MS_PER_SEC;
+  const events = await watcher.wait_for(['transitionstart', 'transitionend'], {
+    record: 'all',
+  });
+
+  assert_equals(events[0].elapsedTime, 0.0);
+  assert_equals(events[1].elapsedTime, 100.0);
+}, 'Before -> After');
+
+promise_test(async t => {
+  const { transition, watcher, div } = setupTransition(t, 'margin-left 100s');
+
+  // Seek to Active start position.
+  transition.pause();
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  // Make idle
+  div.style.display = 'none';
+  getComputedStyle(div).marginLeft;
+  const evt = await watcher.wait_for('transitioncancel');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Active -> Idle, no delay (display: none)');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s');
+
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  // Make idle
+  transition.currentTime = 0;
+  transition.timeline = null;
+  const evt = await watcher.wait_for('transitioncancel');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Active -> Idle, no delay (Animation.timeline = null)');
+
+promise_test(async t => {
+  const { transition, watcher, div } =
+    setupTransition(t, 'margin-left 100s 100s');
+  // Pause so the currentTime is fixed and we can accurately compare the event
+  // time in transition cancel events.
+  transition.pause();
+
+  // Seek to Active phase.
+  transition.currentTime = 100 * MS_PER_SEC;
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  // Make idle
+  div.style.display = 'none';
+  getComputedStyle(div).marginLeft;
+  const evt = await watcher.wait_for('transitioncancel');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Active -> Idle, with positive delay (display: none)');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s 100s');
+
+  // Seek to Active phase.
+  transition.currentTime = 100 * MS_PER_SEC;
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  // Make idle
+  transition.currentTime = 100 * MS_PER_SEC;
+  transition.timeline = null;
+  const evt = await watcher.wait_for('transitioncancel');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Active -> Idle, with positive delay (Animation.timeline = null)');
+
+promise_test(async t => {
+  const { transition, watcher, div } =
+    setupTransition(t, 'margin-left 100s -50s');
+
+  // Pause so the currentTime is fixed and we can accurately compare the event
+  // time in transition cancel events.
+  transition.pause();
+
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  // Make idle
+  div.style.display = 'none';
+  getComputedStyle(div).marginLeft;
+  const evt = await watcher.wait_for('transitioncancel');
+  assert_equals(evt.elapsedTime, 50.0);
+}, 'Active -> Idle, with negative delay (display: none)');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s -50s');
+
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  // Make idle
+  transition.currentTime = 50 * MS_PER_SEC;
+  transition.timeline = null;
+  const evt = await watcher.wait_for('transitioncancel');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Active -> Idle, with negative delay (Animation.timeline = null)');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s 100s');
+
+  // Seek to Active phase.
+  transition.currentTime = 100 * MS_PER_SEC;
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  // Seek to Before phase.
+  transition.currentTime = 0;
+  const evt = await watcher.wait_for('transitionend');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Active -> Before');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s 100s');
+
+  // Seek to Active phase.
+  transition.currentTime = 100 * MS_PER_SEC;
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  // Seek to After phase.
+  transition.currentTime = 200 * MS_PER_SEC;
+  const evt = await watcher.wait_for('transitionend');
+  assert_equals(evt.elapsedTime, 100.0);
+}, 'Active -> After');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s 100s');
+
+  // Seek to After phase.
+  transition.finish();
+  await watcher.wait_for([ 'transitionrun',
+                           'transitionstart',
+                           'transitionend' ]);
+
+  // Seek to Before phase.
+  transition.currentTime = 0;
+  const events = await watcher.wait_for(['transitionstart', 'transitionend'], {
+    record: 'all',
+  });
+
+  assert_equals(events[0].elapsedTime, 100.0);
+  assert_equals(events[1].elapsedTime, 0.0);
+}, 'After -> Before');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s 100s');
+
+  // Seek to After phase.
+  transition.finish();
+  await watcher.wait_for([ 'transitionrun',
+                           'transitionstart',
+                           'transitionend' ]);
+
+  // Seek to Active phase.
+  transition.currentTime = 100 * MS_PER_SEC;
+  const evt = await watcher.wait_for('transitionstart');
+  assert_equals(evt.elapsedTime, 100.0);
+}, 'After -> Active');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s -50s');
+
+  const events = await watcher.wait_for(['transitionrun', 'transitionstart'], {
+    record: 'all',
+  });
+
+  assert_equals(events[0].elapsedTime, 50.0);
+  assert_equals(events[1].elapsedTime, 50.0);
+  transition.finish();
+
+  const evt = await watcher.wait_for('transitionend');
+  assert_equals(evt.elapsedTime, 100.0);
+}, 'Calculating the interval start and end time with negative start delay.');
+
+promise_test(async t => {
+  const { transition, watcher, div } = setupTransition(
+    t,
+    'margin-left 100s 100s'
+  );
+
+  await watcher.wait_for('transitionrun');
+
+  // We can't set the end delay via generated effect timing
+  // because mutating CSS transitions is not specced yet.
+  transition.effect = new KeyframeEffect(
+    div,
+    { marginLeft: ['0px', '100px'] },
+    {
+      duration: 100 * MS_PER_SEC,
+      endDelay: -50 * MS_PER_SEC,
+    }
+  );
+  // Seek to Before and play.
+  transition.cancel();
+  transition.play();
+  const events = await watcher.wait_for(
+    ['transitioncancel', 'transitionrun', 'transitionstart'],
+    { record: 'all' }
+  );
+  assert_equals(events[2].elapsedTime, 0.0);
+
+  // Seek to After phase.
+  transition.finish();
+  const evt = await watcher.wait_for('transitionend');
+  assert_equals(evt.elapsedTime, 50.0);
+}, 'Calculating the interval start and end time with negative end delay.');
+
+promise_test(async t => {
+  const { transition, watcher, div } =
+    setupTransition(t, 'margin-left 100s 100s');
+
+  await watcher.wait_for('transitionrun');
+
+  // Make idle
+  div.style.display = 'none';
+  getComputedStyle(div).marginLeft;
+  await watcher.wait_for('transitioncancel');
+
+  transition.cancel();
+  // Then wait a couple of frames and check that no event was dispatched
+  await waitForAnimationFrames(2);
+}, 'Call Animation.cancel after canceling transition.');
+
+promise_test(async t => {
+  const { transition, watcher, div } =
+    setupTransition(t, 'margin-left 100s 100s');
+
+  await watcher.wait_for('transitionrun');
+
+  // Make idle
+  transition.cancel();
+  transition.play();
+  await watcher.wait_for([ 'transitioncancel',
+                           'transitionrun' ]);
+}, 'Restart transition after canceling transition immediately');
+
+promise_test(async t => {
+  const { transition, watcher, div } =
+    setupTransition(t, 'margin-left 100s 100s');
+
+  await watcher.wait_for('transitionrun');
+
+  // Make idle
+  div.style.display = 'none';
+  getComputedStyle(div).marginLeft;
+  transition.play();
+  transition.cancel();
+  await watcher.wait_for('transitioncancel');
+
+  // Then wait a couple of frames and check that no event was dispatched
+  await waitForAnimationFrames(2);
+}, 'Call Animation.cancel after restarting transition immediately');
+
+promise_test(async t => {
+  const { transition, watcher } = setupTransition(t, 'margin-left 100s');
+
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  // Make idle
+  transition.timeline = null;
+  await watcher.wait_for('transitioncancel');
+
+  transition.timeline = document.timeline;
+  transition.play();
+
+  await watcher.wait_for(['transitionrun', 'transitionstart']);
+}, 'Set timeline and play transition after clear the timeline');
+
+promise_test(async t => {
+  const { transition, watcher, div } =
+    setupTransition(t, 'margin-left 100s');
+
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  transition.cancel();
+  await watcher.wait_for('transitioncancel');
+
+  // Make After phase
+  transition.effect = null;
+
+  // Then wait a couple of frames and check that no event was dispatched
+  await waitForAnimationFrames(2);
+}, 'Set null target effect after canceling the transition');
+
+promise_test(async t => {
+  const { transition, watcher, div } = setupTransition(t, 'margin-left 100s');
+
+  await watcher.wait_for([ 'transitionrun', 'transitionstart' ]);
+
+  transition.effect = null;
+  await watcher.wait_for('transitionend');
+
+  transition.cancel();
+
+  // Then wait a couple of frames and check that no event was dispatched
+  await waitForAnimationFrames(2);
+}, 'Cancel the transition after clearing the target effect');
+
+promise_test(async t => {
+  const { transition, watcher, div } = setupTransition(t, 'margin-left 100s');
+
+  // Seek to After phase.
+  transition.finish();
+  const events = await watcher.wait_for(
+    ['transitionrun', 'transitionstart', 'transitionend'],
+    {
+      record: 'all',
+    }
+  );
+
+  transition.cancel();
+
+  // Then wait a couple of frames and check that no event was dispatched
+  await waitForAnimationFrames(2);
+}, 'Cancel the transition after it finishes');
+
+promise_test(async t => {
+  const { transition, watcher, div } = setupTransition(t, 'margin-left 100s');
+
+  transition.currentTime = 50 * MS_PER_SEC;
+  await watcher.wait_for(['transitionrun', 'transitionstart']);
+
+  // Replace the running transition.
+  div.style.marginLeft = '200px';
+
+  // transitioncancel event should be fired before transitionrun because we
+  // expect to cancel the running transition first.
+  await watcher.wait_for(
+    ['transitioncancel', 'transitionrun', 'transitionstart']
+  );
+
+  // Then wait a couple of frames and check that no event was dispatched
+  await waitForAnimationFrames(2);
+}, 'Replacing a running transition should get transitioncancel earlier than ' +
+   'transitionrun and transitionstart');
+
+promise_test(async t => {
+  const div =
+    addDiv(t, { style: 'transition: margin-left 100s, margin-top 100s' });
+  const watcher = new EventWatcher(t, div, [ 'transitionrun',
+                                             'transitioncancel' ],
+                                   transitionEventsTimeout);
+  getComputedStyle(div).marginLeft;
+
+  div.style.marginLeft = '100px';
+  div.style.marginTop = '100px';
+  const transitions = div.getAnimations();
+  transitions[0].currentTime = 50 * MS_PER_SEC;
+  transitions[1].currentTime = 50 * MS_PER_SEC;
+
+  await watcher.wait_for(['transitionrun', 'transitionrun']);
+
+  // Replace both running transitions.
+  div.style.marginLeft = '200px';
+  div.style.marginTop = '200px';
+
+  await watcher.wait_for([
+    // Cancel events show first because their transition generations are
+    // smaller than the new ones.
+    'transitioncancel', 'transitioncancel',
+    'transitionrun', 'transitionrun'
+  ]);
+
+  // Then wait a couple of frames and check that no event was dispatched
+  await waitForAnimationFrames(2);
+}, 'Replacing two running transitions on the same target should get two ' +
+   'transitioncancel events earlier than two transitionrun events, per ' +
+   'transition generation');
+
+promise_test(async t => {
+  const { transition, watcher, div } = setupTransition(t, 'margin-left 100s');
+
+  transition.currentTime = 50 * MS_PER_SEC;
+  await watcher.wait_for(['transitionrun', 'transitionstart']);
+
+  // We need to wait for a while to reproduce the potential bug in Gecko.
+  await new Promise(resolve => t.step_timeout(resolve, 100));
+
+  // Replace the running transition.
+  div.style.marginLeft = '200px';
+  getComputedStyle(div).marginLeft;
+
+  // transitioncancel event should be fired before transitionrun because we
+  // expect to cancel the running transition first.
+  await watcher.wait_for(
+    ['transitioncancel', 'transitionrun', 'transitionstart']
+  );
+
+  // Then wait a couple of frames and check that no event was dispatched
+  await waitForAnimationFrames(2);
+}, 'Replacing a running transition and forcing to flush the style together ' +
+   'should get the correct event order');
+
+</script>
