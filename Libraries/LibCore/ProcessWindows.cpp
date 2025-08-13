@@ -137,7 +137,7 @@ pid_t Process::pid() const
     return GetProcessId(m_handle);
 }
 
-ErrorOr<int> Process::wait_for_termination()
+ErrorOr<int> Process::wait_for_termination() const
 {
     auto result = WaitForSingleObject(m_handle, INFINITE);
     if (result == WAIT_FAILED)
