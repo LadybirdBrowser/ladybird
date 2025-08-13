@@ -13,12 +13,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleValue);
 
-GC::Ref<CSSStyleValue> CSSStyleValue::create(JS::Realm& realm, Optional<String> associated_property, Optional<String> constructed_from_string)
+GC::Ref<CSSStyleValue> CSSStyleValue::create(JS::Realm& realm, String associated_property, String constructed_from_string)
 {
     return realm.create<CSSStyleValue>(realm, move(associated_property), move(constructed_from_string));
 }
 
-CSSStyleValue::CSSStyleValue(JS::Realm& realm, Optional<String> associated_property, Optional<String> constructed_from_string)
+CSSStyleValue::CSSStyleValue(JS::Realm& realm, String associated_property, String constructed_from_string)
     : PlatformObject(realm)
     , m_associated_property(move(associated_property))
     , m_constructed_from_string(move(constructed_from_string))
