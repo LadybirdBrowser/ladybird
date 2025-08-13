@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<input value="foo"><br>
+<button>bar</button>
+<script src="include.js"></script>
+<script>
+test(() => {
+    const reportOutline = e => { println(`${e.target.tagName}: ${window.getComputedStyle(e.target).outline}`); }
+    const runOutlineTest = (selector) => {
+        const elm = document.querySelector(selector);
+        elm.addEventListener('focus', reportOutline);
+        internals.click(elm.offsetLeft + 5, elm.offsetTop + 5);
+    };
+
+    runOutlineTest('input');
+    runOutlineTest('button');
+});
+</script>
