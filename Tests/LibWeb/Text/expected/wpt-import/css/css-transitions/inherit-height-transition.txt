@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Transitioned height, explicitly inherited down two DOM levels, should inherit correctly
+1 Pass
+Pass	Transitioned height, explicitly inherited down two DOM levels, should inherit correctly
