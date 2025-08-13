@@ -516,21 +516,18 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             set_option(CURLOPT_PIPEWAIT, 1L);
             set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
 
-            bool did_set_body = false;
+            set_option(CURLOPT_CUSTOMREQUEST, method.characters());
+            set_option(CURLOPT_FOLLOWLOCATION, 0);
 
-            if (method == "GET"sv) {
-                set_option(CURLOPT_HTTPGET, 1L);
-            } else if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
+            bool did_set_body = false;
+            if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
                 request->body = move(request_body);
                 set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
                 set_option(CURLOPT_POSTFIELDS, request->body.data());
                 did_set_body = true;
-            } else if (method == "HEAD") {
+            } else if (method == "HEAD"sv) {
                 set_option(CURLOPT_NOBODY, 1L);
             }
-            set_option(CURLOPT_CUSTOMREQUEST, method.characters());
-
-            set_option(CURLOPT_FOLLOWLOCATION, 0);
 
             struct curl_slist* curl_headers = nullptr;
 
