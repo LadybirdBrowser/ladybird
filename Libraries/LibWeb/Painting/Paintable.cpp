@@ -165,13 +165,10 @@ void Paintable::set_needs_display(InvalidateDisplayList should_invalidate_displa
     if (should_invalidate_display_list == InvalidateDisplayList::Yes)
         document.invalidate_display_list();
 
-    auto* containing_block = this->containing_block();
-    if (!containing_block)
+    auto* parent = as_if<Painting::PaintableWithLines>(this->parent());
+    if (!parent)
         return;
-
-    if (!is<Painting::PaintableWithLines>(*containing_block))
-        return;
-    for (auto const& fragment : static_cast<Painting::PaintableWithLines const&>(*containing_block).fragments()) {
+    for (auto const& fragment : parent->fragments()) {
         document.set_needs_display(fragment.absolute_rect(), InvalidateDisplayList::No);
     };
 }
