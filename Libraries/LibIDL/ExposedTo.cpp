@@ -38,7 +38,7 @@ ErrorOr<ExposedTo> parse_exposure_set(StringView interface_name, StringView expo
         return ExposedTo::ShadowRealm;
 
     if (exposed_trimmed[0] == '(') {
-        ExposedTo whom = Nobody;
+        ExposedTo whom = ExposedTo::Nobody;
         for (StringView candidate : exposed_trimmed.substring_view(1, exposed_trimmed.length() - 1).split_view(',')) {
             candidate = candidate.trim_whitespace();
             if (candidate == "Window"sv) {
