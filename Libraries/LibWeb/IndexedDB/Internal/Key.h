@@ -70,6 +70,8 @@ public:
     [[nodiscard]] static bool less_than(GC::Ref<Key> a, GC::Ref<Key> b) { return compare_two_keys(a, b) < 0; }
     [[nodiscard]] static bool greater_than(GC::Ref<Key> a, GC::Ref<Key> b) { return compare_two_keys(a, b) > 0; }
 
+    AK::String dump() const;
+
 private:
     Key(KeyType type, KeyValue value)
         : m_type(type)
