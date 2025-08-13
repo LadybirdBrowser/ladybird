@@ -282,7 +282,7 @@ pid_t Process::pid() const
     return m_pid;
 }
 
-ErrorOr<int> Process::wait_for_termination()
+ErrorOr<int> Process::wait_for_termination() const
 {
     VERIFY(m_pid > 0);
 

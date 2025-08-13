@@ -67,7 +67,7 @@ public:
 
     pid_t pid() const;
 
-    ErrorOr<int> wait_for_termination();
+    ErrorOr<int> wait_for_termination() const;
 
 private:
 #ifndef AK_OS_WINDOWS
