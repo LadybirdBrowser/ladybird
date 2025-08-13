@@ -79,10 +79,6 @@
 #    define AK_LIBC_GLIBC_PREREQ(maj, min) 0
 #endif
 
-#if defined(__serenity__)
-#    define AK_OS_SERENITY
-#endif
-
 #if defined(__linux__)
 #    define AK_OS_LINUX
 #endif
@@ -241,15 +237,13 @@
 #    define AK_HAS_OBJC_ARC
 #endif
 
-#ifndef AK_OS_SERENITY
-#    ifdef AK_OS_WINDOWS
+#ifdef AK_OS_WINDOWS
 // FIXME: No idea where to get this, but it's 4096 anyway :^)
-#        define PAGE_SIZE 4096
-#    else
-#        include <unistd.h>
-#        undef PAGE_SIZE
-#        define PAGE_SIZE sysconf(_SC_PAGESIZE)
-#    endif
+#    define PAGE_SIZE 4096
+#else
+#    include <unistd.h>
+#    undef PAGE_SIZE
+#    define PAGE_SIZE sysconf(_SC_PAGESIZE)
 #endif
 
 #if defined(AK_OS_WINDOWS)

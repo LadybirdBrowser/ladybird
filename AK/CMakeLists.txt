@@ -35,7 +35,6 @@ set(SOURCES
     Utf16View.cpp
     Utf32View.cpp
     Utf8View.cpp
-    kmalloc.cpp
 )
 
 if (WIN32)
