@@ -145,6 +145,24 @@ ErrorOr<void> JPEGLoadingContext::decode()
                 }
             }
         }
+
+        // Photoshop writes inverted CMYK data (i.e. Photoshop's 0 should be 255). We convert this
+        // to expected values.
+        if (cinfo.saw_Adobe_marker) {
+            for (int i = 0; i < cmyk_bitmap->size().height(); ++i) {
+                auto* line = cmyk_bitmap->scanline(i);
+
+                for (int j = 0; j < cmyk_bitmap->size().width(); ++j) {
+                    auto const& cmyk = line[j];
+                    line[j] = {
+                        static_cast<u8>(255 - cmyk.c),
+                        static_cast<u8>(255 - cmyk.m),
+                        static_cast<u8>(255 - cmyk.y),
+                        static_cast<u8>(255 - cmyk.k),
+                    };
+                }
+            }
+        }
     }
 
     JOCTET* icc_data_ptr = nullptr;
