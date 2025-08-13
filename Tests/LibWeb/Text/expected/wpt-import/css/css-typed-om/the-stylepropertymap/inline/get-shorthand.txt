@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
-Fail	Getting an shorthand property set explicitly in inline style returns a base CSSStyleValue
+3 Pass
+Pass	Getting an shorthand property set explicitly in inline style returns a base CSSStyleValue
 Pass	Getting a shorthand property that is partially set in inline style returns null
 Pass	Getting an attributeStyleMap shorthand property from an element without a style attribute

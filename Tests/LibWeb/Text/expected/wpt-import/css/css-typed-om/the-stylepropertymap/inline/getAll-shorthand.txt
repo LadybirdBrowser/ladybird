@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
-Fail	StylePropertyMap.getAll() with a shorthand property set explicitly in inline style returns a base CSSStyleValue
+2 Pass
+Pass	StylePropertyMap.getAll() with a shorthand property set explicitly in inline style returns a base CSSStyleValue
 Pass	StylePropertyMap.getAll() with a shorthand property that is partially in inline style returns empty list

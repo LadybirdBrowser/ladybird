@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
-Fail	Getting a shorthand property set explicitly in css rule returns a base CSSStyleValue
+2 Pass
+Pass	Getting a shorthand property set explicitly in css rule returns a base CSSStyleValue
 Pass	Getting a shorthand property that is partially set in css rule returns undefined
