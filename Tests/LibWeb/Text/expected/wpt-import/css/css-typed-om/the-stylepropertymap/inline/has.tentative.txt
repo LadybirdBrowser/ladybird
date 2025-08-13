@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-4 Pass
-4 Fail
+7 Pass
+1 Fail
 Pass	Calling StylePropertyMap.has with an unsupported property throws a TypeError
 Pass	Calling StylePropertyMap.has with a property not in the property model returns false
 Pass	Calling StylePropertyMap.has with a custom property not in the property model returns false
 Pass	Calling StylePropertyMap.has with a valid property in mixed case returns false
-Fail	Calling StylePropertyMap.has with a valid property returns true
-Fail	Calling StylePropertyMap.has with a valid property in mixed case returns true
+Pass	Calling StylePropertyMap.has with a valid property returns true
+Pass	Calling StylePropertyMap.has with a valid property in mixed case returns true
 Fail	Calling StylePropertyMap.has with a valid custom property returns true
-Fail	Calling StylePropertyMap.has with a valid list-valued property returns true
+Pass	Calling StylePropertyMap.has with a valid list-valued property returns true

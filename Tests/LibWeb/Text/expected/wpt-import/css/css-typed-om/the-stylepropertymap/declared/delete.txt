@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-1 Pass
-4 Fail
+5 Pass
 Pass	Deleting a property not in the css rule is a no-op
-Fail	Deleting a property in the css rule removes it from the css rule
-Fail	Deleting a custom property in the css rule removes it from the css rule
-Fail	Deleting a list-valued property in the css rule removes it from the css rule
-Fail	Declared StylePropertyMap.delete is not case-sensitive
+Pass	Deleting a property in the css rule removes it from the css rule
+Pass	Deleting a custom property in the css rule removes it from the css rule
+Pass	Deleting a list-valued property in the css rule removes it from the css rule
+Pass	Declared StylePropertyMap.delete is not case-sensitive
