@@ -117,7 +117,6 @@ CSSTransition::CSSTransition(JS::Realm& realm, DOM::Element& element, Optional<P
     set_timeline(element.document().timeline());
     set_owning_element(element);
     set_effect(m_keyframe_effect);
-    element.associate_with_animation(*this);
     element.set_transition(pseudo_element, m_transition_property, *this);
 
     HTML::TemporaryExecutionContext context(realm);
