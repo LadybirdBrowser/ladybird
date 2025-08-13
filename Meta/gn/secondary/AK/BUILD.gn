@@ -202,7 +202,6 @@ shared_library("AK") {
     "Vector.h",
     "WeakPtr.h",
     "Weakable.h",
-    "kmalloc.cpp",
     "kmalloc.h",
   ]
 }

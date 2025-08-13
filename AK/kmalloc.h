@@ -21,16 +21,14 @@ inline void kfree_sized(void* ptr, size_t)
     free(ptr);
 }
 
-#ifndef AK_OS_SERENITY
-#    include <AK/Types.h>
+#include <AK/Types.h>
 
-#    ifndef AK_OS_MACOS
+#ifndef AK_OS_MACOS
 extern "C" {
 inline size_t malloc_good_size(size_t size) { return size; }
 }
-#    else
-#        include <malloc/malloc.h>
-#    endif
+#else
+#    include <malloc/malloc.h>
 #endif
 
 using std::nothrow;

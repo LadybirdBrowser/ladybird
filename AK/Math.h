@@ -425,10 +425,6 @@ constexpr T fmod(T x, T y)
     //        might work
 
 #else
-#    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
-#    endif
     if constexpr (IsSame<T, long double>)
         return __builtin_fmodl(x, y);
     if constexpr (IsSame<T, double>)
@@ -454,10 +450,6 @@ constexpr T remainder(T x, T y)
     } while (fpu_status & 0x400);
     return x;
 #else
-#    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
-#    endif
     if constexpr (IsSame<T, long double>)
         return __builtin_remainderl(x, y);
     if constexpr (IsSame<T, double>)
@@ -565,13 +557,7 @@ constexpr T sin(T angle)
         : "0"(angle));
     return ret;
 #else
-#    if defined(AK_OS_SERENITY)
-    // FIXME: This is a very naive implementation, and is only valid for small x.
-    //        Probably a good idea to use a better algorithm in the future, such as a taylor approximation.
-    return angle;
-#    else
     return __builtin_sin(angle);
-#    endif
 #endif
 }
 
@@ -588,13 +574,7 @@ constexpr T cos(T angle)
         : "0"(angle));
     return ret;
 #else
-#    if defined(AK_OS_SERENITY)
-    // FIXME: This is a very naive implementation, and is only valid for small x.
-    //        Probably a good idea to use a better algorithm in the future, such as a taylor approximation.
-    return 1 - ((angle * angle) / 2);
-#    else
     return __builtin_cos(angle);
-#    endif
 #endif
 }
 
@@ -631,13 +611,7 @@ constexpr T tan(T angle)
 
     return ret;
 #else
-#    if defined(AK_OS_SERENITY)
-    // FIXME: This is a very naive implementation, and is only valid for small x.
-    //        Probably a good idea to use a better algorithm in the future, such as a taylor approximation.
-    return angle;
-#    else
     return __builtin_tan(angle);
-#    endif
 #endif
 }
 
@@ -655,10 +629,6 @@ constexpr T atan(T value)
         : "0"(value));
     return ret;
 #else
-#    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
-#    endif
     return __builtin_atan(value);
 #endif
 }
@@ -714,10 +684,6 @@ constexpr T atan2(T y, T x)
         : "st(1)");
     return ret;
 #else
-#    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
-#    endif
     return __builtin_atan2(y, x);
 #endif
 }
@@ -839,9 +805,6 @@ constexpr T log(T x)
         : "=t"(ret)
         : "0"(x));
     return ret;
-#elif defined(AK_OS_SERENITY)
-    // FIXME: Adjust the polynomial and formula in log2 to fit this
-    return log2<T>(x) / L2_E<T>;
 #else
     return __builtin_log(x);
 #endif
@@ -861,9 +824,6 @@ constexpr T log10(T x)
         : "=t"(ret)
         : "0"(x));
     return ret;
-#elif defined(AK_OS_SERENITY)
-    // FIXME: Adjust the polynomial and formula in log2 to fit this
-    return log2<T>(x) / L2_10<T>;
 #else
     return __builtin_log10(x);
 #endif
@@ -889,10 +849,6 @@ constexpr T exp(T exponent)
         : "0"(exponent));
     return res;
 #else
-#    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
-#    endif
     return __builtin_exp(exponent);
 #endif
 }
@@ -915,10 +871,6 @@ constexpr T exp2(T exponent)
         : "0"(exponent));
     return res;
 #else
-#    if defined(AK_OS_SERENITY)
-    // TODO: Add implementation for this function.
-    TODO();
-#    endif
     return __builtin_exp2(exponent);
 #endif
 }
