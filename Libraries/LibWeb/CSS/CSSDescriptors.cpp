@@ -289,6 +289,14 @@ bool CSSDescriptors::has_property(StringView property_name) const
     return descriptor(*descriptor_id) != nullptr;
 }
 
+RefPtr<StyleValue const> CSSDescriptors::get_property_style_value(StringView property_name) const
+{
+    auto descriptor_id = descriptor_id_from_string(m_at_rule_id, property_name);
+    if (!descriptor_id.has_value())
+        return nullptr;
+    return descriptor(*descriptor_id);
+}
+
 bool is_shorthand(AtRuleID at_rule, DescriptorID descriptor)
 {
     if (at_rule == AtRuleID::Page && descriptor == DescriptorID::Margin)

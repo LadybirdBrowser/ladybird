@@ -434,6 +434,16 @@ bool CSSStyleProperties::has_property(StringView property_name) const
     return get_property_internal(*property_id).has_value();
 }
 
+RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(StringView property_name) const
+{
+    auto property_id = property_id_from_string(property_name);
+    if (!property_id.has_value())
+        return nullptr;
+    if (auto style_property = get_property_internal(*property_id); style_property.has_value())
+        return style_property->value;
+    return nullptr;
+}
+
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID property_id) const
 {
