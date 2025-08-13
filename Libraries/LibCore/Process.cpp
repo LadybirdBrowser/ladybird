@@ -63,26 +63,22 @@ struct ArgvList {
 
 Process::Process(Process&& other)
     : m_pid(exchange(other.m_pid, 0))
-    , m_should_disown(exchange(other.m_should_disown, false))
 {
 }
 
 Process& Process::operator=(Process&& other)
 {
     m_pid = exchange(other.m_pid, 0);
-    m_should_disown = exchange(other.m_should_disown, false);
     return *this;
 }
 
 Process::~Process()
 {
-    (void)disown();
 }
 
 Process Process::current()
 {
     auto p = Process { getpid() };
-    p.m_should_disown = false;
     return p;
 }
 
@@ -134,20 +130,17 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     return Process { pid };
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments)
 {
     auto process = TRY(spawn({
         .executable = path,
         .arguments = Vector<ByteString> { arguments },
     }));
 
-    if (keep_as_child == KeepAsChild::No)
-        TRY(process.disown());
-
     return process;
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments)
 {
     Vector<ByteString> backing_strings;
     backing_strings.ensure_capacity(arguments.size());
@@ -158,9 +151,6 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> argume
         .executable = path,
         .arguments = backing_strings,
     }));
-
-    if (keep_as_child == KeepAsChild::No)
-        TRY(process.disown());
 
     return process;
 }
@@ -292,21 +282,6 @@ pid_t Process::pid() const
     return m_pid;
 }
 
-ErrorOr<void> Process::disown()
-{
-    if (m_pid != 0 && m_should_disown) {
-#ifdef AK_OS_SERENITY
-        TRY(System::disown(m_pid));
-#else
-        // FIXME: Support disown outside Serenity.
-#endif
-        m_should_disown = false;
-        return {};
-    } else {
-        return Error::from_errno(EINVAL);
-    }
-}
-
 ErrorOr<int> Process::wait_for_termination()
 {
     VERIFY(m_pid > 0);
@@ -327,7 +302,6 @@ ErrorOr<int> Process::wait_for_termination()
         VERIFY_NOT_REACHED();
     }
 
-    m_should_disown = false;
     return exit_code;
 }
 
