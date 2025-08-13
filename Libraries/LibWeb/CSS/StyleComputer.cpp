@@ -1410,11 +1410,11 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         bool has_running_transition = existing_transition && !existing_transition->is_finished();
         bool has_completed_transition = existing_transition && existing_transition->is_finished();
 
-        auto start_a_transition = [&](auto start_time, auto end_time, auto const& start_value, auto const& end_value, auto const& reversing_adjusted_start_value, auto reversing_shortening_factor) {
+        auto start_a_transition = [&](auto delay, auto start_time, auto end_time, auto const& start_value, auto const& end_value, auto const& reversing_adjusted_start_value, auto reversing_shortening_factor) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value->to_string(), end_value->to_string());
 
             auto transition = CSSTransition::start_a_transition(element, pseudo_element, property_id,
-                document().transition_generation(), start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+                document().transition_generation(), delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             // Immediately set the property's value to the transition's current value, to prevent single-frame jumps.
             collect_animation_into(element, {}, as<Animations::KeyframeEffect>(*transition->effect()), new_style, AnimationRefresh::No);
         };
@@ -1440,8 +1440,11 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 element.remove_transition(pseudo_element, property_id);
             // and start a transition whose:
 
+            // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
+            auto delay = matching_transition_properties->delay;
+
             // - start time is the time of the style change event plus the matching transition delay,
-            auto start_time = style_change_event_time + matching_transition_properties->delay;
+            auto start_time = style_change_event_time;
 
             // - end time is the start time plus the matching transition duration,
             auto end_time = start_time + matching_transition_properties->duration;
@@ -1458,7 +1461,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // - reversing shortening factor is 1.
             double reversing_shortening_factor = 1;
 
-            start_a_transition(start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+            start_a_transition(delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
         }
 
         // 2. Otherwise, if the element has a completed transition for the property
@@ -1524,13 +1527,15 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 auto term_2 = 1 - existing_transition->reversing_shortening_factor();
                 double reversing_shortening_factor = clamp(abs(term_1 + term_2), 0.0, 1.0);
 
+                // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
+                auto delay = (matching_transition_properties->delay >= 0
+                        ? (matching_transition_properties->delay)
+                        : (reversing_shortening_factor * matching_transition_properties->delay));
+
                 // - start time is the time of the style change event plus:
                 //   1. if the matching transition delay is nonnegative, the matching transition delay, or
                 //   2. if the matching transition delay is negative, the product of the new transition’s reversing shortening factor and the matching transition delay,
-                auto start_time = style_change_event_time
-                    + (matching_transition_properties->delay >= 0
-                            ? (matching_transition_properties->delay)
-                            : (reversing_shortening_factor * matching_transition_properties->delay));
+                auto start_time = style_change_event_time;
 
                 // - end time is the start time plus the product of the matching transition duration and the new transition’s reversing shortening factor,
                 auto end_time = start_time + (matching_transition_properties->duration * reversing_shortening_factor);
@@ -1541,7 +1546,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 // - end value is the value of the property in the after-change style,
                 auto const& end_value = after_change_value;
 
-                start_a_transition(start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+                start_a_transition(delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             }
 
             // 4. Otherwise,
@@ -1553,8 +1558,11 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 // running or completed transition for a property at once.
                 element.remove_transition(pseudo_element, property_id);
 
+                // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
+                auto delay = matching_transition_properties->delay;
+
                 // - start time is the time of the style change event plus the matching transition delay,
-                auto start_time = style_change_event_time + matching_transition_properties->delay;
+                auto start_time = style_change_event_time;
 
                 // - end time is the start time plus the matching transition duration,
                 auto end_time = start_time + matching_transition_properties->duration;
@@ -1571,7 +1579,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 // - reversing shortening factor is 1.
                 double reversing_shortening_factor = 1;
 
-                start_a_transition(start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+                start_a_transition(delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             }
         }
     }
