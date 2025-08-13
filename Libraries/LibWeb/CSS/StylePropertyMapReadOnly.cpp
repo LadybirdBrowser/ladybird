@@ -60,8 +60,11 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
     // 3. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = m_declarations;
 
-    // FIXME: 4. If props[property] exists, subdivide into iterations props[property], then reify the first item of the result and return it.
-    (void)props;
+    // 4. If props[property] exists, subdivide into iterations props[property], then reify the first item of the result and return it.
+    if (auto property_value = get_style_value(props, property)) {
+        // FIXME: Subdivide into iterations, and only reify/return the first.
+        return property_value->reify(realm(), property);
+    }
 
     // 5. Otherwise, return undefined.
     return Empty {};
@@ -83,8 +86,11 @@ WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::ge
     // 3. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = m_declarations;
 
-    // FIXME: 4. If props[property] exists, subdivide into iterations props[property], then reify each item of the result, and return the list.
-    (void)props;
+    // 4. If props[property] exists, subdivide into iterations props[property], then reify each item of the result, and return the list.
+    if (auto property_value = get_style_value(props, property)) {
+        // FIXME: Subdivide into iterations.
+        return Vector { property_value->reify(realm(), property) };
+    }
 
     // 5. Otherwise, return an empty list.
     return Vector<GC::Ref<CSSStyleValue>> {};
@@ -116,6 +122,8 @@ WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(String property)
             auto property_id = property_id_from_string(property);
             if (!property_id.has_value())
                 return false;
+            // Ensure style is computed on the element before we try to read it, so we can check custom properties.
+            element.document().update_style();
             if (property_id == PropertyID::Custom) {
                 if (element.get_custom_property(property))
                     return true;
@@ -140,6 +148,8 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
             // "the name and computed value of every longhand CSS property supported by the User Agent, every
             // registered custom property, and every non-registered custom property which is not set to its initial
             // value on this"
+            // Ensure style is computed on the element before we try to read it.
+            element.document().update_style();
             auto longhands_count = to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1;
 
             // Some custom properties set on the element might also be in the registered custom properties set, so we
@@ -153,6 +163,37 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
             return longhands_count + custom_properties.size();
         },
         [](GC::Ref<CSSStyleDeclaration> const& declaration) { return declaration->length(); });
+}
+
+RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& source, String property)
+{
+    return source.visit(
+        [&property](DOM::AbstractElement& element) -> RefPtr<StyleValue const> {
+            // From https://drafts.css-houdini.org/css-typed-om-1/#dom-element-computedstylemap we need to include:
+            // "the name and computed value of every longhand CSS property supported by the User Agent, every
+            // registered custom property, and every non-registered custom property which is not set to its initial
+            // value on this"
+            auto property_id = property_id_from_string(property);
+            if (!property_id.has_value())
+                return nullptr;
+            // Ensure style is computed on the element before we try to read it.
+            element.document().update_style();
+            if (property_id == PropertyID::Custom) {
+                if (auto custom_property = element.get_custom_property(property))
+                    return custom_property;
+                if (auto registered_custom_property = element.document().registered_custom_properties().get(property); registered_custom_property.has_value())
+                    return registered_custom_property.value()->initial_style_value();
+                return nullptr;
+            }
+            // FIXME: This will only ever be null for pseudo-elements. What should we do in that case?
+            //        The property's value is also sometimes null. Is that correct?
+            if (auto computed_properties = element.computed_properties())
+                return computed_properties->maybe_null_property(property_id.value());
+            return nullptr;
+        },
+        [&property](GC::Ref<CSSStyleDeclaration>& declaration) {
+            return declaration->get_property_style_value(property);
+        });
 }
 
 }
