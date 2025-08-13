@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 560 tests
 
-557 Pass
-3 Fail
+558 Pass
+2 Fail
 Pass	background-color color(rgba) / values
 Pass	background-color color(rgba) / events
 Pass	background-position-x length(pt) / values
@@ -560,7 +560,7 @@ Pass	vertical-align percentage(%) / values
 Pass	vertical-align percentage(%) / events
 Pass	opacity number[0,1](zero-to-one) / values
 Pass	opacity number[0,1](zero-to-one) / events
-Fail	visibility visibility(keyword) / values
+Pass	visibility visibility(keyword) / values
 Pass	visibility visibility(keyword) / events
 Fail	z-index integer(integer) / values
 Fail	z-index integer(integer) / events
