@@ -31,15 +31,27 @@ class GPUAdapter final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(GPUAdapter, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(GPUAdapter);
 
+    // https://www.w3.org/TR/webgpu/#dom-adapter-state-slot
+    enum class State {
+        Valid,
+        Consumed,
+        Expired,
+    };
+
     static JS::ThrowCompletionOr<GC::Ref<GPUAdapter>> create(JS::Realm&, GPU&, wgpu::Adapter);
 
     ~GPUAdapter() override;
+
+    State state() const;
+    void set_state(State value);
 
     GC::Ref<GPUSupportedFeatures> features() const;
 
     GC::Ref<GPUSupportedLimits> limits() const;
 
     GC::Ref<GPUAdapterInfo> info() const;
+
+    GC::Ref<WebIDL::Promise> request_device(GPUDeviceDescriptor const&);
 
 private:
     struct Impl;

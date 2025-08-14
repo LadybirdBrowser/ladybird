@@ -1,4 +1,5 @@
 #import <WebGPU/GPUAdapterInfo.idl>
+#import <WebGPU/GPUDevice.idl>
 #import <WebGPU/GPUSupportedFeatures.idl>
 #import <WebGPU/GPUSupportedLimits.idl>
 
@@ -23,5 +24,5 @@ interface GPUAdapter {
     [SameObject] readonly attribute GPUSupportedLimits limits;
     [SameObject] readonly attribute GPUAdapterInfo info;
 
-    [FIXME] Promise<GPUDevice> requestDevice(optional GPUDeviceDescriptor descriptor = {});
+    Promise<GPUDevice> requestDevice(optional GPUDeviceDescriptor descriptor = {});
 };
