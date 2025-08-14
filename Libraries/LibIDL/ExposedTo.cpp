@@ -34,6 +34,10 @@ ErrorOr<ExposedTo> parse_exposure_set(StringView interface_name, StringView expo
             return ExposedTo::ServiceWorker;
         if (string == "AudioWorklet"sv)
             return ExposedTo::AudioWorklet;
+        if (string == "LayoutWorklet"sv)
+            return ExposedTo::LayoutWorklet;
+        if (string == "PaintWorklet"sv)
+            return ExposedTo::PaintWorklet;
         if (string == "Worklet"sv)
             return ExposedTo::Worklet;
         if (string == "ShadowRealm"sv)
