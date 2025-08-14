@@ -20,12 +20,15 @@ public:
 
     virtual ~CSSStyleValue() override = default;
 
+    virtual void initialize(JS::Realm&) override;
+
     virtual String to_string() const;
+
+protected:
+    explicit CSSStyleValue(JS::Realm&);
 
 private:
     explicit CSSStyleValue(JS::Realm&, String associated_property, String constructed_from_string);
-
-    virtual void initialize(JS::Realm&) override;
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
     Optional<String> m_associated_property;

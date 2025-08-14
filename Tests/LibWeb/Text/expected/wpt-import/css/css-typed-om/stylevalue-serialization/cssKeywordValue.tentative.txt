@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	CSSKeywordValue constructed from IDL serializes correctly
-Fail	CSSKeywordValue constructed from IDL serializes to escaped strings
+2 Pass
+2 Fail
+Pass	CSSKeywordValue constructed from IDL serializes correctly
+Pass	CSSKeywordValue constructed from IDL serializes to escaped strings
 Fail	CSSKeywordValue from DOMString modified through "value" setter serializes correctly
 Fail	CSSKeywordValue from CSSOM modified through "value" setter serializes correctly

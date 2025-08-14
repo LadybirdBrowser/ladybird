@@ -18,6 +18,11 @@ GC::Ref<CSSStyleValue> CSSStyleValue::create(JS::Realm& realm, String associated
     return realm.create<CSSStyleValue>(realm, move(associated_property), move(constructed_from_string));
 }
 
+CSSStyleValue::CSSStyleValue(JS::Realm& realm)
+    : PlatformObject(realm)
+{
+}
+
 CSSStyleValue::CSSStyleValue(JS::Realm& realm, String associated_property, String constructed_from_string)
     : PlatformObject(realm)
     , m_associated_property(move(associated_property))
@@ -39,9 +44,10 @@ String CSSStyleValue::to_string() const
         // the serialization is the USVString from which the value was constructed.
         return m_constructed_from_string.value();
     }
-    // FIXME: otherwise, if the value was constructed using an IDL constructor
+    // otherwise, if the value was constructed using an IDL constructor
     {
         // the serialization is specified in the sections below.
+        // NB: This is handled by subclasses overriding this to_string() method.
     }
     // FIXME: otherwise, if the value was extracted from the CSSOM
     {

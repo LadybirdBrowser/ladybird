@@ -45,6 +45,7 @@ CSSGroupingRule
 CSSImportRule
 CSSKeyframeRule
 CSSKeyframesRule
+CSSKeywordValue
 CSSLayerBlockRule
 CSSLayerStatementRule
 CSSMarginRule

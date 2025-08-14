@@ -238,6 +238,7 @@ class CSSGroupingRule;
 class CSSImportRule;
 class CSSKeyframeRule;
 class CSSKeyframesRule;
+class CSSKeywordValue;
 class CSSLayerBlockRule;
 class CSSLayerStatementRule;
 class CSSMarginRule;

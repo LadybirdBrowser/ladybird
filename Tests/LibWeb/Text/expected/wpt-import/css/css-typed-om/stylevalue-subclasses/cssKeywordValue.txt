@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	CSSKeywordValue can be constructed from a CSS wide keyword
-Fail	CSSKeywordValue can be constructed from a CSS keyword
-Fail	CSSKeywordValue can be constructed from an unsupported CSS keyword
-Fail	CSSKeywordValue can be constructed from a string containing multiple tokens
-Fail	CSSKeywordValue can be constructed from a unicode string
+5 Pass
+Pass	CSSKeywordValue can be constructed from a CSS wide keyword
+Pass	CSSKeywordValue can be constructed from a CSS keyword
+Pass	CSSKeywordValue can be constructed from an unsupported CSS keyword
+Pass	CSSKeywordValue can be constructed from a string containing multiple tokens
+Pass	CSSKeywordValue can be constructed from a unicode string
