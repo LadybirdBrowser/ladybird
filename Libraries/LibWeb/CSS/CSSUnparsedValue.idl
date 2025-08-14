@@ -1,0 +1,16 @@
+#import <CSS/CSSStyleValue.idl>
+#import <CSS/CSSVariableReferenceValue.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssunparsedvalue
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSUnparsedValue : CSSStyleValue {
+    constructor(sequence<CSSUnparsedSegment> members);
+    readonly attribute unsigned long length;
+    getter CSSUnparsedSegment (unsigned long index);
+    setter undefined (unsigned long index, CSSUnparsedSegment val);
+    // FIXME: Different order from the spec, because our IDL parser needs the indexed getter to be defined already.
+    iterable<CSSUnparsedSegment>;
+};
+
+// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssunparsedsegment
+typedef (USVString or CSSVariableReferenceValue) CSSUnparsedSegment;

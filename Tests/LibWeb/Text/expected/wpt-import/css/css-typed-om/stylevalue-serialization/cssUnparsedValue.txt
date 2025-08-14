@@ -2,9 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
+2 Pass
+3 Fail
 Fail	CSSUnparsedValue containing strings serializes to its tokenized contents
-Fail	CSSUnparsedValue containing variable references serializes its tokenized contents
+Pass	CSSUnparsedValue containing variable references serializes its tokenized contents
 Fail	CSSUnparsedValue containing mix of strings and variable references serializes to its tokenized contents
-Fail	CSSUnparsedValue can hold same object in multiple places
+Pass	CSSUnparsedValue can hold same object in multiple places
 Fail	attributeStyleMap round-trips correctly, though the comment is gone

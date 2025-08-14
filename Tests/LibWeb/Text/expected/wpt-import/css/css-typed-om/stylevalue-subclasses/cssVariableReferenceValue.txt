@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	CSSVariableReferenceValue can be constructed with no fallback
-Fail	CSSVariableReferenceValue can be constructed with null fallback
-Fail	CSSVariableReferenceValue can be constructed with valid fallback
+3 Pass
+Pass	CSSVariableReferenceValue can be constructed with no fallback
+Pass	CSSVariableReferenceValue can be constructed with null fallback
+Pass	CSSVariableReferenceValue can be constructed with valid fallback

@@ -256,6 +256,8 @@ class CSSStyleRule;
 class CSSStyleSheet;
 class CSSStyleValue;
 class CSSSupportsRule;
+class CSSUnparsedValue;
+class CSSVariableReferenceValue;
 class CursorStyleValue;
 class CustomIdentStyleValue;
 class DimensionStyleValue;
