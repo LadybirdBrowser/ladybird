@@ -1,0 +1,40 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <title>Forms</title>
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+ </head>
+ <body>
+  <p>
+    <h3>button_validationMessage</h3>
+  </p>
+
+  <hr>
+
+  <div id="log"></div>
+
+  <form method="post"
+      enctype="application/x-www-form-urlencoded"
+      action=""
+      id="input_form">
+    <p><button id='button_id'>button</button></p>
+  </form>
+  <script>
+
+    var button = document.getElementById("button_id");
+
+    if (typeof(button.validationMessage) == "string") {
+      test(function() {
+        assert_equals(button.validationMessage, "", "validationMessage attribute is not correct.");
+      });
+    } else {
+      test(function() {
+        assert_unreached("validationMessage attribute is not exist.");
+      });
+    }
+
+  </script>
+
+ </body>
+</html>
