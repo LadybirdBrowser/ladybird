@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/TemporaryChange.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 
@@ -31,12 +32,7 @@ SessionHistoryTraversalQueue::SessionHistoryTraversalQueue()
             m_timer->start();
             return;
         }
-        while (m_queue.size() > 0) {
-            m_is_task_running = true;
-            auto entry = m_queue.take_first();
-            entry->execute_steps();
-            m_is_task_running = false;
-        }
+        this->spin();
     });
 }
 
@@ -59,6 +55,15 @@ void SessionHistoryTraversalQueue::append_sync(GC::Ref<GC::Function<void()>> ste
     m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
     if (!m_timer->is_active()) {
         m_timer->start();
+    }
+}
+
+void SessionHistoryTraversalQueue::spin()
+{
+    while (m_queue.size() > 0) {
+        TemporaryChange task_running { m_is_task_running, true };
+        auto entry = m_queue.take_first();
+        entry->execute_steps();
     }
 }
 

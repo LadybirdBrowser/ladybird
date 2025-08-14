@@ -96,6 +96,11 @@ public:
         m_session_history_traversal_queue->append_sync(steps, target_navigable);
     }
 
+    void synchronously_spin_session_history_traversal_queue_fixme()
+    {
+        m_session_history_traversal_queue->synchronously_spin_fixme();
+    }
+
     String window_handle() const { return m_window_handle; }
     void set_window_handle(String window_handle) { m_window_handle = move(window_handle); }
 

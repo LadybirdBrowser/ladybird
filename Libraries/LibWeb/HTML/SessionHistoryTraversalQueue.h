@@ -50,12 +50,14 @@ public:
 
     void append(GC::Ref<GC::Function<void()>> steps);
     void append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable);
+    void synchronously_spin_fixme() { spin(); }
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
     GC::Ptr<SessionHistoryTraversalQueueEntry> first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<GC::Ref<Navigable>> const&);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
+    void spin();
 
     Vector<GC::Ref<SessionHistoryTraversalQueueEntry>> m_queue;
     RefPtr<Core::Timer> m_timer;
