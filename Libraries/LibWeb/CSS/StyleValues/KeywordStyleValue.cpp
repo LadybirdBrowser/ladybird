@@ -9,6 +9,7 @@
 
 #include "KeywordStyleValue.h"
 #include <LibGfx/Palette.h>
+#include <LibWeb/CSS/CSSKeywordValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
@@ -345,6 +346,13 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
 Vector<Parser::ComponentValue> KeywordStyleValue::tokenize() const
 {
     return { Parser::Token::create_ident(FlyString::from_utf8_without_validation(string_from_keyword(m_keyword).bytes())) };
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#reify-ident
+GC::Ref<CSSStyleValue> KeywordStyleValue::reify(JS::Realm& realm, String const&) const
+{
+    // 1. Return a new CSSKeywordValue with its value internal slot set to the serialization of ident.
+    return CSSKeywordValue::create(realm, FlyString::from_utf8_without_validation(string_from_keyword(m_keyword).bytes()));
 }
 
 }
