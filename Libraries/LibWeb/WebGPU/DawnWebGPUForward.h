@@ -11,6 +11,12 @@ namespace wgpu {
 class Adapter;
 struct RequestAdapterOptions;
 
+class Device;
+struct DeviceDescriptor;
+
 class Instance;
+
+class Queue;
+struct QueueDescriptor;
 
 }

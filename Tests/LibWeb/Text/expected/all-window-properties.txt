@@ -169,6 +169,8 @@ Function
 GPU
 GPUAdapter
 GPUAdapterInfo
+GPUDevice
+GPUQueue
 GPUSupportedFeatures
 GPUSupportedLimits
 GainNode

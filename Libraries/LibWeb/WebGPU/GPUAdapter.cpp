@@ -6,11 +6,15 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebGPU/GPU.h>
 #include <LibWeb/WebGPU/GPUAdapter.h>
 #include <LibWeb/WebGPU/GPUAdapterInfo.h>
+#include <LibWeb/WebGPU/GPUDevice.h>
 #include <LibWeb/WebGPU/GPUSupportedFeatures.h>
 #include <LibWeb/WebGPU/GPUSupportedLimits.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 #include <webgpu/webgpu_cpp.h>
 
@@ -20,6 +24,7 @@ GC_DEFINE_ALLOCATOR(GPUAdapter);
 
 struct GPUAdapter::Impl {
     wgpu::Adapter adapter { nullptr };
+    State state { State::Valid };
     GC::Ref<GPU> instance;
     GC::Ref<GPUSupportedFeatures> features;
     GC::Ref<GPUSupportedLimits> limits;
@@ -224,6 +229,16 @@ void GPUAdapter::visit_edges(Visitor& visitor)
     visitor.visit(m_impl->adapter_info);
 }
 
+GPUAdapter::State GPUAdapter::state() const
+{
+    return m_impl->state;
+}
+
+void GPUAdapter::set_state(State value)
+{
+    m_impl->state = value;
+}
+
 GC::Ref<GPUSupportedFeatures> GPUAdapter::features() const
 {
     return m_impl->features;
@@ -237,6 +252,140 @@ GC::Ref<GPUSupportedLimits> GPUAdapter::limits() const
 GC::Ref<GPUAdapterInfo> GPUAdapter::info() const
 {
     return m_impl->adapter_info;
+}
+
+// https://www.w3.org/TR/webgpu/#dom-gpuadapter-requestdevice
+GC::Ref<WebIDL::Promise> GPUAdapter::request_device(Optional<GPUDeviceDescriptor> descriptor)
+{
+    // 1. Let contentTimeline be the current Content timeline.
+
+    // 2. Let promise be a new promise.
+    auto& realm = this->realm();
+    GC::Ref promise = WebIDL::create_promise(realm);
+
+    // 3. Let adapter be this.[[adapter]].
+    auto adapter = m_impl->adapter;
+
+    // 4. Issue the initialization steps to the Device timeline of this.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, adapter, descriptor, &realm, promise]() mutable {
+        wgpu::DeviceDescriptor device_descriptor;
+        String device_label;
+        if (descriptor.has_value()) {
+            // FIXME: Set required features
+
+            // FIXME: Set required limits
+
+            auto const queue_label_view = descriptor.value().default_queue.label.bytes_as_string_view();
+            wgpu::QueueDescriptor queue_descriptor { .nextInChain = nullptr, .label = wgpu::StringView { queue_label_view.characters_without_null_termination(), queue_label_view.length() } };
+
+            device_label = descriptor.value().label;
+            auto const device_label_view = device_label.bytes_as_string_view();
+            device_descriptor = { wgpu::DeviceDescriptor::Init { .nextInChain = nullptr, .label = wgpu::StringView { device_label_view.characters_without_null_termination(), device_label_view.length() }, .defaultQueue = queue_descriptor } };
+        }
+
+        // FIXME: https://www.w3.org/TR/webgpu/#dom-gpudevice-lost
+        device_descriptor.SetDeviceLostCallback(
+            wgpu::CallbackMode::AllowSpontaneous,
+            [](wgpu::Device const&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
+                auto log_device_lost = [message](StringView reason) {
+                    dbgln("Device lost because of {}: {}", reason, StringView { message.data, message.length });
+                };
+
+                switch (reason) {
+                case wgpu::DeviceLostReason::Unknown:
+                    log_device_lost("Unknown"sv);
+                    break;
+                case wgpu::DeviceLostReason::Destroyed:
+                    log_device_lost("Destroyed"sv);
+                    break;
+                case wgpu::DeviceLostReason::CallbackCancelled:
+                    log_device_lost("CallbackCancelled"sv);
+                    break;
+                case wgpu::DeviceLostReason::FailedCreation:
+                    log_device_lost("FailedCreation"sv);
+                    break;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            });
+        // FIXME: https://www.w3.org/TR/webgpu/#eventdef-gpudevice-uncapturederror
+        device_descriptor.SetUncapturedErrorCallback(
+            [](wgpu::Device const&, wgpu::ErrorType type, wgpu::StringView message) {
+                auto log_uncaptured_error = [message](StringView error_type) {
+                    dbgln("{} error: {}", error_type, StringView { message.data, message.length });
+                };
+
+                switch (type) {
+                case wgpu::ErrorType::Validation:
+                    log_uncaptured_error("Validation"sv);
+                    break;
+                case wgpu::ErrorType::OutOfMemory:
+                    log_uncaptured_error("Out of memory"sv);
+                    break;
+                case wgpu::ErrorType::Internal:
+                    log_uncaptured_error("Internal"sv);
+                    break;
+                case wgpu::ErrorType::Unknown:
+                    log_uncaptured_error("Unknown"sv);
+                    break;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            });
+        m_impl->instance->wgpu().WaitAny(adapter.RequestDevice(&device_descriptor, wgpu::CallbackMode::AllowProcessEvents, [this, device_label, realm = GC::Root(realm), promise = GC::Root(promise)](wgpu::RequestDeviceStatus status, wgpu::Device native_device, char const* message) {
+            // Device timeline initialization steps:
+            // 1. FIXME: If any of the following requirements are unmet:
+            //     - The set of values in descriptor.requiredFeatures must be a subset of those in adapter.[[features]].
+
+            // 2. All of the requirements in the following steps must be met.
+            //     1. adapter.[[state]] must not be "consumed".
+            if (m_impl->state == State::Consumed) {
+                HTML::TemporaryExecutionContext const context { *realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::reject_promise(*realm, *promise, WebIDL::OperationError::create(*realm, "Adapter has already been consumed"_utf16));
+                return;
+            }
+            //     2. FIXME: For each [key, value] in descriptor.requiredLimits for which value is not undefined:
+            //         1. key must be the name of a member of supported limits.
+            //         2. value must be no better than adapter.[[limits]][key].
+            //         If key’s class is alignment, value must be a power of 2 less than 2^32.
+
+            // 3. If adapter.[[state]] is "expired" or the user agent otherwise cannot fulfill the request:
+            if (m_impl->state == State::Expired || status != wgpu::RequestDeviceStatus::Success) {
+                dbgln("Unable to request device: {}", message);
+
+                // 1. Let device be a new device.
+                // NOTE: This is the native_device parameter
+
+                // 2. FIXME: Lose the device(device, "unknown").
+
+                // 3. Assert adapter.[[state]] is "expired".
+                VERIFY(m_impl->state == State::Expired);
+            } else {
+                // Otherwise:
+                //  1. Let device be a new device with the capabilities described by descriptor.
+                // NOTE: This is the native_device parameter
+
+                // 2. Expire adapter.
+                m_impl->state = State::Expired;
+            }
+
+            // 4. Issue the subsequent steps on contentTimeline.
+            //      Content timeline steps:
+            //      1. Let gpuDevice be a new GPUDevice instance.
+            //      2. Set gpuDevice.[[device]] to device.
+            //      3. FIXME: Set device.[[content device]] to gpuDevice.
+            //      4. Set gpuDevice.label to descriptor.label.
+            GC::Ref<GPUDevice> gpu_device = MUST(GPUDevice::create(*realm, *m_impl->instance, move(native_device), device_label));
+            //      5. Resolve promise with gpuDevice.
+            auto& gpu_device_realm = HTML::relevant_realm(*gpu_device);
+            HTML::TemporaryExecutionContext const context { gpu_device_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            WebIDL::resolve_promise(gpu_device_realm, *promise, gpu_device);
+        }),
+            UINT64_MAX);
+    }));
+
+    // 5. Return promise.
+    return promise;
 }
 
 }
