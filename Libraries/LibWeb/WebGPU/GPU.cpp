@@ -110,7 +110,7 @@ GC::Ref<WebIDL::Promise> GPU::request_adapter(GPURequestAdapterOptions const& op
 
     // 3. Issue the initialization steps on the Device timeline of this.
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, request_adapter_options, &realm, promise]() mutable {
-        m_impl->instance.WaitAny(m_impl->instance.RequestAdapter(&request_adapter_options, wgpu::CallbackMode::AllowProcessEvents, [request_adapter_options, realm = GC::Root(realm), promise = GC::Root(promise)](wgpu::RequestAdapterStatus status, wgpu::Adapter native_adapter, char const* message) {
+        m_impl->instance.WaitAny(m_impl->instance.RequestAdapter(&request_adapter_options, wgpu::CallbackMode::AllowProcessEvents, [this, request_adapter_options, realm = GC::Root(realm), promise = GC::Root(promise)](wgpu::RequestAdapterStatus status, wgpu::Adapter native_adapter, char const* message) {
             GC::Ptr<GPUAdapter> adapter;
 
             // Device timeline initialization steps:
@@ -122,7 +122,7 @@ GC::Ref<WebIDL::Promise> GPU::request_adapter(GPURequestAdapterOptions const& op
                 //          1. Set adapter.[[limits]] and adapter.[[features]] according to the supported capabilities of the adapter. adapter.[[features]] must contain "core-features-and-limits".
                 //          2. If adapter meets the criteria of a fallback adapter set adapter.[[fallback]] to true. Otherwise, set it to false.
                 //          3. Set adapter.[[xrCompatible]] to options.xrCompatible. FIXME: wgpu::Adapter does not expose this property yet
-                adapter = MUST(GPUAdapter::create(*realm, move(native_adapter)));
+                adapter = MUST(GPUAdapter::create(*realm, m_impl->instance, move(native_adapter)));
             } else {
                 dbgln("Unable to request adapter: {}", message);
                 // Otherwise:
