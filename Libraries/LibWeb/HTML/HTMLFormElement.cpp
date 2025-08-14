@@ -131,11 +131,11 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
             // NOTE: Only input, select and textarea elements have a user validity flag.
             //       See https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#user-validity
             if (is<HTMLInputElement>(*element)) {
-                (&as<HTMLInputElement>(*element))->set_user_validity(false);
+                (&as<HTMLInputElement>(*element))->set_user_validity(true);
             } else if (is<HTMLSelectElement>(*element)) {
-                (&as<HTMLSelectElement>(*element))->set_user_validity(false);
+                (&as<HTMLSelectElement>(*element))->set_user_validity(true);
             } else if (is<HTMLTextAreaElement>(*element)) {
-                (&as<HTMLTextAreaElement>(*element))->set_user_validity(false);
+                (&as<HTMLTextAreaElement>(*element))->set_user_validity(true);
             }
         }
 
