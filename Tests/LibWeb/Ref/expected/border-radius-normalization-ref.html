@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+      font-family: sans-serif;
+    }
+
+    .test-case {
+      margin: 15px 0;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .label {
+      width: 200px;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .box {
+      background-color: #4CAF50;
+      border: 2px solid #333;
+    }
+
+    /* Float max values properly normalized to perfect circle */
+    .float-max-precision {
+      width: 300px;
+      height: 40px;
+      border-radius: 21px; /* Float max values normalized to (content height + borders)/2 = (40+2)/2 = 21px */
+      background-color: #4CAF50;
+      border: 1px solid #333;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h2>Border Radius Normalization Test</h2>
+
+  <div class="test-case">
+    <div class="label">Float max precision test:</div>
+    <div class="float-max-precision"></div>
+  </div>
+</body>
+</html>
