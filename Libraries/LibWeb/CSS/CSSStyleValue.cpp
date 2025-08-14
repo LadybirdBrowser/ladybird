@@ -7,6 +7,8 @@
 #include "CSSStyleValue.h"
 #include <LibWeb/Bindings/CSSStyleValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -34,6 +36,59 @@ void CSSStyleValue::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleValue);
     Base::initialize(realm);
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parse
+WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, String property, String css_text)
+{
+    // The parse(property, cssText) method, when invoked, must parse a CSSStyleValue with property property, cssText
+    // cssText, and parseMultiple set to false, and return the result.
+    auto result = parse_a_css_style_value(vm, property, css_text, ParseMultiple::No);
+    if (result.is_exception())
+        return result.release_error();
+    return result.value().get<GC::Ref<CSSStyleValue>>();
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parseall
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse_all(JS::VM& vm, String property, String css_text)
+{
+    // The parseAll(property, cssText) method, when invoked, must parse a CSSStyleValue with property property, cssText
+    // cssText, and parseMultiple set to true, and return the result.
+    auto result = parse_a_css_style_value(vm, property, css_text, ParseMultiple::Yes);
+    if (result.is_exception())
+        return result.release_error();
+    return result.value().get<GC::RootVector<GC::Ref<CSSStyleValue>>>();
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#parse-a-cssstylevalue
+WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> CSSStyleValue::parse_a_css_style_value(JS::VM& vm, String property, String css_text, ParseMultiple parse_multiple)
+{
+    // 1. If property is not a custom property name string, set property to property ASCII lowercased.
+    if (!is_a_custom_property_name_string(property))
+        property = property.to_ascii_lowercase();
+
+    // 2. If property is not a valid CSS property, throw a TypeError.
+    if (!is_a_valid_css_property(property))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property)) };
+
+    // 3. Attempt to parse cssText according to property’s grammar.
+    //    If this fails, throw a TypeError.
+    //    Otherwise, let whole value be the parsed result.
+    auto property_id = property_id_from_string(property).release_value();
+    auto whole_value = parse_css_value(Parser::ParsingParams {}, css_text, property_id);
+    if (!whole_value)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Failed to parse '{}' as a value for '{}' property", css_text, property)) };
+
+    // FIXME: 4. Subdivide into iterations whole value, according to property, and let values be the result.
+
+    // 5. For each value in values, replace it with the result of reifying value for property.
+    GC::RootVector<GC::Ref<CSSStyleValue>> reified_values { vm.heap() };
+    reified_values.append(whole_value->reify(*vm.current_realm(), property));
+
+    // 6. If parseMultiple is false, return values[0]. Otherwise, return values.
+    if (parse_multiple == ParseMultiple::No)
+        return reified_values.take_first();
+    return reified_values;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylevalue-serialization
