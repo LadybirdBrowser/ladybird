@@ -64,6 +64,8 @@ CSSStyleSheet
 CSSStyleValue
 CSSSupportsRule
 CSSTransition
+CSSUnparsedValue
+CSSVariableReferenceValue
 CacheStorage
 CanvasGradient
 CanvasPattern

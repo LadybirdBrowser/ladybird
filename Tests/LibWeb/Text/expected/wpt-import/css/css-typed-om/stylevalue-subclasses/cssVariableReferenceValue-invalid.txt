@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Constructing a CSSVariableReferenceValue with an empty variable name throws a TypeError
-Fail	Constructing a CSSVariableReferenceValue with an invalid variable name throws SyntaxError
+2 Pass
+Pass	Constructing a CSSVariableReferenceValue with an empty variable name throws a TypeError
+Pass	Constructing a CSSVariableReferenceValue with an invalid variable name throws SyntaxError

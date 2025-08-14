@@ -132,6 +132,8 @@ set(SOURCES
     CSS/CSSStyleValue.cpp
     CSS/CSSSupportsRule.cpp
     CSS/CSSTransition.cpp
+    CSS/CSSUnparsedValue.cpp
+    CSS/CSSVariableReferenceValue.cpp
     CSS/Descriptor.cpp
     CSS/Display.cpp
     CSS/EdgeRect.cpp

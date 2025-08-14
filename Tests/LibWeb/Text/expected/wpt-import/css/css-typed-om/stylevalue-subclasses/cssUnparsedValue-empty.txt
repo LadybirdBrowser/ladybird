@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Don't crash when serializing empty CSSUnparsedValue
+1 Pass
+Pass	Don't crash when serializing empty CSSUnparsedValue
