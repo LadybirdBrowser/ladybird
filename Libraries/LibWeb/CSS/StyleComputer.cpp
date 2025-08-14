@@ -1678,7 +1678,21 @@ NonnullRefPtr<StyleValue const> StyleComputer::get_inherit_value(CSS::PropertyID
 
     if (!parent_element || !parent_element->computed_properties())
         return property_initial_value(property_id);
-    return parent_element->computed_properties()->property(property_id);
+
+    return parent_element->computed_properties()->property(property_id, CSS::ComputedProperties::WithAnimationsApplied::No);
+}
+
+Optional<NonnullRefPtr<StyleValue const>> StyleComputer::get_animated_inherit_value(CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element)
+{
+    auto parent_element = element ? element->element_to_inherit_style_from(pseudo_element) : nullptr;
+
+    if (!parent_element || !parent_element->computed_properties())
+        return {};
+
+    if (auto animated_value = parent_element->computed_properties()->animated_property_values().get(property_id); animated_value.has_value())
+        return *animated_value.value();
+
+    return {};
 }
 
 void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::PseudoElement> pseudo_element) const
@@ -1686,6 +1700,8 @@ void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, 
     auto& value_slot = style.m_property_values[to_underlying(property_id)];
     if (!value_slot) {
         if (is_inherited_property(property_id)) {
+            if (auto animated_inherit_value = get_animated_inherit_value(property_id, element, pseudo_element); animated_inherit_value.has_value())
+                style.set_animated_property(property_id, animated_inherit_value.value());
             style.set_property(
                 property_id,
                 get_inherit_value(property_id, element, pseudo_element),
@@ -1703,6 +1719,8 @@ void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, 
     }
 
     if (value_slot->is_inherit()) {
+        if (auto animated_inherit_value = get_animated_inherit_value(property_id, element, pseudo_element); animated_inherit_value.has_value())
+            style.set_animated_property(property_id, animated_inherit_value.value());
         value_slot = get_inherit_value(property_id, element, pseudo_element);
         style.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
         return;
@@ -1713,6 +1731,8 @@ void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, 
     if (value_slot->is_unset()) {
         if (is_inherited_property(property_id)) {
             // then if it is an inherited property, this is treated as inherit,
+            if (auto animated_inherit_value = get_animated_inherit_value(property_id, element, pseudo_element); animated_inherit_value.has_value())
+                style.set_animated_property(property_id, animated_inherit_value.value());
             value_slot = get_inherit_value(property_id, element, pseudo_element);
             style.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
         } else {
@@ -2648,20 +2668,17 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto value = cascaded_properties.property(property_id);
         auto inherited = ComputedProperties::Inherited::No;
+        Optional<NonnullRefPtr<StyleValue const>> animated_value;
 
         // NOTE: We've already handled font-size above.
         if (property_id == PropertyID::FontSize && !value && new_font_size)
             continue;
 
         // FIXME: Logical properties should inherit from their parent's equivalent unmapped logical property.
-        if ((!value && is_inherited_property(property_id))
-            || (value && value->is_inherit())) {
-            if (auto const inheritance_parent = element.element_to_inherit_style_from(pseudo_element)) {
-                value = inheritance_parent->computed_properties()->property(property_id);
-                inherited = ComputedProperties::Inherited::Yes;
-            } else {
-                value = property_initial_value(property_id);
-            }
+        if ((!value && is_inherited_property(property_id)) || (value && value->is_inherit())) {
+            value = get_inherit_value(property_id, &element, pseudo_element);
+            animated_value = get_animated_inherit_value(property_id, &element, pseudo_element);
+            inherited = ComputedProperties::Inherited::Yes;
         }
 
         if (!value || value->is_initial())
@@ -2675,6 +2692,8 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
         }
 
         computed_style->set_property(property_id, value.release_nonnull(), inherited);
+        if (animated_value.has_value())
+            computed_style->set_animated_property(property_id, animated_value.value());
 
         if (property_id == PropertyID::AnimationName) {
             computed_style->set_animation_name_source(cascaded_properties.property_source(property_id));
