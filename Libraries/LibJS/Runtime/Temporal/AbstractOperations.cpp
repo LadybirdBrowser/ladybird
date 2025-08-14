@@ -1640,55 +1640,7 @@ ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM& vm, StringView t
     return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneString, time_zone_string);
 }
 
-// 13.40 ToMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-tomonthcode
-ThrowCompletionOr<String> to_month_code(VM& vm, Value argument)
-{
-    // 1. Let monthCode be ? ToPrimitive(argument, STRING).
-    auto month_code = TRY(argument.to_primitive(vm, Value::PreferredType::String));
-
-    // 2. If monthCode is not a String, throw a TypeError exception.
-    if (!month_code.is_string())
-        return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidMonthCode);
-    auto month_code_string = month_code.as_string().utf8_string_view();
-
-    // 3. If the length of monthCode is not 3 or 4, throw a RangeError exception.
-    if (month_code_string.length() != 3 && month_code_string.length() != 4)
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
-
-    // 4. If the first code unit of monthCode is not 0x004D (LATIN CAPITAL LETTER M), throw a RangeError exception.
-    if (month_code_string[0] != 'M')
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
-
-    // 5. If the second code unit of monthCode is not in the inclusive interval from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE),
-    //    throw a RangeError exception.
-    if (!is_ascii_digit(month_code_string[1]) || parse_ascii_digit(month_code_string[1]) > 9)
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
-
-    // 6. If the third code unit of monthCode is not in the inclusive interval from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE),
-    //    throw a RangeError exception.
-    if (!is_ascii_digit(month_code_string[2]) || parse_ascii_digit(month_code_string[2]) > 9)
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
-
-    // 7. If the length of monthCode is 4 and the fourth code unit of monthCode is not 0x004C (LATIN CAPITAL LETTER L),
-    //    throw a RangeError exception.
-    if (month_code_string.length() == 4 && month_code_string[3] != 'L')
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
-
-    // 8. Let monthCodeDigits be the substring of monthCode from 1 to 3.
-    auto month_code_digits = month_code_string.substring_view(1, 2);
-
-    // 9. Let monthCodeInteger be ℝ(StringToNumber(monthCodeDigits)).
-    auto month_code_integer = month_code_digits.to_number<u8>().value();
-
-    // 10. If monthCodeInteger is 0 and the length of monthCode is not 4, throw a RangeError exception.
-    if (month_code_integer == 0 && month_code_string.length() != 4)
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
-
-    // 11. Return monthCode.
-    return month_code.as_string().utf8_string();
-}
-
-// 13.41 ToOffsetString ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-tooffsetstring
+// 13.40 ToOffsetString ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-tooffsetstring
 ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
 {
     // 1. Let offset be ? ToPrimitive(argument, STRING).
@@ -1705,7 +1657,7 @@ ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
     return offset.as_string().utf8_string();
 }
 
-// 13.42 ISODateToFields ( calendar, isoDate, type ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields
+// 13.41 ISODateToFields ( calendar, isoDate, type ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields
 CalendarFields iso_date_to_fields(StringView calendar, ISODate iso_date, DateType type)
 {
     // 1. Let fields be an empty Calendar Fields Record with all fields set to unset.
@@ -1733,7 +1685,7 @@ CalendarFields iso_date_to_fields(StringView calendar, ISODate iso_date, DateTyp
     return fields;
 }
 
-// 13.43 GetDifferenceSettings ( operation, options, unitGroup, disallowedUnits, fallbackSmallestUnit, smallestLargestDefaultUnit ), https://tc39.es/proposal-temporal/#sec-temporal-getdifferencesettings
+// 13.42 GetDifferenceSettings ( operation, options, unitGroup, disallowedUnits, fallbackSmallestUnit, smallestLargestDefaultUnit ), https://tc39.es/proposal-temporal/#sec-temporal-getdifferencesettings
 ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM& vm, DurationOperation operation, Object const& options, UnitGroup unit_group, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit)
 {
     // 1. NOTE: The following steps read options and perform independent validation in alphabetical order.
