@@ -829,13 +829,12 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
 
     if (selection_start == selection_end) {
         if (direction == DeleteDirection::Backward) {
-            if (selection_start > 0)
-                MUST(set_range_text({}, selection_start - 1, selection_end, Bindings::SelectionMode::End));
+            if (auto offset = text_node->grapheme_segmenter().previous_boundary(m_selection_end); offset.has_value())
+                selection_start = *offset;
         } else {
-            if (selection_start < text_node->length_in_utf16_code_units())
-                MUST(set_range_text({}, selection_start, selection_end + 1, Bindings::SelectionMode::End));
+            if (auto offset = text_node->grapheme_segmenter().next_boundary(m_selection_end); offset.has_value())
+                selection_end = *offset;
         }
-        return;
     }
 
     MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
