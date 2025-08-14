@@ -20,43 +20,35 @@ ErrorOr<ExposedTo> parse_exposure_set(StringView interface_name, StringView expo
         return ExposedTo::All;
     if (exposed_trimmed == "Nobody"sv)
         return ExposedTo::Nobody;
-    if (exposed_trimmed == "Window"sv)
-        return ExposedTo::Window;
-    if (exposed_trimmed == "Worker"sv)
-        return ExposedTo::AllWorkers;
-    if (exposed_trimmed == "DedicatedWorker"sv)
-        return ExposedTo::DedicatedWorker;
-    if (exposed_trimmed == "SharedWorker"sv)
-        return ExposedTo::SharedWorker;
-    if (exposed_trimmed == "ServiceWorker"sv)
-        return ExposedTo::ServiceWorker;
-    if (exposed_trimmed == "AudioWorklet"sv)
-        return ExposedTo::AudioWorklet;
-    if (exposed_trimmed == "Worklet"sv)
-        return ExposedTo::Worklet;
-    if (exposed_trimmed == "ShadowRealm"sv)
-        return ExposedTo::ShadowRealm;
+
+    auto exposed_from_string = [](auto& string) -> Optional<ExposedTo> {
+        if (string == "Window"sv)
+            return ExposedTo::Window;
+        if (string == "Worker"sv)
+            return ExposedTo::AllWorkers;
+        if (string == "DedicatedWorker"sv)
+            return ExposedTo::DedicatedWorker;
+        if (string == "SharedWorker"sv)
+            return ExposedTo::SharedWorker;
+        if (string == "ServiceWorker"sv)
+            return ExposedTo::ServiceWorker;
+        if (string == "AudioWorklet"sv)
+            return ExposedTo::AudioWorklet;
+        if (string == "Worklet"sv)
+            return ExposedTo::Worklet;
+        if (string == "ShadowRealm"sv)
+            return ExposedTo::ShadowRealm;
+        return {};
+    };
+    if (auto parsed_exposed = exposed_from_string(exposed_trimmed); parsed_exposed.has_value())
+        return parsed_exposed.value();
 
     if (exposed_trimmed[0] == '(') {
         ExposedTo whom = ExposedTo::Nobody;
         for (StringView candidate : exposed_trimmed.substring_view(1, exposed_trimmed.length() - 1).split_view(',')) {
             candidate = candidate.trim_whitespace();
-            if (candidate == "Window"sv) {
-                whom |= ExposedTo::Window;
-            } else if (candidate == "Worker"sv) {
-                whom |= ExposedTo::AllWorkers;
-            } else if (candidate == "DedicatedWorker"sv) {
-                whom |= ExposedTo::DedicatedWorker;
-            } else if (candidate == "SharedWorker"sv) {
-                whom |= ExposedTo::SharedWorker;
-            } else if (candidate == "ServiceWorker"sv) {
-                whom |= ExposedTo::ServiceWorker;
-            } else if (candidate == "AudioWorklet"sv) {
-                whom |= ExposedTo::AudioWorklet;
-            } else if (candidate == "Worklet"sv) {
-                whom |= ExposedTo::Worklet;
-            } else if (candidate == "ShadowRealm"sv) {
-                whom |= ExposedTo::ShadowRealm;
+            if (auto parsed_exposed = exposed_from_string(candidate); parsed_exposed.has_value()) {
+                whom |= parsed_exposed.value();
             } else {
                 s_error_string = ByteString::formatted("Unknown Exposed attribute candidate {} in {} in {}", candidate, exposed_trimmed, interface_name);
                 return Error::from_string_view(s_error_string.view());
