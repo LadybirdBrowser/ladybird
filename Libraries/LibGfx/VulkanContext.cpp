@@ -113,6 +113,41 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     return device;
 }
 
+static ErrorOr<VkCommandPool> create_command_pool(VkDevice logical_device, uint32_t queue_family_index)
+{
+    VkCommandPoolCreateInfo command_pool_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = queue_family_index,
+    };
+    VkCommandPool command_pool = VK_NULL_HANDLE;
+    VkResult result = vkCreateCommandPool(logical_device, &command_pool_info, nullptr, &command_pool);
+    if (result != VK_SUCCESS) {
+        dbgln("vkCreateCommandPool returned {}", to_underlying(result));
+        return Error::from_string_literal("command pool creation failed");
+    }
+    return command_pool;
+}
+
+static ErrorOr<VkCommandBuffer> allocate_command_buffer(VkDevice logical_device, VkCommandPool commandPool)
+{
+    VkCommandBufferAllocateInfo command_buffer_alloc_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext = nullptr,
+        .commandPool = commandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1,
+    };
+    VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+    VkResult result = vkAllocateCommandBuffers(logical_device, &command_buffer_alloc_info, &command_buffer);
+    if (result != VK_SUCCESS) {
+        dbgln("vkAllocateCommandBuffers returned {}", to_underlying(result));
+        return Error::from_string_literal("command buffer allocation failed");
+    }
+    return command_buffer;
+}
+
 ErrorOr<VulkanContext> create_vulkan_context()
 {
     uint32_t const api_version = VK_API_VERSION_1_0;
@@ -124,6 +159,9 @@ ErrorOr<VulkanContext> create_vulkan_context()
     VkQueue graphics_queue;
     vkGetDeviceQueue(logical_device, graphics_queue_family, 0, &graphics_queue);
 
+    VkCommandPool command_pool = TRY(create_command_pool(logical_device, graphics_queue_family));
+    VkCommandBuffer command_buffer = TRY(allocate_command_buffer(logical_device, command_pool));
+
     return VulkanContext {
         .api_version = api_version,
         .instance = instance,
@@ -131,6 +169,8 @@ ErrorOr<VulkanContext> create_vulkan_context()
         .logical_device = logical_device,
         .graphics_queue = graphics_queue,
         .graphics_queue_family = graphics_queue_family,
+        .command_pool = command_pool,
+        .command_buffer = command_buffer,
     };
 }
 

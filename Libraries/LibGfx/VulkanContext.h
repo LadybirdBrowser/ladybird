@@ -19,6 +19,8 @@ struct VulkanContext {
     VkDevice logical_device { VK_NULL_HANDLE };
     VkQueue graphics_queue { VK_NULL_HANDLE };
     uint32_t graphics_queue_family { 0 };
+    VkCommandPool command_pool { VK_NULL_HANDLE };
+    VkCommandBuffer command_buffer { VK_NULL_HANDLE };
 };
 
 ErrorOr<VulkanContext> create_vulkan_context();
