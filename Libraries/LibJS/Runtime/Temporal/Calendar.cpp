@@ -144,7 +144,96 @@ Vector<String> const& available_calendars()
     return Unicode::available_calendars();
 }
 
-// 12.2.3 PrepareCalendarFields ( calendar, fields, calendarFieldNames, nonCalendarFieldNames, requiredFieldNames ), https://tc39.es/proposal-temporal/#sec-temporal-preparecalendarfields
+// https://tc39.es/proposal-temporal/#prod-MonthCode
+static bool is_valid_month_code_string(StringView month_code)
+{
+    // MonthCode :::
+    //     M00L
+    //     M0 NonZeroDigit L[opt]
+    //     M NonZeroDigit DecimalDigit L[opt]
+    if (month_code.length() != 3 && month_code.length() != 4)
+        return false;
+
+    if (month_code[0] != 'M')
+        return false;
+
+    if (!is_ascii_digit(month_code[1]) || !is_ascii_digit(month_code[2]))
+        return false;
+
+    if (month_code.length() == 4 && month_code[3] != 'L')
+        return false;
+
+    return true;
+}
+
+// 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
+ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, Value argument)
+{
+    // 1. Let monthCode be ? ToPrimitive(argument, STRING).
+    auto month_code = TRY(argument.to_primitive(vm, Value::PreferredType::String));
+
+    // 2. If monthCode is not a String, throw a TypeError exception.
+    if (!month_code.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, month_code);
+
+    return parse_month_code(vm, month_code.as_string().utf8_string_view());
+}
+
+// 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
+ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, StringView month_code)
+{
+    // 3. If ParseText(StringToCodePoints(monthCode), MonthCode) is a List of errors, throw a RangeError exception.
+    if (!is_valid_month_code_string(month_code))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
+
+    // 4. Let isLeapMonth be false.
+    auto is_leap_month = false;
+
+    // 5. If the length of monthCode is 4, then
+    if (month_code.length() == 4) {
+        // a. Assert: The fourth code unit of monthCode is 0x004C (LATIN CAPITAL LETTER L).
+        VERIFY(month_code[3] == 'L');
+
+        // b. Set isLeapMonth to true.
+        is_leap_month = true;
+    }
+
+    // 6. Let monthCodeDigits be the substring of monthCode from 1 to 3.
+    auto month_code_digits = month_code.substring_view(1, 2);
+
+    // 7. Let monthNumber be ℝ(StringToNumber(monthCodeDigits)).
+    auto month_number = month_code_digits.to_number<u8>().value();
+
+    // 8. If monthNumber is 0 and isLeapMonth is false, throw a RangeError exception.
+    if (month_number == 0 && !is_leap_month)
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
+
+    // 9. Return the Record { [[MonthNumber]]: monthNumber, [[IsLeapMonth]]: isLeapMonth }.
+    return MonthCode { month_number, is_leap_month };
+}
+
+// 12.2.2 CreateMonthCode ( monthNumber, isLeapMonth ), https://tc39.es/proposal-temporal/#sec-temporal-createmonthcode
+String create_month_code(u8 month_number, bool is_leap_month)
+{
+    // 1. Assert: If isLeapMonth is false, monthNumber > 0.
+    if (!is_leap_month)
+        VERIFY(month_number > 0);
+
+    // 2. Let numberPart be ToZeroPaddedDecimalString(monthNumber, 2).
+
+    // 3. If isLeapMonth is true, then
+    if (is_leap_month) {
+        // a. Return the string-concatenation of the code unit 0x004D (LATIN CAPITAL LETTER M), numberPart, and the
+        //    code unit 0x004C (LATIN CAPITAL LETTER L).
+        return MUST(String::formatted("M{:02}L", month_number));
+    }
+
+    // 4. Else,
+    //     a. Return the string-concatenation of the code unit 0x004D (LATIN CAPITAL LETTER M) and numberPart.
+    return MUST(String::formatted("M{:02}", month_number));
+}
+
+// 12.3.3 PrepareCalendarFields ( calendar, fields, calendarFieldNames, nonCalendarFieldNames, requiredFieldNames ), https://tc39.es/proposal-temporal/#sec-temporal-preparecalendarfields
 ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM& vm, StringView calendar, Object const& fields, CalendarFieldList calendar_field_names, CalendarFieldList non_calendar_field_names, CalendarFieldListOrPartial required_field_names)
 {
     // 1. Assert: If requiredFieldNames is a List, requiredFieldNames contains zero or one of each of the elements of
@@ -210,10 +299,15 @@ ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM& vm, StringView cal
                 set_field_value(key, result, TRY(to_temporal_time_zone_identifier(vm, value)));
                 break;
             // vii. Else if Conversion is TO-MONTH-CODE, then
-            case CalendarFieldConversion::ToMonthCode:
-                // 1. Set value to ? ToMonthCode(value).
-                set_field_value(key, result, TRY(to_month_code(vm, value)));
+            case CalendarFieldConversion::ToMonthCode: {
+                // 1. Let parsed be ? ParseMonthCode(value).
+                auto parsed = TRY(parse_month_code(vm, value));
+
+                // 2. Set value to CreateMonthCode(parsed.[[MonthNumber]], parsed.[[IsLeapMonth]]).
+                set_field_value(key, result, create_month_code(parsed.month_number, parsed.is_leap_month));
+
                 break;
+            }
             // viii. Else,
             case CalendarFieldConversion::ToOffsetString:
                 // 1. Assert: Conversion is TO-OFFSET-STRING.
@@ -248,7 +342,7 @@ ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM& vm, StringView cal
     return result;
 }
 
-// 12.2.4 CalendarFieldKeysPresent ( fields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarfieldkeyspresent
+// 12.3.4 CalendarFieldKeysPresent ( fields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarfieldkeyspresent
 Vector<CalendarField> calendar_field_keys_present(CalendarFields const& fields)
 {
     // 1. Let list be « ».
@@ -272,7 +366,7 @@ Vector<CalendarField> calendar_field_keys_present(CalendarFields const& fields)
     return list;
 }
 
-// 12.2.5 CalendarMergeFields ( calendar, fields, additionalFields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmergefields
+// 12.3.5 CalendarMergeFields ( calendar, fields, additionalFields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmergefields
 CalendarFields calendar_merge_fields(StringView calendar, CalendarFields const& fields, CalendarFields const& additional_fields)
 {
     // 1. Let additionalKeys be CalendarFieldKeysPresent(additionalFields).
@@ -315,7 +409,7 @@ CalendarFields calendar_merge_fields(StringView calendar, CalendarFields const& 
     return merged;
 }
 
-// 12.2.6 NonISODateAdd ( calendar, isoDate, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-nonisodateadd
+// 12.3.6 NonISODateAdd ( calendar, isoDate, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-nonisodateadd
 ThrowCompletionOr<ISODate> non_iso_date_add(VM& vm, StringView calendar, ISODate iso_date, DateDuration const& duration, Overflow overflow)
 {
     // FIXME: Return an ISODate for an ISO8601 calendar for now.
@@ -323,7 +417,7 @@ ThrowCompletionOr<ISODate> non_iso_date_add(VM& vm, StringView calendar, ISODate
     return calendar_date_add(vm, "iso8601"sv, iso_date, duration, overflow);
 }
 
-// 12.2.7 CalendarDateAdd ( calendar, isoDate, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateadd
+// 12.3.7 CalendarDateAdd ( calendar, isoDate, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateadd
 ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODate iso_date, DateDuration const& duration, Overflow overflow)
 {
     ISODate result;
@@ -356,7 +450,7 @@ ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODat
     return result;
 }
 
-// 12.2.8 NonISODateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-nonisodateuntil
+// 12.3.8 NonISODateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-nonisodateuntil
 DateDuration non_iso_date_until(VM& vm, StringView calendar, ISODate one, ISODate two, Unit largest_unit)
 {
     // FIXME: Return a DateDuration for an ISO8601 calendar for now.
@@ -364,7 +458,7 @@ DateDuration non_iso_date_until(VM& vm, StringView calendar, ISODate one, ISODat
     return calendar_date_until(vm, "iso8601"sv, one, two, largest_unit);
 }
 
-// 12.2.9 CalendarDateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
+// 12.3.9 CalendarDateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
 DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODate two, Unit largest_unit)
 {
     // 1. If calendar is "iso8601", then
@@ -447,7 +541,7 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
     return non_iso_date_until(vm, calendar, one, two, largest_unit);
 }
 
-// 12.2.10 ToTemporalCalendarIdentifier ( temporalCalendarLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalcalendaridentifier
+// 12.3.10 ToTemporalCalendarIdentifier ( temporalCalendarLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalcalendaridentifier
 ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal_calendar_like)
 {
     // 1. If temporalCalendarLike is an Object, then
@@ -481,7 +575,7 @@ ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal
     return TRY(canonicalize_calendar(vm, identifier));
 }
 
-// 12.2.11 GetTemporalCalendarIdentifierWithISODefault ( item ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalcalendarslotvaluewithisodefault
+// 12.3.11 GetTemporalCalendarIdentifierWithISODefault ( item ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalcalendarslotvaluewithisodefault
 ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& vm, Object const& item)
 {
     // 1. If item has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
@@ -511,7 +605,7 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
     return TRY(to_temporal_calendar_identifier(vm, calendar_like));
 }
 
-// 12.2.12 CalendarDateFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
+// 12.3.12 CalendarDateFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
 ThrowCompletionOr<ISODate> calendar_date_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Perform ? CalendarResolveFields(calendar, fields, DATE).
@@ -528,7 +622,7 @@ ThrowCompletionOr<ISODate> calendar_date_from_fields(VM& vm, StringView calendar
     return result;
 }
 
-// 12.2.13 CalendarYearMonthFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendaryearmonthfromfields
+// 12.3.13 CalendarYearMonthFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendaryearmonthfromfields
 ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Perform ? CalendarResolveFields(calendar, fields, YEAR-MONTH).
@@ -552,7 +646,7 @@ ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM& vm, StringView ca
     return result;
 }
 
-// 12.2.14 CalendarMonthDayFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdayfromfields
+// 12.3.14 CalendarMonthDayFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdayfromfields
 ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Perform ? CalendarResolveFields(calendar, fields, MONTH-DAY).
@@ -569,7 +663,7 @@ ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM& vm, StringView cal
     return result;
 }
 
-// 12.2.15 FormatCalendarAnnotation ( id, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-formatcalendarannotation
+// 12.3.15 FormatCalendarAnnotation ( id, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-formatcalendarannotation
 String format_calendar_annotation(StringView id, ShowCalendar show_calendar)
 {
     // 1. If showCalendar is NEVER, return the empty String.
@@ -587,7 +681,7 @@ String format_calendar_annotation(StringView id, ShowCalendar show_calendar)
     return MUST(String::formatted("[{}u-ca={}]", flag, id));
 }
 
-// 12.2.16 CalendarEquals ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-calendarequals
+// 12.3.16 CalendarEquals ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-calendarequals
 bool calendar_equals(StringView one, StringView two)
 {
     // 1. If CanonicalizeUValue("ca", one) is CanonicalizeUValue("ca", two), return true.
@@ -596,7 +690,7 @@ bool calendar_equals(StringView one, StringView two)
         == Unicode::canonicalize_unicode_extension_values("ca"sv, two);
 }
 
-// 12.2.17 ISODaysInMonth ( year, month ), https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
+// 12.3.17 ISODaysInMonth ( year, month ), https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
 u8 iso_days_in_month(double year, double month)
 {
     // 1. If month is 1, 3, 5, 7, 8, 10, or 12, return 31.
@@ -614,7 +708,7 @@ u8 iso_days_in_month(double year, double month)
     return 28 + mathematical_in_leap_year(epoch_time_for_year(year));
 }
 
-// 12.2.18 ISOWeekOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isoweekofyear
+// 12.3.18 ISOWeekOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isoweekofyear
 YearWeek iso_week_of_year(ISODate iso_date)
 {
     // 1. Let year be isoDate.[[Year]].
@@ -695,7 +789,7 @@ YearWeek iso_week_of_year(ISODate iso_date)
     return { .week = week, .year = year };
 }
 
-// 12.2.19 ISODayOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofyear
+// 12.3.19 ISODayOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofyear
 u16 iso_day_of_year(ISODate iso_date)
 {
     // 1. Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
@@ -705,7 +799,7 @@ u16 iso_day_of_year(ISODate iso_date)
     return epoch_time_to_day_in_year(epoch_days_to_epoch_ms(epoch_days, 0)) + 1;
 }
 
-// 12.2.20 ISODayOfWeek ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofweek
+// 12.3.20 ISODayOfWeek ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofweek
 u8 iso_day_of_week(ISODate iso_date)
 {
     // 1. Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
@@ -722,7 +816,7 @@ u8 iso_day_of_week(ISODate iso_date)
     return day_of_week;
 }
 
-// 12.2.21 NonISOCalendarDateToISO ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-nonisocalendardatetoiso
+// 12.3.21 NonISOCalendarDateToISO ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-nonisocalendardatetoiso
 ThrowCompletionOr<ISODate> non_iso_calendar_date_to_iso(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
 {
     // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
@@ -730,7 +824,7 @@ ThrowCompletionOr<ISODate> non_iso_calendar_date_to_iso(VM& vm, StringView calen
     return calendar_date_to_iso(vm, "iso8601"sv, fields, overflow);
 }
 
-// 12.2.22 CalendarDateToISO ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatetoiso
+// 12.3.22 CalendarDateToISO ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatetoiso
 ThrowCompletionOr<ISODate> calendar_date_to_iso(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
 {
     // 1. If calendar is "iso8601", then
@@ -748,7 +842,7 @@ ThrowCompletionOr<ISODate> calendar_date_to_iso(VM& vm, StringView calendar, Cal
     return non_iso_calendar_date_to_iso(vm, calendar, fields, overflow);
 }
 
-// 12.2.23 NonISOMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-nonisomonthdaytoisoreferencedate
+// 12.3.23 NonISOMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-nonisomonthdaytoisoreferencedate
 ThrowCompletionOr<ISODate> non_iso_month_day_to_iso_reference_date(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
 {
     // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
@@ -756,7 +850,7 @@ ThrowCompletionOr<ISODate> non_iso_month_day_to_iso_reference_date(VM& vm, Strin
     return calendar_month_day_to_iso_reference_date(vm, "iso8601"sv, fields, overflow);
 }
 
-// 12.2.24 CalendarMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate
+// 12.3.24 CalendarMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate
 ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
 {
     // 1. If calendar is "iso8601", then
@@ -782,7 +876,7 @@ ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM& vm, Stri
     return non_iso_month_day_to_iso_reference_date(vm, calendar, fields, overflow);
 }
 
-// 12.2.25 NonISOCalendarISOToDate ( calendar, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-nonisocalendarisotodate
+// 12.3.25 NonISOCalendarISOToDate ( calendar, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-nonisocalendarisotodate
 CalendarDate non_iso_calendar_iso_to_date(StringView calendar, ISODate iso_date)
 {
     // FIXME: Return an ISO8601 calendar date for now.
@@ -790,29 +884,25 @@ CalendarDate non_iso_calendar_iso_to_date(StringView calendar, ISODate iso_date)
     return calendar_iso_to_date("iso8601"sv, iso_date);
 }
 
-// 12.2.26 CalendarISOToDate ( calendar, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-calendarisotodate
+// 12.3.26 CalendarISOToDate ( calendar, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-calendarisotodate
 CalendarDate calendar_iso_to_date(StringView calendar, ISODate iso_date)
 {
     // 1. If calendar is "iso8601", then
     if (calendar == "iso8601"sv) {
-        // a. Let monthNumberPart be ToZeroPaddedDecimalString(isoDate.[[Month]], 2).
-        // b. Let monthCode be the string-concatenation of "M" and monthNumberPart.
-        auto month_code = MUST(String::formatted("M{:02}", iso_date.month));
-
-        // c. If MathematicalInLeapYear(EpochTimeForYear(isoDate.[[Year]])) = 1, let inLeapYear be true; else let inLeapYear be false.
+        // a. If MathematicalInLeapYear(EpochTimeForYear(isoDate.[[Year]])) = 1, let inLeapYear be true; else let inLeapYear be false.
         auto in_leap_year = mathematical_in_leap_year(epoch_time_for_year(iso_date.year)) == 1;
 
-        // d. Return Calendar Date Record { [[Era]]: undefined, [[EraYear]]: undefined, [[Year]]: isoDate.[[Year]],
-        //    [[Month]]: isoDate.[[Month]], [[MonthCode]]: monthCode, [[Day]]: isoDate.[[Day]], [[DayOfWeek]]: ISODayOfWeek(isoDate),
-        //    [[DayOfYear]]: ISODayOfYear(isoDate), [[WeekOfYear]]: ISOWeekOfYear(isoDate), [[DaysInWeek]]: 7,
-        //    [[DaysInMonth]]: ISODaysInMonth(isoDate.[[Year]], isoDate.[[Month]]), [[DaysInYear]]: MathematicalDaysInYear(isoDate.[[Year]]),
-        //    [[MonthsInYear]]: 12, [[InLeapYear]]: inLeapYear }.
+        // b. Return Calendar Date Record { [[Era]]: undefined, [[EraYear]]: undefined, [[Year]]: isoDate.[[Year]],
+        //    [[Month]]: isoDate.[[Month]], [[MonthCode]]: CreateMonthCode(isoDate.[[Month]], false), [[Day]]: isoDate.[[Day]],
+        //    [[DayOfWeek]]: ISODayOfWeek(isoDate), [[DayOfYear]]: ISODayOfYear(isoDate), [[WeekOfYear]]: ISOWeekOfYear(isoDate),
+        //    [[DaysInWeek]]: 7, [[DaysInMonth]]: ISODaysInMonth(isoDate.[[Year]], isoDate.[[Month]]),
+        //    [[DaysInYear]]: MathematicalDaysInYear(isoDate.[[Year]]), [[MonthsInYear]]: 12, [[InLeapYear]]: inLeapYear }.
         return CalendarDate {
             .era = {},
             .era_year = {},
             .year = iso_date.year,
             .month = iso_date.month,
-            .month_code = move(month_code),
+            .month_code = create_month_code(iso_date.month, false),
             .day = iso_date.day,
             .day_of_week = iso_day_of_week(iso_date),
             .day_of_year = iso_day_of_year(iso_date),
@@ -829,7 +919,7 @@ CalendarDate calendar_iso_to_date(StringView calendar, ISODate iso_date)
     return non_iso_calendar_iso_to_date(calendar, iso_date);
 }
 
-// 12.2.27 CalendarExtraFields ( calendar, fields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarextrafields
+// 12.3.27 CalendarExtraFields ( calendar, fields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarextrafields
 Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldList)
 {
     // 1. If calendar is "iso8601", return an empty List.
@@ -840,7 +930,7 @@ Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldLi
     return {};
 }
 
-// 12.2.28 NonISOFieldKeysToIgnore ( calendar, keys ), https://tc39.es/proposal-temporal/#sec-temporal-nonisofieldkeystoignore
+// 12.3.28 NonISOFieldKeysToIgnore ( calendar, keys ), https://tc39.es/proposal-temporal/#sec-temporal-nonisofieldkeystoignore
 Vector<CalendarField> non_iso_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField> keys)
 {
     // FIXME: Return keys for an ISO8601 calendar for now.
@@ -848,7 +938,7 @@ Vector<CalendarField> non_iso_field_keys_to_ignore(StringView calendar, Readonly
     return calendar_field_keys_to_ignore("iso8601"sv, keys);
 }
 
-// 12.2.29 CalendarFieldKeysToIgnore ( calendar, keys ), https://tc39.es/proposal-temporal/#sec-temporal-calendarfieldkeystoignore
+// 12.3.29 CalendarFieldKeysToIgnore ( calendar, keys ), https://tc39.es/proposal-temporal/#sec-temporal-calendarfieldkeystoignore
 Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField> keys)
 {
     // 1. If calendar is "iso8601", then
@@ -880,7 +970,7 @@ Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, Readonl
     return non_iso_field_keys_to_ignore(calendar, keys);
 }
 
-// 12.2.30 NonISOResolveFields ( calendar, fields, type ), https://tc39.es/proposal-temporal/#sec-temporal-nonisoresolvefields
+// 12.3.30 NonISOResolveFields ( calendar, fields, type ), https://tc39.es/proposal-temporal/#sec-temporal-nonisoresolvefields
 ThrowCompletionOr<void> non_iso_resolve_fields(VM& vm, StringView calendar, CalendarFields& fields, DateType type)
 {
     // FIXME: Resolve fields as an ISO8601 calendar for now. See also: CalendarMonthDayToISOReferenceDate.
@@ -888,7 +978,7 @@ ThrowCompletionOr<void> non_iso_resolve_fields(VM& vm, StringView calendar, Cale
     return calendar_resolve_fields(vm, "iso8601"sv, fields, type);
 }
 
-// 12.2.31 CalendarResolveFields ( calendar, fields, type ), https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
+// 12.3.31 CalendarResolveFields ( calendar, fields, type ), https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
 ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, CalendarFields& fields, DateType type)
 {
     // 1. If calendar is "iso8601", then
@@ -920,31 +1010,23 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, Cal
         // f. Assert: monthCode is a String.
         VERIFY(month_code.has_value());
 
-        // g. NOTE: The ISO 8601 calendar does not include leap months.
-        // h. If the length of monthCode is not 3, throw a RangeError exception.
-        if (month_code->byte_count() != 3)
+        // g. Let parsedMonthCode be ? ParseMonthCode(monthCode).
+        auto parsed_month_code = TRY(parse_month_code(vm, *month_code));
+
+        // h. If parsedMonthCode.[[IsLeapMonth]] is true, throw a RangeError exception.
+        if (parsed_month_code.is_leap_month)
             return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
 
-        // i. If the first code unit of monthCode is not 0x004D (LATIN CAPITAL LETTER M), throw a RangeError exception.
-        if (month_code->bytes_as_string_view()[0] != 'M')
+        // i. If parsedMonthCode.[[MonthNumber]] > 12, throw a RangeError exception.
+        if (parsed_month_code.month_number > 12)
             return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
 
-        // j. Let monthCodeDigits be the substring of monthCode from 1.
-        auto month_code_digits = month_code->bytes_as_string_view().substring_view(1);
-
-        // k. If ParseText(StringToCodePoints(monthCodeDigits), DateMonth) is a List of errors, throw a RangeError exception.
-        if (!parse_iso8601(Production::DateMonth, month_code_digits).has_value())
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
-
-        // l. Let monthCodeInteger be ℝ(StringToNumber(monthCodeDigits)).
-        auto month_code_integer = month_code_digits.to_number<u8>().value();
-
-        // m. If month is not UNSET and month ≠ monthCodeInteger, throw a RangeError exception.
-        if (month.has_value() && month != month_code_integer)
+        // j. If month is not UNSET and month ≠ parsedMonthCode.[[MonthNumber]], throw a RangeError exception.
+        if (month.has_value() && month != parsed_month_code.month_number)
             return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "month"sv);
 
-        // n. Set fields.[[Month]] to monthCodeInteger.
-        fields.month = month_code_integer;
+        // k. Set fields.[[Month]] to parsedMonthCode.[[MonthNumber]].
+        fields.month = parsed_month_code.month_number;
     }
     // 2. Else,
     else {

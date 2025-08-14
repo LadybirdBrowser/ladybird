@@ -18,7 +18,13 @@
 
 namespace JS::Temporal {
 
-// 12.2.1 Calendar Date Records, https://tc39.es/proposal-temporal/#sec-temporal-calendar-date-records
+// 12.2 Month Codes, https://tc39.es/proposal-temporal/#sec-temporal-month-codes
+struct MonthCode {
+    u8 month_number { 0 };
+    bool is_leap_month { false };
+};
+
+// 12.3.1 Calendar Date Records, https://tc39.es/proposal-temporal/#sec-temporal-calendar-date-records
 struct CalendarDate {
     Optional<String> era;
     Optional<i32> era_year;
@@ -98,6 +104,11 @@ using CalendarFieldListOrPartial = Variant<Partial, CalendarFieldList>;
 
 ThrowCompletionOr<String> canonicalize_calendar(VM&, StringView id);
 Vector<String> const& available_calendars();
+
+ThrowCompletionOr<MonthCode> parse_month_code(VM&, Value argument);
+ThrowCompletionOr<MonthCode> parse_month_code(VM&, StringView month_code);
+String create_month_code(u8 month_number, bool is_leap_month);
+
 ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM&, StringView calendar, Object const& fields, CalendarFieldList calendar_field_names, CalendarFieldList non_calendar_field_names, CalendarFieldListOrPartial required_field_names);
 ThrowCompletionOr<ISODate> calendar_date_from_fields(VM&, StringView calendar, CalendarFields&, Overflow);
 ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM&, StringView calendar, CalendarFields&, Overflow);
