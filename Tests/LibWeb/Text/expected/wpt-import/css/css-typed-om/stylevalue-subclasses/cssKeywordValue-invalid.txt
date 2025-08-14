@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Constructing CSSKeywordValue with an empty string throws a TypeError
+1 Pass
+Pass	Constructing CSSKeywordValue with an empty string throws a TypeError
