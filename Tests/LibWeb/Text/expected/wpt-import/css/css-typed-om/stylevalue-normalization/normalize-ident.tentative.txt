@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
-Fail	CSS identifiers are normalized from String to CSSKeywordValues
+2 Pass
+Pass	CSS identifiers are normalized from String to CSSKeywordValues
 Pass	CSS identifiers are normalized from CSSOM to CSSKeywordValues

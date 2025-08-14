@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	CSSStyleValue.parse() with a valid property returns a CSSStyleValue
-Fail	CSSStyleValue.parse() is not case sensitive
-Fail	CSSStyleValue.parse() with a valid list-valued property returns a CSSStyleValue
-Fail	CSSStyleValue.parse() with a valid shorthand property returns a CSSStyleValue
-Fail	CSSStyleValue.parse() with a valid custom property returns a CSSStyleValue
+5 Pass
+Pass	CSSStyleValue.parse() with a valid property returns a CSSStyleValue
+Pass	CSSStyleValue.parse() is not case sensitive
+Pass	CSSStyleValue.parse() with a valid list-valued property returns a CSSStyleValue
+Pass	CSSStyleValue.parse() with a valid shorthand property returns a CSSStyleValue
+Pass	CSSStyleValue.parse() with a valid custom property returns a CSSStyleValue

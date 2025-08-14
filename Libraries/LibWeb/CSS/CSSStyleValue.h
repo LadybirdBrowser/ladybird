@@ -22,6 +22,9 @@ public:
 
     virtual void initialize(JS::Realm&) override;
 
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, String property, String css_text);
+    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, String property, String css_text);
+
     virtual String to_string() const;
 
 protected:
@@ -29,6 +32,12 @@ protected:
 
 private:
     explicit CSSStyleValue(JS::Realm&, String associated_property, String constructed_from_string);
+
+    enum class ParseMultiple : u8 {
+        No,
+        Yes,
+    };
+    static WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> parse_a_css_style_value(JS::VM&, String property, String css_text, ParseMultiple);
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
     Optional<String> m_associated_property;
