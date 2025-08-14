@@ -66,6 +66,7 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Gfx::Vulkan
     backend_context.fInstance = vulkan_context.instance;
     backend_context.fDevice = vulkan_context.logical_device;
     backend_context.fQueue = vulkan_context.graphics_queue;
+    backend_context.fGraphicsQueueIndex = vulkan_context.graphics_queue_family;
     backend_context.fPhysicalDevice = vulkan_context.physical_device;
     backend_context.fMaxAPIVersion = vulkan_context.api_version;
     backend_context.fGetProc = [](char const* proc_name, VkInstance instance, VkDevice device) {
