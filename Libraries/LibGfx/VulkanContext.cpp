@@ -65,7 +65,7 @@ static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
     VERIFY_NOT_REACHED();
 }
 
-static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device)
+static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device, uint32_t* graphics_queue_family)
 {
     VkDevice device;
 
@@ -87,6 +87,8 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device)
     if (!graphics_queue_family_found) {
         return Error::from_string_literal("Graphics queue family not found");
     }
+
+    *graphics_queue_family = graphics_queue_family_index;
 
     VkDeviceQueueCreateInfo queue_create_info {};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -116,10 +118,11 @@ ErrorOr<VulkanContext> create_vulkan_context()
     uint32_t const api_version = VK_API_VERSION_1_0;
     auto* instance = TRY(create_instance(api_version));
     auto* physical_device = TRY(pick_physical_device(instance));
-    auto* logical_device = TRY(create_logical_device(physical_device));
 
+    uint32_t graphics_queue_family = 0;
+    auto* logical_device = TRY(create_logical_device(physical_device, &graphics_queue_family));
     VkQueue graphics_queue;
-    vkGetDeviceQueue(logical_device, 0, 0, &graphics_queue);
+    vkGetDeviceQueue(logical_device, graphics_queue_family, 0, &graphics_queue);
 
     return VulkanContext {
         .api_version = api_version,
@@ -127,6 +130,7 @@ ErrorOr<VulkanContext> create_vulkan_context()
         .physical_device = physical_device,
         .logical_device = logical_device,
         .graphics_queue = graphics_queue,
+        .graphics_queue_family = graphics_queue_family,
     };
 }
 
