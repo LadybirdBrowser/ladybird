@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	type's state on DataTransfer creation
+Fail	Relationship between types and items
+Fail	type's identity
+Fail	Verify type is a read-only attribute
+Fail	DataTransfer containing files
