@@ -6,10 +6,14 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebGPU/GPUAdapter.h>
 #include <LibWeb/WebGPU/GPUAdapterInfo.h>
+#include <LibWeb/WebGPU/GPUDevice.h>
 #include <LibWeb/WebGPU/GPUSupportedFeatures.h>
 #include <LibWeb/WebGPU/GPUSupportedLimits.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 #include <webgpu/webgpu_cpp.h>
 
@@ -46,7 +50,11 @@ wgpu::RequestAdapterOptions GPURequestAdapterOptions::to_wgpu() const
 }
 
 struct GPUAdapter::Impl {
+    wgpu::Instance instance { nullptr };
     wgpu::Adapter adapter { nullptr };
+
+    State state { State::Valid };
+
     GC::Ref<GPUSupportedFeatures> features;
     GC::Ref<GPUSupportedLimits> limits;
     // FIXME: Hook this up to the WebContent process's debug_request infra
@@ -61,7 +69,7 @@ GPUAdapter::GPUAdapter(JS::Realm& realm, Impl impl)
 
 GPUAdapter::~GPUAdapter() = default;
 
-JS::ThrowCompletionOr<GC::Ref<GPUAdapter>> GPUAdapter::create(JS::Realm& realm, wgpu::Adapter adapter)
+JS::ThrowCompletionOr<GC::Ref<GPUAdapter>> GPUAdapter::create(JS::Realm& realm, wgpu::Instance instance, wgpu::Adapter adapter)
 {
     wgpu::SupportedFeatures adapter_features;
     adapter.GetFeatures(&adapter_features);
@@ -229,7 +237,7 @@ JS::ThrowCompletionOr<GC::Ref<GPUAdapter>> GPUAdapter::create(JS::Realm& realm, 
     auto description = MUST(String::from_utf8(StringView { adapter_info.description.data, adapter_info.description.length }));
     auto subgroup_min_size = static_cast<size_t>(adapter_info.subgroupMinSize);
     auto subgroup_max_size = static_cast<size_t>(adapter_info.subgroupMaxSize);
-    return realm.create<GPUAdapter>(realm, Impl { .adapter = move(adapter), .features = supported_features, .limits = supported_limits, .adapter_info = TRY(GPUAdapterInfo::create(realm, move(vendor), move(architecture), move(device), move(description), subgroup_min_size, subgroup_max_size)) });
+    return realm.create<GPUAdapter>(realm, Impl { .instance = instance, .adapter = move(adapter), .features = supported_features, .limits = supported_limits, .adapter_info = TRY(GPUAdapterInfo::create(realm, move(vendor), move(architecture), move(device), move(description), subgroup_min_size, subgroup_max_size)) });
 }
 
 void GPUAdapter::initialize(JS::Realm& realm)
@@ -246,6 +254,16 @@ void GPUAdapter::visit_edges(Visitor& visitor)
     visitor.visit(m_impl->adapter_info);
 }
 
+GPUAdapter::State GPUAdapter::state() const
+{
+    return m_impl->state;
+}
+
+void GPUAdapter::set_state(State value)
+{
+    m_impl->state = value;
+}
+
 GC::Ref<GPUSupportedFeatures> GPUAdapter::features() const
 {
     return m_impl->features;
@@ -259,6 +277,81 @@ GC::Ref<GPUSupportedLimits> GPUAdapter::limits() const
 GC::Ref<GPUAdapterInfo> GPUAdapter::info() const
 {
     return m_impl->adapter_info;
+}
+
+// https://www.w3.org/TR/webgpu/#dom-gpuadapter-requestdevice
+GC::Ref<WebIDL::Promise> GPUAdapter::request_device(GPUDeviceDescriptor const& options)
+{
+    // 1. Let contentTimeline be the current Content timeline.
+    wgpu::DeviceDescriptor device_descriptor_options = options.to_wgpu();
+
+    // 2. Let promise be a new promise.
+    auto& realm = this->realm();
+    GC::Ref promise = WebIDL::create_promise(realm);
+
+    // 3. Let adapter be this.[[adapter]].
+    auto adapter = m_impl->adapter;
+
+    // 4. Issue the initialization steps to the Device timeline of this.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, adapter, device_descriptor_options, &realm, promise]() mutable {
+        m_impl->instance.WaitAny(adapter.RequestDevice(&device_descriptor_options, wgpu::CallbackMode::AllowProcessEvents, [this, device_descriptor_options, realm = GC::Root(realm), promise = GC::Root(promise)](wgpu::RequestDeviceStatus status, wgpu::Device native_device, char const* message) {
+            // Device timeline initialization steps:
+            // FIXME: Implement this
+            // 1. If any of the following requirements are unmet:
+            //     - The set of values in descriptor.requiredFeatures must be a subset of those in adapter.[[features]].
+
+            // 2. All of the requirements in the following steps must be met.
+            //     1. adapter.[[state]] must not be "consumed".
+            //     FIXME: Implement this
+            //     2. For each [key, value] in descriptor.requiredLimits for which value is not undefined:
+            //         1. key must be the name of a member of supported limits.
+            //         2. value must be no better than adapter.[[limits]][key].
+            //         If key’s class is alignment, value must be a power of 2 less than 2^32.
+            if (m_impl->state == State::Consumed) {
+                HTML::TemporaryExecutionContext const context { *realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::reject_promise(*realm, *promise, WebIDL::OperationError::create(*realm, "Adapter has already been consumed"_string));
+                return;
+            }
+
+            // 3. If adapter.[[state]] is "expired" or the user agent otherwise cannot fulfill the request:
+            if (m_impl->state == State::Expired || status != wgpu::RequestDeviceStatus::Success) {
+                dbgln("Unable to request device: {}", message);
+
+                // 1. Let device be a new device.
+                // NOTE: This is the native_device parameter
+
+                // 2. FIXME: Lose the device(device, "unknown").
+
+                // 3. Assert adapter.[[state]] is "expired".
+                VERIFY(m_impl->state == State::Expired);
+            } else {
+                // Otherwise:
+                //  1. Let device be a new device with the capabilities described by descriptor.
+                // NOTE: This is the native_device parameter
+
+                // 2. Expire adapter.
+                m_impl->state = State::Expired;
+            }
+
+            // 4. Issue the subsequent steps on contentTimeline.
+            //      Content timeline steps:
+            //      1. Let gpuDevice be a new GPUDevice instance.
+            //      2. Set gpuDevice.[[device]] to device.
+            //      3. FIXME: Set device.[[content device]] to gpuDevice.
+            GC::Ref<GPUDevice> gpu_device = MUST(GPUDevice::create(*realm, move(native_device)));
+            //      4. Set gpuDevice.label to descriptor.label.
+            //      FIXME: Unsure exactly about this step, wgpu::Device only exposes SetLabel()
+            gpu_device->set_label(MUST(String::from_byte_string(ByteString { device_descriptor_options.label.data, device_descriptor_options.label.length })));
+            //      5. Resolve promise with gpuDevice.
+            auto& gpu_device_realm = HTML::relevant_realm(*gpu_device);
+            HTML::TemporaryExecutionContext const context { gpu_device_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            WebIDL::resolve_promise(gpu_device_realm, *promise, gpu_device);
+        }),
+            0);
+    }));
+
+    // 5. Return promise.
+    return promise;
 }
 
 }
