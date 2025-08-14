@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -24,10 +23,8 @@ public:
     FlyString const& custom_ident() const { return m_custom_ident; }
 
     virtual String to_string(SerializationMode) const override { return m_custom_ident.to_string(); }
-    virtual Vector<Parser::ComponentValue> tokenize() const override
-    {
-        return { Parser::Token::create_ident(m_custom_ident) };
-    }
+    virtual Vector<Parser::ComponentValue> tokenize() const override;
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm& realm, String const&) const override;
 
     bool properties_equal(CustomIdentStyleValue const& other) const { return m_custom_ident == other.m_custom_ident; }
 
