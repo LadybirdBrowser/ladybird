@@ -7,6 +7,7 @@
 <div id="e" contenteditable="true">a&nbsp;&nbsp;&nbsp;&nbsp;b</div>
 <div id="f" contenteditable="true">a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b</div>
 <div id="g" contenteditable="true">&nbsp;&nbsp;b</div>
+<div id="h" contenteditable="true">foo👩🏼‍❤️‍👨🏻bar</div>
 <script>
     test(() => {
         const testForwardDelete = function(divId, position) {
@@ -31,5 +32,6 @@
         testForwardDelete('e', 1);
         testForwardDelete('f', 1);
         testForwardDelete('g', 0);
+        testForwardDelete('h', 3);
     });
 </script>

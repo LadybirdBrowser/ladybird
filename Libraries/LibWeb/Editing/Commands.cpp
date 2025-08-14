@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
@@ -204,12 +205,17 @@ bool command_delete_action(DOM::Document& document, Utf16String const&)
             block_node_child_is_relevant_type = child_element.local_name().is_one_of(HTML::TagNames::br, HTML::TagNames::hr, HTML::TagNames::img);
         }
     }
-    if ((is<DOM::Text>(*node) && offset != 0) || block_node_child_is_relevant_type) {
+
+    if (auto const* text_node = as_if<DOM::Text>(*node); (text_node && offset != 0) || block_node_child_is_relevant_type) {
+        auto start_offset = text_node
+            ? text_node->grapheme_segmenter().previous_boundary(offset).value_or(offset - 1)
+            : offset - 1;
+
         // 1. Call collapse(node, offset) on the context object's selection.
         MUST(selection.collapse(node, offset));
 
         // 2. Call extend(node, offset − 1) on the context object's selection.
-        MUST(selection.extend(*node, offset - 1));
+        MUST(selection.extend(*node, start_offset));
 
         // 3. Delete the selection.
         delete_the_selection(selection);
@@ -927,9 +933,9 @@ bool command_forward_delete_action(DOM::Document& document, Utf16String const&)
     }
 
     // 5. If node is a Text node and offset is not node's length:
-    if (is<DOM::Text>(*node) && offset != node->length()) {
+    if (auto const* text_node = as_if<DOM::Text>(*node); text_node && offset != node->length()) {
         // 1. Let end offset be offset plus one.
-        auto end_offset = offset + 1;
+        auto end_offset = text_node->grapheme_segmenter().next_boundary(offset).value_or(offset + 1);
 
         // FIXME: 2. While end offset is not node's length and the end offsetth code unit of node's data has general category M
         //    when interpreted as a Unicode code point, add one to end offset.

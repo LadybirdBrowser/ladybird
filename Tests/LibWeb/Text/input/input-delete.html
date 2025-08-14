@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<input id="a" value="foo👩🏼‍❤️‍👨🏻bar" />
+<input id="b" value="foo👩🏼‍❤️‍👨🏻bar" />
+<script>
+    test(() => {
+        const testDelete = function (id, position, key) {
+            println(`--- ${id} ---`);
+            const input = document.querySelector(`input#${id}`);
+            println(`Before: ${input.value}`);
+
+            // Place cursor
+            input.setSelectionRange(position, position);
+
+            // Press backspace
+            internals.sendKey(input, key);
+
+            println(`After: ${input.value}`);
+        };
+
+        testDelete("a", 15, "Backspace");
+        testDelete("b", 3, "Delete");
+    });
+</script>

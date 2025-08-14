@@ -19,3 +19,6 @@ After: a&nbsp; &nbsp; b
 --- g ---
 Before: &nbsp;&nbsp;b
 After: &nbsp;b
+--- h ---
+Before: foo👩🏼‍❤️‍👨🏻bar
+After: foobar
