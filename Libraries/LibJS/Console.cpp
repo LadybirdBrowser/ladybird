@@ -398,6 +398,34 @@ ThrowCompletionOr<Value> Console::dir()
     return js_undefined();
 }
 
+// 1.1.11 dirxml(...data) https://console.spec.whatwg.org/#dirxml
+ThrowCompletionOr<Value> Console::dirxml()
+{
+    auto& vm = realm().vm();
+
+    // 1. Let finalList be a new list, initially empty.
+    GC::RootVector<Value> final_list(vm.heap());
+
+    // 2. For each item of data:
+    for (size_t i = 0; i < vm.argument_count(); ++i) {
+        auto item = vm.argument(i);
+
+        // 1. Let converted be a DOM tree representation of item if possible; otherwise let converted be item with
+        //    optimally useful formatting applied.
+        // FIXME: "Optimally-useful formatting"
+
+        // 2. Append converted to finalList.
+        final_list.append(item);
+    }
+
+    // 3. Perform Logger("dirxml", finalList).
+    if (m_client) {
+        return m_client->logger(LogLevel::DirXML, final_list);
+    }
+
+    return js_undefined();
+}
+
 static ThrowCompletionOr<String> label_or_fallback(VM& vm, StringView fallback)
 {
     return vm.argument_count() > 0 && !vm.argument(0).is_undefined()
@@ -850,7 +878,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
         }
         // 4. If specifier is %o, optionally let converted be current with optimally useful formatting applied.
         else if (specifier == "%o"sv) {
-            // TODO: "Optimally-useful formatting"
+            // FIXME: "Optimally-useful formatting"
             converted = current;
         }
         // 5. If specifier is %O, optionally let converted be current with generic JavaScript object formatting applied.
