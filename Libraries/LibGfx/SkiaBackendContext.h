@@ -23,6 +23,7 @@ class SkSurface;
 
 namespace Gfx {
 
+struct VulkanContext;
 class MetalContext;
 
 class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
@@ -31,7 +32,7 @@ class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
 
 public:
 #ifdef USE_VULKAN
-    static RefPtr<SkiaBackendContext> create_vulkan_context(VulkanContext&);
+    static RefPtr<SkiaBackendContext> create_vulkan_context(const VulkanContext& vulkan_context);
 #endif
 
 #ifdef AK_OS_MACOS
@@ -45,6 +46,7 @@ public:
     virtual GrDirectContext* sk_context() const = 0;
 
     virtual MetalContext& metal_context() = 0;
+    virtual VulkanContext const& vulkan_context() = 0;
 
     void lock() { m_mutex.lock(); }
     void unlock() { m_mutex.unlock(); }
