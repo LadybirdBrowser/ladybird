@@ -1,0 +1,24 @@
+#import <DOM/EventTarget.idl>
+#import <WebGPU/GPUAdapterInfo.idl>
+#import <WebGPU/GPUQueue.idl>
+#import <WebGPU/GPUObjectBase.idl>
+#import <WebGPU/GPUSupportedFeatures.idl>
+#import <WebGPU/GPUSupportedLimits.idl>
+
+// https://www.w3.org/TR/webgpu/#gpudevicedescriptor
+dictionary GPUDeviceDescriptor
+         : GPUObjectDescriptorBase {
+    // FIXME: Expose required limits/features
+    GPUQueueDescriptor defaultQueue = {};
+};
+
+// https://www.w3.org/TR/webgpu/#gpudevice
+[Exposed=(Window,Worker), SecureContext]
+interface GPUDevice : EventTarget {
+    // FIXME: Expose remaining attributes
+
+    [SameObject] readonly attribute GPUQueue queue;
+
+    // FIXME: Implement methods
+};
+GPUDevice includes GPUObjectBase;
