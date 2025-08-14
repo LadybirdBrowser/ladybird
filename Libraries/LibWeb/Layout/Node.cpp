@@ -237,7 +237,7 @@ bool Node::establishes_stacking_context() const
     // [CSS21] and a Containing Block for absolute and fixed position descendants, unless the
     // element it applies to is a document root element in the current browsing context.
     // Spec Note: This rule works in the same way as for the filter property.
-    if (computed_values.backdrop_filter().has_value() || computed_values.filter().has_value()
+    if (computed_values.backdrop_filter().has_filters() || computed_values.filter().has_filters()
         || will_change_property(CSS::PropertyID::BackdropFilter)
         || will_change_property(CSS::PropertyID::Filter)) {
         return true;
@@ -580,89 +580,10 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_order(computed_style.order());
     computed_values.set_clip(computed_style.clip());
 
-    auto resolve_filter = [this](CSS::Filter const& computed_filter) -> Optional<Gfx::Filter> {
-        Optional<Gfx::Filter> resolved_filter;
-        for (auto const& filter : computed_filter.filters()) {
-            filter.visit(
-                [&](CSS::FilterOperation::Blur const& blur) {
-                    auto resolved_radius = blur.resolved_radius(*this);
-                    auto new_filter = Gfx::Filter::blur(resolved_radius, resolved_radius);
-
-                    resolved_filter = resolved_filter.has_value()
-                        ? Gfx::Filter::compose(new_filter, *resolved_filter)
-                        : new_filter;
-                },
-                [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
-                    CSS::CalculationResolutionContext context {
-                        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this),
-                    };
-                    auto to_px = [&](CSS::LengthOrCalculated const& length) {
-                        return static_cast<float>(length.resolved(context).map([&](auto& it) { return it.to_px(*this).to_double(); }).value_or(0.0));
-                    };
-                    // The default value for omitted values is missing length values set to 0
-                    // and the missing used color is taken from the color property.
-                    auto new_filter = Gfx::Filter::drop_shadow(to_px(drop_shadow.offset_x),
-                        to_px(drop_shadow.offset_y),
-                        drop_shadow.radius.has_value() ? to_px(*drop_shadow.radius) : 0.0f, drop_shadow.color.has_value() ? *drop_shadow.color : this->computed_values().color());
-
-                    resolved_filter = resolved_filter.has_value()
-                        ? Gfx::Filter::compose(new_filter, *resolved_filter)
-                        : new_filter;
-                },
-                [&](CSS::FilterOperation::Color const& color_operation) {
-                    auto new_filter = Gfx::Filter::color(color_operation.operation, color_operation.resolved_amount());
-
-                    resolved_filter = resolved_filter.has_value()
-                        ? Gfx::Filter::compose(new_filter, *resolved_filter)
-                        : new_filter;
-                },
-                [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
-                    auto new_filter = Gfx::Filter::hue_rotate(hue_rotate.angle_degrees(*this));
-
-                    resolved_filter = resolved_filter.has_value()
-                        ? Gfx::Filter::compose(new_filter, *resolved_filter)
-                        : new_filter;
-                },
-                [&](CSS::URL const& css_url) {
-                    // FIXME: This is not the right place to resolve SVG filters. Some filter primitives
-                    //        wont work if the filter is referenced before its defined because some parameters
-                    //        are passed by CSS property. Ideally they should be resolved in another pass or
-                    //        lazily.
-
-                    auto& url_string = css_url.url();
-
-                    if (url_string.is_empty() || !url_string.starts_with('#'))
-                        return;
-
-                    auto fragment_or_error = url_string.substring_from_byte_offset(1);
-
-                    if (fragment_or_error.is_error())
-                        return;
-
-                    // FIXME: Support urls that are not only composed of a fragment.
-                    auto maybe_filter = document().get_element_by_id(fragment_or_error.value());
-
-                    if (!maybe_filter)
-                        return;
-
-                    if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
-                        auto new_filter = filter_element->gfx_filter();
-
-                        if (!new_filter.has_value())
-                            return;
-
-                        resolved_filter = resolved_filter.has_value()
-                            ? Gfx::Filter::compose(*new_filter, *resolved_filter)
-                            : new_filter;
-                    }
-                });
-        }
-        return resolved_filter;
-    };
     if (computed_style.backdrop_filter().has_filters())
-        computed_values.set_backdrop_filter(resolve_filter(computed_style.backdrop_filter()));
+        computed_values.set_backdrop_filter(computed_style.backdrop_filter());
     if (computed_style.filter().has_filters())
-        computed_values.set_filter(resolve_filter(computed_style.filter()));
+        computed_values.set_filter(computed_style.filter());
 
     computed_values.set_flood_color(computed_style.color_or_fallback(CSS::PropertyID::FloodColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::flood_color()));
     computed_values.set_flood_opacity(computed_style.flood_opacity());
