@@ -981,8 +981,11 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
             if (hit_dom_node.is_password_input()) {
                 next_boundary = hit_dom_node.length_in_utf16_code_units();
             } else {
-                previous_boundary = hit_dom_node.word_segmenter().previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
-                next_boundary = hit_dom_node.word_segmenter().next_boundary(result->index_in_node).value_or(hit_dom_node.length());
+                auto& segmenter = word_segmenter();
+                segmenter.set_segmented_text(hit_paintable.text_for_rendering());
+
+                previous_boundary = segmenter.previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
+                next_boundary = segmenter.next_boundary(result->index_in_node).value_or(hit_dom_node.length());
             }
 
             if (auto* target = document.active_input_events_target()) {
