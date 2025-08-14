@@ -586,6 +586,7 @@ after_node_use:
     if (button == UIEvents::MouseButton::Primary) {
         m_in_mouse_selection = false;
         m_mouse_selection_target = nullptr;
+        m_primary_button_held = false;
     }
     return handled_event;
 }
@@ -612,6 +613,8 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
         document->set_hovered_node(node);
     };
 
+    auto primary_button_event = UIEvents::MouseButton::Primary == button;
+
     {
         GC::Ptr<Painting::Paintable> paintable;
         if (auto result = target_for_mouse_position(viewport_position); result.has_value())
@@ -634,8 +637,12 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
             return EventResult::Dropped;
 
         if (is<HTML::HTMLIFrameElement>(*node)) {
-            if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-                return content_navigable->event_handler().handle_mousedown(viewport_position.translated(compute_mouse_event_offset({}, *paintable)), screen_position, button, buttons, modifiers);
+            if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable()) {
+                auto result = content_navigable->event_handler().handle_mousedown(viewport_position.translated(compute_mouse_event_offset({}, *paintable)), screen_position, button, buttons, modifiers);
+                if ((EventResult::Accepted == result || EventResult::Handled == result) && primary_button_event)
+                    m_primary_button_held = true;
+                return result;
+            }
             return EventResult::Dropped;
         }
 
@@ -658,8 +665,11 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
     }
 
     // NOTE: Dispatching an event may have disturbed the world.
-    if (!paint_root() || paint_root() != node->document().paintable_box())
+    if (!paint_root() || paint_root() != node->document().paintable_box()) {
+        if (primary_button_event)
+            m_primary_button_held = true;
         return EventResult::Accepted;
+    }
 
     if (button == UIEvents::MouseButton::Primary) {
         if (auto result = paint_root()->hit_test(viewport_position, Painting::HitTestType::TextCursor); result.has_value()) {
@@ -715,6 +725,9 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
             }
         }
     }
+
+    if (primary_button_event)
+        m_primary_button_held = true;
 
     return EventResult::Handled;
 }
@@ -878,6 +891,8 @@ EventResult EventHandler::handle_mouseleave()
     if (!m_navigable->active_document())
         return EventResult::Dropped;
     if (!m_navigable->active_document()->is_fully_active())
+        return EventResult::Dropped;
+    if (m_primary_button_held)
         return EventResult::Dropped;
 
     m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);

@@ -70,6 +70,7 @@ private:
     GC::Ref<HTML::Navigable> m_navigable;
 
     bool m_in_mouse_selection { false };
+    bool m_primary_button_held { false };
     InputEventsTarget* m_mouse_selection_target { nullptr };
 
     GC::Ptr<Painting::Paintable> m_mouse_event_tracking_paintable;
