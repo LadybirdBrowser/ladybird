@@ -6,6 +6,7 @@ caption-side: top
 caret-color: rgb(0, 0, 0)
 clip-rule: nonzero
 color: rgb(0, 0, 0)
+color-interpolation: srgb
 color-scheme: normal
 cursor: auto
 direction: ltr
@@ -89,7 +90,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto
-block-size: 1365px
+block-size: 1380px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: 0px
@@ -165,7 +166,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2505px
+height: 2520px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

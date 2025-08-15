@@ -340,6 +340,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'clipRule': 'nonzero'
 'clip-rule': 'nonzero'
 'color': 'rgb(0, 0, 0)'
+'colorInterpolation': 'srgb'
+'color-interpolation': 'srgb'
 'colorScheme': 'normal'
 'color-scheme': 'normal'
 'columnCount': 'auto'
