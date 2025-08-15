@@ -10,25 +10,22 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 
-#ifdef AK_OS_MACOS
-#    include <EGL/egl.h>
-#    include <EGL/eglext.h>
-#    define EGL_EGLEXT_PROTOTYPES 1
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#define EGL_EGLEXT_PROTOTYPES 1
 extern "C" {
-#    include <EGL/eglext_angle.h>
+#include <EGL/eglext_angle.h>
 }
-#    define GL_GLEXT_PROTOTYPES 1
-#    include <GLES2/gl2.h>
-#    include <GLES2/gl2ext.h>
+#define GL_GLEXT_PROTOTYPES 1
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 extern "C" {
-#    include <GLES2/gl2ext_angle.h>
+#include <GLES2/gl2ext_angle.h>
 }
-#endif
 
 namespace Web::WebGL {
 
 struct OpenGLContext::Impl {
-#ifdef AK_OS_MACOS
     EGLDisplay display { nullptr };
     EGLConfig config { nullptr };
     EGLContext context { nullptr };
@@ -37,6 +34,13 @@ struct OpenGLContext::Impl {
     GLuint framebuffer { 0 };
     GLuint color_buffer { 0 };
     GLuint depth_buffer { 0 };
+
+#ifdef USE_VULKAN
+    EGLImage egl_image { EGL_NO_IMAGE };
+    struct {
+        PFNEGLQUERYDMABUFFORMATSEXTPROC query_dma_buf_formats { nullptr };
+        PFNEGLQUERYDMABUFMODIFIERSEXTPROC query_dma_buf_modifiers { nullptr };
+    } ext_procs;
 #endif
 };
 
@@ -49,14 +53,11 @@ OpenGLContext::OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend
 
 OpenGLContext::~OpenGLContext()
 {
-#ifdef AK_OS_MACOS
     free_surface_resources();
     eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglDestroyContext(m_impl->display, m_impl->context);
-#endif
 }
 
-#ifdef AK_OS_MACOS
 void OpenGLContext::free_surface_resources()
 {
     if (m_impl->framebuffer) {
@@ -74,15 +75,22 @@ void OpenGLContext::free_surface_resources()
         m_impl->depth_buffer = 0;
     }
 
+#ifdef USE_VULKAN
+    if (m_impl->egl_image != EGL_NO_IMAGE) {
+        eglDestroyImage(m_impl->display, m_impl->egl_image);
+        m_impl->egl_image = EGL_NO_IMAGE;
+    }
+#endif
+
     if (m_impl->surface != EGL_NO_SURFACE) {
+#ifdef AK_OS_MACOS
         eglReleaseTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
+#endif
         eglDestroySurface(m_impl->display, m_impl->surface);
         m_impl->surface = EGL_NO_SURFACE;
     }
 }
-#endif
 
-#ifdef AK_OS_MACOS
 static EGLConfig get_egl_config(EGLDisplay display)
 {
     EGLint const config_attribs[] = {
@@ -105,14 +113,24 @@ static EGLConfig get_egl_config(EGLDisplay display)
     eglChooseConfig(display, config_attribs, configs.data(), number_of_configs, &number_of_configs);
     return number_of_configs > 0 ? configs[0] : EGL_NO_CONFIG_KHR;
 }
-#endif
 
 OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version)
 {
-#ifdef AK_OS_MACOS
+#if !defined(AK_OS_MACOS) && !defined(USE_VULKAN)
+    (void)skia_backend_context;
+    (void)webgl_version;
+    return {};
+#endif
+
     EGLAttrib display_attributes[] = {
         EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+#if defined(AK_OS_MACOS)
         EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
+#elif defined(USE_VULKAN)
+        EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE,
+        EGL_PLATFORM_ANGLE_NATIVE_PLATFORM_TYPE_ANGLE,
+        EGL_PLATFORM_SURFACELESS_MESA,
+#endif
         EGL_NONE,
     };
 
@@ -143,6 +161,11 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         EGL_TRUE,
         EGL_CONTEXT_OPENGL_BACKWARDS_COMPATIBLE_ANGLE,
         EGL_FALSE,
+#ifdef USE_VULKAN
+        // we need GL_OES_EGL_image
+        EGL_EXTENSIONS_ENABLED_ANGLE,
+        EGL_TRUE,
+#endif
         EGL_NONE,
         EGL_NONE,
     };
@@ -152,12 +175,32 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         return {};
     }
 
-    return make<OpenGLContext>(skia_backend_context, Impl { .display = display, .config = config, .context = context }, webgl_version);
-#else
-    (void)skia_backend_context;
-    (void)webgl_version;
-    return nullptr;
+#ifdef USE_VULKAN
+    PFNEGLQUERYDMABUFFORMATSEXTPROC pfn_egl_query_dma_buf_formats_ext = reinterpret_cast<PFNEGLQUERYDMABUFFORMATSEXTPROC>(eglGetProcAddress("eglQueryDmaBufFormatsEXT"));
+    if (!pfn_egl_query_dma_buf_formats_ext) {
+        dbgln("eglQueryDmaBufFormatsEXT unavailable");
+        return {};
+    }
+
+    PFNEGLQUERYDMABUFMODIFIERSEXTPROC pfn_egl_query_dma_buf_modifiers_ext = reinterpret_cast<PFNEGLQUERYDMABUFMODIFIERSEXTPROC>(eglGetProcAddress("eglQueryDmaBufModifiersEXT"));
+    if (!pfn_egl_query_dma_buf_modifiers_ext) {
+        dbgln("eglQueryDmaBufModifiersEXT unavailable");
+        return {};
+    }
 #endif
+
+    return make<OpenGLContext>(skia_backend_context, Impl {
+                                                         .display = display,
+                                                         .config = config,
+                                                         .context = context,
+#ifdef USE_VULKAN
+                                                         .ext_procs = {
+                                                             .query_dma_buf_formats = pfn_egl_query_dma_buf_formats_ext,
+                                                             .query_dma_buf_modifiers = pfn_egl_query_dma_buf_modifiers_ext,
+                                                         },
+#endif
+                                                     },
+        webgl_version);
 }
 
 void OpenGLContext::notify_content_will_change()
@@ -167,7 +210,6 @@ void OpenGLContext::notify_content_will_change()
 
 void OpenGLContext::clear_buffer_to_default_values()
 {
-#ifdef AK_OS_MACOS
     Array<GLfloat, 4> current_clear_color;
     glGetFloatv(GL_COLOR_CLEAR_VALUE, current_clear_color.data());
 
@@ -192,26 +234,29 @@ void OpenGLContext::clear_buffer_to_default_values()
     glClearColor(current_clear_color[0], current_clear_color[1], current_clear_color[2], current_clear_color[3]);
     glClearDepthf(current_clear_depth);
     glClearStencil(current_clear_stencil);
-#endif
 }
 
 void OpenGLContext::allocate_painting_surface_if_needed()
 {
-#ifdef AK_OS_MACOS
     if (m_painting_surface)
         return;
 
-    VERIFY(!m_size.is_empty());
     free_surface_resources();
 
-    auto iosurface = Core::IOSurfaceHandle::create(m_size.width(), m_size.height());
+    VERIFY(!m_size.is_empty());
 
     auto width = m_size.width();
     auto height = m_size.height();
 
     auto* display = m_impl->display;
-    auto* config = m_impl->config;
 
+    EGLint texture_target_name = 0;
+
+#if defined(AK_OS_MACOS)
+    auto iosurface = Core::IOSurfaceHandle::create(m_size.width(), m_size.height());
+    m_painting_surface = Gfx::PaintingSurface::create_from_iosurface(move(iosurface), m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
+
+    auto* config = m_impl->config;
     EGLint target = 0;
     eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &target);
 
@@ -237,7 +282,6 @@ void OpenGLContext::allocate_painting_surface_if_needed()
 
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
 
-    EGLint texture_target_name = 0;
     eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target_name);
     VERIFY(texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE || texture_target_name == EGL_TEXTURE_2D);
 
@@ -245,6 +289,70 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     glBindTexture(texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer);
     auto result = eglBindTexImage(display, m_impl->surface, EGL_BACK_BUFFER);
     VERIFY(result == EGL_TRUE);
+#elif defined(USE_VULKAN)
+    VkFormat vulkan_format = VK_FORMAT_B8G8R8A8_UNORM;
+    uint32_t drm_format = Gfx::vk_format_to_drm_format(vulkan_format);
+
+    // Ensure that our format is supported by the implementation.
+    // FIXME: try other formats if not?
+    EGLint num_formats = 0;
+    m_impl->ext_procs.query_dma_buf_formats(display, 0, nullptr, &num_formats);
+    Vector<EGLint> egl_formats;
+    egl_formats.resize(num_formats);
+    m_impl->ext_procs.query_dma_buf_formats(display, num_formats, egl_formats.data(), &num_formats);
+    VERIFY(egl_formats.find(drm_format) != egl_formats.end());
+
+    EGLint num_modifiers = 0;
+    m_impl->ext_procs.query_dma_buf_modifiers(display, drm_format, 0, nullptr, nullptr, &num_modifiers);
+    Vector<uint64_t> egl_modifiers;
+    egl_modifiers.resize(num_modifiers);
+    Vector<EGLBoolean> external_only;
+    external_only.resize(num_modifiers);
+    m_impl->ext_procs.query_dma_buf_modifiers(display, drm_format, num_modifiers, egl_modifiers.data(), external_only.data(), &num_modifiers);
+    Vector<uint64_t> renderable_modifiers;
+    for (int i = 0; i < num_modifiers; ++i) {
+        if (!external_only[i]) {
+            renderable_modifiers.append(egl_modifiers[i]);
+        }
+    }
+
+    NonnullRefPtr<Gfx::VulkanImage> vulkan_image = Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), width, height, vulkan_format,
+        renderable_modifiers.size(), renderable_modifiers.data())
+                                                       .value();
+    m_painting_surface = Gfx::PaintingSurface::create_from_vkimage(m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
+
+    EGLAttrib attribs[] = {
+        EGL_WIDTH,
+        width,
+        EGL_HEIGHT,
+        height,
+        EGL_LINUX_DRM_FOURCC_EXT,
+        drm_format,
+        EGL_DMA_BUF_PLANE0_FD_EXT,
+        vulkan_image->get_dma_buf_fd(), // EGL takes ownership of the fd
+        EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+        0,
+        EGL_DMA_BUF_PLANE0_PITCH_EXT,
+        static_cast<uint32_t>(vulkan_image->info.row_pitch),
+        EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT,
+        static_cast<uint32_t>(vulkan_image->info.modifier & 0xffffffff),
+        EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT,
+        static_cast<uint32_t>(vulkan_image->info.modifier >> 32),
+        EGL_NONE,
+    };
+    m_impl->egl_image = eglCreateImage(display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
+    VERIFY(m_impl->egl_image != EGL_NO_IMAGE);
+
+    m_impl->surface = EGL_NO_SURFACE;
+    eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+
+    glGenTextures(1, &m_impl->color_buffer);
+    glBindTexture(GL_TEXTURE_2D, m_impl->color_buffer);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, m_impl->egl_image);
+    texture_target_name = EGL_TEXTURE_2D;
+
+    glViewport(0, 0, width, height);
+#endif
 
     glGenFramebuffers(1, &m_impl->framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, m_impl->framebuffer);
@@ -256,9 +364,7 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     glBindRenderbuffer(GL_RENDERBUFFER, m_impl->depth_buffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_impl->depth_buffer);
-
-    m_painting_surface = Gfx::PaintingSurface::create_from_iosurface(move(iosurface), m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
-#endif
+    VERIFY(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
 
 void OpenGLContext::set_size(Gfx::IntSize const& size)
@@ -271,10 +377,8 @@ void OpenGLContext::set_size(Gfx::IntSize const& size)
 
 void OpenGLContext::make_current()
 {
-#ifdef AK_OS_MACOS
     allocate_painting_surface_if_needed();
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
-#endif
 }
 
 void OpenGLContext::present(bool preserve_drawing_buffer)
@@ -285,16 +389,18 @@ void OpenGLContext::present(bool preserve_drawing_buffer)
     // With Metal, glFlush flushes the command buffer, but without waiting for it to be scheduled or completed.
     // eglWaitUntilWorkScheduledANGLE flushes the command buffer, and waits until it has been scheduled, hence the name.
     // eglWaitUntilWorkScheduledANGLE only has an effect on CGL and Metal backends, so we only use it on macOS.
-#ifdef AK_OS_MACOS
+#if defined(AK_OS_MACOS)
     eglWaitUntilWorkScheduledANGLE(m_impl->display);
-#else
-    // FIXME: When enabling WebGL for Linux, we need to use glFlush() here.
+#elif defined(USE_VULKAN)
+    // FIXME: CPU sync for now, but it would be better to export a fence and have Skia wait for it before reading from the surface
+    glFinish();
 #endif
 
     // "By default, after compositing the contents of the drawing buffer shall be cleared to their default values, as shown in the table above.
     // This default behavior can be changed by setting the preserveDrawingBuffer attribute of the WebGLContextAttributes object.
     // If this flag is true, the contents of the drawing buffer shall be preserved until the author either clears or overwrites them."
     if (!preserve_drawing_buffer) {
+        // FIXME: we're assuming the clear operation won't actually be submitted to the GPU
         clear_buffer_to_default_values();
     }
 }
@@ -306,20 +412,12 @@ RefPtr<Gfx::PaintingSurface> OpenGLContext::surface()
 
 u32 OpenGLContext::default_renderbuffer() const
 {
-#ifdef AK_OS_MACOS
     return m_impl->depth_buffer;
-#else
-    return 0;
-#endif
 }
 
 u32 OpenGLContext::default_framebuffer() const
 {
-#ifdef AK_OS_MACOS
     return m_impl->framebuffer;
-#else
-    return 0;
-#endif
 }
 
 struct Extension {
@@ -389,7 +487,6 @@ Vector<Extension> s_available_webgl_extensions {
 
 Vector<String> OpenGLContext::get_supported_extensions()
 {
-#ifdef AK_OS_MACOS
     if (m_requestable_extensions.has_value())
         return m_requestable_extensions.value();
 
@@ -426,20 +523,12 @@ Vector<String> OpenGLContext::get_supported_extensions()
     // been requested.
     m_requestable_extensions = extensions;
     return extensions;
-#else
-    (void)m_webgl_version;
-    return {};
-#endif
 }
 
 void OpenGLContext::request_extension(char const* extension_name)
 {
-#ifdef AK_OS_MACOS
     make_current();
     glRequestExtensionANGLE(extension_name);
-#else
-    (void)extension_name;
-#endif
 }
 
 }
