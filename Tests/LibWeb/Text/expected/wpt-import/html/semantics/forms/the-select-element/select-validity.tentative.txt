@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
+1 Pass
+1 Fail
 Fail	Validation for placeholder option
-Fail	Check form not submitted for invalid select
+Pass	Check form not submitted for invalid select

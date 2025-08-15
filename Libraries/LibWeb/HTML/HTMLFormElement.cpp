@@ -96,6 +96,16 @@ WebIDL::ExceptionOr<void> HTMLFormElement::implicitly_submit_form()
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fs-novalidate
+static bool novalidate_state(HTMLElement const& element)
+{
+    // The no-validate state of an element is true if the element is a submit button and the element's formnovalidate
+    // attribute is present, or if the element's form owner's novalidate attribute is present, and false otherwise.
+    if (auto const* form_associated_element = as_if<FormAssociatedElement>(element))
+        return form_associated_element->novalidate_state();
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-submit
 WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> submitter, SubmitFormOptions options)
 {
@@ -142,8 +152,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
         // 4. If the submitter element's no-validate state is false, then interactively validate the constraints
         //    of form and examine the result. If the result is negative (i.e., the constraint validation concluded
         //    that there were invalid fields and probably informed the user of this), then:
-        auto* form_associated_element = as_if<FormAssociatedElement>(*submitter);
-        if (form_associated_element && !form_associated_element->novalidate_state()) {
+        if (!novalidate_state(submitter)) {
             auto validation_result = interactively_validate_constraints();
             if (!validation_result) {
                 // 1. Set form's firing submission events to false.
