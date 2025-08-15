@@ -39,6 +39,10 @@ public:
     static NonnullRefPtr<PaintingSurface> create_from_iosurface(Core::IOSurfaceHandle&&, NonnullRefPtr<SkiaBackendContext>, Origin = Origin::TopLeft);
 #endif
 
+#ifdef USE_VULKAN
+    static NonnullRefPtr<PaintingSurface> create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin);
+#endif
+
     void read_into_bitmap(Bitmap&);
     void write_from_bitmap(Bitmap const&);
 
