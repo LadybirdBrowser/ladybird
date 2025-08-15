@@ -137,7 +137,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
         if (function_data.get_bool("is-variadic"sv).value_or(false)) {
             // Variadic function
             function_generator.append(R"~~~(
-        Optional<CSSNumericType> determined_argument_type;
+        Optional<NumericType> determined_argument_type;
         Vector<NonnullRefPtr<CalculationNode const>> parsed_arguments;
         parsed_arguments.ensure_capacity(arguments.size());
 
@@ -240,7 +240,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             return nullptr;
         }
         size_t argument_index = 0;
-        Optional<CSSNumericType> determined_argument_type;
+        Optional<NumericType> determined_argument_type;
 )~~~");
 
             size_t parameter_index = 0;

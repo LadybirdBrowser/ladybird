@@ -46,7 +46,7 @@ ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::resolved_value
             // FIXME: Flip calculated offsets (convert CalculatedStyleValue to CalculationNode, then negate and append)
             return *this;
         }
-        auto flipped_absolute = CalculatedStyleValue::create(SumCalculationNode::create(move(sum_parts)), CSSNumericType(CSSNumericType::BaseType::Length, 1), context);
+        auto flipped_absolute = CalculatedStyleValue::create(SumCalculationNode::create(move(sum_parts)), NumericType(NumericType::BaseType::Length, 1), context);
         return create({}, flipped_absolute);
     }
 

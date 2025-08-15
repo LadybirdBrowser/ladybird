@@ -13,11 +13,9 @@
 
 namespace Web::CSS {
 
-// https://drafts.css-houdini.org/css-typed-om-1/#numeric-typing
-// FIXME: Add IDL for this.
-class CSSNumericType {
+// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type
+class NumericType {
 public:
-    // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-base-type
     enum class BaseType {
         Length,
         Angle,
@@ -53,20 +51,20 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    static Optional<CSSNumericType> create_from_unit(StringView unit);
-    CSSNumericType() = default;
-    CSSNumericType(BaseType type, i32 power)
+    static Optional<NumericType> create_from_unit(StringView unit);
+    NumericType() = default;
+    NumericType(BaseType type, i32 power)
     {
         set_exponent(type, power);
     }
 
-    Optional<CSSNumericType> added_to(CSSNumericType const& other) const;
-    Optional<CSSNumericType> multiplied_by(CSSNumericType const& other) const;
-    CSSNumericType inverted() const;
+    Optional<NumericType> added_to(NumericType const& other) const;
+    Optional<NumericType> multiplied_by(NumericType const& other) const;
+    NumericType inverted() const;
 
-    bool has_consistent_type_with(CSSNumericType const& other) const;
-    Optional<CSSNumericType> consistent_type(CSSNumericType const& other) const;
-    Optional<CSSNumericType> made_consistent_with(CSSNumericType const& other) const;
+    bool has_consistent_type_with(NumericType const& other) const;
+    Optional<NumericType> consistent_type(NumericType const& other) const;
+    Optional<NumericType> made_consistent_with(NumericType const& other) const;
 
     bool matches_angle(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Angle, percentages_resolve_as); }
     bool matches_angle_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Angle, percentages_resolve_as); }
@@ -90,18 +88,18 @@ public:
     void set_percent_hint(Optional<BaseType> hint) { m_percent_hint = hint; }
     void apply_percent_hint(BaseType hint);
 
-    bool operator==(CSSNumericType const& other) const = default;
+    bool operator==(NumericType const& other) const = default;
 
     String dump() const;
 
 private:
-    bool contains_all_the_non_zero_entries_of_other_with_the_same_value(CSSNumericType const& other) const;
+    bool contains_all_the_non_zero_entries_of_other_with_the_same_value(NumericType const& other) const;
     bool contains_a_key_other_than_percent_with_a_non_zero_value() const;
     enum class SkipIfAlreadyPresent {
         No,
         Yes,
     };
-    void copy_all_entries_from(CSSNumericType const& other, SkipIfAlreadyPresent);
+    void copy_all_entries_from(NumericType const& other, SkipIfAlreadyPresent);
 
     Optional<BaseType> entry_with_value_1_while_all_others_are_0() const;
     bool matches_dimension(BaseType, Optional<ValueType> percentages_resolve_as) const;
@@ -114,8 +112,8 @@ private:
 }
 
 template<>
-struct AK::Formatter<Web::CSS::CSSNumericType> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSNumericType const& value)
+struct AK::Formatter<Web::CSS::NumericType> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::NumericType const& value)
     {
         return Formatter<StringView>::format(builder, value.dump());
     }

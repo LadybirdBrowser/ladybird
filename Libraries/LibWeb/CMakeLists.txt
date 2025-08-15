@@ -119,7 +119,6 @@ set(SOURCES
     CSS/CSSMediaRule.cpp
     CSS/CSSNamespaceRule.cpp
     CSS/CSSNestedDeclarations.cpp
-    CSS/CSSNumericType.cpp
     CSS/CSSPageRule.cpp
     CSS/CSSPageDescriptors.cpp
     CSS/CSSPropertyRule.cpp
@@ -153,6 +152,7 @@ set(SOURCES
     CSS/MediaQueryList.cpp
     CSS/MediaQueryListEvent.cpp
     CSS/Number.cpp
+    CSS/NumericType.cpp
     CSS/PageSelector.cpp
     CSS/ParsedFontFace.cpp
     CSS/Parser/ArbitrarySubstitutionFunctions.cpp

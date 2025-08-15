@@ -3831,7 +3831,7 @@ RefPtr<StyleValue const> Parser::parse_opacity_value(PropertyID property_id, Tok
             auto resolved_percentage = maybe_percentage->as_fraction();
             CalculationContext context {};
             auto calc_node = NumericCalculationNode::create(Number { Number::Type::Number, resolved_percentage }, context);
-            value = CalculatedStyleValue::create(move(calc_node), CSSNumericType { CSSNumericType::BaseType::Length, 1 }, context);
+            value = CalculatedStyleValue::create(move(calc_node), NumericType { NumericType::BaseType::Length, 1 }, context);
         }
     }
 
