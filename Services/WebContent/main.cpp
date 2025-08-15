@@ -48,6 +48,8 @@
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
 #endif
 
+#include <SDL3/SDL_init.h>
+
 static ErrorOr<void> load_content_filters(StringView config_path);
 
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
@@ -59,6 +61,12 @@ static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_s
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
+
+    // SDL is used for the Gamepad API.
+    if (!SDL_Init(SDL_INIT_GAMEPAD)) {
+        dbgln("Failed to initialize SDL3: {}", SDL_GetError());
+        return -1;
+    }
 
 #if defined(HAVE_QT_MULTIMEDIA)
     QCoreApplication app(arguments.argc, arguments.argv);
