@@ -232,6 +232,12 @@ Color ComputedProperties::color_or_fallback(PropertyID id, ColorResolutionContex
     return value.to_color(color_resolution_context).value();
 }
 
+ColorInterpolation ComputedProperties::color_interpolation() const
+{
+    auto const& value = property(PropertyID::ColorInterpolation);
+    return keyword_to_color_interpolation(value.to_keyword()).value_or(CSS::ColorInterpolation::Auto);
+}
+
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
 PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme preferred_scheme, Optional<Vector<String> const&> document_supported_schemes) const
 {

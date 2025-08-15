@@ -1229,6 +1229,15 @@
       "hashless-hex-color"
     ]
   },
+  "color-interpolation": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "srgb",
+    "valid-types": [
+      "color-interpolation"
+    ]
+  },
   "color-scheme": {
     "affects-layout": false,
     "animation-type": "discrete",
