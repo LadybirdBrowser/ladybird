@@ -6,10 +6,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Queue.h>
 #include <AK/Vector.h>
 #include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
 #include <LibIPC/Connection.h>
+#include <LibIPC/File.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
 
@@ -46,6 +48,21 @@ ErrorOr<void> ConnectionBase::post_message(Message const& message)
 
 ErrorOr<void> ConnectionBase::post_message(MessageBuffer buffer)
 {
+    if (m_shutdown_in_progress) {
+        dbgln("Trying to post_message during IPC shutdown in progress");
+
+        Queue<IPC::File> tfiles = {};
+        tfiles.enqueue(IPC::File());
+        auto tmessage = try_parse_message(buffer.data(), tfiles);
+        if (tmessage != nullptr) {
+            dbgln("Post_message: {}", tmessage->message_name());
+        } else {
+            dbgln("Post_message: nullptr: {}", buffer.data());
+        }
+
+        return {};
+    }
+
     // NOTE: If this connection is being shut down, but has not yet been destroyed,
     //       the socket will be closed. Don't try to send more messages.
     if (!m_transport->is_open())
@@ -75,6 +92,9 @@ void ConnectionBase::handle_messages()
     for (auto& message : messages) {
         if (message->endpoint_magic() != m_local_endpoint_magic)
             continue;
+
+        if (m_shutdown_in_progress)
+            dbgln("Handling Message during shutdown in progress: {}", message->message_name());
 
         auto handler_result = m_local_stub.handle(move(message));
         if (handler_result.is_error()) {
@@ -117,6 +137,7 @@ ErrorOr<void> ConnectionBase::drain_messages_from_peer()
     }
 
     if (schedule_shutdown == Transport::ShouldShutdown::Yes) {
+        m_shutdown_in_progress = true;
         deferred_invoke([this] {
             shutdown();
         });
