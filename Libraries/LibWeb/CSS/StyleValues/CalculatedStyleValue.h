@@ -11,12 +11,12 @@
 
 #include <AK/Function.h>
 #include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/CSSNumericType.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Number.h>
+#include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -39,9 +39,9 @@ public:
     class CalculationResult {
     public:
         using Value = Variant<Number, Angle, Flex, Frequency, Length, Percentage, Resolution, Time>;
-        static CalculationResult from_value(Value const&, CalculationResolutionContext const&, Optional<CSSNumericType>);
+        static CalculationResult from_value(Value const&, CalculationResolutionContext const&, Optional<NumericType>);
 
-        CalculationResult(double value, Optional<CSSNumericType> type)
+        CalculationResult(double value, Optional<NumericType> type)
             : m_value(value)
             , m_type(move(type))
         {
@@ -55,16 +55,16 @@ public:
         void invert();
 
         double value() const { return m_value; }
-        Optional<CSSNumericType> const& type() const { return m_type; }
+        Optional<NumericType> const& type() const { return m_type; }
 
         [[nodiscard]] bool operator==(CalculationResult const&) const = default;
 
     private:
         double m_value;
-        Optional<CSSNumericType> m_type;
+        Optional<NumericType> m_type;
     };
 
-    static ValueComparingNonnullRefPtr<CalculatedStyleValue const> create(NonnullRefPtr<CalculationNode const> calculation, CSSNumericType resolved_type, CalculationContext context)
+    static ValueComparingNonnullRefPtr<CalculatedStyleValue const> create(NonnullRefPtr<CalculationNode const> calculation, NumericType resolved_type, CalculationContext context)
     {
         return adopt_ref(*new (nothrow) CalculatedStyleValue(move(calculation), move(resolved_type), move(context)));
     }
@@ -118,7 +118,7 @@ public:
     String dump() const;
 
 private:
-    explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode const> calculation, CSSNumericType resolved_type, CalculationContext context)
+    explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode const> calculation, NumericType resolved_type, CalculationContext context)
         : StyleValue(Type::Calculated)
         , m_resolved_type(move(resolved_type))
         , m_calculation(move(calculation))
@@ -128,13 +128,13 @@ private:
 
     struct ResolvedValue {
         double value;
-        Optional<CSSNumericType> type;
+        Optional<NumericType> type;
     };
     Optional<ResolvedValue> resolve_value(CalculationResolutionContext const&) const;
 
     Optional<ValueType> percentage_resolved_type() const;
 
-    CSSNumericType m_resolved_type;
+    NumericType m_resolved_type;
     NonnullRefPtr<CalculationNode const> m_calculation;
     CalculationContext m_context;
 };
@@ -240,7 +240,7 @@ public:
     StringView name() const;
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const = 0;
 
-    Optional<CSSNumericType> const& numeric_type() const { return m_numeric_type; }
+    Optional<NumericType> const& numeric_type() const { return m_numeric_type; }
     virtual bool contains_percentage() const = 0;
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const = 0;
     virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const = 0;
@@ -251,11 +251,11 @@ public:
     virtual bool equals(CalculationNode const&) const = 0;
 
 protected:
-    CalculationNode(Type, Optional<CSSNumericType>);
+    CalculationNode(Type, Optional<NumericType>);
 
 private:
     Type m_type;
-    Optional<CSSNumericType> m_numeric_type;
+    Optional<NumericType> m_numeric_type;
 };
 
 enum class NonFiniteValue {
@@ -289,7 +289,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    NumericCalculationNode(NumericValue, CSSNumericType);
+    NumericCalculationNode(NumericValue, NumericType);
     NumericValue m_value;
 };
 
@@ -308,7 +308,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    SumCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    SumCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
     Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
@@ -327,7 +327,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
     Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
@@ -367,7 +367,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    InvertCalculationNode(NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
+    InvertCalculationNode(NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
     NonnullRefPtr<CalculationNode const> m_value;
 };
 
@@ -387,7 +387,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    MinCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    MinCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
     Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
@@ -407,7 +407,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
     Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
@@ -427,7 +427,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ClampCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
+    ClampCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
     NonnullRefPtr<CalculationNode const> m_min_value;
     NonnullRefPtr<CalculationNode const> m_center_value;
     NonnullRefPtr<CalculationNode const> m_max_value;
@@ -671,7 +671,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    HypotCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<CSSNumericType>);
+    HypotCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
     Vector<NonnullRefPtr<CalculationNode const>> m_values;
 };
 
@@ -734,7 +734,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    RoundCalculationNode(RoundingStrategy, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
+    RoundCalculationNode(RoundingStrategy, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
     RoundingStrategy m_strategy;
     NonnullRefPtr<CalculationNode const> m_x;
     NonnullRefPtr<CalculationNode const> m_y;
@@ -756,7 +756,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ModCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
+    ModCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
     NonnullRefPtr<CalculationNode const> m_x;
     NonnullRefPtr<CalculationNode const> m_y;
 };
@@ -777,7 +777,7 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    RemCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<CSSNumericType>);
+    RemCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
     NonnullRefPtr<CalculationNode const> m_x;
     NonnullRefPtr<CalculationNode const> m_y;
 };

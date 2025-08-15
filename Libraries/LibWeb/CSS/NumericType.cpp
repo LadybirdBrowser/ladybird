@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSNumericType.h"
+#include "NumericType.h"
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
@@ -14,7 +14,7 @@
 
 namespace Web::CSS {
 
-Optional<CSSNumericType::BaseType> CSSNumericType::base_type_from_value_type(ValueType value_type)
+Optional<NumericType::BaseType> NumericType::base_type_from_value_type(ValueType value_type)
 {
     switch (value_type) {
     case ValueType::Angle:
@@ -38,50 +38,50 @@ Optional<CSSNumericType::BaseType> CSSNumericType::base_type_from_value_type(Val
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-create-a-type
-Optional<CSSNumericType> CSSNumericType::create_from_unit(StringView unit)
+Optional<NumericType> NumericType::create_from_unit(StringView unit)
 {
     // To create a type from a string unit, follow the appropriate branch of the following:
 
     // unit is "number"
     if (unit == "number"sv) {
         // Return «[ ]» (empty map)
-        return CSSNumericType {};
+        return NumericType {};
     }
 
     // unit is "percent"
     if (unit == "percent"sv) {
         // Return «[ "percent" → 1 ]»
-        return CSSNumericType { BaseType::Percent, 1 };
+        return NumericType { BaseType::Percent, 1 };
     }
 
     // unit is a <length> unit
     if (Length::unit_from_name(unit).has_value()) {
         // Return «[ "length" → 1 ]»
-        return CSSNumericType { BaseType::Length, 1 };
+        return NumericType { BaseType::Length, 1 };
     }
 
     // unit is an <angle> unit
     if (Angle::unit_from_name(unit).has_value()) {
         //    Return «[ "angle" → 1 ]»
-        return CSSNumericType { BaseType::Angle, 1 };
+        return NumericType { BaseType::Angle, 1 };
     }
 
     // unit is a <time> unit
     if (Time::unit_from_name(unit).has_value()) {
         //    Return «[ "time" → 1 ]»
-        return CSSNumericType { BaseType::Time, 1 };
+        return NumericType { BaseType::Time, 1 };
     }
 
     // unit is a <frequency> unit
     if (Frequency::unit_from_name(unit).has_value()) {
         //    Return «[ "frequency" → 1 ]»
-        return CSSNumericType { BaseType::Frequency, 1 };
+        return NumericType { BaseType::Frequency, 1 };
     }
 
     // unit is a <resolution> unit
     if (Resolution::unit_from_name(unit).has_value()) {
         //    Return «[ "resolution" → 1 ]»
-        return CSSNumericType { BaseType::Resolution, 1 };
+        return NumericType { BaseType::Resolution, 1 };
     }
 
     // unit is a <flex> unit
@@ -96,15 +96,15 @@ Optional<CSSNumericType> CSSNumericType::create_from_unit(StringView unit)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-add-two-types
-Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) const
+Optional<NumericType> NumericType::added_to(NumericType const& other) const
 {
     // To add two types type1 and type2, perform the following steps:
 
     // 1. Replace type1 with a fresh copy of type1, and type2 with a fresh copy of type2.
     //    Let finalType be a new type with an initially empty ordered map and an initially null percent hint.
-    CSSNumericType type1 = *this;
-    CSSNumericType type2 = other;
-    CSSNumericType final_type {};
+    NumericType type1 = *this;
+    NumericType type2 = other;
+    NumericType final_type {};
 
     // 2. If both type1 and type2 have non-null percent hints with different values
     if (type1.percent_hint().has_value() && type2.percent_hint().has_value() && type1.percent_hint() != type2.percent_hint()) {
@@ -175,15 +175,15 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-multiply-two-types
-Optional<CSSNumericType> CSSNumericType::multiplied_by(CSSNumericType const& other) const
+Optional<NumericType> NumericType::multiplied_by(NumericType const& other) const
 {
     // To multiply two types type1 and type2, perform the following steps:
 
     // 1. Replace type1 with a fresh copy of type1, and type2 with a fresh copy of type2.
     //    Let finalType be a new type with an initially empty ordered map and an initially null percent hint.
-    CSSNumericType type1 = *this;
-    CSSNumericType type2 = other;
-    CSSNumericType final_type {};
+    NumericType type1 = *this;
+    NumericType type2 = other;
+    NumericType final_type {};
 
     // 2. If both type1 and type2 have non-null percent hints with different values,
     //    the types can’t be multiplied. Return failure.
@@ -224,12 +224,12 @@ Optional<CSSNumericType> CSSNumericType::multiplied_by(CSSNumericType const& oth
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-invert-a-type
-CSSNumericType CSSNumericType::inverted() const
+NumericType NumericType::inverted() const
 {
     // To invert a type type, perform the following steps:
 
     // 1. Let result be a new type with an initially empty ordered map and a percent hint matching that of type.
-    CSSNumericType result;
+    NumericType result;
     result.set_percent_hint(percent_hint());
 
     // 2. For each unit → exponent of type, set result[unit] to (-1 * exponent).
@@ -246,21 +246,21 @@ CSSNumericType CSSNumericType::inverted() const
 }
 
 // https://drafts.csswg.org/css-values-4/#css-consistent-typec
-bool CSSNumericType::has_consistent_type_with(CSSNumericType const& other) const
+bool NumericType::has_consistent_type_with(NumericType const& other) const
 {
     // Two or more calculations have a consistent type if adding the types doesn’t result in failure.
     return added_to(other).has_value();
 }
 
 // https://drafts.csswg.org/css-values-4/#css-consistent-typec
-Optional<CSSNumericType> CSSNumericType::consistent_type(CSSNumericType const& other) const
+Optional<NumericType> NumericType::consistent_type(NumericType const& other) const
 {
     // The consistent type is the result of the type addition.
     return added_to(other);
 }
 
 // https://drafts.csswg.org/css-values-4/#css-make-a-type-consistent
-Optional<CSSNumericType> CSSNumericType::made_consistent_with(CSSNumericType const& input) const
+Optional<NumericType> NumericType::made_consistent_with(NumericType const& input) const
 {
     auto base = *this;
 
@@ -279,7 +279,7 @@ Optional<CSSNumericType> CSSNumericType::made_consistent_with(CSSNumericType con
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#apply-the-percent-hint
-void CSSNumericType::apply_percent_hint(BaseType hint)
+void NumericType::apply_percent_hint(BaseType hint)
 {
     // To apply the percent hint hint to a type without a percent hint, perform the following steps:
     VERIFY(!percent_hint().has_value());
@@ -302,7 +302,7 @@ void CSSNumericType::apply_percent_hint(BaseType hint)
     // FIXME: Is this needed? Nothing uses the value. https://github.com/w3c/css-houdini-drafts/issues/1135
 }
 
-bool CSSNumericType::contains_all_the_non_zero_entries_of_other_with_the_same_value(CSSNumericType const& other) const
+bool NumericType::contains_all_the_non_zero_entries_of_other_with_the_same_value(NumericType const& other) const
 {
     for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
         auto other_exponent = other.exponent(static_cast<BaseType>(i));
@@ -314,7 +314,7 @@ bool CSSNumericType::contains_all_the_non_zero_entries_of_other_with_the_same_va
     return true;
 }
 
-bool CSSNumericType::contains_a_key_other_than_percent_with_a_non_zero_value() const
+bool NumericType::contains_a_key_other_than_percent_with_a_non_zero_value() const
 {
     for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
         if (i == to_underlying(BaseType::Percent))
@@ -325,7 +325,7 @@ bool CSSNumericType::contains_a_key_other_than_percent_with_a_non_zero_value() c
     return false;
 }
 
-void CSSNumericType::copy_all_entries_from(CSSNumericType const& other, SkipIfAlreadyPresent ignore_existing_values)
+void NumericType::copy_all_entries_from(NumericType const& other, SkipIfAlreadyPresent ignore_existing_values)
 {
     for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
         auto base_type = static_cast<BaseType>(i);
@@ -338,7 +338,7 @@ void CSSNumericType::copy_all_entries_from(CSSNumericType const& other, SkipIfAl
     }
 }
 
-Optional<CSSNumericType::BaseType> CSSNumericType::entry_with_value_1_while_all_others_are_0() const
+Optional<NumericType::BaseType> NumericType::entry_with_value_1_while_all_others_are_0() const
 {
     Optional<BaseType> result;
     for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
@@ -355,31 +355,31 @@ Optional<CSSNumericType::BaseType> CSSNumericType::entry_with_value_1_while_all_
     return result;
 }
 
-static bool matches(CSSNumericType::BaseType base_type, ValueType value_type)
+static bool matches(NumericType::BaseType base_type, ValueType value_type)
 {
     switch (base_type) {
-    case CSSNumericType::BaseType::Length:
+    case NumericType::BaseType::Length:
         return value_type == ValueType::Length;
-    case CSSNumericType::BaseType::Angle:
+    case NumericType::BaseType::Angle:
         return value_type == ValueType::Angle;
-    case CSSNumericType::BaseType::Time:
+    case NumericType::BaseType::Time:
         return value_type == ValueType::Time;
-    case CSSNumericType::BaseType::Frequency:
+    case NumericType::BaseType::Frequency:
         return value_type == ValueType::Frequency;
-    case CSSNumericType::BaseType::Resolution:
+    case NumericType::BaseType::Resolution:
         return value_type == ValueType::Resolution;
-    case CSSNumericType::BaseType::Flex:
+    case NumericType::BaseType::Flex:
         return value_type == ValueType::Flex;
-    case CSSNumericType::BaseType::Percent:
+    case NumericType::BaseType::Percent:
         return value_type == ValueType::Percentage;
-    case CSSNumericType::BaseType::__Count:
+    case NumericType::BaseType::__Count:
     default:
         return false;
     }
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
-bool CSSNumericType::matches_dimension(BaseType type, Optional<ValueType> percentages_resolve_as) const
+bool NumericType::matches_dimension(BaseType type, Optional<ValueType> percentages_resolve_as) const
 {
     // A type matches <length> if its only non-zero entry is «[ "length" → 1 ]».
     // Similarly for <angle>, <time>, <frequency>, <resolution>, and <flex>.
@@ -399,7 +399,7 @@ bool CSSNumericType::matches_dimension(BaseType type, Optional<ValueType> percen
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
-bool CSSNumericType::matches_percentage() const
+bool NumericType::matches_percentage() const
 {
     // A type matches <percentage> if its only non-zero entry is «[ "percent" → 1 ]», and its percent hint is either
     // null or "percent".
@@ -410,7 +410,7 @@ bool CSSNumericType::matches_percentage() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
-bool CSSNumericType::matches_dimension_percentage(BaseType type, Optional<ValueType> percentages_resolve_as) const
+bool NumericType::matches_dimension_percentage(BaseType type, Optional<ValueType> percentages_resolve_as) const
 {
     // A type matches <length-percentage> if it matches <length> or matches <percentage>.
     // Same for <angle-percentage>, <time-percentage>, etc.
@@ -418,7 +418,7 @@ bool CSSNumericType::matches_dimension_percentage(BaseType type, Optional<ValueT
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
-bool CSSNumericType::matches_number(Optional<ValueType> percentages_resolve_as) const
+bool NumericType::matches_number(Optional<ValueType> percentages_resolve_as) const
 {
     // A type matches <number> if it has no non-zero entries.
     for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
@@ -445,7 +445,7 @@ bool CSSNumericType::matches_number(Optional<ValueType> percentages_resolve_as) 
     return !percent_hint().has_value();
 }
 
-bool CSSNumericType::matches_dimension() const
+bool NumericType::matches_dimension() const
 {
     // This isn't a spec algorithm.
     // A type should match `<dimension>` if there are no non-zero entries,
@@ -471,7 +471,7 @@ bool CSSNumericType::matches_dimension() const
     return number_of_one_exponents == 0 || number_of_one_exponents == 1;
 }
 
-String CSSNumericType::dump() const
+String NumericType::dump() const
 {
     StringBuilder builder;
     builder.appendff("{{ hint: {}", m_percent_hint.map([](auto base_type) { return base_type_name(base_type); }));

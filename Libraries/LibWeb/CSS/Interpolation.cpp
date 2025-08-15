@@ -1023,30 +1023,30 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         // https://www.w3.org/TR/css-values-4/#mixed-percentages
 
         struct NumericBaseTypeAndDefault {
-            CSSNumericType::BaseType base_type;
+            NumericType::BaseType base_type;
             ValueComparingNonnullRefPtr<StyleValue const> default_value;
         };
         static constexpr auto numeric_base_type_and_default = [](StyleValue const& value) -> Optional<NumericBaseTypeAndDefault> {
             switch (value.type()) {
             case StyleValue::Type::Angle: {
                 static auto default_angle_value = AngleStyleValue::create(Angle::make_degrees(0));
-                return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Angle, default_angle_value };
+                return NumericBaseTypeAndDefault { NumericType::BaseType::Angle, default_angle_value };
             }
             case StyleValue::Type::Frequency: {
                 static auto default_frequency_value = FrequencyStyleValue::create(Frequency::make_hertz(0));
-                return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Frequency, default_frequency_value };
+                return NumericBaseTypeAndDefault { NumericType::BaseType::Frequency, default_frequency_value };
             }
             case StyleValue::Type::Length: {
                 static auto default_length_value = LengthStyleValue::create(Length::make_px(0));
-                return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Length, default_length_value };
+                return NumericBaseTypeAndDefault { NumericType::BaseType::Length, default_length_value };
             }
             case StyleValue::Type::Percentage: {
                 static auto default_percentage_value = PercentageStyleValue::create(Percentage { 0.0 });
-                return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Percent, default_percentage_value };
+                return NumericBaseTypeAndDefault { NumericType::BaseType::Percent, default_percentage_value };
             }
             case StyleValue::Type::Time: {
                 static auto default_time_value = TimeStyleValue::create(Time::make_seconds(0));
-                return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Time, default_time_value };
+                return NumericBaseTypeAndDefault { NumericType::BaseType::Time, default_time_value };
             }
             default:
                 return {};
@@ -1073,7 +1073,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto from_base_type_and_default = numeric_base_type_and_default(from);
         auto to_base_type_and_default = numeric_base_type_and_default(to);
 
-        if (from_base_type_and_default.has_value() && to_base_type_and_default.has_value() && (from_base_type_and_default->base_type == CSSNumericType::BaseType::Percent || to_base_type_and_default->base_type == CSSNumericType::BaseType::Percent)) {
+        if (from_base_type_and_default.has_value() && to_base_type_and_default.has_value() && (from_base_type_and_default->base_type == NumericType::BaseType::Percent || to_base_type_and_default->base_type == NumericType::BaseType::Percent)) {
             // This is an interpolation from a numeric unit to a percentage, or vice versa. The trick here is to
             // interpolate two separate values. For example, consider an interpolation from 30px to 80%. It's quite
             // hard to understand how this interpolation works, but if instead we rewrite the values as "30px + 0%" and
@@ -1089,7 +1089,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             values.unchecked_append(to_calculation_node(*interpolated_from));
             values.unchecked_append(to_calculation_node(*interpolated_to));
             auto calc_node = SumCalculationNode::create(move(values));
-            return CalculatedStyleValue::create(move(calc_node), CSSNumericType { to_base_type_and_default->base_type, 1 }, calculation_context);
+            return CalculatedStyleValue::create(move(calc_node), NumericType { to_base_type_and_default->base_type, 1 }, calculation_context);
         }
 
         return {};

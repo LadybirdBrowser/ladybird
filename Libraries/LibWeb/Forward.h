@@ -312,6 +312,7 @@ class MediaQueryListEvent;
 class Number;
 class NumberOrCalculated;
 class NumberStyleValue;
+class NumericType;
 class OKLabColorStyleValue;
 class OKLCHColorStyleValue;
 class OpenTypeTaggedStyleValue;
