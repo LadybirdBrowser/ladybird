@@ -501,8 +501,8 @@ String PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Sou
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(url, source);
     if (!response) {
-        dbgln("WebContent client disconnected during DidRequestCookie. Exiting peacefully.");
-        exit(0);
+        dbgln("WebContent client disconnected during DidRequestCookie. Exiting soon!!!");
+        return String {}; // we have to return something... but what!!!
     }
     return response->take_cookie();
 }
@@ -511,8 +511,7 @@ void PageClient::page_did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCoo
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(url, cookie, source);
     if (!response) {
-        dbgln("WebContent client disconnected during DidSetCookie. Exiting peacefully.");
-        exit(0);
+        dbgln("WebContent client disconnected during DidSetCookie. Exiting soon!!!");
     }
 }
 
@@ -530,8 +529,8 @@ Optional<String> PageClient::page_did_request_storage_item(Web::StorageAPI::Stor
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageItem>(storage_endpoint, storage_key, bottle_key);
     if (!response) {
-        dbgln("WebContent client disconnected during DidRequestStorageItem. Exiting peacefully.");
-        exit(0);
+        dbgln("WebContent client disconnected during DidRequestStorageItem. Exiting soon!!!");
+        return {}; // we have to return something... but what!!!
     }
     return response->take_value();
 }
@@ -540,8 +539,8 @@ WebView::StorageOperationError PageClient::page_did_set_storage_item(Web::Storag
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetStorageItem>(storage_endpoint, storage_key, bottle_key, value);
     if (!response) {
-        dbgln("WebContent client disconnected during DidSetStorageItem. Exiting peacefully.");
-        exit(0);
+        dbgln("WebContent client disconnected during DidSetStorageItem. Exiting soon!!!");
+        return {}; // we have to return something... but what!!!
     }
     return response->error();
 }
@@ -550,8 +549,7 @@ void PageClient::page_did_remove_storage_item(Web::StorageAPI::StorageEndpointTy
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveStorageItem>(storage_endpoint, storage_key, bottle_key);
     if (!response) {
-        dbgln("WebContent client disconnected during DidRemoveStorageItem. Exiting peacefully.");
-        exit(0);
+        dbgln("WebContent client disconnected during DidRemoveStorageItem. Exiting soon!!!");
     }
 }
 
@@ -559,8 +557,8 @@ Vector<String> PageClient::page_did_request_storage_keys(Web::StorageAPI::Storag
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageKeys>(storage_endpoint, storage_key);
     if (!response) {
-        dbgln("WebContent client disconnected during DidRequestStorageKeys. Exiting peacefully.");
-        exit(0);
+        dbgln("WebContent client disconnected during DidRequestStorageKeys. Exiting soon!!!");
+        return {}; // we have to return something... but what!!!
     }
     return response->take_keys();
 }
@@ -569,8 +567,7 @@ void PageClient::page_did_clear_storage(Web::StorageAPI::StorageEndpointType sto
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidClearStorage>(storage_endpoint, storage_key);
     if (!response) {
-        dbgln("WebContent client disconnected during DidClearStorage. Exiting peacefully.");
-        exit(0);
+        dbgln("WebContent client disconnected during DidClearStorage. Exiting soon!!!");
     }
 }
 
@@ -593,8 +590,8 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
 
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, page_id);
     if (!response) {
-        dbgln("WebContent client disconnected during DidRequestNewWebView. Exiting peacefully.");
-        exit(0);
+        dbgln("WebContent client disconnected during DidRequestNewWebView. Exiting soon!!!");
+        return {}; // we have to return something... but what!!!
     }
 
     return { &new_client.page(), response->take_handle() };
@@ -669,8 +666,8 @@ IPC::File PageClient::request_worker_agent(Web::Bindings::AgentType type)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::RequestWorkerAgent>(m_id, type);
     if (!response) {
-        dbgln("WebContent client disconnected during RequestWorkerAgent. Exiting peacefully.");
-        exit(0);
+        dbgln("WebContent client disconnected during RequestWorkerAgent. Exiting soon!!!");
+        return {}; // we have to return something... but what!!!
     }
 
     return response->take_socket();
