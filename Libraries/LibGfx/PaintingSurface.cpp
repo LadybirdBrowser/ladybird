@@ -17,6 +17,10 @@
 #ifdef AK_OS_MACOS
 #    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
 #endif
+#ifdef USE_VULKAN
+#    include <gpu/ganesh/vk/GrVkBackendSurface.h>
+#    include <gpu/vk/GrVkTypes.h>
+#endif
 
 namespace Gfx {
 
@@ -26,6 +30,68 @@ struct PaintingSurface::Impl {
     sk_sp<SkSurface> surface;
     RefPtr<Bitmap> bitmap;
 };
+
+static GrSurfaceOrigin origin_to_sk_origin(PaintingSurface::Origin origin)
+{
+    switch (origin) {
+    case PaintingSurface::Origin::BottomLeft:
+        return kBottomLeft_GrSurfaceOrigin;
+    default:
+        VERIFY_NOT_REACHED();
+    case PaintingSurface::Origin::TopLeft:
+        return kTopLeft_GrSurfaceOrigin;
+    }
+}
+
+#ifdef USE_VULKAN
+static SkColorType vk_format_to_sk_color_type(VkFormat format)
+{
+    switch (format) {
+    case VK_FORMAT_B8G8R8A8_UNORM:
+        return kBGRA_8888_SkColorType;
+    // add more as needed
+    default:
+        VERIFY_NOT_REACHED();
+        return kUnknown_SkColorType;
+    }
+}
+
+static void release_vulkan_image(void* context)
+{
+    VulkanImage* image = static_cast<VulkanImage*>(context);
+    image->unref();
+}
+
+NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin)
+{
+    context->lock();
+    ScopeGuard unlock_guard([&context] {
+        context->unlock();
+    });
+
+    IntSize size(vulkan_image->info.extent.width, vulkan_image->info.extent.height);
+    GrVkImageInfo info = {
+        .fImage = vulkan_image->image,
+        .fAlloc = {}, // we're managing the memory ourselves
+        .fImageTiling = vulkan_image->info.tiling,
+        .fImageLayout = vulkan_image->info.layout,
+        .fFormat = vulkan_image->info.format,
+        .fImageUsageFlags = vulkan_image->info.usage,
+        .fSampleCount = 1,
+        .fLevelCount = 1,
+        .fCurrentQueueFamily = VK_QUEUE_FAMILY_IGNORED,
+        .fProtected = skgpu::Protected::kNo,
+        .fYcbcrConversionInfo = {},
+        .fSharingMode = vulkan_image->info.sharing_mode,
+    };
+    GrBackendRenderTarget rt = GrBackendRenderTargets::MakeVk(size.width(), size.height(), info);
+    // Note, we're implicitly giving Skia a reference to vulkan_image. It will eventually be released by the callback function.
+    vulkan_image->ref();
+    sk_sp<SkSurface> surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), rt, origin_to_sk_origin(origin), vk_format_to_sk_color_type(vulkan_image->info.format),
+        nullptr, nullptr, release_vulkan_image, vulkan_image.ptr());
+    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
+}
+#endif
 
 NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(RefPtr<SkiaBackendContext> context, IntSize size, BitmapFormat color_type, AlphaType alpha_type)
 {
@@ -71,18 +137,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_iosurface(Core::IOSu
     GrMtlTextureInfo mtl_info;
     mtl_info.fTexture = sk_ret_cfp(metal_texture->texture());
     auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture->width(), metal_texture->height(), mtl_info);
-    GrSurfaceOrigin sk_origin;
-    switch (origin) {
-    case Origin::TopLeft:
-        sk_origin = kTopLeft_GrSurfaceOrigin;
-        break;
-    case Origin::BottomLeft:
-        sk_origin = kBottomLeft_GrSurfaceOrigin;
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-    auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, sk_origin, kBGRA_8888_SkColorType, nullptr, nullptr);
+    auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, origin_to_sk_origin(origin), kBGRA_8888_SkColorType, nullptr, nullptr);
     return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
 }
 #endif
