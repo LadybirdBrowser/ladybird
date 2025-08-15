@@ -50,6 +50,10 @@ private:
     NonnullOwnPtr<Impl> m_impl;
     Optional<Vector<String>> m_requestable_extensions;
     WebGLVersion m_webgl_version;
+
+#ifdef AK_OS_MACOS
+    void free_surface_resources();
+#endif
 };
 
 }

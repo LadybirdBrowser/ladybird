@@ -35,6 +35,7 @@ struct OpenGLContext::Impl {
     EGLSurface surface { nullptr };
 
     GLuint framebuffer { 0 };
+    GLuint color_buffer { 0 };
     GLuint depth_buffer { 0 };
 #endif
 };
@@ -49,14 +50,37 @@ OpenGLContext::OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend
 OpenGLContext::~OpenGLContext()
 {
 #ifdef AK_OS_MACOS
+    free_surface_resources();
     eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-    glDeleteFramebuffers(1, &m_impl->framebuffer);
-    glDeleteRenderbuffers(1, &m_impl->depth_buffer);
     eglDestroyContext(m_impl->display, m_impl->context);
-    eglReleaseTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
-    eglDestroySurface(m_impl->display, m_impl->surface);
 #endif
 }
+
+#ifdef AK_OS_MACOS
+void OpenGLContext::free_surface_resources()
+{
+    if (m_impl->framebuffer) {
+        glDeleteFramebuffers(1, &m_impl->framebuffer);
+        m_impl->framebuffer = 0;
+    }
+
+    if (m_impl->color_buffer) {
+        glDeleteTextures(1, &m_impl->color_buffer);
+        m_impl->color_buffer = 0;
+    }
+
+    if (m_impl->depth_buffer) {
+        glDeleteRenderbuffers(1, &m_impl->depth_buffer);
+        m_impl->depth_buffer = 0;
+    }
+
+    if (m_impl->surface != EGL_NO_SURFACE) {
+        eglReleaseTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
+        eglDestroySurface(m_impl->display, m_impl->surface);
+        m_impl->surface = EGL_NO_SURFACE;
+    }
+}
+#endif
 
 #ifdef AK_OS_MACOS
 static EGLConfig get_egl_config(EGLDisplay display)
@@ -174,6 +198,7 @@ void OpenGLContext::allocate_painting_surface_if_needed()
         return;
 
     VERIFY(!m_size.is_empty());
+    free_surface_resources();
 
     auto iosurface = Core::IOSurfaceHandle::create(m_size.width(), m_size.height());
 
@@ -212,15 +237,14 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target_name);
     VERIFY(texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE || texture_target_name == EGL_TEXTURE_2D);
 
-    GLuint texture = 0;
-    glGenTextures(1, &texture);
-    glBindTexture(texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, texture);
+    glGenTextures(1, &m_impl->color_buffer);
+    glBindTexture(texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer);
     auto result = eglBindTexImage(display, m_impl->surface, EGL_BACK_BUFFER);
     VERIFY(result == EGL_TRUE);
 
     glGenFramebuffers(1, &m_impl->framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, m_impl->framebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, texture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer, 0);
 
     // NOTE: ANGLE doesn't allocate depth buffer for us, so we need to do it manually
     // FIXME: Depth buffer only needs to be allocated if it's configured in WebGL context attributes
