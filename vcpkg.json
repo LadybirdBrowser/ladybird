@@ -26,6 +26,11 @@
       ]
     },
     {
+      "name": "dbus",
+      "default-features": false,
+      "platform": "linux"
+    },
+    {
       "name": "dirent",
       "platform": "windows"
     },
@@ -151,6 +156,10 @@
       "name": "pthread",
       "platform": "windows"
     },
+    {
+      "name": "sdl3",
+      "default-features": false
+    },
     "simdutf",
     {
       "name": "skia",
@@ -200,6 +209,10 @@
     {
       "name": "curl",
       "version": "8.15.0#1"
+    },
+    {
+      "name": "dbus",
+      "version": "1.16.2#1"
     },
     {
       "name": "dirent",
@@ -268,6 +281,10 @@
     {
       "name": "qtmultimedia",
       "version": "6.8.3#0"
+    },
+    {
+      "name": "sdl3",
+      "version": "3.2.20#0"
     },
     {
       "name": "simdutf",
