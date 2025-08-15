@@ -3622,4 +3622,27 @@ bool HTMLInputElement::is_mutable() const
         && !(has_attribute(AttributeNames::readonly) && is_allowed_to_be_readonly(m_type));
 }
 
+// https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+bool HTMLInputElement::uses_button_layout() const
+{
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-button:button-layout-2
+    // An input element whose type attribute is in the Submit Button, Reset Button, or Button state, when it generates a
+    // CSS box, is expected to depict a button and use button layout [..]
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-colour-well:button-layout-2
+    // The element, when it generates a CSS box, is expected to use button layout, that has no child boxes of the
+    // anonymous button content box.
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-file-upload-control:button-layout-2
+    // The button is expected to use button layout and match the '::file-selector-button' pseudo-element.
+
+    // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):concept-button
+    // The element is a button, specifically a submit button.
+    // NOTE: Although type=image is specified to be a submit button, that does not mean that the type attribute is
+    //       Submit Button, so we don't include ::ImageButton below.
+
+    return first_is_one_of(type_state(), TypeAttributeState::SubmitButton, TypeAttributeState::ResetButton,
+        TypeAttributeState::Button, TypeAttributeState::Color, TypeAttributeState::FileUpload);
+}
+
 }

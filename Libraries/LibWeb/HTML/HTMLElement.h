@@ -165,6 +165,9 @@ public:
 
     bool is_form_associated_custom_element();
 
+    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+    virtual bool uses_button_layout() const { return false; }
+
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
 
