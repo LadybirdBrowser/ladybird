@@ -724,36 +724,23 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
 void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, GC::Ref<Layout::Node> layout_node)
 {
-    auto is_button_layout = [&] {
-        if (dom_node.is_html_button_element())
-            return true;
-        if (!dom_node.is_html_input_element())
-            return false;
-        // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-button
-        // An input element whose type attribute is in the Submit Button, Reset Button, or Button state, when it generates a CSS box, is expected to depict a button and use button layout
-        auto const& input_element = static_cast<HTML::HTMLInputElement const&>(dom_node);
-        if (input_element.is_button())
-            return true;
-        return false;
-    }();
-
-    if (!is_button_layout)
+    auto const* html_element = as_if<HTML::HTMLElement>(dom_node);
+    if (!html_element || !html_element->uses_button_layout())
         return;
-
-    auto display = layout_node->display();
 
     // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
     // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
-    if (is_button_layout && dom_node.layout_node()->computed_values().width().is_auto()) {
+    if (dom_node.layout_node()->computed_values().width().is_auto()) {
         auto& computed_values = as<NodeWithStyle>(*dom_node.layout_node()).mutable_computed_values();
         computed_values.set_width(CSS::Size::make_fit_content());
     }
 
     // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
-    // If the element is an input element, or if it is a button element and its computed value for
-    // 'display' is not 'inline-grid', 'grid', 'inline-flex', or 'flex', then the element's box has
-    // a child anonymous button content box with the following behaviors:
-    if (is_button_layout && !display.is_grid_inside() && !display.is_flex_inside()) {
+    // If the element is an input element, or if it is a button element and its computed value for 'display' is not
+    // 'inline-grid', 'grid', 'inline-flex', or 'flex', then the element's box has a child anonymous button content box
+    // with the following behaviors:
+    auto display = layout_node->display();
+    if (!display.is_grid_inside() && !display.is_flex_inside()) {
         auto& parent = *layout_node;
 
         // If the box does not overflow in the vertical axis, then it is centered vertically.

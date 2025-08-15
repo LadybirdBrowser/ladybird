@@ -87,6 +87,9 @@ public:
     GC::Ptr<DOM::Element> command_for_element() { return m_command_for_element; }
     void set_command_for_element(GC::Ptr<DOM::Element> value) { m_command_for_element = value; }
 
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-button-element-2:button-layout-2
+    virtual bool uses_button_layout() const override { return true; }
+
 private:
     virtual void visit_edges(Visitor&) override;
 

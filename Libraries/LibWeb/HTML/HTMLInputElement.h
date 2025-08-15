@@ -253,6 +253,7 @@ public:
     virtual bool suffering_from_bad_input() const override;
 
     virtual bool is_mutable() const override;
+    virtual bool uses_button_layout() const override;
 
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
