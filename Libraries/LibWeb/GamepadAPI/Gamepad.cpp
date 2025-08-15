@@ -6,9 +6,9 @@
 
 #include <LibWeb/Bindings/GamepadPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Gamepad/Gamepad.h>
+#include <LibWeb/GamepadAPI/Gamepad.h>
 
-namespace Web::Gamepad {
+namespace Web::GamepadAPI {
 
 Gamepad::Gamepad(JS::Realm& realm)
     : PlatformObject(realm)

@@ -5,11 +5,11 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibWeb/Gamepad/Gamepad.h>
-#include <LibWeb/Gamepad/NavigatorGamepad.h>
+#include <LibWeb/GamepadAPI/Gamepad.h>
+#include <LibWeb/GamepadAPI/NavigatorGamepad.h>
 #include <LibWeb/HTML/Navigator.h>
 
-namespace Web::Gamepad {
+namespace Web::GamepadAPI {
 
 // https://w3c.github.io/gamepad/#dom-navigator-getgamepads
 WebIDL::ExceptionOr<GC::RootVector<GC::Ptr<Gamepad>>> NavigatorGamepadPartial::get_gamepads()

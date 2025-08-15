@@ -11,7 +11,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
-namespace Web::Gamepad {
+namespace Web::GamepadAPI {
 
 class NavigatorGamepadPartial {
 public:

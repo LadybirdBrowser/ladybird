@@ -8,7 +8,7 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 
-namespace Web::Gamepad {
+namespace Web::GamepadAPI {
 
 // https://w3c.github.io/gamepad/#dom-gamepad
 class Gamepad : public Bindings::PlatformObject {

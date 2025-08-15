@@ -517,7 +517,7 @@ class FileList;
 
 }
 
-namespace Web::Gamepad {
+namespace Web::GamepadAPI {
 
 class Gamepad;
 

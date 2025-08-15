@@ -24,7 +24,7 @@ static constexpr Array libweb_interface_namespaces = {
     "Encoding"sv,
     "Fetch"sv,
     "FileAPI"sv,
-    "Gamepad"sv,
+    "GamepadAPI"sv,
     "Geolocation"sv,
     "Geometry"sv,
     "HTML"sv,
