@@ -103,7 +103,7 @@ static EGLConfig get_egl_config(EGLDisplay display)
     Vector<EGLConfig> configs;
     configs.resize(number_of_configs);
     eglChooseConfig(display, config_attribs, configs.data(), number_of_configs, &number_of_configs);
-    return configs[0];
+    return number_of_configs > 0 ? configs[0] : EGL_NO_CONFIG_KHR;
 }
 #endif
 
@@ -129,6 +129,10 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
     }
 
     auto* config = get_egl_config(display);
+    if (config == EGL_NO_CONFIG_KHR) {
+        dbgln("Failed to find EGLConfig");
+        return {};
+    }
 
     EGLint context_attributes[] = {
         EGL_CONTEXT_CLIENT_VERSION,
