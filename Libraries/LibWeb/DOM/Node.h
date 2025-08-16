@@ -104,6 +104,7 @@ enum class StyleInvalidationReason {
     X(LayoutTreeUpdate)                               \
     X(NavigableSetViewportSize)                       \
     X(SVGImageElementFetchTheDocument)                \
+    X(SVGImageFilterFetch)                            \
     X(StyleChange)
 
 enum class SetNeedsLayoutReason {
