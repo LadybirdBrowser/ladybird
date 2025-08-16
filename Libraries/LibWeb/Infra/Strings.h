@@ -13,14 +13,14 @@
 
 namespace Web::Infra {
 
-String normalize_newlines(String const&);
+AK::String normalize_newlines(AK::String const&);
 Utf16String normalize_newlines(Utf16String const&);
-ErrorOr<String> strip_and_collapse_whitespace(StringView string);
+ErrorOr<AK::String> strip_and_collapse_whitespace(StringView string);
 Utf16String strip_and_collapse_whitespace(Utf16String const& string);
 bool is_code_unit_prefix(StringView potential_prefix, StringView input);
-ErrorOr<String> convert_to_scalar_value_string(StringView string);
+ErrorOr<AK::String> convert_to_scalar_value_string(StringView string);
 ByteBuffer isomorphic_encode(StringView input);
-String isomorphic_decode(ReadonlyBytes input);
+AK::String isomorphic_decode(ReadonlyBytes input);
 bool code_unit_less_than(StringView a, StringView b);
 
 }

@@ -51,4 +51,8 @@ using Signed32BitInteger = i32;
 // A 64-bit signed integer is an integer in the range −9223372036854775808 to 9223372036854775807 (−2^63 to 2^63 − 1), inclusive.
 using Signed64BitInteger = i64;
 
+// https://infra.spec.whatwg.org/#string
+// A string is a sequence of 16-bit unsigned integers, also known as code units.
+using String = AK::Utf16String;
+
 }
