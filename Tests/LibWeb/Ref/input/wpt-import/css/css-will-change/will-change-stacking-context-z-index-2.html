@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>CSS Test: `will-change: z-index`</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/css-will-change/#valdef-will-change-custom-ident">
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#painting">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11827">
+<link rel="match" href="../../../../expected/wpt-import/css/css-will-change/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="
+  `will-change: z-index` establishes a stacking context on a flex item.
+">
+<style>
+.test {
+  will-change: z-index;
+  width: 100px;
+  background: red;
+}
+.test::before {
+  content: "";
+  display: block;
+  position: relative;
+  z-index: -1;
+  height: 100px;
+  background: green;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="display: flex">
+  <div class="test"></div>
+</div>

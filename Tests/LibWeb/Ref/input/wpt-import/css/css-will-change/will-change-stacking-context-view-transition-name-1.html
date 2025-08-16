@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS will-change: 'will-change: view-transition-name' creates a stacking context</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-will-change-1/#will-change">
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/#named-and-transitioning">
+<link rel="match" href="../../../../expected/wpt-import/css/css-will-change/green-square-100-by-100-ref.html">
+<meta name="assert" content="If any non-initial value of a property would create a stacking context on the element, specifying that property in will-change must create a stacking context on the element.">
+<style>
+html, body { margin: 0; padding: 0; }
+div { width: 100px; height: 100px }
+#wc { will-change: view-transition-name; background: red }
+#child { position: absolute; top: 0; left: 0; z-index: -1; background: green }
+</style>
+<body>
+  <div id="wc">
+    <div id="child">
+    </div>
+  </div>
+</body>
