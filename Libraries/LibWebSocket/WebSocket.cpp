@@ -97,17 +97,27 @@ void WebSocket::send(Message const& message)
 
 void WebSocket::close(u16 code, ByteString const& message)
 {
+    // Section 3.1: close(code, reason): https://websockets.spec.whatwg.org/#the-websocket-interface
     VERIFY(m_impl);
 
     switch (m_state) {
+    case InternalState::Closed:
+    case InternalState::Closing:
+        // "If this’s ready state is CLOSING (2) or CLOSED (3)
+        // Do nothing."
+        break;
     case InternalState::NotStarted:
     case InternalState::EstablishingProtocolConnection:
     case InternalState::SendingClientHandshake:
     case InternalState::WaitingForServerHandshake:
+        // "If the WebSocket connection is not yet established [WSP]
+        // Fail the WebSocket connection and set this’s ready state to CLOSING (2)."
         // FIXME: Fail the connection.
         set_state(InternalState::Closing);
         break;
     case InternalState::Open: {
+        // "If the WebSocket closing handshake has not yet been started [WSP]
+        // Start the WebSocket closing handshake and set this’s ready state to CLOSING (2)."
         auto message_bytes = message.bytes();
         auto close_payload = ByteBuffer::create_uninitialized(message_bytes.size() + 2).release_value_but_fixme_should_propagate_errors(); // FIXME: Handle possible OOM situation.
         close_payload.overwrite(0, (u8*)&code, 2);
@@ -117,6 +127,9 @@ void WebSocket::close(u16 code, ByteString const& message)
         break;
     }
     default:
+        // "Otherwise
+        // Set this’s ready state to CLOSING (2)."
+        set_state(InternalState::Closing);
         break;
     }
 }
