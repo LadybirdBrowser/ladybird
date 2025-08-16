@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLFrameElement.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
@@ -50,10 +51,15 @@ void HTMLFrameElement::inserted()
 
     // 3. Create a new child navigable for insertedNode.
     MUST(create_new_child_navigable(GC::create_function(realm().heap(), [this] {
-        // 4. Process the frame attributes for insertedNode, with initialInsertion set to true.
-        process_the_frame_attributes(InitialInsertion::Yes);
         set_content_navigable_has_session_history_entry_and_ready_for_navigation();
     })));
+
+    // 4. Process the frame attributes for insertedNode, with initialInsertion set to true.
+    process_the_frame_attributes(InitialInsertion::Yes);
+
+    // FIXME: See related FIXME in HTMLIFrameElement.cpp
+    if (auto navigable = content_navigable())
+        navigable->traversable_navigable()->synchronously_spin_session_history_traversal_queue_fixme();
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#frames:html-element-removing-steps
