@@ -91,6 +91,16 @@ sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl l
 sudo dnf install autoconf-archive automake ccache cmake curl git liberation-sans-fonts libglvnd-devel nasm ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
+### Toolbx Container:
+Fedora Silverblue and other operating systems based on OSTree use [toolbx](https://containertoolbx.org/) to create container-based development environments. 
+   ```
+   toolbox create ladybird-dev
+   toolbox enter ladybird-dev
+   ```
+   ```
+   sudo dnf install autoconf-archive automake ccache cmake curl git liberation-sans-fonts libglvnd-devel nasm ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static gcc-c++
+   ```
+
 ### openSUSE:
 
 ```
