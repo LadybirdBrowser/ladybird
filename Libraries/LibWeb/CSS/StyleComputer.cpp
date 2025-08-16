@@ -505,7 +505,7 @@ bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::
     return false;
 }
 
-Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const
+Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name, bool enable_ancestor_filter) const
 {
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
@@ -539,7 +539,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
             return;
 
         auto const& selector = rule_to_run.selector;
-        if (selector.can_use_ancestor_filter() && should_reject_with_ancestor_filter(selector))
+        if (enable_ancestor_filter && selector.can_use_ancestor_filter() && should_reject_with_ancestor_filter(selector))
             return;
 
         rules_to_run.unchecked_append(rule_to_run);
@@ -1577,23 +1577,23 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
     }
 }
 
-StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Element const& element, Optional<PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
+StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Element const& element, Optional<PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode, bool enable_ancestor_filter) const
 {
     // First, we collect all the CSS rules whose selectors match `element`:
     MatchingRuleSet matching_rule_set;
-    matching_rule_set.user_agent_rules = collect_matching_rules(element, CascadeOrigin::UserAgent, pseudo_element, attempted_pseudo_class_matches);
+    matching_rule_set.user_agent_rules = collect_matching_rules(element, CascadeOrigin::UserAgent, pseudo_element, attempted_pseudo_class_matches, {}, enable_ancestor_filter);
     sort_matching_rules(matching_rule_set.user_agent_rules);
-    matching_rule_set.user_rules = collect_matching_rules(element, CascadeOrigin::User, pseudo_element, attempted_pseudo_class_matches);
-    sort_matching_rules(matching_rule_set.user_rules);
 
+    matching_rule_set.user_rules = collect_matching_rules(element, CascadeOrigin::User, pseudo_element, attempted_pseudo_class_matches, {}, enable_ancestor_filter);
+    sort_matching_rules(matching_rule_set.user_rules);
     // @layer-ed author rules
     for (auto const& layer_name : m_qualified_layer_names_in_order) {
-        auto layer_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, attempted_pseudo_class_matches, layer_name);
+        auto layer_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, attempted_pseudo_class_matches, layer_name, enable_ancestor_filter);
         sort_matching_rules(layer_rules);
         matching_rule_set.author_rules.append({ layer_name, layer_rules });
     }
     // Un-@layer-ed author rules
-    auto unlayered_author_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, attempted_pseudo_class_matches);
+    auto unlayered_author_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, attempted_pseudo_class_matches, {}, enable_ancestor_filter);
     sort_matching_rules(unlayered_author_rules);
     matching_rule_set.author_rules.append({ {}, unlayered_author_rules });
 
@@ -2450,9 +2450,9 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     return style;
 }
 
-GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Optional<bool&> did_change_custom_properties) const
+GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Optional<bool&> did_change_custom_properties, bool enable_ancestor_filter) const
 {
-    return *compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal, did_change_custom_properties);
+    return *compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal, did_change_custom_properties, enable_ancestor_filter);
 }
 
 GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Optional<bool&> did_change_custom_properties) const
@@ -2460,14 +2460,14 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_neede
     return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties);
 }
 
-GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties, bool enable_ancestor_filter) const
 {
     build_rule_cache_if_needed();
 
     // Special path for elements that use pseudo element as style selector
     if (element.use_pseudo_element().has_value()) {
         auto& parent_element = as<HTML::HTMLElement>(*element.root().parent_or_shadow_host());
-        auto style = compute_style(parent_element, *element.use_pseudo_element());
+        auto style = compute_style(parent_element, *element.use_pseudo_element(), {}, enable_ancestor_filter);
 
         // Merge back inline styles
         if (auto inline_style = element.inline_style()) {
@@ -2482,7 +2482,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
     PseudoClassBitmap attempted_pseudo_class_matches;
-    auto matching_rule_set = build_matching_rule_set(element, pseudo_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
+    auto matching_rule_set = build_matching_rule_set(element, pseudo_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode, enable_ancestor_filter);
 
     DOM::AbstractElement abstract_element { element, pseudo_element };
     auto old_custom_properties = abstract_element.custom_properties();
