@@ -233,6 +233,8 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_fragment(StringView markup);
 
+    [[nodiscard]] GC::Ptr<Element const> element_to_inherit_style_from(Optional<CSS::PseudoElement>) const;
+
     WebIDL::ExceptionOr<String> inner_html() const;
     WebIDL::ExceptionOr<void> set_inner_html(StringView);
 

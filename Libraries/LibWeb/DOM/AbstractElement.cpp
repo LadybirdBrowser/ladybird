@@ -40,6 +40,11 @@ GC::Ptr<Element const> AbstractElement::parent_element() const
     return m_element->parent_element();
 }
 
+GC::Ptr<Element const> AbstractElement::element_to_inherit_style_from() const
+{
+    return m_element->element_to_inherit_style_from(m_pseudo_element);
+}
+
 Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_method)
 {
     GC::Ptr<Layout::Node> node = layout_node();
