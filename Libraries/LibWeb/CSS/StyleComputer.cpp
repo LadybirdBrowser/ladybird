@@ -81,6 +81,7 @@
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/Node.h>
@@ -179,8 +180,6 @@ OwnFontFaceKey::operator FontFaceKey() const
         && weight == other.weight
         && slope == other.slope;
 }
-
-static DOM::Element const* element_to_inherit_style_from(DOM::Element const*, Optional<CSS::PseudoElement>);
 
 StyleComputer::StyleComputer(DOM::Document& document)
     : m_document(document)
@@ -1665,21 +1664,9 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
     return cascaded_properties;
 }
 
-DOM::Element const* element_to_inherit_style_from(DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element)
-{
-    // Pseudo-elements treat their originating element as their parent.
-    DOM::Element const* parent_element = nullptr;
-    if (pseudo_element.has_value()) {
-        parent_element = element;
-    } else if (element) {
-        parent_element = element->parent_or_shadow_host_element();
-    }
-    return parent_element;
-}
-
 NonnullRefPtr<StyleValue const> StyleComputer::get_inherit_value(CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element)
 {
-    auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
+    auto parent_element = element ? element->element_to_inherit_style_from(pseudo_element) : nullptr;
 
     if (!parent_element || !parent_element->computed_properties())
         return property_initial_value(property_id);
@@ -1751,7 +1738,7 @@ void StyleComputer::compute_defaulted_values(ComputedProperties& style, DOM::Ele
     if (element && element->local_name() == HTML::TagNames::th
         && style.property(PropertyID::TextAlign).to_keyword() == Keyword::LibwebInheritOrCenter) {
         auto const* parent_element = element;
-        while ((parent_element = element_to_inherit_style_from(parent_element, {}))) {
+        while ((parent_element = parent_element->element_to_inherit_style_from({}))) {
             auto parent_computed = parent_element->computed_properties();
             auto parent_cascaded = parent_element->cascaded_properties({});
             if (!parent_computed || !parent_cascaded)
@@ -1911,7 +1898,7 @@ CSSPixelFraction StyleComputer::absolute_size_mapping(Keyword keyword)
 
 RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth) const
 {
-    auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
+    auto parent_element = element ? element->element_to_inherit_style_from(pseudo_element) : nullptr;
 
     auto width = font_stretch.to_font_width();
     auto weight = font_weight.to_font_weight();
@@ -2180,7 +2167,7 @@ LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(
 {
     auto normalize_value = [&](auto property_id, auto value) {
         if (!value || value->is_inherit() || value->is_unset()) {
-            if (auto const* inheritance_parent = element_to_inherit_style_from(&element, pseudo_element)) {
+            if (auto const inheritance_parent = element.element_to_inherit_style_from(pseudo_element)) {
                 value = inheritance_parent->computed_properties()->property(property_id);
             } else {
                 value = property_initial_value(property_id);
@@ -2297,14 +2284,7 @@ static void compute_text_align(ComputedProperties& style, DOM::Element const& el
     // value of start or end is interpreted against the parent’s direction value and results in a computed value of
     // either left or right. Computes to start when specified on the root element.
     if (style.property(PropertyID::TextAlign).to_keyword() == Keyword::MatchParent) {
-
-        // If it's a pseudo-element, then the "parent" is the originating element instead.
-        auto const* parent = [&]() -> DOM::Element const* {
-            if (pseudo_element.has_value())
-                return &element;
-            return element.parent_element();
-        }();
-
+        auto const parent = element.element_to_inherit_style_from(pseudo_element);
         if (parent) {
             auto const& parent_text_align = parent->computed_properties()->property(PropertyID::TextAlign);
             auto const& parent_direction = parent->computed_properties()->direction();
@@ -2355,7 +2335,7 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
     // FIXME: Containment in a ruby container inlinifies the box’s display type, as described in [CSS-RUBY-1].
 
     // NOTE: If we're computing style for a pseudo-element, the effective parent will be the originating element itself, not its parent.
-    auto parent = pseudo_element.has_value() ? GC::Ptr<DOM::Element const> { &element } : element.parent_element();
+    auto parent = element.element_to_inherit_style_from(pseudo_element);
 
     // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
     if (parent && parent->computed_properties()) {
@@ -2597,10 +2577,10 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(
 
     // Reconstruct the line of ancestor elements we need to inherit style from, and then do the cascade again
     // but only for the font-size property.
-    Vector<DOM::Element&> ancestors;
+    Vector<DOM::Element const&> ancestors;
     if (pseudo_element.has_value())
         ancestors.append(element);
-    for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element())
+    for (auto ancestor = element.element_to_inherit_style_from(pseudo_element); ancestor; ancestor = ancestor->element_to_inherit_style_from({}))
         ancestors.append(*ancestor);
 
     NonnullRefPtr<StyleValue const> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));
@@ -2664,7 +2644,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
         // FIXME: Logical properties should inherit from their parent's equivalent unmapped logical property.
         if ((!value && is_inherited_property(property_id))
             || (value && value->is_inherit())) {
-            if (auto inheritance_parent = element_to_inherit_style_from(&element, pseudo_element)) {
+            if (auto const inheritance_parent = element.element_to_inherit_style_from(pseudo_element)) {
                 value = inheritance_parent->computed_properties()->property(property_id);
                 inherited = ComputedProperties::Inherited::Yes;
             } else {
@@ -3183,9 +3163,9 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
     // Unset is the same as inherit for inherited properties, and by default all custom properties are inherited.
     // FIXME: Support non-inherited registered custom properties.
     if (value->is_inherit() || value->is_unset()) {
-        if (!abstract_element.parent_element())
+        if (!abstract_element.element_to_inherit_style_from())
             return document.custom_property_initial_value(name);
-        auto inherited_value = DOM::AbstractElement { const_cast<DOM::Element&>(*abstract_element.parent_element()) }.get_custom_property(name);
+        auto inherited_value = DOM::AbstractElement { const_cast<DOM::Element&>(*abstract_element.element_to_inherit_style_from()) }.get_custom_property(name);
         if (!inherited_value)
             return document.custom_property_initial_value(name);
         return inherited_value.release_nonnull();
@@ -3235,9 +3215,9 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element c
     compute_defaulted_property_value(style, element, CSS::PropertyID::MathStyle, pseudo_element);
 
     auto inherited_math_depth = [&]() {
-        if (!element || !element->parent_element())
+        if (!element || !element->element_to_inherit_style_from(pseudo_element))
             return InitialValues::math_depth();
-        return element->parent_element()->computed_properties()->math_depth();
+        return element->element_to_inherit_style_from(pseudo_element)->computed_properties()->math_depth();
     };
 
     auto const& value = style.property(CSS::PropertyID::MathDepth);

@@ -1,0 +1,20 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x54 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x38 children: not-inline
+      Box <main> at (13,13) content-size 774x28 flex-container(row) [FFC] children: not-inline
+        BlockContainer <foobar> at (13,13) content-size 52.5625x28 flex-item [BFC] children: not-inline
+          BlockContainer <div> at (18,18) content-size 42.5625x18 children: inline
+            frag 0 from TextNode start: 0, length: 5, rect: [18,18 42.5625x18] baseline: 13.796875
+                "story"
+            TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x54]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x38]
+      PaintableBox (Box<MAIN>) [8,8 784x38]
+        PaintableWithLines (BlockContainer<FOOBAR>) [13,13 52.5625x28]
+          PaintableWithLines (BlockContainer<DIV>) [13,13 52.5625x28]
+            TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x54] [children: 0] (z-index: auto)

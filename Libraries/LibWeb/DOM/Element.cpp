@@ -4131,4 +4131,17 @@ GC::Ref<CSS::StylePropertyMapReadOnly> Element::computed_style_map()
     return *m_computed_style_map_cache;
 }
 
+// The element to inherit style from.
+// If a pseudo-element is specified, this will return the element itself.
+// Otherwise, if this element is slotted somewhere, it will return the slot's element to inherit style from.
+// Otherwise, it will return the parent or shadow host element of this element.
+GC::Ptr<Element const> Element::element_to_inherit_style_from(Optional<CSS::PseudoElement> pseudo_element) const
+{
+    if (pseudo_element.has_value())
+        return this;
+    while (auto const slot = assigned_slot_internal())
+        return slot->element_to_inherit_style_from({});
+    return parent_or_shadow_host_element();
+}
+
 }
