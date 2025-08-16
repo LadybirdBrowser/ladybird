@@ -258,6 +258,7 @@ public:
         };
     }
     static CSS::ScrollbarWidth scrollbar_width() { return CSS::ScrollbarWidth::Auto; }
+    static CSS::ShapeRendering shape_rendering() { return CSS::ShapeRendering::Auto; }
     static WillChange will_change() { return WillChange::make_auto(); }
 };
 
@@ -539,6 +540,7 @@ public:
     CSS::MixBlendMode mix_blend_mode() const { return m_noninherited.mix_blend_mode; }
     Optional<FlyString> view_transition_name() const { return m_noninherited.view_transition_name; }
     TouchActionData touch_action() const { return m_noninherited.touch_action; }
+    CSS::ShapeRendering shape_rendering() const { return m_noninherited.shape_rendering; }
 
     CSS::LengthBox const& inset() const { return m_noninherited.inset; }
     const CSS::LengthBox& margin() const { return m_noninherited.margin; }
@@ -838,6 +840,8 @@ protected:
 
         Color flood_color { InitialValues::flood_color() };
         float flood_opacity { InitialValues::flood_opacity() };
+
+        CSS::ShapeRendering shape_rendering { InitialValues::shape_rendering() };
     } m_noninherited;
 };
 
@@ -1027,6 +1031,7 @@ public:
     void set_clip_rule(CSS::ClipRule value) { m_inherited.clip_rule = value; }
     void set_flood_color(Color value) { m_noninherited.flood_color = value; }
     void set_flood_opacity(float value) { m_noninherited.flood_opacity = value; }
+    void set_shape_rendering(CSS::ShapeRendering value) { m_noninherited.shape_rendering = value; }
 
     void set_cx(LengthPercentage cx) { m_noninherited.cx = move(cx); }
     void set_cy(LengthPercentage cy) { m_noninherited.cy = move(cy); }

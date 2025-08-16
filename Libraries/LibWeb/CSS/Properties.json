@@ -3060,6 +3060,15 @@
       "none"
     ]
   },
+  "shape-rendering": {
+    "affects-layout": true,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "shape-rendering"
+    ]
+  },
   "stop-color": {
     "affects-layout": false,
     "animation-type": "by-computed-value",

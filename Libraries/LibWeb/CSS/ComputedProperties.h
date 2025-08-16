@@ -195,6 +195,7 @@ public:
     FillRule fill_rule() const;
     ClipRule clip_rule() const;
     float flood_opacity() const;
+    CSS::ShapeRendering shape_rendering() const;
 
     WillChange will_change() const;
 

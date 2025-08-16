@@ -634,6 +634,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'scrollbar-gutter': 'auto'
 'scrollbarWidth': 'auto'
 'scrollbar-width': 'auto'
+'shapeRendering': 'auto'
+'shape-rendering': 'auto'
 'stopColor': 'rgb(0, 0, 0)'
 'stop-color': 'rgb(0, 0, 0)'
 'stopOpacity': '1'
