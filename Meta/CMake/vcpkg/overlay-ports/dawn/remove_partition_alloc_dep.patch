@@ -1,0 +1,17 @@
+diff --git a/build_overrides/dawn.gni b/build_overrides/dawn.gni
+index b528890ef7..c516e88617 100644
+--- a/build_overrides/dawn.gni
++++ b/build_overrides/dawn.gni
+@@ -57,12 +57,6 @@ dawn_vulkan_validation_layers_dir = "//third_party/vulkan-validation-layers/src"
+ dawn_dxc_dir = "//third_party/dxc"
+ dawn_dxheaders_dir = "//third_party/dxheaders"
+ 
+-# PartitionAlloc is an optional dependency.
+-# It does not fully support the MSVC compiler at the moment.
+-if (is_clang || !is_win) {
+-  dawn_partition_alloc_dir = "//third_party/partition_alloc/"
+-}
+-
+ # Optional path to a one-liner version file. Default is empty path indicating
+ # that git should be used to figure out the version.
+ dawn_version_file = ""

@@ -1,0 +1,12 @@
+// https://www.w3.org/TR/webgpu/#typedefdef-gpusize64
+typedef [EnforceRange] unsigned long long GPUSize64;
+
+// https://www.w3.org/TR/webgpu/#dictdef-gpuobjectdescriptorbase
+dictionary GPUObjectDescriptorBase {
+    USVString label = "";
+};
+
+// https://www.w3.org/TR/webgpu/#gpuobjectbase
+interface mixin GPUObjectBase {
+    attribute USVString label;
+};
