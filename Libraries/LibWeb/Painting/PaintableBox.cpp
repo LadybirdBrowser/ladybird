@@ -723,11 +723,15 @@ void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable 
     auto const& font = fragment.glyph_run() ? fragment.glyph_run()->font() : fragment.layout_node().first_available_font();
     auto cursor_offset = font.width(text.substring_view(0, cursor_position->offset() - fragment.start_offset()));
 
+    auto font_metrics = font.pixel_metrics();
+
+    auto cursor_height = font_metrics.ascent + font_metrics.descent;
+
     CSSPixelRect cursor_rect {
         fragment_rect.x() + CSSPixels::nearest_value_for(cursor_offset),
-        fragment_rect.top(),
+        fragment_rect.top() + fragment.baseline() - CSSPixels::nearest_value_for(font_metrics.ascent),
         1,
-        fragment_rect.height()
+        CSSPixels::nearest_value_for(cursor_height)
     };
     auto cursor_device_rect = context.rounded_device_rect(cursor_rect).to_type<int>();
 
