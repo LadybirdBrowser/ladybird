@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="8000px">
+  <title>Inheritance of SVG painting properties</title>
+  <metadata>
+    <h:link rel="help" href="https://svgwg.org/svg2-draft/painting.html"/>
+    <h:meta name="assert" content="properties inherit according to the spec."/>
+    <h:meta name="assert" content="properties have expected initial values."/>
+  </metadata>
+  <g id="container">
+      <g id="target"></g>
+  </g>
+  <h:script src="../../resources/testharness.js"/>
+  <h:script src="../../resources/testharnessreport.js"/>
+  <h:script src="../../css/support/inheritance-testcommon.js"/>
+  <script><![CDATA[
+
+assert_inherited('fill', 'rgb(0, 0, 0)', 'rgb(42, 53, 64)');
+assert_inherited('fill-rule', 'nonzero', 'evenodd');
+assert_inherited('fill-opacity', '1', '0.5');
+assert_inherited('stroke', 'none', 'rgb(42, 53, 64)');
+assert_inherited('stroke-opacity', '1', '0.5');
+assert_inherited('stroke-width', '1px', '3px');
+assert_inherited('stroke-linecap', 'butt', 'round');
+assert_inherited('stroke-linejoin', 'miter', 'round');
+assert_inherited('stroke-miterlimit', '4', '12');
+assert_inherited('stroke-dasharray', 'none', '1px, 2px, 3px');
+assert_inherited('stroke-dashoffset', '0px', '50%');
+assert_inherited('marker-start', 'none', 'url("https://example/com/diagram.svg#marker")');
+assert_inherited('marker-mid', 'none', 'url("https://example/com/diagram.svg#marker")');
+assert_inherited('marker-end', 'none', 'url("https://example/com/diagram.svg#marker")');
+assert_inherited('paint-order', 'normal', 'markers stroke');
+assert_inherited('color-interpolation', 'srgb', 'linearrgb');
+assert_inherited('shape-rendering', 'auto', 'optimizespeed');
+assert_inherited('text-rendering', 'auto', 'optimizespeed');
+assert_inherited('image-rendering', 'auto', 'optimizequality');
+
+  ]]></script>
+</svg>
