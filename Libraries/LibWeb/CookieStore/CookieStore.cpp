@@ -365,15 +365,15 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
         if (value.is_empty())
             return false;
 
-        // 3. If value, byte-lowercased, starts with `__host-`, `__hosthttp-`, `__http-`, or `__secure-`, then return failure.
+        // 3. If value, byte-lowercased, starts with `__host-`, `__host-http-`, `__http-`, or `__secure-`, then return failure.
         auto value_byte_lowercased = value.to_ascii_lowercase();
-        if (value_byte_lowercased.starts_with_bytes("__host-"sv) || value_byte_lowercased.starts_with_bytes("__hosthttp-"sv) || value_byte_lowercased.starts_with_bytes("__http-"sv) || value_byte_lowercased.starts_with_bytes("__secure-"sv))
+        if (value_byte_lowercased.starts_with_bytes("__host-"sv) || value_byte_lowercased.starts_with_bytes("__host-http-"sv) || value_byte_lowercased.starts_with_bytes("__http-"sv) || value_byte_lowercased.starts_with_bytes("__secure-"sv))
             return false;
     }
 
-    // 6. If name, byte-lowercased, starts with `__http-` or `__hosthttp-`, then return failure.
+    // 6. If name, byte-lowercased, starts with `__host-http-` or `__http-`, then return failure.
     auto name_byte_lowercased = name.to_ascii_lowercase();
-    if (name_byte_lowercased.starts_with_bytes("__http-"sv) || name_byte_lowercased.starts_with_bytes("__hosthttp-"sv))
+    if (name_byte_lowercased.starts_with_bytes("__host-http-"sv) || name_byte_lowercased.starts_with_bytes("__http-"sv))
         return false;
 
     // 7. Let encodedName be the result of UTF-8 encoding name.
