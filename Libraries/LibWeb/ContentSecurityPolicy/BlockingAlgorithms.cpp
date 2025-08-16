@@ -625,8 +625,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
 Directives::Directive::Result is_base_allowed_for_document(JS::Realm& realm, URL::URL const& base, GC::Ref<DOM::Document const> document)
 {
     // 1. For each policy of document’s global object’s csp list:
-    VERIFY(document->window());
-    auto csp_list = PolicyList::from_object(*document->window());
+    auto csp_list = PolicyList::from_object(document->realm().global_object());
     VERIFY(csp_list);
     for (auto const policy : csp_list->policies()) {
         // 1. Let source list be null.
