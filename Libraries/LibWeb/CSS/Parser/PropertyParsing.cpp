@@ -797,6 +797,11 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_white_space_trim_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::WillChange:
+        if (auto parsed_value = parse_will_change_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+
     default:
         break;
     }
@@ -5690,6 +5695,30 @@ RefPtr<StyleValue const> Parser::parse_white_space_shorthand(TokenStream<Compone
     }
 
     return make_whitespace_shorthand(white_space_collapse, text_wrap_mode, white_space_trim);
+}
+
+// https://drafts.csswg.org/css-will-change/#will-change
+RefPtr<StyleValue const> Parser::parse_will_change_value(TokenStream<ComponentValue>& tokens)
+{
+    // auto | <animateable-feature>#
+    // <animateable-feature> = scroll-position | contents | <custom-ident>
+    if (parse_all_as_single_keyword_value(tokens, Keyword::Auto))
+        return KeywordStyleValue::create(Keyword::Auto);
+
+    auto parse_animateable_feature = [this](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue const> {
+        auto style_value = parse_css_value_for_property(PropertyID::WillChange, tokens);
+        if (!style_value)
+            return nullptr;
+
+        if (style_value->to_keyword() == Keyword::Auto)
+            return nullptr;
+
+        return style_value;
+    };
+
+    return parse_comma_separated_value_list(tokens, [&parse_animateable_feature](auto& tokens) {
+        return parse_animateable_feature(tokens);
+    });
 }
 
 }
