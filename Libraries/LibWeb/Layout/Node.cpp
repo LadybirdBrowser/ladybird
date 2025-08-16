@@ -185,37 +185,50 @@ bool Node::establishes_stacking_context() const
     if (is_root_element())
         return true;
 
-    auto position = computed_values().position();
+    auto const& computed_values = this->computed_values();
+
+    auto position = computed_values.position();
+
+    // https://drafts.csswg.org/css-will-change/#will-change
+    // If any non-initial value of a property would create a stacking context on the element, specifying that property
+    // in will-change must create a stacking context on the element.
+    auto will_change_property = [&](CSS::PropertyID property_id) {
+        return computed_values.will_change().has_property(property_id);
+    };
+
+    auto has_z_index = computed_values.z_index().has_value() || will_change_property(CSS::PropertyID::ZIndex);
 
     // Element with a position value absolute or relative and z-index value other than auto.
     if (position == CSS::Positioning::Absolute || position == CSS::Positioning::Relative) {
-        if (computed_values().z_index().has_value()) {
+        if (has_z_index) {
             return true;
         }
     }
 
     // Element with a position value fixed or sticky.
-    if (position == CSS::Positioning::Fixed || position == CSS::Positioning::Sticky)
+    if (position == CSS::Positioning::Fixed || position == CSS::Positioning::Sticky
+        || will_change_property(CSS::PropertyID::Position)) {
+        return true;
+    }
+
+    if (!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
         return true;
 
-    if (!computed_values().transformations().is_empty())
+    if (computed_values.translate().has_value() || will_change_property(CSS::PropertyID::Translate))
         return true;
 
-    if (computed_values().translate().has_value())
+    if (computed_values.rotate().has_value() || will_change_property(CSS::PropertyID::Rotate))
         return true;
 
-    if (computed_values().rotate().has_value())
-        return true;
-
-    if (computed_values().scale().has_value())
+    if (computed_values.scale().has_value() || will_change_property(CSS::PropertyID::Scale))
         return true;
 
     // Element that is a child of a flex container, with z-index value other than auto.
-    if (parent() && parent()->display().is_flex_inside() && computed_values().z_index().has_value())
+    if (parent() && parent()->display().is_flex_inside() && has_z_index)
         return true;
 
     // Element that is a child of a grid container, with z-index value other than auto.
-    if (parent() && parent()->display().is_grid_inside() && computed_values().z_index().has_value())
+    if (parent() && parent()->display().is_grid_inside() && has_z_index)
         return true;
 
     // https://drafts.fxtf.org/filter-effects/#FilterProperty
@@ -224,8 +237,11 @@ bool Node::establishes_stacking_context() const
     // [CSS21] and a Containing Block for absolute and fixed position descendants, unless the
     // element it applies to is a document root element in the current browsing context.
     // Spec Note: This rule works in the same way as for the filter property.
-    if (computed_values().backdrop_filter().has_value() || computed_values().filter().has_value())
+    if (computed_values.backdrop_filter().has_value() || computed_values.filter().has_value()
+        || will_change_property(CSS::PropertyID::BackdropFilter)
+        || will_change_property(CSS::PropertyID::Filter)) {
         return true;
+    }
 
     // Element with any of the following properties with value other than none:
     // - transform
@@ -234,36 +250,40 @@ bool Node::establishes_stacking_context() const
     // - perspective
     // - clip-path
     // - mask / mask-image / mask-border
-    if (computed_values().mask().has_value() || computed_values().clip_path().has_value() || computed_values().mask_image())
+    if (computed_values.mask().has_value() || computed_values.clip_path().has_value() || computed_values.mask_image()
+        || will_change_property(CSS::PropertyID::Mask)
+        || will_change_property(CSS::PropertyID::ClipPath)
+        || will_change_property(CSS::PropertyID::MaskImage)) {
         return true;
+    }
 
     if (is_svg_foreign_object_box())
         return true;
 
     // https://drafts.fxtf.org/compositing/#propdef-isolation
     // For CSS, setting isolation to isolate will turn the element into a stacking context.
-    if (computed_values().isolation() == CSS::Isolation::Isolate)
+    if (computed_values.isolation() == CSS::Isolation::Isolate || will_change_property(CSS::PropertyID::Isolation))
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#containment-types
     // 5. The layout containment box creates a stacking context.
     // 3. The paint containment box creates a stacking context.
-    if (has_layout_containment() || has_paint_containment())
+    if (has_layout_containment() || has_paint_containment() || will_change_property(CSS::PropertyID::Contain))
         return true;
 
     // https://drafts.fxtf.org/compositing/#mix-blend-mode
     // Applying a blendmode other than normal to the element must establish a new stacking context.
-    if (computed_values().mix_blend_mode() != CSS::MixBlendMode::Normal)
+    if (computed_values.mix_blend_mode() != CSS::MixBlendMode::Normal || will_change_property(CSS::PropertyID::MixBlendMode))
         return true;
 
     // https://drafts.csswg.org/css-view-transitions-1/#named-and-transitioning
     // Elements captured in a view transition during a view transition or whose view-transition-name computed value is
     // not 'none' (at any time):
     // - Form a stacking context.
-    if (computed_values().view_transition_name().has_value())
+    if (computed_values.view_transition_name().has_value() || will_change_property(CSS::PropertyID::ViewTransitionName))
         return true;
 
-    return computed_values().opacity() < 1.0f;
+    return computed_values.opacity() < 1.0f || will_change_property(CSS::PropertyID::Opacity);
 }
 
 GC::Ptr<HTML::Navigable> Node::navigable() const

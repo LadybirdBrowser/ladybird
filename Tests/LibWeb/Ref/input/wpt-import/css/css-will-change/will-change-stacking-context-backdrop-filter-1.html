@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: will-change: backdrop-filter should create a stacking context.</title>
+<link rel="author" title="Philip Rogers" href="mailto:pdr@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=960953">
+<link rel="help" href="https://drafts.csswg.org/css-will-change/#will-change">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match" href="../../../../expected/wpt-import/css/css-will-change/green-square-100-by-100-ref.html">
+<style>
+  html, body { margin: 0; }
+  .indicator {
+    position: absolute;
+    background-color: green;
+    z-index: 1;
+  }
+  .willchange {
+    will-change: backdrop-filter;
+    z-index: 0;
+  }
+  .child {
+    position: relative;
+    background-color: red;
+    z-index: 2;
+  }
+  .box {
+    width: 100px;
+    height: 100px;
+  }
+</style>
+
+<div class="indicator box"></div>
+<div class="willchange box">
+  <!-- Because will-change: backdrop-filter creates a stacking context, this
+       child remains on bottom even though it has a higher z-index than the
+       indicator box. -->
+  <div class="child box"></div>
+</div>
