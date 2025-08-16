@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1147 tests
 
-879 Pass
-268 Fail
+882 Pass
+265 Fail
 Fail	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: member names are unique
@@ -26,7 +26,7 @@ Pass	BaseAudioContext interface: attribute sampleRate
 Pass	BaseAudioContext interface: attribute currentTime
 Pass	BaseAudioContext interface: attribute listener
 Pass	BaseAudioContext interface: attribute state
-Fail	BaseAudioContext interface: attribute renderQuantumSize
+Pass	BaseAudioContext interface: attribute renderQuantumSize
 Fail	BaseAudioContext interface: attribute audioWorklet
 Pass	BaseAudioContext interface: attribute onstatechange
 Pass	BaseAudioContext interface: operation createAnalyser()
@@ -93,7 +93,7 @@ Pass	BaseAudioContext interface: context must inherit property "sampleRate" with
 Pass	BaseAudioContext interface: context must inherit property "currentTime" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "listener" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "state" with the proper type
-Fail	BaseAudioContext interface: context must inherit property "renderQuantumSize" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "renderQuantumSize" with the proper type
 Fail	BaseAudioContext interface: context must inherit property "audioWorklet" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "onstatechange" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "createAnalyser()" with the proper type
@@ -154,7 +154,7 @@ Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "currentTime" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "listener" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "state" with the proper type
-Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "renderQuantumSize" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "renderQuantumSize" with the proper type
 Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "audioWorklet" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "onstatechange" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createAnalyser()" with the proper type
