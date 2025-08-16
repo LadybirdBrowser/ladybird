@@ -39,21 +39,21 @@
 
 namespace Web::Crypto {
 
-static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_from_value(JS::VM& vm, JS::Value hash_value)
+static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_from_value(JS::VM& vm, JS::Value const hash_value)
 {
     auto* realm = vm.current_realm();
 
     auto maybe_normalized_algorithm = [&]() -> WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> {
         if (hash_value.is_string()) {
-            auto hash_string = TRY(hash_value.to_string(vm));
+            auto const hash_string = TRY(hash_value.to_string(vm));
             return normalize_an_algorithm(*realm, hash_string, "digest"_string);
-        } else if (hash_value.is_object()) {
-            auto hash_object = TRY(hash_value.to_object(vm));
-            auto hash_object_root = GC::make_root(hash_object);
-            return normalize_an_algorithm(*realm, hash_object_root, "digest"_string);
-        } else {
-            VERIFY_NOT_REACHED();
         }
+        if (hash_value.is_object()) {
+            auto const hash_object = TRY(hash_value.to_object(vm));
+            auto const hash_object_root = GC::make_root(hash_object);
+            return normalize_an_algorithm(*realm, hash_object_root, "digest"_string);
+        }
+        VERIFY_NOT_REACHED();
     }();
 
     if (maybe_normalized_algorithm.is_error()) {
