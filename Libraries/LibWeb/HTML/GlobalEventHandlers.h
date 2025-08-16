@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 
 #define ENUMERATE_GLOBAL_EVENT_HANDLERS(E)                                    \

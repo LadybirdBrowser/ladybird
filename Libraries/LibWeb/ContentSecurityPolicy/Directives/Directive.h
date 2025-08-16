@@ -77,7 +77,7 @@ public:
     // 5. A pre-navigation check, which takes a request, a navigation type string ("form-submission" or "other")
     //    and a policy as arguments, and is executed during § 4.2.4 Should navigation request of type be blocked by
     //    Content Security Policy?. It returns "Allowed" unless otherwise specified.
-    virtual Result pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Policy const>) const { return Result::Allowed; }
+    virtual Result pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request>, NavigationType, GC::Ref<Policy const>) const { return Result::Allowed; }
 
     // https://w3c.github.io/webappsec-csp/#directive-navigation-response-check
     // 6. A navigation response check, which takes a request, a navigation type string ("form-submission" or "other"),
