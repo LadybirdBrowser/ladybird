@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Will Change Test: parsing will-change with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-will-change/#propdef-will-change">
+<meta name="assert" content="will-change only supports the grammar 'auto | <animateable-feature>#'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("will-change", "auto transform");
+test_invalid_value("will-change", "auto, transform");
+test_invalid_value("will-change", "contents auto");
+test_invalid_value("will-change", "contents, auto");
+
+let excludedKeywords = [
+  // CSS-wide keywords are excluded from <custom-ident>
+  // https://drafts.csswg.org/css-values-4/#identifier-value
+  "initial",
+  "inherit",
+  "unset",
+  "revert",
+  "revert-layer",
+  "default",
+
+  // will-change additionally excludes the following from <custom-ident>
+  "will-change",
+  "none",
+  "all",
+];
+
+for (let keyword of excludedKeywords) {
+  test_invalid_value("will-change", `transform, ${keyword}`);
+  test_invalid_value("will-change", `${keyword}, transform`);
+  for (let k of excludedKeywords) {
+    test_invalid_value("will-change", `${keyword}, ${k}`);
+  }
+}
+
+test_invalid_value("will-change", "will-change");
+test_invalid_value("will-change", "none");
+test_invalid_value("will-change", "all");
+</script>
+</body>
+</html>
