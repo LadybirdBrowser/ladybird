@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/Font/FontVariant.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineLevelIterator.h>
@@ -160,7 +161,7 @@ CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
                 break;
             if (next_item.is_collapsible_whitespace)
                 break;
-            auto& next_text_node = as<Layout::TextNode>(*(next_item.node));
+            auto const& next_text_node = as<Layout::TextNode>(*(next_item.node));
             auto next_view = next_text_node.text_for_rendering().substring_view(next_item.offset_in_node, next_item.length_in_node);
             if (next_view.is_ascii_whitespace())
                 break;
@@ -207,7 +208,7 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
 {
     HashMap<StringView, u8> features;
 
-    auto& computed_values = m_current_node->computed_values();
+    auto const& computed_values = m_current_node->computed_values();
 
     // 6.4 https://drafts.csswg.org/css-fonts/#font-variant-ligatures-prop
     auto ligature_or_null = computed_values.font_variant_ligatures();
@@ -452,7 +453,7 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
 Gfx::ShapeFeatures InlineLevelIterator::create_and_merge_font_features() const
 {
     HashMap<StringView, u8> merged_features;
-    auto& computed_values = m_inline_formatting_context.containing_block().computed_values();
+    auto const& computed_values = m_inline_formatting_context.containing_block().computed_values();
 
     // https://www.w3.org/TR/css-fonts-3/#feature-precedence
 
@@ -491,20 +492,33 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         return {};
 
     if (is<Layout::TextNode>(*m_current_node)) {
-        auto& text_node = static_cast<Layout::TextNode const&>(*m_current_node);
+        auto const& text_node = static_cast<Layout::TextNode const&>(*m_current_node);
 
         if (!m_text_node_context.has_value())
             enter_text_node(text_node);
-
-        auto chunk_opt = m_text_node_context->chunk_iterator.next();
-        if (!chunk_opt.has_value()) {
-            m_text_node_context = {};
-            skip_to_next();
-            return next_without_lookahead();
-        }
+        else
+            m_text_node_context->is_first_chunk = false;
 
         if (!m_text_node_context->chunk_iterator.peek(0).has_value())
             m_text_node_context->is_last_chunk = true;
+
+        auto chunk_opt = m_text_node_context->chunk_iterator.next();
+        auto is_empty_editable = false;
+        if (!chunk_opt.has_value()) {
+            auto const is_only_chunk = m_text_node_context->is_first_chunk && m_text_node_context->is_last_chunk;
+            if (is_only_chunk && text_node.text_for_rendering().is_empty()) {
+                if (auto const* shadow_root = as_if<DOM::ShadowRoot>(text_node.dom_node().root()))
+                    is_empty_editable = shadow_root->host() && (is<HTML::FormAssociatedTextControlElement>(shadow_root->host()) || shadow_root->host()->is_editable_or_editing_host());
+            }
+
+            if (is_empty_editable) {
+                chunk_opt = m_text_node_context->chunk_iterator.create_empty_chunk();
+            } else {
+                m_text_node_context = {};
+                skip_to_next();
+                return next_without_lookahead();
+            }
+        }
 
         auto& chunk = chunk_opt.value();
         auto text_type = chunk.text_type;
@@ -585,7 +599,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width() + x);
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
-        bool is_generated_empty_string = text_node.is_generated() && chunk.length == 0;
+        bool is_generated_empty_string = (is_empty_editable || text_node.is_generated_for_pseudo_element()) && chunk.length == 0;
 
         Item item {
             .type = Item::Type::Text,
@@ -602,7 +616,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
     }
 
     if (m_current_node->is_absolutely_positioned()) {
-        auto& node = *m_current_node;
+        auto const& node = *m_current_node;
         skip_to_next();
         return Item {
             .type = Item::Type::AbsolutelyPositionedElement,
@@ -611,7 +625,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
     }
 
     if (m_current_node->is_floating()) {
-        auto& node = *m_current_node;
+        auto const& node = *m_current_node;
         skip_to_next();
         return Item {
             .type = Item::Type::FloatingElement,
@@ -620,7 +634,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
     }
 
     if (is<Layout::BreakNode>(*m_current_node)) {
-        auto& node = *m_current_node;
+        auto const& node = *m_current_node;
         skip_to_next();
         return Item {
             .type = Item::Type::ForcedBreak,
@@ -639,13 +653,13 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
     }
 
     if (is<Layout::ReplacedBox>(*m_current_node)) {
-        auto& replaced_box = static_cast<Layout::ReplacedBox const&>(*m_current_node);
+        auto const& replaced_box = static_cast<Layout::ReplacedBox const&>(*m_current_node);
         // FIXME: This const_cast is gross.
         const_cast<Layout::ReplacedBox&>(replaced_box).prepare_for_replaced_layout();
     }
 
-    auto& box = as<Layout::Box>(*m_current_node);
-    auto& box_state = m_layout_state.get(box);
+    auto const& box = as<Layout::Box>(*m_current_node);
+    auto const& box_state = m_layout_state.get(box);
     m_inline_formatting_context.dimension_box_on_line(box, m_layout_mode);
 
     auto item = Item {
