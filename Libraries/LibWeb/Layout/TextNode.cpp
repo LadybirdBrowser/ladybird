@@ -391,6 +391,15 @@ TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, bool wrap_line
 {
 }
 
+TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, Utf16View const& text, Unicode::Segmenter& grapheme_segmenter, bool wrap_lines, bool respect_linebreaks)
+    : m_wrap_lines(wrap_lines)
+    , m_respect_linebreaks(respect_linebreaks)
+    , m_view(text)
+    , m_font_cascade_list(text_node.computed_values().font_list())
+    , m_grapheme_segmenter(grapheme_segmenter)
+{
+}
+
 static Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
 {
     switch (Unicode::bidirectional_class(code_point)) {

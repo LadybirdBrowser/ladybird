@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -1034,70 +1035,136 @@ static constexpr size_t find_line_end(Utf16View const& view, size_t offset)
     return offset;
 }
 
+static float measure_text_width(Layout::TextNode const& text_node, Utf16View const& text)
+{
+    if (text.is_empty())
+        return 0;
+
+    auto segmenter = text_node.grapheme_segmenter().clone();
+    segmenter->set_segmented_text(text);
+
+    Layout::TextNode::ChunkIterator iterator { text_node, text, *segmenter, false, false };
+    float width = 0;
+
+    for (auto chunk = iterator.next(); chunk.has_value(); chunk = iterator.next())
+        width += chunk->font->width(chunk->view);
+
+    return width;
+}
+
+static size_t translate_position_across_lines(Layout::TextNode const& text_node, Utf16View const& source_line, Utf16View const& target_line)
+{
+    // When we want to move the cursor from some position within a line to a visually-equivalent position in an adjacent
+    // line, there are several things to consider. Let's use the following HTML as an example:
+    //
+    //     <textarea>
+    //     hello 👩🏼‍❤️‍👨🏻 there
+    //     my 👩🏼‍❤️‍👨🏻 friends!
+    //     </textarea>
+    //
+    // And let's define the following terms:
+    //    * logical index = the raw code unit offset of the cursor
+    //    * visual index = the grapheme-aware offset of the cursor (i.e. the offset the user actually perceives)
+    //    * text affinity = the side (left or right) of a grapheme that the cursor is visually closest to
+    //
+    // If we want to move the cursor from the position just after "hello" (logical index=5, visual index=5) to the next
+    // line, the user will expect the cursor to be located just after the "👩🏼‍❤️‍👨🏻" (logical index=15, visual index=4). These
+    // locations do not share the same visual index, so it's not enough to simply map the visual index of 5 back to a
+    // logical index on the next line. The difference becomes even more apparent when multiple fonts are used within a
+    // single line.
+    //
+    // Instead, we must measure the text between the start of the line and the starting index. On the next line, we want
+    // to find the position whose corresponding width is as close to the starting width as possible. The target width
+    // might not be the same as the starting width at all, so we must further consider the text affinity. We want to
+    // chose a target index whose affinity brings us closest to the starting width.
+
+    auto source_line_width = measure_text_width(text_node, source_line);
+
+    auto left_edge = 0uz;
+    auto width_to_left_edge = 0.0f;
+
+    auto right_edge = 0uz;
+    auto width_to_right_edge = 0.0f;
+
+    text_node.grapheme_segmenter().clone()->for_each_boundary(target_line, [&](auto index) {
+        auto current_width = measure_text_width(text_node, target_line.substring_view(left_edge, index - left_edge));
+
+        right_edge = index;
+        width_to_right_edge = width_to_left_edge + current_width;
+
+        if (width_to_right_edge >= source_line_width)
+            return IterationDecision::Break;
+
+        left_edge = index;
+        width_to_left_edge += current_width;
+
+        return IterationDecision::Continue;
+    });
+
+    if ((source_line_width - width_to_left_edge) < (width_to_right_edge - source_line_width))
+        return left_edge;
+    return right_edge;
+}
+
 void FormAssociatedTextControlElement::increment_cursor_position_to_next_line(CollapseSelection collapse)
 {
-    auto const text_node = form_associated_element_to_text_node();
-    if (!text_node)
+    auto dom_node = form_associated_element_to_text_node();
+    if (!dom_node)
         return;
 
-    auto code_points = text_node->data().utf16_view();
-    auto length = code_points.length_in_code_units();
-    auto current_line_end = find_line_end(code_points, m_selection_end);
+    auto const* layout_node = as_if<Layout::TextNode>(dom_node->layout_node());
+    if (!layout_node)
+        return;
 
-    // initialize to handle the case of last line
-    size_t new_offset = current_line_end;
+    auto text = dom_node->data().utf16_view();
+    auto new_offset = text.length_in_code_units();
 
-    if (current_line_end < length) {
+    if (auto current_line_end = find_line_end(text, m_selection_end); current_line_end < text.length_in_code_units()) {
+        auto current_line_start = find_line_start(text, m_selection_end);
+        auto current_line_text = text.substring_view(current_line_start, m_selection_end - current_line_start);
+
         auto next_line_start = current_line_end + 1;
-        auto position_within_line = m_selection_end - find_line_start(code_points, m_selection_end);
-        auto next_line_end = find_line_end(code_points, next_line_start);
-        auto next_line_length = next_line_end - next_line_start;
+        auto next_line_length = find_line_end(text, next_line_start) - next_line_start;
+        auto next_line_text = text.substring_view(next_line_start, next_line_length);
 
-        new_offset = next_line_start + min(position_within_line, next_line_length);
-
-        if (new_offset > 0 && new_offset < length && AK::UnicodeUtils::is_utf16_low_surrogate(code_points.code_unit_at(new_offset))) {
-            if (AK::UnicodeUtils::is_utf16_high_surrogate(code_points.code_unit_at(new_offset - 1)))
-                --new_offset;
-        }
+        new_offset = next_line_start + translate_position_across_lines(*layout_node, current_line_text, next_line_text);
     }
 
-    if (collapse == CollapseSelection::Yes) {
+    if (collapse == CollapseSelection::Yes)
         collapse_selection_to_offset(new_offset);
-    } else {
+    else
         m_selection_end = new_offset;
-    }
 
     selection_was_changed();
 }
 
 void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_line(CollapseSelection collapse)
 {
-    auto const text_node = form_associated_element_to_text_node();
-    if (!text_node)
+    auto dom_node = form_associated_element_to_text_node();
+    if (!dom_node)
         return;
 
-    auto code_points = text_node->data().utf16_view();
-    size_t new_offset = 0;
+    auto const* layout_node = as_if<Layout::TextNode>(dom_node->layout_node());
+    if (!layout_node)
+        return;
 
-    if (auto current_line_start = find_line_start(code_points, m_selection_end); current_line_start != 0) {
-        auto position_within_line = m_selection_end - current_line_start;
+    auto text = dom_node->data().utf16_view();
+    auto new_offset = 0uz;
 
-        auto previous_line_start = find_line_start(code_points, current_line_start - 1);
+    if (auto current_line_start = find_line_start(text, m_selection_end); current_line_start != 0) {
+        auto current_line_text = text.substring_view(current_line_start, m_selection_end - current_line_start);
+
+        auto previous_line_start = find_line_start(text, current_line_start - 1);
         auto previous_line_length = current_line_start - previous_line_start - 1;
+        auto previous_line_text = text.substring_view(previous_line_start, previous_line_length);
 
-        new_offset = previous_line_start + min(position_within_line, previous_line_length);
-
-        if (new_offset > 0 && AK::UnicodeUtils::is_utf16_low_surrogate(code_points.code_unit_at(new_offset))) {
-            if (AK::UnicodeUtils::is_utf16_high_surrogate(code_points.code_unit_at(new_offset - 1)))
-                --new_offset;
-        }
+        new_offset = previous_line_start + translate_position_across_lines(*layout_node, current_line_text, previous_line_text);
     }
 
-    if (collapse == CollapseSelection::Yes) {
+    if (collapse == CollapseSelection::Yes)
         collapse_selection_to_offset(new_offset);
-    } else {
+    else
         m_selection_end = new_offset;
-    }
 
     selection_was_changed();
 }

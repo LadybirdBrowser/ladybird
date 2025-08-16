@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="text">
+hello 👩🏼‍❤️‍👨🏻 there
+my 👩🏼‍❤️‍👨🏻 friends!
+</textarea>
+<script>
+    test(() => {
+        // We need to ensure layout has occurred for arrow navigation to have a layout node to interact with.
+        document.body.offsetWidth;
+
+        const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+        const content = text.textContent.trim();
+
+        const graphemeAtCurrentLocation = () => {
+            const segments = segmenter.segment(content.substring(text.selectionStart));
+            return Array.from(segments)[0].segment;
+        };
+
+        const moveCursor = direction => {
+            internals.sendKey(text, direction);
+
+            const character = graphemeAtCurrentLocation();
+            println(`${direction}: position=${text.selectionStart} character="${character}"`);
+        };
+
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+
+        moveCursor("Down");
+        moveCursor("Left");
+        moveCursor("Up");
+
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+        moveCursor("Right");
+
+        moveCursor("Down");
+        moveCursor("Up");
+        moveCursor("Down");
+
+        moveCursor("Left");
+        moveCursor("Left");
+
+        moveCursor("Up");
+    });
+</script>

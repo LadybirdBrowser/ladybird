@@ -43,6 +43,7 @@ public:
     class ChunkIterator {
     public:
         ChunkIterator(TextNode const&, bool wrap_lines, bool respect_linebreaks);
+        ChunkIterator(TextNode const&, Utf16View const&, Unicode::Segmenter&, bool wrap_lines, bool respect_linebreaks);
 
         Optional<Chunk> next();
         Optional<Chunk> peek(size_t);
