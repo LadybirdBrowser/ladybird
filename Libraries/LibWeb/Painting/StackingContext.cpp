@@ -382,15 +382,17 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         paintable_box().clear_clip_overflow_rect(context, PaintPhase::Foreground);
 }
 
-TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
+TraversalDecision StackingContext::hit_test(CSSPixelPoint raw_position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     if (!paintable_box().is_visible())
         return TraversalDecision::Continue;
 
+    // auto const enclosing_scroll_offset = paintable_box().cumulative_offset_of_enclosing_scroll_frame();
+    // auto const position_adjusted_by_scroll_offset = raw_position.translated(-enclosing_scroll_offset);
     CSSPixelPoint transform_origin = paintable_box().transform_origin();
     // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
-    auto offset_position = position.translated(-transform_origin).to_type<float>();
-    auto transformed_position = affine_transform_matrix().inverse().value_or({}).map(offset_position).to_type<CSSPixels>() + transform_origin;
+    auto offset_position = raw_position.translated(-transform_origin).to_type<float>();
+    auto position = affine_transform_matrix().inverse().value_or({}).map(offset_position).to_type<CSSPixels>() + transform_origin;
 
     // NOTE: Hit testing basically happens in reverse painting order.
     // https://www.w3.org/TR/CSS22/visuren.html#z-index
@@ -401,34 +403,34 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
         auto const& child = *m_children[i];
         if (child.paintable_box().computed_values().z_index().value_or(0) <= 0)
             break;
-        if (child.hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+        if (child.hit_test(position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
     // 6. the child stacking contexts with stack level 0 and the positioned descendants with stack level 0.
-    for (auto const& paintable : m_positioned_descendants_and_stacking_contexts_with_stack_level_0.in_reverse()) {
-        if (paintable->stacking_context()) {
-            if (paintable->stacking_context()->hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+    for (auto const& paintable_box : m_positioned_descendants_and_stacking_contexts_with_stack_level_0.in_reverse()) {
+        if (paintable_box->stacking_context()) {
+            if (paintable_box->stacking_context()->hit_test(position, type, callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;
         } else {
-            if (paintable->hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+            if (paintable_box->hit_test(position, type, callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;
         }
     }
 
     // 5. the in-flow, inline-level, non-positioned descendants, including inline tables and inline blocks.
     if (paintable_box().layout_node().children_are_inline() && is<Layout::BlockContainer>(paintable_box().layout_node())) {
-        for (auto const* child = paintable_box().last_child(); child; child = child->previous_sibling()) {
-            if (child->is_inline() && !child->is_absolutely_positioned() && !child->has_stacking_context()) {
-                if (child->hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+        for (auto const* paintable = paintable_box().last_child(); paintable; paintable = paintable->previous_sibling()) {
+            if (paintable->is_inline() && !paintable->is_absolutely_positioned() && !paintable->has_stacking_context()) {
+                if (paintable->hit_test(position, type, callback) == TraversalDecision::Break)
                     return TraversalDecision::Break;
             }
         }
     }
 
     // 4. the non-positioned floats.
-    for (auto const& paintable : m_non_positioned_floating_descendants.in_reverse()) {
-        if (paintable->hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+    for (auto const& paintable_box : m_non_positioned_floating_descendants.in_reverse()) {
+        if (paintable_box->hit_test(position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
@@ -440,7 +442,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
 
             auto const& paintable_box = as<PaintableBox>(*child);
             if (!paintable_box.is_absolutely_positioned() && !paintable_box.is_floating() && !paintable_box.stacking_context()) {
-                if (paintable_box.hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+                if (paintable_box.hit_test(position, type, callback) == TraversalDecision::Break)
                     return TraversalDecision::Break;
             }
         }
@@ -452,17 +454,19 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
         auto const& child = *m_children[i];
         if (child.paintable_box().computed_values().z_index().value_or(0) >= 0)
             break;
-        if (child.hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+        if (child.hit_test(position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
-    CSSPixelPoint enclosing_scroll_offset = paintable_box().cumulative_offset_of_enclosing_scroll_frame();
-
-    auto position_adjusted_by_scroll_offset = transformed_position.translated(-enclosing_scroll_offset);
-
     // 1. the background and borders of the element forming the stacking context.
+    auto const enclosing_scroll_offset = paintable_box().cumulative_offset_of_enclosing_scroll_frame();
+    auto const position_adjusted_by_scroll_offset = raw_position.translated(-enclosing_scroll_offset);
+    transform_origin = paintable_box().transform_origin();
+    // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
+    offset_position = position_adjusted_by_scroll_offset.translated(-transform_origin).to_type<float>();
+    position = affine_transform_matrix().inverse().value_or({}).map(offset_position).to_type<CSSPixels>() + transform_origin;
     if (paintable_box().visible_for_hit_testing()
-        && paintable_box().absolute_border_box_rect().contains(position_adjusted_by_scroll_offset)) {
+        && paintable_box().absolute_border_box_rect().contains(position)) {
         if (callback({ const_cast<PaintableBox&>(paintable_box()) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
