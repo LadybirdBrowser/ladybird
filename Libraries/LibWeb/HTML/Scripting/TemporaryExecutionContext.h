@@ -7,14 +7,14 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
 // When JS is run from outside the context of any user script, we currently do not have a running execution context.
 // This results in a crash when we access VM::running_execution_context(). This is a spec issue. Until it is resolved,
 // this is a workaround to temporarily push an execution context.
-class [[nodiscard]] TemporaryExecutionContext {
+class [[nodiscard]] WEB_API TemporaryExecutionContext {
 public:
     enum class CallbacksEnabled {
         No,

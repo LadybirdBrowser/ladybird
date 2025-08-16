@@ -11,12 +11,13 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/SerializationMode.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::CSS {
 
-class Length {
+class WEB_API Length {
 public:
     enum class Type : u8 {
         // Font-relative

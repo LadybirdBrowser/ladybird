@@ -7,10 +7,11 @@
 #pragma once
 
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
-class ParentNode : public Node {
+class WEB_API ParentNode : public Node {
     WEB_PLATFORM_OBJECT(ParentNode, Node);
     GC_DECLARE_ALLOCATOR(ParentNode);
 

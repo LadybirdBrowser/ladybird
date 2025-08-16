@@ -8,11 +8,12 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 #include <LibWebView/DOMNodeProperties.h>
 
 namespace DevTools {
 
-class PageStyleActor final : public Actor {
+class DEVTOOLS_API PageStyleActor final : public Actor {
 public:
     static constexpr auto base_name = "page-style"sv;
 

@@ -11,6 +11,7 @@
 #include <AK/WeakPtr.h>
 #include <LibWeb/Bindings/HTMLFormElementPrototype.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -66,7 +67,7 @@ enum class SelectionDirection {
     None,
 };
 
-class FormAssociatedElement {
+class WEB_API FormAssociatedElement {
 public:
     HTMLFormElement* form() { return m_form; }
     HTMLFormElement const* form() const { return m_form; }
@@ -179,7 +180,7 @@ enum class SelectionSource {
     DOM,
 };
 
-class FormAssociatedTextControlElement
+class WEB_API FormAssociatedTextControlElement
     : public FormAssociatedElement
     , public InputEventsTarget {
 public:

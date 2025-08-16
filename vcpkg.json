@@ -124,8 +124,12 @@
       ]
     },
     {
+      "name": "qtbase",
+      "platform": "windows"
+    },
+    {
       "name": "qtmultimedia",
-      "platform": "freebsd"
+      "platform": "windows | freebsd"
     },
     {
       "name": "pthread",

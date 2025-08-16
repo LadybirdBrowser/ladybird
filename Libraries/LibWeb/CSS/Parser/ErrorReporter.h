@@ -9,6 +9,7 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS::Parser {
 
@@ -125,7 +126,7 @@ using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, UnknownMedi
 
 String serialize_parsing_error(ParsingError const&);
 
-class ErrorReporter {
+class WEB_API ErrorReporter {
 public:
     static ErrorReporter& the();
 

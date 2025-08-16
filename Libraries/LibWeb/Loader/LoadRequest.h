@@ -11,12 +11,13 @@
 #include <AK/Time.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web {
 
-class LoadRequest {
+class WEB_API LoadRequest {
 public:
     LoadRequest();
 

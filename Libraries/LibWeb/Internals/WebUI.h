@@ -7,11 +7,12 @@
 #pragma once
 
 #include <LibJS/Runtime/Value.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Internals/InternalsBase.h>
 
 namespace Web::Internals {
 
-class WebUI final : public InternalsBase {
+class WEB_API WebUI final : public InternalsBase {
     WEB_PLATFORM_OBJECT(WebUI, InternalsBase);
     GC_DECLARE_ALLOCATOR(WebUI);
 

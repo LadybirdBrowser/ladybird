@@ -5,13 +5,29 @@ function(lagom_generate_export_header name fs_name)
     # to export symbols required by external consumers. This allows the codebase
     # to gradually slowly migrate instead of an all-or-nothing approach.
     if (NOT WIN32)
-        add_cxx_compile_options(${name} PRIVATE -fvisibility=hidden)
+        target_compile_options(${name}
+            PRIVATE
+                "$<$<COMPILE_LANGUAGE:CXX>:-fvisibility=hidden>"
+                "$<$<COMPILE_LANGUAGE:C>:-fvisibility=hidden>"
+        )
     else()
         set_target_properties(${name} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS OFF)
     endif()
     include(GenerateExportHeader)
     string(TOUPPER ${fs_name} fs_name_upper)
     generate_export_header(${name} EXPORT_MACRO_NAME ${fs_name_upper}_API EXPORT_FILE_NAME "Export.h")
+endfunction()
+
+function(lagom_copy_runtime_dlls target_name)
+    if (WIN32 AND BUILD_SHARED_LIBS)
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND}
+                -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:${target_name}>
+                $<TARGET_FILE_DIR:${target_name}>
+            COMMAND_EXPAND_LISTS
+        )
+    endif()
 endfunction()
 
 function(lagom_lib target_name fs_name)
@@ -76,6 +92,7 @@ function(lagom_test source)
     endif()
     add_executable(${LAGOM_TEST_NAME} ${source})
     target_link_libraries(${LAGOM_TEST_NAME} PRIVATE AK LibCore LibFileSystem LibTest ${LAGOM_TEST_CUSTOM_MAIN} ${LAGOM_TEST_LIBS})
+    lagom_copy_runtime_dlls(${LAGOM_TEST_NAME})
 
     if (WIN32)
         target_include_directories(${LAGOM_TEST_NAME} PRIVATE ${PTHREAD_INCLUDE_DIR})
@@ -113,6 +130,7 @@ function(ladybird_bin name)
     add_executable(${name} ${SOURCES} ${GENERATED_SOURCES})
     add_executable(Lagom::${name} ALIAS ${name})
     target_link_libraries(${name} PUBLIC GenericClangPlugin)
+    lagom_copy_runtime_dlls(${name})
     install(
             TARGETS ${target_name}
             EXPORT LagomTargets

@@ -9,11 +9,12 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/CSS/Number.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
 
-class Token {
+class WEB_API Token {
 public:
     enum class Type : u8 {
         Invalid,

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
@@ -16,7 +17,7 @@ enum class ErrorInPromise {
 };
 
 void report_exception_to_console(JS::Value, JS::Realm&, ErrorInPromise);
-void report_exception(JS::Completion const&, JS::Realm&);
+WEB_API void report_exception(JS::Completion const&, JS::Realm&);
 
 template<typename T>
 inline void report_exception(JS::ThrowCompletionOr<T> const& result, JS::Realm& realm)

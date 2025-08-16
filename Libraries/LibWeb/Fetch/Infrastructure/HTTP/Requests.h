@@ -19,6 +19,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
@@ -26,7 +27,7 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#concept-request
-class Request final : public JS::Cell {
+class WEB_API Request final : public JS::Cell {
     GC_CELL(Request, JS::Cell);
     GC_DECLARE_ALLOCATOR(Request);
 
@@ -535,9 +536,9 @@ private:
     BufferPolicy m_buffer_policy { BufferPolicy::BufferResponse };
 };
 
-StringView request_destination_to_string(Request::Destination);
-StringView request_mode_to_string(Request::Mode);
-FlyString initiator_type_to_string(Request::InitiatorType);
+WEB_API StringView request_destination_to_string(Request::Destination);
+WEB_API StringView request_mode_to_string(Request::Mode);
+WEB_API FlyString initiator_type_to_string(Request::InitiatorType);
 
 Optional<Request::Priority> request_priority_from_string(StringView);
 

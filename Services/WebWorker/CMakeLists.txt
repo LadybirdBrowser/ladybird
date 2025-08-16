@@ -20,3 +20,8 @@ add_executable(WebWorker main.cpp)
 
 target_include_directories(WebWorker PRIVATE ${LADYBIRD_SOURCE_DIR})
 target_link_libraries(WebWorker PRIVATE webworkerservice)
+
+if(WIN32)
+    find_package(pthread REQUIRED)
+    target_include_directories(WebWorker PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
+endif()

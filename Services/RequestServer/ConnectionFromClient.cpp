@@ -71,10 +71,14 @@ static NonnullRefPtr<Resolver> default_resolver()
             };
         }
 
+#if !defined(AK_OS_WINDOWS)
         return DNS::Resolver::SocketResult {
             MaybeOwned<Core::Socket>(TRY(Core::BufferedUDPSocket::create(TRY(Core::UDPSocket::connect(*g_dns_info.server_address))))),
             DNS::Resolver::ConnectionMode::UDP,
         };
+#else
+        return Error::from_string_literal("Core::UDPSocket::connect() and Core::BufferedUDPSocket::create() are not implemented on Windows");
+#endif
     });
 
     s_resolver = resolver;
@@ -356,7 +360,7 @@ void ConnectionFromClient::die()
 Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
-    m_transport.set_peer_pid(peer_pid);
+    m_transport->set_peer_pid(peer_pid);
     return Core::System::getpid();
 #endif
     VERIFY_NOT_REACHED();

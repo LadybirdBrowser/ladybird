@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebDriver/Response.h>
 
 namespace Web::WebDriver {
@@ -52,22 +53,22 @@ struct PromptHandlerConfiguration {
 // https://w3c.github.io/webdriver/#dfn-user-prompt-handler
 using UserPromptHandler = Optional<HashMap<PromptType, PromptHandlerConfiguration>>;
 
-UserPromptHandler const& user_prompt_handler();
-void set_user_prompt_handler(UserPromptHandler);
+WEB_API UserPromptHandler const& user_prompt_handler();
+WEB_API void set_user_prompt_handler(UserPromptHandler);
 
 Response deserialize_as_an_unhandled_prompt_behavior(JsonValue);
 bool check_user_prompt_handler_matches(JsonObject const&);
-void update_the_user_prompt_handler(JsonObject const&);
-JsonValue serialize_the_user_prompt_handler();
+WEB_API void update_the_user_prompt_handler(JsonObject const&);
+WEB_API JsonValue serialize_the_user_prompt_handler();
 
 }
 
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::WebDriver::PromptHandlerConfiguration const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::WebDriver::PromptHandlerConfiguration const&);
 
 template<>
-ErrorOr<Web::WebDriver::PromptHandlerConfiguration> decode(Decoder&);
+WEB_API ErrorOr<Web::WebDriver::PromptHandlerConfiguration> decode(Decoder&);
 
 }
