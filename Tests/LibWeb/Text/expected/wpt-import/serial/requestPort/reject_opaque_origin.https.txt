@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Calls to Serial APIs from an origin with opaque top origin get blocked.

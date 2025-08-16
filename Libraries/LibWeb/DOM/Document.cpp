@@ -4447,6 +4447,8 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
     case PolicyControlledFeature::FocusWithoutUserActivation:
         // FIXME: Implement allowlist for this.
         return true;
+    case PolicyControlledFeature::WebSerial:
+        return page().webserial_device_path().has_value();
     }
 
     // 4. Return false.

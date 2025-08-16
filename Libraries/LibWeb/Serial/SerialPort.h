@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <serial_cpp/serial.h>
+
 #include <LibWeb/Bindings/SerialPortPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -60,6 +62,8 @@ class SerialPort : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(SerialPort, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SerialPort);
 
+    serial_cpp::PortInfo device() { return m_device; }
+
     // https://wicg.github.io/serial/#getinfo-method
     SerialPortInfo get_info() const;
     // https://wicg.github.io/serial/#open-method
@@ -92,9 +96,11 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    explicit SerialPort(JS::Realm&);
+    SerialPort(JS::Realm&, serial_cpp::PortInfo m_device);
 
     virtual void initialize(JS::Realm&) override;
+
+    serial_cpp::PortInfo m_device;
 
     // https://wicg.github.io/serial/#dfn-state
     // Tracks the active state of the SerialPort

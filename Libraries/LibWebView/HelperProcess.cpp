@@ -122,6 +122,10 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--collect-garbage-on-every-allocation"sv);
     if (web_content_options.paint_viewport_scrollbars == PaintViewportScrollbars::No)
         arguments.append("--disable-scrollbar-painting"sv);
+    if (web_content_options.webserial_device_path.has_value()) {
+        arguments.append("--webserial-device-path"sv);
+        arguments.append(web_content_options.webserial_device_path.value());
+    }
 
     if (auto const maybe_echo_server_port = web_content_options.echo_server_port; maybe_echo_server_port.has_value()) {
         arguments.append("--echo-server-port"sv);
