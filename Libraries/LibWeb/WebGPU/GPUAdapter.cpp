@@ -294,6 +294,51 @@ GC::Ref<WebIDL::Promise> GPUAdapter::request_device(GPUDeviceDescriptor const& o
 
     // 4. Issue the initialization steps to the Device timeline of this.
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, adapter, device_descriptor_options, &realm, promise]() mutable {
+        device_descriptor_options.SetDeviceLostCallback(
+            wgpu::CallbackMode::AllowSpontaneous,
+            [](wgpu::Device const&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
+                auto reason_string = ""sv;
+                auto message_string = StringView { message.data, message.length };
+                switch (reason) {
+                case wgpu::DeviceLostReason::Unknown:
+                    reason_string = "Unknown"sv;
+                    break;
+                case wgpu::DeviceLostReason::Destroyed:
+                    reason_string = "Destroyed"sv;
+                    break;
+                case wgpu::DeviceLostReason::CallbackCancelled:
+                    reason_string = "CallbackCancelled"sv;
+                    break;
+                case wgpu::DeviceLostReason::FailedCreation:
+                    reason_string = "FailedCreation"sv;
+                    break;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+                dbgln("Device lost because of {}: {}", reason_string, message_string);
+            });
+        device_descriptor_options.SetUncapturedErrorCallback(
+            [](wgpu::Device const&, wgpu::ErrorType type, wgpu::StringView message) {
+                auto error_type_string = ""sv;
+                auto message_string = StringView { message.data, message.length };
+                switch (type) {
+                case wgpu::ErrorType::Validation:
+                    error_type_string = "Validation"sv;
+                    break;
+                case wgpu::ErrorType::OutOfMemory:
+                    error_type_string = "Out of memory"sv;
+                    break;
+                case wgpu::ErrorType::Internal:
+                    error_type_string = "Internal"sv;
+                    break;
+                case wgpu::ErrorType::Unknown:
+                    error_type_string = "Unknown"sv;
+                    break;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+                dbgln("{} error: {}", error_type_string, message_string);
+            });
         m_impl->instance.WaitAny(adapter.RequestDevice(&device_descriptor_options, wgpu::CallbackMode::AllowProcessEvents, [this, device_descriptor_options, realm = GC::Root(realm), promise = GC::Root(promise)](wgpu::RequestDeviceStatus status, wgpu::Device native_device, char const* message) {
             // Device timeline initialization steps:
             // FIXME: Implement this
