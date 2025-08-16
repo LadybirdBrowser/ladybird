@@ -126,7 +126,7 @@ class HTTPTestServer {
 
 const __httpTestServer = (function () {
     if (globalThis.internals && globalThis.internals.getEchoServerPort)
-        return new HTTPTestServer(`http://localhost:${internals.getEchoServerPort()}`);
+        return new HTTPTestServer(`http://127.0.0.1:${internals.getEchoServerPort()}`);
 
     return null;
 })();
