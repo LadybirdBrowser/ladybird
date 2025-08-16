@@ -3156,12 +3156,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(AlgorithmParams co
 
     // 4. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
     auto tag_length = 0;
-    auto to_compare_against = Vector<int> { 32, 64, 96, 104, 112, 120, 128 };
+    auto constexpr valid_tag_lengths = Array { 32, 64, 96, 104, 112, 120, 128 };
     if (!normalized_algorithm.tag_length.has_value())
         tag_length = 128;
 
     // If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
-    else if (to_compare_against.contains_slow(normalized_algorithm.tag_length.value()))
+    else if (valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
         tag_length = normalized_algorithm.tag_length.value();
 
     // Otherwise: throw an OperationError.
@@ -3198,12 +3198,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams co
 
     // 1. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
     u32 tag_length = 0;
-    auto to_compare_against = Vector<u32> { 32, 64, 96, 104, 112, 120, 128 };
+    auto constexpr valid_tag_lengths = Array { 32, 64, 96, 104, 112, 120, 128 };
     if (!normalized_algorithm.tag_length.has_value())
         tag_length = 128;
 
     // If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
-    else if (to_compare_against.contains_slow(normalized_algorithm.tag_length.value()))
+    else if (valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
         tag_length = normalized_algorithm.tag_length.value();
 
     // Otherwise: throw an OperationError.
