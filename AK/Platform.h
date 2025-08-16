@@ -56,12 +56,6 @@
 #    define AK_IS_ARCH_PPC() 0
 #endif
 
-#ifdef __wasm32__
-#    define AK_IS_ARCH_WASM32() 1
-#else
-#    define AK_IS_ARCH_WASM32() 0
-#endif
-
 #if (defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8) || defined(_WIN64)
 #    define AK_ARCH_64_BIT
 #else
@@ -83,10 +77,6 @@
 #    define AK_LIBC_GLIBC_PREREQ(maj, min) __GLIBC_PREREQ((maj), (min))
 #else
 #    define AK_LIBC_GLIBC_PREREQ(maj, min) 0
-#endif
-
-#if defined(__serenity__)
-#    define AK_OS_SERENITY
 #endif
 
 #if defined(__linux__)
@@ -156,29 +146,7 @@
 #    define AK_OS_ANDROID
 #endif
 
-#if defined(__EMSCRIPTEN__)
-#    define AK_OS_EMSCRIPTEN
-#endif
-
 #define ARCH(arch) (AK_IS_ARCH_##arch())
-
-#if ARCH(X86_64) || ARCH(I386)
-#    define VALIDATE_IS_X86()
-#else
-#    define VALIDATE_IS_X86() static_assert(false, "Trying to include x86 only header on non x86 platform");
-#endif
-
-#if ARCH(AARCH64)
-#    define VALIDATE_IS_AARCH64()
-#else
-#    define VALIDATE_IS_AARCH64() static_assert(false, "Trying to include aarch64 only header on non aarch64 platform");
-#endif
-
-#if ARCH(RISCV64)
-#    define VALIDATE_IS_RISCV64()
-#else
-#    define VALIDATE_IS_RISCV64() static_assert(false, "Trying to include riscv64 only header on non riscv64 platform");
-#endif
 
 #ifdef ALWAYS_INLINE
 #    undef ALWAYS_INLINE
@@ -216,19 +184,6 @@
 #    define NO_SANITIZE_ADDRESS __attribute__((no_sanitize("address")))
 #else
 #    define NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
-#endif
-
-#ifdef NAKED
-#    undef NAKED
-#endif
-#if !ARCH(AARCH64) || defined(AK_COMPILER_CLANG)
-#    define NAKED __attribute__((naked))
-#else
-// GCC doesn't support __attribute__((naked)) on AArch64. We use NAKED to mark functions
-// that are entirely written in inline assembly; having these be inlined would cause
-// various problems, such as explicit `ret` instructions accidentally exiting the caller
-// function or GCC discarding function arguments as they appear "dead".
-#    define NAKED NEVER_INLINE
 #endif
 
 #ifdef DISALLOW
@@ -282,15 +237,13 @@
 #    define AK_HAS_OBJC_ARC
 #endif
 
-#ifndef AK_OS_SERENITY
-#    ifdef AK_OS_WINDOWS
+#ifdef AK_OS_WINDOWS
 // FIXME: No idea where to get this, but it's 4096 anyway :^)
-#        define PAGE_SIZE 4096
-#    else
-#        include <unistd.h>
-#        undef PAGE_SIZE
-#        define PAGE_SIZE sysconf(_SC_PAGESIZE)
-#    endif
+#    define PAGE_SIZE 4096
+#else
+#    include <unistd.h>
+#    undef PAGE_SIZE
+#    define PAGE_SIZE sysconf(_SC_PAGESIZE)
 #endif
 
 #if defined(AK_OS_WINDOWS)

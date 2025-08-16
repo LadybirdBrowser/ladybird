@@ -41,7 +41,6 @@ struct ProcessSpawnOptions {
     ByteString executable {};
     bool search_for_executable_in_path { false };
     Vector<ByteString> const& arguments {};
-    Optional<ByteString> working_directory {};
 
     using FileActionType = Variant<FileAction::OpenFile, FileAction::CloseFile, FileAction::DupFd>;
     Vector<FileActionType> file_actions {};
@@ -51,11 +50,6 @@ class Process {
     AK_MAKE_NONCOPYABLE(Process);
 
 public:
-    enum class KeepAsChild {
-        Yes,
-        No
-    };
-
     Process(Process&& other);
     Process& operator=(Process&& other);
     ~Process();
@@ -63,37 +57,26 @@ public:
     static ErrorOr<Process> spawn(ProcessSpawnOptions const& options);
     static Process current();
 
-    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
-    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
+    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<ByteString> arguments);
+    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<StringView> arguments);
 
     static ErrorOr<String> get_name();
-    enum class SetThreadName {
-        No,
-        Yes,
-    };
-    static ErrorOr<void> set_name(StringView, SetThreadName = SetThreadName::No);
 
     static void wait_for_debugger_and_break();
     static ErrorOr<bool> is_being_debugged();
 
     pid_t pid() const;
 
-#ifndef AK_OS_WINDOWS
-    ErrorOr<void> disown();
-#endif
-
-    ErrorOr<int> wait_for_termination();
+    ErrorOr<int> wait_for_termination() const;
 
 private:
 #ifndef AK_OS_WINDOWS
     Process(pid_t pid = -1)
         : m_pid(pid)
-        , m_should_disown(true)
     {
     }
 
     pid_t m_pid;
-    bool m_should_disown;
 #else
     Process(void* handle = 0)
         : m_handle(handle)
