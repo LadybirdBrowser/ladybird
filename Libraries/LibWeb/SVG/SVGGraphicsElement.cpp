@@ -20,9 +20,11 @@
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
+#include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
+#include <LibWeb/SVG/SVGUseElement.h>
 
 namespace Web::SVG {
 
@@ -56,6 +58,74 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::svg_paint_computed_value_to_g
         return {};
     if (auto gradient = try_resolve_url_to<SVG::SVGGradientElement const>(paint_value->as_url()))
         return gradient->to_gfx_paint_style(paint_context);
+    if (auto pattern = try_resolve_url_to<SVG::SVGPatternElement const>(paint_value->as_url())) {
+        // Resolve a simple pattern with a single <image> or <use>-><image> into an SVGPatternPaintStyle.
+        // 1) Gather attributes
+        auto x_attr = pattern->get_attribute_value(SVG::AttributeNames::x);
+        auto y_attr = pattern->get_attribute_value(SVG::AttributeNames::y);
+        auto w_attr = pattern->get_attribute_value(SVG::AttributeNames::width);
+        auto h_attr = pattern->get_attribute_value(SVG::AttributeNames::height);
+        auto units_attr = pattern->get_attribute_value(SVG::AttributeNames::patternUnits);
+        auto transform_attr = pattern->get_attribute_value(SVG::AttributeNames::patternTransform);
+
+        auto x = SVG::AttributeParser::parse_coordinate(x_attr).value_or(0);
+        auto y = SVG::AttributeParser::parse_coordinate(y_attr).value_or(0);
+        auto width = SVG::AttributeParser::parse_positive_length(w_attr).value_or(0);
+        auto height = SVG::AttributeParser::parse_positive_length(h_attr).value_or(0);
+        auto units = SVG::AttributeParser::parse_units(units_attr).value_or(SVG::SVGUnits::ObjectBoundingBox);
+        if (width <= 0 || height <= 0)
+            return {};
+
+        auto bbox_user = paint_context.path_bounding_box;
+        Gfx::FloatRect tile_rect_user {};
+        if (units == SVG::SVGUnits::UserSpaceOnUse)
+            tile_rect_user = { x, y, width, height };
+        else
+            tile_rect_user = { bbox_user.x() + x * bbox_user.width(), bbox_user.y() + y * bbox_user.height(), width * bbox_user.width(), height * bbox_user.height() };
+
+        auto device_transform = paint_context.paint_transform;
+        if (!transform_attr.is_empty()) {
+            if (auto tlist = SVG::AttributeParser::parse_transform(transform_attr); tlist.has_value())
+                device_transform.multiply(SVG::transform_from_transform_list(*tlist));
+        }
+
+        // 2) Find an image child
+        auto resolve_use_to_image = [&](DOM::Element const& elem) -> SVG::SVGImageElement const* {
+            if (is<SVG::SVGImageElement>(elem))
+                return &static_cast<SVG::SVGImageElement const&>(elem);
+            if (is<SVG::SVGUseElement>(elem)) {
+                auto const* use = static_cast<SVG::SVGUseElement const*>(&elem);
+                if (auto instance = use->instance_root(); instance && is<SVG::SVGImageElement>(*instance))
+                    return &static_cast<SVG::SVGImageElement const&>(*instance);
+            }
+            return nullptr;
+        };
+
+        SVG::SVGImageElement const* image_elem = nullptr;
+        for (auto const* child = pattern->template first_child_of_type<DOM::Element>(); child; child = child->next_element_sibling()) {
+            if ((image_elem = resolve_use_to_image(*child)))
+                break;
+        }
+        if (!image_elem)
+            return {};
+
+        // 3) Compute device tile rect and fetch bitmap
+        auto device_tile_rect_f = device_transform.map(tile_rect_user);
+        auto device_tile_rect = enclosing_int_rect(device_tile_rect_f);
+        if (device_tile_rect.is_empty())
+            return {};
+
+        auto requested_size = device_tile_rect.size();
+        auto tile_bitmap = image_elem->current_image_bitmap(requested_size);
+        if (!tile_bitmap)
+            return {};
+
+        // 4) Build SVGPatternPaintStyle
+        auto scale_x = (float)device_tile_rect.width() / (float)requested_size.width();
+        auto scale_y = (float)device_tile_rect.height() / (float)requested_size.height();
+        auto matrix = Gfx::AffineTransform {}.scale(scale_x, scale_y).translate(device_tile_rect.x(), device_tile_rect.y());
+        return Painting::SVGPatternPaintStyle::create(tile_bitmap.release_nonnull(), matrix, true, true);
+    }
     return {};
 }
 

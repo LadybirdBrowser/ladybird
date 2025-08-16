@@ -7,9 +7,16 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <LibGfx/AffineTransform.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintStyle.h>
 
 namespace Web::Painting {
+
+class SVGPaintStyle : public AtomicRefCounted<SVGPaintStyle> {
+public:
+    virtual ~SVGPaintStyle() = default;
+};
 
 struct ColorStop {
     Color color;
@@ -17,7 +24,7 @@ struct ColorStop {
     Optional<float> transition_hint = {};
 };
 
-class SVGGradientPaintStyle : public AtomicRefCounted<SVGGradientPaintStyle> {
+class SVGGradientPaintStyle : public SVGPaintStyle {
 public:
     enum class SpreadMethod {
         Pad,
@@ -110,6 +117,33 @@ private:
     float m_start_radius { 0.0f };
     Gfx::FloatPoint m_end_center;
     float m_end_radius { 0.0f };
+};
+
+class SVGPatternPaintStyle final : public SVGPaintStyle {
+public:
+    static NonnullRefPtr<SVGPatternPaintStyle> create(NonnullRefPtr<Gfx::ImmutableBitmap const> tile_bitmap, Gfx::AffineTransform device_space_matrix, bool repeat_x, bool repeat_y)
+    {
+        return adopt_ref(*new SVGPatternPaintStyle(move(tile_bitmap), device_space_matrix, repeat_x, repeat_y));
+    }
+
+    Gfx::ImmutableBitmap const& tile_bitmap() const { return *m_tile_bitmap; }
+    Gfx::AffineTransform const& device_space_matrix() const { return m_device_space_matrix; }
+    bool repeat_x() const { return m_repeat_x; }
+    bool repeat_y() const { return m_repeat_y; }
+
+private:
+    SVGPatternPaintStyle(NonnullRefPtr<Gfx::ImmutableBitmap const> tile_bitmap, Gfx::AffineTransform device_space_matrix, bool repeat_x, bool repeat_y)
+        : m_tile_bitmap(move(tile_bitmap))
+        , m_device_space_matrix(device_space_matrix)
+        , m_repeat_x(repeat_x)
+        , m_repeat_y(repeat_y)
+    {
+    }
+
+    NonnullRefPtr<Gfx::ImmutableBitmap const> m_tile_bitmap;
+    Gfx::AffineTransform m_device_space_matrix;
+    bool m_repeat_x { true };
+    bool m_repeat_y { true };
 };
 
 }
