@@ -60,6 +60,9 @@ void SettingsUI::register_interfaces()
         remove_all_site_setting_filters(data);
     });
 
+    register_interface("setBlockAdultContent"sv, [this](auto const& data) {
+        set_block_adult_content(data);
+    });
     register_interface("setDoNotTrack"sv, [this](auto const& data) {
         set_do_not_track(data);
     });
@@ -261,6 +264,14 @@ void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
     }
 
     load_current_settings();
+}
+
+void SettingsUI::set_block_adult_content(JsonValue const& block_adult_content)
+{
+    if (!block_adult_content.is_bool())
+        return;
+
+    WebView::Application::settings().set_block_adult_content(block_adult_content.as_bool() ? BlockAdultContent::Yes : BlockAdultContent::No);
 }
 
 void SettingsUI::set_do_not_track(JsonValue const& do_not_track)
