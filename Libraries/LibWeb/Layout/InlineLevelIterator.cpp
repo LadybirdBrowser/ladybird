@@ -508,7 +508,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             auto const is_only_chunk = m_text_node_context->is_first_chunk && m_text_node_context->is_last_chunk;
             if (is_only_chunk && text_node.text_for_rendering().is_empty()) {
                 if (auto const* shadow_root = as_if<DOM::ShadowRoot>(text_node.dom_node().root()))
-                    is_empty_editable = shadow_root->host() && (is<HTML::FormAssociatedTextControlElement>(shadow_root->host()) || shadow_root->host()->is_editable_or_editing_host());
+                    is_empty_editable = shadow_root->host() && (is<HTML::FormAssociatedTextControlElement>(shadow_root->host()));
+                is_empty_editable |= text_node.dom_node().parent() && text_node.dom_node().parent()->is_editing_host();
             }
 
             if (is_empty_editable) {

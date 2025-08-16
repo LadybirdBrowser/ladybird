@@ -844,7 +844,9 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         //    createElement("br") on the context object and append the result as the last child of parent.
         auto block_node_of_parent = block_node_of_node(*parent);
         if (block_node_of_parent && !has_visible_children(*block_node_of_parent) && parent->is_editable_or_editing_host())
-            MUST(parent->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
+            // Here we deviate from the specification so that the cursor can be rendered in empty contenteditables.
+            // Without a text node, the cursor won't be rendered.
+            MUST(parent->append_child(document.create_text_node(Utf16String {})));
 
         // 4. If strip wrappers is true or parent is not an inclusive ancestor of start node, while parent is an
         //    editable inline node with length 0, let grandparent be the parent of parent, then remove parent from
