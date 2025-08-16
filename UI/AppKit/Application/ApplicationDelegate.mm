@@ -189,6 +189,24 @@
     return controller;
 }
 
+- (void)createTabGroup:(Vector<URL::URL> const&)urls
+               fromTab:(nullable Tab*)tab
+      activateFirstTab:(Web::HTML::ActivateTab)activate_first_tab
+{
+    bool creating_first_tab = true;
+
+    for (auto const& url : urls) {
+        auto activate_tab = creating_first_tab ? activate_first_tab : Web::HTML::ActivateTab::No;
+
+        auto* controller = [self createNewTab:url
+                                      fromTab:tab
+                                  activateTab:activate_tab];
+
+        tab = (Tab*)[controller window];
+        creating_first_tab = false;
+    }
+}
+
 - (void)initializeTabController:(TabController*)controller
                     activateTab:(Web::HTML::ActivateTab)activate_tab
                         fromTab:(nullable Tab*)tab
@@ -769,17 +787,7 @@
     if (browser_options.devtools_port.has_value())
         [self devtoolsEnabled];
 
-    Tab* tab = nil;
-
-    for (auto const& url : browser_options.urls) {
-        auto activate_tab = tab == nil ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No;
-
-        auto* controller = [self createNewTab:url
-                                      fromTab:tab
-                                  activateTab:activate_tab];
-
-        tab = (Tab*)[controller window];
-    }
+    [self createTabGroup:browser_options.urls fromTab:nil activateFirstTab:Web::HTML::ActivateTab::Yes];
 }
 
 - (void)applicationWillTerminate:(NSNotification*)notification
@@ -794,6 +802,21 @@
 - (void)applicationDidChangeScreenParameters:(NSNotification*)notification
 {
     [self broadcastDisplayRefreshRateChange];
+}
+
+- (void)application:(NSApplication*)application
+           openURLs:(NSArray<NSURL*>*)urls
+{
+    auto* current_tab = [NSApp keyWindow];
+    if (![current_tab isKindOfClass:[Tab class]]) {
+        return;
+    }
+
+    Vector<URL::URL> converted_urls;
+    for (NSURL* url : urls)
+        converted_urls.append(Ladybird::ns_url_to_url(url));
+
+    [self createTabGroup:converted_urls fromTab:(Tab*)current_tab activateFirstTab:Web::HTML::ActivateTab::Yes];
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem*)item
