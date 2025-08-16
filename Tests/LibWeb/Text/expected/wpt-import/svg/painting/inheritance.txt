@@ -1,0 +1,44 @@
+Harness status: OK
+
+Found 38 tests
+
+30 Pass
+8 Fail
+Pass	Property fill has initial value rgb(0, 0, 0)
+Pass	Property fill inherits
+Pass	Property fill-rule has initial value nonzero
+Pass	Property fill-rule inherits
+Pass	Property fill-opacity has initial value 1
+Pass	Property fill-opacity inherits
+Pass	Property stroke has initial value none
+Pass	Property stroke inherits
+Pass	Property stroke-opacity has initial value 1
+Pass	Property stroke-opacity inherits
+Pass	Property stroke-width has initial value 1px
+Pass	Property stroke-width inherits
+Pass	Property stroke-linecap has initial value butt
+Pass	Property stroke-linecap inherits
+Pass	Property stroke-linejoin has initial value miter
+Pass	Property stroke-linejoin inherits
+Pass	Property stroke-miterlimit has initial value 4
+Pass	Property stroke-miterlimit inherits
+Pass	Property stroke-dasharray has initial value none
+Pass	Property stroke-dasharray inherits
+Pass	Property stroke-dashoffset has initial value 0px
+Pass	Property stroke-dashoffset inherits
+Fail	Property marker-start has initial value none
+Fail	Property marker-start inherits
+Fail	Property marker-mid has initial value none
+Fail	Property marker-mid inherits
+Fail	Property marker-end has initial value none
+Fail	Property marker-end inherits
+Fail	Property paint-order has initial value normal
+Fail	Property paint-order inherits
+Pass	Property color-interpolation has initial value srgb
+Pass	Property color-interpolation inherits
+Pass	Property shape-rendering has initial value auto
+Pass	Property shape-rendering inherits
+Pass	Property text-rendering has initial value auto
+Pass	Property text-rendering inherits
+Pass	Property image-rendering has initial value auto
+Pass	Property image-rendering inherits
