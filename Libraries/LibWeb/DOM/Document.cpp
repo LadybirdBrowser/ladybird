@@ -14,6 +14,7 @@
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/InsertionSort.h>
+#include <AK/Random.h>
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
@@ -467,6 +468,26 @@ Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFr
     , m_editing_host_manager(EditingHostManager::create(realm, *this))
     , m_style_invalidator(realm.heap().allocate<StyleInvalidator>())
 {
+    // Initialize render-blocking timeout values with jitter to prevent timing attacks.
+    // These are calculated once per document to avoid regenerating jitter on each call
+    // to is_render_blocked() while still providing reasonable protection against trivial
+    // timing attacks. The timeouts should be short enough to prevent extended attack windows,
+    // random enough to prevent timing attacks, and long enough to accommodate legitimate
+    // use cases.
+    // NOTE: The timeout for many of the WPT tests is only 10 seconds so our timeout must
+    // be shorter to prevent the tests from timing out when they would otherwise meet a
+    // success condition.
+    static constexpr auto base_time_for_blocking_resources_in_ms = 5000.0;
+    static constexpr auto blocking_jitter_range_in_ms = 1000.0; // ±500ms
+    static constexpr auto base_time_for_missing_body_in_ms = 1000.0;
+    static constexpr auto missing_body_jitter_range_in_ms = 200.0; // ±100ms
+    
+    auto blocking_random_factor = (get_random<double>() / static_cast<double>(UINT64_MAX)) - 0.5; // -0.5 to 0.5
+    m_render_blocking_timeout_with_jitter = base_time_for_blocking_resources_in_ms + (blocking_random_factor * blocking_jitter_range_in_ms);
+    
+    auto missing_body_random_factor = (get_random<double>() / static_cast<double>(UINT64_MAX)) - 0.5; // -0.5 to 0.5
+    m_missing_body_timeout_with_jitter = base_time_for_missing_body_in_ms + (missing_body_random_factor * missing_body_jitter_range_in_ms);
+
     m_legacy_platform_object_flags = PlatformObject::LegacyPlatformObjectFlags {
         .supports_named_properties = true,
         .has_legacy_override_built_ins_interface_extended_attribute = true,
@@ -6260,13 +6281,22 @@ bool Document::is_render_blocked() const
     // - document's render-blocking element set is non-empty, or document allows adding render-blocking elements.
     // - The current high resolution time given document's relevant global object has not exceeded an implementation-defined timeout value.
 
-    // NOTE: This timeout is implementation-defined.
-    //       Other browsers are willing to wait longer, but let's start with 30 seconds.
-    static constexpr auto max_time_to_block_rendering_in_ms = 30000.0;
-
+    // NOTE: This timeout is implementation-defined. We use different timeouts based on the scenario.
     auto now = HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
-    if (now > max_time_to_block_rendering_in_ms)
-        return false;
+
+    // Document has actual render-blocking elements that need time to load from network so use a longer timeout.
+    if (!m_render_blocking_elements.is_empty()) {
+        if (now > m_render_blocking_timeout_with_jitter)
+            return false;
+    }
+    // Document just allows adding render-blocking elements (has no body).
+    // This happens during initial page load or when body is moved/removed.
+    // Use a shorter timeout since there's nothing actually loading.
+    // This handles edge cases like moving document.body while allowing normal page loads.
+    else if (allows_adding_render_blocking_elements()) {
+        if (now > m_missing_body_timeout_with_jitter)
+            return false;
+    }
 
     return !m_render_blocking_elements.is_empty() || allows_adding_render_blocking_elements();
 }
