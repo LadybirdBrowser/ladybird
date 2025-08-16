@@ -39,6 +39,10 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(in2, "in2")                                 \
     __ENUMERATE_SVG_ATTRIBUTE(kernelMatrix, "kernelMatrix")               \
     __ENUMERATE_SVG_ATTRIBUTE(kernelUnitLength, "kernelUnitLength")       \
+    __ENUMERATE_SVG_ATTRIBUTE(k1, "k1")                                   \
+    __ENUMERATE_SVG_ATTRIBUTE(k2, "k2")                                   \
+    __ENUMERATE_SVG_ATTRIBUTE(k3, "k3")                                   \
+    __ENUMERATE_SVG_ATTRIBUTE(k4, "k4")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(keyPoints, "keyPoints")                     \
     __ENUMERATE_SVG_ATTRIBUTE(keySplines, "keySplines")                   \
     __ENUMERATE_SVG_ATTRIBUTE(keyTimes, "keyTimes")                       \
@@ -53,6 +57,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(numOctaves, "numOctaves")                   \
     __ENUMERATE_SVG_ATTRIBUTE(offset, "offset")                           \
     __ENUMERATE_SVG_ATTRIBUTE(opacity, "opacity")                         \
+    __ENUMERATE_SVG_ATTRIBUTE(operator_, "operator")                      \
     __ENUMERATE_SVG_ATTRIBUTE(pathLength, "pathLength")                   \
     __ENUMERATE_SVG_ATTRIBUTE(patternContentUnits, "patternContentUnits") \
     __ENUMERATE_SVG_ATTRIBUTE(patternTransform, "patternTransform")       \
