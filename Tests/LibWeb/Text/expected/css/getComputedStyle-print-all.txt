@@ -256,6 +256,7 @@ vertical-align: baseline
 view-transition-name: none
 white-space-trim: none
 width: 784px
+will-change: auto
 x: 0px
 y: 0px
 z-index: auto

@@ -196,6 +196,8 @@ public:
     ClipRule clip_rule() const;
     float flood_opacity() const;
 
+    WillChange will_change() const;
+
     Gfx::FontCascadeList const& computed_font_list() const
     {
         VERIFY(m_font_list);

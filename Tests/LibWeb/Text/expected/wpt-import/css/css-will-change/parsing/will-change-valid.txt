@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	e.style['will-change'] = "auto" should set the property value
+Pass	e.style['will-change'] = "scroll-position" should set the property value
+Pass	e.style['will-change'] = "contents" should set the property value
+Pass	e.style['will-change'] = "transform" should set the property value
+Pass	e.style['will-change'] = "background-color" should set the property value
+Pass	e.style['will-change'] = "scroll-position, contents" should set the property value
+Pass	e.style['will-change'] = "scroll-position, transform" should set the property value
+Pass	e.style['will-change'] = "contents, transform" should set the property value
+Pass	e.style['will-change'] = "transform, background-color" should set the property value

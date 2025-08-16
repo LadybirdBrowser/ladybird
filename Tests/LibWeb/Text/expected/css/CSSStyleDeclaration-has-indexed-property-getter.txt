@@ -258,6 +258,7 @@ All properties associated with getComputedStyle(document.body):
     "view-transition-name",
     "white-space-trim",
     "width",
+    "will-change",
     "x",
     "y",
     "z-index"

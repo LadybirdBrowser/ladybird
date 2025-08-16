@@ -3565,6 +3565,21 @@
       "unitless-length"
     ]
   },
+  "will-change": {
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "custom-ident ![all,auto,contents,none,scroll-position,will-change]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "scroll-position",
+      "contents"
+    ]
+  },
   "word-break": {
     "animation-type": "discrete",
     "initial": "normal",
