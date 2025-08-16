@@ -1911,6 +1911,12 @@ ScrollbarWidth ComputedProperties::scrollbar_width() const
     return keyword_to_scrollbar_width(value.to_keyword()).release_value();
 }
 
+ShapeRendering ComputedProperties::shape_rendering() const
+{
+    auto const& value = property(PropertyID::ShapeRendering);
+    return keyword_to_shape_rendering(value.to_keyword()).release_value();
+}
+
 WillChange ComputedProperties::will_change() const
 {
     auto const& value = property(PropertyID::WillChange);

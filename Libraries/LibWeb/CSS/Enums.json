@@ -632,6 +632,12 @@
     "thin",
     "none"
   ],
+  "shape-rendering": [
+    "auto",
+    "optimizespeed",
+    "crispedges",
+    "geometricprecision"
+  ],
   "stroke-linecap": [
     "butt",
     "square",

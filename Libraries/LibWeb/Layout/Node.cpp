@@ -913,6 +913,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_stroke_width(stroke_width.as_length().length());
     else if (stroke_width.is_percentage())
         computed_values.set_stroke_width(CSS::LengthPercentage { stroke_width.as_percentage().percentage() });
+    computed_values.set_shape_rendering(computed_style.shape_rendering());
 
     auto const& mask_image = computed_style.property(CSS::PropertyID::MaskImage);
     if (mask_image.is_url()) {
@@ -1035,6 +1036,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
     computed_values.set_view_transition_name(computed_style.view_transition_name());
     computed_values.set_contain(computed_style.contain());
+    computed_values.set_shape_rendering(computed_values.shape_rendering());
     computed_values.set_will_change(computed_style.will_change());
 
     computed_values.set_caret_color(computed_style.caret_color(*this));

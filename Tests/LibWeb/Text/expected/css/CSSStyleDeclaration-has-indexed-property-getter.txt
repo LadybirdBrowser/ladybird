@@ -43,6 +43,7 @@ All properties associated with getComputedStyle(document.body):
     "math-style",
     "pointer-events",
     "quotes",
+    "shape-rendering",
     "stroke",
     "stroke-dasharray",
     "stroke-dashoffset",

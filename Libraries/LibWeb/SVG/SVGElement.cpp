@@ -80,6 +80,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::R, { SVG::TagNames::circle }),
         NamedPropertyID(CSS::PropertyID::Rx, { SVG::TagNames::ellipse, SVG::TagNames::rect }),
         NamedPropertyID(CSS::PropertyID::Ry, { SVG::TagNames::ellipse, SVG::TagNames::rect }),
+        NamedPropertyID(CSS::PropertyID::ShapeRendering),
         NamedPropertyID(CSS::PropertyID::StopColor),
         NamedPropertyID(CSS::PropertyID::StopOpacity),
         NamedPropertyID(CSS::PropertyID::Stroke),
