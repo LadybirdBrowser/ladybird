@@ -54,6 +54,13 @@ static CookieListItem create_a_cookie_list_item(Cookie::Cookie const& cookie)
     };
 }
 
+// https://cookiestore.spec.whatwg.org/#normalize-a-cookie-name-or-value
+static String normalize(String const& input)
+{
+    // Remove all U+0009 TAB and U+0020 SPACE that are at the start or end of input.
+    return MUST(input.trim("\t "sv));
+}
+
 // https://cookiestore.spec.whatwg.org/#query-cookies
 static Vector<CookieListItem> query_cookies(PageClient& client, URL::URL const& url, Optional<String> const& name)
 {
@@ -70,11 +77,14 @@ static Vector<CookieListItem> query_cookies(PageClient& client, URL::URL const& 
         // 1. Assert: cookie’s http-only-flag is false.
         VERIFY(!cookie.http_only);
 
-        // 2. If name is given, then run these steps:
+        // 2. If name is non-null:
         if (name.has_value()) {
-            // 1. Let cookieName be the result of running UTF-8 decode without BOM on cookie’s name.
-            // 2. If cookieName does not equal name, then continue.
-            if (cookie.name != name.value())
+            // 1. Normalize name.
+            auto normalized_name = normalize(name.value());
+
+            // 2. Let cookieName be the result of running UTF-8 decode without BOM on cookie’s name.
+            // 3. If cookieName does not equal name, then continue.
+            if (cookie.name != normalized_name)
                 continue;
         }
         // 3. Let item be the result of running create a CookieListItem from cookie.
@@ -183,7 +193,7 @@ GC::Ref<WebIDL::Promise> CookieStore::get(CookieStoreGetOptions const& options)
 
     // 8. Run the following steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = options.name]() {
-        // 1. Let list be the results of running query cookies with url and options["name"] (if present).
+        // 1. Let list be the results of running query cookies with url and options["name"] with default null.
         auto list = query_cookies(client, url, name);
 
         // AD-HOC: Queue a global task to perform the next steps
@@ -299,7 +309,7 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(CookieStoreGetOptions const& optio
 
     // 7. Run the following steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = options.name]() {
-        // 1. Let list be the results of running query cookies with url and options["name"] (if present).
+        // 1. Let list be the results of running query cookies with url and options["name"] with default null.
         auto list = query_cookies(client, url, name);
 
         // AD-HOC: Queue a global task to perform the next steps
@@ -323,11 +333,11 @@ static constexpr size_t maximum_attribute_value_size = 1024;
 // https://cookiestore.spec.whatwg.org/#set-a-cookie
 static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, String value, Optional<HighResolutionTime::DOMHighResTimeStamp> expires, Optional<String> const& domain, Optional<String> const& path, Bindings::CookieSameSite same_site, bool partitioned)
 {
-    // 1. Remove all U+0009 TAB and U+0020 SPACE that are at the start or end of name.
-    name = MUST(name.trim("\t "sv));
+    // 1. Normalize name.
+    name = normalize(name);
 
-    // 2. Remove all U+0009 TAB and U+0020 SPACE that are at the start or end of value.
-    value = MUST(value.trim("\t "sv));
+    // 2. Normalize value.
+    value = normalize(value);
 
     // 3. If name or value contain U+003B (;), any C0 control character except U+0009 TAB, or U+007F DELETE, then return failure.
     if (name.contains(';') || value.contains(';'))
@@ -574,14 +584,17 @@ static bool delete_a_cookie(PageClient& client, URL::URL const& url, String name
     // NOTE: The exact value of expires is not important for the purposes of this algorithm, as long as it is in the past.
     HighResolutionTime::DOMHighResTimeStamp expires = UnixDateTime::earliest().milliseconds_since_epoch();
 
-    // 2. Let value be the empty string.
+    // 2. Normalize name.
+    name = normalize(name);
+
+    // 3. Let value be the empty string.
     String value;
 
-    // 3. If name’s length is 0, then set value to any non-empty implementation-defined string.
+    // 4. If name’s length is 0, then set value to any non-empty implementation-defined string.
     if (name.is_empty())
         value = "ladybird"_string;
 
-    // 4. Return the results of running set a cookie with url, name, value, expires, domain, path, "strict", and partitioned.
+    // 5. Return the results of running set a cookie with url, name, value, expires, domain, path, "strict", and partitioned.
     return set_a_cookie(client, url, move(name), move(value), expires, move(domain), move(path), Bindings::CookieSameSite::Strict, partitioned);
 }
 
