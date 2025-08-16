@@ -66,6 +66,19 @@ SpreadMethod SVGGradientElement::spread_method_impl(HashTable<SVGGradientElement
     return SpreadMethod::Pad;
 }
 
+Gfx::InterpolationColorSpace SVGGradientElement::color_space() const
+{
+    switch (computed_properties()->color_interpolation()) {
+    case CSS::ColorInterpolation::Linearrgb:
+        return Gfx::InterpolationColorSpace::LinearRGB;
+    case CSS::ColorInterpolation::Auto:
+    case CSS::ColorInterpolation::Srgb:
+        return Gfx::InterpolationColorSpace::SRGB;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 Optional<Gfx::AffineTransform> SVGGradientElement::gradient_transform() const
 {
     HashTable<SVGGradientElement const*> seen_gradients;

@@ -52,6 +52,8 @@ public:
 
     SpreadMethod spread_method() const;
 
+    Gfx::InterpolationColorSpace color_space() const;
+
     Optional<Gfx::AffineTransform> gradient_transform() const;
 
 protected:

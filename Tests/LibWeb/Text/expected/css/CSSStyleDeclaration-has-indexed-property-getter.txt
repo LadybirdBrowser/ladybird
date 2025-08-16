@@ -8,6 +8,7 @@ All properties associated with getComputedStyle(document.body):
     "caret-color",
     "clip-rule",
     "color",
+    "color-interpolation",
     "color-scheme",
     "cursor",
     "direction",

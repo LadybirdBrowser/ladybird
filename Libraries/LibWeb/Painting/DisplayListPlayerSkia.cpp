@@ -633,6 +633,9 @@ static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& 
         shader = SkGradientShader::MakeTwoPointConical(start_center, start_radius, end_center, end_radius, colors.data(), positions.data(), color_stops.size(), tile_mode, 0, &matrix);
     }
     paint.setShader(shader);
+    if (auto* gradient_paint_style = as_if<SVGGradientPaintStyle>(paint_style); gradient_paint_style->color_space() == Gfx::InterpolationColorSpace::LinearRGB) {
+        paint.setColorFilter(SkColorFilters::LinearToSRGBGamma());
+    }
 
     return paint;
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/PaintStyle.h>
 
 namespace Web::Painting {
@@ -46,6 +47,9 @@ public:
     ReadonlySpan<ColorStop> color_stops() const { return m_color_stops; }
     Optional<float> repeat_length() const { return m_repeat_length; }
 
+    Gfx::InterpolationColorSpace color_space() const { return m_color_space; }
+    void set_color_space(Gfx::InterpolationColorSpace color_space) { m_color_space = color_space; }
+
     virtual ~SVGGradientPaintStyle() { }
 
 protected:
@@ -54,6 +58,7 @@ protected:
 
     Optional<Gfx::AffineTransform> m_gradient_transform {};
     SpreadMethod m_spread_method { SpreadMethod::Pad };
+    Gfx::InterpolationColorSpace m_color_space { Gfx::InterpolationColorSpace::SRGB };
 };
 
 class SVGLinearGradientPaintStyle final : public SVGGradientPaintStyle {

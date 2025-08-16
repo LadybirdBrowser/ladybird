@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 254 tests
+Found 255 tests
 
-247 Pass
+248 Pass
 7 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -11,6 +11,7 @@ Pass	caption-side
 Pass	caret-color
 Pass	clip-rule
 Pass	color
+Pass	color-interpolation
 Pass	color-scheme
 Pass	cursor
 Pass	direction

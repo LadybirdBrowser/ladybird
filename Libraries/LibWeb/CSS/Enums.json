@@ -132,6 +132,11 @@
     "inline-start",
     "inline-end"
   ],
+  "color-interpolation": [
+    "auto",
+    "linearrgb",
+    "srgb"
+  ],
   "column-span": [
     "none",
     "all"

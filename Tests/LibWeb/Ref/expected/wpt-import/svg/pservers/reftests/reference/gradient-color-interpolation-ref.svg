@@ -1,0 +1,24 @@
+<svg width="100%" height="100%"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:html="http://www.w3.org/1999/xhtml">
+
+  <style>
+    div {
+      border: none;
+      margin: 0;
+      padding: 0;
+    };
+  </style>
+  <defs>
+    <linearGradient id="gradientLinearRGB" gradientUnits="objectBoundingBox" color-interpolation="linearRGB">
+      <stop offset="0" stop-color="white"/>
+      <stop offset=".33" stop-color="blue"/>
+      <stop offset=".66" stop-color="red"/>
+      <stop offset="1" stop-color="yellow"/>
+    </linearGradient>
+  </defs>
+
+  <foreignObject x="20" y="20" width="200" height="200">
+    <html:div style="height:100%;width:100%;background: linear-gradient(90deg in srgb-linear, white 0%, blue 33%, red 66%, yellow 100%);"/>
+  </foreignObject>
+</svg>

@@ -104,6 +104,7 @@ public:
     static Color caret_color() { return Color::Black; }
     static CSS::Clear clear() { return CSS::Clear::None; }
     static CSS::Clip clip() { return CSS::Clip::make_auto(); }
+    static CSS::ColorInterpolation color_interpolation() { return CSS::ColorInterpolation::Auto; }
     static CSS::PreferredColorScheme color_scheme() { return CSS::PreferredColorScheme::Auto; }
     static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
     static CursorData cursor() { return { CSS::CursorPredefined::Auto }; }
@@ -428,6 +429,7 @@ public:
     Color caret_color() const { return m_inherited.caret_color; }
     CSS::Clear clear() const { return m_noninherited.clear; }
     CSS::Clip clip() const { return m_noninherited.clip; }
+    CSS::ColorInterpolation color_interpolation() const { return m_inherited.color_interpolation; }
     CSS::PreferredColorScheme color_scheme() const { return m_inherited.color_scheme; }
     CSS::ContentVisibility content_visibility() const { return m_inherited.content_visibility; }
     Vector<CursorData> const& cursor() const { return m_inherited.cursor; }
@@ -638,6 +640,7 @@ protected:
         CSS::Length border_spacing_vertical { InitialValues::border_spacing() };
         CSS::CaptionSide caption_side { InitialValues::caption_side() };
         Color color { InitialValues::color() };
+        CSS::ColorInterpolation color_interpolation { InitialValues::color_interpolation() };
         CSS::PreferredColorScheme color_scheme { InitialValues::color_scheme() };
         Optional<Color> accent_color {};
         Color webkit_text_fill_color { InitialValues::color() };
@@ -837,6 +840,7 @@ public:
     void set_border_spacing_vertical(CSS::Length border_spacing_vertical) { m_inherited.border_spacing_vertical = border_spacing_vertical; }
     void set_caption_side(CSS::CaptionSide caption_side) { m_inherited.caption_side = caption_side; }
     void set_color(Color color) { m_inherited.color = color; }
+    void set_color_interpolation(CSS::ColorInterpolation color_interpolation) { m_inherited.color_interpolation = color_interpolation; }
     void set_color_scheme(CSS::PreferredColorScheme color_scheme) { m_inherited.color_scheme = color_scheme; }
     void set_clip(CSS::Clip const& clip) { m_noninherited.clip = clip; }
     void set_content(ContentData const& content) { m_noninherited.content = content; }
