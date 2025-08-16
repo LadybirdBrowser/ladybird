@@ -713,7 +713,7 @@ void fetch_single_module_script(JS::Realm& realm,
         // 7. If mimeType is a JavaScript MIME type and moduleType is "javascript", then set moduleScript to the result of creating a JavaScript module script given sourceText, moduleMapRealm, response's URL, and options.
         // FIXME: Pass options.
         if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript")
-            module_script = JavaScriptModuleScript::create(url.basename(), source_text, module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+            module_script = JavaScriptModuleScript::create(url.to_byte_string(), source_text, module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
 
         // FIXME: 8. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to the result of creating a CSS module script given sourceText and settingsObject.
         // FIXME: 9. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of creating a JSON module script given sourceText and settingsObject.
