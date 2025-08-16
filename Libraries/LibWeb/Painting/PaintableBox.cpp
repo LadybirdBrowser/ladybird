@@ -1049,6 +1049,11 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHan
 
 void PaintableBox::handle_mouseleave(Badge<EventHandler>)
 {
+    // FIXME: early return needed as MacOSX calls this even when user is pressing mouse button
+    // https://github.com/LadybirdBrowser/ladybird/issues/5844
+    if (m_scroll_thumb_dragging_direction.has_value())
+        return;
+
     auto previous_draw_enlarged_horizontal_scrollbar = m_draw_enlarged_horizontal_scrollbar;
     m_draw_enlarged_horizontal_scrollbar = false;
     if (previous_draw_enlarged_horizontal_scrollbar != m_draw_enlarged_horizontal_scrollbar)
