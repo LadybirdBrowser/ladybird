@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Diagnostics.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
