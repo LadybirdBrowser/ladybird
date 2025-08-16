@@ -350,8 +350,28 @@ void InlineFormattingContext::generate_line_boxes()
                 && text_node.computed_values().overflow_x() != CSS::Overflow::Visible) {
                 // We may need to do an ellipsis if the text is too long for the container
                 constexpr u32 ellipsis_codepoint = 0x2026;
-                if (m_available_space.has_value()
-                    && item.width.to_double() > m_available_space.value().width.to_px_or_zero().to_double()) {
+
+                // NOTE: We compute whether we need to truncate the text with an ellipsis based on the width of the
+                //       text node EXCLUSIVE of trailing collapsible whitespace, this is because that trailing
+                //       collapsible whitespace is removed later when we trim the line-boxes anyway.
+                //       Note that this relies on the assumption that this text node is the last in this linebox (as
+                //       there is only one text-node per line box when we have text-wrap: nowrap)
+                double width_without_trailing_collapsible_whitespace = item.width.to_double();
+
+                if (first_is_one_of(text_node.computed_values().white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks)) {
+                    auto last_text = text_node.text_for_rendering();
+
+                    size_t last_fragment_length = last_text.length_in_code_units();
+                    while (last_fragment_length) {
+                        auto last_character = last_text.code_unit_at(--last_fragment_length);
+                        if (!is_ascii_space(last_character))
+                            break;
+
+                        width_without_trailing_collapsible_whitespace -= item.glyph_run->font().glyph_width(last_character);
+                    }
+                }
+
+                if (m_available_space.has_value() && width_without_trailing_collapsible_whitespace > m_available_space.value().width.to_px_or_zero().to_double()) {
                     // Do the ellipsis
                     auto& glyph_run = item.glyph_run;
 
