@@ -3,4 +3,4 @@ set(SOURCES
     DOM/Node.cpp
 )
 
-ladybird_lib(LibXML xml)
+ladybird_lib(LibXML xml EXPLICIT_SYMBOL_EXPORT)

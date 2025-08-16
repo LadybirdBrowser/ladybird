@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Variant.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibIPC/Forward.h>
@@ -38,7 +39,7 @@ enum class StandardCursor {
     __Count,
 };
 
-struct ImageCursor {
+struct GFX_API ImageCursor {
     ShareableBitmap bitmap;
     IntPoint hotspot;
 

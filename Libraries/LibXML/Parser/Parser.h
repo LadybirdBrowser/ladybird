@@ -17,6 +17,7 @@
 #include <LibXML/DOM/Document.h>
 #include <LibXML/DOM/DocumentTypeDeclaration.h>
 #include <LibXML/DOM/Node.h>
+#include <LibXML/Export.h>
 #include <LibXML/Forward.h>
 
 namespace XML {
@@ -46,7 +47,7 @@ struct Listener {
     virtual void error(ParseError const&) { }
 };
 
-class Parser {
+class XML_API Parser {
 public:
     struct Options {
         bool preserve_cdata { true };

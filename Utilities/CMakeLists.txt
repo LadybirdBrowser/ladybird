@@ -1,7 +1,18 @@
 if(WIN32)
+    # FIXME: Add support for LibLine on Windows
     lagom_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+    lagom_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain)
 else()
     lagom_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+    lagom_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain)
+endif()
+
+lagom_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
+lagom_utility(abench SOURCES abench.cpp LIBS LibMain LibFileSystem LibMedia)
+lagom_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
+
+if (ENABLE_GUI_TARGETS)
+    lagom_utility(image SOURCES image.cpp LIBS LibGfx LibMain)
 endif()
 
 # FIXME: Increase support for building targets on Windows
@@ -9,12 +20,6 @@ if (WIN32 AND ENABLE_WINDOWS_CI)
     return()
 endif()
 
-lagom_utility(abench SOURCES abench.cpp LIBS LibMain LibFileSystem LibMedia)
-lagom_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
-
-if (ENABLE_GUI_TARGETS)
-    lagom_utility(image SOURCES image.cpp LIBS LibGfx LibMain)
-endif()
 
 lagom_utility(test262-runner SOURCES test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
 
@@ -33,9 +38,6 @@ endif()
 if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
     target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
 endif()
-
-lagom_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain)
-lagom_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 
 if (NOT CMAKE_SKIP_INSTALL_RULES)
     install(TARGETS js COMPONENT js)

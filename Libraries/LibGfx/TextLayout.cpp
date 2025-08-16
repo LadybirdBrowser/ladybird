@@ -9,6 +9,7 @@
 
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/TextLayout.h>
 #include <harfbuzz/hb.h>
@@ -55,8 +56,8 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, UnicodeVie
     return runs;
 }
 
-template Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint, Utf8View const&, FontCascadeList const&);
-template Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint, Utf16View const&, FontCascadeList const&);
+template GFX_API Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint, Utf8View const&, FontCascadeList const&);
+template GFX_API Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint, Utf16View const&, FontCascadeList const&);
 
 template<typename UnicodeView>
 static hb_buffer_t* setup_text_shaping(UnicodeView const& string, Font const& font, ShapeFeatures const& features)
@@ -125,8 +126,8 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
     return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
 }
 
-template NonnullRefPtr<GlyphRun> shape_text(FloatPoint, float, Utf8View const&, Font const&, GlyphRun::TextType, ShapeFeatures const&);
-template NonnullRefPtr<GlyphRun> shape_text(FloatPoint, float, Utf16View const&, Font const&, GlyphRun::TextType, ShapeFeatures const&);
+template GFX_API NonnullRefPtr<GlyphRun> shape_text(FloatPoint, float, Utf8View const&, Font const&, GlyphRun::TextType, ShapeFeatures const&);
+template GFX_API NonnullRefPtr<GlyphRun> shape_text(FloatPoint, float, Utf16View const&, Font const&, GlyphRun::TextType, ShapeFeatures const&);
 
 template<typename UnicodeView>
 float measure_text_width(UnicodeView const& string, Font const& font, ShapeFeatures const& features)

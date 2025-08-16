@@ -16,6 +16,7 @@
 #include <AK/Variant.h>
 #include <AK/WeakPtr.h>
 #include <LibWasm/Constants.h>
+#include <LibWasm/Export.h>
 #include <LibWasm/Forward.h>
 #include <LibWasm/Opcode.h>
 
@@ -61,7 +62,7 @@ enum class ParseError {
     SectionOutOfOrder,
 };
 
-ByteString parse_error_to_byte_string(ParseError);
+WASM_API ByteString parse_error_to_byte_string(ParseError);
 
 template<typename T>
 using ParseResult = ErrorOr<T, ParseError>;
@@ -1035,7 +1036,7 @@ private:
     Optional<u32> m_count;
 };
 
-class Module : public RefCounted<Module>
+class WASM_API Module : public RefCounted<Module>
     , public Weakable<Module> {
 public:
     enum class ValidationStatus {
