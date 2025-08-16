@@ -79,6 +79,7 @@ static bool is_platform_object(Type const& type)
         "ImageData"sv,
         "Instance"sv,
         "IntersectionObserverEntry"sv,
+        "Keyboard"sv,
         "KeyframeEffect"sv,
         "MediaList"sv,
         "Memory"sv,
@@ -4869,6 +4870,7 @@ using namespace Web::HTML;
 using namespace Web::IndexedDB;
 using namespace Web::Internals;
 using namespace Web::IntersectionObserver;
+using namespace Web::Keyboard;
 using namespace Web::MediaCapabilitiesAPI;
 using namespace Web::MediaSourceExtensions;
 using namespace Web::NavigationTiming;
