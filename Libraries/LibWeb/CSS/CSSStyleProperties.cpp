@@ -123,22 +123,20 @@ void CSSStyleProperties::visit_edges(Visitor& visitor)
 size_t CSSStyleProperties::length() const
 {
     // The length attribute must return the number of CSS declarations in the declarations.
-    // FIXME: Include the number of custom properties.
-
     if (is_computed()) {
         if (!owner_node().has_value())
             return 0;
         return number_of_longhand_properties;
     }
 
-    return m_properties.size();
+    return m_properties.size() + m_custom_properties.size();
 }
 
 String CSSStyleProperties::item(size_t index) const
 {
     // The item(index) method must return the property name of the CSS declaration at position index.
     // If there is no indexth object in the collection, then the method must return the empty string.
-    // FIXME: Include custom properties.
+    auto custom_properties_count = m_custom_properties.size();
 
     if (index >= length())
         return {};
@@ -148,7 +146,13 @@ String CSSStyleProperties::item(size_t index) const
         return string_from_property_id(property_id).to_string();
     }
 
-    return CSS::string_from_property_id(m_properties[index].property_id).to_string();
+    if (index < custom_properties_count) {
+        auto keys = m_custom_properties.keys();
+        auto custom_property = m_custom_properties.get(keys[index]);
+        return custom_property.ptr()->custom_name.to_string();
+    }
+
+    return CSS::string_from_property_id(m_properties[index - custom_properties_count].property_id).to_string();
 }
 
 Optional<StyleProperty> CSSStyleProperties::property(PropertyID property_id) const
@@ -957,7 +961,7 @@ String CSSStyleProperties::serialized() const
     // NB: The spec treats custom properties the same as any other property, and expects the above loop to handle them.
     //       However, our implementation separates them from regular properties, so we need to handle them separately here.
     // FIXME: Is the relative order of custom properties and regular properties supposed to be preserved?
-    for (auto& declaration : m_custom_properties) {
+    for (auto const& declaration : m_custom_properties) {
         // 1. Let property be declaration’s property name.
         auto const& property = declaration.key;
 
