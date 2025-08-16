@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/String.h>
+#include <AK/Vector.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Forward.h>
 
@@ -20,6 +22,7 @@ public:
         bool is_marker() const { return !element; }
 
         GC::Ptr<DOM::Element> element;
+        Vector<std::pair<FlyString, String>> attributes;
     };
 
     bool is_empty() const { return m_entries.is_empty(); }

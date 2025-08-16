@@ -20,12 +20,18 @@ void ListOfActiveFormattingElements::visit_edges(JS::Cell::Visitor& visitor)
 void ListOfActiveFormattingElements::add(DOM::Element& element)
 {
     // FIXME: Implement the Noah's Ark clause https://html.spec.whatwg.org/multipage/parsing.html#push-onto-the-list-of-active-formatting-elements
-    m_entries.append({ element });
+    ListOfActiveFormattingElements::Entry entry;
+    entry.element = element;
+    // Take a snapshot of the element's current attributes (names and values)
+    element.for_each_attribute([&](auto& name, auto& value) {
+        entry.attributes.append({ name, value });
+    });
+    m_entries.append(move(entry));
 }
 
 void ListOfActiveFormattingElements::add_marker()
 {
-    m_entries.append({ nullptr });
+    m_entries.append({ nullptr, {} });
 }
 
 bool ListOfActiveFormattingElements::contains(const DOM::Element& element) const
@@ -84,7 +90,7 @@ void ListOfActiveFormattingElements::replace(DOM::Element& to_remove, DOM::Eleme
 
 void ListOfActiveFormattingElements::insert_at(size_t index, DOM::Element& element)
 {
-    m_entries.insert(index, { element });
+    m_entries.insert(index, { element, {} });
 }
 
 }

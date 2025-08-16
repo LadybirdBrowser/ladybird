@@ -1705,9 +1705,10 @@ Create:
 
     // FIXME: Hold on to the real token!
     auto new_element = insert_html_element(HTMLToken::make_start_tag(entry->element->local_name()));
-    entry->element->for_each_attribute([&](auto& name, auto& value) {
-        new_element->append_attribute(name, value);
-    });
+    // Copy the snapshot of attributes stored in the formatting list entry (see spec step 8)
+    for (auto const& attr : entry->attributes) {
+        new_element->append_attribute(attr.first, attr.second);
+    }
 
     // 9. Replace the entry for entry in the list with an entry for new element.
     m_list_of_active_formatting_elements.entries().at(index).element = new_element;
