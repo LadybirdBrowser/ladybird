@@ -85,6 +85,11 @@ void URL::set_paths(Vector<ByteString> const& paths)
         m_data->paths.unchecked_append(percent_encode(segment, PercentEncodeSet::Path));
 }
 
+void URL::set_raw_paths(Vector<String> paths)
+{
+    m_data->paths = move(paths);
+}
+
 void URL::append_path(StringView path)
 {
     m_data->paths.append(percent_encode(path, PercentEncodeSet::Path));
