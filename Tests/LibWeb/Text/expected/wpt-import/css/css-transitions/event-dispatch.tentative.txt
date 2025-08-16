@@ -1,0 +1,36 @@
+Harness status: OK
+
+Found 30 tests
+
+12 Pass
+18 Fail
+Pass	Idle -> Pending or Before
+Pass	Idle -> Before
+Pass	Idle or Pending -> Active
+Pass	Idle or Pending -> After
+Fail	Before -> Idle (display: none)
+Fail	Before -> Idle (Animation.timeline = null)
+Pass	Before -> Active
+Pass	Before -> After
+Fail	Active -> Idle, no delay (display: none)
+Fail	Active -> Idle, no delay (Animation.timeline = null)
+Fail	Active -> Idle, with positive delay (display: none)
+Fail	Active -> Idle, with positive delay (Animation.timeline = null)
+Fail	Active -> Idle, with negative delay (display: none)
+Fail	Active -> Idle, with negative delay (Animation.timeline = null)
+Pass	Active -> Before
+Pass	Active -> After
+Pass	After -> Before
+Pass	After -> Active
+Pass	Calculating the interval start and end time with negative start delay.
+Fail	Calculating the interval start and end time with negative end delay.
+Fail	Call Animation.cancel after canceling transition.
+Fail	Restart transition after canceling transition immediately
+Fail	Call Animation.cancel after restarting transition immediately
+Fail	Set timeline and play transition after clear the timeline
+Fail	Set null target effect after canceling the transition
+Fail	Cancel the transition after clearing the target effect
+Pass	Cancel the transition after it finishes
+Fail	Replacing a running transition should get transitioncancel earlier than transitionrun and transitionstart
+Fail	Replacing two running transitions on the same target should get two transitioncancel events earlier than two transitionrun events, per transition generation
+Fail	Replacing a running transition and forcing to flush the style together should get the correct event order

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<title>CSS Transitions Test: trigger transitions on inherited after-change styles</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions-1/#after-change-style">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #t1 :is(.outer, .inner) { transition: color 1000s steps(2, start); }
+  #t1 .outer { color: red; }
+  #t1 .inner { color: black; }
+  #t1 .outer.green { color: lime; }
+  #t1 .outer.green .inner { color: unset; }
+</style>
+<div id="t1">
+  <div class="outer">
+    <div>
+      <div class="inner"></div>
+    </div>
+  </div>
+</div>
+<script>
+  test(() => {
+    const outer = document.querySelector("#t1 .outer");
+    const inner = document.querySelector("#t1 .inner");
+    outer.offsetTop;
+    assert_equals(getComputedStyle(outer).color, "rgb(255, 0, 0)",
+                  ".outer initially red");
+    assert_equals(getComputedStyle(inner).color, "rgb(0, 0, 0)",
+                  ".inner initially black");
+    outer.classList.add("green");
+    assert_equals(getComputedStyle(outer).color, "rgb(128, 128, 0)",
+                  ".outer halfway between red and lime");
+    assert_equals(getComputedStyle(inner).color, "rgb(0, 128, 0)",
+                  ".inner halfway between black and lime");
+  }, "Start .inner transition based on inherited after-change color from .outer (lime)");
+</script>
+
+<style>
+  #t2 :is(.outer, .inner) { transition: background-color 1000s steps(2, start); }
+  #t2 .outer { background-color: red; }
+  #t2 .inner { background-color: black; }
+  #t2 .outer.green { background-color: lime; }
+  #t2 .outer.green div { background-color: inherit; }
+</style>
+<div id="t2">
+  <div class="outer">
+    <div>
+      <div class="inner"></div>
+    </div>
+  </div>
+</div>
+<script>
+  test(() => {
+    const outer = document.querySelector("#t2 .outer");
+    const inner = document.querySelector("#t2 .inner");
+    outer.offsetTop;
+    assert_equals(getComputedStyle(outer).backgroundColor, "rgb(255, 0, 0)",
+                  ".outer initially red");
+    assert_equals(getComputedStyle(inner).backgroundColor, "rgb(0, 0, 0)",
+                  ".inner initially black");
+    outer.classList.add("green");
+    assert_equals(getComputedStyle(outer).backgroundColor, "rgb(128, 128, 0)",
+                  ".outer halfway between red and lime");
+    assert_equals(getComputedStyle(inner).backgroundColor, "rgb(0, 128, 0)",
+                  ".inner halfway between black and lime");
+  }, "Start .inner transition based on inherited after-change background-color from .outer (lime)");
+</script>
+
+<style>
+  #t3 .trans {
+    transition: 1000s steps(2, start);
+    transition-property: color, word-spacing;
+  }
+
+  #t3 .a2 { color: red; }
+  #t3 .a3 { color: black; }
+  #t3 .a2.green { color: lime; }
+  #t3 .a2.green .a3 { color: unset; }
+
+  #t3 .a1 { word-spacing: 17px; }
+  #t3 .a3 { word-spacing: 0px; }
+  #t3 .a1.wide { word-spacing: 100px; }
+  #t3 .a1.wide .a3 { word-spacing: unset; }
+</style>
+<div id="t3">
+  <div class="trans a1">
+    <div style="color:pink">
+      <div class="trans a2">
+          <div class="trans a3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const a1 = document.querySelector("#t3 .a1");
+  const a2 = document.querySelector("#t3 .a2");
+  const a3 = document.querySelector("#t3 .a3");
+
+  test(() => {
+    assert_equals(getComputedStyle(a3).color, "rgb(0, 0, 0)", ".a3 color initially black");
+    assert_equals(getComputedStyle(a3).wordSpacing, "0px", ".a3 word-spacing initially 0px");
+  }, "Initial computed styles");
+
+  test(() => {
+    a1.classList.add("wide");
+    a2.classList.add("green");
+    assert_equals(getComputedStyle(a3).color, "rgb(0, 128, 0)", ".a3 color transitioning between black and lime");
+    assert_equals(getComputedStyle(a3).wordSpacing, "50px", ".a3 word-spacing transitioning between 0px and 100px");
+  }, "Start inner transitions based on inherited after-change color and word-spacing from two different ancestors");
+</script>
+
+<style>
+  #t4 :is(.outer, .inner) { transition: color 1000s steps(2, start); }
+  #t4 .outer { color: red; }
+  #t4 .inner { color: black; }
+  #t4 .outer.green { color: lime; }
+  #t4 .outer.green .inner { color: unset; }
+  @starting-style {
+    #t4 .outer.green { color: pink; }
+  }
+</style>
+<div id="t4">
+  <div class="outer">
+    <div>
+      <div class="inner"></div>
+    </div>
+  </div>
+</div>
+<script>
+  test(() => {
+    const outer = document.querySelector("#t4 .outer");
+    const inner = document.querySelector("#t4 .inner");
+    outer.offsetTop;
+    assert_equals(getComputedStyle(outer).color, "rgb(255, 0, 0)",
+                  ".outer initially red");
+    assert_equals(getComputedStyle(inner).color, "rgb(0, 0, 0)",
+                  ".inner initially black");
+    outer.classList.add("green");
+    assert_equals(getComputedStyle(outer).color, "rgb(128, 128, 0)",
+                  ".outer halfway between red and lime");
+    assert_equals(getComputedStyle(inner).color, "rgb(0, 128, 0)",
+                  ".inner halfway between black and lime");
+  }, "@starting-style rules should not apply to after-change style");
+</script>
+
+<style>
+  #t5 :is(.outer, .inner) { transition: color 1000s steps(2, start); }
+  #t5 .outer { color: red; }
+  #t5 .inner { color: black; }
+  #t5 .outer.green { color: lime; }
+  #t5 .container { container-type: inline-size; }
+  @container (width < 100000px) {
+    #t5 .outer.green .inner { color: unset; }
+  }
+</style>
+<div id="t5">
+  <div class="outer">
+    <div class="container">
+      <div class="inner"></div>
+    </div>
+  </div>
+</div>
+<script>
+  test(() => {
+    const outer = document.querySelector("#t5 .outer");
+    const inner = document.querySelector("#t5 .inner");
+    outer.offsetTop;
+    assert_equals(getComputedStyle(outer).color, "rgb(255, 0, 0)",
+                  ".outer initially red");
+    assert_equals(getComputedStyle(inner).color, "rgb(0, 0, 0)",
+                  ".inner initially black");
+    outer.classList.add("green");
+    assert_equals(getComputedStyle(outer).color, "rgb(128, 128, 0)",
+                  ".outer halfway between red and lime");
+    assert_equals(getComputedStyle(inner).color, "rgb(0, 128, 0)",
+                  ".inner halfway between black and lime");
+  }, "@container rules apply to after-change style");
+</script>

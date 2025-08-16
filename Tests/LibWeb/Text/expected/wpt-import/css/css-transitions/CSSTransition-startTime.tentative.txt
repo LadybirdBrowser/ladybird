@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	The start time of a newly-created transition is unresolved
+Pass	The start time of transitions is based on when they are generated
+Pass	The start time of a transition can be set
+Pass	The start time can be set to seek a transition
+Pass	Seeking a transition using start time dispatches transition events

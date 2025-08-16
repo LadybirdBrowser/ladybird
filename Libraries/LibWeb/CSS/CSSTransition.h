@@ -23,7 +23,7 @@ class CSSTransition : public Animations::Animation {
 
 public:
     static GC::Ref<CSSTransition> start_a_transition(DOM::Element&, Optional<PseudoElement>, PropertyID,
-        size_t transition_generation, double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value,
+        size_t transition_generation, double delay, double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value,
         NonnullRefPtr<StyleValue const> end_value, NonnullRefPtr<StyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor);
 
     StringView transition_property() const { return string_from_property_id(m_transition_property); }
@@ -53,7 +53,7 @@ public:
 
 private:
     CSSTransition(JS::Realm&, DOM::Element&, Optional<PseudoElement>, PropertyID, size_t transition_generation,
-        double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value, NonnullRefPtr<StyleValue const> end_value,
+        double delay, double start_time, double end_time, NonnullRefPtr<StyleValue const> start_value, NonnullRefPtr<StyleValue const> end_value,
         NonnullRefPtr<StyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor);
 
     virtual void initialize(JS::Realm&) override;
