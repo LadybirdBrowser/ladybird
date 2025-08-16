@@ -725,6 +725,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'whiteSpaceTrim': 'none'
 'white-space-trim': 'none'
 'width': '284px'
+'willChange': 'auto'
+'will-change': 'auto'
 'wordBreak': 'normal'
 'word-break': 'normal'
 'wordSpacing': 'normal'

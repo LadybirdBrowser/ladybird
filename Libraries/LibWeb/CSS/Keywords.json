@@ -449,6 +449,7 @@
   "scale-down",
   "screen",
   "scroll",
+  "scroll-position",
   "scrollbar",
   "se-resize",
   "searchfield",

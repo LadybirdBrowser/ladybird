@@ -87,6 +87,33 @@ struct ScrollbarColorData {
     Color track_color { Color::Transparent };
 };
 
+struct WillChange {
+    enum class Type : u8 {
+        Contents,
+        ScrollPosition,
+    };
+    using WillChangeEntry = Variant<Type, PropertyID>;
+
+    WillChange(Vector<WillChangeEntry> values)
+        : m_value(move(values))
+    {
+    }
+
+    static WillChange make_auto() { return WillChange(); }
+
+    bool is_auto() const { return m_value.is_empty(); }
+    bool has_contents() const { return m_value.contains_slow(Type::Contents); }
+    bool has_scroll_position() const { return m_value.contains_slow(Type::ScrollPosition); }
+    bool has_property(PropertyID property_id) const { return m_value.contains_slow(property_id); }
+
+private:
+    WillChange()
+    {
+    }
+
+    Vector<WillChangeEntry> m_value;
+};
+
 using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, CursorPredefined>;
 
 using ListStyleType = Variant<CounterStyleNameKeyword, String>;
@@ -231,6 +258,7 @@ public:
         };
     }
     static CSS::ScrollbarWidth scrollbar_width() { return CSS::ScrollbarWidth::Auto; }
+    static WillChange will_change() { return WillChange::make_auto(); }
 };
 
 enum class BackgroundSize {
@@ -609,6 +637,8 @@ public:
     ScrollbarColorData scrollbar_color() const { return m_inherited.scrollbar_color; }
     CSS::ScrollbarWidth scrollbar_width() const { return m_noninherited.scrollbar_width; }
 
+    WillChange will_change() const { return m_noninherited.will_change; }
+
     NonnullOwnPtr<ComputedValues> clone_inherited_values() const
     {
         auto clone = make<ComputedValues>();
@@ -803,6 +833,8 @@ protected:
         Vector<CounterData, 0> counter_increment;
         Vector<CounterData, 0> counter_reset;
         Vector<CounterData, 0> counter_set;
+
+        WillChange will_change { InitialValues::will_change() };
 
         Color flood_color { InitialValues::flood_color() };
         float flood_opacity { InitialValues::flood_opacity() };
@@ -1014,6 +1046,8 @@ public:
     void set_counter_increment(Vector<CounterData> value) { m_noninherited.counter_increment = move(value); }
     void set_counter_reset(Vector<CounterData> value) { m_noninherited.counter_reset = move(value); }
     void set_counter_set(Vector<CounterData> value) { m_noninherited.counter_set = move(value); }
+
+    void set_will_change(WillChange value) { m_noninherited.will_change = move(value); }
 };
 
 }

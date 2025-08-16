@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 255 tests
+Found 256 tests
 
-248 Pass
+249 Pass
 7 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -256,6 +256,7 @@ Pass	vertical-align
 Pass	view-transition-name
 Pass	white-space-trim
 Fail	width
+Pass	will-change
 Pass	x
 Pass	y
 Pass	z-index

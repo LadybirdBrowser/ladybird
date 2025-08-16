@@ -1911,4 +1911,46 @@ ScrollbarWidth ComputedProperties::scrollbar_width() const
     return keyword_to_scrollbar_width(value.to_keyword()).release_value();
 }
 
+WillChange ComputedProperties::will_change() const
+{
+    auto const& value = property(PropertyID::WillChange);
+    if (value.to_keyword() == Keyword::Auto)
+        return WillChange::make_auto();
+
+    auto to_will_change_entry = [](StyleValue const& value) -> Optional<WillChange::WillChangeEntry> {
+        if (value.is_keyword()) {
+            switch (value.as_keyword().keyword()) {
+            case Keyword::Contents:
+                return WillChange::Type::Contents;
+            case Keyword::ScrollPosition:
+                return WillChange::Type::ScrollPosition;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }
+        VERIFY(value.is_custom_ident());
+        auto custom_ident = value.as_custom_ident().custom_ident();
+        auto property_id = property_id_from_string(custom_ident);
+        if (!property_id.has_value())
+            return {};
+
+        return property_id.release_value();
+    };
+
+    if (value.is_value_list()) {
+        auto const& value_list = value.as_value_list();
+        Vector<WillChange::WillChangeEntry> will_change_entries;
+        for (auto const& style_value : value_list.values()) {
+            if (auto entry = to_will_change_entry(*style_value); entry.has_value())
+                will_change_entries.append(*entry);
+        }
+        return WillChange(move(will_change_entries));
+    }
+
+    auto will_change_entry = to_will_change_entry(value);
+    if (will_change_entry.has_value())
+        return WillChange({ *will_change_entry });
+    return WillChange::make_auto();
+}
+
 }

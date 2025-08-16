@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Will Change Test: parsing will-change with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-will-change/#propdef-will-change">
+<meta name="assert" content="will-change supports the full grammar 'auto | <animateable-feature>#'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("will-change", "auto");
+
+// <animateable-feature> = scroll-position | contents | <custom-ident>
+test_valid_value("will-change", "scroll-position");
+test_valid_value("will-change", "contents");
+test_valid_value("will-change", "transform");
+test_valid_value("will-change", "background-color");
+
+test_valid_value("will-change", "scroll-position, contents");
+test_valid_value("will-change", "scroll-position, transform");
+test_valid_value("will-change", "contents, transform");
+test_valid_value("will-change", "transform, background-color");
+</script>
+</body>
+</html>
