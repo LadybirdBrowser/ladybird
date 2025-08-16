@@ -327,11 +327,42 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(CookieStoreGetOptions const& optio
     return promise;
 }
 
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-layered-cookies#name-cookie-default-path
+static Vector<String> cookie_default_path(Vector<String> path)
+{
+    // 1. Assert: path is a non-empty list.
+    VERIFY(!path.is_empty());
+
+    // 2. If path's size is greater than 1, then remove path's last item.
+    if (path.size() > 1)
+        path.take_last();
+
+    // 3. Otherwise, set path[0] to the empty string.
+    else
+        path[0] = ""_string;
+
+    // 4. Return path.
+    return path;
+}
+
+// https://fetch.spec.whatwg.org/#serialized-cookie-default-path
+static String serialized_cookie_default_path(URL::URL const& url)
+{
+    // 1. Let cloneURL be a clone of url.
+    auto clone_url = url;
+
+    // 2. Set cloneURL’s path to the cookie default path of cloneURL’s path.
+    clone_url.set_raw_paths(cookie_default_path(clone_url.paths()));
+
+    // 3. Return the URL path serialization of cloneURL.
+    return clone_url.serialize_path();
+}
+
 static constexpr size_t maximum_name_value_pair_size = 4096;
 static constexpr size_t maximum_attribute_value_size = 1024;
 
 // https://cookiestore.spec.whatwg.org/#set-a-cookie
-static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, String value, Optional<HighResolutionTime::DOMHighResTimeStamp> expires, Optional<String> const& domain, Optional<String> const& path, Bindings::CookieSameSite same_site, bool partitioned)
+static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, String value, Optional<HighResolutionTime::DOMHighResTimeStamp> expires, Optional<String> const& domain, String path, Bindings::CookieSameSite same_site, bool partitioned)
 {
     // 1. Normalize name.
     name = normalize(name);
@@ -427,34 +458,30 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
     if (expires.has_value())
         parsed_cookie.expiry_time_from_expires_attribute = UnixDateTime::from_milliseconds_since_epoch(expires.value());
 
-    // 14. If path is not null:
-    if (path.has_value()) {
-        // 1. If path does not start with U+002F (/), then return failure.
-        if (!path->starts_with('/'))
-            return false;
+    // 14. If path is the empty string, then set path to the serialized cookie default path of url.
+    if (path.is_empty())
+        path = serialized_cookie_default_path(url);
 
-        // 2. If path is not U+002F (/), and name, byte-lowercased, starts with `__host-`, then return failure.
-        if (path != "/"sv && name_byte_lowercased.starts_with_bytes("__host-"sv))
-            return false;
+    // 15. If path does not start with U+002F (/), then return failure.
+    if (!path.starts_with('/'))
+        return false;
 
-        // 3. Let encodedPath be the result of UTF-8 encoding path.
+    // 16. If path is not U+002F (/), and name, byte-lowercased, starts with `__host-`, then return failure.
+    if (path != "/"sv && name_byte_lowercased.starts_with_bytes("__host-"sv))
+        return false;
 
-        // 4. If the byte sequence length of encodedPath is greater than the maximum attribute value size, then return failure.
-        if (path->byte_count() > maximum_attribute_value_size)
-            return false;
+    // 17. Let encodedPath be the result of UTF-8 encoding path.
+    // 18. If the byte sequence length of encodedPath is greater than the maximum attribute value size, then return failure.
+    if (path.byte_count() > maximum_attribute_value_size)
+        return false;
 
-        // 5. Append `Path`/encodedPath to attributes.
-        parsed_cookie.path = path;
-    }
-    // 15. Otherwise, append `Path`/ U+002F (/) to attributes.
-    else {
-        parsed_cookie.path = "/"_string;
-    }
+    // 19. Append `Path`/encodedPath to attributes.
+    parsed_cookie.path = path;
 
-    // 16. Append `Secure`/`` to attributes.
+    // 20. Append `Secure`/`` to attributes.
     parsed_cookie.secure_attribute_present = true;
 
-    // 17. Switch on sameSite:
+    // 21. Switch on sameSite:
     switch (same_site) {
     // -> "none"
     case Bindings::CookieSameSite::None:
@@ -473,15 +500,15 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
         break;
     }
 
-    // FIXME: 18. If partitioned is true, Append `Partitioned`/`` to attributes.
+    // FIXME: 22. If partitioned is true, Append `Partitioned`/`` to attributes.
     (void)partitioned;
 
-    // 19. Perform the steps defined in Cookies § Storage Model for when the user agent "receives a cookie" with url as
+    // 23. Perform the steps defined in Cookies § Storage Model for when the user agent "receives a cookie" with url as
     //     request-uri, encodedName as cookie-name, encodedValue as cookie-value, and attributes as cookie-attribute-list.
     //     For the purposes of the steps, the newly-created cookie was received from a "non-HTTP" API.
     client.page_did_set_cookie(url, parsed_cookie, Cookie::Source::NonHttp);
 
-    // 20. Return success.
+    // 24. Return success.
     return true;
 }
 
@@ -578,7 +605,7 @@ GC::Ref<WebIDL::Promise> CookieStore::set(CookieInit const& options)
 }
 
 // https://cookiestore.spec.whatwg.org/#delete-a-cookie
-static bool delete_a_cookie(PageClient& client, URL::URL const& url, String name, Optional<String> domain, Optional<String> path, bool partitioned)
+static bool delete_a_cookie(PageClient& client, URL::URL const& url, String name, Optional<String> domain, String path, bool partitioned)
 {
     // 1. Let expires be the earliest representable date represented as a timestamp.
     // NOTE: The exact value of expires is not important for the purposes of this algorithm, as long as it is in the past.
