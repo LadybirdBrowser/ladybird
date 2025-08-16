@@ -7,6 +7,7 @@
 #include "StylePropertyMap.h"
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StylePropertyMapPrototype.h>
+#include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -25,6 +26,12 @@ StylePropertyMap::StylePropertyMap(JS::Realm& realm, GC::Ref<CSSStyleDeclaration
 }
 
 StylePropertyMap::~StylePropertyMap() = default;
+
+CSSStyleDeclaration& StylePropertyMap::declarations()
+{
+    // Writable StylePropertyMaps must be backed by a CSSStyleDeclaration, not an AbstractElement.
+    return m_declarations.get<GC::Ref<CSSStyleDeclaration>>();
+}
 
 void StylePropertyMap::initialize(JS::Realm& realm)
 {
@@ -56,10 +63,10 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(String property, Vector<Variant<
     //       are actually going to show up). This step’s restriction preserves the same semantics in the Typed OM.
 
     // 6. Let props be the value of this’s [[declarations]] internal slot.
-    auto& props = m_declarations;
+    auto& props = declarations();
 
     // 7. If props[property] exists, remove it.
-    props.remove(property);
+    TRY(props.remove_property(property));
 
     // FIXME: 8. Let values to set be an empty list.
 
@@ -95,7 +102,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::append(String property, Vector<Varia
     // NOTE: When a property is set via string-based APIs, the presence of var() in a property prevents the entire thing from being interpreted. In other words, everything besides the var() is a plain component value, not a meaningful type. This step’s restriction preserves the same semantics in the Typed OM.
 
     // 6. Let props be the value of this’s [[declarations]] internal slot.
-    auto& props = m_declarations;
+    auto& props = declarations();
 
     // FIXME: 7. If props[property] does not exist, set props[property] to an empty list.
     (void)props;
@@ -126,17 +133,17 @@ WebIDL::ExceptionOr<void> StylePropertyMap::delete_(String property)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property)) };
 
     // 3. If this’s [[declarations]] internal slot contains property, remove it.
-    m_declarations.remove(property);
+    TRY(declarations().remove_property(property));
     return {};
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-clear
-void StylePropertyMap::clear()
+WebIDL::ExceptionOr<void> StylePropertyMap::clear()
 {
     // The clear() method, when called on a StylePropertyMap this, must perform the following steps:
 
     // 1. Remove all of the declarations in this’s [[declarations]] internal slot.
-    m_declarations.clear();
+    return declarations().set_css_text(""sv);
 }
 
 }

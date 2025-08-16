@@ -16,14 +16,14 @@ class CSSStyleValue : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CSSStyleValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleValue> create(JS::Realm&, Optional<String> associated_property = {}, Optional<String> constructed_from_string = {});
+    [[nodiscard]] static GC::Ref<CSSStyleValue> create(JS::Realm&, String associated_property, String constructed_from_string);
 
     virtual ~CSSStyleValue() override = default;
 
     virtual String to_string() const;
 
 private:
-    explicit CSSStyleValue(JS::Realm&, Optional<String> associated_property = {}, Optional<String> constructed_from_string = {});
+    explicit CSSStyleValue(JS::Realm&, String associated_property, String constructed_from_string);
 
     virtual void initialize(JS::Realm&) override;
 

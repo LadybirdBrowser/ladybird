@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
+3 Pass
 Pass	Deleting a shorthand property not in the inline style is a no-op
-Fail	Deleting a shorthand property in the inline style removes both it and its longhands
-Fail	Deleting a longhand property in the inline style removes both it and its shorthand
+Pass	Deleting a shorthand property in the inline style removes both it and its longhands
+Pass	Deleting a longhand property in the inline style removes both it and its shorthand

@@ -10,6 +10,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibGfx/Font/FontWeight.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
@@ -140,6 +141,13 @@ Vector<Parser::ComponentValue> StyleValue::tokenize() const
     // This is an inefficient way of producing ComponentValues, but it's guaranteed to work for types that round-trip.
     // FIXME: Implement better versions in the subclasses.
     return Parser::Parser::create(Parser::ParsingParams {}, to_string(SerializationMode::Normal)).parse_as_list_of_component_values();
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#reify-as-a-cssstylevalue
+GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm& realm, String const& associated_property) const
+{
+    // 1. Return a new CSSStyleValue object representing value whose [[associatedProperty]] internal slot is set to property.
+    return CSSStyleValue::create(realm, associated_property, to_string(SerializationMode::Normal));
 }
 
 int StyleValue::to_font_weight() const

@@ -49,6 +49,9 @@ public:
 
     size_t custom_property_count() const { return m_custom_properties.size(); }
 
+    virtual bool has_property(StringView property_name) const override;
+    virtual RefPtr<StyleValue const> get_property_style_value(StringView property_name) const override;
+
     String css_float() const;
     WebIDL::ExceptionOr<void> set_css_float(StringView);
 

@@ -29,19 +29,19 @@ public:
     WebIDL::UnsignedLong size() const;
 
 protected:
-    explicit StylePropertyMapReadOnly(JS::Realm&, GC::Ref<CSSStyleDeclaration>);
-    explicit StylePropertyMapReadOnly(JS::Realm&, Optional<DOM::AbstractElement> = {});
+    using Source = Variant<DOM::AbstractElement, GC::Ref<CSSStyleDeclaration>>;
+    explicit StylePropertyMapReadOnly(JS::Realm&, Source);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Optional<DOM::AbstractElement> m_source_element;
-    GC::Ptr<CSSStyleDeclaration> m_source_declaration;
+    static RefPtr<StyleValue const> get_style_value(Source&, String property);
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-declarations-slot
     // A StylePropertyMapReadOnly object has a [[declarations]] internal slot, which is a map reflecting the CSS
     // declaration block’s declarations.
-    HashMap<FlyString, NonnullRefPtr<StyleValue>> m_declarations;
+    // NB: We just directly refer to our source, at least for now.
+    Source m_declarations;
 };
 
 }

@@ -23,10 +23,12 @@ public:
     WebIDL::ExceptionOr<void> set(String property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values);
     WebIDL::ExceptionOr<void> append(String property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values);
     WebIDL::ExceptionOr<void> delete_(String property);
-    void clear();
+    WebIDL::ExceptionOr<void> clear();
 
 private:
     explicit StylePropertyMap(JS::Realm&, GC::Ref<CSSStyleDeclaration>);
+
+    CSSStyleDeclaration& declarations();
 
     virtual void initialize(JS::Realm&) override;
 };
