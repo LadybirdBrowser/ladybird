@@ -33,9 +33,10 @@ class SkiaVulkanBackendContext final : public SkiaBackendContext {
     AK_MAKE_NONMOVABLE(SkiaVulkanBackendContext);
 
 public:
-    SkiaVulkanBackendContext(sk_sp<GrDirectContext> context, NonnullOwnPtr<skgpu::VulkanExtensions> extensions)
+    SkiaVulkanBackendContext(sk_sp<GrDirectContext> context, VulkanContext const& vulkan_context, NonnullOwnPtr<skgpu::VulkanExtensions> extensions)
         : m_context(move(context))
         , m_extensions(move(extensions))
+        , m_vulkan_context(vulkan_context)
     {
     }
 
@@ -52,20 +53,24 @@ public:
 
     GrDirectContext* sk_context() const override { return m_context.get(); }
 
+    VulkanContext const& vulkan_context() override { return m_vulkan_context; }
+
     MetalContext& metal_context() override { VERIFY_NOT_REACHED(); }
 
 private:
     sk_sp<GrDirectContext> m_context;
     NonnullOwnPtr<skgpu::VulkanExtensions> m_extensions;
+    VulkanContext const m_vulkan_context;
 };
 
-RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Gfx::VulkanContext& vulkan_context)
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(VulkanContext const& vulkan_context)
 {
     skgpu::VulkanBackendContext backend_context;
 
     backend_context.fInstance = vulkan_context.instance;
     backend_context.fDevice = vulkan_context.logical_device;
     backend_context.fQueue = vulkan_context.graphics_queue;
+    backend_context.fGraphicsQueueIndex = vulkan_context.graphics_queue_family;
     backend_context.fPhysicalDevice = vulkan_context.physical_device;
     backend_context.fMaxAPIVersion = vulkan_context.api_version;
     backend_context.fGetProc = [](char const* proc_name, VkInstance instance, VkDevice device) {
@@ -80,7 +85,7 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Gfx::Vulkan
 
     sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context);
     VERIFY(ctx);
-    return adopt_ref(*new SkiaVulkanBackendContext(ctx, move(extensions)));
+    return adopt_ref(*new SkiaVulkanBackendContext(ctx, vulkan_context, move(extensions)));
 }
 #endif
 
@@ -106,6 +111,8 @@ public:
     }
 
     GrDirectContext* sk_context() const override { return m_context.get(); }
+
+    VulkanContext const& vulkan_context() override { VERIFY_NOT_REACHED(); }
 
     MetalContext& metal_context() override { return m_metal_context; }
 
