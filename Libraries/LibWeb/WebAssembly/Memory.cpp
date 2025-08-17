@@ -135,13 +135,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_fixed_length_memo
     // 3. If share is shared,
     if (shared == Shared::Yes) {
         // 1. Let block be a Shared Data Block which is identified with the underlying memory of memaddr.
-        auto bytes = memory->data();
-
         // 2. Let buffer be a new SharedArrayBuffer with the internal slots [[ArrayBufferData]] and [[ArrayBufferByteLength]].
-        array_buffer = TRY(JS::allocate_shared_array_buffer(vm, realm.intrinsics().shared_array_buffer_constructor(), bytes.size()));
-        bytes.span().copy_to(array_buffer->buffer().span());
-        // 3. FIXME: Set buffer.[[ArrayBufferData]] to block.
-        // 4. FIXME: Set buffer.[[ArrayBufferByteLength]] to the length of block.
+        // 3. Set buffer.[[ArrayBufferData]] to block.
+        array_buffer = JS::ArrayBuffer::create(realm, &memory->data(), JS::DataBlock::Shared::Yes);
+
+        // 4. Set buffer.[[ArrayBufferByteLength]] to the length of block.
+        VERIFY(array_buffer->byte_length() == memory->size());
 
         // 5. Perform ! SetIntegrityLevel(buffer, "frozen").
         MUST(array_buffer->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
