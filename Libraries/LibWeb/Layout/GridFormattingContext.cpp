@@ -2109,27 +2109,48 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
     m_grid_container_used_values.set_grid_template_rows(CSS::GridTrackSizeListStyleValue::create(move(grid_track_rows)));
 }
 
+// https://www.w3.org/TR/css-grid-2/#abspos-items
 void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
 {
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
 
-    auto is_auto_row = is_auto_positioned_track(computed_values.grid_row_start(), computed_values.grid_row_end());
-    auto is_auto_column = is_auto_positioned_track(computed_values.grid_column_start(), computed_values.grid_column_end());
+    auto grid_area_rect = [&] -> CSSPixelRect {
+        // NOTE: Grid areas form containing blocks for abspos elements, but
+        //       `Node::containing_block()` is not aware of that. Therefore, we need to
+        //       find the closest grid item ancestor in order to identify grid area it belongs to.
+        NodeWithStyle const* containing_grid_item = &box;
+        while (containing_grid_item->parent() && !containing_grid_item->parent()->display().is_grid_inside())
+            containing_grid_item = containing_grid_item->parent();
 
-    GridItem item { box, box_state, {}, {}, {}, {} };
-    if (!is_auto_row) {
+        auto const& computed_values = containing_grid_item->computed_values();
+        VERIFY(containing_grid_item);
+
+        // NOTE: If abspos box is contained by in-flow grid item its grid position is already determined.
+        if (containing_grid_item->is_grid_item()) {
+            auto item = *m_grid_items.find_if([containing_grid_item](GridItem const& grid_item) {
+                return grid_item.box == containing_grid_item;
+            });
+            return get_grid_area_rect(item);
+        }
+
+        GridItem item { as<Box>(*containing_grid_item), box_state, {}, {}, {}, {} };
+        auto is_auto_row = is_auto_positioned_track(computed_values.grid_row_start(), computed_values.grid_row_end());
+        auto is_auto_column = is_auto_positioned_track(computed_values.grid_column_start(), computed_values.grid_column_end());
+
         auto row_placement_position = resolve_grid_position(box, GridDimension::Row);
-        item.row = row_placement_position.start;
-        item.row_span = row_placement_position.span;
-    }
-    if (!is_auto_column) {
         auto column_placement_position = resolve_grid_position(box, GridDimension::Column);
-        item.column = column_placement_position.start;
-        item.column_span = column_placement_position.span;
-    }
+        if (!is_auto_row) {
+            item.row = row_placement_position.start;
+            item.row_span = row_placement_position.span;
+        }
+        if (!is_auto_column) {
+            item.column = column_placement_position.start;
+            item.column_span = column_placement_position.span;
+        }
+        return get_grid_area_rect(item);
+    }();
 
-    auto grid_area_rect = get_grid_area_rect(item);
     auto available_width = AvailableSize::make_definite(grid_area_rect.width());
     auto available_height = AvailableSize::make_definite(grid_area_rect.height());
     AvailableSpace available_space { available_width, available_height };

@@ -1,0 +1,19 @@
+<!DOCTYPE html><style>
+    .gfc {
+        display: grid;
+        grid-template-columns: 1fr [right-start] 1fr [grid-end];
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: lightpink;
+    }
+    .grid-item {
+        grid-column: right-start/grid-end;
+        background-color: magenta;
+    }
+    .abspos {
+        position: absolute;
+        width: 100px;
+        background-color: orange;
+    }
+</style><div class="gfc"><div class="grid-item"><div class="abspos">Hello</div></div></div>

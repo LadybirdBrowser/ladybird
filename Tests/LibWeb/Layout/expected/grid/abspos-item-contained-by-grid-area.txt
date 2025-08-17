@@ -1,0 +1,20 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x0 children: not-inline
+      Box <div.gfc> at (8,8) content-size 800x600 positioned [GFC] children: not-inline
+        BlockContainer <div.grid-item> at (408,8) content-size 400x600 [BFC] children: not-inline
+          BlockContainer <div.abspos> at (408,8) content-size 100x18 positioned [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 5, rect: [408,8 39.78125x18] baseline: 13.796875
+                "Hello"
+            TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 808x608]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
+      PaintableBox (Box<DIV>.gfc) [8,8 800x600]
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [408,8 400x600]
+          PaintableWithLines (BlockContainer<DIV>.abspos) [408,8 100x18]
+            TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x16] [children: 0] (z-index: auto)
