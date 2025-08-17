@@ -65,7 +65,6 @@ if (WIN32)
         TCPServerWindows.cpp)
 else()
     list(APPEND SOURCES
-        Command.cpp
         Socket.cpp
         AnonymousBuffer.cpp
         EventLoopImplementationUnix.cpp
