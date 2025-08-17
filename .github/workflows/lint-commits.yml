@@ -2,7 +2,7 @@ name: Lint Commit Messages
 
 on: [pull_request_target]
 
-# Make sure to update Meta/lint-commit.sh to match this script when adding new checks!
+# Make sure to update Meta/lint-commit.py to match this script when adding new checks!
 # (… but don't accept overlong 'fixup!' commit descriptions.)
 
 jobs:
