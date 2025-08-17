@@ -61,6 +61,25 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace {
+
+bool is_integral_multiple(double value, double step)
+{
+    VERIFY(step > 0);
+
+    // The step is so small, that the integral multiple closest to the value cannot be accurately expressed as a double
+    if (fabs(value) / ldexp(1.0, NumericLimits<double>::digits()) > step)
+        return true;
+
+    auto division_remainder = fabs(remainder(value, step));
+    // NOTE: There is no spec for the integral multiple. However, chromium uses tolerance so we comply here.
+    //       https://github.com/chromium/chromium/blob/18aeefb6d0fe94e267c08e1aaeaf2632937f4ce2/third_party/blink/renderer/core/html/forms/step_range.cc#L67
+    double acceptable_error = round(step) == step ? 0 : step / static_cast<double>(1 << NumericLimits<float>::digits());
+    return division_remainder <= acceptable_error || division_remainder >= (step - acceptable_error);
+}
+
+}
+
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLInputElement);
@@ -2949,7 +2968,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::step_up_or_down(bool is_down, WebIDL
 
     // 7. If value subtracted from the step base is not an integral multiple of the allowed value step, then set value to the nearest value that,
     // when subtracted from the step base, is an integral multiple of the allowed value step, and that is less than value if the method invoked was the stepDown() method, and more than value otherwise.
-    if (fmod(step_base() - value, allowed_value_step) != 0) {
+    if (!is_integral_multiple(step_base() - value, allowed_value_step)) {
         if (is_down) {
             value = step_base() + floor((value - step_base()) / allowed_value_step) * allowed_value_step;
         } else {
@@ -3645,7 +3664,7 @@ bool HTMLInputElement::is_number_mismatching_step(double number) const
     double allowed_value_step = *maybe_allowed_value_step;
     // and that number subtracted from the step base is not an integral multiple of the allowed value step, the element
     // is suffering from a step mismatch.
-    return fmod(step_base() - number, allowed_value_step) != 0;
+    return !is_integral_multiple(step_base() - number, allowed_value_step);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-bad-input
