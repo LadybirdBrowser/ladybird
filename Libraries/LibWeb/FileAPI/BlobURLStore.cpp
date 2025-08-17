@@ -61,7 +61,7 @@ ErrorOr<Utf16String> generate_new_blob_url()
 }
 
 // https://w3c.github.io/FileAPI/#add-an-entry
-ErrorOr<Utf16String> add_entry_to_blob_url_store(GC::Ref<Blob> object)
+ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object object)
 {
     // 1. Let store be the user agent’s blob URL store.
     auto& store = blob_url_store();

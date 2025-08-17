@@ -101,10 +101,7 @@ ErrorOr<URL::URL> decode(Decoder& decoder)
         return url.release_value();
 
     url->set_blob_url_entry(URL::BlobURLEntry {
-        .object = URL::BlobURLEntry::Object {
-            .type = TRY(decoder.decode<String>()),
-            .data = TRY(decoder.decode<ByteBuffer>()),
-        },
+        .object = TRY(decoder.decode<URL::BlobURLEntry::Object>()),
         .environment { .origin = TRY(decoder.decode<URL::Origin>()) },
     });
 
@@ -167,6 +164,21 @@ ErrorOr<Core::ProxyData> decode(Decoder& decoder)
     auto port = TRY(decoder.decode<int>());
 
     return Core::ProxyData { type, host_ipv4, port };
+}
+
+template<>
+ErrorOr<URL::BlobURLEntry::Blob> decode<URL::BlobURLEntry::Blob>(Decoder& decoder)
+{
+    return URL::BlobURLEntry::Blob {
+        .type = TRY(decoder.decode<String>()),
+        .data = TRY(decoder.decode<ByteBuffer>())
+    };
+}
+
+template<>
+ErrorOr<URL::BlobURLEntry::MediaSource> decode<URL::BlobURLEntry::MediaSource>(Decoder&)
+{
+    return URL::BlobURLEntry::MediaSource {};
 }
 
 }

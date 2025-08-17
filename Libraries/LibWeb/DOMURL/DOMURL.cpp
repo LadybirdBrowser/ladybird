@@ -120,7 +120,7 @@ void DOMURL::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/FileAPI/#dfn-createObjectURL
-WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(JS::VM& vm, GC::Ref<FileAPI::Blob> object)
+WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(JS::VM& vm, FileAPI::BlobURLEntry::Object object)
 {
     // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for obj.
     return TRY_OR_THROW_OOM(vm, FileAPI::add_entry_to_blob_url_store(object));
@@ -466,10 +466,14 @@ Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url, O
     auto blob_url_entry = FileAPI::resolve_a_blob_url(*url);
     if (blob_url_entry.has_value()) {
         url->set_blob_url_entry(URL::BlobURLEntry {
-            .object = URL::BlobURLEntry::Object {
-                .type = blob_url_entry->object->type(),
-                .data = MUST(ByteBuffer::copy(blob_url_entry->object->raw_bytes())),
-            },
+            .object = blob_url_entry->object.visit(
+                [](const GC::Root<FileAPI::Blob>& blob) -> URL::BlobURLEntry::Object {
+                    return URL::BlobURLEntry::Blob {
+                        .type = blob->type(),
+                        .data = MUST(ByteBuffer::copy(blob->raw_bytes())),
+                    };
+                },
+                [](const GC::Root<MediaSourceExtensions::MediaSource>&) -> URL::BlobURLEntry::Object { return URL::BlobURLEntry::MediaSource {}; }),
             .environment { .origin = blob_url_entry->environment->origin() },
         });
     }
