@@ -146,7 +146,6 @@ private:
 
     OwnPtr<Core::EventLoop> m_event_loop;
     OwnPtr<ProcessManager> m_process_manager;
-    bool m_in_shutdown { false };
 
 #if defined(AK_OS_MACOS)
     OwnPtr<MachPortServer> m_mach_port_server;
