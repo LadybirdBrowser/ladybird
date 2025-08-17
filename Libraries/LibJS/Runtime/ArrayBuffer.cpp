@@ -48,7 +48,7 @@ ArrayBuffer::ArrayBuffer(ByteBuffer buffer, DataBlock::Shared is_shared, Object&
 
 ArrayBuffer::ArrayBuffer(ByteBuffer* buffer, DataBlock::Shared is_shared, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
-    , m_data_block(DataBlock { buffer, is_shared })
+    , m_data_block(DataBlock { DataBlock::UnownedFixedLengthByteBuffer(buffer), is_shared })
     , m_detach_key(js_undefined())
 {
 }

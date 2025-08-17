@@ -35,11 +35,23 @@ struct DataBlock {
         Yes,
     };
 
+    struct UnownedFixedLengthByteBuffer {
+        explicit UnownedFixedLengthByteBuffer(ByteBuffer* buffer)
+            : buffer(buffer)
+            , size(buffer ? buffer->size() : 0)
+        {
+        }
+
+        ByteBuffer* buffer = nullptr;
+        size_t size = 0;
+    };
+
     ByteBuffer& buffer()
     {
-        ByteBuffer* ptr { nullptr };
-        byte_buffer.visit([&](Empty) { VERIFY_NOT_REACHED(); }, [&](auto* pointer) { ptr = pointer; }, [&](auto& value) { ptr = &value; });
-        return *ptr;
+        return byte_buffer.visit(
+            [&](Empty) -> ByteBuffer& { VERIFY_NOT_REACHED(); },
+            [&](ByteBuffer& value) -> ByteBuffer& { return value; },
+            [&](UnownedFixedLengthByteBuffer& value) -> ByteBuffer& { return *value.buffer; });
     }
     ByteBuffer const& buffer() const { return const_cast<DataBlock*>(this)->buffer(); }
 
@@ -48,10 +60,10 @@ struct DataBlock {
         return byte_buffer.visit(
             [](Empty) -> size_t { return 0u; },
             [](ByteBuffer const& buffer) { return buffer.size(); },
-            [](ByteBuffer const* buffer) { return buffer->size(); });
+            [](UnownedFixedLengthByteBuffer const& value) { return value.size; });
     }
 
-    Variant<Empty, ByteBuffer, ByteBuffer*> byte_buffer;
+    Variant<Empty, ByteBuffer, UnownedFixedLengthByteBuffer> byte_buffer;
     Shared is_shared = { Shared::No };
 };
 
