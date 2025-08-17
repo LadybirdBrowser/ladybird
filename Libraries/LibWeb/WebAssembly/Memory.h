@@ -35,10 +35,14 @@ class Memory : public Bindings::PlatformObject {
 public:
     static WebIDL::ExceptionOr<GC::Ref<Memory>> construct_impl(JS::Realm&, MemoryDescriptor& descriptor);
 
-    WebIDL::ExceptionOr<u32> grow(u32 delta);
+    JS::ThrowCompletionOr<u32> grow(u32 delta);
+
+    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> to_fixed_length_buffer();
+    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> to_resizable_buffer();
     WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> buffer() const;
 
     Wasm::MemoryAddress address() const { return m_address; }
+    GC::Ptr<JS::ArrayBuffer> buffer_object() const { return m_buffer; }
 
 private:
     Memory(JS::Realm&, Wasm::MemoryAddress, Shared shared);
@@ -48,6 +52,7 @@ private:
 
     static void refresh_the_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress);
     static GC::Ref<JS::ArrayBuffer> create_a_fixed_length_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared);
+    static JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> create_a_resizable_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared, size_t max_size);
 
     Wasm::MemoryAddress m_address;
     Shared m_shared { Shared::No };

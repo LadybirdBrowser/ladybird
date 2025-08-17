@@ -438,6 +438,56 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
     return compiled_module;
 }
 
+JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS::ArrayBuffer& buffer, size_t new_length)
+{
+    // 1. If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
+    auto detach_key = buffer.detach_key();
+    if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)) {
+        // 1. Let map be the surrounding agent's associated Memory object cache.
+        auto const& map = get_cache(*vm.current_realm()).memory_instances();
+
+        // 3. For each memaddr → mem in map,
+        bool seen = false;
+        for (auto [address, memory] : map) {
+            auto buffer_object = memory->buffer_object();
+            // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
+            if (buffer_object.ptr() == &buffer) {
+                // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
+                VERIFY(!seen);
+                seen = true;
+
+                // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
+                VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
+
+                // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
+                auto length_delta = new_length - buffer.byte_length();
+
+                // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
+                if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
+                    // 1. Throw a RangeError exception.
+                    return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
+                }
+
+                // 4. Let delta be lengthDelta ÷ 65536.
+                auto delta = length_delta / Wasm::Constants::page_size;
+
+                // 5. Grow the memory buffer associated with memaddr by delta.
+                // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
+                TRY(memory->grow(delta));
+            }
+        }
+
+        // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
+        VERIFY(seen);
+
+        // 4. Return handled.
+        return JS::HandledByHost::Handled;
+    }
+
+    // 2. Otherwise, return unhandled.
+    return JS::HandledByHost::Unhandled;
+}
+
 GC_DEFINE_ALLOCATOR(ExportedWasmFunction);
 
 GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, Utf16FlyString name, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address)

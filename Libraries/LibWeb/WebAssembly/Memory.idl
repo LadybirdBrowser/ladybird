@@ -12,5 +12,7 @@ interface Memory {
 
     unsigned long grow([EnforceRange] unsigned long delta);
 
+    ArrayBuffer toFixedLengthBuffer();
+    ArrayBuffer toResizableBuffer();
     readonly attribute ArrayBuffer buffer;
 };
