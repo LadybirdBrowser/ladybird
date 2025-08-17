@@ -7,6 +7,7 @@
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Fernando Kiotheka <fer@k6a.dev>
  * Copyright (c) 2025, Felipe Muñoz Mazur <felipe.munoz.mazur@protonmail.com>
+ * Copyright (c) 2025, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -3323,7 +3324,7 @@ bool HTMLInputElement::suffering_from_being_missing() const
             if (is_in_same_radio_button_group(*this, element)) {
                 if (element.checked())
                     has_checkedness_false_for_all_elements_in_group = false;
-                if (has_attribute(HTML::AttributeNames::required))
+                if (element.has_attribute(HTML::AttributeNames::required))
                     has_required_element_in_group = true;
             }
             return TraversalDecision::Continue;
