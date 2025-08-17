@@ -12,6 +12,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
+#include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOMURL {
@@ -26,7 +27,7 @@ public:
 
     virtual ~DOMURL() override;
 
-    static WebIDL::ExceptionOr<Utf16String> create_object_url(JS::VM&, GC::Ref<FileAPI::Blob> object);
+    static WebIDL::ExceptionOr<Utf16String> create_object_url(JS::VM&, FileAPI::BlobURLEntry::Object object);
     static void revoke_object_url(JS::VM&, StringView url);
 
     static GC::Ptr<DOMURL> parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base = {});

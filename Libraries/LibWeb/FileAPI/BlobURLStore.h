@@ -17,7 +17,9 @@ namespace Web::FileAPI {
 
 // https://w3c.github.io/FileAPI/#blob-url-entry
 struct BlobURLEntry {
-    GC::Root<Blob> object; // FIXME: This could also be a MediaSource after we implement MSE.
+    using Object = Variant<GC::Root<Blob>, GC::Root<MediaSourceExtensions::MediaSource>>;
+
+    Object object;
     GC::Root<HTML::EnvironmentSettingsObject> environment;
 };
 
@@ -26,7 +28,7 @@ using BlobURLStore = HashMap<String, BlobURLEntry>;
 
 BlobURLStore& blob_url_store();
 ErrorOr<Utf16String> generate_new_blob_url();
-ErrorOr<Utf16String> add_entry_to_blob_url_store(GC::Ref<Blob> object);
+ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object);
 bool check_for_same_partition_blob_url_usage(URL::BlobURLEntry const&, GC::Ref<HTML::Environment>);
 struct NavigationEnvironment { };
 Optional<URL::BlobURLEntry::Object> obtain_a_blob_object(URL::BlobURLEntry const&, Variant<GC::Ref<HTML::Environment>, NavigationEnvironment> environment);

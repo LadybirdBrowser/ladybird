@@ -863,11 +863,8 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
         auto const& blob_url_entry = request->current_url().blob_url_entry();
 
         // 2. If request’s method is not `GET` or blobURLEntry is null, then return a network error. [FILEAPI]
-        if (request->method() != "GET"sv.bytes() || !blob_url_entry.has_value()) {
-            // FIXME: Handle "blobURLEntry’s object is not a Blob object". It could be a MediaSource object, but we
-            //        have not yet implemented the Media Source Extensions spec.
+        if (request->method() != "GET"sv.bytes() || !blob_url_entry.has_value())
             return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has an invalid 'blob:' URL"_string));
-        }
 
         // 3. Let requestEnvironment be the result of determining the environment given request.
         auto request_environment = determine_the_environment(request);
@@ -887,11 +884,14 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
         }();
 
         // 7. Let blob be the result of obtaining a blob object given blobURLEntry and navigationOrEnvironment.
-        auto blob_object = FileAPI::obtain_a_blob_object(blob_url_entry.value(), navigation_or_environment);
+        auto maybe_blob_object = FileAPI::obtain_a_blob_object(blob_url_entry.value(), navigation_or_environment);
 
         // 8. If blob is not a Blob object, then return a network error.
-        // FIXME: This should probably check for a MediaSource object as well, once we implement that.
-        if (!blob_object.has_value())
+        if (!maybe_blob_object.has_value())
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to obtain a Blob object from 'blob:' URL"_string));
+
+        URL::BlobURLEntry::Blob* blob_object;
+        if (blob_object = maybe_blob_object.value().get_pointer<URL::BlobURLEntry::Blob>(); !blob_object)
             return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to obtain a Blob object from 'blob:' URL"_string));
         auto const blob = FileAPI::Blob::create(realm, blob_object->data, blob_object->type);
 

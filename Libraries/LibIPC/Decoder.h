@@ -130,6 +130,12 @@ ErrorOr<Core::DateTime> decode(Decoder&);
 template<>
 ErrorOr<Core::ProxyData> decode(Decoder&);
 
+template<>
+ErrorOr<URL::BlobURLEntry::Blob> decode(Decoder&);
+
+template<>
+ErrorOr<URL::BlobURLEntry::MediaSource> decode(Decoder&);
+
 template<Concepts::Array T>
 ErrorOr<T> decode(Decoder& decoder)
 {

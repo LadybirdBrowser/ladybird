@@ -1,5 +1,6 @@
 #import <FileAPI/Blob.idl>
 #import <DOMURL/URLSearchParams.idl>
+#import <MediaSourceExtensions/MediaSource.idl>
 
 // https://url.spec.whatwg.org/#url
 [Exposed=*, LegacyWindowAlias=webkitURL, ImplementedAs=DOMURL]
@@ -24,6 +25,6 @@ interface URL {
 
     USVString toJSON();
 
-    static Utf16DOMString createObjectURL(Blob obj); // FIXME: Should be (Blob or MediaSource).
+    static Utf16DOMString createObjectURL((Blob or MediaSource) obj);
     static undefined revokeObjectURL(DOMString url);
 };

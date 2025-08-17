@@ -132,6 +132,12 @@ ErrorOr<void> encode(Encoder&, Core::DateTime const&);
 template<>
 ErrorOr<void> encode(Encoder&, Core::ProxyData const&);
 
+template<>
+ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::Blob const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::MediaSource const&);
+
 template<Concepts::Span T>
 ErrorOr<void> encode(Encoder& encoder, T const& span)
 {
