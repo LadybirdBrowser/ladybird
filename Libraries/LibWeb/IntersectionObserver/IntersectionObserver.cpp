@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::IntersectionObserver {
@@ -298,12 +299,13 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
         document = &intersection_root.get<GC::Root<DOM::Element>>().cell()->document();
     }
     if (m_document.has_value() && document->origin().is_same_origin(m_document->origin())) {
-        auto layout_node = intersection_root.visit([&](auto& elem) { return static_cast<GC::Root<DOM::Node>>(*elem)->layout_node(); });
-        rect.inflate(
-            m_root_margin[0].to_px(*layout_node, rect.height()),
-            m_root_margin[1].to_px(*layout_node, rect.width()),
-            m_root_margin[2].to_px(*layout_node, rect.height()),
-            m_root_margin[3].to_px(*layout_node, rect.width()));
+        if (auto layout_node = intersection_root.visit([&](auto& node) -> GC::Ptr<Layout::Node> { return node->layout_node(); })) {
+            rect.inflate(
+                m_root_margin[0].to_px(*layout_node, rect.height()),
+                m_root_margin[1].to_px(*layout_node, rect.width()),
+                m_root_margin[2].to_px(*layout_node, rect.height()),
+                m_root_margin[3].to_px(*layout_node, rect.width()));
+        }
     }
 
     return rect;
