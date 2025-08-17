@@ -25,10 +25,10 @@ BlobURLStore& blob_url_store()
 }
 
 // https://w3c.github.io/FileAPI/#unicodeBlobURL
-ErrorOr<String> generate_new_blob_url()
+ErrorOr<Utf16String> generate_new_blob_url()
 {
     // 1. Let result be the empty string.
-    StringBuilder result;
+    StringBuilder result { StringBuilder::Mode::UTF16 };
 
     // 2. Append the string "blob:" to result.
     TRY(result.try_append("blob:"sv));
@@ -57,11 +57,11 @@ ErrorOr<String> generate_new_blob_url()
     TRY(result.try_append(uuid));
 
     // 10. Return result.
-    return result.to_string();
+    return result.to_utf16_string();
 }
 
 // https://w3c.github.io/FileAPI/#add-an-entry
-ErrorOr<String> add_entry_to_blob_url_store(GC::Ref<Blob> object)
+ErrorOr<Utf16String> add_entry_to_blob_url_store(GC::Ref<Blob> object)
 {
     // 1. Let store be the user agent’s blob URL store.
     auto& store = blob_url_store();
@@ -73,7 +73,7 @@ ErrorOr<String> add_entry_to_blob_url_store(GC::Ref<Blob> object)
     BlobURLEntry entry { object, HTML::current_principal_settings_object() };
 
     // 4. Set store[url] to entry.
-    TRY(store.try_set(url, move(entry)));
+    TRY(store.try_set(url.to_utf8_but_should_be_ported_to_utf16(), move(entry)));
 
     // 5. Return url.
     return url;

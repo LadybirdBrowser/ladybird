@@ -120,7 +120,7 @@ void DOMURL::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/FileAPI/#dfn-createObjectURL
-WebIDL::ExceptionOr<String> DOMURL::create_object_url(JS::VM& vm, GC::Ref<FileAPI::Blob> object)
+WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(JS::VM& vm, GC::Ref<FileAPI::Blob> object)
 {
     // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for obj.
     return TRY_OR_THROW_OOM(vm, FileAPI::add_entry_to_blob_url_store(object));
