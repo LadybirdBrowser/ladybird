@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 19 tests
 
-18 Pass
-1 Fail
+19 Pass
 Pass	Missing arguments
 Pass	Branding
 Pass	Zero initial
@@ -22,4 +21,4 @@ Pass	Out-of-range argument: 68719476736
 Pass	Out-of-range argument: "0x100000000"
 Pass	Out-of-range argument: object "[object Object]"
 Pass	Stray argument
-Fail	Growing shared memory does not detach old buffer
+Pass	Growing shared memory does not detach old buffer
