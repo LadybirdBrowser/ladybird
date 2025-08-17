@@ -2337,6 +2337,10 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
     // NOTE: If we're computing style for a pseudo-element, the effective parent will be the originating element itself, not its parent.
     auto parent = element.element_to_inherit_style_from(pseudo_element);
 
+    // Climb out of `display: contents` context.
+    while (parent && parent->computed_properties() && parent->computed_properties()->display().is_contents())
+        parent = parent->element_to_inherit_style_from({});
+
     // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
     if (parent && parent->computed_properties()) {
         auto const& parent_display = parent->computed_properties()->display();
