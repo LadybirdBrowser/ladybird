@@ -150,7 +150,7 @@ String CSSStyleProperties::item(size_t index) const
         auto keys = m_custom_properties.keys();
         auto custom_property = m_custom_properties.get(keys[index]);
         if (custom_property.has_value()) {
-            return CSS::string_from_property_id(custom_property.ptr()->property_id).to_string();
+            return custom_property.ptr()->custom_name.to_string();
         }
     }
 
