@@ -90,7 +90,7 @@ def main():
         parents=[preset_parser, compiler_parser, target_parser],
     )
     profile_parser.add_argument(
-        "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
+        "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the application"
     )
 
     install_parser = subparsers.add_parser(
@@ -168,8 +168,8 @@ def main():
         debug_main(platform.host_system, build_dir, args.target, args.debugger, args.cmd)
     elif args.command == "profile":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir, args.jobs, args.target, args.args)
-        profile_main(platform.host_system, build_dir, args.target)
+        build_main(build_dir, args.jobs, args.target)
+        profile_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "install":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.jobs, args.target, args.args)
@@ -400,7 +400,7 @@ def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: 
     run_command(gdb_args, exit_on_failure=True)
 
 
-def profile_main(host_system: HostSystem, build_dir: Path, target: str):
+def profile_main(host_system: HostSystem, build_dir: Path, target: str, args: list[str]):
     if not shutil.which("valgrind"):
         print("Please install valgrind", file=sys.stderr)
         sys.exit(1)
@@ -411,6 +411,8 @@ def profile_main(host_system: HostSystem, build_dir: Path, target: str):
         valgrind_args.append(str(build_dir.joinpath("bin", "Ladybird.app")))
     else:
         valgrind_args.append(str(build_dir.joinpath("bin", target)))
+
+    valgrind_args.extend(args)
 
     run_command(valgrind_args, exit_on_failure=True)
 
