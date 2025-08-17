@@ -15,6 +15,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Enumerate.h>
 #include <AK/LexicalPath.h>
+#include <AK/NumberFormat.h>
 #include <AK/QuickSort.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/DirIterator.h>
@@ -35,7 +36,9 @@
 
 namespace TestWeb {
 
+static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
+static HashMap<WebView::ViewImplementation const*, Test const*> s_test_by_view;
 
 static constexpr StringView test_result_to_string(TestResult result)
 {
@@ -498,6 +501,8 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
 
 static void run_test(TestWebView& view, Test& test, Application& app)
 {
+    s_test_by_view.set(&view, &test);
+
     // Clear the current document.
     // FIXME: Implement a debug-request to do this more thoroughly.
     auto promise = Core::Promise<Empty>::construct();
@@ -659,7 +664,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && TRY(Core::System::isatty(STDOUT_FILENO));
     outln("Running {} tests...", tests.size());
 
-    auto all_tests_complete = Core::Promise<Empty>::construct();
+    s_all_tests_complete = Core::Promise<Empty>::construct();
     auto tests_remaining = tests.size();
     auto current_test = 0uz;
 
@@ -695,6 +700,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
         view->test_promise().when_resolved([&, run_next_test](auto result) {
             result.test.end_time = UnixDateTime::now();
+            s_test_by_view.remove(view);
 
             if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
                 auto duration = result.test.end_time - result.test.start_time;
@@ -723,7 +729,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 non_passing_tests.append(move(result));
 
             if (--tests_remaining == 0)
-                all_tests_complete->resolve({});
+                s_all_tests_complete->resolve({});
             else
                 run_next_test();
         });
@@ -733,9 +739,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         });
     }
 
-    MUST(all_tests_complete->await());
+    auto result_or_rejection = s_all_tests_complete->await();
 
-    if (log_on_one_line)
+    if (result_or_rejection.is_error())
+        outln("Halted; {} tests not executed.", tests_remaining);
+    else if (log_on_one_line)
         outln("\33[2K\rDone!");
 
     outln("==========================================================");
@@ -778,6 +786,41 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     return fail_count + timeout_count + crashed_count;
 }
 
+static void handle_signal(int signal)
+{
+    VERIFY(signal == SIGINT || signal == SIGTERM);
+
+    // Quit our event loop. This makes `::exec()` return as soon as possible, and signals to WebView::Application that
+    // we should no longer automatically restart processes in `::process_did_exit()`.
+    Core::EventLoop::current().quit(0);
+
+    // Report current view statuses
+    dbgln();
+    dbgln("{} received. Active test views:", signal == SIGINT ? "SIGINT"sv : "SIGTERM"sv);
+    dbgln();
+
+    auto now = UnixDateTime::now();
+    WebView::ViewImplementation::for_each_view([&](WebView::ViewImplementation const& view) {
+        dbg("- View {}: {} ", view.view_id(), view.url());
+
+        auto maybe_test = s_test_by_view.get(&view);
+        if (maybe_test.has_value()) {
+            auto const& test = *maybe_test.release_value();
+            dbgln("(duration: {})", human_readable_time(now - test.start_time));
+        } else {
+            dbgln("(no active test)");
+        }
+
+        return IterationDecision::Continue;
+    });
+    dbgln();
+
+    // Stop running tests
+    s_all_tests_complete->reject(signal == SIGINT
+            ? Error::from_string_view("SIGINT received"sv)
+            : Error::from_string_view("SIGTERM received"sv));
+}
+
 }
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -787,6 +830,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #else
     auto app = TRY(TestWeb::Application::create(arguments, OptionalNone {}));
 #endif
+
+    Core::EventLoop::register_signal(SIGINT, TestWeb::handle_signal);
+    Core::EventLoop::register_signal(SIGTERM, TestWeb::handle_signal);
 
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
     auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
