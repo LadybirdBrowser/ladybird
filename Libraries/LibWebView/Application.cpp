@@ -517,9 +517,7 @@ ErrorOr<int> Application::execute()
         }
     }
 
-    int ret = m_event_loop->exec();
-    m_in_shutdown = true;
-    return ret;
+    return m_event_loop->exec();
 }
 
 NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
@@ -546,7 +544,7 @@ Optional<Process&> Application::find_process(pid_t pid)
 
 void Application::process_did_exit(Process&& process)
 {
-    if (m_in_shutdown)
+    if (m_event_loop->was_exit_requested())
         return;
 
     dbgln_if(WEBVIEW_PROCESS_DEBUG, "Process {} died, type: {}", process.pid(), process_name_from_type(process.type()));
