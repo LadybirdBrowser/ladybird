@@ -71,18 +71,21 @@ void ConnectionBase::handle_messages()
 {
     auto messages = move(m_unprocessed_messages);
     for (auto& message : messages) {
-        if (message->endpoint_magic() == m_local_endpoint_magic) {
-            auto handler_result = m_local_stub.handle(move(message));
-            if (handler_result.is_error()) {
-                dbgln("IPC::ConnectionBase::handle_messages: {}", handler_result.error());
-                continue;
-            }
+        if (message->endpoint_magic() != m_local_endpoint_magic)
+            continue;
 
-            if (auto response = handler_result.release_value()) {
-                if (auto post_result = post_message(*response); post_result.is_error()) {
-                    dbgln("IPC::ConnectionBase::handle_messages: {}", post_result.error());
-                }
-            }
+        auto handler_result = m_local_stub.handle(move(message));
+        if (handler_result.is_error()) {
+            dbgln("IPC::ConnectionBase::handle_messages: {}", handler_result.error());
+            continue;
+        }
+
+        if (!is_open())
+            continue;
+
+        if (auto response = handler_result.release_value()) {
+            if (auto post_result = post_message(*response); post_result.is_error())
+                dbgln("IPC::ConnectionBase::handle_messages: {}", post_result.error());
         }
     }
 }
