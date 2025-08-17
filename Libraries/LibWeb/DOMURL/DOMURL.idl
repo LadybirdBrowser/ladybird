@@ -24,6 +24,6 @@ interface URL {
 
     USVString toJSON();
 
-    static DOMString createObjectURL(Blob obj); // FIXME: Should be (Blob or MediaSource).
+    static Utf16DOMString createObjectURL(Blob obj); // FIXME: Should be (Blob or MediaSource).
     static undefined revokeObjectURL(DOMString url);
 };
