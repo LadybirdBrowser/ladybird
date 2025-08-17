@@ -50,6 +50,7 @@
 #include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
+#include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Bindings {
@@ -689,6 +690,14 @@ void initialize_main_thread_vm(AgentType type)
 
     s_main_thread_vm->host_unrecognized_date_string = [](StringView date) {
         dbgln("Unable to parse date string: \"{}\"", date);
+    };
+
+    s_main_thread_vm->host_resize_array_buffer = [default_host_resize_array_buffer = move(s_main_thread_vm->host_resize_array_buffer)](JS::ArrayBuffer& buffer, size_t new_byte_length) -> JS::ThrowCompletionOr<JS::HandledByHost> {
+        auto wasm_handled = TRY(WebAssembly::Detail::host_resize_array_buffer(*s_main_thread_vm, buffer, new_byte_length));
+        if (wasm_handled == JS::HandledByHost::Handled)
+            return JS::HandledByHost::Handled;
+
+        return default_host_resize_array_buffer(buffer, new_byte_length);
     };
 }
 

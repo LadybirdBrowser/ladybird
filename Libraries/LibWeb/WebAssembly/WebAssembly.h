@@ -107,6 +107,7 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM&, JS::Value value
 Wasm::Value default_webassembly_value(JS::VM&, Wasm::ValueType type);
 JS::Value to_js_value(JS::VM&, Wasm::Value& wasm_value, Wasm::ValueType type);
 JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::VM&);
+JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM&, JS::ArrayBuffer&, size_t);
 
 extern HashMap<GC::Ptr<JS::Object>, WebAssemblyCache> s_caches;
 
