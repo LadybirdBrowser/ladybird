@@ -1,0 +1,5 @@
+librsvg can be imported via CMake FindPkgConfig module:
+
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBRSVG librsvg-2.0 IMPORTED_TARGET REQUIRED)
+    target_link_libraries(main PRIVATE PkgConfig::LIBRSVG)
