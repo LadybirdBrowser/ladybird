@@ -28,9 +28,21 @@ Time Time::percentage_of(Percentage const& percentage) const
 
 String Time::to_string(SerializationMode serialization_mode) const
 {
-    if (serialization_mode == SerializationMode::ResolvedValue)
-        return MUST(String::formatted("{}s", to_seconds()));
-    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
+    // https://drafts.csswg.org/cssom/#serialize-a-css-value
+    // -> <time>
+    // The time in seconds serialized as per <number> followed by the literal string "s".
+    // AD-HOC: WPT expects us to serialize using the actual unit, like for other dimensions.
+    //         https://github.com/w3c/csswg-drafts/issues/12616
+    if (serialization_mode == SerializationMode::ResolvedValue) {
+        StringBuilder builder;
+        serialize_a_number(builder, to_seconds());
+        builder.append("s"sv);
+        return builder.to_string_without_validation();
+    }
+    StringBuilder builder;
+    serialize_a_number(builder, raw_value());
+    builder.append(unit_name());
+    return builder.to_string_without_validation();
 }
 
 double Time::to_seconds() const
