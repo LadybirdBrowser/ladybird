@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "NumericType.h"
 #include <LibWeb/CSS/Angle.h>
+#include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Resolution.h>
@@ -62,31 +63,33 @@ Optional<NumericType> NumericType::create_from_unit(StringView unit)
 
     // unit is an <angle> unit
     if (Angle::unit_from_name(unit).has_value()) {
-        //    Return «[ "angle" → 1 ]»
+        // Return «[ "angle" → 1 ]»
         return NumericType { BaseType::Angle, 1 };
     }
 
     // unit is a <time> unit
     if (Time::unit_from_name(unit).has_value()) {
-        //    Return «[ "time" → 1 ]»
+        // Return «[ "time" → 1 ]»
         return NumericType { BaseType::Time, 1 };
     }
 
     // unit is a <frequency> unit
     if (Frequency::unit_from_name(unit).has_value()) {
-        //    Return «[ "frequency" → 1 ]»
+        // Return «[ "frequency" → 1 ]»
         return NumericType { BaseType::Frequency, 1 };
     }
 
     // unit is a <resolution> unit
     if (Resolution::unit_from_name(unit).has_value()) {
-        //    Return «[ "resolution" → 1 ]»
+        // Return «[ "resolution" → 1 ]»
         return NumericType { BaseType::Resolution, 1 };
     }
 
     // unit is a <flex> unit
-    // FIXME: We don't have <flex> as a type yet.
-    //    Return «[ "flex" → 1 ]»
+    if (Flex::unit_from_name(unit).has_value()) {
+        // Return «[ "flex" → 1 ]»
+        return NumericType { BaseType::Flex, 1 };
+    }
 
     // anything else
     //    Return failure.
