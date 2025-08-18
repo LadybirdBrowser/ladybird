@@ -3231,7 +3231,7 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
                 auto implemented_as = attribute.extended_attributes.get("ImplementedAs").value();
                 attribute_generator.set("attribute.cpp_name", implemented_as);
             } else {
-                attribute_generator.set("attribute.cpp_name", attribute.name.to_snakecase());
+                attribute_generator.set("attribute.cpp_name", make_input_acceptable_cpp(attribute.name.to_snakecase()));
             }
 
             if (attribute.extended_attributes.contains("Reflect")) {
@@ -3898,7 +3898,7 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
             auto implemented_as = attribute.extended_attributes.get("ImplementedAs").value();
             attribute_generator.set("attribute.cpp_name", implemented_as);
         } else {
-            attribute_generator.set("attribute.cpp_name", attribute.name.to_snakecase());
+            attribute_generator.set("attribute.cpp_name", make_input_acceptable_cpp(attribute.name.to_snakecase()));
         }
 
         if (attribute.extended_attributes.contains("Reflect")) {
