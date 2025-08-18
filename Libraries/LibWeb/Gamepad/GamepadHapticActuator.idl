@@ -1,0 +1,29 @@
+// https://w3c.github.io/gamepad/#gamepadhapticsresult-enum
+enum GamepadHapticsResult {
+    "complete",
+    "preempted"
+};
+
+// https://w3c.github.io/gamepad/#gamepadhapticeffecttype-enum
+enum GamepadHapticEffectType {
+    "dual-rumble",
+    "trigger-rumble"
+};
+
+// https://w3c.github.io/gamepad/#gamepadeffectparameters-dictionary
+dictionary GamepadEffectParameters {
+    unsigned long long duration = 0;
+    unsigned long long startDelay = 0;
+    double strongMagnitude = 0.0;
+    double weakMagnitude = 0.0;
+    double leftTrigger = 0.0;
+    double rightTrigger = 0.0;
+};
+
+// https://w3c.github.io/gamepad/#gamepadhapticactuator-interface
+[Exposed=Window]
+interface GamepadHapticActuator {
+    [SameObject] readonly attribute FrozenArray<GamepadHapticEffectType> effects;
+    Promise<GamepadHapticsResult> playEffect(GamepadHapticEffectType type, optional GamepadEffectParameters params = {});
+    Promise<GamepadHapticsResult> reset();
+};

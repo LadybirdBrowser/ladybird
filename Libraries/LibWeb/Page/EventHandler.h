@@ -20,6 +20,8 @@
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 
+#include <SDL3/SDL_joystick.h>
+
 namespace Web {
 
 class WEB_API EventHandler {
@@ -42,6 +44,8 @@ public:
     void set_mouse_event_tracking_paintable(GC::Ptr<Painting::Paintable>);
 
     EventResult handle_paste(String const& text);
+
+    void handle_sdl_input_events();
 
     void visit_edges(JS::Cell::Visitor& visitor) const;
 
@@ -67,6 +71,10 @@ private:
     GC::Ptr<Painting::PaintableBox const> paint_root() const;
 
     bool should_ignore_device_input_event() const;
+
+    void handle_gamepad_connected(SDL_JoystickID);
+    void handle_gamepad_updated(SDL_JoystickID);
+    void handle_gamepad_disconnected(SDL_JoystickID);
 
     GC::Ref<HTML::Navigable> m_navigable;
 

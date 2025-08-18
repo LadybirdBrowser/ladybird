@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2022-2025, Luke Wilde <lukew@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Gamepad/EventNames.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 
