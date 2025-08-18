@@ -675,6 +675,7 @@ set(SOURCES
     Infra/JSON.cpp
     Infra/Strings.cpp
     Internals/InternalAnimationTimeline.cpp
+    Internals/InternalGamepad.cpp
     Internals/Internals.cpp
     Internals/InternalsBase.cpp
     Internals/WebUI.cpp

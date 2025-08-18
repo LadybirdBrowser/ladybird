@@ -1,6 +1,7 @@
 #import <DOM/EventTarget.idl>
 #import <HTML/HTMLElement.idl>
 #import <Internals/InternalAnimationTimeline.idl>
+#import <Internals/InternalGamepad.idl>
 
 [Exposed=Nobody]
 interface Internals {
@@ -57,5 +58,9 @@ interface Internals {
 
     // Returns the shadow root of the element, if it has one, even if it's not normally accessible to JS.
     ShadowRoot? getShadowRoot(Element element);
+
+    undefined handleSDLInputEvents();
+
+    InternalGamepad connectVirtualGamepad();
 
 };

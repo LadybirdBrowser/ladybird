@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<iframe id="test-iframe" srcdoc="
+<script src='gamepad-helper.js'></script>
+<script>
+    window.onmessage = async ({ data }) => {
+        switch (data) {
+        case 'getGamepads':
+            window.parent.postMessage(getStringifiedGamepads(), '*');
+            break;
+        case 'rumbleGamepad': {
+            const navGamepad = navigator.getGamepads()[0];
+            await navGamepad.vibrationActuator.playEffect('dual-rumble', { duration: 1, weakMagnitude: 0.5, strongMagnitude: 0.5 });
+            await handleSDLInputEvents();
+            await navGamepad.vibrationActuator.playEffect('trigger-rumble', { duration: 1, leftTrigger: 0.5, rightTrigger: 0.5 });
+            await handleSDLInputEvents();
+            window.parent.postMessage('done', '*');
+            break;
+        }
+        default:
+            break;
+        }
+    };
+</script>
+"></iframe>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const testIframe = document.getElementById("test-iframe");
+
+        const sendMessageAndWait = (message) => {
+            return new Promise((resolve) => {
+                window.onmessage = ({ data }) => {
+                    resolve(data);
+                };
+
+                testIframe.contentWindow.postMessage(message, "*");
+            });
+        };
+
+        const gamepad = internals.connectVirtualGamepad();
+        await handleSDLInputEvents();
+        listenForGamepadConnected();
+
+        println(`Before pressing a button: ${await sendMessageAndWait("getGamepads")}`);
+        gamepad.setButton(gamepad.buttons[0], true);
+        await handleSDLInputEvents();
+        println(`After pressing a button: ${await sendMessageAndWait("getGamepads")}`);
+
+        const shortMax = 32628;
+        const axisValueAsInt = Math.floor(0.8 * shortMax);
+        println(`Before moving axis ${gamepad.axes[0]} to 0.8 (${axisValueAsInt}): ${await sendMessageAndWait("getGamepads")}`);
+        gamepad.setAxis(gamepad.axes[0], axisValueAsInt);
+        await handleSDLInputEvents();
+        println(`After moving axis ${gamepad.axes[0]} to 0.8 (${axisValueAsInt}): ${await sendMessageAndWait("getGamepads")}`);
+
+        await sendMessageAndWait("rumbleGamepad");
+        println(`Received dual rumble effects: ${JSON.stringify(gamepad.getReceivedRumbleEffects())}`);
+        println(`Received trigger rumble effects: ${JSON.stringify(gamepad.getReceivedRumbleTriggerEffects())}`);
+
+        listenForGamepadDisconnected();
+        gamepad.disconnect();
+        await handleSDLInputEvents();
+        println(`After disconnecting gamepad: ${await sendMessageAndWait("getGamepads")}`);
+
+        done();
+    });
+</script>

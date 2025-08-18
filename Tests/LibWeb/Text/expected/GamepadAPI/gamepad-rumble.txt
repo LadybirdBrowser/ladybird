@@ -1,0 +1,45 @@
+Checking if effect 'dual-rumble' with params '{"duration":5001}' throws
+TypeError: Invalid effect
+Checking if effect 'dual-rumble' with params '{"startDelay":5001}' throws
+TypeError: Invalid effect
+Checking if effect 'dual-rumble' with params '{"duration":2500,"startDelay":2501}' throws
+TypeError: Invalid effect
+Checking if effect 'dual-rumble' with params '{"duration":1,"weakMagnitude":-0.1}' throws
+TypeError: Invalid effect
+Checking if effect 'dual-rumble' with params '{"duration":1,"weakMagnitude":1.1}' throws
+TypeError: Invalid effect
+Checking if effect 'dual-rumble' with params '{"duration":1,"strongMagnitude":-0.1}' throws
+TypeError: Invalid effect
+Checking if effect 'dual-rumble' with params '{"duration":1,"strongMagnitude":1.1}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":5001}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"startDelay":5001}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":2500,"startDelay":2501}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":1,"weakMagnitude":-0.1}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":1,"weakMagnitude":1.1}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":1,"strongMagnitude":-0.1}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":1,"strongMagnitude":1.1}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":1,"leftTrigger":-0.1}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":1,"leftTrigger":1.1}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":1,"rightTrigger":-0.1}' throws
+TypeError: Invalid effect
+Checking if effect 'trigger-rumble' with params '{"duration":1,"rightTrigger":1.1}' throws
+TypeError: Invalid effect
+Playing valid dual rumble effect
+Dual rumble promise resolved with 'complete'
+Playing valid trigger rumble effect
+Trigger rumble promise resolved with 'complete'
+Testing preempting a rumble effect
+newDualRumbleResult: 'complete', preemptedResult: 'preempted'
+Received dual rumble effects: [{"lowFrequencyRumble":32767,"highFrequencyRumble":32767},{"lowFrequencyRumble":0,"highFrequencyRumble":0},{"lowFrequencyRumble":6553,"highFrequencyRumble":6553},{"lowFrequencyRumble":65535,"highFrequencyRumble":65535},{"lowFrequencyRumble":0,"highFrequencyRumble":0}]
+Received trigger rumble effects: [{"leftRumble":32767,"rightRumble":32767},{"leftRumble":0,"rightRumble":0}]
+Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0
