@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 62 tests
 
-50 Pass
-12 Fail
+62 Pass
 Pass	'rotate(acos(1))' as a specified value should serialize as 'rotate(calc(0deg))'.
 Pass	'rotate(calc(acos(1)))' as a specified value should serialize as 'rotate(calc(0deg))'.
 Pass	'rotate(acos(-1))' as a specified value should serialize as 'rotate(calc(180deg))'.
@@ -14,10 +13,10 @@ Pass	'rotate(acos(1.5))' as a specified value should serialize as 'rotate(calc(N
 Pass	'rotate(calc(acos(1.5)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
 Pass	'rotate(acos(2))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
 Pass	'rotate(calc(acos(2)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
-Fail	'rotate(acos(0.5))' as a specified value should serialize as 'rotate(calc(60deg))'.
-Fail	'rotate(calc(acos(0.5)))' as a specified value should serialize as 'rotate(calc(60deg))'.
-Fail	'rotate(acos(1 - 0.5))' as a specified value should serialize as 'rotate(calc(60deg))'.
-Fail	'rotate(calc(acos(1 - 0.5)))' as a specified value should serialize as 'rotate(calc(60deg))'.
+Pass	'rotate(acos(0.5))' as a specified value should serialize as 'rotate(calc(60deg))'.
+Pass	'rotate(calc(acos(0.5)))' as a specified value should serialize as 'rotate(calc(60deg))'.
+Pass	'rotate(acos(1 - 0.5))' as a specified value should serialize as 'rotate(calc(60deg))'.
+Pass	'rotate(calc(acos(1 - 0.5)))' as a specified value should serialize as 'rotate(calc(60deg))'.
 Pass	'rotate(acos(0))' as a specified value should serialize as 'rotate(calc(90deg))'.
 Pass	'rotate(calc(acos(0)))' as a specified value should serialize as 'rotate(calc(90deg))'.
 Pass	'rotate(asin(1))' as a specified value should serialize as 'rotate(calc(90deg))'.
@@ -30,10 +29,10 @@ Pass	'rotate(asin(1.5))' as a specified value should serialize as 'rotate(calc(N
 Pass	'rotate(calc(asin(1.5)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
 Pass	'rotate(asin(2))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
 Pass	'rotate(calc(asin(2)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
-Fail	'rotate(asin(0.5))' as a specified value should serialize as 'rotate(calc(30deg))'.
-Fail	'rotate(calc(asin(0.5)))' as a specified value should serialize as 'rotate(calc(30deg))'.
-Fail	'rotate(asin(1 - 0.5))' as a specified value should serialize as 'rotate(calc(30deg))'.
-Fail	'rotate(calc(asin(1 - 0.5)))' as a specified value should serialize as 'rotate(calc(30deg))'.
+Pass	'rotate(asin(0.5))' as a specified value should serialize as 'rotate(calc(30deg))'.
+Pass	'rotate(calc(asin(0.5)))' as a specified value should serialize as 'rotate(calc(30deg))'.
+Pass	'rotate(asin(1 - 0.5))' as a specified value should serialize as 'rotate(calc(30deg))'.
+Pass	'rotate(calc(asin(1 - 0.5)))' as a specified value should serialize as 'rotate(calc(30deg))'.
 Pass	'rotate(asin(0))' as a specified value should serialize as 'rotate(calc(0deg))'.
 Pass	'rotate(calc(asin(0)))' as a specified value should serialize as 'rotate(calc(0deg))'.
 Pass	'rotate(acos(pi - pi))' as a specified value should serialize as 'rotate(calc(90deg))'.
@@ -42,14 +41,14 @@ Pass	'rotate(asin(pi - pi + 1))' as a specified value should serialize as 'rotat
 Pass	'rotate(calc(asin(pi - pi + 1)))' as a specified value should serialize as 'rotate(calc(90deg))'.
 Pass	'rotate(atan(1))' as a specified value should serialize as 'rotate(calc(45deg))'.
 Pass	'rotate(calc(atan(1)))' as a specified value should serialize as 'rotate(calc(45deg))'.
-Fail	'rotate(atan(0.577350269))' as a specified value should serialize as 'rotate(calc(30deg))'.
-Fail	'rotate(calc(atan(0.577350269)))' as a specified value should serialize as 'rotate(calc(30deg))'.
+Pass	'rotate(atan(0.577350269))' as a specified value should serialize as 'rotate(calc(30deg))'.
+Pass	'rotate(calc(atan(0.577350269)))' as a specified value should serialize as 'rotate(calc(30deg))'.
 Pass	'rotate(atan(0))' as a specified value should serialize as 'rotate(calc(0deg))'.
 Pass	'rotate(calc(atan(0)))' as a specified value should serialize as 'rotate(calc(0deg))'.
 Pass	'rotate(atan(infinity))' as a specified value should serialize as 'rotate(calc(90deg))'.
 Pass	'rotate(calc(atan(infinity)))' as a specified value should serialize as 'rotate(calc(90deg))'.
-Fail	'rotate(atan2(37.320508075, 10))' as a specified value should serialize as 'rotate(calc(75deg))'.
-Fail	'rotate(calc(atan2(37.320508075, 10)))' as a specified value should serialize as 'rotate(calc(75deg))'.
+Pass	'rotate(atan2(37.320508075, 10))' as a specified value should serialize as 'rotate(calc(75deg))'.
+Pass	'rotate(calc(atan2(37.320508075, 10)))' as a specified value should serialize as 'rotate(calc(75deg))'.
 Pass	'rotate(atan2(1s, 1000ms))' as a specified value should serialize as 'rotate(calc(45deg))'.
 Pass	'rotate(calc(atan2(1s, 1000ms)))' as a specified value should serialize as 'rotate(calc(45deg))'.
 Pass	'rotate(atan2(infinity, infinity))' as a specified value should serialize as 'rotate(calc(45deg))'.
