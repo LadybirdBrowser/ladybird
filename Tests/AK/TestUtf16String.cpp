@@ -1271,3 +1271,27 @@ TEST_CASE(code_point_at)
     test(u"😀"sv, 1);
     test(u"hello 😀 there!"sv, 14);
 }
+
+TEST_CASE(optional)
+{
+    static_assert(AssertSize<Optional<Utf16String>, sizeof(Utf16String)>());
+
+    Optional<Utf16String> string;
+    EXPECT(!string.has_value());
+
+    string = "ascii"_utf16;
+    EXPECT(string.has_value());
+    EXPECT_EQ(string.value(), "ascii"sv);
+
+    auto released = string.release_value();
+    EXPECT(!string.has_value());
+    EXPECT_EQ(released, "ascii"sv);
+
+    string = u"well 😀 hello"_utf16;
+    EXPECT(string.has_value());
+    EXPECT_EQ(string.value(), u"well 😀 hello"sv);
+
+    released = string.release_value();
+    EXPECT(!string.has_value());
+    EXPECT_EQ(released, u"well 😀 hello"sv);
+}

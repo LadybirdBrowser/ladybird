@@ -146,3 +146,27 @@ TEST_CASE(is_one_of)
     EXPECT(bar.is_one_of("bar"sv, "foo"sv));
     EXPECT(bar.is_one_of("bar"sv));
 }
+
+TEST_CASE(optional)
+{
+    static_assert(AssertSize<Optional<Utf16FlyString>, sizeof(Utf16FlyString)>());
+
+    Optional<Utf16FlyString> string;
+    EXPECT(!string.has_value());
+
+    string = "ascii"_utf16_fly_string;
+    EXPECT(string.has_value());
+    EXPECT_EQ(string.value(), "ascii"sv);
+
+    auto released = string.release_value();
+    EXPECT(!string.has_value());
+    EXPECT_EQ(released, "ascii"sv);
+
+    string = u"well 😀 hello"_utf16_fly_string;
+    EXPECT(string.has_value());
+    EXPECT_EQ(string.value(), u"well 😀 hello"sv);
+
+    released = string.release_value();
+    EXPECT(!string.has_value());
+    EXPECT_EQ(released, u"well 😀 hello"sv);
+}
