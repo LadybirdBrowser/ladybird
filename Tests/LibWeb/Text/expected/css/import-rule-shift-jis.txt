@@ -1,1 +1,2 @@
-PASS (didn't crash)
+rgb(0, 128, 0)
+rgb(0, 128, 0)
