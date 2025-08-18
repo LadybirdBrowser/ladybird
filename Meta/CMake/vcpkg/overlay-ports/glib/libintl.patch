@@ -1,0 +1,17 @@
+diff --git a/meson.build b/meson.build
+--- a/meson.build
++++ b/meson.build
+@@ -2134,10 +2135,10 @@ libz_dep = dependency('zlib')
+ # proxy-libintl subproject.
+ # FIXME: glib-gettext.m4 has much more checks to detect broken/uncompatible
+ # implementations. This could be extended if issues are found in some platforms.
+-libintl_deps = []
+ libintl_prefix = '#include <libintl.h>'
+-libintl = dependency('intl', required: false)
+-if libintl.found() and libintl.type_name() != 'internal'
++libintl = dependency('intl', required : true)
++libintl_deps = [libintl]
++if false
+   # libintl supports different threading APIs, which may not
+   # require additional flags, but it defaults to using pthreads if
+   # found. Meson's "threads" dependency does not allow you to
