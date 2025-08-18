@@ -257,6 +257,7 @@ class CSSStyleRule;
 class CSSStyleSheet;
 class CSSStyleValue;
 class CSSSupportsRule;
+class CSSUnitValue;
 class CSSUnparsedValue;
 class CSSVariableReferenceValue;
 class CursorStyleValue;

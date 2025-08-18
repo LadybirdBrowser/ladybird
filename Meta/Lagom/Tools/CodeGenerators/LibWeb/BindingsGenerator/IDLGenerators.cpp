@@ -57,6 +57,7 @@ static bool is_platform_object(Type const& type)
         "CSSKeywordValue"sv,
         "CSSNumericValue"sv,
         "CSSStyleValue"sv,
+        "CSSUnitValue"sv,
         "CSSUnparsedValue"sv,
         "CSSVariableReferenceValue"sv,
         "CustomStateSet"sv,
