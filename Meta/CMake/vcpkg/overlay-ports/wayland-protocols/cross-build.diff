@@ -1,0 +1,35 @@
+diff --git a/meson.build b/meson.build
+index b9a32c8..1810ed0 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1,6 +1,6 @@
+ project('wayland-protocols',
+ 	version: '1.43',
+-	meson_version: '>= 0.58.0',
++	meson_version: '>= 0.62.0',
+ 	license: 'MIT/Expat',
+ )
+ 
+@@ -8,12 +8,7 @@ wayland_protocols_version = meson.project_version()
+ 
+ fs = import('fs')
+ 
+-dep_scanner = dependency('wayland-scanner',
+-    version: get_option('tests') ? '>=1.23.0' : '>=1.20.0',
+-    native: true,
+-    fallback: 'wayland'
+-)
+-prog_scanner = find_program(dep_scanner.get_variable(pkgconfig: 'wayland_scanner', internal: 'wayland_scanner'))
++prog_scanner = find_program('wayland_scanner')
+ 
+ stable_protocols = {
+ 	'linux-dmabuf': ['v1'],
+@@ -123,7 +118,7 @@ foreach protocol_file : protocol_files
+ endforeach
+ 
+ include_dirs = []
+-if dep_scanner.version().version_compare('>=1.22.90')
++if true
+ 	subdir('include/wayland-protocols')
+ 	include_dirs = ['include']
+ endif
