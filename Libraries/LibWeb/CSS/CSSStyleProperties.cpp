@@ -510,10 +510,8 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     auto used_value_for_property = [&layout_node, property_id](Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
         auto const& display = layout_node.computed_values().display();
         if (!display.is_none() && !display.is_contents() && layout_node.first_paintable()) {
-            if (layout_node.first_paintable()->is_paintable_box()) {
-                auto const& paintable_box = static_cast<Painting::PaintableBox const&>(*layout_node.first_paintable());
-                return used_value_getter(paintable_box);
-            }
+            if (auto const* paintable_box = as_if<Painting::PaintableBox>(layout_node.first_paintable()))
+                return used_value_getter(*paintable_box);
             dbgln("FIXME: Support getting used value for property `{}` on {}", string_from_property_id(property_id), layout_node.debug_description());
         }
         return {};
