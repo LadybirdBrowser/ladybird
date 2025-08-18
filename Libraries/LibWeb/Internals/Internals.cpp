@@ -18,6 +18,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
@@ -328,6 +329,17 @@ String Internals::dump_display_list()
 GC::Ptr<DOM::ShadowRoot> Internals::get_shadow_root(GC::Ref<DOM::Element> element)
 {
     return element->shadow_root();
+}
+
+void Internals::handle_sdl_input_events()
+{
+    page().handle_sdl_input_events();
+}
+
+GC::Ref<InternalGamepad> Internals::connect_virtual_gamepad()
+{
+    auto& realm = this->realm();
+    return realm.create<InternalGamepad>(realm);
 }
 
 }

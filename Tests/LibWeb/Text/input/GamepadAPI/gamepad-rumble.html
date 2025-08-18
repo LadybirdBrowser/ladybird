@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const gamepad = internals.connectVirtualGamepad();
+        await handleSDLInputEvents();
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await handleSDLInputEvents();
+
+        const navGamepad = navigator.getGamepads()[0];
+
+        const checkIfThrows = async (effectType, params) => {
+            println(`Checking if effect '${effectType}' with params '${JSON.stringify(params)}' throws`);
+            try {
+                await navGamepad.vibrationActuator.playEffect(effectType, params);
+                println("FAIL: Did not throw");
+            } catch (e) {
+                println(`${e.name}: ${e.message}`);
+            }
+        }
+
+        await checkIfThrows("dual-rumble", { duration: 5001 });
+        await checkIfThrows("dual-rumble", { startDelay: 5001 });
+        await checkIfThrows("dual-rumble", { duration: 2500, startDelay: 2501 });
+        await checkIfThrows("dual-rumble", { duration: 1, weakMagnitude: -0.1 });
+        await checkIfThrows("dual-rumble", { duration: 1, weakMagnitude: 1.1 });
+        await checkIfThrows("dual-rumble", { duration: 1, strongMagnitude: -0.1 });
+        await checkIfThrows("dual-rumble", { duration: 1, strongMagnitude: 1.1 });
+
+        await checkIfThrows("trigger-rumble", { duration: 5001 });
+        await checkIfThrows("trigger-rumble", { startDelay: 5001 });
+        await checkIfThrows("trigger-rumble", { duration: 2500, startDelay: 2501 });
+        await checkIfThrows("trigger-rumble", { duration: 1, weakMagnitude: -0.1 });
+        await checkIfThrows("trigger-rumble", { duration: 1, weakMagnitude: 1.1 });
+        await checkIfThrows("trigger-rumble", { duration: 1, strongMagnitude: -0.1 });
+        await checkIfThrows("trigger-rumble", { duration: 1, strongMagnitude: 1.1 });
+        await checkIfThrows("trigger-rumble", { duration: 1, leftTrigger: -0.1 });
+        await checkIfThrows("trigger-rumble", { duration: 1, leftTrigger: 1.1 });
+        await checkIfThrows("trigger-rumble", { duration: 1, rightTrigger: -0.1 });
+        await checkIfThrows("trigger-rumble", { duration: 1, rightTrigger: 1.1 });
+
+        println("Playing valid dual rumble effect");
+        const dualRumbleResult = await navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 2, weakMagnitude: 0.5, strongMagnitude: 0.5 });
+        await handleSDLInputEvents();
+        println(`Dual rumble promise resolved with '${dualRumbleResult}'`);
+        println("Playing valid trigger rumble effect");
+        const triggerRumbleResult = await navGamepad.vibrationActuator.playEffect("trigger-rumble", { duration: 2, leftTrigger: 0.5, rightTrigger: 0.5 });
+        await handleSDLInputEvents();
+        println(`Trigger rumble promise resolved with '${triggerRumbleResult}'`);
+
+        println("Testing preempting a rumble effect");
+        const effectToPreemptPromise = navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 1000, strongMagnitude: 0.1, weakMagnitude: 0.1 });
+
+        // Make sure the first effect is issued to the gamepad.
+        await new Promise(resolve => {
+            setTimeout(() => resolve(), 1);
+        });
+        await handleSDLInputEvents();
+
+        const newDualRumbleResult = await navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 2, strongMagnitude: 1.0, weakMagnitude: 1.0 });
+        await handleSDLInputEvents();
+        const preemptedResult = await effectToPreemptPromise;
+        println(`newDualRumbleResult: '${newDualRumbleResult}', preemptedResult: '${preemptedResult}'`);
+
+        println(`Received dual rumble effects: ${JSON.stringify(gamepad.getReceivedRumbleEffects())}`);
+        println(`Received trigger rumble effects: ${JSON.stringify(gamepad.getReceivedRumbleTriggerEffects())}`);
+
+        listenForGamepadDisconnected();
+        gamepad.disconnect();
+        await handleSDLInputEvents();
+        done();
+    });
+</script>

@@ -805,6 +805,7 @@ class RequestList;
 namespace Web::Internals {
 
 class Internals;
+class InternalGamepad;
 class WebUI;
 
 }

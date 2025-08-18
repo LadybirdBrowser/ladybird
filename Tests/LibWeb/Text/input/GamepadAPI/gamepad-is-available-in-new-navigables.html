@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const gamepad = internals.connectVirtualGamepad();
+        await handleSDLInputEvents();
+        listenForGamepadConnected();
+
+        println(`Before pressing button in top level: ${getStringifiedGamepads()}`);
+        gamepad.setButton(gamepad.buttons[0], true);
+        await handleSDLInputEvents();
+        println(`After pressing button in top level: ${getStringifiedGamepads()}`);
+        gamepad.setButton(gamepad.buttons[0], false);
+        await handleSDLInputEvents();
+
+        const iframe = document.createElement("iframe");
+        iframe.onload = async () => {
+            const sendMessageAndWait = (message) => {
+                return new Promise((resolve) => {
+                    window.onmessage = ({ data }) => {
+                        resolve(data);
+                    };
+
+                    iframe.contentWindow.postMessage(message, "*");
+                });
+            };
+
+            println(`Gamepad should not be immediately exposed in the new navigable: ${await sendMessageAndWait("getGamepads")}`);
+
+            // New navigables will automatically connect to available gamepads, otherwise this wouldn't do anything.
+            gamepad.setButton(gamepad.buttons[0], true);
+            await handleSDLInputEvents();
+
+            println(`Gamepad is now exposed in the new navigable: ${await sendMessageAndWait("getGamepads")}`);
+
+            done();
+        };
+
+        iframe.srcdoc = `
+\u003cscript src="gamepad-helper.js"\u003e\u003c/script\u003e
+\u003cscript\u003e
+    window.onmessage = async ({ data }) => {
+        switch (data) {
+        case 'getGamepads':
+            window.parent.postMessage(getStringifiedGamepads(), '*');
+            break;
+        default:
+            break;
+        }
+    };
+\u003c/script\u003e`;
+
+        document.body.appendChild(iframe);
+    });
+</script>

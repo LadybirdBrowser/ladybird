@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const gamepad = internals.connectVirtualGamepad();
+        await handleSDLInputEvents();
+        listenForGamepadConnected();
+
+        const shortMax = 32628;
+
+        for (const axis of gamepad.axes.concat(gamepad.triggers)) {
+            for (const axisValue of [1.0, 0.8, 0.4, -0.4, 0.8, 1.0]) {
+                const axisValueAsInt = axisValue * shortMax;
+                const axisValueRounded = axisValue > 0 ? Math.floor(axisValueAsInt) : Math.ceil(axisValueAsInt);
+                println(`Before moving axis ${axis} to ${axisValue} (${axisValueRounded}): ${getStringifiedGamepads()}`);
+                gamepad.setAxis(axis, axisValueRounded);
+                await handleSDLInputEvents();
+                println(`After moving axis ${axis} to ${axisValue} (${axisValueRounded}): ${getStringifiedGamepads()}`);
+            }
+        }
+
+        listenForGamepadDisconnected();
+        gamepad.disconnect();
+        await handleSDLInputEvents();
+        done();
+    });
+</script>
