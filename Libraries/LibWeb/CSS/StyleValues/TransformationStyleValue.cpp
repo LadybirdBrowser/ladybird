@@ -10,6 +10,7 @@
 
 #include "TransformationStyleValue.h"
 #include <AK/StringBuilder.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -138,7 +139,7 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
             if (!raw_value.has_value())
                 return value.to_string(mode);
 
-            return MUST(String::formatted("{:.6}", *raw_value));
+            return serialize_a_number(*raw_value);
         };
 
         auto x_value = resolve_to_string(m_properties.values[0]);
