@@ -1,0 +1,20 @@
+{
+  "name": "gtkmm",
+  "version": "4.14.0",
+  "description": "gtkmm is the official C++ interface for the popular GUI library GTK+.",
+  "homepage": "https://www.gtkmm.org/",
+  "license": "LGPL-3.0-or-later",
+  "supports": "!uwp & !xbox",
+  "dependencies": [
+    "cairomm",
+    "gdk-pixbuf",
+    "glibmm",
+    "gtk",
+    "libepoxy",
+    "pangomm",
+    {
+      "name": "vcpkg-tool-meson",
+      "host": true
+    }
+  ]
+}
