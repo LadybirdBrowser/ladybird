@@ -423,19 +423,24 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return MUST(String::join(' ', values));
     }
     case PropertyID::GridArea: {
-        auto& row_start = longhand(PropertyID::GridRowStart)->as_grid_track_placement();
-        auto& column_start = longhand(PropertyID::GridColumnStart)->as_grid_track_placement();
-        auto& row_end = longhand(PropertyID::GridRowEnd)->as_grid_track_placement();
-        auto& column_end = longhand(PropertyID::GridColumnEnd)->as_grid_track_placement();
+        auto row_start = longhand(PropertyID::GridRowStart);
+        auto column_start = longhand(PropertyID::GridColumnStart);
+        auto row_end = longhand(PropertyID::GridRowEnd);
+        auto column_end = longhand(PropertyID::GridColumnEnd);
+        auto is_auto = [](auto const& track_placement) {
+            if (track_placement->is_grid_track_placement())
+                return track_placement->as_grid_track_placement().grid_track_placement().is_auto();
+            return false;
+        };
         StringBuilder builder;
-        if (!row_start.grid_track_placement().is_auto())
-            builder.appendff("{}", row_start.grid_track_placement().to_string(mode));
-        if (!column_start.grid_track_placement().is_auto())
-            builder.appendff(" / {}", column_start.grid_track_placement().to_string(mode));
-        if (!row_end.grid_track_placement().is_auto())
-            builder.appendff(" / {}", row_end.grid_track_placement().to_string(mode));
-        if (!column_end.grid_track_placement().is_auto())
-            builder.appendff(" / {}", column_end.grid_track_placement().to_string(mode));
+        if (!is_auto(row_start))
+            builder.appendff("{}", row_start->to_string(mode));
+        if (!is_auto(column_start))
+            builder.appendff(" / {}", column_start->to_string(mode));
+        if (!is_auto(row_end))
+            builder.appendff(" / {}", row_end->to_string(mode));
+        if (!is_auto(column_end))
+            builder.appendff(" / {}", column_end->to_string(mode));
         if (builder.is_empty())
             return "auto"_string;
         return MUST(builder.to_string());
@@ -443,9 +448,19 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         // FIXME: Serialize Grid differently once we support it better!
     case PropertyID::Grid:
     case PropertyID::GridTemplate: {
-        auto& areas = longhand(PropertyID::GridTemplateAreas)->as_grid_template_area();
-        auto& rows = longhand(PropertyID::GridTemplateRows)->as_grid_track_size_list();
-        auto& columns = longhand(PropertyID::GridTemplateColumns)->as_grid_track_size_list();
+        auto areas_value = longhand(PropertyID::GridTemplateAreas);
+        auto rows_value = longhand(PropertyID::GridTemplateRows);
+        auto columns_value = longhand(PropertyID::GridTemplateColumns);
+
+        if (!areas_value->is_grid_template_area()
+            || !rows_value->is_grid_track_size_list()
+            || !columns_value->is_grid_track_size_list()) {
+            return default_to_string();
+        }
+
+        auto& areas = areas_value->as_grid_template_area();
+        auto& rows = rows_value->as_grid_track_size_list();
+        auto& columns = columns_value->as_grid_track_size_list();
 
         if (areas.grid_template_area().size() == 0 && rows.grid_track_size_list().track_list().size() == 0 && columns.grid_track_size_list().track_list().size() == 0)
             return "none"_string;

@@ -1,0 +1,11 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let e = document.createElement("div");
+        e.style.gridTemplateAreas = "var(--foo)";
+        e.style.gridTemplateColumns = "var(--bar)";
+        e.style.gridTemplateRows = "var(--baz)";
+        println(e.getAttribute("style"));
+    });
+</script>
