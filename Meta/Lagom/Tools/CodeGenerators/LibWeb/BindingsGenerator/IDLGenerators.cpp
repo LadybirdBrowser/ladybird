@@ -355,6 +355,7 @@ static ByteString make_input_acceptable_cpp(ByteString const& input)
             "inline",
             "mutable",
             "namespace",
+            "operator",
             "register",
             "switch",
             "template")) {
