@@ -8,7 +8,6 @@
 
 #include <AK/Badge.h>
 #include <AK/Function.h>
-#include <AK/HashTable.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
