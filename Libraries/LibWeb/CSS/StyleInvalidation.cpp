@@ -66,6 +66,12 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         if (old_value_opacity != new_value_opacity && (old_value_opacity == 1 || new_value_opacity == 1)) {
             invalidation.rebuild_stacking_context_tree = true;
         }
+
+        // OPTIMIZATION: Paintables compute and store whether they are visible (which is dependent on whether opacity
+        //               is equal to zero) on construction as a performance optimization - this means that if opacity
+        //               changes to or from an opacity of zero we need to relayout to recompute paintable visibility.
+        if (old_value_opacity != new_value_opacity && (old_value_opacity == 0 || new_value_opacity == 0))
+            invalidation.relayout = true;
     } else if (CSS::property_affects_stacking_context(property_id)) {
         invalidation.rebuild_stacking_context_tree = true;
     }
