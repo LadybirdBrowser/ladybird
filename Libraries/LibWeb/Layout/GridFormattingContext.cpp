@@ -2120,7 +2120,7 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
         //       `Node::containing_block()` is not aware of that. Therefore, we need to
         //       find the closest grid item ancestor in order to identify grid area it belongs to.
         NodeWithStyle const* containing_grid_item = &box;
-        while (containing_grid_item->parent() && !containing_grid_item->parent()->display().is_grid_inside())
+        while (containing_grid_item->parent() && containing_grid_item->parent() != &grid_container())
             containing_grid_item = containing_grid_item->parent();
 
         auto const& computed_values = containing_grid_item->computed_values();
