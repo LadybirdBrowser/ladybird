@@ -314,16 +314,17 @@ public:
     JS_ENUMERATE_ERROR_TYPES(__ENUMERATE_JS_ERROR)
 #undef __ENUMERATE_JS_ERROR
 
-    StringView format() const { return m_message.ascii_view(); }
-    Utf16String const& message() const { return m_message; }
+    StringView format() const { return m_format; }
+    Utf16String const& message() const;
 
 private:
-    explicit ErrorType(Utf16String message)
-        : m_message(move(message))
+    explicit ErrorType(StringView format)
+        : m_format(format)
     {
     }
 
-    Utf16String m_message;
+    StringView m_format;
+    mutable Utf16String m_message;
 };
 
 }
