@@ -128,4 +128,8 @@ interface mixin WindowEventHandlers {
     attribute EventHandler onstorage;
     attribute EventHandler onunhandledrejection;
     attribute EventHandler onunload;
+
+    // https://w3c.github.io/gamepad/#extensions-to-the-windoweventhandlers-interface-mixin
+    attribute EventHandler ongamepadconnected;
+    attribute EventHandler ongamepaddisconnected;
 };

@@ -519,7 +519,11 @@ class FileList;
 
 namespace Web::GamepadAPI {
 
+class NavigatorGamepadPartial;
 class Gamepad;
+class GamepadButton;
+class GamepadEvent;
+class GamepadHapticActuator;
 
 }
 

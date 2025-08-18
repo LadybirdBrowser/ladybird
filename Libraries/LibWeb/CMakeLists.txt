@@ -367,7 +367,11 @@ set(SOURCES
     FileAPI/FileList.cpp
     FileAPI/FileReader.cpp
     FileAPI/FileReaderSync.cpp
+    GamepadAPI/EventNames.cpp
     GamepadAPI/Gamepad.cpp
+    GamepadAPI/GamepadButton.cpp
+    GamepadAPI/GamepadEvent.cpp
+    GamepadAPI/GamepadHapticActuator.cpp
     GamepadAPI/NavigatorGamepad.cpp
     Geolocation/Geolocation.cpp
     Serial/Serial.cpp

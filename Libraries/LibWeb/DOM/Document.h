@@ -159,6 +159,7 @@ struct ElementCreationOptions {
 enum class PolicyControlledFeature : u8 {
     Autoplay,
     FocusWithoutUserActivation,
+    Gamepad,
 };
 
 class Document

@@ -146,6 +146,9 @@ FormDataEvent
 Function
 GainNode
 Gamepad
+GamepadButton
+GamepadEvent
+GamepadHapticActuator
 Geolocation
 GeolocationCoordinates
 GeolocationPosition
