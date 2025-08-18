@@ -98,8 +98,7 @@ void BlockFormattingContext::run(AvailableSpace const& available_space)
         auto new_y = -((legend_height) / 2) - fieldset_state.padding_top;
         legend_state.set_content_y(new_y);
 
-        // If the computed value of 'inline-size' is 'auto',
-        // then the used value is the fit-content inline size.
+        // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
         if (legend->computed_values().width().is_auto()) {
             auto width = calculate_fit_content_width(*legend, available_space);
             legend_state.set_content_width(width);
@@ -223,6 +222,14 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     box_state.border_right = computed_values.border_right().width;
     box_state.padding_left = padding_left.to_px(box);
     box_state.padding_right = padding_right.to_px(box);
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+    // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
+    if (auto const* html_element = as_if<HTML::HTMLElement>(box.dom_node()); html_element
+        && html_element->uses_button_layout() && computed_values.width().is_auto()) {
+        box_state.set_content_width(calculate_fit_content_width(box, available_space));
+        return;
+    }
 
     // NOTE: If we are calculating the min-content or max-content width of this box,
     //       and the width should be treated as auto, then we can simply return here,
