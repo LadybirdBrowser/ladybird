@@ -224,6 +224,15 @@ Filter Filter::hue_rotate(float angle_degrees, Optional<Filter const&> input)
     return Filter(Impl::create(SkImageFilters::ColorFilter(color_filter, input_skia)));
 }
 
+Filter Filter::image(Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode)
+{
+    auto skia_src_rect = to_skia_rect(src_rect);
+    auto skia_dest_rect = to_skia_rect(dest_rect);
+    auto sampling_options = to_skia_sampling_options(scaling_mode);
+
+    return Filter(Impl::create(SkImageFilters::Image(sk_ref_sp(bitmap.sk_image()), skia_src_rect, skia_dest_rect, sampling_options)));
+}
+
 Filter Filter::merge(Vector<Optional<Filter>> const& inputs)
 {
     Vector<sk_sp<SkImageFilter>> skia_filters;

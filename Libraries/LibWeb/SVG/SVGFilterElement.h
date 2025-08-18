@@ -31,7 +31,7 @@ public:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
-    Optional<Gfx::Filter> gfx_filter();
+    Optional<Gfx::Filter> gfx_filter(Layout::NodeWithStyle const& referenced_node);
 
     GC::Ref<SVGAnimatedEnumeration> filter_units() const;
     GC::Ref<SVGAnimatedEnumeration> primitive_units() const;
