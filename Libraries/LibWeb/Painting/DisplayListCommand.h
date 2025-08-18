@@ -30,6 +30,7 @@
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/ScrollState.h>
+#include <LibWeb/Painting/ShouldAntiAlias.h>
 
 namespace Web::Painting {
 
@@ -217,6 +218,7 @@ struct FillPath {
     float opacity { 1.0f };
     PaintStyleOrColor paint_style_or_color;
     Gfx::WindingRule winding_rule;
+    ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
 
@@ -239,6 +241,7 @@ struct StrokePath {
     float opacity;
     PaintStyleOrColor paint_style_or_color;
     float thickness;
+    ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
 

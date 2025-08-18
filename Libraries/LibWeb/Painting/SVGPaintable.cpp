@@ -33,4 +33,12 @@ CSSPixelRect SVGPaintable::compute_absolute_rect() const
     return PaintableBox::compute_absolute_rect();
 }
 
+ShouldAntiAlias SVGPaintable::should_anti_alias() const
+{
+    auto shape_rendering = computed_values().shape_rendering();
+    if (first_is_one_of(shape_rendering, CSS::ShapeRendering::Optimizespeed, CSS::ShapeRendering::Crispedges))
+        return ShouldAntiAlias::No;
+    return ShouldAntiAlias::Yes;
+}
+
 }

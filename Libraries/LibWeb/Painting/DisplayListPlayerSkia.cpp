@@ -654,7 +654,7 @@ void DisplayListPlayerSkia::fill_path(FillPath const& command)
         auto const& color = command.paint_style_or_color.get<Color>();
         paint.setColor(to_skia_color(color));
     }
-    paint.setAntiAlias(true);
+    paint.setAntiAlias(command.should_anti_alias == ShouldAntiAlias::Yes);
     surface().canvas().drawPath(path, paint);
 }
 
@@ -670,7 +670,7 @@ void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
         auto const& color = command.paint_style_or_color.get<Color>();
         paint.setColor(to_skia_color(color));
     }
-    paint.setAntiAlias(true);
+    paint.setAntiAlias(command.should_anti_alias == ShouldAntiAlias::Yes);
     paint.setStyle(SkPaint::Style::kStroke_Style);
     paint.setStrokeWidth(command.thickness);
     paint.setStrokeCap(to_skia_cap(command.cap_style));

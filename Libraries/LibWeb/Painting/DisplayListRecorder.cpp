@@ -78,7 +78,7 @@ void DisplayListRecorder::fill_path(FillPathParams params)
         .opacity = params.opacity,
         .paint_style_or_color = params.paint_style_or_color,
         .winding_rule = params.winding_rule,
-    });
+        .should_anti_alias = params.should_anti_alias });
 }
 
 void DisplayListRecorder::stroke_path(StrokePathParams params)
@@ -105,7 +105,7 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
         .opacity = params.opacity,
         .paint_style_or_color = params.paint_style_or_color,
         .thickness = params.thickness,
-    });
+        .should_anti_alias = params.should_anti_alias });
 }
 
 void DisplayListRecorder::draw_ellipse(Gfx::IntRect const& a_rect, Color color, int thickness)

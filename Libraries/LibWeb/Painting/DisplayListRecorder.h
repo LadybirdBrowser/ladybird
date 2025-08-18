@@ -25,6 +25,7 @@
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/PaintStyle.h>
+#include <LibWeb/Painting/ShouldAntiAlias.h>
 
 namespace Web::Painting {
 
@@ -45,6 +46,7 @@ public:
         float opacity = 1.0f;
         PaintStyleOrColor paint_style_or_color;
         Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
+        ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
     };
     void fill_path(FillPathParams params);
 
@@ -58,6 +60,7 @@ public:
         float opacity = 1.0f;
         PaintStyleOrColor paint_style_or_color;
         float thickness;
+        ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
     };
     void stroke_path(StrokePathParams);
 
