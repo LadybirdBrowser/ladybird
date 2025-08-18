@@ -204,11 +204,108 @@ public:
     static Utf16String from_string_builder(Badge<StringBuilder>, StringBuilder& builder);
     static ErrorOr<Utf16String> from_ipc_stream(Stream&, size_t length_in_code_units, bool is_ascii);
 
+    constexpr Utf16String(Badge<Optional<Utf16String>>, nullptr_t)
+        : Detail::Utf16StringBase(Badge<Utf16String> {}, nullptr)
+    {
+    }
+
+    [[nodiscard]] constexpr bool is_invalid(Badge<Optional<Utf16String>>) const { return raw() == 0; }
+
 private:
     ALWAYS_INLINE explicit Utf16String(NonnullRefPtr<Detail::Utf16StringData const> value)
         : Utf16StringBase(move(value))
     {
     }
+};
+
+template<>
+class [[nodiscard]] Optional<Utf16String> : public OptionalBase<Utf16String> {
+    template<typename U>
+    friend class Optional;
+
+public:
+    using ValueType = Utf16String;
+
+    constexpr Optional() = default;
+
+    template<SameAs<OptionalNone> V>
+    constexpr Optional(V) { }
+
+    constexpr Optional(Optional<Utf16String> const& other)
+        : m_value(other.m_value)
+    {
+    }
+
+    constexpr Optional(Optional&& other)
+        : m_value(move(other.m_value))
+    {
+    }
+
+    template<typename U = Utf16String>
+    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
+    explicit(!IsConvertible<U&&, Utf16String>) constexpr Optional(U&& value)
+    requires(!IsSame<RemoveCVReference<U>, Optional<Utf16String>> && IsConstructible<Utf16String, U &&>)
+        : m_value(forward<U>(value))
+    {
+    }
+
+    template<SameAs<OptionalNone> V>
+    constexpr Optional& operator=(V)
+    {
+        clear();
+        return *this;
+    }
+
+    constexpr Optional& operator=(Optional const& other)
+    {
+        if (this != &other)
+            m_value = other.m_value;
+        return *this;
+    }
+
+    constexpr Optional& operator=(Optional&& other)
+    {
+        if (this != &other)
+            m_value = move(other.m_value);
+        return *this;
+    }
+
+    constexpr void clear()
+    {
+        m_value = empty_value;
+    }
+
+    [[nodiscard]] constexpr bool has_value() const
+    {
+        return !m_value.is_invalid({});
+    }
+
+    [[nodiscard]] constexpr Utf16String& value() &
+    {
+        VERIFY(has_value());
+        return m_value;
+    }
+
+    [[nodiscard]] constexpr Utf16String const& value() const&
+    {
+        VERIFY(has_value());
+        return m_value;
+    }
+
+    [[nodiscard]] constexpr Utf16String value() &&
+    {
+        return release_value();
+    }
+
+    [[nodiscard]] constexpr Utf16String release_value()
+    {
+        VERIFY(has_value());
+        return exchange(m_value, empty_value);
+    }
+
+private:
+    static constexpr Utf16String empty_value { Badge<Optional<Utf16String>> {}, nullptr };
+    Utf16String m_value { empty_value };
 };
 
 template<>

@@ -330,9 +330,17 @@ public:
         (*this_data)->ref();
     }
 
-    [[nodiscard]] constexpr FlatPtr raw(Badge<Utf16FlyString>) const { return bit_cast<FlatPtr>(m_value); }
+    template<OneOf<Utf16String, Utf16FlyString> T>
+    constexpr Utf16StringBase(Badge<T>, nullptr_t)
+        : m_value { .data = nullptr }
+    {
+    }
+
+    [[nodiscard]] constexpr FlatPtr raw(Badge<Utf16FlyString>) const { return raw(); }
 
 protected:
+    [[nodiscard]] constexpr FlatPtr raw() const { return bit_cast<FlatPtr>(m_value); }
+
     ALWAYS_INLINE void destroy_string() const
     {
         if (has_long_storage()) {
