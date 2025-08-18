@@ -1403,9 +1403,8 @@ void FormattingContext::compute_inset(NodeWithStyleAndBoxModelMetrics const& box
 // https://drafts.csswg.org/css-sizing-3/#fit-content-size
 CSSPixels FormattingContext::calculate_fit_content_width(Layout::Box const& box, AvailableSpace const& available_space) const
 {
-    // If the available space in a given axis is definite,
-    // equal to clamp(min-content size, stretch-fit size, max-content size)
-    // (i.e. max(min-content size, min(max-content size, stretch-fit size))).
+    // If the available space in a given axis is definite, equal to clamp(min-content size, stretch-fit size,
+    // max-content size) (i.e. max(min-content size, min(max-content size, stretch-fit size))).
     if (available_space.width.is_definite()) {
         return max(calculate_min_content_width(box),
             min(calculate_stretch_fit_width(box, available_space.width),
