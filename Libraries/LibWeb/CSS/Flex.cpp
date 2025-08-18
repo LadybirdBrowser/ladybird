@@ -6,6 +6,7 @@
 
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Percentage.h>
+#include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
 
@@ -27,9 +28,18 @@ Flex Flex::percentage_of(Percentage const& percentage) const
 
 String Flex::to_string(SerializationMode serialization_mode) const
 {
-    if (serialization_mode == SerializationMode::ResolvedValue)
-        return MUST(String::formatted("{}fr", to_fr()));
-    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
+    // https://drafts.csswg.org/cssom/#serialize-a-css-value
+    // AD-HOC: No spec definition, so copy the other <dimension> definitions
+    if (serialization_mode == SerializationMode::ResolvedValue) {
+        StringBuilder builder;
+        serialize_a_number(builder, to_fr());
+        builder.append("fr"sv);
+        return builder.to_string_without_validation();
+    }
+    StringBuilder builder;
+    serialize_a_number(builder, raw_value());
+    builder.append(unit_name());
+    return builder.to_string_without_validation();
 }
 
 double Flex::to_fr() const
