@@ -1178,6 +1178,10 @@ void Document::respond_to_base_url_changes()
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#set-the-url
 void Document::set_url(URL::URL const& url)
 {
+    // OPTIMIZATION: Avoid unnecessary work if the URL is already set.
+    if (m_url == url)
+        return;
+
     // To set the URL for a Document document to a URL record url:
 
     // 1. Set document's URL to url.
