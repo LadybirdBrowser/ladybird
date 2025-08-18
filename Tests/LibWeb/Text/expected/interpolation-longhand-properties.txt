@@ -2,7 +2,7 @@ At time 400:
   accent-color: rgb(78, 88, 99)
   align-content: flex-start
   animation-duration: 0s
-  aspect-ratio: 1.54415 / 1
+  aspect-ratio: 1.544154 / 1
   background-color: rgb(78, 88, 99)
   background-repeat: repeat-x
   bottom: auto

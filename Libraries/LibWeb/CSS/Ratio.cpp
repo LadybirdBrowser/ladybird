@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "Ratio.h"
+#include <LibWeb/CSS/Serialize.h>
 #include <math.h>
 
 namespace Web::CSS {
@@ -24,7 +25,15 @@ bool Ratio::is_degenerate() const
 
 String Ratio::to_string() const
 {
-    return MUST(String::formatted("{:.5} / {:.5}", m_first_value, m_second_value));
+    // https://drafts.csswg.org/cssom/#serialize-a-css-value
+    // -> <ratio>
+    // The numerator serialized as per <number> followed by the literal string " / ", followed by the denominator
+    // serialized as per <number>.
+    StringBuilder builder;
+    serialize_a_number(builder, m_first_value);
+    builder.append(" / "sv);
+    serialize_a_number(builder, m_second_value);
+    return builder.to_string_without_validation();
 }
 
 }
