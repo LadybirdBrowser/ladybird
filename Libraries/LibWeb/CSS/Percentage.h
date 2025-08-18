@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/String.h>
-#include <AK/Variant.h>
 #include <LibWeb/CSS/SerializationMode.h>
+#include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
 
@@ -24,7 +24,13 @@ public:
 
     String to_string(SerializationMode = SerializationMode::Normal) const
     {
-        return MUST(String::formatted("{}%", m_value));
+        // https://drafts.csswg.org/cssom/#serialize-a-css-value
+        // -> <percentage>
+        // The <number> component serialized as per <number> followed by the literal string "%" (U+0025).
+        StringBuilder builder;
+        serialize_a_number(builder, m_value);
+        builder.append("%"sv);
+        return builder.to_string_without_validation();
     }
 
     bool operator==(Percentage const& other) const { return m_value == other.m_value; }
