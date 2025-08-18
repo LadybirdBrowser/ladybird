@@ -467,7 +467,7 @@ void HTMLDialogElement::set_is_modal(bool is_modal)
     if (m_is_modal == is_modal)
         return;
     m_is_modal = is_modal;
-    invalidate_style(DOM::StyleInvalidationReason::NodeRemove);
+    invalidate_style(DOM::StyleInvalidationReason::HTMLDialogElementSetIsModal);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:is-valid-invoker-command-steps
