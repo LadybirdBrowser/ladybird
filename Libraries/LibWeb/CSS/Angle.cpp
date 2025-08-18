@@ -7,6 +7,7 @@
 #include <AK/Math.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Percentage.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
 namespace Web::CSS {
@@ -29,9 +30,20 @@ Angle Angle::percentage_of(Percentage const& percentage) const
 
 String Angle::to_string(SerializationMode serialization_mode) const
 {
-    if (serialization_mode == SerializationMode::ResolvedValue)
-        return MUST(String::formatted("{}deg", to_degrees()));
-    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
+    // https://drafts.csswg.org/cssom/#serialize-a-css-value
+    // -> <angle>
+    // The <number> component serialized as per <number> followed by the unit in canonical form as defined in its
+    // respective specification.
+    if (serialization_mode == SerializationMode::ResolvedValue) {
+        StringBuilder builder;
+        serialize_a_number(builder, to_degrees());
+        builder.append("deg"sv);
+        return builder.to_string_without_validation();
+    }
+    StringBuilder builder;
+    serialize_a_number(builder, raw_value());
+    builder.append(unit_name());
+    return builder.to_string_without_validation();
 }
 
 double Angle::to_degrees() const
