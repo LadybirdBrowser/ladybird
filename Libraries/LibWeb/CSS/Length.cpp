@@ -225,11 +225,24 @@ String Length::to_string(SerializationMode serialization_mode) const
 {
     if (is_auto())
         return "auto"_string;
+
+    // https://drafts.csswg.org/cssom/#serialize-a-css-value
+    // -> <length>
+    // The <number> component serialized as per <number> followed by the unit in its canonical form as defined in its
+    // respective specification.
+
     // FIXME: Manually skip this for px so we avoid rounding errors in absolute_length_to_px.
     //        Maybe provide alternative functions that don't produce CSSPixels?
-    if (serialization_mode == SerializationMode::ResolvedValue && is_absolute() && m_type != Type::Px)
-        return MUST(String::formatted("{:.5}px", absolute_length_to_px()));
-    return MUST(String::formatted("{:.5}{}", m_value, unit_name()));
+    if (serialization_mode == SerializationMode::ResolvedValue && is_absolute() && m_type != Type::Px) {
+        StringBuilder builder;
+        serialize_a_number(builder, absolute_length_to_px().to_double());
+        builder.append("px"sv);
+        return builder.to_string_without_validation();
+    }
+    StringBuilder builder;
+    serialize_a_number(builder, m_value);
+    builder.append(unit_name());
+    return builder.to_string_without_validation();
 }
 
 StringView Length::unit_name() const

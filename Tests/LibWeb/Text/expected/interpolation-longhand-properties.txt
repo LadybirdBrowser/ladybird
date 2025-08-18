@@ -6,7 +6,7 @@ At time 400:
   background-color: rgb(78, 88, 99)
   background-repeat: repeat-x
   bottom: auto
-  box-shadow: rgb(153, 0, 102) 40px 80px 126px 0px inset, rgba(0, 0, 102, 0.4) 20px 4px 8px 12px
+  box-shadow: rgb(153, 0, 102) 40.000001px 80.000001px 126.000002px 0px inset, rgba(0, 0, 102, 0.4) 20px 4px 8px 12px
   color: rgb(153, 0, 102)
   transform: matrix(1, 0, 0, 1, 40, 40)
 
