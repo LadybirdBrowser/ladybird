@@ -18,6 +18,7 @@
 #include <LibWeb/Painting/ClipFrame.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
+#include <LibWeb/Painting/ShouldAntiAlias.h>
 
 namespace Web::Painting {
 

@@ -23,6 +23,8 @@ protected:
     SVGPaintable(Layout::SVGBox const&);
 
     virtual CSSPixelRect compute_absolute_rect() const override;
+
+    ShouldAntiAlias should_anti_alias() const;
 };
 
 template<>
