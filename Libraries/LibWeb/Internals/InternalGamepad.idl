@@ -1,0 +1,14 @@
+[Exposed=Nobody]
+interface InternalGamepad {
+    readonly attribute sequence<long> buttons;
+    readonly attribute sequence<long> axes;
+    readonly attribute sequence<long> triggers;
+
+    undefined setButton(long button, boolean down);
+    undefined setAxis(long axis, short value);
+
+    sequence<object> getReceivedRumbleEffects();
+    sequence<object> getReceivedRumbleTriggerEffects();
+
+    undefined disconnect();
+};
