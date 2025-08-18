@@ -734,27 +734,24 @@ void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, GC::
     // with the following behaviors:
     auto display = layout_node->display();
     if (!display.is_grid_inside() && !display.is_flex_inside()) {
-        auto& parent = *layout_node;
+        auto& parent = as<NodeWithStyle>(*layout_node);
 
         // If the box does not overflow in the vertical axis, then it is centered vertically.
         // FIXME: Only apply alignment when box overflows
-        auto flex_computed_values = parent.computed_values().clone_inherited_values();
-        auto& mutable_flex_computed_values = static_cast<CSS::MutableComputedValues&>(*flex_computed_values);
-        mutable_flex_computed_values.set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
-        mutable_flex_computed_values.set_justify_content(CSS::JustifyContent::Center);
-        mutable_flex_computed_values.set_flex_direction(CSS::FlexDirection::Column);
-        mutable_flex_computed_values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
-        mutable_flex_computed_values.set_min_height(parent.computed_values().min_height());
-        auto flex_wrapper = parent.heap().template allocate<BlockContainer>(parent.document(), nullptr, move(flex_computed_values));
+        auto flex_wrapper = parent.create_anonymous_wrapper();
+        auto& flex_computed_values = flex_wrapper->mutable_computed_values();
+        flex_computed_values.set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
+        flex_computed_values.set_justify_content(CSS::JustifyContent::Center);
+        flex_computed_values.set_flex_direction(CSS::FlexDirection::Column);
+        flex_computed_values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
+        flex_computed_values.set_min_height(parent.computed_values().min_height());
 
-        auto content_box_computed_values = parent.computed_values().clone_inherited_values();
-        auto content_box_wrapper = parent.heap().template allocate<BlockContainer>(parent.document(), nullptr, move(content_box_computed_values));
+        auto content_box_wrapper = parent.create_anonymous_wrapper();
         content_box_wrapper->set_children_are_inline(parent.children_are_inline());
 
         Vector<GC::Root<Node>> sequence;
-        for (auto child = parent.first_child(); child; child = child->next_sibling()) {
+        for (auto child = parent.first_child(); child; child = child->next_sibling())
             sequence.append(*child);
-        }
 
         for (auto& node : sequence) {
             parent.remove_child(*node);
