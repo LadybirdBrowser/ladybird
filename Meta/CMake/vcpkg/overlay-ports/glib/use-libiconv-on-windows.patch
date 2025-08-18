@@ -1,0 +1,28 @@
+diff --git a/glib/gconvert.c b/glib/gconvert.c
+index 829fe38de..e01ad8884 100644
+--- a/glib/gconvert.c
++++ b/glib/gconvert.c
+@@ -33,7 +33,8 @@
+ 
+ #ifdef G_OS_WIN32
+ #include <windows.h>
+-#include "win_iconv.c"
++#define USE_LIBICONV_GNU
++#include <iconv.h>
+ #endif
+ 
+ #include "gconvert.h"
+diff --git a/meson.build b/meson.build
+index d465253af..34ce69e4d 100644
+--- a/meson.build
++++ b/meson.build
+@@ -2038,7 +2038,8 @@ glibconfig_conf.set10('G_HAVE_GROWING_STACK', growing_stack)
+ if host_system == 'windows'
+   # We have a #include "win_iconv.c" in gconvert.c on Windows, so we don't need
+   # any external library for it
+-  libiconv = []
++  libiconv = [cc.find_library('iconv')]
++  found_iconv = true
+ else
+   libiconv = dependency('iconv')
+ endif
