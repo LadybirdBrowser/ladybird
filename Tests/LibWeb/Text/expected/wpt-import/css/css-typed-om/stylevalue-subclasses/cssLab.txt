@@ -1,3 +1,20 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 15 tests
+
+15 Fail
+Fail	Constructing a CSSLab with percent for the lightness works as intended.
+Fail	CSSLab.l can be updated with a percent.
+Fail	Constructing a CSSLab with number for the lightness works as intended.
+Fail	CSSLab.l can be updated with a number.
+Fail	Constructing a CSSLab with css pixels for lightness throws a SyntaxError.
+Fail	Constructing a CSSLab with degrees for lightness throws a SyntaxError.
+Fail	CSSLab can be constructed from three numbers and will get an alpha of 100%.
+Fail	CSSLab can be constructed from four numbers.
+Fail	Constructing a CSSLab with CSS.number for l or alpha throws a SyntaxError
+Fail	Updating a CSSLab with CSS.number for l throws a SyntaxError
+Fail	CSSLab.l can be updated to a number.
+Fail	CSSLab.l can be updated with a CSS percent.
+Fail	Updating a CSSLab with CSS.number for alpha throws a SyntaxError
+Fail	CSSLab.alpha can be updated to a number.
+Fail	CSSLab.alpha can be updated with a CSS percent.

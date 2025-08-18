@@ -1,3 +1,20 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 14 tests
+
+2 Pass
+12 Fail
+Pass	Calling StylePropertyMap.append with an unsupported property name throws TypeError
+Pass	Calling StylePropertyMap.append with an null property name throws TypeError
+Fail	Calling StylePropertyMap.append with a property that is not list valued throws TypeError
+Fail	Calling StylePropertyMap.append with a shorthand property throws TypeError
+Fail	Calling StylePropertyMap.append with an invalid CSSStyleValue throws TypeError
+Fail	Calling StylePropertyMap.append with an invalid String value throws TypeError
+Fail	Calling StylePropertyMap.append with a mix of valid and invalid values throws TypeError
+Fail	Calling StylePropertyMap.append with a CSSUnparsedValue throws TypeError
+Fail	Calling StylePropertyMap.append with a var ref throws TypeError
+Fail	Calling StylePropertyMap.append with a CSSVariableReferenceValue property throws TypeError
+Fail	Appending a list-valued property with CSSStyleValue or String updates its values
+Fail	Appending a list-valued property with list-valued string updates its values
+Fail	StylePropertyMap.append is case-insensitive
+Fail	StylePropertyMap.append rejects appending to CSS-wide keywords

@@ -2,16 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-12 Fail
-Fail	CSS.cap() produces cap length
-Fail	CSS.ch() produces ch length
-Fail	CSS.em() produces em length
-Fail	CSS.ex() produces ex length
-Fail	CSS.ic() produces ic length
-Fail	CSS.lh() produces lh length
-Fail	CSS.rcap() produces rcap length
-Fail	CSS.rch() produces rch length
-Fail	CSS.rem() produces rem length
-Fail	CSS.rex() produces rex length
-Fail	CSS.ric() produces ric length
-Fail	CSS.rlh() produces rlh length
+12 Pass
+Pass	CSS.cap() produces cap length
+Pass	CSS.ch() produces ch length
+Pass	CSS.em() produces em length
+Pass	CSS.ex() produces ex length
+Pass	CSS.ic() produces ic length
+Pass	CSS.lh() produces lh length
+Pass	CSS.rcap() produces rcap length
+Pass	CSS.rch() produces rch length
+Pass	CSS.rem() produces rem length
+Pass	CSS.rex() produces rex length
+Pass	CSS.ric() produces ric length
+Pass	CSS.rlh() produces rlh length

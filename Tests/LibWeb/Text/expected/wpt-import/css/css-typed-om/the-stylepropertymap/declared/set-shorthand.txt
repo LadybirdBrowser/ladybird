@@ -1,3 +1,9 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 4 tests
+
+4 Fail
+Fail	Setting a shorthand with an invalid CSSStyleValue on css rule throws TypeError
+Fail	Setting a shorthand with an invalid String on css rule throws TypeError
+Fail	Setting a shorthand with a CSSStyleValue updates css rule
+Fail	Setting a shorthand with a string updates css rule

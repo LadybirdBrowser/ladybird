@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	CSS.cm() produces cm length
-Fail	CSS.mm() produces mm length
-Fail	CSS.Q() produces q length
-Fail	CSS.in() produces in length
-Fail	CSS.pt() produces pt length
-Fail	CSS.pc() produces pc length
-Fail	CSS.px() produces px length
+7 Pass
+Pass	CSS.cm() produces cm length
+Pass	CSS.mm() produces mm length
+Pass	CSS.Q() produces q length
+Pass	CSS.in() produces in length
+Pass	CSS.pt() produces pt length
+Pass	CSS.pc() produces pc length
+Pass	CSS.px() produces px length

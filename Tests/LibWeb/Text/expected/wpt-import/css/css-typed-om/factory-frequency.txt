@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	CSS.Hz() produces hz frequency
-Fail	CSS.kHz() produces khz frequency
+2 Pass
+Pass	CSS.Hz() produces hz frequency
+Pass	CSS.kHz() produces khz frequency
