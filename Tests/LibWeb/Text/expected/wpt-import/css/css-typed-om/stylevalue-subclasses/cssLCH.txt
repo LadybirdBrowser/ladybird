@@ -1,3 +1,23 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 18 tests
+
+18 Fail
+Fail	Constructing a CSSLCH with percent for the lightness works as intended.
+Fail	CSSLCH.l can be updated with a percent.
+Fail	Constructing a CSSLCH with number for the lightness works as intended.
+Fail	CSSLCH.l can be updated with a number.
+Fail	Constructing a CSSLCH with css pixels for lightness throws a SyntaxError.
+Fail	Constructing a CSSLCH with degrees for lightness throws a SyntaxError.
+Fail	CSSLCH can be constructed from three numbers and will get an alpha of 100%.
+Fail	CSSLCH can be constructed from four numbers.
+Fail	Constructing a CSSLCH with CSS.number for l, c, h or alpha throws a SyntaxError
+Fail	Updating a CSSLCH with CSS.number for l throws a SyntaxError
+Fail	CSSLCH.l can be updated to a number.
+Fail	CSSLCH.l can be updated with a CSS percent.
+Fail	Updating a CSSLCH with CSS.number for c throws a SyntaxError
+Fail	CSSLCH.c can be updated to a number.
+Fail	CSSLCH.c can be updated with a CSS percent.
+Fail	Updating a CSSLCH with CSS.number for alpha throws a SyntaxError
+Fail	CSSLCH.alpha can be updated to a number.
+Fail	CSSLCH.alpha can be updated with a CSS percent.

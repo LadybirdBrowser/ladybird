@@ -1,3 +1,26 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 21 tests
+
+21 Fail
+Fail	Constructing a CSSHWB with degrees for the hue works as intended.
+Fail	CSSHWB.h can be updated with a degrees.
+Fail	Constructing a CSSHWB with radians for the hue works as intended.
+Fail	CSSHWB.h can be updated with a radians.
+Fail	Constructing a CSSHWB with gradians for the hue works as intended.
+Fail	CSSHWB.h can be updated with a gradians.
+Fail	Constructing a CSSHWB with a number for hue throws a TypeError.
+Fail	Constructing a CSSHWB with undefined for hue throws a TypeError.
+Fail	Constructing a CSSHWB with css pixels for hue throws a SyntaxError.
+Fail	CSSHWB can be constructed from three numbers and will get an alpha of 100%.
+Fail	CSSHWB can be constructed from four numbers.
+Fail	Constructing a CSSHWB with CSS.number for s, l or alpha throws a SyntaxError
+Fail	Updating a CSSHWB with CSS.number for w throws a SyntaxError
+Fail	CSSHWB.w can be updated to a number.
+Fail	CSSHWB.w can be updated with a CSS percent.
+Fail	Updating a CSSHWB with CSS.number for b throws a SyntaxError
+Fail	CSSHWB.b can be updated to a number.
+Fail	CSSHWB.b can be updated with a CSS percent.
+Fail	Updating a CSSHWB with CSS.number for alpha throws a SyntaxError
+Fail	CSSHWB.alpha can be updated to a number.
+Fail	CSSHWB.alpha can be updated with a CSS percent.

@@ -1,3 +1,29 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 24 tests
+
+24 Fail
+Fail	Constructing a CSSHSL with a number for the hue works as intended.
+Fail	CSSHSL.h can be updated with a a number.
+Fail	Constructing a CSSHSL with degrees for the hue works as intended.
+Fail	CSSHSL.h can be updated with a degrees.
+Fail	Constructing a CSSHSL with radians for the hue works as intended.
+Fail	CSSHSL.h can be updated with a radians.
+Fail	Constructing a CSSHSL with gradians for the hue works as intended.
+Fail	CSSHSL.h can be updated with a gradians.
+Fail	Constructing a CSSHSL with undefined for the hue works as intended.
+Fail	CSSHSL.h can be updated with a undefined.
+Fail	Constructing a CSSHSL with css pixels for hue throws a SyntaxError.
+Fail	Constructing a CSSHSL with css em for hue throws a SyntaxError.
+Fail	CSSHSL can be constructed from three numbers and will get an alpha of 100%.
+Fail	CSSHSL can be constructed from four numbers.
+Fail	Constructing a CSSHSL with CSS.number for s, l or alpha throws a TypeError
+Fail	Updating a CSSHSL with CSS.number for s throws a SyntaxError
+Fail	CSSHSL.s can be updated to a number.
+Fail	CSSHSL.s can be updated with a CSS percent.
+Fail	Updating a CSSHSL with CSS.number for l throws a SyntaxError
+Fail	CSSHSL.l can be updated to a number.
+Fail	CSSHSL.l can be updated with a CSS percent.
+Fail	Updating a CSSHSL with CSS.number for alpha throws a SyntaxError
+Fail	CSSHSL.alpha can be updated to a number.
+Fail	CSSHSL.alpha can be updated with a CSS percent.

@@ -1,3 +1,23 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 18 tests
+
+18 Fail
+Fail	Constructing a CSSOKLCH with percent for the lightness works as intended.
+Fail	CSSOKLCH.l can be updated with a percent.
+Fail	Constructing a CSSOKLCH with number for the lightness works as intended.
+Fail	CSSOKLCH.l can be updated with a number.
+Fail	Constructing a CSSOKLCH with css pixels for lightness throws a SyntaxError.
+Fail	Constructing a CSSOKLCH with degrees for lightness throws a SyntaxError.
+Fail	CSSOKLCH can be constructed from three numbers and will get an alpha of 100%.
+Fail	CSSOKLCH can be constructed from four numbers.
+Fail	Constructing a CSSOKLCH with CSS.number for l, c, h or alpha throws a SyntaxError
+Fail	Updating a CSSOKLCH with CSS.number for l throws a SyntaxError
+Fail	CSSOKLCH.l can be updated to a number.
+Fail	CSSOKLCH.l can be updated with a CSS percent.
+Fail	Updating a CSSOKLCH with CSS.number for c throws a SyntaxError
+Fail	CSSOKLCH.c can be updated to a number.
+Fail	CSSOKLCH.c can be updated with a CSS percent.
+Fail	Updating a CSSOKLCH with CSS.number for alpha throws a SyntaxError
+Fail	CSSOKLCH.alpha can be updated to a number.
+Fail	CSSOKLCH.alpha can be updated with a CSS percent.

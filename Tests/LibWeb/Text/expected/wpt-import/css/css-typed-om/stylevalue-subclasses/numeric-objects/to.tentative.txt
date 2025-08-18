@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 17 tests
 
-2 Pass
-15 Fail
+1 Pass
+16 Fail
 Fail	Converting a CSSUnitValue to an invalid unit throws SyntaxError
 Fail	Converting a CSSNumericValue with invalid sum value throws TypeError
 Fail	Converting a CSSNumericValue with sum value containing more than one value throws TypeError
 Pass	Converting a CSSUnitValue to an incompatible unit throws TypeError
-Pass	Converting a CSSUnitValue to its own unit returns itself
+Fail	Converting a CSSUnitValue to its own unit returns itself
 Fail	Converting a CSSUnitValue to its canonical unit returns correct value
 Fail	Converting a CSSMathSum to a single unit adds the values
 Fail	Converting a CSSMathProduct to a single unit multiplies the values

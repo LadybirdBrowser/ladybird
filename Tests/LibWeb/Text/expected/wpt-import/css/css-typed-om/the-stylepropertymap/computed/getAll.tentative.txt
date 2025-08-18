@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 6 tests
 
-3 Pass
-3 Fail
+5 Pass
+1 Fail
 Pass	Calling StylePropertyMap.getAll with an unsupported property throws a TypeError
 Pass	Calling StylePropertyMap.getAll with a custom property not in the property model returns an empty list
-Fail	Calling StylePropertyMap.getAll with a valid property returns a single element list with the correct entry
-Fail	StylePropertyMap.getAll is case-insensitive
+Pass	Calling StylePropertyMap.getAll with a valid property returns a single element list with the correct entry
+Pass	StylePropertyMap.getAll is case-insensitive
 Pass	Calling StylePropertyMap.getAll with a valid custom property returns a single element list with the correct entry
 Fail	Calling StylePropertyMap.getAll with a list-valued property returns all the values
