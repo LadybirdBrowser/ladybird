@@ -6,6 +6,7 @@
 
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Percentage.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
 namespace Web::CSS {
@@ -28,9 +29,20 @@ Frequency Frequency::percentage_of(Percentage const& percentage) const
 
 String Frequency::to_string(SerializationMode serialization_mode) const
 {
-    if (serialization_mode == SerializationMode::ResolvedValue)
-        return MUST(String::formatted("{}hz", to_hertz()));
-    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
+    // https://drafts.csswg.org/cssom/#serialize-a-css-value
+    // -> <frequency>
+    // The <number> component serialized as per <number> followed by the unit in its canonical form as defined in its
+    // respective specification.
+    if (serialization_mode == SerializationMode::ResolvedValue) {
+        StringBuilder builder;
+        serialize_a_number(builder, to_hertz());
+        builder.append("hz"sv);
+        return builder.to_string_without_validation();
+    }
+    StringBuilder builder;
+    serialize_a_number(builder, raw_value());
+    builder.append(unit_name());
+    return builder.to_string_without_validation();
 }
 
 double Frequency::to_hertz() const
