@@ -186,32 +186,49 @@ void serialize_a_srgb_value(StringBuilder& builder, Color color)
         builder.appendff("rgba({}, {}, {}, 0.{})", color.red(), color.green(), color.blue(), format_to_8bit_compatible(color.alpha()).data());
 }
 
+// https://drafts.csswg.org/cssom/#serialize-a-css-value
+void serialize_a_number(StringBuilder& builder, double value)
+{
+    // -> <number>
+    // A base-ten number using digits 0-9 (U+0030 to U+0039) in the shortest form possible, using "." to separate
+    // decimals (if any), rounding the value if necessary to not produce more than 6 decimals, preceded by "-" (U+002D)
+    // if it is negative.
+    builder.appendff("{:.6}", value);
+}
+
 String serialize_an_identifier(StringView ident)
 {
     StringBuilder builder;
     serialize_an_identifier(builder, ident);
-    return MUST(builder.to_string());
+    return builder.to_string_without_validation();
 }
 
 String serialize_a_string(StringView string)
 {
     StringBuilder builder;
     serialize_a_string(builder, string);
-    return MUST(builder.to_string());
+    return builder.to_string_without_validation();
 }
 
 String serialize_a_url(StringView url)
 {
     StringBuilder builder;
     serialize_a_url(builder, url);
-    return MUST(builder.to_string());
+    return builder.to_string_without_validation();
 }
 
 String serialize_a_srgb_value(Color color)
 {
     StringBuilder builder;
     serialize_a_srgb_value(builder, color);
-    return MUST(builder.to_string());
+    return builder.to_string_without_validation();
+}
+
+String serialize_a_number(double value)
+{
+    StringBuilder builder;
+    serialize_a_number(builder, value);
+    return builder.to_string_without_validation();
 }
 
 // https://drafts.csswg.org/cssom/#serialize-a-css-declaration
@@ -239,7 +256,7 @@ String serialize_a_css_declaration(StringView property, StringView value, Import
     builder.append(';');
 
     // 7. Return s.
-    return MUST(builder.to_string());
+    return builder.to_string_without_validation();
 }
 
 // https://drafts.csswg.org/css-syntax/#serialization
