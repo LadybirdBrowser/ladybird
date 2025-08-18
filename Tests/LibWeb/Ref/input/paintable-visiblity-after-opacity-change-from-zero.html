@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+    <head>
+        <link
+            rel="match"
+            href="../expected/paintable-visiblity-after-opacity-change-from-zero-ref.html"
+        />
+        <style>
+            #foo {
+                opacity: 0;
+                background-color: red;
+                height: 100px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="foo"></div>
+
+        <script>
+            setTimeout(() => {
+                document.querySelector("#foo").style.opacity = 0.5;
+                document.documentElement.className = "";
+            }, 100);
+        </script>
+    </body>
+</html>
