@@ -7,6 +7,7 @@
 #include "CSSNumericValue.h"
 #include <LibWeb/Bindings/CSSNumericValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/Serialize.h>
 
@@ -99,10 +100,13 @@ CSSNumericType CSSNumericValue::type_for_bindings() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssnumericvalue
-String CSSNumericValue::to_string(SerializationParams const&) const
+String CSSNumericValue::to_string(SerializationParams const& params) const
 {
     // To serialize a CSSNumericValue this, given an optional minimum, a numeric value, and optional maximum, a numeric value:
-    // FIXME: 1. If this is a CSSUnitValue, serialize a CSSUnitValue from this, passing minimum and maximum. Return the result.
+    // 1. If this is a CSSUnitValue, serialize a CSSUnitValue from this, passing minimum and maximum. Return the result.
+    if (auto* unit_value = as_if<CSSUnitValue>(this)) {
+        return unit_value->serialize_unit_value(params.minimum, params.maximum);
+    }
     // FIXME: 2. Otherwise, serialize a CSSMathValue from this, and return the result.
 
     return {};

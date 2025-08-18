@@ -65,6 +65,7 @@ CSSStyleSheet
 CSSStyleValue
 CSSSupportsRule
 CSSTransition
+CSSUnitValue
 CSSUnparsedValue
 CSSVariableReferenceValue
 CacheStorage
