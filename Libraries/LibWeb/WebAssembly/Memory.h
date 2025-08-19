@@ -46,8 +46,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    WebIDL::ExceptionOr<void> reset_the_memory_buffer();
-    static WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> create_a_fixed_length_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared);
+    static void refresh_the_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress);
+    static GC::Ref<JS::ArrayBuffer> create_a_fixed_length_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared);
 
     Wasm::MemoryAddress m_address;
     Shared m_shared { Shared::No };

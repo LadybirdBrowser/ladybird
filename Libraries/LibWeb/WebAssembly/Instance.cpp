@@ -71,10 +71,11 @@ void Instance::initialize(JS::Realm& realm)
                 m_exports->define_direct_property(name, *object, JS::default_attributes);
             },
             [&](Wasm::MemoryAddress const& address) {
-                Optional<GC::Ptr<Memory>> object = m_memory_instances.get(address);
+                Optional<GC::Ptr<Memory>> object = cache.get_memory_instance(address);
                 if (!object.has_value()) {
+                    // FIXME: Once LibWasm implements the threads/atomics proposal, the shared-ness should be
+                    //        obtained from the Wasm::MemoryInstance's type.
                     object = realm.create<Memory>(realm, address, Memory::Shared::No);
-                    m_memory_instances.set(address, *object);
                 }
 
                 m_exports->define_direct_property(name, *object, JS::default_attributes);
@@ -98,7 +99,6 @@ void Instance::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_exports);
     visitor.visit(m_function_instances);
-    visitor.visit(m_memory_instances);
     visitor.visit(m_table_instances);
 }
 

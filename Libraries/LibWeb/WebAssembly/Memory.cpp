@@ -49,15 +49,37 @@ Memory::Memory(JS::Realm& realm, Wasm::MemoryAddress address, Shared shared)
 {
     auto& cache = Detail::get_cache(realm);
 
-    cache.abstract_machine().store().get(address)->successful_grow_hook = [this] {
-        MUST(reset_the_memory_buffer());
+    cache.abstract_machine().store().get(address)->successful_grow_hook = [realm = GC::Ref(realm), address] {
+        refresh_the_memory_buffer(realm->vm(), realm, address);
     };
 }
 
+// https://webassembly.github.io/spec/js-api/#initialize-a-memory-object
 void Memory::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Memory, WebAssembly.Memory);
     Base::initialize(realm);
+
+    auto& vm = realm.vm();
+
+    // https://webassembly.github.io/spec/js-api/#initialize-a-memory-object
+    // 1. Let map be the surrounding agent’s associated Memory object cache.
+    // 2. Assert: map[memaddr] doesn’t exist.
+    auto& cache = Detail::get_cache(realm);
+    auto exists = cache.memory_instances().contains(m_address);
+    VERIFY(!exists);
+
+    // 3. Let buffer be the result of creating a fixed length memory buffer from memaddr.
+    auto buffer = create_a_fixed_length_memory_buffer(vm, realm, m_address, m_shared);
+
+    // 4. Set memory.[[Memory]] to memaddr.
+    // NOTE: This is already set by the Memory constructor.
+
+    // 5. Set memory.[[BufferObject]] to buffer.
+    m_buffer = buffer;
+
+    // 6. Set map[memaddr] to memory.
+    cache.add_memory_instance(m_address, *this);
 }
 
 void Memory::visit_edges(Visitor& visitor)
@@ -73,62 +95,58 @@ WebIDL::ExceptionOr<u32> Memory::grow(u32 delta)
 
     auto& context = Detail::get_cache(realm());
     auto* memory = context.abstract_machine().store().get(address());
-    if (!memory)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory instance to grow"sv);
+    VERIFY(memory);
 
     auto previous_size = memory->size() / Wasm::Constants::page_size;
     if (!memory->grow(delta * Wasm::Constants::page_size, Wasm::MemoryInstance::GrowType::No, Wasm::MemoryInstance::InhibitGrowCallback::Yes))
         return vm.throw_completion<JS::RangeError>("Memory.grow() grows past the stated limit of the memory instance"sv);
 
-    TRY(reset_the_memory_buffer());
+    refresh_the_memory_buffer(vm, realm(), m_address);
 
     return previous_size;
 }
 
 // https://webassembly.github.io/spec/js-api/#refresh-the-memory-buffer
-// FIXME: `refresh-the-memory-buffer` is a global abstract operation.
-//        Implement it as a static function to align with the spec.
-WebIDL::ExceptionOr<void> Memory::reset_the_memory_buffer()
+void Memory::refresh_the_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::MemoryAddress address)
 {
-    if (!m_buffer)
-        return {};
+    // 1. Let map be the surrounding agent’s associated Memory object cache.
+    // 2. Assert: map[memaddr] exists.
+    // 3. Let memory be map[memaddr].
+    auto& cache = Detail::get_cache(realm);
+    auto memory = cache.get_memory_instance(address);
+    VERIFY(memory.has_value());
 
-    auto& vm = this->vm();
-    auto& realm = *vm.current_realm();
+    // 4. Let buffer be memory.[[BufferObject]].
+    auto& buffer = memory.value()->m_buffer;
 
-    if (m_buffer->is_fixed_length()) {
+    // 5. If IsFixedLengthArrayBuffer(buffer) is true,
+    if (buffer->is_fixed_length()) {
         // https://webassembly.github.io/threads/js-api/index.html#refresh-the-memory-buffer
         // 1. If IsSharedArrayBuffer(buffer) is false,
-        if (!m_buffer->is_shared_array_buffer()) {
+        if (!buffer->is_shared_array_buffer()) {
             // 1. Perform ! DetachArrayBuffer(buffer, "WebAssembly.Memory").
-            MUST(JS::detach_array_buffer(vm, *m_buffer, JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)));
+            MUST(JS::detach_array_buffer(vm, *buffer, JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)));
         }
+
+        // 2. Let newBuffer be the result of creating a fixed length memory buffer from memaddr.
+        // 3. Set memory.[[BufferObject]] to newBuffer.
     }
 
-    m_buffer = TRY(create_a_fixed_length_memory_buffer(vm, realm, m_address, m_shared));
-
-    return {};
+    buffer = create_a_fixed_length_memory_buffer(vm, realm, address, memory.value()->m_shared);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-memory-buffer
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::buffer() const
 {
-    auto& vm = this->vm();
-    auto& realm = *vm.current_realm();
-
-    if (!m_buffer)
-        m_buffer = TRY(create_a_fixed_length_memory_buffer(vm, realm, m_address, m_shared));
-
     return GC::Ref(*m_buffer);
 }
 
 // https://webassembly.github.io/spec/js-api/#create-a-fixed-length-memory-buffer
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_fixed_length_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::MemoryAddress address, Shared shared)
+GC::Ref<JS::ArrayBuffer> Memory::create_a_fixed_length_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::MemoryAddress address, Shared shared)
 {
     auto& context = Detail::get_cache(realm);
     auto* memory = context.abstract_machine().store().get(address);
-    if (!memory)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory instance"sv);
+    VERIFY(memory);
 
     JS::ArrayBuffer* array_buffer;
     // https://webassembly.github.io/threads/js-api/index.html#create-a-fixed-length-memory-buffer
