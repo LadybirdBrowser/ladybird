@@ -11,8 +11,12 @@
 #    include <AK/Assertions.h>
 #    include <AK/NonnullRefPtr.h>
 #    include <AK/RefCounted.h>
-#    include <libdrm/drm_fourcc.h>
 #    include <vulkan/vulkan.h>
+#    ifdef AK_OS_LINUX
+#        include <libdrm/drm_fourcc.h>
+// Sharable Vulkan images are currently only implemented on Linux
+#        define USE_VULKAN_IMAGES 1
+#    endif
 
 namespace Gfx {
 
@@ -23,6 +27,7 @@ struct VulkanContext {
     VkDevice logical_device { VK_NULL_HANDLE };
     VkQueue graphics_queue { VK_NULL_HANDLE };
     uint32_t graphics_queue_family { 0 };
+#    ifdef USE_VULKAN_IMAGES
     VkCommandPool command_pool { VK_NULL_HANDLE };
     VkCommandBuffer command_buffer { VK_NULL_HANDLE };
     struct
@@ -30,8 +35,12 @@ struct VulkanContext {
         PFN_vkGetMemoryFdKHR get_memory_fd { nullptr };
         PFN_vkGetImageDrmFormatModifierPropertiesEXT get_image_drm_format_modifier_properties { nullptr };
     } ext_procs;
+#    endif
 };
 
+ErrorOr<VulkanContext> create_vulkan_context();
+
+#    ifdef USE_VULKAN_IMAGES
 struct VulkanImage : public RefCounted<VulkanImage> {
     VkImage image { VK_NULL_HANDLE };
     VkDeviceMemory memory { VK_NULL_HANDLE };
@@ -68,8 +77,8 @@ static inline uint32_t vk_format_to_drm_format(VkFormat format)
     }
 }
 
-ErrorOr<VulkanContext> create_vulkan_context();
 ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, uint32_t num_modifiers, uint64_t const* modifiers);
+#    endif
 
 }
 

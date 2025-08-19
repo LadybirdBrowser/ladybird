@@ -99,17 +99,22 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     queue_create_info.pQueuePriorities = &queue_priority;
 
     VkPhysicalDeviceFeatures deviceFeatures {};
+#ifdef USE_VULKAN_IMAGES
     char const* device_extensions[] = {
         VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
         VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME
     };
-
+    uint32_t device_extension_count = array_size(device_extensions);
+#else
+    const char** device_extensions = nullptr;
+    uint32_t device_extension_count = 0;
+#endif
     VkDeviceCreateInfo create_device_info {};
     create_device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     create_device_info.pQueueCreateInfos = &queue_create_info;
     create_device_info.queueCreateInfoCount = 1;
     create_device_info.pEnabledFeatures = &deviceFeatures;
-    create_device_info.enabledExtensionCount = array_size(device_extensions);
+    create_device_info.enabledExtensionCount = device_extension_count;
     create_device_info.ppEnabledExtensionNames = device_extensions;
 
     if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
@@ -119,6 +124,7 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     return device;
 }
 
+#ifdef USE_VULKAN_IMAGES
 static ErrorOr<VkCommandPool> create_command_pool(VkDevice logical_device, uint32_t queue_family_index)
 {
     VkCommandPoolCreateInfo command_pool_info = {
@@ -153,6 +159,7 @@ static ErrorOr<VkCommandBuffer> allocate_command_buffer(VkDevice logical_device,
     }
     return command_buffer;
 }
+#endif
 
 ErrorOr<VulkanContext> create_vulkan_context()
 {
@@ -165,6 +172,7 @@ ErrorOr<VulkanContext> create_vulkan_context()
     VkQueue graphics_queue;
     vkGetDeviceQueue(logical_device, graphics_queue_family, 0, &graphics_queue);
 
+#ifdef USE_VULKAN_IMAGES
     VkCommandPool command_pool = TRY(create_command_pool(logical_device, graphics_queue_family));
     VkCommandBuffer command_buffer = TRY(allocate_command_buffer(logical_device, command_pool));
 
@@ -176,6 +184,7 @@ ErrorOr<VulkanContext> create_vulkan_context()
     if (pfn_vk_get_image_drm_format_modifier_properties_khr == nullptr) {
         return Error::from_string_literal("vkGetImageDrmFormatModifierPropertiesEXT unavailable");
     }
+#endif
 
     return VulkanContext {
         .api_version = api_version,
@@ -184,15 +193,18 @@ ErrorOr<VulkanContext> create_vulkan_context()
         .logical_device = logical_device,
         .graphics_queue = graphics_queue,
         .graphics_queue_family = graphics_queue_family,
+#ifdef USE_VULKAN_IMAGES
         .command_pool = command_pool,
         .command_buffer = command_buffer,
         .ext_procs = {
             .get_memory_fd = pfn_vk_get_memory_fd_khr,
             .get_image_drm_format_modifier_properties = pfn_vk_get_image_drm_format_modifier_properties_khr,
         },
+#endif
     };
 }
 
+#ifdef USE_VULKAN_IMAGES
 VulkanImage::~VulkanImage()
 {
     if (image != VK_NULL_HANDLE) {
@@ -398,5 +410,6 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     };
     return image;
 }
+#endif
 
 }
