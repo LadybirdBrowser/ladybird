@@ -1,7 +1,7 @@
 {
   "name": "gtk",
-  "version": "4.16.3",
-  "port-version": 3,
+  "version": "4.19.2",
+  "port-version": 0,
   "description": "Portable library for creating graphical user interfaces.",
   "homepage": "https://www.gtk.org/",
   "license": "LGPL-2.0-only",
@@ -19,7 +19,7 @@
       "name": "cairo",
       "default-features": false,
       "features": [
-        "x11"
+        "fontconfig"
       ],
       "platform": "linux"
     },
@@ -46,10 +46,24 @@
       ]
     },
     "libepoxy",
+    "librsvg",
     "pango",
+    {
+      "name": "shaderc",
+      "platform": "linux",
+      "host": true
+    },
     {
       "name": "sassc",
       "host": true
+    },
+    {
+      "name": "wayland",
+      "platform": "linux"
+    },
+    {
+        "name": "wayland-protocols",
+        "platform": "linux"
     },
     {
       "name": "vcpkg-tool-meson",

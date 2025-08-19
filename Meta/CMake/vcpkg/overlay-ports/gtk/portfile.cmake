@@ -6,11 +6,8 @@ vcpkg_from_gitlab(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO GNOME/gtk
     REF ${VERSION}
-    SHA512 2e2d3135ebf8cb176a4e5e6f1faa26ae9ea5c3e2441e2c820372a76b78e641f207257600d6a207aa05883e04f29fac1452673bffa0395789b8e482cc6b204673
+    SHA512 73397bbc1f6bb9fd0fa2a8eedd6247cf3e4b70fb93ee62512a4bb6b205f4702d2e2680b655d7e06908f9d911442f07e29b7af2567d1806b63f0a13ca0f9f5572
     HEAD_REF master # branch name
-    PATCHES
-        0001-build.patch
-        fix_vulkan_enabled.patch
 )
 
 vcpkg_find_acquire_program(PKGCONFIG)
@@ -19,12 +16,13 @@ vcpkg_add_to_path("${PKGCONFIG_DIR}") # Post install script runs pkg-config so i
 vcpkg_add_to_path("${CURRENT_HOST_INSTALLED_DIR}/tools/glib/")
 
 set(x11 false)
+set(wayland false)
+set(vulkan disabled)
 set(win32 false)
 set(osx false)
 if(VCPKG_TARGET_IS_LINUX)
-    set(OPTIONS -Dwayland-backend=false) # CI missing at least wayland-protocols
-    set(x11 true)
-    # Enable the wayland gdk backend (only when building on Unix except for macOS)
+    set(wayland true)
+    set(vulkan enabled)
 elseif(VCPKG_TARGET_IS_WINDOWS)
     set(win32 true)
 elseif(VCPKG_TARGET_IS_OSX)
@@ -32,9 +30,11 @@ elseif(VCPKG_TARGET_IS_OSX)
 endif()
 
 list(APPEND OPTIONS -Dx11-backend=${x11}) #Enable the X11 gdk backend (only when building on Unix)
+list(APPEND OPTIONS -Dwayland-backend=${wayland}) # Enable the Wayland gdk backend (only when building on Unix except for macOS)
 list(APPEND OPTIONS -Dbroadway-backend=false) #Enable the broadway (HTML5) gdk backend
 list(APPEND OPTIONS -Dwin32-backend=${win32}) #Enable the Windows gdk backend (only when building on Windows)
 list(APPEND OPTIONS -Dmacos-backend=${osx}) #Enable the macOS gdk backend (only when building on macOS)
+list(APPEND OPTIONS -Dvulkan=${vulkan}) #Enable the Vulkan support (only when building on Unix)
 
 if("introspection" IN_LIST FEATURES)
     list(APPEND OPTIONS_RELEASE -Dintrospection=enabled)
@@ -55,7 +55,6 @@ vcpkg_configure_meson(
         -Dman-pages=false
         -Dmedia-gstreamer=disabled  # Build the gstreamer media backend
         -Dprint-cups=disabled       # Build the cups print backend
-        -Dvulkan=disabled           # Enable support for the Vulkan graphics API
         -Dcloudproviders=disabled   # Enable the cloudproviders support
         -Dsysprof=disabled          # include tracing support for sysprof
         -Dtracker=disabled          # Enable Tracker3 filechooser search
@@ -74,6 +73,7 @@ vcpkg_configure_meson(
         sassc='${CURRENT_HOST_INSTALLED_DIR}/tools/sassc/bin/sassc${VCPKG_HOST_EXECUTABLE_SUFFIX}'
         "g-ir-compiler='${GIR_COMPILER}'"
         "g-ir-scanner='${GIR_SCANNER}'"
+        glslc='${CURRENT_HOST_INSTALLED_DIR}/tools/shaderc/glslc'
 )
 
 vcpkg_install_meson(ADD_BIN_TO_PATH)
