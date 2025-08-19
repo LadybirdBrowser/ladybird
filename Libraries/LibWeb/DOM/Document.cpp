@@ -1908,6 +1908,8 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
         mouse_event_init.cancelable = true;
         mouse_event_init.composed = true;
         mouse_event_init.related_target = m_hovered_node;
+        if (auto navigable = this->navigable())
+            mouse_event_init.view = navigable->active_window_proxy();
         auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseout, mouse_event_init);
         old_hovered_node->dispatch_event(event);
     }
@@ -1930,6 +1932,8 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
         mouse_event_init.cancelable = true;
         mouse_event_init.composed = true;
         mouse_event_init.related_target = old_hovered_node;
+        if (auto navigable = this->navigable())
+            mouse_event_init.view = navigable->active_window_proxy();
         auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseover, mouse_event_init);
         m_hovered_node->dispatch_event(event);
     }

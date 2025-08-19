@@ -1,0 +1,11 @@
+click event view is set to the active window: true
+dblclick event view is set to the active window: true
+mousedown event view is set to the active window: true
+pointerdown event view is set to the active window: true
+mouseup event view is set to the active window: true
+pointerup event view is set to the active window: true
+mousemove event view is set to the active window: true
+pointermove event view is set to the active window: true
+mouseover event view is set to the active window: true
+mouseout event view is set to the active window: true
+wheel event view is set to the active window: true

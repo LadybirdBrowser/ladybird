@@ -43,7 +43,7 @@ GC::Ref<WheelEvent> WheelEvent::create(JS::Realm& realm, FlyString const& event_
     return realm.create<WheelEvent>(realm, event_name, event_init, page_x, page_y, offset_x, offset_y);
 }
 
-WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers)
+WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers)
 {
     WheelEventInit event_init {};
     event_init.ctrl_key = modifiers & Mod_Ctrl;
@@ -59,6 +59,7 @@ WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(
     event_init.delta_x = delta_x;
     event_init.delta_y = delta_y;
     event_init.delta_mode = WheelDeltaMode::DOM_DELTA_PIXEL;
+    event_init.view = window_proxy;
     auto event = WheelEvent::create(realm, event_name, event_init, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double());
     event->set_is_trusted(true);
     event->set_bubbles(true);

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+    div {
+        width: 100px;
+        height: 100px;
+        background-color: red;
+    }
+</style>
+<script src="../include.js"></script>
+<body></body>
+<script>
+    asyncTest(async done => {
+        let events = [
+            { name: "click", trigger: (x, y) => internals.click(x, y) },
+            { name: "dblclick", trigger: (x, y) => internals.doubleclick(x, y) },
+            { name: "mousedown", trigger: (x, y) => internals.click(x, y) },
+            { name: "pointerdown", trigger: (x, y) => internals.click(x, y) },
+            { name: "mouseup", trigger: (x, y) => internals.click(x, y) },
+            { name: "pointerup", trigger: (x, y) => internals.click(x, y) },
+            { name: "mousemove", trigger: (x, y) => internals.movePointerTo(x, y) },
+            { name: "pointermove", trigger: (x, y) => internals.movePointerTo(x, y) },
+            { name: "mouseover", trigger: (x, y) => internals.movePointerTo(x, y) },
+            { name: "mouseout", trigger: (x, y) => { internals.movePointerTo(x, y); internals.movePointerTo(x + 100, y + 100); } },
+            { name: "wheel", trigger: (x, y) => internals.wheel(x, y, 1, 0) },
+        ];
+
+        for (const event of events) {
+            const target = document.createElement("div");
+            document.body.appendChild(target);
+            let promise = new Promise(resolve => {
+                target.addEventListener(event.name, (e) => {
+                    println(`${event.name} event view is set to the active window: ${e.view === window}`);
+                    resolve();
+                });
+            });
+            const rect = target.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            event.trigger(x, y);
+            await promise;
+            target.remove();
+        }
+        done();
+    });
+</script>

@@ -133,7 +133,7 @@ WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::construct_impl(JS::Realm& r
     return create(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
+WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
 {
     MouseEventInit event_init {};
     event_init.ctrl_key = modifiers & Mod_Ctrl;
@@ -144,6 +144,7 @@ WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(
     event_init.screen_y = screen.y().to_double();
     event_init.client_x = client.x().to_double();
     event_init.client_y = client.y().to_double();
+    event_init.view = window_proxy;
     if (movement.has_value()) {
         event_init.movement_x = movement.value().x().to_double();
         event_init.movement_y = movement.value().y().to_double();
