@@ -678,10 +678,8 @@ AnimationUpdateContext::~AnimationUpdateContext()
             if (target->layout_node())
                 target->layout_node()->apply_style(*style);
         } else {
-            auto pseudo_element_node = target->get_pseudo_element_node(element.pseudo_element().value());
-            if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element_node.ptr())) {
-                node_with_style->apply_style(*style);
-            }
+            if (auto pseudo_element_node = target->get_pseudo_element_node(element.pseudo_element().value()))
+                pseudo_element_node->apply_style(*style);
         }
 
         if (invalidation.relayout && target->layout_node())
