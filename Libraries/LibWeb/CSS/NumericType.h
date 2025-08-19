@@ -84,6 +84,17 @@ public:
     Optional<i32> const& exponent(BaseType type) const { return m_type_exponents[to_underlying(type)]; }
     void set_exponent(BaseType type, i32 exponent) { m_type_exponents[to_underlying(type)] = exponent; }
 
+    template<typename Callback>
+    void for_each_type_and_exponent(Callback callback) const
+    {
+        for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
+            if (!m_type_exponents[i].has_value())
+                continue;
+            auto base_type = static_cast<BaseType>(i);
+            callback(base_type, m_type_exponents[i].value());
+        }
+    }
+
     Optional<BaseType> const& percent_hint() const { return m_percent_hint; }
     void set_percent_hint(Optional<BaseType> hint) { m_percent_hint = hint; }
     void apply_percent_hint(BaseType hint);

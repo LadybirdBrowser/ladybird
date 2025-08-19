@@ -119,6 +119,7 @@ set(SOURCES
     CSS/CSSMediaRule.cpp
     CSS/CSSNamespaceRule.cpp
     CSS/CSSNestedDeclarations.cpp
+    CSS/CSSNumericValue.cpp
     CSS/CSSPageRule.cpp
     CSS/CSSPageDescriptors.cpp
     CSS/CSSPropertyRule.cpp
