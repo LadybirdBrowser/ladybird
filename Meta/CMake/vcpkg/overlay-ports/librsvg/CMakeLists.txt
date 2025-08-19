@@ -18,8 +18,15 @@ endif()
 
 set(RSVG_API_MAJOR_VERSION 2)
 set(RSVG_API_VERSION "2.0")
-Set(VERSION "2.40.20")
+Set(VERSION "2.40.23")
 set(LIBRSVG_TARGET "rsvg-${RSVG_API_MAJOR_VERSION}")
+
+# for rsvg-features.h
+set(LIBRSVG_MAJOR_VERSION 2)
+set(LIBRSVG_MINOR_VERSION 40)
+set(LIBRSVG_MICRO_VERSION 23)
+set(PACKAGE_VERSION "${VERSION}")
+configure_file(librsvg-features.h.in "${CMAKE_CURRENT_BINARY_DIR}/librsvg-features.h" @ONLY)
 
 Set(prefix "${CMAKE_INSTALL_PREFIX}")
 Set(exec_prefix "\${prefix}")
@@ -82,7 +89,6 @@ set(LIBRSVG_SOURCES
     rsvg-text.h
     rsvg-cond.c
     rsvg-base.c
-    librsvg-enum-types.c
     rsvg-cairo-draw.c
     rsvg-cairo-draw.h
     rsvg-cairo-render.c
@@ -96,10 +102,42 @@ set(LIBRSVG_SOURCES
     rsvg-size-callback.h
     rsvg-xml.c
     rsvg-xml.h
-    rsvg.h
+    librsvg/rsvg.h
     rsvg-cairo.h
-    librsvg-features.h
-    librsvg-enum-types.h
+    "${CMAKE_CURRENT_BINARY_DIR}/librsvg-features.h"
+)
+
+
+set(enums_headers
+    "${CMAKE_CURRENT_SOURCE_DIR}/librsvg/rsvg.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/rsvg-cairo.h"
+)
+add_custom_command(
+    OUTPUT librsvg-enum-types.h
+    COMMAND ${GLIB_MKENUMS}
+            --fhead \"\#if !defined (__RSVG_RSVG_H_INSIDE__) && !defined (RSVG_COMPILATION)\\n\#warning \\\"Including <librsvg/librsvg-enum-types.h> directly is deprecated.\\\"\\n\#endif\\n\\n\#ifndef __LIBRSVG_ENUM_TYPES_H__\\n\#define __LIBRSVG_ENUM_TYPES_H__\\n\\n\#include <glib-object.h>\\n\\nG_BEGIN_DECLS\\n\"
+			--fprod \"/* enumerations from \\\"@filename@\\\" */\\n\"
+			--vhead \"GType @enum_name@_get_type (void)\;\\n\#define RSVG_TYPE_@ENUMSHORT@ (@enum_name@_get_type())\\n\"
+			--ftail \"G_END_DECLS\\n\\n\#endif /* __LIBRSVG_ENUM_TYPES_H__ */\"
+            ${enums_headers} > librsvg-enum-types.h
+    DEPENDS ${enums_headers}
+    COMMENT "Generating librsvg-enum-types.h")
+add_custom_command(
+    OUTPUT librsvg-enum-types.c
+    COMMAND ${GLIB_MKENUMS}
+        --fhead \"\#include \\\"rsvg.h\\\"\"
+        --fprod \"\\n/* enumerations from \\\"@filename@\\\" */\"
+        --vhead \"GType\\n@enum_name@_get_type (void)\\n{\\n  static GType etype = 0\;\\n  if (etype == 0) {\\n    static const G@Type@Value values[] = {\"
+        --vprod \"      { @VALUENAME@, \\\"@VALUENAME@\\\", \\\"@valuenick@\\\" },\"
+        --vtail \"      { 0, NULL, NULL }\\n    }\;\\n    etype = g_@type@_register_static (\\\"@EnumName@\\\", values)\;\\n  }\\n  return etype\;\\n}\\n\"
+        ${enums_headers} > librsvg-enum-types.c
+    DEPENDS ${enums_headers} "${CMAKE_CURRENT_BINARY_DIR}/librsvg-enum-types.h"
+    COMMENT "Generating librsvg-enum-types.c")
+add_custom_target(generate-enum-types DEPENDS librsvg-enum-types.h librsvg-enum-types.c)
+
+list(APPEND LIBRSVG_SOURCES
+    "${CMAKE_CURRENT_BINARY_DIR}/librsvg-enum-types.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/librsvg-enum-types.c"
 )
 
 if(WIN32)
@@ -117,8 +155,7 @@ add_library(${LIBRSVG_TARGET} ${LIBRSVG_SOURCES})
 target_compile_definitions(${LIBRSVG_TARGET} PRIVATE
     -DRSVG_COMPILATION
     -D_CRT_SECURE_NO_WARNINGS
-    -DSRCDIR="${CMAKE_CURRENT_SOURCE_DIR}" 
-    -DGDK_PIXBUF_ENABLE_BACKEND 
+    -DGDK_PIXBUF_ENABLE_BACKEND
     -DG_LOG_DOMAIN="libpixbufloader-svg"
     -DSRCDIR=""
     $<$<BOOL:${MINGW}>:HAVE_STRTOK_R>
@@ -133,11 +170,14 @@ target_link_libraries(${LIBRSVG_TARGET} PRIVATE
     PkgConfig::LIBCROCO
 )
 
+add_dependencies(${LIBRSVG_TARGET} generate-enum-types)
+
 target_include_directories(${LIBRSVG_TARGET}
     PRIVATE
         "${CMAKE_CURRENT_BINARY_DIR}"
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/librsvg>"
         "$<INSTALL_INTERFACE:include/librsvg-${RSVG_API_VERSION}>"
 )
 target_link_libraries(${LIBRSVG_TARGET}
@@ -153,10 +193,10 @@ install(TARGETS ${LIBRSVG_TARGET}
 )
 install(
     FILES
-        rsvg.h
+        librsvg/rsvg.h
         rsvg-cairo.h
-        librsvg-features.h
-        librsvg-enum-types.h
+        "${CMAKE_CURRENT_BINARY_DIR}/librsvg-features.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/librsvg-enum-types.h"
     DESTINATION include/librsvg-${RSVG_API_VERSION}/librsvg
 )
 

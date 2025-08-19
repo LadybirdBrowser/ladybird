@@ -1,16 +1,14 @@
 # port update requires rust/cargo
 
 string(REGEX REPLACE "^([0-9]*[.][0-9]*)[.].*" "\\1" MAJOR_MINOR "${VERSION}")
-vcpkg_download_distfile(ARCHIVE
-    URLS "https://download.gnome.org/sources/librsvg/${MAJOR_MINOR}/librsvg-${VERSION}.tar.xz"
-         "https://www.mirrorservice.org/sites/ftp.gnome.org/pub/GNOME/sources/librsvg/${MAJOR_MINOR}/librsvg-${VERSION}.tar.xz"
-    FILENAME "librsvg-${VERSION}.tar.xz"
-    SHA512 db0563d8e0edaae642a6b2bcd239cf54191495058ac8c7ff614ebaf88c0e30bd58dbcd41f58d82a9d5ed200ced45fc5bae22f2ed3cf3826e9348a497009e1280
-)
 
-vcpkg_extract_source_archive(
-    SOURCE_PATH
-    ARCHIVE "${ARCHIVE}"
+vcpkg_from_gitlab(
+    GITLAB_URL https://gitlab.gnome.org/
+    OUT_SOURCE_PATH SOURCE_PATH
+    REPO GNOME/librsvg
+    REF librsvg-gtk-${VERSION}
+    SHA512 1fe06d7e745a53f3aee7b1942f7551c5716ec6abf328fa395006a7aede9f4ef242d604d5f8069c397d86ec3ac095daf49b18b2b34abc67fdcd4a113207fd6a96
+    HEAD_REF master # branch name
     PATCHES
         fix-libxml2-2.13.5.patch
 )
@@ -22,6 +20,7 @@ vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
         "-DPKG_CONFIG_EXECUTABLE=${PKGCONFIG}"
+        "-DGLIB_MKENUMS=${CURRENT_HOST_INSTALLED_DIR}/tools/glib/glib-mkenums"
 )
 
 vcpkg_cmake_install()
