@@ -7,6 +7,7 @@
 #include "CSSNumericValue.h"
 #include <LibWeb/Bindings/CSSNumericValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSMathValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -107,9 +108,11 @@ String CSSNumericValue::to_string(SerializationParams const& params) const
     if (auto* unit_value = as_if<CSSUnitValue>(this)) {
         return unit_value->serialize_unit_value(params.minimum, params.maximum);
     }
-    // FIXME: 2. Otherwise, serialize a CSSMathValue from this, and return the result.
-
-    return {};
+    // 2. Otherwise, serialize a CSSMathValue from this, and return the result.
+    auto& math_value = as<CSSMathValue>(*this);
+    return math_value.serialize_math_value(
+        params.nested ? CSSMathValue::Nested::Yes : CSSMathValue::Nested::No,
+        params.parenless ? CSSMathValue::Parens::Without : CSSMathValue::Parens::With);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#rectify-a-numberish-value

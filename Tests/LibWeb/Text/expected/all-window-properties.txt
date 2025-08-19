@@ -49,6 +49,7 @@ CSSKeywordValue
 CSSLayerBlockRule
 CSSLayerStatementRule
 CSSMarginRule
+CSSMathValue
 CSSMediaRule
 CSSNamespaceRule
 CSSNestedDeclarations
