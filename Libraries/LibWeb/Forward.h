@@ -245,6 +245,7 @@ class CSSMarginRule;
 class CSSMediaRule;
 class CSSNamespaceRule;
 class CSSNestedDeclarations;
+class CSSNumericValue;
 class CSSPageRule;
 class CSSPageDescriptors;
 class CSSPropertyRule;

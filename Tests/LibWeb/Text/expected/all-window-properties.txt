@@ -52,6 +52,7 @@ CSSMarginRule
 CSSMediaRule
 CSSNamespaceRule
 CSSNestedDeclarations
+CSSNumericValue
 CSSPageDescriptors
 CSSPageRule
 CSSPropertyRule

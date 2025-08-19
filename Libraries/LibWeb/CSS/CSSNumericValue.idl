@@ -1,0 +1,47 @@
+#import <CSS/CSSStyleValue.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#enumdef-cssnumericbasetype
+enum CSSNumericBaseType {
+    "length",
+    "angle",
+    "time",
+    "frequency",
+    "resolution",
+    "flex",
+    "percent",
+};
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dictdef-cssnumerictype
+// AD-HOC: We give these default values and mark percentHint as nullable. https://github.com/w3c/css-houdini-drafts/issues/1149
+dictionary CSSNumericType {
+    long length = 0;
+    long angle = 0;
+    long time = 0;
+    long frequency = 0;
+    long resolution = 0;
+    long flex = 0;
+    long percent = 0;
+    CSSNumericBaseType? percentHint;
+};
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSNumericValue : CSSStyleValue {
+    [FIXME] CSSNumericValue add(CSSNumberish... values);
+    [FIXME] CSSNumericValue sub(CSSNumberish... values);
+    [FIXME] CSSNumericValue mul(CSSNumberish... values);
+    [FIXME] CSSNumericValue div(CSSNumberish... values);
+    [FIXME] CSSNumericValue min(CSSNumberish... values);
+    [FIXME] CSSNumericValue max(CSSNumberish... values);
+
+    [FIXME] boolean equals(CSSNumberish... value);
+
+    // FIXME: CSSUnitValue to(USVString unit);
+    // FIXME: CSSMathSum toSum(USVString... units);
+    [ImplementedAs=type_for_bindings] CSSNumericType type();
+
+    [FIXME, Exposed=Window] static CSSNumericValue parse(USVString cssText);
+};
+
+// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
+typedef (double or CSSNumericValue) CSSNumberish;
