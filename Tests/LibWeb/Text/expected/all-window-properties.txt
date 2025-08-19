@@ -50,6 +50,7 @@ CSSLayerBlockRule
 CSSLayerStatementRule
 CSSMarginRule
 CSSMathInvert
+CSSMathMin
 CSSMathNegate
 CSSMathProduct
 CSSMathSum
