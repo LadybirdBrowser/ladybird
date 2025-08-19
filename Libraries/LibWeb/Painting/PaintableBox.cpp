@@ -513,8 +513,8 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
 
         auto paint_inspector_rect = [&](CSSPixelRect const& rect, Color color) {
             auto device_rect = context.enclosing_device_rect(rect).to_type<int>();
-            context.display_list_recorder().fill_rect(device_rect, Color(color).with_alpha(100));
-            context.display_list_recorder().draw_rect(device_rect, Color(color));
+            context.display_list_recorder().fill_rect(device_rect, color.with_alpha(100));
+            context.display_list_recorder().draw_rect(device_rect, color);
         };
 
         paint_inspector_rect(margin_rect, Color::Yellow);
