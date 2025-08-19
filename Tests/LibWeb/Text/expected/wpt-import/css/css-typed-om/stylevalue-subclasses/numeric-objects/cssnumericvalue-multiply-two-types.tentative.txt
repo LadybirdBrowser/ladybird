@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	Multiplying two types with different non-null percent hints throws TypeError
+1 Pass
+6 Fail
+Pass	Multiplying two types with different non-null percent hints throws TypeError
 Fail	Multiplying two types with same base types adds exponents
 Fail	Multiplying two types with different base types adds exponents
 Fail	Multiplying two types respects the sign of the exponents
