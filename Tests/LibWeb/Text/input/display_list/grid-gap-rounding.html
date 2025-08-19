@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    .a {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1px;
+        width: 147px;
+    }
+    .b {
+        background-color: black;
+        height: 30px;
+    }
+</style>
+<div class="a">
+    <div class="b"></div>
+    <div class="b"></div>
+    <div class="b"></div>
+    <div class="b"></div>
+    <div class="b"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

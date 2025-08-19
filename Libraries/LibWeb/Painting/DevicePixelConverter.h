@@ -58,12 +58,10 @@ public:
 
     DevicePixelRect rounded_device_rect(CSSPixelRect rect) const
     {
-        return {
-            round(rect.x().to_double() * m_device_pixels_per_css_pixel),
-            round(rect.y().to_double() * m_device_pixels_per_css_pixel),
-            round(rect.width().to_double() * m_device_pixels_per_css_pixel),
-            round(rect.height().to_double() * m_device_pixels_per_css_pixel)
-        };
+        auto scaled_rect = rect.to_type<double>().scaled(m_device_pixels_per_css_pixel);
+        auto x = round(scaled_rect.x());
+        auto y = round(scaled_rect.y());
+        return { x, y, round(scaled_rect.right()) - x, round(scaled_rect.bottom()) - y };
     }
 
     DevicePixelSize enclosing_device_size(CSSPixelSize size) const
