@@ -1,0 +1,17 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 66 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 50 0+0+8] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [18,18 30x30] baseline: 23.796875
+      BlockContainer <div.min-width> at [18,18] inline-block [0+0+10 30 10+0+0] [0+0+10 30 10+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [18,18 6.34375x18] baseline: 13.796875
+            "1"
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x66]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x50]
+      PaintableWithLines (BlockContainer<DIV>.min-width) [8,8 50x50]
+        TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x66] [children: 0] (z-index: auto)
