@@ -1,3 +1,27 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 22 tests
+
+22 Fail
+Fail	Constructing a CSSTranslate with a CSSUnitValue with type other than length or percent for the coordinates throws a TypeError
+Fail	Constructing a CSSTranslate with a CSSMathValue that doesn't match <length-percentage> for the coordinates throws a TypeError
+Fail	Constructing a CSSTranslate with a percent for the Z coordinate throws a TypeError
+Fail	Updating CSSTranslate.x to a CSSUnitValue with type other than length or percent throws a TypeError
+Fail	Updating CSSTranslate.x to a CSSMathValue that doesn't match <length-percentage> throws a TypeError
+Fail	Updating CSSTranslate.y to a CSSUnitValue with type other than length or percent throws a TypeError
+Fail	Updating CSSTranslate.y to a CSSMathValue that doesn't match <length-percentage> throws a TypeError
+Fail	Updating CSSTranslate.z to a CSSUnitValue with type other than length or percent throws a TypeError
+Fail	Updating CSSTranslate.z to a CSSMathValue that doesn't match <length-percentage> throws a TypeError
+Fail	Updating CSSTranslate.z to a percent throws a TypeError
+Fail	CSSTranslate can be constructed from two length or percent coordinates
+Fail	CSSTranslate can be constructed from three length or percent coordinates
+Fail	CSSTranslate can be constructed from CSSMathValues
+Fail	CSSTranslate.x can be updated to a length
+Fail	CSSTranslate.x can be updated to a percent
+Fail	CSSTranslate.x can be updated to a CSSMathValue
+Fail	CSSTranslate.y can be updated to a length
+Fail	CSSTranslate.y can be updated to a percent
+Fail	CSSTranslate.y can be updated to a CSSMathValue
+Fail	CSSTranslate.z can be updated to a length
+Fail	CSSTranslate.z can be updated to a CSSMathValue
+Fail	Modifying CSSTranslate.is2D can be updated to true or false

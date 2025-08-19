@@ -1,3 +1,24 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 19 tests
+
+19 Fail
+Fail	Constructing a CSSSkewX with a keyword throws a TypeError
+Fail	Constructing a CSSSkewX with a double throws a TypeError
+Fail	Constructing a CSSSkewX with a unitless zero throws a TypeError
+Fail	Constructing a CSSSkewX with a string angle throws a TypeError
+Fail	Constructing a CSSSkewX with a number CSSUnitValue throws a TypeError
+Fail	Constructing a CSSSkewX with a time dimension CSSUnitValue throws a TypeError
+Fail	Constructing a CSSSkewX with a CSSMathValue of length type throws a TypeError
+Fail	Updating CSSSkewX.ax with a keyword throws a TypeError
+Fail	Updating CSSSkewX.ax with a double throws a TypeError
+Fail	Updating CSSSkewX.ax with a unitless zero throws a TypeError
+Fail	Updating CSSSkewX.ax with a string angle throws a TypeError
+Fail	Updating CSSSkewX.ax with a number CSSUnitValue throws a TypeError
+Fail	Updating CSSSkewX.ax with a time dimension CSSUnitValue throws a TypeError
+Fail	Updating CSSSkewX.ax with a CSSMathValue of length type throws a TypeError
+Fail	CSSSkewX can be constructed from an angle CSSUnitValue
+Fail	CSSSkewX can be constructed from a CSSMathValue of angle type
+Fail	CSSSkew.ax can be updated to an angle CSSUnitValue
+Fail	CSSSkew.ax can be updated to a CSSMathValue of angle type
+Fail	Modifying skewX.is2D is a no-op
