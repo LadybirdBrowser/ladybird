@@ -347,12 +347,12 @@ void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect boundi
         .color = color });
 }
 
-void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, CornerRadius top_left_radius, CornerRadius top_right_radius, CornerRadius bottom_right_radius, CornerRadius bottom_left_radius)
+void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, CornerRadii const& corner_radii)
 {
-    if (rect.is_empty())
+    if (rect.is_empty() || color.alpha() == 0)
         return;
 
-    if (!top_left_radius && !top_right_radius && !bottom_right_radius && !bottom_left_radius) {
+    if (!corner_radii.has_any_radius()) {
         fill_rect(rect, color);
         return;
     }
@@ -360,31 +360,22 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rec
     APPEND(FillRectWithRoundedCorners {
         .rect = rect,
         .color = color,
-        .corner_radii = {
-            .top_left = top_left_radius,
-            .top_right = top_right_radius,
-            .bottom_right = bottom_right_radius,
-            .bottom_left = bottom_left_radius,
-        },
+        .corner_radii = corner_radii,
     });
 }
 
 void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int radius)
 {
-    if (a_rect.is_empty() || color.alpha() == 0)
-        return;
     fill_rect_with_rounded_corners(a_rect, color, radius, radius, radius, radius);
 }
 
 void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius)
 {
-    if (a_rect.is_empty() || color.alpha() == 0)
-        return;
     fill_rect_with_rounded_corners(a_rect, color,
-        { top_left_radius, top_left_radius },
-        { top_right_radius, top_right_radius },
-        { bottom_right_radius, bottom_right_radius },
-        { bottom_left_radius, bottom_left_radius });
+        { { top_left_radius, top_left_radius },
+            { top_right_radius, top_right_radius },
+            { bottom_right_radius, bottom_right_radius },
+            { bottom_left_radius, bottom_left_radius } });
 }
 
 void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, CSSPixelFraction scroll_size, Color thumb_color, Color track_color, bool vertical)

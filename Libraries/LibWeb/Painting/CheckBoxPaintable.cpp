@@ -113,7 +113,7 @@ void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
             int radius = 0.05 * checkbox_rect.width();
             auto dash_color = increase_contrast(input_colors.dark_gray, background_color);
             auto dash_rect = checkbox_rect.inflated(-0.4 * checkbox_rect.width(), -0.8 * checkbox_rect.height());
-            context.display_list_recorder().fill_rect_with_rounded_corners(dash_rect, dash_color, radius, radius, radius, radius);
+            context.display_list_recorder().fill_rect_with_rounded_corners(dash_rect, dash_color, radius);
         }
     }
 }
