@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import pathlib
 import re
 import subprocess
 import sys
@@ -52,5 +53,5 @@ def run():
 
 
 if __name__ == "__main__":
-    os.chdir(os.path.dirname(__file__) + "/..")
+    os.chdir(pathlib.Path(__file__).parent.parent)
     run()
