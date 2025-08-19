@@ -16,8 +16,7 @@
 
 #ifdef AK_OS_MACOS
 #    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
-#endif
-#ifdef USE_VULKAN
+#elif defined(USE_VULKAN_IMAGES)
 #    include <gpu/ganesh/vk/GrVkBackendSurface.h>
 #    include <gpu/vk/GrVkTypes.h>
 #endif
@@ -31,6 +30,7 @@ struct PaintingSurface::Impl {
     RefPtr<Bitmap> bitmap;
 };
 
+#if defined(AK_OS_MACOS) || defined(USE_VULKAN_IMAGES)
 static GrSurfaceOrigin origin_to_sk_origin(PaintingSurface::Origin origin)
 {
     switch (origin) {
@@ -42,8 +42,9 @@ static GrSurfaceOrigin origin_to_sk_origin(PaintingSurface::Origin origin)
         return kTopLeft_GrSurfaceOrigin;
     }
 }
+#endif
 
-#ifdef USE_VULKAN
+#ifdef USE_VULKAN_IMAGES
 static SkColorType vk_format_to_sk_color_type(VkFormat format)
 {
     switch (format) {
