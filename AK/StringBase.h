@@ -74,6 +74,7 @@ public:
     [[nodiscard]] ReadonlyBytes bytes() const;
     [[nodiscard]] u32 hash() const;
     [[nodiscard]] size_t byte_count() const;
+    [[nodiscard]] ALWAYS_INLINE size_t length_in_code_units() const { return byte_count(); }
 
     [[nodiscard]] bool operator==(StringBase const&) const;
 
