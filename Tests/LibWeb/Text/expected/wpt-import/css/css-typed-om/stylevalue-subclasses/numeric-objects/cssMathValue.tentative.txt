@@ -1,3 +1,25 @@
 Harness status: Error
 
-Found 0 tests
+Found 20 tests
+
+20 Pass
+Pass	Constructing a CSSMathSum with no arguments throws a SyntaxError
+Pass	CSSMathSum can be constructed from a single number CSSUnitValue
+Pass	CSSMathSum can be constructed from more than one number CSSUnitValue
+Pass	CSSMathSum.operator is readonly
+Pass	Constructing a CSSMathProduct with no arguments throws a SyntaxError
+Pass	CSSMathProduct can be constructed from a single number CSSUnitValue
+Pass	CSSMathProduct can be constructed from more than one number CSSUnitValue
+Pass	CSSMathProduct.operator is readonly
+Pass	Constructing a CSSMathMin with no arguments throws a SyntaxError
+Pass	CSSMathMin can be constructed from a single number CSSUnitValue
+Pass	CSSMathMin can be constructed from more than one number CSSUnitValue
+Pass	CSSMathMin.operator is readonly
+Pass	Constructing a CSSMathMax with no arguments throws a SyntaxError
+Pass	CSSMathMax can be constructed from a single number CSSUnitValue
+Pass	CSSMathMax can be constructed from more than one number CSSUnitValue
+Pass	CSSMathMax.operator is readonly
+Pass	CSSMathNegate can be constructed from a single numberish value
+Pass	CSSMathNegate.operator is readonly
+Pass	CSSMathInvert can be constructed from a single numberish value
+Pass	CSSMathInvert.operator is readonly

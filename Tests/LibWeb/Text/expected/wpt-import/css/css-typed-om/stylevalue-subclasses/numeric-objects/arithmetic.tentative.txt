@@ -1,3 +1,71 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 65 tests
+
+10 Pass
+55 Fail
+Fail	Calling CSSUnitValue.add with no arguments returns itself
+Fail	Calling CSSMathValue.add with no arguments returns itself
+Fail	Calling CSSNumericValue.add with a single CSSNumericValue returns correct type
+Fail	Calling CSSMathValue.add with a single CSSNumericValue returns correct type
+Fail	Calling CSSNumericValue.add with more than one number CSSNumericValues returns correct type
+Fail	Calling CSSNumericValue.add can take numberish values
+Fail	Calling CSSMathSum.add with number CSSUnitValues simplifies to a CSSUnitValue
+Pass	Calling CSSNumericValue.add with incompatible types throws TypeError
+Fail	Calling CSSUnitValue.sub with no arguments returns itself
+Fail	Calling CSSMathValue.sub with no arguments returns itself
+Fail	Calling CSSNumericValue.sub with a single CSSNumericValue returns correct type
+Fail	Calling CSSMathValue.sub with a single CSSNumericValue returns correct type
+Fail	Calling CSSNumericValue.sub with more than one number CSSNumericValues returns correct type
+Fail	Calling CSSNumericValue.sub can take numberish values
+Fail	Calling CSSMathSum.sub with number CSSUnitValues simplifies to a CSSUnitValue
+Pass	Calling CSSNumericValue.sub with incompatible types throws TypeError
+Fail	Calling CSSUnitValue.mul with no arguments returns itself
+Fail	Calling CSSMathValue.mul with no arguments returns itself
+Fail	Calling CSSNumericValue.mul with a single CSSNumericValue returns correct type
+Fail	Calling CSSMathValue.mul with a single CSSNumericValue returns correct type
+Fail	Calling CSSNumericValue.mul with more than one number CSSNumericValues returns correct type
+Fail	Calling CSSNumericValue.mul can take numberish values
+Fail	Calling CSSMathProduct.mul with number CSSUnitValues simplifies to a CSSUnitValue
+Pass	Calling CSSNumericValue.mul with incompatible types throws TypeError
+Fail	Calling CSSUnitValue.div with no arguments returns itself
+Fail	Calling CSSMathValue.div with no arguments returns itself
+Fail	Calling CSSNumericValue.div with a single CSSNumericValue returns correct type
+Fail	Calling CSSMathValue.div with a single CSSNumericValue returns correct type
+Fail	Calling CSSNumericValue.div with more than one number CSSNumericValues returns correct type
+Fail	Calling CSSNumericValue.div can take numberish values
+Fail	Calling CSSMathProduct.div with number CSSUnitValues simplifies to a CSSUnitValue
+Pass	Calling CSSNumericValue.div with incompatible types throws TypeError
+Fail	Calling CSSUnitValue.min with no arguments returns itself
+Fail	Calling CSSMathValue.min with no arguments returns itself
+Fail	Calling CSSNumericValue.min with a single CSSNumericValue returns correct type
+Fail	Calling CSSMathValue.min with a single CSSNumericValue returns correct type
+Fail	Calling CSSNumericValue.min with more than one number CSSNumericValues returns correct type
+Fail	Calling CSSNumericValue.min can take numberish values
+Fail	Calling CSSMathMin.min with number CSSUnitValues simplifies to a CSSUnitValue
+Pass	Calling CSSNumericValue.min with incompatible types throws TypeError
+Fail	Calling CSSUnitValue.max with no arguments returns itself
+Fail	Calling CSSMathValue.max with no arguments returns itself
+Fail	Calling CSSNumericValue.max with a single CSSNumericValue returns correct type
+Fail	Calling CSSMathValue.max with a single CSSNumericValue returns correct type
+Fail	Calling CSSNumericValue.max with more than one number CSSNumericValues returns correct type
+Fail	Calling CSSNumericValue.max can take numberish values
+Fail	Calling CSSMathMax.max with number CSSUnitValues simplifies to a CSSUnitValue
+Pass	Calling CSSNumericValue.max with incompatible types throws TypeError
+Fail	Calling CSSUnitValue.add with CSSUnitValues with same unit simplifies to a CSSUnitValue
+Fail	Calling CSSUnitValue.sub with CSSUnitValues with same unit simplifies to a CSSUnitValue
+Fail	Calling CSSUnitValue.mul with all numbers simplifies to a CSSUnitValue
+Fail	Calling CSSUnitValue.mul with only one non-number simplifies to a CSSUnitValue
+Fail	Calling CSSUnitValue.mul with more than one non-number does not simplify to a CSSUnitValue
+Fail	Calling CSSUnitValue.div with all numbers simplifies to a CSSUnitValue
+Fail	Calling CSSUnitValue.div on a non-number value simplifies to a CSSUnitValue
+Fail	Calling CSSUnitValue.div with a non-number value in the arguments does not simplify to a CSSUnitValue
+Fail	Calling CSSUnitValue.min with CSSUnitValues with same unit simplifies to a CSSUnitValue
+Fail	Calling CSSUnitValue.max with CSSUnitValues with same unit simplifies to a CSSUnitValue
+Fail	Calling CSSNumericValue.sub negates all argument values
+Fail	Calling CSSNumericValue.div inverts all argument values
+Fail	Can not divide with CSSUnitValue which has zero value and number type
+Pass	CSSNumericValue.add should throw TypeError when the types are different.
+Pass	CSSNumericValue.sub should throw TypeError when the types are different.
+Pass	CSSNumericValue.max should throw TypeError when the types are different.
+Pass	CSSNumericValue.min should throw TypeError when the types are different.
