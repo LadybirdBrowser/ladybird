@@ -1,0 +1,119 @@
+diff --git a/meson.build b/meson.build
+index 9666b692b..677721f29 100644
+--- a/meson.build
++++ b/meson.build
+@@ -11,6 +11,7 @@ if not ['shared', 'static'].contains(get_option('default_library'))
+ endif
+ 
+ gnome = import('gnome')
++fs = import('fs')
+ cc = meson.get_compiler('c')
+ 
+ ver_split = meson.project_version().split('.')
+@@ -20,6 +21,7 @@ librsvg_api_major = api_split[0]
+ librsvg_api_minor = api_split[1]
+ 
+ rsvg_ver = 'rsvg-@0@'.format(librsvg_api_major)
++librsvg_pc = 'librsvg-@0@'.format(librsvg_api_version)
+ 
+ glib_required          = '>= 2.38.0'
+ libxml_required        = '>= 2.9.0'
+@@ -52,6 +54,21 @@ croco_dep      = dependency('libcroco-0.6',
+ 
+ libm           = cc.find_library('m', required: false)
+ 
++library_dependencies = [
++  cairo_dep,
++  gio_dep,
++  glib_dep,
++  gdk_pixbuf_dep,
++]
++private_dependencies = [
++  cairo_png_dep,
++  croco_dep,
++  libm,
++  libxml_dep,
++  pangocairo_dep,
++  pangoft2_dep,
++]
++
+ config = configuration_data()
+ config.set('HAVE_PANGOFT2', pangoft2_dep.found())
+ config.set('HAVE_STRINGS_H', cc.has_header('strings.h'))
+@@ -65,7 +82,7 @@ features.set('LIBRSVG_MAJOR_VERSION', ver_split[0])
+ features.set('LIBRSVG_MINOR_VERSION', ver_split[1])
+ features.set('LIBRSVG_MICRO_VERSION', ver_split[2])
+ features.set('PACKAGE_VERSION', meson.project_version())
+-configure_file(input: 'librsvg-features.h.in',
++features_header = configure_file(input: 'librsvg-features.h.in',
+                output: 'librsvg-features.h',
+                configuration: features)
+ 
+@@ -104,7 +121,31 @@ librsvg_src = [
+   'rsvg-xml.c',
+ ]
+ 
+-enums = gnome.mkenums_simple('librsvg-enum-types', sources: librsvg_headers)
++enums = gnome.mkenums_simple(
++    'librsvg-enum-types',
++    sources: librsvg_headers,
++    install_header: true,
++    install_dir: '@0@/@1@/librsvg'.format(get_option('includedir'), librsvg_pc),
++)
++
++install_headers(
++  librsvg_headers + [features_header],
++  subdir: '@0@/librsvg'.format(librsvg_pc),
++)
++
++# Generate librsvg.def using configure_file and rsvg.def.in
++symbols_content = ''
++foreach line : fs.read('rsvg.symbols').split('\n')
++  if not line.strip().startswith('/*')
++    symbols_content += line + '\n'
++  endif
++endforeach
++
++librsvg_defs = configure_file(
++  input: 'rsvg.def.in',
++  output: 'librsvg.def',
++  configuration: {'SYMBOLS': symbols_content.strip()}
++)
+ 
+ rsvg_lib = library(rsvg_ver, librsvg_src, enums,
+   c_args: [
+@@ -127,6 +168,7 @@ rsvg_lib = library(rsvg_ver, librsvg_src, enums,
+     libm
+   ],
+   install: true,
++  vs_module_defs: librsvg_defs,
+   soversion: ver_split[0]
+ )
+ 
+@@ -150,6 +192,18 @@ librsvg_dep = declare_dependency(
+   ]
+ )
+ 
++pkg = import('pkgconfig')
++
++librsvg_pc = pkg.generate(
++  name : 'librsvg',
++  filebase: librsvg_pc,
++  description : 'library that renders svg files',
++  libraries : rsvg_lib,
++  subdirs: librsvg_pc,
++  requires: library_dependencies,
++  libraries_private: private_dependencies,
++)
++
+ if get_option('tests').allowed()
+   subdir('tests')
+ endif
+diff --git a/rsvg.def.in b/rsvg.def.in
+new file mode 100644
+index 000000000..b0a8f26cc
+--- /dev/null
++++ b/rsvg.def.in
+@@ -0,0 +1,2 @@
++EXPORTS
++@SYMBOLS@
