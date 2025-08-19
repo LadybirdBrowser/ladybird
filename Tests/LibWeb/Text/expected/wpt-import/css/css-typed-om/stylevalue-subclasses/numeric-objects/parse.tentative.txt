@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 11 tests
 
-11 Fail
+2 Pass
+9 Fail
 Fail	Parsing an invalid string throws SyntaxError
 Fail	Parsing a string with a non numeric token throws SyntaxError
 Fail	Parsing a string with left over numeric tokens throws SyntaxError
@@ -12,5 +13,5 @@ Fail	Parsing ignores surrounding spaces
 Fail	Parsing min() is successful
 Fail	Parsing max() is successful
 Fail	Parsing clamp() is successful
-Fail	Parsing sum of multiple min() is successful
-Fail	Parsing product of multiple min() is successful
+Pass	Parsing sum of multiple min() is successful
+Pass	Parsing product of multiple min() is successful
