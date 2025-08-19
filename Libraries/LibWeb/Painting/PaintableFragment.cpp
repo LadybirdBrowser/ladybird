@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
@@ -52,18 +53,14 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
     if (relative_inline_offset < 0)
         return 0;
 
-    auto const& glyphs = m_glyph_run->glyphs();
-    auto smallest_distance = AK::NumericLimits<float>::max();
-    for (size_t i = 0; i < glyphs.size(); ++i) {
-        auto distance_to_position = AK::abs(glyphs[i].position.x() - relative_inline_offset);
+    GraphemeEdgeTracker tracker { relative_inline_offset };
 
-        // The last distance was smaller than this new distance, so we've found the closest glyph.
-        if (distance_to_position > smallest_distance)
-            return m_start_offset + i - 1;
-        smallest_distance = distance_to_position;
+    for (auto const& glyph : m_glyph_run->glyphs()) {
+        if (tracker.update(glyph.length_in_code_units, glyph.glyph_width) == IterationDecision::Break)
+            break;
     }
 
-    return m_start_offset + m_length_in_code_units - 1;
+    return m_start_offset + tracker.resolve();
 }
 
 CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const
