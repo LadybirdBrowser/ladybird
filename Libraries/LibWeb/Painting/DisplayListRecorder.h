@@ -121,7 +121,7 @@ public:
     void paint_inner_box_shadow(PaintBoxShadowParams params);
     void paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const&, double glyph_run_scale, Color color, Gfx::FloatPoint draw_location);
 
-    void fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, CornerRadius top_left_radius, CornerRadius top_right_radius, CornerRadius bottom_right_radius, CornerRadius bottom_left_radius);
+    void fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, CornerRadii const&);
     void fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int radius);
     void fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius);
 
