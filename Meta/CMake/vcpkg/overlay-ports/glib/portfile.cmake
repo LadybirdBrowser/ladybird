@@ -3,7 +3,7 @@ string(REGEX MATCH "^([0-9]*[.][0-9]*)" GLIB_MAJOR_MINOR "${VERSION}")
 vcpkg_download_distfile(GLIB_ARCHIVE
     URLS "https://download.gnome.org/sources/glib/${GLIB_MAJOR_MINOR}/glib-${VERSION}.tar.xz"
     FILENAME "glib-${VERSION}.tar.xz"
-    SHA512 430928d7d7a442fc3927ca943f2569035fe8768768a0ebc6720ae1ef152b56fc5f8d4215d21b4828cc2f39a8632c907ed2c52a0c8566da1c533a2e049a1a121f
+    SHA512 2de9b2f7376c0e5f6ee585087090675d597c474199a10d04aad18df688b6ca77d17e93a86ec07482898663f51c82121992272496318138f77ca5ad2c340a4bd3
 )
 
 vcpkg_extract_source_archive(SOURCE_PATH
