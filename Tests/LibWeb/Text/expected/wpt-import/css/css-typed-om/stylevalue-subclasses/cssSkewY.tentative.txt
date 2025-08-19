@@ -1,3 +1,24 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 19 tests
+
+19 Fail
+Fail	Constructing a CSSSkewY with a keyword throws a TypeError
+Fail	Constructing a CSSSkewY with a double throws a TypeError
+Fail	Constructing a CSSSkewY with a unitless zero throws a TypeError
+Fail	Constructing a CSSSkewY with a string angle throws a TypeError
+Fail	Constructing a CSSSkewY with a number CSSUnitValue throws a TypeError
+Fail	Constructing a CSSSkewY with a time dimension CSSUnitValue throws a TypeError
+Fail	Constructing a CSSSkewY with a CSSMathValue of length type throws a TypeError
+Fail	Updating CSSSkewY.ay with a keyword throws a TypeError
+Fail	Updating CSSSkewY.ay with a double throws a TypeError
+Fail	Updating CSSSkewY.ay with a unitless zero throws a TypeError
+Fail	Updating CSSSkewY.ay with a string angle throws a TypeError
+Fail	Updating CSSSkewY.ay with a number CSSUnitValue throws a TypeError
+Fail	Updating CSSSkewY.ay with a time dimension CSSUnitValue throws a TypeError
+Fail	Updating CSSSkewY.ay with a CSSMathValue of length type throws a TypeError
+Fail	CSSSkewY can be constructed from an angle CSSUnitValue
+Fail	CSSSkewY can be constructed from a CSSMathValue of angle type
+Fail	CSSSkewY.ay can be updated to an angle CSSUnitValue
+Fail	CSSSkewY.ay can be updated to a CSSMathValue of angle type
+Fail	Modifying skewY.is2D is a no-op
