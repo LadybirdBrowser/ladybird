@@ -110,11 +110,36 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
     Vector<DrawGlyph> glyph_run;
     glyph_run.ensure_capacity(glyph_count);
     FloatPoint point = baseline_start;
+
+    // We track the code unit length rather than just the code unit offset because LibWeb may later collapse glyph runs.
+    // Updating the offset of each glyph gets tricky when handling text direction (LTR/RTL). So rather than doing that,
+    // we just provide the glyph's code unit length and base LibWeb algorithms on that.
+    //
+    // A single grapheme may be represented by multiple glyphs, where any of those glyphs are zero-width. We want to
+    // assign code unit lengths such that each glyph knows the length of the text it respresents.
+    auto glyph_length_in_code_units = [&](auto index) -> size_t {
+        auto starting_offset = glyph_info[index].cluster;
+
+        for (size_t i = index + 1; i < glyph_count; ++i) {
+            if (auto offset = glyph_info[i].cluster; offset != starting_offset)
+                return offset - starting_offset;
+        }
+
+        return string.length_in_code_units() - starting_offset;
+    };
+
     for (size_t i = 0; i < glyph_count; ++i) {
         auto position = point
             - FloatPoint { 0, font.pixel_metrics().ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
-        glyph_run.unchecked_append({ position, glyph_info[i].codepoint });
+
+        glyph_run.unchecked_append({
+            .position = position,
+            .length_in_code_units = glyph_length_in_code_units(i),
+            .glyph_width = positions[i].x_advance / text_shaping_resolution,
+            .glyph_id = glyph_info[i].codepoint,
+        });
+
         point += FloatPoint { positions[i].x_advance, positions[i].y_advance } / text_shaping_resolution;
 
         // NOTE: The spec says that we "really should not" apply letter-spacing to the trailing edge of a line but

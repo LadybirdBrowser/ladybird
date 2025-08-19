@@ -20,12 +20,9 @@ namespace Gfx {
 
 struct DrawGlyph {
     FloatPoint position;
-    u32 glyph_id;
-
-    void translate_by(FloatPoint const& delta)
-    {
-        position.translate_by(delta);
-    }
+    size_t length_in_code_units { 0 };
+    float glyph_width { 0.0 };
+    u32 glyph_id { 0 };
 };
 
 typedef struct ShapeFeature {
