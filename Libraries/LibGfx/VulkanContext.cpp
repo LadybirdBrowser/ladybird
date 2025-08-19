@@ -109,7 +109,7 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     create_device_info.pQueueCreateInfos = &queue_create_info;
     create_device_info.queueCreateInfoCount = 1;
     create_device_info.pEnabledFeatures = &deviceFeatures;
-    create_device_info.enabledExtensionCount = sizeof(device_extensions) / sizeof(device_extensions[0]);
+    create_device_info.enabledExtensionCount = array_size(device_extensions);
     create_device_info.ppEnabledExtensionNames = device_extensions;
 
     if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
@@ -322,7 +322,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         .tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
         .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         .sharingMode = VK_SHARING_MODE_CONCURRENT,
-        .queueFamilyIndexCount = sizeof(queue_families) / sizeof(queue_families[0]),
+        .queueFamilyIndexCount = array_size(queue_families),
         .pQueueFamilyIndices = queue_families,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
