@@ -49,6 +49,7 @@ CSSKeywordValue
 CSSLayerBlockRule
 CSSLayerStatementRule
 CSSMarginRule
+CSSMathInvert
 CSSMathNegate
 CSSMathProduct
 CSSMathSum

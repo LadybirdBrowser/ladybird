@@ -7,6 +7,7 @@
 #include "CSSMathProduct.h"
 #include <LibWeb/Bindings/CSSMathProductPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -110,10 +111,9 @@ String CSSMathProduct::serialize_math_value(Nested nested, Parens parens) const
 
             // 1. If arg is a CSSMathInvert, append " / " to s, then serialize arg’s value internal slot with nested
             //    set to true, and append the result to s.
-            // FIXME: Detect CSSMathInvert once that's implemented.
-            if (false) {
+            if (auto* invert = as_if<CSSMathInvert>(*arg)) {
                 s.append(" / "sv);
-                s.append(arg->to_string({ .nested = true }));
+                s.append(invert->value()->to_string({ .nested = true }));
             }
 
             // 2. Otherwise, append " * " to s, then serialize arg with nested set to true, and append the result to s.

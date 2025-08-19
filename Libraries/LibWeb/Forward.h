@@ -242,6 +242,7 @@ class CSSKeywordValue;
 class CSSLayerBlockRule;
 class CSSLayerStatementRule;
 class CSSMarginRule;
+class CSSMathInvert;
 class CSSMathNegate;
 class CSSMathProduct;
 class CSSMathSum;
