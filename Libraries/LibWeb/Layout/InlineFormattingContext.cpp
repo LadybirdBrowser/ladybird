@@ -395,7 +395,10 @@ void InlineFormattingContext::generate_line_boxes()
                         glyphs.remove(last_glyph_index - 1, remove_item_count);
                         glyphs.append(Gfx::DrawGlyph {
                             .position = last_glyph_position,
-                            .glyph_id = glyph_run->font().glyph_id_for_code_point(ellipsis_codepoint) });
+                            .length_in_code_units = AK::UnicodeUtils::code_unit_length_for_code_point(ellipsis_codepoint),
+                            .glyph_width = glyph_run->font().glyph_width(ellipsis_codepoint),
+                            .glyph_id = glyph_run->font().glyph_id_for_code_point(ellipsis_codepoint),
+                        });
                     }
                 }
             }
