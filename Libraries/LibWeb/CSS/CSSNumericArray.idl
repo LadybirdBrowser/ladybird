@@ -1,0 +1,11 @@
+#import <CSS/CSSNumericValue.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericarray
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSNumericArray {
+    readonly attribute unsigned long length;
+    getter CSSNumericValue (unsigned long index);
+    
+    // FIXME: Different order than the spec, because IDLParser requires that this comes after the indexed property getter.
+    iterable<CSSNumericValue>;
+};

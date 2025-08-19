@@ -246,6 +246,7 @@ class CSSMathValue;
 class CSSMediaRule;
 class CSSNamespaceRule;
 class CSSNestedDeclarations;
+class CSSNumericArray;
 class CSSNumericValue;
 class CSSPageRule;
 class CSSPageDescriptors;

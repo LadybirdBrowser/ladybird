@@ -53,6 +53,7 @@ CSSMathValue
 CSSMediaRule
 CSSNamespaceRule
 CSSNestedDeclarations
+CSSNumericArray
 CSSNumericValue
 CSSPageDescriptors
 CSSPageRule
