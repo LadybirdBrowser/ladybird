@@ -1,6 +1,6 @@
 {
   "name": "gtkmm",
-  "version": "4.14.0",
+  "version": "4.19.0",
   "description": "gtkmm is the official C++ interface for the popular GUI library GTK+.",
   "homepage": "https://www.gtkmm.org/",
   "license": "LGPL-3.0-or-later",
