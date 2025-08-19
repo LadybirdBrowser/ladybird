@@ -134,7 +134,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         EGL_NONE,
     };
 
-    EGLDisplay display = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY), display_attributes);
+    auto display = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY), display_attributes);
     if (display == EGL_NO_DISPLAY) {
         dbgln("Failed to get EGL display");
         return {};
@@ -169,20 +169,20 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         EGL_NONE,
         EGL_NONE,
     };
-    EGLContext context = eglCreateContext(display, config, EGL_NO_CONTEXT, context_attributes);
+    auto context = eglCreateContext(display, config, EGL_NO_CONTEXT, context_attributes);
     if (context == EGL_NO_CONTEXT) {
         dbgln("Failed to create EGL context");
         return {};
     }
 
 #ifdef USE_VULKAN
-    PFNEGLQUERYDMABUFFORMATSEXTPROC pfn_egl_query_dma_buf_formats_ext = reinterpret_cast<PFNEGLQUERYDMABUFFORMATSEXTPROC>(eglGetProcAddress("eglQueryDmaBufFormatsEXT"));
+    auto pfn_egl_query_dma_buf_formats_ext = reinterpret_cast<PFNEGLQUERYDMABUFFORMATSEXTPROC>(eglGetProcAddress("eglQueryDmaBufFormatsEXT"));
     if (!pfn_egl_query_dma_buf_formats_ext) {
         dbgln("eglQueryDmaBufFormatsEXT unavailable");
         return {};
     }
 
-    PFNEGLQUERYDMABUFMODIFIERSEXTPROC pfn_egl_query_dma_buf_modifiers_ext = reinterpret_cast<PFNEGLQUERYDMABUFMODIFIERSEXTPROC>(eglGetProcAddress("eglQueryDmaBufModifiersEXT"));
+    auto pfn_egl_query_dma_buf_modifiers_ext = reinterpret_cast<PFNEGLQUERYDMABUFMODIFIERSEXTPROC>(eglGetProcAddress("eglQueryDmaBufModifiersEXT"));
     if (!pfn_egl_query_dma_buf_modifiers_ext) {
         dbgln("eglQueryDmaBufModifiersEXT unavailable");
         return {};
@@ -316,9 +316,7 @@ void OpenGLContext::allocate_painting_surface_if_needed()
         }
     }
 
-    NonnullRefPtr<Gfx::VulkanImage> vulkan_image = Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), width, height, vulkan_format,
-        renderable_modifiers.size(), renderable_modifiers.data())
-                                                       .value();
+    auto vulkan_image = MUST(Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), width, height, vulkan_format, renderable_modifiers.size(), renderable_modifiers.data()));
     m_painting_surface = Gfx::PaintingSurface::create_from_vkimage(m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLAttrib attribs[] = {
