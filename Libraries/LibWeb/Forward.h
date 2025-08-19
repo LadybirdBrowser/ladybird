@@ -242,6 +242,7 @@ class CSSKeywordValue;
 class CSSLayerBlockRule;
 class CSSLayerStatementRule;
 class CSSMarginRule;
+class CSSMathValue;
 class CSSMediaRule;
 class CSSNamespaceRule;
 class CSSNestedDeclarations;
