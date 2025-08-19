@@ -307,10 +307,8 @@ void Process::wait_for_debugger_and_break()
             dbgln("Cannot wait for debugger: {}. Continuing.", check.release_error());
             return;
         }
-        if (check.value()) {
-            kill(getpid(), SIGTRAP);
+        if (check.value())
             return;
-        }
         if (should_print_process_info) {
             dbgln("Process {} with pid {} is sleeping, waiting for debugger.", Process::get_name(), getpid());
             should_print_process_info = false;
