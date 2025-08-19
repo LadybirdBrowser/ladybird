@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 7 tests
 
-1 Pass
-6 Fail
+2 Pass
+5 Fail
 Pass	Adding two types with different non-null percent hints throws TypeError
 Fail	Adding two types with the same nonzero values returns same type
 Fail	Adding two types with empty maps with returns empty map
 Fail	Adding a type with percent returns type with percent hint
-Fail	Adding a type with percent 2 returns type with percent hint throws TypeError
+Pass	Adding a type with percent 2 returns type with percent hint throws TypeError
 Fail	Adding a type with a percent hint returns a type with the percent hint
 Fail	Adding two types with the same percent hint returns a type with the percent hint
