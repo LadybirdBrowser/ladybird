@@ -63,6 +63,7 @@ void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
         visitor.visit(cache.imported_objects());
         visitor.visit(cache.extern_values());
         visitor.visit(cache.global_instances());
+        visitor.visit(cache.memory_instances());
         cache.abstract_machine().visit_external_resources({ .visit_trap = [&visitor](Wasm::ExternallyManagedTrap const& trap) {
             auto& completion = trap.unsafe_external_object_as<JS::Completion>();
             visitor.visit(completion.value());
