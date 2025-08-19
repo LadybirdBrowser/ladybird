@@ -646,9 +646,8 @@ void GridFormattingContext::initialize_gap_tracks(AvailableSpace const& availabl
 {
     // https://www.w3.org/TR/css-grid-2/#gutters
     // 11.1. Gutters: the row-gap, column-gap, and gap properties
-    // For the purpose of track sizing, each gutter is treated as an extra, empty, fixed-size track of
-    // the specified size, which is spanned by any grid items that span across its corresponding grid
-    // line.
+    // For the purpose of track sizing, each gutter is treated as an extra, empty, fixed-size track of the specified
+    // size, which is spanned by any grid items that span across its corresponding grid line.
     if (m_grid_columns.size() > 0) {
         CSSPixels column_gap_width = 0;
         if (!grid_container().computed_values().column_gap().has<CSS::NormalGap>()) {
@@ -661,13 +660,13 @@ void GridFormattingContext::initialize_gap_tracks(AvailableSpace const& availabl
             m_grid_columns_and_gaps.append(m_grid_columns[column_index]);
 
             if (column_index != m_grid_columns.size() - 1) {
-                m_column_gap_tracks.append(GridTrack::create_gap(column_gap_width));
+                m_column_gap_tracks.unchecked_append(GridTrack::create_gap(column_gap_width));
                 m_grid_columns_and_gaps.append(m_column_gap_tracks.last());
             }
         }
     }
 
-    if (m_grid_rows.size() > 0) {
+    if (!m_grid_rows.is_empty()) {
         CSSPixels row_gap_height = 0;
         if (!grid_container().computed_values().row_gap().has<CSS::NormalGap>()) {
             row_gap_height = gap_to_px(grid_container().computed_values().row_gap(), grid_container(), available_space.height.to_px_or_zero());
@@ -679,7 +678,7 @@ void GridFormattingContext::initialize_gap_tracks(AvailableSpace const& availabl
             m_grid_rows_and_gaps.append(m_grid_rows[row_index]);
 
             if (row_index != m_grid_rows.size() - 1) {
-                m_row_gap_tracks.append(GridTrack::create_gap(row_gap_height));
+                m_row_gap_tracks.unchecked_append(GridTrack::create_gap(row_gap_height));
                 m_grid_rows_and_gaps.append(m_row_gap_tracks.last());
             }
         }
@@ -1090,13 +1089,11 @@ void GridFormattingContext::maximize_tracks_using_available_size(AvailableSpace 
         // For the purpose of this step: if sizing the grid container under a max-content constraint, the
         // free space is infinite; if sizing under a min-content constraint, the free space is zero.
         auto free_space = get_free_space(available_space, dimension);
-        if (free_space.is_max_content() || free_space.is_indefinite()) {
+        if (free_space.is_max_content() || free_space.is_indefinite())
             return CSSPixels::max();
-        } else if (free_space.is_min_content()) {
+        if (free_space.is_min_content())
             return 0;
-        } else {
-            return free_space.to_px_or_zero();
-        }
+        return free_space.to_px_or_zero();
     };
 
     auto free_space_px = get_free_space_px();
