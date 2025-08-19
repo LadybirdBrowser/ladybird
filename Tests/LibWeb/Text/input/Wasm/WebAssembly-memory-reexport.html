@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // (module
+        //     (import "env" "memory" (memory $mem 1))
+        //     (export "memory" (memory $mem))
+        // )
+        const WASM_URL =
+            "data:application/wasm;base64,AGFzbQEAAAACDwEDZW52Bm1lbW9yeQIAAQcKAQZtZW1vcnkCAA==";
+
+        const memory = new WebAssembly.Memory({ initial: 1 });
+        const {
+            instance: { exports },
+        } = await WebAssembly.instantiateStreaming(fetch(WASM_URL), { env: { memory } });
+
+        println(`Re-exported memory equals imported memory: ${memory === exports.memory}`);
+        done();
+    });
+</script>
