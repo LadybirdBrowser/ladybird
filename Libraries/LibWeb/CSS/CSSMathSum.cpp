@@ -7,6 +7,7 @@
 #include "CSSMathSum.h"
 #include <LibWeb/Bindings/CSSMathSumPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -109,10 +110,9 @@ String CSSMathSum::serialize_math_value(Nested nested, Parens parens) const
 
             // 1. If arg is a CSSMathNegate, append " - " to s, then serialize arg’s value internal slot with nested
             //    set to true, and append the result to s.
-            // FIXME: Detect CSSMathNegate once that's implemented.
-            if (false) {
+            if (auto* negate = as_if<CSSMathNegate>(*arg)) {
                 s.append(" - "sv);
-                s.append(arg->to_string({ .nested = true }));
+                s.append(negate->value()->to_string({ .nested = true }));
             }
 
             // 2. Otherwise, append " + " to s, then serialize arg with nested set to true, and append the result to s.

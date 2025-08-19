@@ -116,6 +116,7 @@ set(SOURCES
     CSS/CSSLayerBlockRule.cpp
     CSS/CSSLayerStatementRule.cpp
     CSS/CSSMarginRule.cpp
+    CSS/CSSMathNegate.cpp
     CSS/CSSMathProduct.cpp
     CSS/CSSMathSum.cpp
     CSS/CSSMathValue.cpp
