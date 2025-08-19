@@ -11,7 +11,7 @@ namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(PointerEvent);
 
-WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
+WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
 {
     PointerEventInit event_init {};
     event_init.ctrl_key = modifiers & Mod_Ctrl;
@@ -22,6 +22,7 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     event_init.screen_y = screen.y().to_double();
     event_init.client_x = client.x().to_double();
     event_init.client_y = client.y().to_double();
+    event_init.view = window_proxy;
     if (movement.has_value()) {
         event_init.movement_x = movement.value().x().to_double();
         event_init.movement_y = movement.value().y().to_double();
