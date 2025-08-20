@@ -27,7 +27,6 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/Infra/Strings.h>
-#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -1064,115 +1063,38 @@ void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_wor
     selection_was_changed();
 }
 
-static constexpr size_t find_line_start(Utf16View const& view, size_t offset)
-{
-    while (offset != 0 && view.code_unit_at(offset - 1) != '\n')
-        --offset;
-    return offset;
-}
-
-static constexpr size_t find_line_end(Utf16View const& view, size_t offset)
-{
-    auto length = view.length_in_code_units();
-    while (offset < length && view.code_unit_at(offset) != '\n')
-        ++offset;
-    return offset;
-}
-
-static float measure_text_width(Layout::TextNode const& text_node, Utf16View const& text)
-{
-    if (text.is_empty())
-        return 0;
-
-    auto segmenter = text_node.grapheme_segmenter().clone();
-    segmenter->set_segmented_text(text);
-
-    Layout::TextNode::ChunkIterator iterator { text_node, text, *segmenter, false, false };
-    float width = 0;
-
-    for (auto chunk = iterator.next(); chunk.has_value(); chunk = iterator.next())
-        width += chunk->font->width(chunk->view);
-
-    return width;
-}
-
-static size_t translate_position_across_lines(Layout::TextNode const& text_node, Utf16View const& source_line, Utf16View const& target_line)
-{
-    GraphemeEdgeTracker tracker(measure_text_width(text_node, source_line));
-    auto previous_index = 0uz;
-
-    text_node.grapheme_segmenter().clone()->for_each_boundary(target_line, [&](auto index) {
-        auto current_width = measure_text_width(text_node, target_line.substring_view(previous_index, index - previous_index));
-
-        if (tracker.update(index - previous_index, current_width) == IterationDecision::Break)
-            return IterationDecision::Break;
-
-        previous_index = index;
-        return IterationDecision::Continue;
-    });
-
-    return tracker.resolve();
-}
-
 void FormAssociatedTextControlElement::increment_cursor_position_to_next_line(CollapseSelection collapse)
 {
-    auto dom_node = form_associated_element_to_text_node();
-    if (!dom_node)
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node)
         return;
 
-    auto const* layout_node = as_if<Layout::TextNode>(dom_node->layout_node());
-    if (!layout_node)
+    auto new_offset = compute_cursor_position_on_next_line(*text_node, m_selection_end);
+    if (!new_offset.has_value())
         return;
-
-    auto text = dom_node->data().utf16_view();
-    auto new_offset = text.length_in_code_units();
-
-    if (auto current_line_end = find_line_end(text, m_selection_end); current_line_end < text.length_in_code_units()) {
-        auto current_line_start = find_line_start(text, m_selection_end);
-        auto current_line_text = text.substring_view(current_line_start, m_selection_end - current_line_start);
-
-        auto next_line_start = current_line_end + 1;
-        auto next_line_length = find_line_end(text, next_line_start) - next_line_start;
-        auto next_line_text = text.substring_view(next_line_start, next_line_length);
-
-        new_offset = next_line_start + translate_position_across_lines(*layout_node, current_line_text, next_line_text);
-    }
 
     if (collapse == CollapseSelection::Yes)
-        collapse_selection_to_offset(new_offset);
+        collapse_selection_to_offset(*new_offset);
     else
-        m_selection_end = new_offset;
+        m_selection_end = *new_offset;
 
     selection_was_changed();
 }
 
 void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_line(CollapseSelection collapse)
 {
-    auto dom_node = form_associated_element_to_text_node();
-    if (!dom_node)
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node)
         return;
 
-    auto const* layout_node = as_if<Layout::TextNode>(dom_node->layout_node());
-    if (!layout_node)
+    auto new_offset = compute_cursor_position_on_previous_line(*text_node, m_selection_end);
+    if (!new_offset.has_value())
         return;
-
-    auto text = dom_node->data().utf16_view();
-    auto new_offset = 0uz;
-
-    if (auto current_line_start = find_line_start(text, m_selection_end); current_line_start != 0) {
-        auto current_line_text = text.substring_view(current_line_start, m_selection_end - current_line_start);
-
-        auto previous_line_start = find_line_start(text, current_line_start - 1);
-        auto previous_line_length = current_line_start - previous_line_start - 1;
-        auto previous_line_text = text.substring_view(previous_line_start, previous_line_length);
-
-        new_offset = previous_line_start + translate_position_across_lines(*layout_node, current_line_text, previous_line_text);
-    }
 
     if (collapse == CollapseSelection::Yes)
-        collapse_selection_to_offset(new_offset);
+        collapse_selection_to_offset(*new_offset);
     else
-        m_selection_end = new_offset;
+        m_selection_end = *new_offset;
 
     selection_was_changed();
 }

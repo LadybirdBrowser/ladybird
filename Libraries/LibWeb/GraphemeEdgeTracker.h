@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/IterationDecision.h>
+#include <AK/Optional.h>
+#include <LibWeb/Forward.h>
 
 namespace Web {
 
@@ -73,5 +75,8 @@ private:
     float m_width_to_left_edge { 0 };
     float m_width_to_right_edge { 0 };
 };
+
+Optional<size_t> compute_cursor_position_on_next_line(DOM::Text const&, size_t current_offset);
+Optional<size_t> compute_cursor_position_on_previous_line(DOM::Text const&, size_t current_offset);
 
 }
