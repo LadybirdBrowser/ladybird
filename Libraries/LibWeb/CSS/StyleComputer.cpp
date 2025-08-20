@@ -2674,22 +2674,25 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
         if (property_id == PropertyID::FontSize && !value && new_font_size)
             continue;
 
+        bool should_inherit = (!value && is_inherited_property(property_id));
+
+        // https://www.w3.org/TR/css-cascade-4/#inherit
+        // If the cascaded value of a property is the inherit keyword, the property’s specified and computed values are the inherited value.
+        should_inherit |= value && value->is_inherit();
+
+        // https://www.w3.org/TR/css-cascade-4/#inherit-initial
+        // If the cascaded value of a property is the unset keyword, then if it is an inherited property, this is treated as inherit, and if it is not, this is treated as initial.
+        should_inherit |= value && value->is_unset() && is_inherited_property(property_id);
+
         // FIXME: Logical properties should inherit from their parent's equivalent unmapped logical property.
-        if ((!value && is_inherited_property(property_id)) || (value && value->is_inherit())) {
+        if (should_inherit) {
             value = get_inherit_value(property_id, &element, pseudo_element);
             animated_value = get_animated_inherit_value(property_id, &element, pseudo_element);
             inherited = ComputedProperties::Inherited::Yes;
         }
 
-        if (!value || value->is_initial())
+        if (!value || value->is_initial() || value->is_unset())
             value = property_initial_value(property_id);
-
-        if (value->is_unset()) {
-            if (is_inherited_property(property_id))
-                value = KeywordStyleValue::create(Keyword::Inherit);
-            else
-                value = KeywordStyleValue::create(Keyword::Initial);
-        }
 
         computed_style->set_property(property_id, value.release_nonnull(), inherited);
         if (animated_value.has_value())
