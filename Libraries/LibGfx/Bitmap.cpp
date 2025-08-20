@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Timothy Slater <tslater2006@gmail.com>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
@@ -11,6 +11,10 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <errno.h>
+
+#ifdef AK_OS_MACOS
+#    include <Accelerate/Accelerate.h>
+#endif
 
 namespace Gfx {
 
@@ -280,6 +284,39 @@ void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
     if (alpha_type == m_alpha_type)
         return;
 
+#ifdef AK_OS_MACOS
+    vImage_Buffer buf { .data = m_data, .height = vImagePixelCount(height()), .width = vImagePixelCount(width()), .rowBytes = pitch() };
+    vImage_Error err;
+    if (m_alpha_type == AlphaType::Unpremultiplied) {
+        switch (m_format) {
+        case BitmapFormat::BGRA8888:
+        case BitmapFormat::BGRx8888:
+            err = vImagePremultiplyData_BGRA8888(&buf, &buf, kvImageNoFlags);
+            break;
+        case BitmapFormat::RGBA8888:
+        case BitmapFormat::RGBx8888:
+            err = vImagePremultiplyData_RGBA8888(&buf, &buf, kvImageNoFlags);
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    } else {
+        switch (m_format) {
+        case BitmapFormat::BGRA8888:
+        case BitmapFormat::BGRx8888:
+            err = vImageUnpremultiplyData_BGRA8888(&buf, &buf, kvImageNoFlags);
+            break;
+        case BitmapFormat::RGBA8888:
+        case BitmapFormat::RGBx8888:
+            err = vImageUnpremultiplyData_RGBA8888(&buf, &buf, kvImageNoFlags);
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+    VERIFY(err == kvImageNoError);
+#else
+    // FIXME: Make this fast on other platforms too.
     if (m_alpha_type == AlphaType::Unpremultiplied) {
         for (auto y = 0; y < height(); ++y) {
             for (auto x = 0; x < width(); ++x)
@@ -293,7 +330,7 @@ void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
     } else {
         VERIFY_NOT_REACHED();
     }
-
+#endif
     m_alpha_type = alpha_type;
 }
 

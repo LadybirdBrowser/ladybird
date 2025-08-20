@@ -168,6 +168,7 @@ endif()
 
 if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework Metal")
+    target_link_libraries(LibCore PUBLIC "-framework Accelerate")
 endif()
 
 if (HAS_VULKAN)
