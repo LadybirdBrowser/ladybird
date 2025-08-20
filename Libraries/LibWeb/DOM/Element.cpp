@@ -4078,7 +4078,7 @@ bool Element::should_indicate_focus() const
 
     // * If the element which supports keyboard input (such as an input element, or any other element that would
     //   triggers a virtual keyboard to be shown on focus if a physical keyboard were not present), indicate focus.
-    if (is<HTML::FormAssociatedTextControlElement>(this))
+    if (is<HTML::FormAssociatedTextControlElement>(this) || is_editable_or_editing_host())
         return true;
 
     // * If the user interacts with the page via keyboard or some other non-pointing device, indicate focus. (This means

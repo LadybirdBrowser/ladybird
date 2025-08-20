@@ -1,2 +1,3 @@
 INPUT: rgb(0, 0, 0) auto 3px
 BUTTON: rgb(0, 0, 0) 0px
+DIV: rgb(0, 0, 0) auto 3px

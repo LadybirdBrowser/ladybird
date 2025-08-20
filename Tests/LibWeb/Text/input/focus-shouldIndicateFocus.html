@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <input value="foo"><br>
 <button>bar</button>
+<div contenteditable>baz</div>
 <script src="include.js"></script>
 <script>
 test(() => {
@@ -13,5 +14,6 @@ test(() => {
 
     runOutlineTest('input');
     runOutlineTest('button');
+    runOutlineTest('div[contenteditable]');
 });
 </script>
