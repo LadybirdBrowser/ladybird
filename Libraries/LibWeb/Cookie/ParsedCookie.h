@@ -33,6 +33,8 @@ WEB_API bool cookie_contains_invalid_control_character(StringView);
 WEB_API bool domain_matches(StringView string, StringView domain_string);
 WEB_API String default_path(URL::URL const&);
 
+constexpr inline AK::Duration maximum_cookie_age = AK::Duration::from_seconds(400LL * 24 * 60 * 60);
+
 }
 
 namespace IPC {
