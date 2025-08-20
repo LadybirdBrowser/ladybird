@@ -1,2 +1,9 @@
+-- Simple editing host --
 Range: [object Text] 1 [object Text] 2
-document.activeElement: [object HTMLDivElement]
+<DIV id="a">
+-- Editing host with nested <span> --
+Range: [object Text] 1 [object Text] 1
+<DIV id="b">
+-- Refocusing on same editing host --
+Range: [object Text] 0 [object Text] 0
+<DIV id="b">
