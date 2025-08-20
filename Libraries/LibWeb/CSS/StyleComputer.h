@@ -230,12 +230,9 @@ private:
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
     void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
     void compute_math_depth(ComputedProperties&, DOM::Element const*, Optional<CSS::PseudoElement>) const;
-    void compute_defaulted_values(ComputedProperties&, DOM::Element const*, Optional<CSS::PseudoElement>) const;
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::Element&, Optional<PseudoElement>) const;
     void resolve_effective_overflow_values(ComputedProperties&) const;
     void transform_box_type_if_needed(ComputedProperties&, DOM::Element const&, Optional<CSS::PseudoElement>) const;
-
-    void compute_defaulted_property_value(ComputedProperties&, DOM::Element const*, CSS::PropertyID, Optional<CSS::PseudoElement>) const;
 
     template<typename Callback>
     void for_each_stylesheet(CascadeOrigin, Callback) const;
