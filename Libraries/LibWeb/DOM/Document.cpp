@@ -477,14 +477,11 @@ Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFr
         if (!cursor_position)
             return;
 
-        auto node = cursor_position->node();
-        if (!node)
-            return;
-
         auto navigable = this->navigable();
         if (!navigable || !navigable->is_focused())
             return;
 
+        auto node = cursor_position->node();
         node->document().update_layout(UpdateLayoutReason::CursorBlinkTimer);
 
         if (node->paintable()) {
