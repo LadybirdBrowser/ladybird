@@ -104,8 +104,8 @@ void Range::update_associated_selection()
         return;
 
     auto& document = m_start_container->document();
+    document.reset_cursor_blink_cycle();
     if (auto* viewport = document.paintable()) {
-        document.reset_cursor_blink_cycle();
         viewport->recompute_selection_states(*this);
         viewport->set_needs_display();
     }
