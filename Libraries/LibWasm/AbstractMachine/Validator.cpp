@@ -271,6 +271,7 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
         }
 
         function_validator.m_frames.empend(function_type, FrameKind::Function, (size_t)0);
+        function_validator.m_max_frame_size = max(function_validator.m_max_frame_size, function_validator.m_frames.size());
 
         auto results = TRY(function_validator.validate(function.body(), function_type.results()));
         if (results.result_types.size() != function_type.results().size())
@@ -1971,6 +1972,7 @@ VALIDATE_INSTRUCTION(block)
         TRY(stack.take(parameters[parameters.size() - i]));
 
     m_frames.empend(block_type, FrameKind::Block, stack.size());
+    m_max_frame_size = max(m_max_frame_size, m_frames.size());
     for (auto& parameter : parameters)
         stack.append(parameter);
 
@@ -1987,6 +1989,7 @@ VALIDATE_INSTRUCTION(loop)
         TRY(stack.take(parameters[parameters.size() - i]));
 
     m_frames.empend(block_type, FrameKind::Loop, stack.size());
+    m_max_frame_size = max(m_max_frame_size, m_frames.size());
     for (auto& parameter : parameters)
         stack.append(parameter);
 
@@ -2007,6 +2010,7 @@ VALIDATE_INSTRUCTION(if_)
         TRY(stack.take(parameters[parameters.size() - i]));
 
     m_frames.empend(block_type, FrameKind::If, stack.size());
+    m_max_frame_size = max(m_max_frame_size, m_frames.size());
     for (auto& parameter : parameters)
         stack.append(parameter);
 
@@ -3734,9 +3738,12 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
     for (auto& type : result_types)
         stack.append(type);
     m_frames.take_last();
-    VERIFY(m_frames.is_empty());
 
     expression.set_stack_usage_hint(stack.max_known_size());
+    expression.set_frame_usage_hint(m_max_frame_size);
+
+    VERIFY(m_frames.is_empty());
+    m_max_frame_size = 0;
 
     // Now that we're in happy land, try to compile the expression down to a list of labels to help dispatch.
     expression.compiled_instructions = try_compile_instructions(expression, m_context.functions.span());

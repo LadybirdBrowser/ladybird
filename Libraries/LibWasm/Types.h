@@ -758,11 +758,15 @@ public:
 
     void set_stack_usage_hint(size_t value) const { m_stack_usage_hint = value; }
     auto stack_usage_hint() const { return m_stack_usage_hint; }
+    void set_frame_usage_hint(size_t value) const { m_frame_usage_hint = value; }
+    auto frame_usage_hint() const { return m_frame_usage_hint; }
+
     mutable CompiledInstructions compiled_instructions;
 
 private:
     Vector<Instruction> m_instructions;
     mutable Optional<size_t> m_stack_usage_hint;
+    mutable Optional<size_t> m_frame_usage_hint;
 };
 
 class GlobalSection {
