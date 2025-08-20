@@ -1695,65 +1695,6 @@ Optional<NonnullRefPtr<StyleValue const>> StyleComputer::get_animated_inherit_va
     return {};
 }
 
-void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::PseudoElement> pseudo_element) const
-{
-    auto& value_slot = style.m_property_values[to_underlying(property_id)];
-    if (!value_slot) {
-        if (is_inherited_property(property_id)) {
-            if (auto animated_inherit_value = get_animated_inherit_value(property_id, element, pseudo_element); animated_inherit_value.has_value())
-                style.set_animated_property(property_id, animated_inherit_value.value(), ComputedProperties::Inherited::Yes);
-            style.set_property(
-                property_id,
-                get_inherit_value(property_id, element, pseudo_element),
-                ComputedProperties::Inherited::Yes,
-                Important::No);
-        } else {
-            style.set_property(property_id, property_initial_value(property_id));
-        }
-        return;
-    }
-
-    if (value_slot->is_initial()) {
-        value_slot = property_initial_value(property_id);
-        return;
-    }
-
-    if (value_slot->is_inherit()) {
-        if (auto animated_inherit_value = get_animated_inherit_value(property_id, element, pseudo_element); animated_inherit_value.has_value())
-            style.set_animated_property(property_id, animated_inherit_value.value(), ComputedProperties::Inherited::Yes);
-        value_slot = get_inherit_value(property_id, element, pseudo_element);
-        style.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
-        return;
-    }
-
-    // https://www.w3.org/TR/css-cascade-4/#inherit-initial
-    // If the cascaded value of a property is the unset keyword,
-    if (value_slot->is_unset()) {
-        if (is_inherited_property(property_id)) {
-            // then if it is an inherited property, this is treated as inherit,
-            if (auto animated_inherit_value = get_animated_inherit_value(property_id, element, pseudo_element); animated_inherit_value.has_value())
-                style.set_animated_property(property_id, animated_inherit_value.value(), ComputedProperties::Inherited::Yes);
-            value_slot = get_inherit_value(property_id, element, pseudo_element);
-            style.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
-        } else {
-            // and if it is not, this is treated as initial.
-            value_slot = property_initial_value(property_id);
-        }
-    }
-}
-
-// https://www.w3.org/TR/css-cascade/#defaulting
-void StyleComputer::compute_defaulted_values(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
-{
-    // Walk the list of all known CSS properties and:
-    // - Add them to `style` if they are missing.
-    // - Resolve `inherit` and `initial` as needed.
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        auto property_id = (CSS::PropertyID)i;
-        compute_defaulted_property_value(style, element, property_id, pseudo_element);
-    }
-}
-
 Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedProperties const& style) const
 {
     auto const& root_value = style.property(CSS::PropertyID::FontSize);
