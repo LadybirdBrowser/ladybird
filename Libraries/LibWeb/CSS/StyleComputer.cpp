@@ -2120,23 +2120,6 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
 
 void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
 {
-    // To compute the font, first ensure that we've defaulted the relevant CSS font properties.
-    // FIXME: This should be more sophisticated.
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontFamily, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontSize, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontWidth, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontStyle, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontWeight, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::LineHeight, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariant, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantAlternates, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantCaps, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantEmoji, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantEastAsian, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantLigatures, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantNumeric, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantPosition, pseudo_element);
-
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
     auto const& font_size = style.property(CSS::PropertyID::FontSize);
     auto const& font_style = style.property(CSS::PropertyID::FontStyle);
@@ -2465,9 +2448,13 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
 GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
 {
     auto style = document().heap().allocate<CSS::ComputedProperties>();
+    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        style->set_property(property_id, property_initial_value(property_id));
+    }
+
     compute_math_depth(style, nullptr, {});
     compute_font(style, nullptr, {});
-    compute_defaulted_values(style, nullptr, {});
     absolutize_values(style, nullptr);
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
@@ -3236,11 +3223,6 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
 void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
 {
     // https://w3c.github.io/mathml-core/#propdef-math-depth
-
-    // First, ensure that the relevant CSS properties have been defaulted.
-    // FIXME: This should be more sophisticated.
-    compute_defaulted_property_value(style, element, CSS::PropertyID::MathDepth, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::MathStyle, pseudo_element);
 
     auto inherited_math_depth = [&]() {
         if (!element || !element->element_to_inherit_style_from(pseudo_element))
