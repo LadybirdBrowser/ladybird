@@ -80,7 +80,7 @@ public:
             value_stack().unchecked_append(value);
             return;
         }
-        regs[to_underlying(destination)] = value;
+        regs.data()[to_underlying(destination)] = value;
     }
 
     ALWAYS_INLINE FLATTEN Value& source_value(u8 index)
@@ -89,7 +89,7 @@ public:
         auto const source = sources[index];
         if (source == Dispatch::RegisterOrStack::Stack)
             return value_stack().unsafe_last();
-        return regs[to_underlying(source)];
+        return regs.data()[to_underlying(source)];
     }
 
     ALWAYS_INLINE FLATTEN Value take_source(u8 index)
@@ -97,7 +97,7 @@ public:
         auto const source = sources[index];
         if (source == Dispatch::RegisterOrStack::Stack)
             return value_stack().unsafe_take_last();
-        return regs[to_underlying(source)];
+        return regs.data()[to_underlying(source)];
     }
 
     union {
