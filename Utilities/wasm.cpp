@@ -9,11 +9,18 @@
 #include <AK/Hex.h>
 #include <AK/MemoryStream.h>
 #include <AK/StackInfo.h>
+#include <AK/Utf16String.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
+#include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibJS/Bytecode/Interpreter.h>
+#include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/BigInt.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibJS/Script.h>
 #if !defined(AK_OS_WINDOWS)
 #    include <LibLine/Editor.h>
 #endif
@@ -274,6 +281,18 @@ static void print_link_error(Wasm::LinkError const& error)
         warnln("Missing import '{}'", missing);
 }
 
+template<typename T>
+static ErrorOr<T, Wasm::Result> trap_for_js_exception(JS::VM& vm, JS::ThrowCompletionOr<T> const& result)
+{
+    if (!result.is_error())
+        return result.value();
+
+    auto const& completion = result.error();
+    auto& exception = completion.value();
+    warnln("JS exception: {}", MUST(exception.to_string(vm)));
+    return Wasm::Trap { ByteString("JS exception") };
+}
+
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView filename;
@@ -288,6 +307,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Vector<ByteString> modules_to_link_in;
     Vector<StringView> args_if_wasi;
     Vector<StringView> wasi_preopened_mappings;
+    HashMap<Wasm::Linker::Name, Wasm::ExternValue> js_exports;
+
+    Wasm::AbstractMachine machine;
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
 
     Core::ArgsParser parser;
     parser.add_positional_argument(filename, "File name to parse", "file");
@@ -300,6 +325,197 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #if !defined(AK_OS_WINDOWS)
     parser.add_option(wasi, "Enable WASI", "wasi", 'w');
 #endif
+    parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Export js `function(arg...) { source }` returning T as [module].[function]",
+        .long_name = "export-js",
+        .short_name = 0,
+        .value_name = "module.function(arg:T...):T=source",
+        .accept_value = [&](StringView str) {
+            GenericLexer lexer(str);
+            // [module] <.> [function] <(> {[name] <:> [type]} <)> (<:> [type])? <=> [text]
+            auto module = lexer.consume_until('.');
+            if (!lexer.consume_specific('.')) {
+                warnln("Invalid JS export module in '{}'", str);
+                return false;
+            }
+            auto fn_name = lexer.consume_until(is_any_of("(=:"sv));
+            struct Arg {
+                Wasm::ValueType::Kind type;
+                StringView name;
+            };
+            Vector<Arg> formal_params;
+            if (lexer.consume_specific('(')) {
+                while (!lexer.consume_specific(')')) {
+                    auto name = lexer.consume_until(is_any_of(",:)"sv));
+                    if (name.is_empty()) {
+                        warnln("Invalid JS export argument name in '{}'", str);
+                        return false;
+                    }
+                    auto type = Wasm::ValueType::I32;
+                    if (lexer.consume_specific(':')) {
+                        if (lexer.consume_specific("i32"sv)) {
+                            type = Wasm::ValueType::I32;
+                        } else if (lexer.consume_specific("i64"sv)) {
+                            type = Wasm::ValueType::I64;
+                        } else if (lexer.consume_specific("f32"sv)) {
+                            type = Wasm::ValueType::F32;
+                        } else if (lexer.consume_specific("f64"sv)) {
+                            type = Wasm::ValueType::F64;
+                        } else if (lexer.consume_specific("v128"sv)) {
+                            type = Wasm::ValueType::V128;
+                        } else {
+                            warnln("Invalid JS export argument type in '{}'", str);
+                            return false;
+                        }
+                    }
+                    formal_params.append(Arg { type, name });
+                    lexer.consume_specific(',');
+                }
+            }
+            Vector<Wasm::ValueType::Kind> returns;
+            if (lexer.consume_specific(':')) {
+                if (lexer.consume_specific("i32"sv)) {
+                    returns.append(Wasm::ValueType::I32);
+                } else if (lexer.consume_specific("i64"sv)) {
+                    returns.append(Wasm::ValueType::I64);
+                } else if (lexer.consume_specific("f32"sv)) {
+                    returns.append(Wasm::ValueType::F32);
+                } else if (lexer.consume_specific("f64"sv)) {
+                    returns.append(Wasm::ValueType::F64);
+                } else if (lexer.consume_specific("v128"sv)) {
+                    returns.append(Wasm::ValueType::V128);
+                } else {
+                    warnln("Invalid JS export return type in '{}'", str);
+                    return false;
+                }
+            }
+
+            if (!lexer.consume_specific('=') || lexer.is_eof()) {
+                warnln("Invalid JS export source in '{}'", str);
+                return false;
+            }
+
+            auto source_text = lexer.consume_all().trim_whitespace();
+            StringBuilder builder;
+            builder.append("("sv);
+            auto first = true;
+            for (auto& arg : formal_params) {
+                if (!first)
+                    builder.append(", "sv);
+                first = false;
+                builder.append(arg.name);
+            }
+            builder.appendff(") => {}", source_text);
+            auto js_function = builder.to_byte_string();
+            auto name = ByteString::formatted("{}.{}", module, fn_name);
+            auto script = JS::Script::parse(js_function, realm, name);
+            if (script.is_error()) {
+                warnln("Failed to parse JS export source '{}':", js_function);
+                return false;
+            }
+
+            auto js_script = script.release_value();
+            JS::Bytecode::Interpreter interp(vm);
+            auto maybe_function = interp.run(*js_script);
+            if (maybe_function.is_error()) {
+                warnln("Failed to run JS export source '{}'", js_function);
+                return false;
+            }
+            auto function_val = maybe_function.release_value();
+            if (!function_val.is_function()) {
+                warnln("JS export source '{}' did not parse as a function", js_function);
+                return false;
+            }
+
+            auto& function = function_val.as_function();
+
+            Vector<Wasm::ValueType> results;
+            Vector<Wasm::ValueType> params;
+            for (auto& type : returns)
+                results.append(Wasm::ValueType(type));
+            for (auto& arg : formal_params)
+                params.append(Wasm::ValueType(arg.type));
+
+            Wasm::FunctionType function_type = { move(params), move(results) };
+            auto host_function = Wasm::HostFunction {
+                [&vm, &function, formal_params, returns, name](Wasm::Configuration&, Vector<Wasm::Value>& args) mutable -> Wasm::Result {
+                    Vector<JS::Value> js_args;
+                    js_args.ensure_capacity(args.size());
+                    for (size_t i = 0; i < formal_params.size(); ++i) {
+                        auto type = formal_params[i].type;
+                        if (i >= args.size()) {
+                            warnln("Not enough arguments provided to JS export function '{}'", name);
+                            return Wasm::Trap { ByteString("Not enough arguments") };
+                        }
+                        auto& arg = args[i];
+                        switch (type) {
+                        case Wasm::ValueType::I32:
+                            js_args.append(JS::Value(arg.to<u32>()));
+                            break;
+                        case Wasm::ValueType::I64:
+                            js_args.append(JS::Value(arg.to<u64>()));
+                            break;
+                        case Wasm::ValueType::F32:
+                            js_args.append(JS::Value(arg.to<f32>()));
+                            break;
+                        case Wasm::ValueType::F64:
+                            js_args.append(JS::Value(arg.to<f64>()));
+                            break;
+                        case Wasm::ValueType::V128: {
+                            auto value = arg.to<u128>();
+                            ReadonlyBytes data { bit_cast<u8 const*>(&value), sizeof(u128) };
+                            js_args.append(vm->heap().allocate<JS::BigInt>(Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { data } }));
+                            break;
+                        }
+                        default:
+                            warnln("Unsupported argument type '{}' for JS export function '{}'", Wasm::ValueType::kind_name(type), name);
+                            return Wasm::Trap { ByteString("Unsupported argument type") };
+                        }
+                    }
+                    auto result = TRY(trap_for_js_exception(vm, JS::call(vm, function, JS::js_null(), js_args.span())));
+                    if (returns.is_empty())
+                        return Wasm::Result { Vector<Wasm::Value> {} };
+
+                    if (returns.size() != 1)
+                        return Wasm::Trap { ByteString("NYI") };
+
+                    switch (returns[0]) {
+                    case Wasm::ValueType::I32:
+                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { TRY(trap_for_js_exception(*vm, result.to_u32(vm))) } } };
+                    case Wasm::ValueType::I64:
+                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { TRY(trap_for_js_exception(*vm, result.to_bigint_uint64(vm))) } } };
+                    case Wasm::ValueType::F32:
+                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { static_cast<f32>(TRY(trap_for_js_exception(*vm, result.to_double(vm)))) } } };
+                    case Wasm::ValueType::F64:
+                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { TRY(trap_for_js_exception(*vm, result.to_double(vm))) } } };
+                    case Wasm::ValueType::V128: {
+                        auto value = TRY(trap_for_js_exception(*vm, result.to_bigint(vm)));
+                        u128 out {};
+                        Bytes data { bit_cast<u8*>(&out), sizeof(u128) };
+                        if (value->big_integer().unsigned_value().export_data(data).size() != data.size()) {
+                            dbgln("JS export function '{}' returned a v128 value that is not 128 bits wide", name);
+                            return Wasm::Trap { ByteString("Invalid v128 value") };
+                        }
+                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { out } } };
+                    }
+                    default:
+                        warnln("Unsupported return type for JS export function '{}'", name);
+                        return Wasm::Trap { ByteString("Unsupported return type") };
+                    }
+                },
+                function_type,
+                name,
+            };
+            auto host_function_instance = machine.store().allocate(move(host_function));
+            if (!host_function_instance.has_value()) {
+                warnln("Failed to allocate host function instance for '{}'", name);
+                return false;
+            }
+            js_exports.set({ .module = module, .name = fn_name, .type = function_type }, *host_function_instance);
+            return true;
+        },
+    });
     parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Directory mappings to expose via WASI",
@@ -444,6 +660,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             linker.link(wasi_exports);
         }
 #endif
+
+        linker.link(js_exports);
 
         if (export_all_imports) {
             HashMap<Wasm::Linker::Name, Wasm::ExternValue> exports;
