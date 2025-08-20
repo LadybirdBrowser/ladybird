@@ -1,15 +1,31 @@
 <!DOCTYPE html>
-<div contenteditable>foo</div>
+<div id="a" contenteditable>foo</div>
+<div id="b" contenteditable>foo<span>bar</span></div>
+<button id="c">press me</button>
 <script src="include.js"></script>
 <script>
 test(() => {
-    const divElm = document.querySelector('div[contenteditable]');
-    const range = document.createRange();
-    range.setStart(divElm.childNodes[0], 1);
-    range.setEnd(divElm.childNodes[0], 2);
-    window.getSelection().addRange(range);
+    function reportSelectionAndFocus() {
+        const range = getSelection().getRangeAt(0);
+        println(`Range: ${range.startContainer} ${range.startOffset} ${range.endContainer} ${range.endOffset}`);
+        printElement(document.activeElement);
+    }
 
-    println(`Range: ${range.startContainer} ${range.startOffset} ${range.endContainer} ${range.endOffset}`);
-    println(`document.activeElement: ${document.activeElement}`);
+    println('-- Simple editing host --');
+    const divA = document.querySelector('div#a');
+    getSelection().setBaseAndExtent(divA.childNodes[0], 1, divA.childNodes[0], 2);
+    reportSelectionAndFocus();
+
+    println('-- Editing host with nested <span> --');
+    const divB = document.querySelector('div#b');
+    getSelection().setBaseAndExtent(divB.childNodes[1].childNodes[0], 1, divB.childNodes[1].childNodes[0], 1);
+    reportSelectionAndFocus();
+
+    println('-- Refocusing on same editing host --');
+    const buttonElm = document.querySelector('button#c');
+    buttonElm.addEventListener('click', () => getSelection().setBaseAndExtent(divB.childNodes[0], 0, divB.childNodes[0], 0));
+    const buttonRect = buttonElm.getBoundingClientRect();
+    internals.click(buttonRect.left + 5, buttonRect.top + 5);
+    reportSelectionAndFocus();
 });
 </script>
