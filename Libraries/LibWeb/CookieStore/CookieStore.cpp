@@ -455,8 +455,21 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
     }
 
     // 13. If expires is given, then append `Expires`/expires (date serialized) to attributes.
-    if (expires.has_value())
-        parsed_cookie.expiry_time_from_expires_attribute = UnixDateTime::from_milliseconds_since_epoch(expires.value());
+    if (expires.has_value()) {
+        auto expiry_time = UnixDateTime::from_milliseconds_since_epoch(expires.value());
+
+        // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.1
+        // 3. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days in the future or sooner, see
+        //    Section 5.5).
+        auto cookie_age_limit = UnixDateTime::now() + Cookie::maximum_cookie_age;
+
+        // 4. If the expiry-time is more than cookie-age-limit, the user agent MUST set the expiry time to cookie-age-limit
+        //    in seconds.
+        if (expiry_time.seconds_since_epoch() > cookie_age_limit.seconds_since_epoch())
+            expiry_time = cookie_age_limit;
+
+        parsed_cookie.expiry_time_from_expires_attribute = expiry_time;
+    }
 
     // 14. If path is the empty string, then set path to the serialized cookie default path of url.
     if (path.is_empty())

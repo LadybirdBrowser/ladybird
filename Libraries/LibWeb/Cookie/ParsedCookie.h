@@ -32,6 +32,8 @@ bool cookie_contains_invalid_control_character(StringView);
 bool domain_matches(StringView string, StringView domain_string);
 String default_path(URL::URL const&);
 
+constexpr inline AK::Duration maximum_cookie_age = AK::Duration::from_seconds(400LL * 24 * 60 * 60);
+
 }
 
 namespace IPC {
