@@ -1760,24 +1760,6 @@ void StyleComputer::compute_defaulted_values(ComputedProperties& style, DOM::Ele
         auto const& inherited_value = get_inherit_value(CSS::PropertyID::Color, element, pseudo_element);
         style.set_property(CSS::PropertyID::Color, inherited_value);
     }
-
-    // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless a style value usually would have been
-    //         inherited. This is used to support the ad-hoc default <th> text-align behavior.
-    if (element && element->local_name() == HTML::TagNames::th
-        && style.property(PropertyID::TextAlign).to_keyword() == Keyword::LibwebInheritOrCenter) {
-        auto const* parent_element = element;
-        while ((parent_element = parent_element->element_to_inherit_style_from({}))) {
-            auto parent_computed = parent_element->computed_properties();
-            auto parent_cascaded = parent_element->cascaded_properties({});
-            if (!parent_computed || !parent_cascaded)
-                break;
-            if (parent_cascaded->property(PropertyID::TextAlign)) {
-                auto const& style_value = parent_computed->property(PropertyID::TextAlign);
-                style.set_property(PropertyID::TextAlign, style_value, ComputedProperties::Inherited::Yes);
-                break;
-            }
-        }
-    }
 }
 
 Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedProperties const& style) const
@@ -2307,11 +2289,13 @@ void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style)
 
 static void compute_text_align(ComputedProperties& style, DOM::Element const& element, Optional<PseudoElement> pseudo_element)
 {
+    auto text_align_keyword = style.property(PropertyID::TextAlign).to_keyword();
+
     // https://drafts.csswg.org/css-text-4/#valdef-text-align-match-parent
     // This value behaves the same as inherit (computes to its parent’s computed value) except that an inherited
     // value of start or end is interpreted against the parent’s direction value and results in a computed value of
     // either left or right. Computes to start when specified on the root element.
-    if (style.property(PropertyID::TextAlign).to_keyword() == Keyword::MatchParent) {
+    if (text_align_keyword == Keyword::MatchParent) {
         auto const parent = element.element_to_inherit_style_from(pseudo_element);
         if (parent) {
             auto const& parent_text_align = parent->computed_properties()->property(PropertyID::TextAlign);
@@ -2338,6 +2322,23 @@ static void compute_text_align(ComputedProperties& style, DOM::Element const& el
             }
         } else {
             style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Start));
+        }
+    }
+
+    // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless a style value usually would have been
+    //         inherited. This is used to support the ad-hoc default <th> text-align behavior.
+    if (text_align_keyword == Keyword::LibwebInheritOrCenter && element.local_name() == HTML::TagNames::th) {
+        auto const* parent_element = &element;
+        while ((parent_element = parent_element->element_to_inherit_style_from({}))) {
+            auto parent_computed = parent_element->computed_properties();
+            auto parent_cascaded = parent_element->cascaded_properties({});
+            if (!parent_computed || !parent_cascaded)
+                break;
+            if (parent_cascaded->property(PropertyID::TextAlign)) {
+                auto const& style_value = parent_computed->property(PropertyID::TextAlign);
+                style.set_property(PropertyID::TextAlign, style_value, ComputedProperties::Inherited::Yes);
+                break;
+            }
         }
     }
 }
