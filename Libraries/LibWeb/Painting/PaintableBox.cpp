@@ -695,7 +695,7 @@ void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable 
         return;
 
     auto cursor_position = document.cursor_position();
-    if (!cursor_position || !cursor_position->node())
+    if (!cursor_position)
         return;
 
     if (cursor_position->node() != paintable.dom_node())

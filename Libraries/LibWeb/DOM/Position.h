@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,7 +9,6 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Node.h>
@@ -26,24 +26,24 @@ public:
         return realm.create<Position>(node, offset);
     }
 
-    GC::Ptr<Node> node() { return m_node; }
-    GC::Ptr<Node const> node() const { return m_node; }
+    GC::Ref<Node> node() { return m_node; }
+    GC::Ref<Node const> node() const { return m_node; }
 
     unsigned offset() const { return m_offset; }
 
     bool equals(GC::Ref<Position> other) const
     {
-        return m_node.ptr() == other->m_node.ptr() && m_offset == other->m_offset;
+        return m_node == other->m_node && m_offset == other->m_offset;
     }
 
     ErrorOr<String> to_string() const;
 
 private:
-    Position(GC::Ptr<Node>, unsigned offset);
+    Position(GC::Ref<Node>, unsigned offset);
 
     virtual void visit_edges(Visitor&) override;
 
-    GC::Ptr<Node> m_node;
+    GC::Ref<Node> m_node;
     unsigned m_offset { 0 };
 };
 
