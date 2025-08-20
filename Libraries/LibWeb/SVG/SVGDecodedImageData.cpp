@@ -20,6 +20,7 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
@@ -97,9 +98,11 @@ void SVGDecodedImageData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root_element);
 }
 
-RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
+RefPtr<Gfx::ImmutableBitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
 {
-    auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value_but_fixme_should_propagate_errors();
+    auto navigable = m_document->navigable();
+    auto skia_backend_context = navigable->skia_backend_context();
+    auto painting_surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     VERIFY(m_document->navigable());
     m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
@@ -108,20 +111,16 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     if (!display_list)
         return {};
 
-    auto painting_command_executor_type = m_page_client->display_list_player_type();
-    switch (painting_command_executor_type) {
-    case DisplayListPlayerType::SkiaGPUIfAvailable:
-    case DisplayListPlayerType::SkiaCPU: {
-        auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
-        Painting::DisplayListPlayerSkia display_list_player;
-        display_list_player.execute(*display_list, {}, painting_surface);
-        break;
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    auto& rendering_thread = navigable->rendering_thread();
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool did_render = false;
+    rendering_thread.enqueue_rendering_task(*display_list, {}, *painting_surface, [&did_render] {
+        did_render = true;
+    });
+    Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [&] {
+        return did_render;
+    }));
 
-    return bitmap;
+    return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*painting_surface);
 }
 
 RefPtr<Gfx::ImmutableBitmap> SVGDecodedImageData::bitmap(size_t, Gfx::IntSize size) const
@@ -137,8 +136,9 @@ RefPtr<Gfx::ImmutableBitmap> SVGDecodedImageData::bitmap(size_t, Gfx::IntSize si
     if (m_cached_rendered_bitmaps.size() > 10)
         m_cached_rendered_bitmaps.remove(m_cached_rendered_bitmaps.begin());
 
-    auto immutable_bitmap = Gfx::ImmutableBitmap::create(*render(size));
-    m_cached_rendered_bitmaps.set(size, immutable_bitmap);
+    auto immutable_bitmap = render(size);
+    if (immutable_bitmap)
+        m_cached_rendered_bitmaps.set(size, *immutable_bitmap);
     return immutable_bitmap;
 }
 

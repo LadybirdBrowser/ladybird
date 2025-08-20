@@ -221,6 +221,8 @@ public:
 
     void set_should_show_line_box_borders(bool value) { m_should_show_line_box_borders = value; }
 
+    RenderingThread& rendering_thread() { return m_rendering_thread; }
+
     bool is_svg_page() const { return m_is_svg_page; }
 
     template<typename T>
