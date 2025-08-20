@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml" stroke="red" stroke-width="50">
+  <h:link rel="match" href="../../../../../expected/wpt-import/svg/pservers/reftests/reference/green-100x100.svg"/>
+  <rect x="25" y="25" width="50" height="50" fill="none" stroke="green"/>
+  <rect x="25" y="25" width="50" height="50" fill="none" stroke="url(#nonexisting)"/>
+</svg>

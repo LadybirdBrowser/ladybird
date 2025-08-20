@@ -180,13 +180,19 @@ Optional<Gfx::Color> SVGGraphicsElement::stroke_color() const
 {
     if (!layout_node())
         return {};
-    // FIXME: In the working-draft spec, `stroke` is intended to be a shorthand, with `stroke-color`
-    //        being what we actually want to use. But that's not final or widely supported yet.
-    return layout_node()->computed_values().stroke().map([](auto& paint) -> Gfx::Color {
-        if (!paint.is_color())
-            return Color::Black;
-        return paint.as_color();
-    });
+
+    auto paint = layout_node()->computed_values().stroke();
+    if (!paint.has_value())
+        return {};
+
+    if (paint->is_url()) {
+        if (auto referenced_element = try_resolve_url_to<SVGGraphicsElement const>(paint->as_url()))
+            return referenced_element->stroke_color();
+
+        return {};
+    }
+
+    return paint->as_color();
 }
 
 Optional<float> SVGGraphicsElement::fill_opacity() const
