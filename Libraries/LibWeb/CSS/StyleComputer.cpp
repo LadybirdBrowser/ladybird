@@ -1752,14 +1752,6 @@ void StyleComputer::compute_defaulted_values(ComputedProperties& style, DOM::Ele
         auto property_id = (CSS::PropertyID)i;
         compute_defaulted_property_value(style, element, property_id, pseudo_element);
     }
-
-    // https://www.w3.org/TR/css-color-4/#resolving-other-colors
-    // In the color property, the used value of currentcolor is the inherited value.
-    auto const& color = style.property(CSS::PropertyID::Color);
-    if (color.to_keyword() == Keyword::Currentcolor) {
-        auto const& inherited_value = get_inherit_value(CSS::PropertyID::Color, element, pseudo_element);
-        style.set_property(CSS::PropertyID::Color, inherited_value);
-    }
 }
 
 Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedProperties const& style) const
@@ -2685,6 +2677,10 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
         // If the cascaded value of a property is the unset keyword, then if it is an inherited property, this is treated as inherit, and if it is not, this is treated as initial.
         should_inherit |= value && value->is_unset() && is_inherited_property(property_id);
 
+        // https://www.w3.org/TR/css-color-4/#resolving-other-colors
+        // In the color property, the used value of currentcolor is the resolved inherited value.
+        should_inherit |= property_id == PropertyID::Color && value && value->to_keyword() == Keyword::Currentcolor;
+
         // FIXME: Logical properties should inherit from their parent's equivalent unmapped logical property.
         if (should_inherit) {
             value = get_inherit_value(property_id, &element, pseudo_element);
@@ -2786,20 +2782,17 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     // 4. Absolutize values, turning font/viewport relative lengths into absolute lengths
     absolutize_values(computed_style, element);
 
-    // 5. Default the values, applying inheritance and 'initial' as needed
-    compute_defaulted_values(computed_style, &element, pseudo_element);
-
-    // 6. Run automatic box type transformations
+    // 5. Run automatic box type transformations
     transform_box_type_if_needed(computed_style, element, pseudo_element);
 
-    // 7. Apply any property-specific computed value logic
+    // 6. Apply any property-specific computed value logic
     resolve_effective_overflow_values(computed_style);
     compute_text_align(computed_style, element, pseudo_element);
 
-    // 8. Let the element adjust computed style
+    // 7. Let the element adjust computed style
     element.adjust_computed_style(computed_style);
 
-    // 9. Transition declarations [css-transitions-1]
+    // 8. Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(computed_style, element, pseudo_element);
     if (auto previous_style = element.computed_properties(pseudo_element)) {
