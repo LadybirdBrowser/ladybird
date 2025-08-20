@@ -10,6 +10,6 @@ dictionary CookieChangeEventInit : EventInit {
 [Exposed=Window, SecureContext]
 interface CookieChangeEvent : Event {
     constructor(DOMString type, optional CookieChangeEventInit eventInitDict = {});
-    [SameObject] readonly attribute FrozenArray<CookieListItem> changed;
-    [SameObject] readonly attribute FrozenArray<CookieListItem> deleted;
+    [SameObject, CachedAttribute] readonly attribute FrozenArray<CookieListItem> changed;
+    [SameObject, CachedAttribute] readonly attribute FrozenArray<CookieListItem> deleted;
 };

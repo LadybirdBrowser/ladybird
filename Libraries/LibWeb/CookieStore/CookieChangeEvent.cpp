@@ -37,4 +37,12 @@ void CookieChangeEvent::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void CookieChangeEvent::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+
+    VISIT_CACHED_ATTRIBUTE(changed);
+    VISIT_CACHED_ATTRIBUTE(deleted);
+}
+
 }
