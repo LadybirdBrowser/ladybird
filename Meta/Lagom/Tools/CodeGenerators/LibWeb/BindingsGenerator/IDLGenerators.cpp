@@ -3922,6 +3922,17 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
     [[maybe_unused]] auto* impl = TRY(impl_from(vm));
 )~~~");
 
+        auto cache_result = false;
+        if (attribute.extended_attributes.contains("CachedAttribute")) {
+            VERIFY(attribute.readonly);
+            cache_result = true;
+            attribute_generator.append(R"~~~(
+    auto cached_@attribute.cpp_name@ = impl->cached_@attribute.cpp_name@();
+    if (cached_@attribute.cpp_name@)
+        return cached_@attribute.cpp_name@;
+)~~~");
+        }
+
         if (attribute.extended_attributes.contains("CEReactions")) {
             // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
             attribute_generator.append(R"~~~(
@@ -4266,7 +4277,15 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
 )~~~");
         }
 
-        generate_return_statement(generator, *attribute.type, interface);
+        if (cache_result) {
+            generate_wrap_statement(generator, "retval", *attribute.type, interface, ByteString::formatted("cached_{} =", attribute_generator.get("attribute.cpp_name")));
+            attribute_generator.append(R"~~~(
+    impl->set_cached_@attribute.cpp_name@(cached_@attribute.cpp_name@);
+    return cached_@attribute.cpp_name@;
+)~~~");
+        } else {
+            generate_return_statement(generator, *attribute.type, interface);
+        }
 
         if (generated_reflected_element_array) {
             // 3. Let elementsAsFrozenArray be elements, converted to a FrozenArray<T>?.
