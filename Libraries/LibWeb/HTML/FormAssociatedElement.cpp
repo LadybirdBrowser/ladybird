@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
+#include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
@@ -1054,56 +1055,20 @@ static float measure_text_width(Layout::TextNode const& text_node, Utf16View con
 
 static size_t translate_position_across_lines(Layout::TextNode const& text_node, Utf16View const& source_line, Utf16View const& target_line)
 {
-    // When we want to move the cursor from some position within a line to a visually-equivalent position in an adjacent
-    // line, there are several things to consider. Let's use the following HTML as an example:
-    //
-    //     <textarea>
-    //     hello 👩🏼‍❤️‍👨🏻 there
-    //     my 👩🏼‍❤️‍👨🏻 friends!
-    //     </textarea>
-    //
-    // And let's define the following terms:
-    //    * logical index = the raw code unit offset of the cursor
-    //    * visual index = the grapheme-aware offset of the cursor (i.e. the offset the user actually perceives)
-    //    * text affinity = the side (left or right) of a grapheme that the cursor is visually closest to
-    //
-    // If we want to move the cursor from the position just after "hello" (logical index=5, visual index=5) to the next
-    // line, the user will expect the cursor to be located just after the "👩🏼‍❤️‍👨🏻" (logical index=15, visual index=4). These
-    // locations do not share the same visual index, so it's not enough to simply map the visual index of 5 back to a
-    // logical index on the next line. The difference becomes even more apparent when multiple fonts are used within a
-    // single line.
-    //
-    // Instead, we must measure the text between the start of the line and the starting index. On the next line, we want
-    // to find the position whose corresponding width is as close to the starting width as possible. The target width
-    // might not be the same as the starting width at all, so we must further consider the text affinity. We want to
-    // chose a target index whose affinity brings us closest to the starting width.
-
-    auto source_line_width = measure_text_width(text_node, source_line);
-
-    auto left_edge = 0uz;
-    auto width_to_left_edge = 0.0f;
-
-    auto right_edge = 0uz;
-    auto width_to_right_edge = 0.0f;
+    GraphemeEdgeTracker tracker(measure_text_width(text_node, source_line));
+    auto previous_index = 0uz;
 
     text_node.grapheme_segmenter().clone()->for_each_boundary(target_line, [&](auto index) {
-        auto current_width = measure_text_width(text_node, target_line.substring_view(left_edge, index - left_edge));
+        auto current_width = measure_text_width(text_node, target_line.substring_view(previous_index, index - previous_index));
 
-        right_edge = index;
-        width_to_right_edge = width_to_left_edge + current_width;
-
-        if (width_to_right_edge >= source_line_width)
+        if (tracker.update(index - previous_index, current_width) == IterationDecision::Break)
             return IterationDecision::Break;
 
-        left_edge = index;
-        width_to_left_edge += current_width;
-
+        previous_index = index;
         return IterationDecision::Continue;
     });
 
-    if ((source_line_width - width_to_left_edge) < (width_to_right_edge - source_line_width))
-        return left_edge;
-    return right_edge;
+    return tracker.resolve();
 }
 
 void FormAssociatedTextControlElement::increment_cursor_position_to_next_line(CollapseSelection collapse)
