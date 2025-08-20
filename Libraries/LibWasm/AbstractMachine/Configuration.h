@@ -25,6 +25,8 @@ public:
         frame.label_index() = m_label_stack.size();
         if (auto hint = frame.expression().stack_usage_hint(); hint.has_value())
             m_value_stack.ensure_capacity(*hint + m_value_stack.size());
+        if (auto hint = frame.expression().frame_usage_hint(); hint.has_value())
+            m_label_stack.ensure_capacity(*hint + m_label_stack.size());
         m_frame_stack.append(move(frame));
         m_label_stack.append(label);
         m_locals_base = m_frame_stack.unchecked_last().locals().data();
@@ -120,7 +122,7 @@ public:
 private:
     Store& m_store;
     Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
-    DoublyLinkedList<Label, 128> m_label_stack;
+    Vector<Label, 64> m_label_stack;
     DoublyLinkedList<Frame, 128> m_frame_stack;
     size_t m_depth { 0 };
     u64 m_ip { 0 };

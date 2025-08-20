@@ -267,8 +267,7 @@ void BytecodeInterpreter::interpret_impl(Configuration& configuration, Expressio
                 RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::Yes);
             }
             case Instructions::return_.value(): {
-                while (configuration.label_stack().size() - 1 != configuration.frame().label_index())
-                    configuration.label_stack().take_last();
+                configuration.label_stack().shrink(configuration.frame().label_index() + 1, true);
                 configuration.ip() = max_ip_value;
                 RUN_NEXT_INSTRUCTION(CouldHaveChangedIP::Yes);
             }
@@ -2233,8 +2232,8 @@ void BytecodeInterpreter::interpret_impl(Configuration& configuration, Expressio
 void BytecodeInterpreter::branch_to_label(Configuration& configuration, LabelIndex index)
 {
     dbgln_if(WASM_TRACE_DEBUG, "Branch to label with index {}...", index.value());
-    for (size_t i = 0; i < index.value(); ++i)
-        configuration.label_stack().take_last();
+    auto& label_stack = configuration.label_stack();
+    label_stack.shrink(label_stack.size() - index.value(), true);
     auto label = configuration.label_stack().last();
     dbgln_if(WASM_TRACE_DEBUG, "...which is actually IP {}, and has {} result(s)", label.continuation().value(), label.arity());
 
