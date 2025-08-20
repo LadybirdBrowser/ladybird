@@ -76,6 +76,12 @@ bool ComputedProperties::is_property_inherited(PropertyID property_id) const
     return m_property_inherited[n / 8] & (1 << (n % 8));
 }
 
+bool ComputedProperties::is_animated_property_inherited(PropertyID property_id) const
+{
+    size_t n = to_underlying(property_id);
+    return m_animated_property_inherited[n / 8] & (1 << (n % 8));
+}
+
 void ComputedProperties::set_property_inherited(PropertyID property_id, Inherited inherited)
 {
     size_t n = to_underlying(property_id);
@@ -83,6 +89,15 @@ void ComputedProperties::set_property_inherited(PropertyID property_id, Inherite
         m_property_inherited[n / 8] |= (1 << (n % 8));
     else
         m_property_inherited[n / 8] &= ~(1 << (n % 8));
+}
+
+void ComputedProperties::set_animated_property_inherited(PropertyID property_id, Inherited inherited)
+{
+    size_t n = to_underlying(property_id);
+    if (inherited == Inherited::Yes)
+        m_animated_property_inherited[n / 8] |= (1 << (n % 8));
+    else
+        m_animated_property_inherited[n / 8] &= ~(1 << (n % 8));
 }
 
 void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
@@ -99,9 +114,15 @@ void ComputedProperties::revert_property(PropertyID id, ComputedProperties const
     set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
 }
 
-void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<StyleValue const> value)
+void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited)
 {
     m_animated_property_values.set(id, move(value));
+    set_animated_property_inherited(id, inherited);
+}
+
+void ComputedProperties::remove_animated_property(PropertyID id)
+{
+    m_animated_property_values.remove(id);
 }
 
 void ComputedProperties::reset_animated_properties(Badge<Animations::KeyframeEffect>)

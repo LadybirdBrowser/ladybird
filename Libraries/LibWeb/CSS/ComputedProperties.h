@@ -53,11 +53,14 @@ public:
 
     bool is_property_important(PropertyID property_id) const;
     bool is_property_inherited(PropertyID property_id) const;
+    bool is_animated_property_inherited(PropertyID property_id) const;
     void set_property_important(PropertyID, Important);
     void set_property_inherited(PropertyID, Inherited);
+    void set_animated_property_inherited(PropertyID, Inherited);
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
-    void set_animated_property(PropertyID, NonnullRefPtr<StyleValue const> value);
+    void set_animated_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No);
+    void remove_animated_property(PropertyID);
     enum class WithAnimationsApplied {
         No,
         Yes,
@@ -270,6 +273,7 @@ private:
     Array<RefPtr<StyleValue const>, number_of_properties> m_property_values;
     Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
     Array<u8, ceil_div(number_of_properties, 8uz)> m_property_inherited {};
+    Array<u8, ceil_div(number_of_properties, 8uz)> m_animated_property_inherited {};
 
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_animated_property_values;
 

@@ -817,6 +817,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         }
         if (!computed_properties->is_property_inherited(property_id))
             continue;
+
+        RefPtr<CSS::StyleValue const> old_animated_value = computed_properties->animated_property_values().get(property_id).value_or({});
+        RefPtr<CSS::StyleValue const> new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, this).map([&](auto& value) { return value.ptr(); }).value_or({});
+
+        if (new_animated_value)
+            computed_properties->set_animated_property(property_id, new_animated_value.release_nonnull(), CSS::ComputedProperties::Inherited::Yes);
+        else if (old_animated_value && computed_properties->is_animated_property_inherited(property_id))
+            computed_properties->remove_animated_property(property_id);
+
+        invalidation |= CSS::compute_property_invalidation(property_id, old_animated_value, new_animated_value);
+
         RefPtr new_value = CSS::StyleComputer::get_inherit_value(property_id, this);
         computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
         invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
