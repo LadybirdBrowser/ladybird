@@ -934,20 +934,16 @@ void paint_text_fragment(DisplayListRecordingContext& context, TextPaintable con
         if (!glyph_run)
             return;
 
+        auto selection_rect = context.enclosing_device_rect(fragment.selection_rect()).to_type<int>();
+        if (!selection_rect.is_empty())
+            painter.fill_rect(selection_rect, CSS::SystemColor::highlight(paintable.computed_values().color_scheme()));
+
         auto scale = context.device_pixels_per_css_pixel();
         auto baseline_start = Gfx::FloatPoint {
             fragment_absolute_rect.x().to_float(),
             fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
         } * scale;
         painter.draw_glyph_run(baseline_start, *glyph_run, paintable.computed_values().webkit_text_fill_color(), fragment_enclosing_device_rect, scale, fragment.orientation());
-
-        auto selection_rect = context.enclosing_device_rect(fragment.selection_rect()).to_type<int>();
-        if (!selection_rect.is_empty()) {
-            painter.fill_rect(selection_rect, CSS::SystemColor::highlight(paintable.computed_values().color_scheme()));
-            DisplayListRecorderStateSaver saver(painter);
-            painter.add_clip_rect(selection_rect);
-            painter.draw_glyph_run(baseline_start, *glyph_run, CSS::SystemColor::highlight_text(paintable.computed_values().color_scheme()), fragment_enclosing_device_rect, scale, fragment.orientation());
-        }
 
         paint_text_decoration(context, paintable, fragment);
         paint_cursor_if_needed(context, paintable, fragment);
