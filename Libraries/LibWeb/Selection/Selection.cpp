@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::Selection {
@@ -647,6 +648,42 @@ void Selection::move_offset_to_previous_word(bool collapse_selection)
                 continue;
         }
         break;
+    }
+}
+
+void Selection::move_offset_to_next_line(bool collapse_selection)
+{
+    auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
+    if (!text_node)
+        return;
+
+    auto new_offset = compute_cursor_position_on_next_line(*text_node, focus_offset());
+    if (!new_offset.has_value())
+        return;
+
+    if (collapse_selection) {
+        MUST(collapse(text_node, *new_offset));
+        m_document->reset_cursor_blink_cycle();
+    } else {
+        MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *new_offset));
+    }
+}
+
+void Selection::move_offset_to_previous_line(bool collapse_selection)
+{
+    auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
+    if (!text_node)
+        return;
+
+    auto new_offset = compute_cursor_position_on_previous_line(*text_node, focus_offset());
+    if (!new_offset.has_value())
+        return;
+
+    if (collapse_selection) {
+        MUST(collapse(text_node, *new_offset));
+        m_document->reset_cursor_blink_cycle();
+    } else {
+        MUST(set_base_and_extent(*text_node, anchor_offset(), *text_node, *new_offset));
     }
 }
 
