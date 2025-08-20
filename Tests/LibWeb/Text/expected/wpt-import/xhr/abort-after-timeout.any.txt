@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	XMLHttpRequest: abort() after a timeout should not fire "abort" event
