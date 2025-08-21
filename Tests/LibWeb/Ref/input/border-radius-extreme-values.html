@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="match" href="../expected/border-radius-extreme-values-ref.html" />
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: white;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 15px;
+            width: 800px;
+        }
+
+        .test-box {
+            width: 180px;
+            height: 120px;
+            background-color: #4CAF50;
+            border: 2px solid #333;
+        }
+
+        /*
+         * Test extreme border-radius values that previously caused rendering artifacts.
+         * These values should be clamped to prevent lines extending beyond element bounds.
+         * All patterns use very large radius values (4327897432px) mixed with normal values.
+         */
+
+        /* Extreme horizontal/vertical radii with bottom corners overridden */
+        .extreme-bottom-override {
+            border-radius: 4327897432px / 342423px;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 342423px;
+        }
+
+        /* Extreme horizontal/vertical radii with top corners overridden */
+        .extreme-top-override {
+            border-radius: 4327897432px / 342423px;
+            border-top-left-radius: 342423px;
+            border-top-right-radius: 20px;
+        }
+
+        /* Extreme radii with diagonal corners (top-left, bottom-right) overridden */
+        .extreme-diagonal-tl-br {
+            border-radius: 4327897432px / 342423px;
+            border-top-left-radius: 20px;
+            border-bottom-right-radius: 342423px;
+        }
+
+        /* Extreme radii with diagonal corners (top-right, bottom-left) overridden */
+        .extreme-diagonal-tr-bl {
+            border-radius: 4327897432px / 342423px;
+            border-top-right-radius: 20px;
+            border-bottom-left-radius: 342423px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-grid">
+        <div class="test-box extreme-bottom-override"></div>
+        <div class="test-box extreme-top-override"></div>
+        <div class="test-box extreme-diagonal-tl-br"></div>
+        <div class="test-box extreme-diagonal-tr-bl"></div>
+    </div>
+</body>
+</html>

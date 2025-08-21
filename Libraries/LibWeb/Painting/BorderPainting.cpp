@@ -426,7 +426,10 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
             points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()));
         } else {
             Gfx::FloatPoint inner_right_angle_offset = Gfx::FloatPoint(0, joined_border_width.value() - radius.horizontal_radius);
-            points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()) + inner_right_angle_offset);
+            auto top_left_point = Gfx::FloatPoint(rect.top_left().to_type<int>()) + inner_right_angle_offset;
+            // Clamp the final point to stay within the rect bounds to prevent rendering artifacts
+            top_left_point.set_y(AK::clamp(top_left_point.y(), rect.top().value(), rect.bottom().value()));
+            points.append(top_left_point);
         }
 
         if (opposite_joined_corner_has_inner_corner) {
@@ -441,7 +444,10 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
             points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()) + inner_corner);
         } else {
             Gfx::FloatPoint inner_right_angle_offset = Gfx::FloatPoint(0, opposite_joined_border_width.value() - opposite_radius.horizontal_radius);
-            points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()) - inner_right_angle_offset);
+            auto bottom_left_point = Gfx::FloatPoint(rect.bottom_left().to_type<int>()) - inner_right_angle_offset;
+            // Clamp the final point to stay within the rect bounds to prevent rendering artifacts
+            bottom_left_point.set_y(AK::clamp(bottom_left_point.y(), rect.top().value(), rect.bottom().value()));
+            points.append(bottom_left_point);
         }
 
         points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()) + opposite_joined_border_corner_offset);

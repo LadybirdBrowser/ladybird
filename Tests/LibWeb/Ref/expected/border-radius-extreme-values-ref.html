@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: white;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 15px;
+            width: 800px;
+        }
+
+        .test-box {
+            width: 180px;
+            height: 120px;
+            background-color: #4CAF50;
+            border: 2px solid #333;
+        }
+
+        /*
+         * Reference uses identical extreme values - they should render the same
+         * when properly clamped, validating the fix prevents rendering artifacts.
+         */
+
+        .extreme-bottom-override {
+            border-radius: 4327897432px / 342423px;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 342423px;
+        }
+
+        .extreme-top-override {
+            border-radius: 4327897432px / 342423px;
+            border-top-left-radius: 342423px;
+            border-top-right-radius: 20px;
+        }
+
+        .extreme-diagonal-tl-br {
+            border-radius: 4327897432px / 342423px;
+            border-top-left-radius: 20px;
+            border-bottom-right-radius: 342423px;
+        }
+
+        .extreme-diagonal-tr-bl {
+            border-radius: 4327897432px / 342423px;
+            border-top-right-radius: 20px;
+            border-bottom-left-radius: 342423px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-grid">
+        <div class="test-box extreme-bottom-override"></div>
+        <div class="test-box extreme-top-override"></div>
+        <div class="test-box extreme-diagonal-tl-br"></div>
+        <div class="test-box extreme-diagonal-tr-bl"></div>
+    </div>
+</body>
+</html>
