@@ -164,7 +164,7 @@ void SVGSVGElement::update_fallback_view_box_for_svg_as_image()
     Optional<double> height;
 
     auto width_attribute = get_attribute_value(SVG::AttributeNames::width);
-    auto parsing_context = CSS::Parser::ParsingParams { document() };
+    auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     if (auto width_value = parse_css_value(parsing_context, width_attribute, CSS::PropertyID::Width)) {
         if (width_value->is_length() && width_value->as_length().length().is_absolute())
             width = width_value->as_length().length().absolute_length_to_px().to_double();
