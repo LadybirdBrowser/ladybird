@@ -94,6 +94,15 @@ if (ENABLE_QT)
     find_package(Qt6 REQUIRED COMPONENTS Core)
     target_link_libraries(LibWebViewQt PUBLIC Qt::Core)
     target_link_libraries(LibWebViewPlatform INTERFACE LibWebViewQt)
+elseif(LADYBIRD_GUI_FRAMEWORK STREQUAL "GTK")
+    add_library(LibWebViewGLib STATIC
+        EventLoop/EventLoopImplementationGLib.cpp
+    )
+
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(glibmm REQUIRED IMPORTED_TARGET glibmm-2.68>=2.84)
+    target_link_libraries(LibWebViewGLib PUBLIC PkgConfig::glibmm)
+    target_link_libraries(LibWebViewPlatform INTERFACE LibWebViewGLib)
 elseif (APPLE)
     add_library(LibWebViewCocoa STATIC
         EventLoop/EventLoopImplementationMacOS.mm
