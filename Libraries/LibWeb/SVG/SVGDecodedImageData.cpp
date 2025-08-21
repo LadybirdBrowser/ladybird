@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2023-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,6 +22,8 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/XML/XMLDocumentBuilder.h>
+#include <LibXML/Parser/Parser.h>
 
 namespace Web::SVG {
 
@@ -61,19 +63,14 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     auto& window = as<HTML::Window>(HTML::relevant_global_object(document));
     document->browsing_context()->window_proxy()->set_window(window);
 
-    auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data);
-    parser->run(document->url());
+    XML::Parser parser(data, { .resolve_external_resource = resolve_xml_resource });
+    XMLDocumentBuilder builder { document };
+    auto result = parser.parse_with_listener(builder);
+    (void)result;
 
-    // Perform some DOM surgery to make the SVG root element be the first child of the Document.
-    // FIXME: This is a huge hack until we figure out how to actually parse separate SVG files.
-    auto* svg_root = document->body()->first_child_of_type<SVG::SVGSVGElement>();
+    auto* svg_root = document->first_child_of_type<SVG::SVGSVGElement>();
     if (!svg_root)
         return Error::from_string_literal("SVGDecodedImageData: Invalid SVG input");
-
-    svg_root->remove();
-    document->remove_all_children();
-
-    MUST(document->append_child(*svg_root));
 
     return realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
 }
