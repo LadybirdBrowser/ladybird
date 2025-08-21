@@ -54,4 +54,10 @@ TEST_CASE(various_types_guessed)
     check_filename_mimetype(gzip_filenames, "application/gzip"sv);
     check_filename_mimetype(markdown_filenames, "text/markdown"sv);
     check_filename_mimetype(shell_filenames, "text/x-shellscript"sv);
+
+    // Images
+    check_filename_mimetype(Vector { "image.png"sv }, "image/png"sv);
+    check_filename_mimetype(Vector { "smiley.jpg"sv, "apple.jpeg"sv }, "image/jpeg"sv);
+    check_filename_mimetype(Vector { "cats.webp"sv }, "image/webp"sv);
+    check_filename_mimetype(Vector { "dogs.avif"sv }, "image/avif"sv);
 }
