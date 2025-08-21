@@ -2394,7 +2394,7 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
         style->set_property(property_id, property_initial_value(property_id));
     }
 
-    compute_math_depth(style, nullptr, {});
+    compute_math_depth(style, {});
     compute_font(style, nullptr, {});
     absolutize_values(style, nullptr);
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
@@ -2702,7 +2702,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     compute_custom_properties(computed_style, abstract_element);
 
     // 2. Compute the math-depth property, since that might affect the font-size
-    compute_math_depth(computed_style, &element, pseudo_element);
+    compute_math_depth(computed_style, abstract_element);
 
     // 3. Compute the font, since that may be needed for font-relative CSS units
     compute_font(computed_style, &element, pseudo_element);
@@ -3162,14 +3162,16 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
     abstract_element.set_custom_properties(move(resolved_custom_properties));
 }
 
-void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
+void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::AbstractElement> element) const
 {
     // https://w3c.github.io/mathml-core/#propdef-math-depth
 
+    auto element_to_inherit_style_from = element.has_value() ? element->element_to_inherit_style_from() : OptionalNone {};
+
     auto inherited_math_depth = [&]() {
-        if (!element || !element->element_to_inherit_style_from(pseudo_element))
+        if (!element_to_inherit_style_from.has_value())
             return InitialValues::math_depth();
-        return element->element_to_inherit_style_from(pseudo_element)->computed_properties()->math_depth();
+        return element_to_inherit_style_from->computed_properties()->math_depth();
     };
 
     auto const& math_depth = style.property(CSS::PropertyID::MathDepth).as_math_depth();
@@ -3177,8 +3179,10 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element c
     auto resolve_integer = [&](StyleValue const& integer_value) {
         if (integer_value.is_integer())
             return integer_value.as_integer().integer();
-        if (integer_value.is_calculated())
-            return integer_value.as_calculated().resolve_integer_deprecated({}).value();
+        if (integer_value.is_calculated()) {
+            auto parent_length_resolution_context = element_to_inherit_style_from.has_value() ? Length::ResolutionContext::for_element(element_to_inherit_style_from.value()) : Length::ResolutionContext::for_window(*m_document->window());
+            return integer_value.as_calculated().resolve_integer({ .length_resolution_context = parent_length_resolution_context }).value();
+        }
         VERIFY_NOT_REACHED();
     };
 
