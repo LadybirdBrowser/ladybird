@@ -27,7 +27,7 @@ public:
     GC::Ptr<Layout::NodeWithStyle const> layout_node() const { return const_cast<AbstractElement*>(this)->layout_node(); }
 
     GC::Ptr<Element const> parent_element() const;
-    GC::Ptr<Element const> element_to_inherit_style_from() const;
+    Optional<AbstractElement> element_to_inherit_style_from() const;
     Optional<AbstractElement> previous_in_tree_order() { return walk_layout_tree(WalkMethod::Previous); }
     Optional<AbstractElement> previous_sibling_in_tree_order() { return walk_layout_tree(WalkMethod::PreviousSibling); }
     bool is_before(AbstractElement const&) const;
