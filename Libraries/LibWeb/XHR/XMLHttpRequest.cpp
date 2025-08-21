@@ -110,7 +110,6 @@ static void fire_progress_event(XMLHttpRequestEventTarget& target, FlyString con
     event_init.length_computable = length;
     event_init.loaded = transmitted;
     event_init.total = length;
-    // FIXME: If we're in an async context, this will propagate to a callback context which can't propagate it anywhere else and does not expect this to fail.
     target.dispatch_event(*ProgressEvent::create(target.realm(), event_name, event_init));
 }
 
@@ -789,7 +788,6 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             m_state = State::HeadersReceived;
 
             // 5. Fire an event named readystatechange at this.
-            // FIXME: We're in an async context, so we can't propagate the error anywhere.
             dispatch_event(*DOM::Event::create(this->realm(), EventNames::readystatechange));
 
             // 6. If this’s state is not headers received, then return.
@@ -804,7 +802,6 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             }
 
             // 8. Let length be the result of extracting a length from this’s response’s header list.
-            // FIXME: We're in an async context, so we can't propagate the error anywhere.
             auto length = m_response->header_list()->extract_length();
 
             // 9. If length is not an integer, then set it to 0.
@@ -1198,7 +1195,6 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::handle_response_end_of_body()
     m_send = false;
 
     // 9. Fire an event named readystatechange at xhr.
-    // FIXME: If we're in an async context, this will propagate to a callback context which can't propagate it anywhere else and does not expect this to fail.
     dispatch_event(*DOM::Event::create(realm, EventNames::readystatechange));
 
     // 10. Fire a progress event named load at xhr with transmitted and length.
@@ -1250,7 +1246,6 @@ JS::ThrowCompletionOr<void> XMLHttpRequest::request_error_steps(FlyString const&
     }
 
     // 5. Fire an event named readystatechange at xhr.
-    // FIXME: Since we're in an async context, this will propagate to a callback context which can't propagate it anywhere else and does not expect this to fail.
     dispatch_event(*DOM::Event::create(realm(), EventNames::readystatechange));
 
     // 6. If xhr’s upload complete flag is unset, then:
