@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>padding interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-box-3/#padding-shorthand">
+<meta name="assert" content="padding supports animation as a list of lengths">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  padding: 30px;
+}
+.target {
+  width: 1px;
+  height: 1px;
+  background-color: black;
+  display: inline-block;
+  padding: 10px;
+}
+.expected {
+  background-color: green;
+  margin-right: 10px;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'padding',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_interpolation({
+  property: 'padding',
+  from: 'initial',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '6px'},
+  {at: 0.6, expect: '12px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '30px'},
+]);
+
+test_interpolation({
+  property: 'padding',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'padding',
+  from: 'unset',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '6px'},
+  {at: 0.6, expect: '12px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '30px'},
+]);
+
+test_interpolation({
+  property: 'padding',
+  from: '0px',
+  to: '10px'
+}, [
+  {at: -0.3, expect: '0px'}, // CSS padding can't be negative.
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '3px'},
+  {at: 0.6, expect: '6px'},
+  {at: 1, expect: '10px'},
+  {at: 1.5, expect: '15px'}
+]);
+
+test_interpolation({
+  property: 'padding',
+  from: '20px 40px 60px 80px',
+  to: '30px 50px 70px 90px'
+}, [
+  {at: -0.3, expect: '17px 37px 57px 77px'},
+  {at: 0, expect: '20px 40px 60px 80px'},
+  {at: 0.3, expect: '23px 43px 63px 83px'},
+  {at: 0.6, expect: '26px 46px 66px 86px'},
+  {at: 1, expect: '30px 50px 70px 90px'},
+  {at: 1.5, expect: '35px 55px 75px 95px'}
+]);
+</script>

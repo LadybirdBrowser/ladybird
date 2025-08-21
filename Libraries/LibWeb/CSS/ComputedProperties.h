@@ -77,9 +77,13 @@ public:
 
     Size size_value(PropertyID) const;
     [[nodiscard]] Variant<LengthPercentage, NormalGap> gap_value(PropertyID) const;
-    LengthPercentage length_percentage_or_fallback(PropertyID, LengthPercentage const& fallback) const;
-    Optional<LengthPercentage> length_percentage(PropertyID) const;
-    LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Length const& default_value) const;
+    enum class DisallowNegativeLengths {
+        No,
+        Yes,
+    };
+    LengthPercentage length_percentage_or_fallback(PropertyID, Layout::NodeWithStyle const&, DisallowNegativeLengths, LengthPercentage const& fallback) const;
+    Optional<LengthPercentage> length_percentage(PropertyID, Layout::NodeWithStyle const&, DisallowNegativeLengths) const;
+    LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Layout::NodeWithStyle const&, DisallowNegativeLengths, Length const& default_value) const;
     Color color_or_fallback(PropertyID, ColorResolutionContext, Color fallback) const;
     ColorInterpolation color_interpolation() const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
