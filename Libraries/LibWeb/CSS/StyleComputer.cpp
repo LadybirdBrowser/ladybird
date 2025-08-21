@@ -3119,9 +3119,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
     // Unset is the same as inherit for inherited properties, and by default all custom properties are inherited.
     // FIXME: Support non-inherited registered custom properties.
     if (value->is_inherit() || value->is_unset()) {
-        if (!abstract_element.element_to_inherit_style_from())
+        auto element_to_inherit_style_from = abstract_element.element_to_inherit_style_from();
+        if (!element_to_inherit_style_from.has_value())
             return document.custom_property_initial_value(name);
-        auto inherited_value = DOM::AbstractElement { const_cast<DOM::Element&>(*abstract_element.element_to_inherit_style_from()) }.get_custom_property(name);
+        auto inherited_value = element_to_inherit_style_from->get_custom_property(name);
         if (!inherited_value)
             return document.custom_property_initial_value(name);
         return inherited_value.release_nonnull();
