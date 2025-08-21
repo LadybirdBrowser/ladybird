@@ -50,6 +50,8 @@ private:
 
     virtual GC::Ref<JS::Cell> as_cell() override { return *this; }
 
+    GC::Ptr<Selection::Selection> get_selection_for_navigation(CollapseSelection) const;
+
     GC::Ref<Document> m_document;
     GC::Ptr<DOM::Node> m_active_contenteditable_element;
 };
