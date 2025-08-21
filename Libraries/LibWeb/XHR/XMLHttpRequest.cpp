@@ -808,8 +808,6 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             if (!length.has<u64>())
                 length = 0;
 
-            // FIXME: We can't implement these steps yet, as we don't fully implement the Streams standard.
-
             // 10. Let processBodyChunk given bytes be these steps:
             auto process_body_chunks = GC::create_function(heap(), [this, length](ByteBuffer byte_buffer) {
                 // 1. Append bytes to this’s received bytes.
