@@ -9,8 +9,11 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/MathFunctions.h>
 #include <LibWeb/CSS/NumericType.h>
-#include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
@@ -129,6 +132,87 @@ GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm& realm, CSSNumberis
         [&realm, &unit](double num) -> GC::Ref<CSSNumericValue> {
             return CSSUnitValue::create(realm, num, unit.value_or("number"_fly_string));
         });
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#reify-a-numeric-value
+static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(JS::Realm& realm, Parser::ComponentValue const& numeric_value)
+{
+    // To reify a numeric value num:
+    // 1. If num is a math function, reify a math expression from num and return the result.
+    if (numeric_value.is_function()) {
+        // AD-HOC: The only feasible way is to parse it as a StyleValue and rely on the reification code there.
+        auto parser = Parser::Parser::create(Parser::ParsingParams {}, {});
+        if (auto calculation = parser.parse_calculated_value(numeric_value)) {
+            auto reified = calculation->reify(realm, {});
+            // AD-HOC: Not all math functions can be reified. Until we have clear guidance on that, throw a SyntaxError.
+            // See: https://github.com/w3c/css-houdini-drafts/issues/1090#issuecomment-3200229996
+            if (auto* reified_numeric = as_if<CSSNumericValue>(*reified)) {
+                return GC::Ref { *reified_numeric };
+            }
+            return WebIDL::SyntaxError::create(realm, "Unable to reify this math function."_utf16);
+        }
+        // AD-HOC: If we failed to parse it, I guess we throw a SyntaxError like in step 1 of CSSNumericValue::parse().
+        return WebIDL::SyntaxError::create(realm, "Unable to parse input as a calculation tree."_utf16);
+    }
+
+    // 2. If num is the unitless value 0 and num is a <dimension>, return a new CSSUnitValue with its value internal
+    //    slot set to 0, and its unit internal slot set to "px".
+    // FIXME: What does this mean? We just have a component value, it doesn't have any knowledge about whether 0 should
+    //        be interpreted as a dimension.
+
+    // 3. Return a new CSSUnitValue with its value internal slot set to the numeric value of num, and its unit internal
+    //    slot set to "number" if num is a <number>, "percent" if num is a <percentage>, and num’s unit if num is a
+    //    <dimension>.
+    //    If the value being reified is a computed value, the unit used must be the appropriate canonical unit for the
+    //    value’s type, with the numeric value scaled accordingly.
+    // NB: The computed value part is irrelevant here, I think.
+    if (numeric_value.is(Parser::Token::Type::Number))
+        return CSSUnitValue::create(realm, numeric_value.token().number_value(), "number"_fly_string);
+    if (numeric_value.is(Parser::Token::Type::Percentage))
+        return CSSUnitValue::create(realm, numeric_value.token().percentage(), "percent"_fly_string);
+    VERIFY(numeric_value.is(Parser::Token::Type::Dimension));
+    return CSSUnitValue::create(realm, numeric_value.token().dimension_value(), numeric_value.token().dimension_unit());
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(JS::VM& vm, String const& css_text)
+{
+    // The parse(cssText) method, when called, must perform the following steps:
+
+    auto& realm = *vm.current_realm();
+
+    // 1. Parse a component value from cssText and let result be the result. If result is a syntax error, throw a
+    //    SyntaxError and abort this algorithm.
+    auto maybe_component_value = Parser::Parser::create(Parser::ParsingParams {}, css_text).parse_as_component_value();
+    if (!maybe_component_value.has_value()) {
+        return WebIDL::SyntaxError::create(realm, "Unable to parse input as a component value."_utf16);
+    }
+    auto& result = maybe_component_value.value();
+
+    // 2. If result is not a <number-token>, <percentage-token>, <dimension-token>, or a math function, throw a
+    //    SyntaxError and abort this algorithm.
+    auto is_a_math_function = [](Parser::ComponentValue const& component_value) -> bool {
+        if (!component_value.is_function())
+            return false;
+        return math_function_from_string(component_value.function().name).has_value();
+    };
+    if (!(result.is(Parser::Token::Type::Number)
+            || result.is(Parser::Token::Type::Percentage)
+            || result.is(Parser::Token::Type::Dimension)
+            || is_a_math_function(result))) {
+        return WebIDL::SyntaxError::create(realm, "Input not a <number-token>, <percentage-token>, <dimension-token>, or a math function."_utf16);
+    }
+
+    // 3. If result is a <dimension-token> and creating a type from result’s unit returns failure, throw a SyntaxError
+    //    and abort this algorithm.
+    if (result.is(Parser::Token::Type::Dimension)) {
+        if (!NumericType::create_from_unit(result.token().dimension_unit()).has_value()) {
+            return WebIDL::SyntaxError::create(realm, "Input is <dimension> with an unrecognized unit."_utf16);
+        }
+    }
+
+    // 4. Reify a numeric value result, and return the result.
+    return reify_a_numeric_value(realm, result);
 }
 
 }

@@ -40,7 +40,7 @@ interface CSSNumericValue : CSSStyleValue {
     // FIXME: CSSMathSum toSum(USVString... units);
     [ImplementedAs=type_for_bindings] CSSNumericType type();
 
-    [FIXME, Exposed=Window] static CSSNumericValue parse(USVString cssText);
+    [Exposed=Window] static CSSNumericValue parse(USVString cssText);
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish

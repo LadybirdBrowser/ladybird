@@ -146,6 +146,8 @@ public:
 
     NonnullRefPtr<StyleValue const> parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element = {});
 
+    RefPtr<StyleValue const> parse_calculated_value(ComponentValue const&);
+
 private:
     Parser(ParsingParams const&, Vector<Token>);
 
@@ -350,7 +352,6 @@ private:
     };
     Optional<PropertyAndValue> parse_css_value_for_properties(ReadonlySpan<PropertyID>, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_builtin_value(TokenStream<ComponentValue>&);
-    RefPtr<StyleValue const> parse_calculated_value(ComponentValue const&);
     Optional<FlyString> parse_custom_ident(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
     RefPtr<CustomIdentStyleValue const> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
     Optional<FlyString> parse_dashed_ident(TokenStream<ComponentValue>&);

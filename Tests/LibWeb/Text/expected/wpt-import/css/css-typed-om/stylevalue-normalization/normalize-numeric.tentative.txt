@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 6 tests
 
-1 Pass
-5 Fail
-Fail	Normalizing a <number> returns a number CSSUnitValue
-Fail	Normalizing a <percentage> returns a percent CSSUnitValue
-Fail	Normalizing a <dimension> returns a CSSUnitValue with the correct unit
-Fail	Normalizing a <number> with a unitless zero returns 0
+5 Pass
+1 Fail
+Pass	Normalizing a <number> returns a number CSSUnitValue
+Pass	Normalizing a <percentage> returns a percent CSSUnitValue
+Pass	Normalizing a <dimension> returns a CSSUnitValue with the correct unit
+Pass	Normalizing a <number> with a unitless zero returns 0
 Fail	Normalizing a <calc> returns simplified expression
 Pass	Normalizing a <dimension> with a unitless zero returns 0px
