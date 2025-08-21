@@ -45,6 +45,8 @@ public:
     virtual String to_string() const final override { return to_string({}); }
     String to_string(SerializationParams const&) const;
 
+    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, String const& css_text);
+
 protected:
     explicit CSSNumericValue(JS::Realm&, NumericType);
 
