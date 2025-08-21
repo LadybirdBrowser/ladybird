@@ -1077,7 +1077,7 @@ WebIDL::ExceptionOr<String> Element::inner_html() const
 
 bool Element::is_focused() const
 {
-    return document().focused_element() == this;
+    return document().focused_area() == this;
 }
 
 bool Element::is_active() const
@@ -3291,8 +3291,8 @@ bool Element::is_relevant_to_the_user()
         return true;
 
     // Either the element or its contents are focused, as described in the focus section of the HTML spec.
-    auto* focused_element = document().focused_element();
-    if (focused_element && is_inclusive_ancestor_of(*focused_element))
+    auto focused_area = document().focused_area();
+    if (focused_area && is_inclusive_ancestor_of(*focused_area))
         return true;
 
     // Either the element or its contents are selected, where selection is described in the selection API.

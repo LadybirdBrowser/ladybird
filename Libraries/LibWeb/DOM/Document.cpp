@@ -547,7 +547,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_highlighted_node);
     visitor.visit(m_active_favicon);
     visitor.visit(m_browsing_context);
-    visitor.visit(m_focused_element);
+    visitor.visit(m_focused_area);
     visitor.visit(m_active_element);
     visitor.visit(m_target_element);
     visitor.visit(m_implementation);
@@ -2443,7 +2443,7 @@ String const& Document::compat_mode() const
 void Document::update_active_element()
 {
     // 1. Let candidate be this's node document's focused area's DOM anchor.
-    Node* candidate = focused_element();
+    Node* candidate = focused_area();
 
     // 2. Set candidate to the result of retargeting candidate against this.
     candidate = as<Node>(retarget(candidate, this));
@@ -2478,56 +2478,57 @@ void Document::update_active_element()
     set_active_element(nullptr);
 }
 
-void Document::set_focused_element(GC::Ptr<Element> element)
+void Document::set_focused_area(GC::Ptr<Node> node)
 {
-    if (m_focused_element.ptr() == element)
+    if (m_focused_area == node)
         return;
 
-    GC::Ptr<Element> old_focused_element = move(m_focused_element);
+    GC::Ptr old_focused_area = m_focused_area;
 
-    if (old_focused_element)
+    if (auto* old_focused_element = as_if<Element>(old_focused_area.ptr()))
         old_focused_element->did_lose_focus();
 
-    auto* common_ancestor = find_common_ancestor(old_focused_element, element);
+    auto* common_ancestor = find_common_ancestor(old_focused_area, node);
 
     GC::Ptr<Node> old_focused_node_root = nullptr;
     GC::Ptr<Node> new_focused_node_root = nullptr;
-    if (old_focused_element)
-        old_focused_node_root = old_focused_element->root();
-    if (element)
-        new_focused_node_root = element->root();
+    if (old_focused_area)
+        old_focused_node_root = old_focused_area->root();
+    if (node)
+        new_focused_node_root = node->root();
     if (old_focused_node_root != new_focused_node_root) {
         if (old_focused_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_element, *old_focused_node_root, element);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_element, *old_focused_node_root, element);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_element, *old_focused_node_root, element);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_area, *old_focused_node_root, node);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_area, *old_focused_node_root, node);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_area, *old_focused_node_root, node);
         }
         if (new_focused_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_element, *new_focused_node_root, element);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_element, *new_focused_node_root, element);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_element, *new_focused_node_root, element);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_area, *new_focused_node_root, node);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_area, *new_focused_node_root, node);
+            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_area, *new_focused_node_root, node);
         }
     } else {
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_element, *common_ancestor, element);
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_element, *common_ancestor, element);
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_element, *common_ancestor, element);
+        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_area, *common_ancestor, node);
+        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_area, *common_ancestor, node);
+        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_area, *common_ancestor, node);
     }
 
-    m_focused_element = element;
+    m_focused_area = node;
 
-    if (m_focused_element)
-        m_focused_element->did_receive_focus();
+    auto* new_focused_element = as_if<Element>(node.ptr());
+    if (new_focused_element)
+        new_focused_element->did_receive_focus();
 
     if (paintable())
         paintable()->set_needs_display();
 
     // Scroll the viewport if necessary to make the newly focused element visible.
-    if (m_focused_element) {
-        m_focused_element->queue_an_element_task(HTML::Task::Source::UserInteraction, [&]() {
+    if (new_focused_element) {
+        new_focused_element->queue_an_element_task(HTML::Task::Source::UserInteraction, [&] {
             ScrollIntoViewOptions scroll_options;
             scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
             scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
-            (void)m_focused_element->scroll_into_view(scroll_options);
+            (void)as<Element>(*m_focused_area).scroll_into_view(scroll_options);
         });
     }
 
@@ -6338,38 +6339,38 @@ GC::Ref<Document> Document::parse_html_unsafe(JS::VM& vm, StringView html)
 
 InputEventsTarget* Document::active_input_events_target()
 {
-    auto* focused_element = this->focused_element();
-    if (!focused_element)
+    auto focused_area = this->focused_area();
+    if (!focused_area)
         return {};
 
-    if (is<HTML::HTMLInputElement>(*focused_element))
-        return static_cast<HTML::HTMLInputElement*>(focused_element);
-    if (is<HTML::HTMLTextAreaElement>(*focused_element))
-        return static_cast<HTML::HTMLTextAreaElement*>(focused_element);
-    if (focused_element->is_editable_or_editing_host())
+    if (auto* input_element = as_if<HTML::HTMLInputElement>(*focused_area))
+        return input_element;
+    if (auto* text_area_element = as_if<HTML::HTMLTextAreaElement>(*focused_area))
+        return text_area_element;
+    if (focused_area->is_editable_or_editing_host())
         return m_editing_host_manager;
     return nullptr;
 }
 
 GC::Ptr<DOM::Position> Document::cursor_position() const
 {
-    auto const* focused_element = this->focused_element();
-    if (!focused_element)
+    auto const focused_area = this->focused_area();
+    if (!focused_area)
         return nullptr;
 
     Optional<HTML::FormAssociatedTextControlElement const&> target {};
-    if (auto const* input_element = as_if<HTML::HTMLInputElement>(*focused_element)) {
+    if (auto const* input_element = as_if<HTML::HTMLInputElement>(*focused_area)) {
         // Some types of <input> tags shouldn't have a cursor, like buttons
         if (!input_element->can_have_text_editing_cursor())
             return nullptr;
         target = *input_element;
-    } else if (is<HTML::HTMLTextAreaElement>(*focused_element))
-        target = static_cast<HTML::HTMLTextAreaElement const&>(*focused_element);
+    } else if (is<HTML::HTMLTextAreaElement>(*focused_area))
+        target = static_cast<HTML::HTMLTextAreaElement const&>(*focused_area);
 
     if (target.has_value())
         return target->cursor_position();
 
-    if (focused_element->is_editable_or_editing_host())
+    if (focused_area->is_editable_or_editing_host())
         return m_selection->cursor_position();
 
     return nullptr;

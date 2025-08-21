@@ -180,12 +180,12 @@ Gfx::Orientation PaintableFragment::orientation() const
 
 CSSPixelRect PaintableFragment::selection_rect() const
 {
-    if (auto const* focused_element = paintable().document().focused_element(); focused_element && is<HTML::FormAssociatedTextControlElement>(*focused_element)) {
+    if (auto focused_area = paintable().document().focused_area(); is<HTML::FormAssociatedTextControlElement>(focused_area.ptr())) {
         HTML::FormAssociatedTextControlElement const* text_control_element = nullptr;
-        if (is<HTML::HTMLInputElement>(*focused_element)) {
-            text_control_element = static_cast<HTML::HTMLInputElement const*>(focused_element);
-        } else if (is<HTML::HTMLTextAreaElement>(*focused_element)) {
-            text_control_element = static_cast<HTML::HTMLTextAreaElement const*>(focused_element);
+        if (auto const* input_element = as_if<HTML::HTMLInputElement>(*focused_area)) {
+            text_control_element = input_element;
+        } else if (auto const* text_area_element = as_if<HTML::HTMLTextAreaElement>(*focused_area)) {
+            text_control_element = text_area_element;
         } else {
             VERIFY_NOT_REACHED();
         }

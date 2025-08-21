@@ -9,9 +9,7 @@
 
 #include <AK/Badge.h>
 #include <AK/RefPtr.h>
-#include <AK/TypeCasts.h>
 #include <LibGC/Heap.h>
-#include <LibURL/URL.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WindowGlobalMixin.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -22,6 +20,7 @@
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/MimeType.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Plugin.h>
 #include <LibWeb/HTML/ScrollOptions.h>
 #include <LibWeb/HTML/StructuredSerializeOptions.h>
