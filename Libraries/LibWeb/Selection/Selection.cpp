@@ -550,6 +550,8 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
     // AD-HOC: Focus editing host if the previous selection was outside of it. There seems to be no spec for this.
     if (range && range->start_container()->is_editable_or_editing_host()) {
         GC::Ref new_editing_host = *range->start_container()->editing_host();
+        while (new_editing_host->parent() && new_editing_host->parent()->is_editing_host())
+            new_editing_host = *new_editing_host->parent();
         if (document()->focused_element() != new_editing_host) {
             // FIXME: Determine and propagate the right focus trigger.
             HTML::run_focusing_steps(new_editing_host, nullptr, HTML::FocusTrigger::Other);
