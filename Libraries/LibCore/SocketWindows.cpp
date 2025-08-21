@@ -116,7 +116,7 @@ ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
         return Error::from_windows_error(WSAENOTCONN);
     }
 
-    u_long value;
+    u_long value = 0;
     TRY(System::ioctl(m_fd, FIONREAD, &value));
     return value;
 }
