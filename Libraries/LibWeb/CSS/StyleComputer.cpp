@@ -3186,10 +3186,17 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::
         VERIFY_NOT_REACHED();
     };
 
+    auto inherited_math_style = [&]() -> NonnullRefPtr<StyleValue const> {
+        if (!element_to_inherit_style_from.has_value())
+            return property_initial_value(CSS::PropertyID::MathStyle);
+
+        return element_to_inherit_style_from->computed_properties()->property(CSS::PropertyID::MathStyle);
+    };
+
     // The computed value of the math-depth value is determined as follows:
     // - If the specified value of math-depth is auto-add and the inherited value of math-style is compact
     //   then the computed value of math-depth of the element is its inherited value plus one.
-    if (math_depth.is_auto_add() && style.property(CSS::PropertyID::MathStyle).to_keyword() == Keyword::Compact) {
+    if (math_depth.is_auto_add() && inherited_math_style()->to_keyword() == Keyword::Compact) {
         style.set_math_depth(inherited_math_depth() + 1);
         return;
     }
