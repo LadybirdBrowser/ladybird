@@ -180,21 +180,16 @@ void EditingHostManager::handle_delete(DeleteDirection direction)
     // When the user instructs the user agent to delete the next character inside an editing host, such as by pressing
     // the Delete key while the cursor is in an editable node, the user agent must call execCommand("forwarddelete") on
     // the relevant document.
-
-    auto editing_result = [&] {
-        if (direction == DeleteDirection::Backward)
-            return m_document->exec_command(Editing::CommandNames::delete_, false, {});
-        if (direction == DeleteDirection::Forward)
-            return m_document->exec_command(Editing::CommandNames::forwardDelete, false, {});
-        VERIFY_NOT_REACHED();
-    }();
-
+    auto command = direction == DeleteDirection::Backward ? Editing::CommandNames::delete_ : Editing::CommandNames::forwardDelete;
+    auto editing_result = m_document->exec_command(command, false, {});
     if (editing_result.is_exception())
         dbgln("handle_delete(): editing resulted in exception: {}", editing_result.exception());
 }
 
 EventResult EditingHostManager::handle_return_key(FlyString const& ui_input_type)
 {
+    VERIFY(ui_input_type == UIEvents::InputTypes::insertParagraph || ui_input_type == UIEvents::InputTypes::insertLineBreak);
+
     // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
     // When the user instructs the user agent to insert a line break inside an editing host, such as by pressing the
     // Enter key while the cursor is in an editable node, the user agent must call execCommand("insertparagraph") on the
@@ -202,19 +197,14 @@ EventResult EditingHostManager::handle_return_key(FlyString const& ui_input_type
     // When the user instructs the user agent to insert a line break inside an editing host without breaking out of the
     // current block, such as by pressing Shift-Enter or Option-Enter while the cursor is in an editable node, the user
     // agent must call execCommand("insertlinebreak") on the relevant document.
-    auto editing_result = [&] {
-        if (ui_input_type == UIEvents::InputTypes::insertParagraph)
-            return m_document->exec_command(Editing::CommandNames::insertParagraph, false, {});
-        if (ui_input_type == UIEvents::InputTypes::insertLineBreak)
-            return m_document->exec_command(Editing::CommandNames::insertLineBreak, false, {});
-        VERIFY_NOT_REACHED();
-    }();
-
+    auto command = ui_input_type == UIEvents::InputTypes::insertParagraph
+        ? Editing::CommandNames::insertParagraph
+        : Editing::CommandNames::insertLineBreak;
+    auto editing_result = m_document->exec_command(command, false, {});
     if (editing_result.is_exception()) {
         dbgln("handle_return_key(): editing resulted in exception: {}", editing_result.exception());
         return EventResult::Dropped;
     }
-
     return editing_result.value() ? EventResult::Handled : EventResult::Dropped;
 }
 
