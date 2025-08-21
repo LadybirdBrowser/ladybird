@@ -32,6 +32,7 @@ Pull requests are approved and merged by a group of maintainers. The current gro
 - [Andreas Kling (@awesomekling)](https://github.com/awesomekling)
 - [Andrew Kaster (@ADKaster)](https://github.com/ADKaster)
 - [Dániel Bertalan (@BertalanD)](https://github.com/BertalanD)
+- [Gregory Bertilson (@Zaggy1024)](https://github.com/Zaggy1024)
 - [Jelle Raaijmakers (@GMTA)](https://github.com/gmta)
 - [Luke Wilde (@Lubrsi)](https://github.com/Lubrsi)
 - [Sam Atkins (@AtkinsSJ)](https://github.com/AtkinsSJ)
