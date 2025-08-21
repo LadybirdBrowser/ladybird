@@ -222,7 +222,13 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect_internal(NonnullOwnPtr<Core::TCPS
         SSL_CTX_load_verify_file(ssl_ctx, path.characters());
     } else {
         // Use the default trusted certificate store
+#if defined(AK_OS_WINDOWS)
+        // https://stackoverflow.com/questions/9507184/can-openssl-on-windows-use-the-system-certificate-store
+        // https://docs.openssl.org/master/man7/OSSL_STORE-winstore/
+        OPENSSL_TRY(SSL_CTX_load_verify_store(ssl_ctx, "org.openssl.winstore://"));
+#else
         OPENSSL_TRY(SSL_CTX_set_default_verify_paths(ssl_ctx));
+#endif
     }
 
     // Require a minimum TLS version of TLSv1.2.
