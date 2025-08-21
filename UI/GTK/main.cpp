@@ -10,6 +10,10 @@
 #include <gtkmm/window.h>
 #include <stdio.h>
 
+#include <LibCore/EventLoop.h>
+#include <LibCore/Timer.h>
+#include <UI/GTK/EventLoopImplementationGLib.h>
+
 class HelloWorld : public Gtk::Window {
 public:
     HelloWorld();
@@ -51,6 +55,15 @@ void HelloWorld::on_button_clicked()
 int main(int argc, char* argv[])
 {
     adw_init();
+
+    Core::EventLoopManager::install(*new Ladybird::EventLoopManagerGLib);
+    [[maybe_unused]] Core::EventLoop event_loop;
+
+    auto timer = Core::Timer::create_repeating(1000, [] {
+        puts("Timer tick");
+    });
+    timer->start();
+
     auto app = Gtk::Application::create("org.example.myapp");
     return app->make_window_and_run<HelloWorld>(argc, argv);
 }

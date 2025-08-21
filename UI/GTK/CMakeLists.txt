@@ -14,7 +14,10 @@ pkg_check_modules(libadwaita REQUIRED IMPORTED_TARGET libadwaita-1)
 find_program(GLIB_COMPILE_RESOURCES NAMES glib-compile-resources REQUIRED)
 #find_program(BLUEPRINT_COMPILER NAMES blueprint-compiler REQUIRED)
 
-add_executable(ladybird main.cpp)
+add_executable(ladybird
+   main.cpp
+   EventLoopImplementationGLib.cpp
+)
 
 target_link_libraries(ladybird PRIVATE PkgConfig::mm PkgConfig::gtk4 PkgConfig::gtkmm PkgConfig::libadwaita)
 create_ladybird_bundle(ladybird)
