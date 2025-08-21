@@ -92,7 +92,7 @@ void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)
     m_document->insert_before(document_type, m_document->first_child(), false);
 }
 
-void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name, ByteString> const& attributes)
+void XMLDocumentBuilder::element_start(const XML::Name& name, OrderedHashMap<XML::Name, ByteString> const& attributes)
 {
     if (m_has_error)
         return;

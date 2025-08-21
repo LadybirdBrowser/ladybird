@@ -29,7 +29,7 @@ struct Node {
     };
     struct Element {
         Name name;
-        HashMap<Name, ByteString> attributes;
+        OrderedHashMap<Name, ByteString> attributes;
         Vector<NonnullOwnPtr<Node>> children;
     };
 

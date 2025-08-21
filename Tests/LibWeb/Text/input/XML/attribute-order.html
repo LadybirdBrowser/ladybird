@@ -1,0 +1,11 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const doc = new DOMParser().parseFromString(`<xml><foo a='1' b='2' c='3' d='4' e='5'/></xml>`, "application/xml");
+        const e = doc.firstChild.firstChild;
+        for (const a of e.attributes) {
+            println(a.name);
+        }
+    });
+</script>
