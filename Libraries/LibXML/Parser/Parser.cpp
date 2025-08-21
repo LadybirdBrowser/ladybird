@@ -700,7 +700,7 @@ ErrorOr<NonnullOwnPtr<Node>, ParseError> Parser::parse_empty_element_tag()
     TRY(expect("<"sv));
 
     auto name = TRY(parse_name());
-    HashMap<Name, ByteString> attributes;
+    OrderedHashMap<Name, ByteString> attributes;
 
     while (true) {
         if (auto result = skip_whitespace(Required::Yes); result.is_error())
@@ -854,7 +854,7 @@ ErrorOr<NonnullOwnPtr<Node>, ParseError> Parser::parse_start_tag()
     auto accept = accept_rule();
 
     auto name = TRY(parse_name());
-    HashMap<Name, ByteString> attributes;
+    OrderedHashMap<Name, ByteString> attributes;
 
     while (true) {
         if (auto result = skip_whitespace(Required::Yes); result.is_error())

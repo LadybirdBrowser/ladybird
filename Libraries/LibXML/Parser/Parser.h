@@ -37,7 +37,7 @@ struct Listener {
     virtual void set_doctype(XML::Doctype) { }
     virtual void document_start() { }
     virtual void document_end() { }
-    virtual void element_start(Name const&, HashMap<Name, ByteString> const&) { }
+    virtual void element_start(Name const&, OrderedHashMap<Name, ByteString> const&) { }
     virtual void element_end(Name const&) { }
     virtual void text(StringView) { }
     virtual void cdata_section(StringView) { }
