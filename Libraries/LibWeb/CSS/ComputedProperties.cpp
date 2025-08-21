@@ -222,23 +222,39 @@ Size ComputedProperties::size_value(PropertyID id) const
     return Size::make_auto();
 }
 
-LengthPercentage ComputedProperties::length_percentage_or_fallback(PropertyID id, LengthPercentage const& fallback) const
+LengthPercentage ComputedProperties::length_percentage_or_fallback(PropertyID id, Layout::NodeWithStyle const& layout_node, ClampNegativeLengths disallow_negative_lengths, LengthPercentage const& fallback) const
 {
-    return length_percentage(id).value_or(fallback);
+    return length_percentage(id, layout_node, disallow_negative_lengths).value_or(fallback);
 }
 
-Optional<LengthPercentage> ComputedProperties::length_percentage(PropertyID id) const
+Optional<LengthPercentage> ComputedProperties::length_percentage(PropertyID id, Layout::NodeWithStyle const& layout_node, ClampNegativeLengths disallow_negative_lengths) const
 {
     auto const& value = property(id);
 
     if (value.is_calculated())
         return LengthPercentage { value.as_calculated() };
 
-    if (value.is_percentage())
-        return value.as_percentage().percentage();
+    if (value.is_percentage()) {
+        auto percentage = value.as_percentage().percentage();
 
-    if (value.is_length())
-        return value.as_length().length();
+        // FIXME: This value can be negative as interpolation does not yet clamp values to allowed ranges - remove this
+        //        once we do that.
+        if (disallow_negative_lengths == ClampNegativeLengths::Yes && percentage.as_fraction() < 0)
+            return {};
+
+        return percentage;
+    }
+
+    if (value.is_length()) {
+        auto length = value.as_length().length();
+
+        // FIXME: This value can be negative as interpolation does not yet clamp values to allowed ranges - remove this
+        //        once we do that.
+        if (disallow_negative_lengths == ClampNegativeLengths::Yes && length.to_px(layout_node) < 0)
+            return {};
+
+        return length;
+    }
 
     if (value.has_auto())
         return LengthPercentage { Length::make_auto() };
@@ -251,13 +267,13 @@ Length ComputedProperties::length(PropertyID property_id) const
     return property(property_id).as_length().length();
 }
 
-LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Length const& default_value) const
+LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Layout::NodeWithStyle const& layout_node, ClampNegativeLengths disallow_negative_lengths, Length const& default_value) const
 {
     LengthBox box;
-    box.left() = length_percentage_or_fallback(left_id, default_value);
-    box.top() = length_percentage_or_fallback(top_id, default_value);
-    box.right() = length_percentage_or_fallback(right_id, default_value);
-    box.bottom() = length_percentage_or_fallback(bottom_id, default_value);
+    box.left() = length_percentage_or_fallback(left_id, layout_node, disallow_negative_lengths, default_value);
+    box.top() = length_percentage_or_fallback(top_id, layout_node, disallow_negative_lengths, default_value);
+    box.right() = length_percentage_or_fallback(right_id, layout_node, disallow_negative_lengths, default_value);
+    box.bottom() = length_percentage_or_fallback(bottom_id, layout_node, disallow_negative_lengths, default_value);
     return box;
 }
 
