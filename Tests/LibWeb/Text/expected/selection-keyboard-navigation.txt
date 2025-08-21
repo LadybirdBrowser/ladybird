@@ -1,0 +1,14 @@
+#text 0 - #text 3
+--- Left/Right key should not modify a selection on uneditable contents ---
+#text 0 - #text 3
+#text 0 - #text 3
+--- Neither should WordJump + Left/Right ---
+#text 0 - #text 3
+#text 0 - #text 3
+--- Shift + Left/Right key however, should modify the selection ---
+#text 0 - #text 4
+#text 0 - #text 3
+--- Shift + WordJump + Left/Right as well ---
+#text 0 - #text 7
+#text 0 - #text 11
+#text 0 - #text 8

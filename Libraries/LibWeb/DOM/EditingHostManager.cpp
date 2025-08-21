@@ -78,39 +78,58 @@ void EditingHostManager::set_selection_focus(GC::Ref<DOM::Node> focus_node, size
     m_document->reset_cursor_blink_cycle();
 }
 
+GC::Ptr<Selection::Selection> EditingHostManager::get_selection_for_navigation(CollapseSelection collapse) const
+{
+    // In order for navigation to happen inside an editing host, the document must have a selection,
+    auto selection = m_document->get_selection();
+    if (!selection)
+        return {};
+
+    // and the focus node must be inside a text node,
+    auto focus_node = selection->focus_node();
+    if (!is<Text>(focus_node.ptr()))
+        return {};
+
+    // and if we're performing collapsed navigation (i.e. moving the caret), the focus node must be editable.
+    if (collapse == CollapseSelection::Yes && !focus_node->is_editable())
+        return {};
+
+    return selection;
+}
+
 void EditingHostManager::move_cursor_to_start(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
-    auto node = selection->anchor_node();
-    if (!node || !is<DOM::Text>(*node))
+    auto selection = get_selection_for_navigation(collapse);
+    if (!selection)
         return;
+    auto node = selection->focus_node();
 
     if (collapse == CollapseSelection::Yes) {
         MUST(selection->collapse(node, 0));
         m_document->reset_cursor_blink_cycle();
         return;
     }
-    MUST(selection->set_base_and_extent(*node, selection->anchor_offset(), *node, 0));
+    MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, 0));
 }
 
 void EditingHostManager::move_cursor_to_end(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
-    auto node = selection->anchor_node();
-    if (!node || !is<DOM::Text>(*node))
+    auto selection = get_selection_for_navigation(collapse);
+    if (!selection)
         return;
+    auto node = selection->focus_node();
 
     if (collapse == CollapseSelection::Yes) {
         m_document->reset_cursor_blink_cycle();
         MUST(selection->collapse(node, node->length()));
         return;
     }
-    MUST(selection->set_base_and_extent(*node, selection->anchor_offset(), *node, node->length()));
+    MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, node->length()));
 }
 
 void EditingHostManager::increment_cursor_position_offset(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
+    auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
     selection->move_offset_to_next_character(collapse == CollapseSelection::Yes);
@@ -118,7 +137,7 @@ void EditingHostManager::increment_cursor_position_offset(CollapseSelection coll
 
 void EditingHostManager::decrement_cursor_position_offset(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
+    auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
     selection->move_offset_to_previous_character(collapse == CollapseSelection::Yes);
@@ -126,7 +145,7 @@ void EditingHostManager::decrement_cursor_position_offset(CollapseSelection coll
 
 void EditingHostManager::increment_cursor_position_to_next_word(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
+    auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
     selection->move_offset_to_next_word(collapse == CollapseSelection::Yes);
@@ -134,7 +153,7 @@ void EditingHostManager::increment_cursor_position_to_next_word(CollapseSelectio
 
 void EditingHostManager::decrement_cursor_position_to_previous_word(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
+    auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
     selection->move_offset_to_previous_word(collapse == CollapseSelection::Yes);
