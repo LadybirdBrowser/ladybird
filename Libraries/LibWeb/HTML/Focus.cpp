@@ -113,9 +113,9 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
         // 1. If entry is a focusable area: designate entry as the focused area of the document.
         // FIXME: This isn't entirely right.
         if (is<DOM::Element>(*entry))
-            entry->document().set_focused_element(&static_cast<DOM::Element&>(*entry));
+            entry->document().set_focused_area(*entry);
         else if (is<DOM::Document>(*entry))
-            entry->document().set_focused_element(static_cast<DOM::Document&>(*entry).document_element());
+            entry->document().set_focused_area(static_cast<DOM::Document&>(*entry).document_element());
 
         GC::Ptr<DOM::EventTarget> focus_event_target;
         if (is<DOM::Element>(*entry)) {
