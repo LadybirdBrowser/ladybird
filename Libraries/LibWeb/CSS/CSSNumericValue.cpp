@@ -112,4 +112,20 @@ String CSSNumericValue::to_string(SerializationParams const& params) const
     return {};
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#rectify-a-numberish-value
+GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm& realm, CSSNumberish const& numberish, Optional<FlyString> unit)
+{
+    // To rectify a numberish value num, optionally to a given unit unit (defaulting to "number"), perform the following steps:
+    return numberish.visit(
+        // 1. If num is a CSSNumericValue, return num.
+        [](GC::Root<CSSNumericValue> const& num) -> GC::Ref<CSSNumericValue> {
+            return GC::Ref { *num };
+        },
+        // 2. If num is a double, return a new CSSUnitValue with its value internal slot set to num and its unit
+        //    internal slot set to unit.
+        [&realm, &unit](double num) -> GC::Ref<CSSNumericValue> {
+            return CSSUnitValue::create(realm, num, unit.value_or("number"_fly_string));
+        });
+}
+
 }

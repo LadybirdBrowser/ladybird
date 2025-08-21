@@ -56,4 +56,6 @@ protected:
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
 using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
 
+GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm&, CSSNumberish const&, Optional<FlyString> unit = {});
+
 }
