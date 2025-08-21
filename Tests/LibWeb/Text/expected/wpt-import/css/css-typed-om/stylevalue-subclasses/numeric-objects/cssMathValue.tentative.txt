@@ -1,8 +1,8 @@
-Harness status: Error
+Harness status: OK
 
-Found 20 tests
+Found 23 tests
 
-20 Pass
+23 Pass
 Pass	Constructing a CSSMathSum with no arguments throws a SyntaxError
 Pass	CSSMathSum can be constructed from a single number CSSUnitValue
 Pass	CSSMathSum can be constructed from more than one number CSSUnitValue
@@ -23,3 +23,6 @@ Pass	CSSMathNegate can be constructed from a single numberish value
 Pass	CSSMathNegate.operator is readonly
 Pass	CSSMathInvert can be constructed from a single numberish value
 Pass	CSSMathInvert.operator is readonly
+Pass	Constructing a CSSMathClamp with less than 3 arguments throws a SyntaxError
+Pass	Constructing a CSSMathClamp with different unit arguments throws a SyntaxError
+Pass	CSSMathClamp.operator is readonly

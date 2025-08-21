@@ -1,0 +1,11 @@
+#import <CSS/CSSMathValue.idl>
+#import <CSS/CSSNumericValue.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssmathclamp
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathClamp : CSSMathValue {
+    constructor(CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
+    readonly attribute CSSNumericValue lower;
+    readonly attribute CSSNumericValue value;
+    readonly attribute CSSNumericValue upper;
+};
