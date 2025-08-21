@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	XMLHttpRequest: abort() after a timeout should not fire "abort" event
+1 Pass
+Pass	XMLHttpRequest: abort() after a timeout should not fire "abort" event

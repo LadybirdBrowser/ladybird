@@ -38,6 +38,7 @@
             assert_unreached("abort() should not cause the abort event to fire");
         });
 
-        client.open("GET", "/common/blank.html?pipe=trickle(d1)", true);
+        // NOTE: I put the wpt live url here so that we do not have to run a local server.
+        client.open("GET", "https://wpt.live/common/blank.html?pipe=trickle(d1)", true);
         client.send(null);
     });
