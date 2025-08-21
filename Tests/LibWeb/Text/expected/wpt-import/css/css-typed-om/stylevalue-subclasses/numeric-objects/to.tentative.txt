@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 17 tests
 
-5 Pass
-12 Fail
+6 Pass
+11 Fail
 Fail	Converting a CSSUnitValue to an invalid unit throws SyntaxError
 Pass	Converting a CSSNumericValue with invalid sum value throws TypeError
 Pass	Converting a CSSNumericValue with sum value containing more than one value throws TypeError
@@ -17,7 +17,7 @@ Pass	Converting a CSSMathMin to a single unit with different units throws a Type
 Fail	Converting a CSSMathMax to a single unit finds the max value
 Pass	Converting a CSSMathMax to a single unit with different units throws a TypeError
 Fail	Converting a CSSMathClamp to a single unit returns the clamped value
-Fail	Converting a CSSMathClamp to a single unit with different units throws a TypeError
+Pass	Converting a CSSMathClamp to a single unit with different units throws a TypeError
 Fail	Converting a CSSMathNegate to a single unit negates its value
 Fail	Converting a CSSMathInvert to a single unit inverts its value and units
 Fail	Converting a complex expression to a single unit

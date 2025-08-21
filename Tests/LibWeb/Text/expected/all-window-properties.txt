@@ -49,6 +49,7 @@ CSSKeywordValue
 CSSLayerBlockRule
 CSSLayerStatementRule
 CSSMarginRule
+CSSMathClamp
 CSSMathInvert
 CSSMathMax
 CSSMathMin
