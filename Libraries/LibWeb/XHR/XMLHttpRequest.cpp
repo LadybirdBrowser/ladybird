@@ -779,8 +779,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
             // 2. Handle errors for this.
             // NOTE: This cannot throw, as `handle_errors` only throws in a synchronous context.
-            // FIXME: However, we can receive allocation failures, but we can't propagate them anywhere currently.
-            handle_errors().release_value_but_fixme_should_propagate_errors();
+            MUST(handle_errors());
 
             // 3. If this’s response is a network error, then return.
             if (m_response->is_network_error())
@@ -800,8 +799,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             // 7. If this’s response’s body is null, then run handle response end-of-body for this and return.
             if (!m_response->body()) {
                 // NOTE: This cannot throw, as `handle_response_end_of_body` only throws in a synchronous context.
-                // FIXME: However, we can receive allocation failures, but we can't propagate them anywhere currently.
-                handle_response_end_of_body().release_value_but_fixme_should_propagate_errors();
+                MUST(handle_response_end_of_body());
                 return;
             }
 
@@ -837,8 +835,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             // 11. Let processEndOfBody be this step: run handle response end-of-body for this.
             auto process_end_of_body = GC::create_function(heap(), [this]() {
                 // NOTE: This cannot throw, as `handle_response_end_of_body` only throws in a synchronous context.
-                // FIXME: However, we can receive allocation failures, but we can't propagate them anywhere currently.
-                handle_response_end_of_body().release_value_but_fixme_should_propagate_errors();
+                MUST(handle_response_end_of_body());
             });
 
             // 12. Let processBodyError be these steps:
@@ -848,8 +845,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                 m_response = Fetch::Infrastructure::Response::network_error(vm, "A network error occurred processing body."_string);
                 // 2. Run handle errors for this.
                 // NOTE: This cannot throw, as `handle_errors` only throws in a synchronous context.
-                // FIXME: However, we can receive allocation failures, but we can't propagate them anywhere currently.
-                handle_errors().release_value_but_fixme_should_propagate_errors();
+                MUST(handle_errors());
             });
 
             // 13. Incrementally read this’s response’s body, given processBodyChunk, processEndOfBody, processBodyError, and this’s relevant global object.
