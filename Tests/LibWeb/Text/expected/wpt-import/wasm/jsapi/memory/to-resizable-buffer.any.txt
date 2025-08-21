@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	API surface
+Pass	toResizableBuffer caching behavior
+Pass	toResizableBuffer max size
+Pass	Resizing a Memory's resizable buffer
+Pass	Resizable buffers from Memory cannot be detached by JS

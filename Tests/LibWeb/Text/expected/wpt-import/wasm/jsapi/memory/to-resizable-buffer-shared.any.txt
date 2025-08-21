@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Fail	toResizableBuffer caching behavior
+Pass	toResizableBuffer max size
+Fail	Resizing a Memory's resizable buffer
