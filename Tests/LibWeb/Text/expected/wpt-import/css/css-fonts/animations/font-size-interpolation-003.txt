@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+24 Pass
+4 Fail
+Fail	CSS Transitions: property <font-size> from [10px] to [20px] at (-2) should be [0px]
+Pass	CSS Transitions: property <font-size> from [10px] to [20px] at (-0.3) should be [7px]
+Pass	CSS Transitions: property <font-size> from [10px] to [20px] at (0) should be [10px]
+Pass	CSS Transitions: property <font-size> from [10px] to [20px] at (0.3) should be [13px]
+Pass	CSS Transitions: property <font-size> from [10px] to [20px] at (0.6) should be [16px]
+Pass	CSS Transitions: property <font-size> from [10px] to [20px] at (1) should be [20px]
+Pass	CSS Transitions: property <font-size> from [10px] to [20px] at (1.5) should be [25px]
+Fail	CSS Transitions with transition: all: property <font-size> from [10px] to [20px] at (-2) should be [0px]
+Pass	CSS Transitions with transition: all: property <font-size> from [10px] to [20px] at (-0.3) should be [7px]
+Pass	CSS Transitions with transition: all: property <font-size> from [10px] to [20px] at (0) should be [10px]
+Pass	CSS Transitions with transition: all: property <font-size> from [10px] to [20px] at (0.3) should be [13px]
+Pass	CSS Transitions with transition: all: property <font-size> from [10px] to [20px] at (0.6) should be [16px]
+Pass	CSS Transitions with transition: all: property <font-size> from [10px] to [20px] at (1) should be [20px]
+Pass	CSS Transitions with transition: all: property <font-size> from [10px] to [20px] at (1.5) should be [25px]
+Fail	CSS Animations: property <font-size> from [10px] to [20px] at (-2) should be [0px]
+Pass	CSS Animations: property <font-size> from [10px] to [20px] at (-0.3) should be [7px]
+Pass	CSS Animations: property <font-size> from [10px] to [20px] at (0) should be [10px]
+Pass	CSS Animations: property <font-size> from [10px] to [20px] at (0.3) should be [13px]
+Pass	CSS Animations: property <font-size> from [10px] to [20px] at (0.6) should be [16px]
+Pass	CSS Animations: property <font-size> from [10px] to [20px] at (1) should be [20px]
+Pass	CSS Animations: property <font-size> from [10px] to [20px] at (1.5) should be [25px]
+Fail	Web Animations: property <font-size> from [10px] to [20px] at (-2) should be [0px]
+Pass	Web Animations: property <font-size> from [10px] to [20px] at (-0.3) should be [7px]
+Pass	Web Animations: property <font-size> from [10px] to [20px] at (0) should be [10px]
+Pass	Web Animations: property <font-size> from [10px] to [20px] at (0.3) should be [13px]
+Pass	Web Animations: property <font-size> from [10px] to [20px] at (0.6) should be [16px]
+Pass	Web Animations: property <font-size> from [10px] to [20px] at (1) should be [20px]
+Pass	Web Animations: property <font-size> from [10px] to [20px] at (1.5) should be [25px]
