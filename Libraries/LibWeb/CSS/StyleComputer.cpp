@@ -3172,12 +3172,7 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element c
         return element->element_to_inherit_style_from(pseudo_element)->computed_properties()->math_depth();
     };
 
-    auto const& value = style.property(CSS::PropertyID::MathDepth);
-    if (!value.is_math_depth()) {
-        style.set_math_depth(inherited_math_depth());
-        return;
-    }
-    auto const& math_depth = value.as_math_depth();
+    auto const& math_depth = style.property(CSS::PropertyID::MathDepth).as_math_depth();
 
     auto resolve_integer = [&](StyleValue const& integer_value) {
         if (integer_value.is_integer())
