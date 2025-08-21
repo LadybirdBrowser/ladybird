@@ -883,7 +883,9 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
             timer->start();
         }
-    } else {
+    }
+    // 12. Otherwise, if this’s synchronous flag is set:
+    else {
         // 1. Let processedResponse be false.
         IGNORE_USE_IN_ESCAPING_LAMBDA bool processed_response = false;
 
