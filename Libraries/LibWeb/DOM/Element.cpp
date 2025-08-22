@@ -3686,7 +3686,7 @@ Optional<Element::Directionality> Element::contained_text_auto_directionality(bo
         //    - an element whose dir attribute is not in the undefined state
         //    then continue.
         // NOTE: "any ancestor element of descendant that is a descendant of element" will be iterated already.
-        auto is_one_of_the_filtered_elements = [](auto& descendant) -> bool {
+        auto is_one_of_the_filtered_elements = [](DOM::Node const& descendant) -> bool {
             return is<HTML::HTMLScriptElement>(descendant)
                 || is<HTML::HTMLStyleElement>(descendant)
                 || is<HTML::HTMLTextAreaElement>(descendant)

@@ -16,7 +16,7 @@ namespace AK {
 template<typename OutputType, typename InputType>
 ALWAYS_INLINE bool is(InputType& input)
 {
-    static_assert(!SameAs<OutputType, InputType>);
+    static_assert(!SameAs<RemoveCVReference<OutputType>, RemoveCVReference<InputType>>);
     if constexpr (requires { input.template fast_is<OutputType>(); }) {
         return input.template fast_is<OutputType>();
     }
