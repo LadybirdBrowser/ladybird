@@ -9,6 +9,9 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/IndexedDB/IDBCursor.h>
+#include <LibWeb/IndexedDB/IDBIndex.h>
+#include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 
@@ -41,6 +44,10 @@ void IDBRequest::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_result);
     visitor.visit(m_transaction);
+
+    m_source.visit(
+        [&](Empty) {},
+        [&](auto const& object) { visitor.visit(object); });
 
     if (m_error.has_value())
         visitor.visit(*m_error);
