@@ -509,6 +509,11 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             set_option(CURLOPT_CUSTOMREQUEST, method.characters());
             set_option(CURLOPT_FOLLOWLOCATION, 0);
 
+#if defined(AK_OS_WINDOWS)
+            // Without explicitly using the OS Native CA cert store on Windows, https requests timeout with CURLE_PEER_FAILED_VERIFICATION
+            set_option(CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+#endif
+
             bool did_set_body = false;
             if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
                 request->body = move(request_body);
