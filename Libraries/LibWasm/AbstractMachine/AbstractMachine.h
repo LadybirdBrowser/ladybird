@@ -572,6 +572,8 @@ public:
     DataInstance* get(DataAddress);
     ElementInstance* get(ElementAddress);
 
+    MemoryInstance* unsafe_get(MemoryAddress address) { return &m_memories.data()[address.value()]; }
+
 private:
     Vector<FunctionInstance> m_functions;
     Vector<TableInstance> m_tables;

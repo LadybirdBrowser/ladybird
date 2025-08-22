@@ -978,8 +978,10 @@ ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<si
             stack.append(ip);
             break;
         case Instructions::structured_end.value(): {
-            if (stack.is_empty())
+            if (stack.is_empty()) {
+                instructions.empend(Instructions::synthetic_end_expression); // Synthetic noop to mark the end of the expression.
                 return Expression { move(instructions) };
+            }
             auto entry = stack.take_last();
             auto& args = instructions[entry.value()].arguments().get<Instruction::StructuredInstructionArgs>();
             // Patch the end_ip of the last structured instruction
@@ -998,6 +1000,8 @@ ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<si
         instructions.append(move(instruction));
         ++ip;
     }
+
+    instructions.empend(Instructions::synthetic_end_expression); // Synthetic noop to mark the end of the expression.
 
     return Expression { move(instructions) };
 }
@@ -1106,7 +1110,10 @@ ParseResult<ElementSection::Element> ElementSection::Element::parse(ConstrainedS
     if (!has_exprs) {
         auto indices = TRY(parse_vector<GenericIndexParser<FunctionIndex>>(stream));
         for (auto& index : indices) {
-            Vector<Instruction> instructions { Instruction(Instructions::ref_func, index) };
+            Vector<Instruction> instructions {
+                Instruction(Instructions::ref_func, index),
+                Instruction(Instructions::synthetic_end_expression),
+            };
             items.empend(move(instructions));
         }
     } else {

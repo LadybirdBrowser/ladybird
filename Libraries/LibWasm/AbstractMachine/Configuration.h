@@ -21,7 +21,7 @@ public:
 
     void set_frame(Frame frame)
     {
-        Label label(frame.arity(), frame.expression().instructions().size(), m_value_stack.size());
+        Label label(frame.arity(), frame.expression().instructions().size() - 1, m_value_stack.size());
         frame.label_index() = m_label_stack.size();
         if (auto hint = frame.expression().stack_usage_hint(); hint.has_value())
             m_value_stack.ensure_capacity(*hint + m_value_stack.size());
@@ -50,8 +50,7 @@ public:
 
     struct CallFrameHandle {
         explicit CallFrameHandle(Configuration& configuration)
-            : ip(configuration.ip())
-            , configuration(configuration)
+            : configuration(configuration)
         {
             configuration.depth()++;
         }
@@ -61,7 +60,6 @@ public:
             configuration.unwind({}, *this);
         }
 
-        InstructionPointer ip { 0 };
         Configuration& configuration;
     };
 
@@ -74,7 +72,7 @@ public:
 
     void dump_stack();
 
-    ALWAYS_INLINE FLATTEN void push_to_destination(Value value)
+    ALWAYS_INLINE FLATTEN void push_to_destination(Value value, Dispatch::RegisterOrStack destination)
     {
         if (destination == Dispatch::RegisterOrStack::Stack) {
             value_stack().unchecked_append(value);
@@ -83,7 +81,7 @@ public:
         regs.data()[to_underlying(destination)] = value;
     }
 
-    ALWAYS_INLINE FLATTEN Value& source_value(u8 index)
+    ALWAYS_INLINE FLATTEN Value& source_value(u8 index, Dispatch::RegisterOrStack const* sources)
     {
         // Note: The last source in a dispatch *must* be equal to the destination for this to be valid.
         auto const source = sources[index];
@@ -92,21 +90,13 @@ public:
         return regs.data()[to_underlying(source)];
     }
 
-    ALWAYS_INLINE FLATTEN Value take_source(u8 index)
+    ALWAYS_INLINE FLATTEN Value take_source(u8 index, Dispatch::RegisterOrStack const* sources)
     {
         auto const source = sources[index];
         if (source == Dispatch::RegisterOrStack::Stack)
             return value_stack().unsafe_take_last();
         return regs.data()[to_underlying(source)];
     }
-
-    union {
-        struct {
-            Dispatch::RegisterOrStack sources[3];
-            Dispatch::RegisterOrStack destination;
-        };
-        u32 sources_and_destination;
-    };
 
     Array<Value, Dispatch::RegisterOrStack::CountRegisters> regs = {
         Value(0),
