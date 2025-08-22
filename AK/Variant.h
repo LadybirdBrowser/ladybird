@@ -356,6 +356,14 @@ public:
     }
 
     template<typename T>
+    T& unsafe_get()
+    requires(can_contain<T>())
+    {
+        ASSERT(has<T>());
+        return *bit_cast<T*>(&m_data);
+    }
+
+    template<typename T>
     T& get()
     requires(can_contain<T>())
     {
@@ -377,6 +385,14 @@ public:
     requires(can_contain<T>())
     {
         VERIFY(has<T>());
+        return *bit_cast<T const*>(&m_data);
+    }
+
+    template<typename T>
+    T const& unsafe_get() const
+    requires(can_contain<T>())
+    {
+        ASSERT(has<T>());
         return *bit_cast<T const*>(&m_data);
     }
 
