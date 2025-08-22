@@ -401,7 +401,7 @@ requires(IsLvalueReference<T>) class [[nodiscard]] Optional<T> {
     friend class Optional;
 
     template<typename U>
-    constexpr static bool CanBePlacedInOptional = IsSame<RemoveReference<T>, RemoveReference<AddConstToReferencedType<U>>> && (IsBaseOf<RemoveCVReference<T>, RemoveCVReference<U>> || IsSame<RemoveCVReference<T>, RemoveCVReference<U>>);
+    constexpr static bool CanBePlacedInOptional = IsSame<RemoveReference<T>, RemoveReference<AddConstToReferencedType<U>>> && (IsBaseOf<RemoveReference<T>, RemoveReference<U>> || IsSame<RemoveCVReference<T>, RemoveCVReference<U>>);
 
 public:
     using ValueType = T;
@@ -523,7 +523,7 @@ public:
     }
 
     template<typename U>
-    requires(IsBaseOf<RemoveCVReference<T>, U>) [[nodiscard]] ALWAYS_INLINE constexpr AddConstToReferencedType<T> value_or(U& fallback) const
+    requires(IsBaseOf<RemoveReference<T>, U>) [[nodiscard]] ALWAYS_INLINE constexpr AddConstToReferencedType<T> value_or(U& fallback) const
     {
         if (m_pointer)
             return value();
