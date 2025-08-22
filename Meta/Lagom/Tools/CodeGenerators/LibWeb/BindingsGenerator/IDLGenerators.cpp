@@ -2066,7 +2066,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
     } else if (interface.enumerations.contains(type.name())) {
         // Handle Enum? values, which were null-checked above
-        if (type.is_nullable())
+        if (type.is_nullable() || is_optional)
             scoped_generator.set("value", ByteString::formatted("{}.value()", value));
         scoped_generator.append(R"~~~(
     @result_expression@ JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(@value@));
