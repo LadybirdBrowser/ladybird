@@ -95,4 +95,19 @@ String CSSUnitValue::serialize_unit_value(Optional<double> minimum, Optional<dou
     return s.to_string_without_validation();
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#equal-numeric-value
+bool CSSUnitValue::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
+{
+    // NB: Only steps 1 and 2 are relevant.
+    // 1. If value1 and value2 are not members of the same interface, return false.
+    auto* other_unit_value = as_if<CSSUnitValue>(*other);
+    if (!other_unit_value)
+        return false;
+
+    // 2. If value1 and value2 are both CSSUnitValues, return true if they have equal unit and value internal slots,
+    //    or false otherwise.
+    return m_unit == other_unit_value->m_unit
+        && m_value == other_unit_value->m_value;
+}
+
 }

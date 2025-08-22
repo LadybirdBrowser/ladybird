@@ -25,6 +25,9 @@ struct CSSNumericType {
     Optional<Bindings::CSSNumericBaseType> percent_hint;
 };
 
+// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
+using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
+
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
 class CSSNumericValue : public CSSStyleValue {
     WEB_PLATFORM_OBJECT(CSSNumericValue, CSSStyleValue);
@@ -38,6 +41,9 @@ public:
         bool parenless { false };
     };
     virtual ~CSSNumericValue() override = default;
+
+    bool equals_for_bindings(Vector<CSSNumberish>) const;
+    virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
 
     CSSNumericType type_for_bindings() const;
     NumericType const& type() const { return m_type; }
@@ -54,9 +60,6 @@ protected:
 
     NumericType m_type;
 };
-
-// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
-using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
 
 GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm&, CSSNumberish const&, Optional<FlyString> unit = {});
 

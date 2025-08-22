@@ -102,4 +102,18 @@ GC::Ref<CSSNumericValue> CSSMathClamp::upper() const
     return m_upper;
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#equal-numeric-value
+bool CSSMathClamp::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
+{
+    // AD-HOC: Spec doesn't handle clamp()
+    // 1. If value1 and value2 are not members of the same interface, return false.
+    auto* other_clamp = as_if<CSSMathClamp>(*other);
+    if (!other_clamp)
+        return false;
+
+    return m_lower->is_equal_numeric_value(other_clamp->m_lower)
+        && m_value->is_equal_numeric_value(other_clamp->m_value)
+        && m_upper->is_equal_numeric_value(other_clamp->m_upper);
+}
+
 }

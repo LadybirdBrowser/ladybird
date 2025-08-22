@@ -27,6 +27,7 @@ public:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
+    bool is_equal_numeric_values(GC::Ref<CSSNumericArray> other) const;
 
 private:
     CSSNumericArray(JS::Realm&, Vector<GC::Ref<CSSNumericValue>>);

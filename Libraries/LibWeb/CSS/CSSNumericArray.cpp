@@ -57,4 +57,26 @@ Optional<JS::Value> CSSNumericArray::item_value(size_t index) const
     return {};
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#equal-numeric-value
+bool CSSNumericArray::is_equal_numeric_values(GC::Ref<CSSNumericArray> other) const
+{
+    // NB: This is just step 3, moved here to reduce repetition.
+    // 3. If value1 and value2 are both CSSMathSums, CSSMathProducts, CSSMathMins, or CSSMathMaxs:
+    {
+        // 1. If value1’s values and value2s values internal slots have different sizes, return false.
+        if (m_values.size() != other->m_values.size())
+            return false;
+
+        // 2. If any item in value1’s values internal slot is not an equal numeric value to the item in value2’s values
+        //    internal slot at the same index, return false.
+        for (auto index = 0u; index < m_values.size(); ++index) {
+            if (!m_values[index]->is_equal_numeric_value(other->m_values[index]))
+                return false;
+        }
+
+        // 3. Return true.
+        return true;
+    }
+}
+
 }

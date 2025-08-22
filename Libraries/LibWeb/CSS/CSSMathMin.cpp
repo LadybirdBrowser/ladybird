@@ -116,4 +116,18 @@ GC::Ref<CSSNumericArray> CSSMathMin::values() const
     return m_values;
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#equal-numeric-value
+bool CSSMathMin::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
+{
+    // NB: Only steps 1 and 3 are relevant.
+    // 1. If value1 and value2 are not members of the same interface, return false.
+    auto* other_min = as_if<CSSMathMin>(*other);
+    if (!other_min)
+        return false;
+
+    // 3. If value1 and value2 are both CSSMathSums, CSSMathProducts, CSSMathMins, or CSSMathMaxs:
+    // NB: Substeps are implemented in CSSNumericArray.
+    return m_values->is_equal_numeric_values(other_min->m_values);
+}
+
 }

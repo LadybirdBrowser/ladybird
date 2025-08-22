@@ -92,4 +92,18 @@ GC::Ref<CSSNumericValue> CSSMathInvert::value() const
     return m_value;
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#equal-numeric-value
+bool CSSMathInvert::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
+{
+    // NB: Only steps 1, 4 and 5 are relevant.
+    // 1. If value1 and value2 are not members of the same interface, return false.
+    auto* other_invert = as_if<CSSMathInvert>(*other);
+    if (!other_invert)
+        return false;
+
+    // 4. Assert: value1 and value2 are both CSSMathNegates or CSSMathInverts.
+    // 5. Return whether value1’s value and value2’s value are equal numeric values.
+    return m_value->is_equal_numeric_value(other_invert->m_value);
+}
+
 }
