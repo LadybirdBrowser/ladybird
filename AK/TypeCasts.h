@@ -40,11 +40,10 @@ ALWAYS_INLINE CopyConst<InputType, OutputType>* as_if(InputType& input)
 {
     if (!is<OutputType>(input))
         return nullptr;
-    if constexpr (IsBaseOf<InputType, OutputType>) {
+    if constexpr (requires { static_cast<CopyConst<InputType, OutputType>*>(&input); }) {
         return static_cast<CopyConst<InputType, OutputType>*>(&input);
-    } else {
-        return dynamic_cast<CopyConst<InputType, OutputType>*>(&input);
     }
+    return dynamic_cast<CopyConst<InputType, OutputType>*>(&input);
 }
 
 template<typename OutputType, typename InputType>
