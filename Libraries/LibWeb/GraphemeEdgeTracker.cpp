@@ -11,6 +11,9 @@
 
 namespace Web {
 
+// FIXME: Using newline characters to determine line breaks is insufficient. If a line is wrapped due space constraints,
+//        we want to consider each segment of the wrapped line as its own line in the algorithms below.
+
 static constexpr size_t find_line_start(Utf16View const& view, size_t offset)
 {
     while (offset != 0 && view.code_unit_at(offset - 1) != '\n')
