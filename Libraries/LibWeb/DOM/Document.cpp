@@ -5625,8 +5625,8 @@ Element const* Document::element_from_point(double x, double y)
         return static_cast<Element*>(hit_test_result->dom_node());
 
     // 3. If the document has a root element, return the root element and terminate these steps.
-    if (auto const* document_root_element = first_child_of_type<Element>(); document_root_element)
-        return document_root_element;
+    if (auto const* root_element = document_element())
+        return root_element;
 
     // 4. Return null.
     return nullptr;
