@@ -15,7 +15,7 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
 {
     RequiredInvalidationAfterStyleChange invalidation;
 
-    bool const property_value_changed = (!old_value || !new_value) || *old_value != *new_value;
+    bool const property_value_changed = (old_value || new_value) && ((!old_value || !new_value) || *old_value != *new_value);
     if (!property_value_changed)
         return invalidation;
 
