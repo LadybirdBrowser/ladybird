@@ -42,8 +42,8 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
 {
     // The focus update steps, given an old chain, a new chain, and a new focus target respectively, are as follows:
 
-    // 1. If the last entry in old chain and the last entry in new chain are the same,
-    //    pop the last entry from old chain and the last entry from new chain and redo this step.
+    // 1. If the last entry in old chain and the last entry in new chain are the same, pop the last entry from old chain
+    //    and the last entry from new chain and redo this step.
     while (!old_chain.is_empty()
         && !new_chain.is_empty()
         && old_chain.last() == new_chain.last()) {
@@ -54,48 +54,49 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
     // 2. For each entry entry in old chain, in order, run these substeps:
     for (auto& entry : old_chain) {
         // 1. If entry is an input element
-        if (is<HTMLInputElement>(*entry)) {
-            auto& input_element = static_cast<HTMLInputElement&>(*entry);
-
+        if (auto* input_element = as_if<HTMLInputElement>(*entry)) {
             // FIXME: Spec issue: It doesn't make sense to check if the element has a defined activation behavior, as
             //        that is always true. Instead, we check if it has an *input* activation behavior.
             //        https://github.com/whatwg/html/issues/9973
-            // and the change event applies to the element, and the element does not have a defined activation behavior, and the user has changed the
-            // element's value or its list of selected files while the control was focused without committing that change (such that it is different to what it was when the control was first
+            // and the change event applies to the element, and the element does not have a defined activation behavior,
+            // and the user has changed the element's value or its list of selected files while the control was focused
+            // without committing that change (such that it is different to what it was when the control was first
             // focused), then:
-            if (input_element.change_event_applies() && !input_element.has_input_activation_behavior() && input_element.has_uncommitted_changes()) {
+            if (input_element->change_event_applies() && !input_element->has_input_activation_behavior()
+                && input_element->has_uncommitted_changes()) {
                 // 1. Set entry's user validity to true.
-                input_element.set_user_validity(true);
+                input_element->set_user_validity(true);
 
                 // 2. Fire an event named change at the element, with the bubbles attribute initialized to true.
-                input_element.commit_pending_changes();
+                input_element->commit_pending_changes();
             }
         }
 
+        // 2. If entry is an element, let blur event target be entry.
+        //    If entry is a Document object, let blur event target be that Document object's relevant global object.
+        //    Otherwise, let blur event target be null.
         GC::Ptr<DOM::EventTarget> blur_event_target;
-        if (is<DOM::Element>(*entry)) {
-            // 2. If entry is an element, let blur event target be entry.
-            blur_event_target = entry.ptr();
-        } else if (is<DOM::Document>(*entry)) {
-            // If entry is a Document object, let blur event target be that Document object's relevant global object.
-            blur_event_target = static_cast<DOM::Document&>(*entry).window();
-        }
+        if (is<DOM::Element>(*entry))
+            blur_event_target = entry;
+        else if (is<DOM::Document>(*entry))
+            blur_event_target = as<Window>(relevant_global_object(*entry));
 
-        // 3. If entry is the last entry in old chain, and entry is an Element,
-        //    and the last entry in new chain is also an Element,
-        //    then let related blur target be the last entry in new chain.
-        //    Otherwise, let related blur target be null.
+        // 3. If entry is the last entry in old chain, and entry is an Element, and the last entry in new chain is also
+        //    an Element, then let related blur target be the last entry in new chain. Otherwise, let related blur
+        //    target be null.
         GC::Ptr<DOM::EventTarget> related_blur_target;
         if (!old_chain.is_empty()
             && &entry == &old_chain.last()
             && is<DOM::Element>(*entry)
             && !new_chain.is_empty()
             && is<DOM::Element>(*new_chain.last())) {
-            related_blur_target = new_chain.last().ptr();
+            related_blur_target = new_chain.last();
         }
 
-        // 4. If blur event target is not null, fire a focus event named blur at blur event target,
-        //    with related blur target as the related target.
+        // 4. If blur event target is not null, fire a focus event named blur at blur event target, with related blur
+        //    target as the related target.
+        // FIXME: NOTE: In some cases, e.g., if entry is an area element's shape, a scrollable region, or a viewport, no event
+        //       is fired.
         if (blur_event_target) {
             fire_a_focus_event(blur_event_target, related_blur_target, HTML::EventNames::blur, false);
 
@@ -104,43 +105,47 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
         }
     }
 
-    // FIXME: 3. Apply any relevant platform-specific conventions for focusing new focus target.
-    //           (For example, some platforms select the contents of a text control when that control is focused.)
+    // FIXME: 3. Apply any relevant platform-specific conventions for focusing new focus target. (For example, some platforms
+    //    select the contents of a text control when that control is focused.)
     (void)new_focus_target;
 
     // 4. For each entry entry in new chain, in reverse order, run these substeps:
     for (auto& entry : new_chain.in_reverse()) {
-        // 1. If entry is a focusable area: designate entry as the focused area of the document.
-        // FIXME: This isn't entirely right.
-        if (is<DOM::Element>(*entry))
-            entry->document().set_focused_area(*entry);
-        else if (is<DOM::Document>(*entry))
-            entry->document().set_focused_area(static_cast<DOM::Document&>(*entry).document_element());
+        // 1. If entry is a focusable area, and the focused area of the document is not entry:
+        if (entry->is_focusable() && entry->document().focused_area() != entry.ptr()) {
+            // 1. Set document's relevant global object's navigation API's focus changed during ongoing navigation to
+            //    true.
+            as<Window>(relevant_global_object(*entry)).navigation()->set_focus_changed_during_ongoing_navigation(true);
 
-        GC::Ptr<DOM::EventTarget> focus_event_target;
-        if (is<DOM::Element>(*entry)) {
-            // 2. If entry is an element, let focus event target be entry.
-            focus_event_target = entry.ptr();
-        } else if (is<DOM::Document>(*entry)) {
-            // If entry is a Document object, let focus event target be that Document object's relevant global object.
-            focus_event_target = static_cast<DOM::Document&>(*entry).window();
+            // 2. Designate entry as the focused area of the document.
+            entry->document().set_focused_area(*entry);
         }
 
-        // 3. If entry is the last entry in new chain, and entry is an Element,
-        //    and the last entry in old chain is also an Element,
-        //    then let related focus target be the last entry in old chain.
-        //    Otherwise, let related focus target be null.
+        // 2. If entry is an element, let focus event target be entry.
+        //    If entry is a Document object, let focus event target be that Document object's relevant global object.
+        //    Otherwise, let focus event target be null.
+        GC::Ptr<DOM::EventTarget> focus_event_target;
+        if (is<DOM::Document>(*entry))
+            focus_event_target = as<Window>(relevant_global_object(*entry));
+        else if (is<DOM::Element>(*entry))
+            focus_event_target = *entry;
+
+        // 3. If entry is the last entry in new chain, and entry is an Element, and the last entry in old chain is also
+        //    an Element, then let related focus target be the last entry in old chain. Otherwise, let related focus
+        //    target be null.
         GC::Ptr<DOM::EventTarget> related_focus_target;
         if (!new_chain.is_empty()
             && &entry == &new_chain.last()
             && is<DOM::Element>(*entry)
             && !old_chain.is_empty()
             && is<DOM::Element>(*old_chain.last())) {
-            related_focus_target = old_chain.last().ptr();
+            related_focus_target = old_chain.last();
         }
 
-        // 4. If focus event target is not null, fire a focus event named focus at focus event target,
-        //    with related focus target as the related target.
+        // 4. If focus event target is not null, fire a focus event named focus at focus event target, with related
+        //    focus target as the related target.
+        // FIXME: NOTE: In some cases, e.g. if entry is an area element's shape, a scrollable region, or a viewport, no event
+        //       is fired.
         if (focus_event_target) {
             fire_a_focus_event(focus_event_target, related_focus_target, HTML::EventNames::focus, false);
 
@@ -195,9 +200,8 @@ static Vector<GC::Root<DOM::Node>> focus_chain(DOM::Node* subject)
 // FIXME: This should accept more types.
 void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target, FocusTrigger focus_trigger)
 {
-    // FIXME: 1. If new focus target is not a focusable area, then set new focus target
-    //           to the result of getting the focusable area for new focus target,
-    //           given focus trigger if it was passed.
+    // FIXME: 1. If new focus target is not a focusable area, then set new focus target to the result of getting the focusable
+    //    area for new focus target, given focus trigger if it was passed.
 
     // 2. If new focus target is null, then:
     if (!new_focus_target) {
@@ -210,9 +214,8 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
     }
 
     // 3. If new focus target is a navigable container with non-null content navigable, then set new focus target to the content navigable's active document.
-    if (is<HTML::NavigableContainer>(*new_focus_target)) {
-        auto& navigable_container = static_cast<HTML::NavigableContainer&>(*new_focus_target);
-        if (auto content_navigable = navigable_container.content_navigable())
+    if (auto* navigable_container = as_if<NavigableContainer>(*new_focus_target)) {
+        if (auto content_navigable = navigable_container->content_navigable())
             new_focus_target = content_navigable->active_document();
     }
 
@@ -280,9 +283,8 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
 
     // NOTE: HTMLAreaElement is currently missing the shapes property
 
-    auto top_level_traversable = old_focus_target->document().browsing_context()->top_level_traversable();
-
     // 4. Let old chain be the current focus chain of the top-level browsing context in which old focus target finds itself.
+    auto top_level_traversable = old_focus_target->document().browsing_context()->top_level_traversable();
     auto old_chain = focus_chain(top_level_traversable->currently_focused_area());
 
     // 5. If old focus target is not one of the entries in old chain, then return.
@@ -295,26 +297,24 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
         return;
 
     // 7. Let topDocument be old chain's last entry.
-    auto* top_document = as<DOM::Document>(old_chain.last().ptr());
+    auto& top_document = as<DOM::Document>(*old_chain.last());
 
     // 8. If topDocument's node navigable has system focus, then run the focusing steps for topDocument's viewport.
-    if (top_document->navigable()->traversable_navigable()->system_visibility_state() == HTML::VisibilityState::Visible) {
-        run_focusing_steps(top_document);
+    if (top_document.navigable()->traversable_navigable()->system_visibility_state() == HTML::VisibilityState::Visible) {
+        run_focusing_steps(&top_document);
     } else {
-        // FIXME: Otherwise, apply any relevant platform-specific conventions for removing system focus from
-        // topDocument's browsing context, and run the focus update steps with old chain, an empty list, and null
-        // respectively.
+        // FIXME: Otherwise, apply any relevant platform-specific conventions for removing system focus from topDocument's
+        // browsing context, and run the focus update steps with old chain, an empty list, and null respectively.
 
         // What? It already doesn't have system focus, what possible platform-specific conventions are there?
 
         run_focus_update_steps(old_chain, {}, nullptr);
     }
 
-    // FIXME: When the currently focused area of a top-level browsing context is somehow unfocused without another
-    // element being explicitly focused in its stead, the user agent must immediately run the unfocusing steps for that
-    // object.
-
-    // What? How are we supposed to detect when something is "somehow unfocused without another element being explicitly focused"?
+    // NOTE: The unfocusing steps do not always result in the focus changing, even when applied to the currently focused
+    //       area of a top-level traversable. For example, if the currently focused area of a top-level traversable is a
+    //       viewport, then it will usually keep its focus regardless until another focusable area is explicitly focused
+    //       with the focusing steps.
 }
 
 }

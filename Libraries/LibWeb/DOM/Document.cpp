@@ -3540,7 +3540,9 @@ bool Document::allow_focus() const
     if (is_allowed_to_use_feature(PolicyControlledFeature::FocusWithoutUserActivation))
         return true;
 
-    // FIXME: 2. If target's relevant global object has transient activation, then return true.
+    // 2. If target's relevant global object has transient activation, then return true.
+    if (as<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation())
+        return true;
 
     // 3. Return false.
     return false;
