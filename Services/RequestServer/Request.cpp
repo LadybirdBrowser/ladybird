@@ -350,6 +350,11 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_CUSTOMREQUEST, m_method.characters());
     set_option(CURLOPT_FOLLOWLOCATION, 0);
 
+#if defined(AK_OS_WINDOWS)
+    // Without explicitly using the OS Native CA cert store on Windows, https requests timeout with CURLE_PEER_FAILED_VERIFICATION
+    set_option(CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+#endif
+
     curl_slist* curl_headers = nullptr;
 
     if (m_method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
