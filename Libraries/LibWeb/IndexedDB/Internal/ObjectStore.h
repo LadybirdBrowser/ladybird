@@ -45,6 +45,9 @@ public:
     GC::Ref<Database> database() const { return m_database; }
     ReadonlySpan<ObjectStoreRecord> records() const { return m_records; }
 
+    // FIXME: Track this
+    bool is_deleted() const { return false; }
+
     void remove_records_in_range(GC::Ref<IDBKeyRange> range);
     bool has_record_with_key(GC::Ref<Key> key);
     void store_a_record(ObjectStoreRecord const& record);

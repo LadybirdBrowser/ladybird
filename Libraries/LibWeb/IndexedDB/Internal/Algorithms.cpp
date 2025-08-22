@@ -2347,8 +2347,20 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
         [](GC::Ref<IDBIndex> index) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { return index->index(); },
         [](GC::Ref<IDBObjectStore> object_store) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { return object_store->store(); });
 
-    // FIXME: 2. If source has been deleted, throw an "InvalidStateError" DOMException.
-    // FIXME: 3. If source is an index and source’s object store has been deleted, throw an "InvalidStateError" DOMException.
+    // 2. If source has been deleted, throw an "InvalidStateError" DOMException.
+    auto source_deleted = source.visit(
+        [](GC::Ref<ObjectStore> object_store) -> bool { return object_store->is_deleted(); },
+        [](GC::Ref<Index> index) -> bool { return index->is_deleted(); });
+
+    if (source_deleted)
+        return WebIDL::InvalidStateError::create(realm, "Source is deleted"_utf16);
+
+    // 3. If source is an index and source’s object store has been deleted, throw an "InvalidStateError" DOMException.
+    if (source.has<GC::Ref<Index>>()) {
+        auto index = source.get<GC::Ref<Index>>();
+        if (index->object_store()->is_deleted())
+            return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
+    }
 
     // 4. Let transaction be sourceHandle’s transaction.
     auto transaction = source_handle.visit(
