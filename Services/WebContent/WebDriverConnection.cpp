@@ -1485,9 +1485,8 @@ Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_elem
         bool enabled = !current_browsing_context().active_document()->is_xml_document();
 
         // 6. Set enabled to false if a form control is disabled.
-        if (enabled && is<Web::HTML::FormAssociatedElement>(*element)) {
-            auto& form_associated_element = dynamic_cast<Web::HTML::FormAssociatedElement&>(*element);
-            enabled = form_associated_element.enabled();
+        if (auto* form_associated_element = as_if<Web::HTML::FormAssociatedElement>(*element); form_associated_element && enabled) {
+            enabled = form_associated_element->enabled();
         }
 
         // 7. Return success with data enabled.
@@ -1757,8 +1756,7 @@ Web::WebDriver::Response WebDriverConnection::element_clear_impl(StringView elem
 
     // https://w3c.github.io/webdriver/#dfn-clear-a-resettable-element
     auto clear_resettable_element = [&](Web::DOM::Element& element) {
-        VERIFY(is<Web::HTML::FormAssociatedElement>(element));
-        auto& form_associated_element = dynamic_cast<Web::HTML::FormAssociatedElement&>(element);
+        auto& form_associated_element = as<Web::HTML::FormAssociatedElement>(element);
 
         // 1. Let empty be the result of the first matching condition:
         auto empty = [&]() {

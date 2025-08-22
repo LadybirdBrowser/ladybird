@@ -905,7 +905,7 @@ void HTMLElement::set_hidden(Variant<bool, double, String> const& given_value)
 void HTMLElement::click()
 {
     // 1. If this element is a form control that is disabled, then return.
-    if (auto* form_control = dynamic_cast<FormAssociatedElement*>(this)) {
+    if (auto* form_control = as_if<FormAssociatedElement>(this)) {
         if (!form_control->enabled())
             return;
     }

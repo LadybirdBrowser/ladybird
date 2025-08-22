@@ -80,8 +80,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
 
     // 5. For each element field in controls, in tree order:
     for (auto const& control : controls) {
-        auto const* control_as_form_associated_element = dynamic_cast<HTML::FormAssociatedElement const*>(control.ptr());
-        VERIFY(control_as_form_associated_element);
+        auto const& control_as_form_associated_element = as<FormAssociatedElement>(*control);
 
         // 1. If any of the following is true, then continue:
         // - The field element has a datalist element ancestor.
@@ -91,17 +90,17 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
         if (control->is_actually_disabled())
             continue;
         // - The field element is a button but it is not submitter.
-        if (control_as_form_associated_element->is_button() && control.ptr() != submitter.ptr())
+        if (control_as_form_associated_element.is_button() && control.ptr() != submitter.ptr())
             continue;
         // - The field element is an input element whose type attribute is in the Checkbox state and whose checkedness is false.
         // - The field element is an input element whose type attribute is in the Radio Button state and whose checkedness is false.
-        if (auto* input_element = dynamic_cast<HTML::HTMLInputElement*>(control.ptr())) {
+        if (auto* input_element = as_if<HTMLInputElement>(*control)) {
             if ((input_element->type_state() == HTMLInputElement::TypeAttributeState::Checkbox || input_element->type_state() == HTMLInputElement::TypeAttributeState::RadioButton) && !input_element->checked())
                 continue;
         }
 
         // 2. If the field element is an input element whose type attribute is in the Image Button state, then:
-        if (auto* input_element = dynamic_cast<HTML::HTMLInputElement*>(control.ptr()); input_element && input_element->type_state() == HTMLInputElement::TypeAttributeState::ImageButton) {
+        if (auto* input_element = as_if<HTML::HTMLInputElement>(*control); input_element && input_element->type_state() == HTMLInputElement::TypeAttributeState::ImageButton) {
             // 1. If the field element is not submitter, then continue.
             if (input_element != submitter.ptr())
                 continue;
@@ -141,7 +140,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
         auto name = control->name().value();
 
         // 6. If the field element is a select element, then for each option element in the select element's list of options whose selectedness is true and that is not disabled, create an entry with name and the value of the option element, and append it to entry list.
-        if (auto* select_element = dynamic_cast<HTML::HTMLSelectElement*>(control.ptr())) {
+        if (auto* select_element = as_if<HTMLSelectElement>(*control)) {
             for (auto const& option_element : select_element->list_of_options()) {
                 if (option_element->selected() && !option_element->disabled()) {
                     entry_list.append(TRY(create_entry(realm, name.to_string(), option_element->value().to_utf8_but_should_be_ported_to_utf16())));
@@ -149,7 +148,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             }
         }
         // 7. Otherwise, if the field element is an input element whose type attribute is in the Checkbox state or the Radio Button state, then:
-        else if (auto* checkbox_or_radio_element = dynamic_cast<HTML::HTMLInputElement*>(control.ptr()); checkbox_or_radio_element && (checkbox_or_radio_element->type_state() == HTMLInputElement::TypeAttributeState::Checkbox || checkbox_or_radio_element->type_state() == HTMLInputElement::TypeAttributeState::RadioButton) && checkbox_or_radio_element->checked()) {
+        else if (auto* checkbox_or_radio_element = as_if<HTMLInputElement>(*control); checkbox_or_radio_element && (checkbox_or_radio_element->type_state() == HTMLInputElement::TypeAttributeState::Checkbox || checkbox_or_radio_element->type_state() == HTMLInputElement::TypeAttributeState::RadioButton) && checkbox_or_radio_element->checked()) {
             //  1. If the field element has a value attribute specified, then let value be the value of that attribute; otherwise, let value be the string "on".
             auto value = checkbox_or_radio_element->value();
             if (value.is_empty())
@@ -160,7 +159,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             entry_list.append(TRY(create_entry(realm, checkbox_or_radio_element_name->to_string(), value.to_utf8_but_should_be_ported_to_utf16())));
         }
         // 8. Otherwise, if the field element is an input element whose type attribute is in the File Upload state, then:
-        else if (auto* file_element = dynamic_cast<HTML::HTMLInputElement*>(control.ptr()); file_element && file_element->type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
+        else if (auto* file_element = as_if<HTMLInputElement>(*control); file_element && file_element->type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
             // 1. If there are no selected files, then create an entry with name and a new File object with an empty name, application/octet-stream as type, and an empty body, and append it to entry list.
             if (file_element->files()->length() == 0) {
                 FileAPI::FilePropertyBag options {};
@@ -177,7 +176,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             }
         }
         // 9. Otherwise, if the field element is an input element whose type attribute is in the Hidden state and name is an ASCII case-insensitive match for "_charset_":
-        else if (auto* hidden_input = dynamic_cast<HTML::HTMLInputElement*>(control.ptr()); hidden_input && hidden_input->type_state() == HTMLInputElement::TypeAttributeState::Hidden && name.equals_ignoring_ascii_case("_charset_"sv)) {
+        else if (auto* hidden_input = as_if<HTMLInputElement>(*control); hidden_input && hidden_input->type_state() == HTMLInputElement::TypeAttributeState::Hidden && name.equals_ignoring_ascii_case("_charset_"sv)) {
             // 1. Let charset be the name of encoding if encoding is given, and "UTF-8" otherwise.
             auto charset = encoding.has_value() ? encoding.value() : "UTF-8"_string;
 
@@ -186,7 +185,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
         }
         // 10. Otherwise, create an entry with name and the value of the field element, and append it to entry list.
         else {
-            entry_list.append(TRY(create_entry(realm, name.to_string(), control_as_form_associated_element->value().to_utf8_but_should_be_ported_to_utf16())));
+            entry_list.append(TRY(create_entry(realm, name.to_string(), control_as_form_associated_element.value().to_utf8_but_should_be_ported_to_utf16())));
         }
 
         // 11. If the element has a dirname attribute, that attribute's value is not the empty string, and the element is an auto-directionality form-associated element:

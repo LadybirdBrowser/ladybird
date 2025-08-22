@@ -1289,7 +1289,7 @@ CSS::UserSelect Node::user_select_used_value() const
 
     // For the purpose of this specification, an editable element is either an editing host or a mutable form control with
     // textual content, such as textarea.
-    auto* form_control = dynamic_cast<HTML::FormAssociatedTextControlElement const*>(dom_node());
+    auto* form_control = as_if<HTML::FormAssociatedTextControlElement>(dom_node());
     // FIXME: Check if this needs to exclude input elements with types such as color or range, and if so, which ones exactly.
     if ((dom_node() && dom_node()->is_editing_host()) || (form_control && form_control->is_mutable())) {
         return CSS::UserSelect::Contain;

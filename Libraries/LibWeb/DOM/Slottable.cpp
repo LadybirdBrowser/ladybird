@@ -27,11 +27,10 @@ void SlottableMixin::visit_edges(JS::Cell::Visitor& visitor)
 // https://dom.spec.whatwg.org/#dom-slotable-assignedslot
 GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::assigned_slot()
 {
-    auto* node = dynamic_cast<DOM::Node*>(this);
-    VERIFY(node);
+    auto& node = as<DOM::Node>(*this);
 
     // The assignedSlot getter steps are to return the result of find a slot given this and with the open flag set.
-    return find_a_slot(node->as_slottable(), OpenFlag::Set);
+    return find_a_slot(node.as_slottable(), OpenFlag::Set);
 }
 
 GC::Ptr<HTML::HTMLSlotElement> assigned_slot_for_node(GC::Ref<Node> node)

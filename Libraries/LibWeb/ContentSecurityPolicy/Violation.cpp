@@ -46,10 +46,8 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
     // SPEC ISSUE 1:  Is this kind of thing specified anywhere? I didn’t see anything that looked useful in [ECMA262].
 
     // 3. If global is a Window object, set violation’s referrer to global’s document's referrer.
-    if (global_object) {
-        if (auto* window = dynamic_cast<HTML::Window*>(global_object.ptr())) {
-            violation->m_referrer = URL::Parser::basic_parse(window->associated_document().referrer());
-        }
+    if (auto* window = as_if<HTML::Window>(global_object.ptr())) {
+        violation->m_referrer = URL::Parser::basic_parse(window->associated_document().referrer());
     }
 
     // FIXME: 4. Set violation’s status to the HTTP status code for the resource associated with violation’s global object.
@@ -101,15 +99,14 @@ URL::URL Violation::url() const
     }
 
     // FIXME: File a spec issue about what to do for ShadowRealms here.
-    auto* universal_scope = dynamic_cast<HTML::UniversalGlobalScopeMixin*>(m_global_object.ptr());
-    VERIFY(universal_scope);
-    auto& principal_global = HTML::relevant_principal_global_object(universal_scope->this_impl());
+    auto& universal_scope = as<HTML::UniversalGlobalScopeMixin>(*m_global_object);
+    auto& principal_global = HTML::relevant_principal_global_object(universal_scope.this_impl());
 
-    if (auto* window = dynamic_cast<HTML::Window*>(&principal_global)) {
+    if (auto* window = as_if<HTML::Window>(principal_global)) {
         return window->associated_document().url();
     }
 
-    if (auto* worker = dynamic_cast<HTML::WorkerGlobalScope*>(&principal_global)) {
+    if (auto* worker = as_if<HTML::WorkerGlobalScope>(principal_global)) {
         return worker->url();
     }
 

@@ -596,9 +596,8 @@ void EventLoop::perform_a_microtask_checkpoint()
     // 4. For each environment settings object settingsObject whose responsible event loop is this event loop, notify about rejected promises given settingsObject's global object.
     auto environments = GC::RootVector { heap(), m_related_environment_settings_objects };
     for (auto& environment_settings_object : environments) {
-        auto* global = dynamic_cast<HTML::UniversalGlobalScopeMixin*>(&environment_settings_object->global_object());
-        VERIFY(global);
-        global->notify_about_rejected_promises({});
+        auto& global = as<HTML::UniversalGlobalScopeMixin>(environment_settings_object->global_object());
+        global.notify_about_rejected_promises({});
     }
 
     // 5. Cleanup Indexed Database transactions.

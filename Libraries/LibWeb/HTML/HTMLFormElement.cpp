@@ -364,8 +364,7 @@ void HTMLFormElement::reset_form()
     if (reset) {
         GC::RootVector<GC::Ref<HTMLElement>> associated_elements_copy(heap(), m_associated_elements);
         for (auto element : associated_elements_copy) {
-            VERIFY(is<FormAssociatedElement>(*element));
-            auto& form_associated_element = dynamic_cast<FormAssociatedElement&>(*element);
+            auto& form_associated_element = as<FormAssociatedElement>(*element);
             if (form_associated_element.is_resettable())
                 form_associated_element.reset_algorithm();
         }
@@ -383,8 +382,8 @@ WebIDL::ExceptionOr<void> HTMLFormElement::request_submit(GC::Ptr<Element> submi
     // 1. If submitter is not null, then:
     if (submitter) {
         // 1. If submitter is not a submit button, then throw a TypeError.
-        auto* form_associated_element = dynamic_cast<FormAssociatedElement*>(submitter.ptr());
-        if (!(form_associated_element && form_associated_element->is_submit_button()))
+        auto* form_associated_element = as_if<FormAssociatedElement>(*submitter);
+        if (!form_associated_element || !form_associated_element->is_submit_button())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The submitter is not a submit button"sv };
 
         // 2. If submitter's form owner is not this form element, then throw a "NotFoundError" DOMException.
@@ -436,8 +435,8 @@ String HTMLFormElement::action_from_form_element(GC::Ref<HTMLElement> element) c
     // The action of an element is the value of the element's formaction attribute, if the element is a submit button
     // and has such an attribute, or the value of its form owner's action attribute, if it has one, or else the empty
     // string.
-    if (auto const* form_associated_element = dynamic_cast<FormAssociatedElement const*>(element.ptr());
-        form_associated_element && form_associated_element->is_submit_button()) {
+    auto const* form_associated_element = as_if<FormAssociatedElement const>(*element);
+    if (form_associated_element && form_associated_element->is_submit_button()) {
         if (auto maybe_attribute = element->attribute(AttributeNames::formaction); maybe_attribute.has_value())
             return maybe_attribute.release_value();
     }
@@ -466,9 +465,8 @@ HTMLFormElement::MethodAttributeState HTMLFormElement::method_state_from_form_el
 {
     // If the element is a submit button and has a formmethod attribute, then the element's method is that attribute's state;
     // otherwise, it is the form owner's method attribute's state.
-    if (auto const* form_associated_element = dynamic_cast<FormAssociatedElement const*>(element.ptr());
-        form_associated_element && form_associated_element->is_submit_button()) {
-
+    auto const* form_associated_element = as_if<FormAssociatedElement>(*element);
+    if (form_associated_element && form_associated_element->is_submit_button()) {
         if (auto maybe_formmethod = element->attribute(AttributeNames::formmethod); maybe_formmethod.has_value()) {
             // NOTE: `formmethod` is the same as `method`, except that it has no missing value default.
             //       This is handled by not calling `method_attribute_to_method_state` in the first place if there is no `formmethod` attribute.
@@ -501,8 +499,8 @@ HTMLFormElement::EncodingTypeAttributeState HTMLFormElement::encoding_type_state
 {
     // If the element is a submit button and has a formenctype attribute, then the element's enctype is that attribute's state;
     // otherwise, it is the form owner's enctype attribute's state.
-    if (auto const* form_associated_element = dynamic_cast<FormAssociatedElement const*>(element.ptr());
-        form_associated_element && form_associated_element->is_submit_button()) {
+    auto const* form_associated_element = as_if<FormAssociatedElement>(*element);
+    if (form_associated_element && form_associated_element->is_submit_button()) {
         if (auto formenctype = element->attribute(AttributeNames::formenctype); formenctype.has_value()) {
             // NOTE: `formenctype` is the same as `enctype`, except that it has nomissing value default.
             //       This is handled by not calling `encoding_type_attribute_to_encoding_type_state` in the first place if there is no
@@ -555,7 +553,7 @@ static bool is_form_control(DOM::Element const& element, HTMLFormElement const& 
         return false;
     }
 
-    auto const& form_associated_element = dynamic_cast<FormAssociatedElement const&>(element);
+    auto const& form_associated_element = as<FormAssociatedElement>(element);
     if (form_associated_element.form() != &form)
         return false;
 
@@ -672,7 +670,7 @@ Vector<GC::Ref<DOM::Element>> HTMLFormElement::get_submittable_elements()
     Vector<GC::Ref<DOM::Element>> submittable_elements;
 
     root().for_each_in_subtree([&](auto& node) {
-        if (auto* form_associated_element = dynamic_cast<FormAssociatedElement*>(&node)) {
+        if (auto* form_associated_element = as_if<FormAssociatedElement>(node)) {
             if (form_associated_element->is_submittable() && form_associated_element->form() == this)
                 submittable_elements.append(form_associated_element->form_associated_element_to_html_element());
         }
@@ -1201,7 +1199,7 @@ FormAssociatedElement* HTMLFormElement::default_button() const
     FormAssociatedElement* default_button = nullptr;
 
     root().for_each_in_subtree([&](auto& node) {
-        auto* form_associated_element = const_cast<FormAssociatedElement*>(dynamic_cast<FormAssociatedElement const*>(&node));
+        auto* form_associated_element = const_cast<FormAssociatedElement*>(as_if<FormAssociatedElement>(node));
         if (!form_associated_element)
             return TraversalDecision::Continue;
 

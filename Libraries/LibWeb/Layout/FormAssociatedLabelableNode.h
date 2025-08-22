@@ -17,8 +17,8 @@ class FormAssociatedLabelableNode : public LabelableNode {
     GC_CELL(FormAssociatedLabelableNode, LabelableNode);
 
 public:
-    const HTML::FormAssociatedElement& dom_node() const { return dynamic_cast<const HTML::FormAssociatedElement&>(LabelableNode::dom_node()); }
-    HTML::FormAssociatedElement& dom_node() { return dynamic_cast<HTML::FormAssociatedElement&>(LabelableNode::dom_node()); }
+    HTML::FormAssociatedElement const& dom_node() const { return as<HTML::FormAssociatedElement>(LabelableNode::dom_node()); }
+    HTML::FormAssociatedElement& dom_node() { return as<HTML::FormAssociatedElement>(LabelableNode::dom_node()); }
 
 protected:
     FormAssociatedLabelableNode(DOM::Document& document, HTML::FormAssociatedElement& element, GC::Ref<CSS::ComputedProperties> style)
