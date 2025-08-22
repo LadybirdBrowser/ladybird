@@ -264,6 +264,16 @@ Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, 
         }
     }
 
+    // Sanity check: If normalization resulted in pathological asymmetric values,
+    // zero out the border radius to force square corners
+    for (auto* corner : { &radii_px.top_left, &radii_px.top_right, &radii_px.bottom_right, &radii_px.bottom_left }) {
+        bool has_extreme_asymmetry = (corner->horizontal_radius > rect.width() / 4 && corner->vertical_radius < 1) || (corner->vertical_radius > rect.height() / 4 && corner->horizontal_radius < 1);
+        if (has_extreme_asymmetry) {
+            corner->horizontal_radius = 0;
+            corner->vertical_radius = 0;
+        }
+    }
+
     return radii_px;
 }
 
