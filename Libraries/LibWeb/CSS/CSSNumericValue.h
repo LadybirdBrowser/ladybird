@@ -15,14 +15,14 @@
 namespace Web::CSS {
 
 struct CSSNumericType {
-    WebIDL::Long length {};
-    WebIDL::Long angle {};
-    WebIDL::Long time {};
-    WebIDL::Long frequency {};
-    WebIDL::Long resolution {};
-    WebIDL::Long flex {};
-    WebIDL::Long percent {};
-    Optional<Bindings::CSSNumericBaseType> percent_hint {};
+    Optional<WebIDL::Long> length;
+    Optional<WebIDL::Long> angle;
+    Optional<WebIDL::Long> time;
+    Optional<WebIDL::Long> frequency;
+    Optional<WebIDL::Long> resolution;
+    Optional<WebIDL::Long> flex;
+    Optional<WebIDL::Long> percent;
+    Optional<Bindings::CSSNumericBaseType> percent_hint;
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
