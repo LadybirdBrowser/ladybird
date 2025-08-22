@@ -3700,6 +3700,12 @@ VALIDATE_INSTRUCTION(f64x2_convert_low_i32x4_u)
     return stack.take_and_put<ValueType::V128>(ValueType::V128);
 }
 
+VALIDATE_INSTRUCTION(synthetic_end_expression)
+{
+    is_constant = true;
+    return {}; // Always valid.
+}
+
 ErrorOr<void, ValidationError> Validator::validate(Instruction const& instruction, Stack& stack, bool& is_constant)
 {
     switch (instruction.opcode().value()) {

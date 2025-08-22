@@ -535,6 +535,7 @@ struct Dispatch {
         Stack = CountRegisters,
     };
 
+    OpCode instruction_opcode;
     Instruction const* instruction { nullptr };
     union {
         struct {

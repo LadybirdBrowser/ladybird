@@ -1160,5 +1160,6 @@ HashMap<Wasm::OpCode, ByteString> Wasm::Names::instruction_names {
     { Instructions::synthetic_call_21, "synthetic:call.21" },
     { Instructions::synthetic_call_30, "synthetic:call.30" },
     { Instructions::synthetic_call_31, "synthetic:call.31" },
+    { Instructions::synthetic_end_expression, "synthetic:expression.end" },
 };
 HashMap<ByteString, Wasm::OpCode> Wasm::Names::instructions_by_name;
