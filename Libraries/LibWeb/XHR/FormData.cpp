@@ -28,10 +28,10 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm
         // 1. If submitter is non-null, then:
         if (submitter) {
             // 1. If submitter is not a submit button, then throw a TypeError.
-            if (!is<HTML::FormAssociatedElement>(*submitter)) {
+            auto form_associated_element = as_if<HTML::FormAssociatedElement>(*submitter);
+            if (!form_associated_element) {
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Submitter is not associated with a form."sv };
             }
-            auto* form_associated_element = dynamic_cast<HTML::FormAssociatedElement*>(submitter.ptr());
 
             if (!form_associated_element->is_submit_button()) {
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Submitter is not a valid submit button."sv };

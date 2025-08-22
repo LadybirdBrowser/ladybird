@@ -95,8 +95,7 @@ GC::Ptr<HTMLElement> PopoverInvokerElement::get_the_popover_target_element(GC::R
         return {};
 
     // 4. Let popoverElement be the result of running node's get the popovertarget-associated element.
-    auto const* popover_invoker_element = dynamic_cast<PopoverInvokerElement const*>(node.ptr());
-    VERIFY(popover_invoker_element);
+    auto const* popover_invoker_element = as_if<PopoverInvokerElement>(*node);
     GC::Ptr<HTMLElement> popover_element = as<HTMLElement>(popover_invoker_element->m_popover_target_element.ptr());
     if (!popover_element) {
         auto target_id = as<HTMLElement>(*node).attribute("popovertarget"_fly_string);

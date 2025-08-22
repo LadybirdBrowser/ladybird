@@ -905,7 +905,7 @@ public:
             // 4. Otherwise:
             else {
                 // 1. Perform the appropriate deserialization steps for the interface identified by serialized.[[Type]], given serialized, value, and targetRealm.
-                auto& serializable = dynamic_cast<Bindings::Serializable&>(value.as_object());
+                auto& serializable = as<Bindings::Serializable>(value.as_object());
                 TRY(serializable.deserialization_steps(m_serialized, m_memory));
             }
         }
@@ -1084,7 +1084,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         // 5. Otherwise:
         else {
             // 1. Assert: transferable is a platform object that is a transferable object.
-            auto& transferable_object = dynamic_cast<Bindings::Transferable&>(*transferable);
+            auto& transferable_object = as<Bindings::Transferable>(*transferable);
             VERIFY(is<Bindings::PlatformObject>(*transferable));
 
             // 2. Let interfaceName be the identifier of the primary interface of transferable.

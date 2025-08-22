@@ -405,9 +405,8 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
             element = element_event_target;
             document = &element_event_target->document();
         } else {
-            VERIFY(is<HTML::Window>(this));
-            auto* window_event_target = as<HTML::Window>(this);
-            document = &window_event_target->associated_document();
+            auto& window_event_target = as<HTML::Window>(*this);
+            document = window_event_target.associated_document();
         }
 
         VERIFY(document);
@@ -423,12 +422,9 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
 
         // 5. If element is not null and element has a form owner, let form owner be that form owner. Otherwise, let form owner be null.
         GC::Ptr<HTML::HTMLFormElement> form_owner;
-        if (is<HTML::FormAssociatedElement>(element.ptr())) {
-            auto* form_associated_element = dynamic_cast<HTML::FormAssociatedElement*>(element.ptr());
-            VERIFY(form_associated_element);
-
-            if (form_associated_element->form())
-                form_owner = form_associated_element->form();
+        if (auto* form_associated_element = as_if<HTML::FormAssociatedElement>(element.ptr())) {
+            if (auto* form = form_associated_element->form())
+                form_owner = form;
         }
 
         // 6. Let settings object be the relevant settings object of document.

@@ -177,7 +177,7 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
     // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
     //       obvious way to drive SVG layout in our engine at the moment.
 
-    auto& svg_viewport = dynamic_cast<SVG::SVGViewport const&>(*context_box().dom_node());
+    auto const& svg_viewport = as<SVG::SVGViewport>(*context_box().dom_node());
     auto& svg_box_state = m_state.get_mutable(context_box());
 
     if (!this->context_box().root().document().is_decoded_svg()) {

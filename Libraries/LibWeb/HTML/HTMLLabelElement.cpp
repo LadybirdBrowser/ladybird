@@ -77,11 +77,12 @@ GC::Ptr<HTMLFormElement> HTMLLabelElement::form() const
         return {};
 
     // 2. If the label element's labeled control is not a form-associated element, then return null.
-    if (!is<FormAssociatedElement>(*labeled_control))
+    auto* form_associated_element = as_if<FormAssociatedElement>(*labeled_control);
+    if (!form_associated_element)
         return {};
 
     // 3. Return the label element's labeled control's form owner (which can still be null).
-    return dynamic_cast<FormAssociatedElement*>(labeled_control.ptr())->form();
+    return form_associated_element->form();
 }
 
 }

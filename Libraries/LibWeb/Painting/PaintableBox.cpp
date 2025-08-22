@@ -706,8 +706,9 @@ void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable 
         return;
 
     auto active_element = document.active_element();
-    auto active_element_is_editable = is<HTML::FormAssociatedTextControlElement>(active_element)
-        && dynamic_cast<HTML::FormAssociatedTextControlElement const&>(*active_element).is_mutable();
+    auto active_element_is_editable = false;
+    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(active_element); text_control && text_control->is_mutable())
+        active_element_is_editable = true;
 
     auto dom_node = fragment.layout_node().dom_node();
     if (!dom_node || (!dom_node->is_editable() && !active_element_is_editable))
