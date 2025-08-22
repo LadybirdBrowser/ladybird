@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-1 Pass
-6 Fail
+7 Pass
 Pass	Multiplying two types with different non-null percent hints throws TypeError
-Fail	Multiplying two types with same base types adds exponents
-Fail	Multiplying two types with different base types adds exponents
-Fail	Multiplying two types respects the sign of the exponents
-Fail	Multiplying a type with no exponents is a no-op
-Fail	Multiplying a type with percent hint applies the percent hint
-Fail	Multiplying two types with same percent hint applies the percent hint
+Pass	Multiplying two types with same base types adds exponents
+Pass	Multiplying two types with different base types adds exponents
+Pass	Multiplying two types respects the sign of the exponents
+Pass	Multiplying a type with no exponents is a no-op
+Pass	Multiplying a type with percent hint applies the percent hint
+Pass	Multiplying two types with same percent hint applies the percent hint

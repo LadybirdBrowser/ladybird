@@ -12,16 +12,15 @@ enum CSSNumericBaseType {
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dictdef-cssnumerictype
-// AD-HOC: We give these default values and mark percentHint as nullable. https://github.com/w3c/css-houdini-drafts/issues/1149
 dictionary CSSNumericType {
-    long length = 0;
-    long angle = 0;
-    long time = 0;
-    long frequency = 0;
-    long resolution = 0;
-    long flex = 0;
-    long percent = 0;
-    CSSNumericBaseType? percentHint;
+    long length;
+    long angle;
+    long time;
+    long frequency;
+    long resolution;
+    long flex;
+    long percent;
+    CSSNumericBaseType percentHint;
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
