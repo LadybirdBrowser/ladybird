@@ -54,6 +54,9 @@ void IDBCursor::visit_edges(Visitor& visitor)
     visitor.visit(m_range);
     visitor.visit(m_request);
 
+    if (m_value.has_value())
+        visitor.visit(*m_value);
+
     m_source_handle.visit([&](auto& source) {
         visitor.visit(source);
     });
