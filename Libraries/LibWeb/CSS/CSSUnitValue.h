@@ -29,6 +29,8 @@ public:
 
     String serialize_unit_value(Optional<double> minimum, Optional<double> maximum) const;
 
+    virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
+
 private:
     explicit CSSUnitValue(JS::Realm&, double value, FlyString unit, NumericType type);
 

@@ -33,7 +33,7 @@ interface CSSNumericValue : CSSStyleValue {
     [FIXME] CSSNumericValue min(CSSNumberish... values);
     [FIXME] CSSNumericValue max(CSSNumberish... values);
 
-    [FIXME] boolean equals(CSSNumberish... value);
+    [ImplementedAs=equals_for_bindings] boolean equals(CSSNumberish... value);
 
     // FIXME: CSSUnitValue to(USVString unit);
     // FIXME: CSSMathSum toSum(USVString... units);

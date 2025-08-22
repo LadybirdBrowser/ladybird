@@ -27,6 +27,7 @@ public:
     GC::Ref<CSSNumericValue> value() const;
 
     virtual String serialize_math_value(Nested, Parens) const override;
+    virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
 
 private:
     CSSMathNegate(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);

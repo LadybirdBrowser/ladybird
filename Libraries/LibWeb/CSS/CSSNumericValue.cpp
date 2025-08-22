@@ -54,6 +54,23 @@ void CSSNumericValue::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-equals
+bool CSSNumericValue::equals_for_bindings(Vector<CSSNumberish> values) const
+{
+    // The equals(...values) method, when called on a CSSNumericValue this, must perform the following steps:
+
+    // 1. Replace each item of values with the result of rectifying a numberish value for the item.
+    // 2. For each item in values, if the item is not an equal numeric value to this, return false.
+    for (auto const& value : values) {
+        auto rectified_value = rectify_a_numberish_value(realm(), value);
+        if (!is_equal_numeric_value(rectified_value))
+            return false;
+    }
+
+    // 3. Return true.
+    return true;
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-type
 CSSNumericType CSSNumericValue::type_for_bindings() const
 {
