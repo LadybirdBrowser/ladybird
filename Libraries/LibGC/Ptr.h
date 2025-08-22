@@ -183,6 +183,12 @@ public:
 
     operator T*() const { return m_ptr; }
 
+    Ref<T> as_nonnull()
+    {
+        VERIFY(m_ptr);
+        return *m_ptr;
+    }
+
 private:
     T* m_ptr { nullptr };
 };
