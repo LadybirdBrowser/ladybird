@@ -787,9 +787,6 @@ Positioning ComputedProperties::position() const
 
 bool ComputedProperties::operator==(ComputedProperties const& other) const
 {
-    if (m_property_values.size() != other.m_property_values.size())
-        return false;
-
     for (size_t i = 0; i < m_property_values.size(); ++i) {
         auto const& my_style = m_property_values[i];
         auto const& other_style = other.m_property_values[i];
