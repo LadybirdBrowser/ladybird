@@ -317,22 +317,24 @@ public:
 
     constexpr Color to_premultiplied() const
     {
-        return Color(
-            red() * alpha() / 255,
-            green() * alpha() / 255,
-            blue() * alpha() / 255,
-            alpha());
+        u32 a = alpha();
+        u8 r = static_cast<u8>((red() * a + 127) / 255);
+        u8 g = static_cast<u8>((green() * a + 127) / 255);
+        u8 b = static_cast<u8>((blue() * a + 127) / 255);
+        return Color(r, g, b, a);
     }
 
     constexpr Color to_unpremultiplied() const
     {
-        if (alpha() == 0 || alpha() == 255)
+        u32 a = alpha();
+        if (a == 0)
+            return Color(0, 0, 0, 0);
+        if (a == 255)
             return *this;
-        return Color(
-            red() * 255 / alpha(),
-            green() * 255 / alpha(),
-            blue() * 255 / alpha(),
-            alpha());
+        u8 r = static_cast<u8>(min(255u, (red() * 255u + a / 2) / a));
+        u8 g = static_cast<u8>(min(255u, (green() * 255u + a / 2) / a));
+        u8 b = static_cast<u8>(min(255u, (blue() * 255u + a / 2) / a));
+        return Color(r, g, b, a);
     }
 
     constexpr Color blend(Color source) const
