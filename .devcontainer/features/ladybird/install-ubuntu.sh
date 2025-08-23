@@ -24,7 +24,9 @@ install_llvm_key() {
 ### Install packages
 
 apt update -y
-apt install -y lsb-release git python3 autoconf autoconf-archive automake build-essential cmake libdrm-dev libgl1-mesa-dev libtool nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland ccache fonts-liberation2 zip unzip curl tar
+apt install -y autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git \
+    gn libdrm-dev libgl1-mesa-dev libpulse-dev libtool lsb-release nasm ninja-build pkg-config python3 qt6-base-dev \
+    qt6-tools-dev-tools qt6-wayland shellcheck tar unzip zip
 ### Ensure new enough host compiler is available
 
 VERSION="0.0.0"

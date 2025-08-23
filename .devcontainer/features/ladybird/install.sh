@@ -2,7 +2,7 @@
 set -e
 
 # Feature options
-export LLVM_VERSION=${LLVM_VERSION:-19}
+export LLVM_VERSION=${LLVM_VERSION:-20}
 DISTRO=${DISTRO:-ubuntu}
 
 # call distro-specific script that lives in this directory

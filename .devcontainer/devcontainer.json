@@ -33,6 +33,11 @@
             "label": "Web VNC"
         }
     },
+    "remoteEnv": {
+        "CC": "clang-20",
+        "CXX": "clang++-20",
+        "XDG_RUNTIME_DIR": "/tmp"
+    },
     // Use 'postCreateCommand' to run commands after the container is created.
     "postCreateCommand": "pre-commit install; pre-commit install --hook-type commit-msg",
     // Configure tool-specific properties.
@@ -41,7 +46,8 @@
             "extensions": [
                 "ms-vscode.cmake-tools",
                 "llvm-vs-code-extensions.vscode-clangd",
-                "eamodio.gitlens"
+                "eamodio.gitlens",
+                "vadimcn.vscode-lldb"
             ],
             "settings": {
                 // Excluding the generated directories keeps your file view clean and speeds up search.
@@ -70,7 +76,7 @@
                 "git.inputValidationSubjectLength": 72,
                 // If clangd was obtained from a package manager, its path can be set here.
                 // Note: This has to be adjusted manually, to the "llvm_version" from above
-                "clangd.path": "clangd-19",
+                "clangd.path": "clangd-20",
                 "clangd.arguments": [
                     "--header-insertion=never" // See https://github.com/clangd/clangd/issues/1247
                 ]
