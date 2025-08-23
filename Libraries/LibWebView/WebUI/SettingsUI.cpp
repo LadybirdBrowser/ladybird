@@ -24,6 +24,9 @@ void SettingsUI::register_interfaces()
     register_interface("setNewTabPageURL"sv, [this](auto const& data) {
         set_new_tab_page_url(data);
     });
+    register_interface("setDefaultZoomLevelFactor"sv, [this](auto const& data) {
+        set_default_zoom_level_factor(data);
+    });
     register_interface("setLanguages"sv, [this](auto const& data) {
         set_languages(data);
     });
@@ -91,6 +94,15 @@ void SettingsUI::set_new_tab_page_url(JsonValue const& new_tab_page_url)
         return;
 
     WebView::Application::settings().set_new_tab_page_url(parsed_new_tab_page_url.release_value());
+}
+
+void SettingsUI::set_default_zoom_level_factor(JsonValue const& default_zoom_level_factor)
+{
+    auto const maybe_factor = default_zoom_level_factor.get_double_with_precision_loss();
+    if (!maybe_factor.has_value())
+        return;
+
+    WebView::Application::settings().set_default_zoom_level_factor(maybe_factor.value());
 }
 
 void SettingsUI::set_languages(JsonValue const& languages)
