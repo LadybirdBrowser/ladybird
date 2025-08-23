@@ -8,6 +8,8 @@
 
 #include <LibJS/Runtime/Object.h>
 
+class ForwardDeclaredObject;
+
 class TestClass : public JS::Object {
     JS_OBJECT(TestClass, JS::Object);
 
@@ -21,4 +23,7 @@ class TestClass : public JS::Object {
 
     // expected-error@+1 {{GC-allocated member is not visited in TestClass::visit_edges}}
     JS::Value m_value;
+
+    // expected-error@+1 {{GC-allocated member is not visited in TestClass::visit_edges}}
+    GC::Ptr<ForwardDeclaredObject> m_forward_declared_object;
 };
