@@ -36,6 +36,7 @@ public:
     virtual ~SettingsObserver();
 
     virtual void new_tab_page_url_changed() { }
+    virtual void default_zoom_level_factor_changed() { }
     virtual void languages_changed() { }
     virtual void search_engine_changed() { }
     virtual void autocomplete_engine_changed() { }
@@ -54,6 +55,9 @@ public:
 
     URL::URL const& new_tab_page_url() const { return m_new_tab_page_url; }
     void set_new_tab_page_url(URL::URL);
+
+    double default_zoom_level_factor() const { return m_default_zoom_level_factor; }
+    void set_default_zoom_level_factor(double);
 
     static Vector<String> parse_json_languages(JsonValue const&);
     Vector<String> const& languages() const { return m_languages; }
@@ -95,6 +99,7 @@ private:
     ByteString m_settings_path;
 
     URL::URL m_new_tab_page_url;
+    double m_default_zoom_level_factor { 0 };
     Vector<String> m_languages;
     Optional<SearchEngine> m_search_engine;
     Vector<SearchEngine> m_custom_search_engines;
