@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
+ * Copyright (c) 2025, Idan Horowitz <idan.horowitz@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -130,8 +131,13 @@ static std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType con
             return {};
 
         auto const* record_decl = record_type->getAsCXXRecordDecl();
-        if (!record_decl->hasDefinition())
-            return {};
+        if (!record_decl->hasDefinition()) {
+            // If we don't have a definition (this is a forward declaration), assume that the type inherits from
+            // GC::Cell instead of not checking it at all. If it does inherit from GC:Cell, this will make sure it's
+            // visited. If it does not, any attempt to visit it will fail compilation on the visit call itself,
+            // ensuring it's no longer wrapped in a GC::Ptr.
+            return QualTypeGCInfo { outer_type, true };
+        }
 
         return QualTypeGCInfo { outer_type, record_inherits_from_cell(*record_decl) };
     } else if (auto const* record = type->getAsCXXRecordDecl()) {
