@@ -9,6 +9,7 @@
 #include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 
@@ -100,6 +101,8 @@ void Realm::visit_edges(Visitor& visitor)
     visitor.visit(m_global_environment);
     if (m_host_defined)
         m_host_defined->visit_edges(visitor);
+    for (auto builtin : m_builtins)
+        visitor.visit(builtin);
 }
 
 }
