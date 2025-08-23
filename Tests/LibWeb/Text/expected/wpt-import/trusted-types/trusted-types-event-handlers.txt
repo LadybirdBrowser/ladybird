@@ -1,0 +1,109 @@
+Harness status: OK
+
+Found 104 tests
+
+104 Pass
+Pass	Event handler onclick should be blocked.
+Pass	Event handler onchange should be blocked.
+Pass	Event handler onfocus should be blocked.
+Pass	Event handler oNclick should be blocked.
+Pass	Event handler OnClIcK should be blocked.
+Pass	Non-event handler one should not be blocked.
+Pass	Non-event handler oNe should not be blocked.
+Pass	Non-event handler onIcon should not be blocked.
+Pass	Non-event handler offIcon should not be blocked.
+Pass	Non-event handler blubb should not be blocked.
+Pass	Non-event handler div.align should not be blocked.
+Pass	Non-event handler div.title should not be blocked.
+Pass	Non-event handler div.inert should not be blocked.
+Pass	Non-event handler div.draggable should not be blocked.
+Pass	Event handler div.onabort should be blocked.
+Pass	Event handler div.onauxclick should be blocked.
+Pass	Event handler div.onbeforeinput should be blocked.
+Pass	Event handler div.onbeforematch should be blocked.
+Pass	Event handler div.onbeforetoggle should be blocked.
+Pass	Event handler div.onblur should be blocked.
+Pass	Event handler div.oncancel should be blocked.
+Pass	Event handler div.oncanplay should be blocked.
+Pass	Event handler div.oncanplaythrough should be blocked.
+Pass	Event handler div.onchange should be blocked.
+Pass	Event handler div.onclick should be blocked.
+Pass	Event handler div.onclose should be blocked.
+Pass	Event handler div.oncommand should be blocked.
+Pass	Event handler div.oncontextlost should be blocked.
+Pass	Event handler div.oncontextmenu should be blocked.
+Pass	Event handler div.oncontextrestored should be blocked.
+Pass	Event handler div.oncopy should be blocked.
+Pass	Event handler div.oncuechange should be blocked.
+Pass	Event handler div.oncut should be blocked.
+Pass	Event handler div.ondblclick should be blocked.
+Pass	Event handler div.ondrag should be blocked.
+Pass	Event handler div.ondragend should be blocked.
+Pass	Event handler div.ondragenter should be blocked.
+Pass	Event handler div.ondragleave should be blocked.
+Pass	Event handler div.ondragover should be blocked.
+Pass	Event handler div.ondragstart should be blocked.
+Pass	Event handler div.ondrop should be blocked.
+Pass	Event handler div.ondurationchange should be blocked.
+Pass	Event handler div.onemptied should be blocked.
+Pass	Event handler div.onended should be blocked.
+Pass	Event handler div.onerror should be blocked.
+Pass	Event handler div.onfocus should be blocked.
+Pass	Event handler div.onfocusin should be blocked.
+Pass	Event handler div.onfocusout should be blocked.
+Pass	Event handler div.onformdata should be blocked.
+Pass	Event handler div.oninput should be blocked.
+Pass	Event handler div.oninvalid should be blocked.
+Pass	Event handler div.onkeydown should be blocked.
+Pass	Event handler div.onkeypress should be blocked.
+Pass	Event handler div.onkeyup should be blocked.
+Pass	Event handler div.onload should be blocked.
+Pass	Event handler div.onloadeddata should be blocked.
+Pass	Event handler div.onloadedmetadata should be blocked.
+Pass	Event handler div.onloadstart should be blocked.
+Pass	Event handler div.onmousedown should be blocked.
+Pass	Event handler div.onmouseenter should be blocked.
+Pass	Event handler div.onmouseleave should be blocked.
+Pass	Event handler div.onmousemove should be blocked.
+Pass	Event handler div.onmouseout should be blocked.
+Pass	Event handler div.onmouseover should be blocked.
+Pass	Event handler div.onmouseup should be blocked.
+Pass	Event handler div.onpaste should be blocked.
+Pass	Event handler div.onpause should be blocked.
+Pass	Event handler div.onplay should be blocked.
+Pass	Event handler div.onplaying should be blocked.
+Pass	Event handler div.onprogress should be blocked.
+Pass	Event handler div.onratechange should be blocked.
+Pass	Event handler div.onreset should be blocked.
+Pass	Event handler div.onresize should be blocked.
+Pass	Event handler div.onscroll should be blocked.
+Pass	Event handler div.onscrollend should be blocked.
+Pass	Event handler div.onsecuritypolicyviolation should be blocked.
+Pass	Event handler div.onseeked should be blocked.
+Pass	Event handler div.onseeking should be blocked.
+Pass	Event handler div.onselect should be blocked.
+Pass	Event handler div.onselectionchange should be blocked.
+Pass	Event handler div.onslotchange should be blocked.
+Pass	Event handler div.onstalled should be blocked.
+Pass	Event handler div.onsubmit should be blocked.
+Pass	Event handler div.onsuspend should be blocked.
+Pass	Event handler div.ontimeupdate should be blocked.
+Pass	Event handler div.ontoggle should be blocked.
+Pass	Event handler div.onvolumechange should be blocked.
+Pass	Event handler div.onwaiting should be blocked.
+Pass	Event handler div.onwebkitanimationend should be blocked.
+Pass	Event handler div.onwebkitanimationiteration should be blocked.
+Pass	Event handler div.onwebkitanimationstart should be blocked.
+Pass	Event handler div.onwebkittransitionend should be blocked.
+Pass	Event handler div.onwheel should be blocked.
+Pass	Event handler div.onpointerover should be blocked.
+Pass	Event handler div.onpointerenter should be blocked.
+Pass	Event handler div.onpointerdown should be blocked.
+Pass	Event handler div.onpointermove should be blocked.
+Pass	Event handler div.onpointerrawupdate should be blocked.
+Pass	Event handler div.onpointerup should be blocked.
+Pass	Event handler div.onpointercancel should be blocked.
+Pass	Event handler div.onpointerout should be blocked.
+Pass	Event handler div.onpointerleave should be blocked.
+Pass	Event handler div.ongotpointercapture should be blocked.
+Pass	Event handler div.onlostpointercapture should be blocked.
