@@ -575,9 +575,14 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
     if (!request.page())
         return;
 
-    for (auto const& [header, value] : response_headers.headers()) {
-        if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
-            store_response_cookies(*request.page(), request.url().value(), value);
+    if (request.store_set_cookie_headers()) {
+        // From https://fetch.spec.whatwg.org/#concept-http-network-fetch:
+        // 15. If includeCredentials is true, then the user agent should parse and store response
+        //     `Set-Cookie` headers given request and response.
+        for (auto const& [header, value] : response_headers.headers()) {
+            if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
+                store_response_cookies(*request.page(), request.url().value(), value);
+            }
         }
     }
 
