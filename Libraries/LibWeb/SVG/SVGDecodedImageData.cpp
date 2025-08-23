@@ -56,7 +56,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
         HTML::UserNavigationInvolvement::None);
 
     // FIXME: Use Navigable::navigate() instead of manually replacing the navigable's document.
-    auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params));
+    auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::XML, "image/svg+xml"_string, navigation_params));
     navigable->set_ongoing_navigation({});
     navigable->active_document()->destroy();
     navigable->active_session_history_entry()->document_state()->set_document(document);
