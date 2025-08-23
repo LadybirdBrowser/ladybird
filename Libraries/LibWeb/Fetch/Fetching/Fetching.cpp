@@ -2316,6 +2316,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
     load_request.set_url(request->current_url());
     load_request.set_page(page);
     load_request.set_method(ByteString::copy(request->method()));
+    load_request.set_store_set_cookie_headers(include_credentials == IncludeCredentials::Yes);
 
     for (auto const& header : *request->header_list())
         load_request.set_header(ByteString::copy(header.name), ByteString::copy(header.value));
