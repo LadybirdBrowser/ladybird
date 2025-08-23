@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/csp-violations.js"></script>
+<meta http-equiv="Content-Security-Policy"
+      content="require-trusted-types-for 'script'; connect-src 'none';">
+<body>
+  <script>
+    const policy = trustedTypes.createPolicy("dummy", { createHTML: x => x });
+    const input = `<p>${'A'.repeat(100)}</p>`;
+
+    promise_test(async t => {
+      await no_trusted_type_violation_for(_ =>
+        document.createElement("div").outerHTML = policy.createHTML(input)
+      );
+    }, "No violation reported for TrustedHTML.");
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ =>
+        document.createElement("div").outerHTML = input
+      );
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `Element outerHTML|${clipSampleIfNeeded(input)}`);
+    }, "Violation report for plain string.");
+  </script>
+</body>

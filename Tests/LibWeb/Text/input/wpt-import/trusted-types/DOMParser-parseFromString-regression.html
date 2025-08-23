@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<meta http-equiv="Content-Security-Policy" content="blabla">
+<body>
+<div id="target"></div>
+<div id="probe"></div>
+<script>
+test(t => {
+  // Regression test for crbug.com/1030830. (Should work in any browser, though.)
+  //
+  // The top-level doc has a CSP that doesn't do anything interesting. We'll
+  // parse a doc and create an iframe with an embedded CSP, and will ensure that
+  // the CSP applies to the frame, but not the top-level doc.
+  const target = document.getElementById("target");
+  const probe = document.getElementById("probe");
+  probe.innerHTML = "probe";
+
+  const doc = new DOMParser().parseFromString(`
+    <body><div id="probe"></div></body>"`, "text/html");
+  probe.innerHTML = "probe";
+
+  const frame = document.createElement("iframe");
+  frame.src = `data:text/html;${encodeURI(doc.documentElement.outerHTML)}`;
+  frame.id = "frame";
+  target.appendChild(frame);
+  const frame_probe = document.getElementById("frame").contentDocument.getElementById("probe");
+  probe.innerHTML = "probe";
+  assert_throws_js(TypeError, _ => { frame_probe.innnerHTML = "probe" });
+}, "Regression test for TT changes to parseFromString.");
+</script>
+</body>

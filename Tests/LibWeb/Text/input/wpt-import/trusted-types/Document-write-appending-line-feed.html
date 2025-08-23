@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#document-write-steps">
+<meta name="assert" content="U+000A LINE FEED is only appended for document.writeln() and only after the arguments are concatenated and sanitized.">
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<body>
+<script>
+  trustedTypes.createPolicy('default', { createHTML: x => `[${x}]` });
+  const customPolicy =
+    trustedTypes.createPolicy('custom', { createHTML: x => `(${x})` });
+  const cleanupPolicy =
+    trustedTypes.createPolicy('cleanup', { createHTML: x => x });
+  const doc = (new DOMParser()).parseFromString(`<body></body>`, "text/html");
+  function cleanup() { doc.body.innerHTML = cleanupPolicy.createHTML(""); }
+
+  test(t => {
+    t.add_cleanup(cleanup);
+    let a = customPolicy.createHTML("1");
+    let b = customPolicy.createHTML("2");
+    let c = customPolicy.createHTML("3");
+    let d = customPolicy.createHTML("4");
+    doc.write(a, b, c, d);
+    assert_equals(doc.body.innerHTML, "(1)(2)(3)(4)");
+  }, "document.write() with TrustedHTML arguments only.");
+
+  test(t => {
+    t.add_cleanup(cleanup);
+    let a = "1"
+    let b = "2"
+    let c = "3";
+    let d = "4"
+    doc.write(a, b, c, d);
+    assert_equals(doc.body.innerHTML, "[1234]");
+  }, "document.write() with String arguments only.");
+
+  test(t => {
+    t.add_cleanup(cleanup);
+    let a = customPolicy.createHTML("1");
+    let b = customPolicy.createHTML("2");
+    let c = "3";
+    let d = customPolicy.createHTML("4");
+    doc.write(a, b, c, d);
+    assert_equals(doc.body.innerHTML, "[(1)(2)3(4)]");
+  }, "document.write() with TrustedHTML for all but one argument.");
+
+  test(t => {
+    t.add_cleanup(cleanup);
+    let a = customPolicy.createHTML("1");
+    let b = customPolicy.createHTML("2");
+    let c = customPolicy.createHTML("3");
+    let d = customPolicy.createHTML("4");
+    doc.writeln(a, b, c, d);
+    assert_equals(doc.body.innerHTML, "(1)(2)(3)(4)\n");
+  }, "document.writeln() with TrustedHTML arguments only.");
+
+  test(t => {
+    t.add_cleanup(cleanup);
+    let a = "1"
+    let b = "2"
+    let c = "3";
+    let d = "4"
+    doc.writeln(a, b, c, d);
+    assert_equals(doc.body.innerHTML, "[1234]\n");
+  }, "document.writeln() with String arguments only.");
+
+  test(t => {
+    t.add_cleanup(cleanup);
+    let a = customPolicy.createHTML("1");
+    let b = customPolicy.createHTML("2");
+    let c = "3";
+    let d = customPolicy.createHTML("4");
+    doc.writeln(a, b, c, d);
+    assert_equals(doc.body.innerHTML, "[(1)(2)3(4)]\n");
+  }, "document.writeln() with TrustedHTML for all but one argument.");
+</script>
