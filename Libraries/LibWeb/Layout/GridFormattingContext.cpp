@@ -828,14 +828,23 @@ void GridFormattingContext::distribute_extra_space_across_spanned_tracks_base_si
             }
 
             // if there are no such tracks, then all affected tracks.
-            if (tracks_to_grow_beyond_limits.size() == 0)
+            if (tracks_to_grow_beyond_limits.is_empty())
+                tracks_to_grow_beyond_limits = affected_tracks;
+        } else if (phase == SpaceDistributionPhase::AccommodateMaxContentContribution) {
+            // when accommodating max-content contributions into base sizes: any affected track that happens to also have
+            // a max-content max track sizing function;
+            for (auto& track : affected_tracks) {
+                if (track.max_track_sizing_function.is_max_content())
+                    tracks_to_grow_beyond_limits.append(track);
+            }
+
+            // if there are no such tracks, then all affected tracks.
+            if (tracks_to_grow_beyond_limits.is_empty())
                 tracks_to_grow_beyond_limits = affected_tracks;
         }
-        // FIXME: when accommodating max-content contributions: any affected track that happens to also have a
-        //        max-content max track sizing function; if there are no such tracks, then all affected tracks.
 
-        CSSPixels increase_per_track = extra_space / affected_tracks.size();
-        for (auto& track : affected_tracks) {
+        CSSPixels increase_per_track = extra_space / tracks_to_grow_beyond_limits.size();
+        for (auto& track : tracks_to_grow_beyond_limits) {
             auto increase = min(increase_per_track, extra_space);
             track.item_incurred_increase += increase;
             extra_space -= increase;

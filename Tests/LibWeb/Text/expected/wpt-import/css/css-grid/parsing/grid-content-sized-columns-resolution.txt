@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 42 tests
 
-21 Pass
-21 Fail
+26 Pass
+16 Fail
 Pass	Element 'gridMinContentFixedAndAuto' grid-template-columns value computes to '15px 75px'
 Pass	Element 'gridAutoAndAuto' grid-template-columns value computes to '45px 45px'
 Fail	Element 'gridMinContentAndMinContentFixed' grid-template-columns value computes to '20px 30px'
@@ -40,9 +40,9 @@ Pass	Element 'gridAutoMinContentUnsorted' grid-template-columns value computes t
 Fail	Element 'gridAutoMaxContentUnsorted' grid-template-columns value computes to '0px 90px'
 Pass	Element 'gridMaxContentAndMinContentFixedUnsorted' grid-template-columns value computes to '50px 40px'
 Pass	Element 'gridMaxContentAndMaxContentFixedUnsorted' grid-template-columns value computes to '40px 70px'
-Fail	Element 'gridMinContentFixedAndAutoAboveLimits' grid-template-columns value computes to '15px 95px'
-Fail	Element 'gridMaxContentFixedAndAutoAboveLimits' grid-template-columns value computes to '15px 135px'
-Fail	Element 'gridMinContentFixedAndFixedFixedAndAuto' grid-template-columns value computes to '20px 20px 60px'
-Fail	Element 'gridAutoAndFixedFixedAndMaxContentFixed' grid-template-columns value computes to '110px 20px 20px'
+Pass	Element 'gridMinContentFixedAndAutoAboveLimits' grid-template-columns value computes to '15px 95px'
+Pass	Element 'gridMaxContentFixedAndAutoAboveLimits' grid-template-columns value computes to '15px 135px'
+Pass	Element 'gridMinContentFixedAndFixedFixedAndAuto' grid-template-columns value computes to '20px 20px 60px'
+Pass	Element 'gridAutoAndFixedFixedAndMaxContentFixed' grid-template-columns value computes to '110px 20px 20px'
 Pass	Element 'gridMaxContentAndMaxContentFixedAndMaxContent' grid-template-columns value computes to '70px 20px 50px'
-Fail	Element 'gridAutoAndMinContentFixedAndMinContent' grid-template-columns value computes to '55px 30px 65px'
+Pass	Element 'gridAutoAndMinContentFixedAndMinContent' grid-template-columns value computes to '55px 30px 65px'
