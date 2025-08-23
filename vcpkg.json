@@ -99,35 +99,6 @@
     },
     "openssl",
     {
-      "name": "qtbase",
-      "platform": "freebsd",
-      "default-features": false,
-      "features": [
-        "doubleconversion",
-        "fontconfig",
-        "freetype",
-        "gui",
-        "icu",
-        "jpeg",
-        "network",
-        "opengl",
-        "pcre2",
-        "png",
-        "thread",
-        "vulkan",
-        "widgets",
-        "xcb",
-        "xcb-xlib",
-        "xlib",
-        "xrender",
-        "zstd"
-      ]
-    },
-    {
-      "name": "qtmultimedia",
-      "platform": "freebsd"
-    },
-    {
       "name": "pthread",
       "platform": "windows"
     },
@@ -172,6 +143,69 @@
     "woff2",
     "zlib"
   ],
+  "features": {
+    "gtk": {
+      "description": "Build GTK UI",
+      "dependencies": [
+        {
+          "name": "gtkmm",
+          "platform": "linux"
+        },
+        {
+          "name": "libadwaita",
+          "platform": "linux"
+        },
+        {
+          "name": "wayland",
+          "platform": "linux",
+          "features": [
+            "force-build"
+          ]
+        },
+        {
+          "name": "wayland-protocols",
+          "platform": "linux",
+          "features": [
+            "force-build"
+          ]
+        }
+      ]
+    },
+    "qt": {
+      "description": "Build Qt UI",
+      "dependencies": [
+        {
+          "name": "qtbase",
+          "platform": "freebsd",
+          "default-features": false,
+          "features": [
+            "doubleconversion",
+            "fontconfig",
+            "freetype",
+            "gui",
+            "icu",
+            "jpeg",
+            "network",
+            "opengl",
+            "pcre2",
+            "png",
+            "thread",
+            "vulkan",
+            "widgets",
+            "xcb",
+            "xcb-xlib",
+            "xlib",
+            "xrender",
+            "zstd"
+          ]
+        },
+        {
+          "name": "qtmultimedia",
+          "platform": "freebsd"
+        }
+      ]
+    }
+  },
   "overrides": [
     {
       "name": "angle",

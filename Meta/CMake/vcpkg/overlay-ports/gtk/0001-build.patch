@@ -1,0 +1,13 @@
+diff --git a/meson.build b/meson.build
+index 5efd8a9..d51af19 100644
+--- a/meson.build
++++ b/meson.build
+@@ -857,7 +857,7 @@ subdir('po')
+ 
+ subdir('docs/reference')
+ 
+-if not meson.is_cross_build()
++if false
+   gnome.post_install(
+     glib_compile_schemas: true,
+     gio_querymodules: gio_module_dirs,

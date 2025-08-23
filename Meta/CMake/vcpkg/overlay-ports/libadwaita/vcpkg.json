@@ -1,0 +1,25 @@
+{
+  "name": "libadwaita",
+  "version": "1.7.6",
+  "port-version": 0,
+  "description": "Building blocks for modern GNOME applications",
+  "homepage": "https://gnome.pages.gitlab.gnome.org/libadwaita",
+  "license": "LGPL-2.1-or-later",
+  "supports": "!xbox",
+  "dependencies": [
+    "appstream",
+    {
+      "name": "glib",
+      "host": true
+    },
+    "gtk",
+    {
+      "name": "sassc",
+      "host": true
+    },
+    {
+      "name": "vcpkg-tool-meson",
+      "host": true
+    }
+  ]
+}

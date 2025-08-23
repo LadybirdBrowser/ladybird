@@ -1,0 +1,13 @@
+diff --git a/rsvg-css.c b/rsvg-css.c
+index 5b359a206..4f59281b6 100644
+--- a/rsvg-css.c
++++ b/rsvg-css.c
+@@ -839,7 +839,7 @@ rsvg_css_parse_overflow (const char *str, gboolean * inherit)
+ }
+ 
+ static void
+-rsvg_xml_noerror (void *data, xmlErrorPtr error)
++rsvg_xml_noerror (void *data, const xmlError *error)
+ {
+ }
+ 
