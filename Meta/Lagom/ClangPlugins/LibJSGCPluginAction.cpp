@@ -90,6 +90,7 @@ enum class OuterType {
     Root,
     Ptr,
     Ref,
+    Value,
 };
 
 struct QualTypeGCInfo {
@@ -133,6 +134,9 @@ static std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType con
             return {};
 
         return QualTypeGCInfo { outer_type, record_inherits_from_cell(*record_decl) };
+    } else if (auto const* record = type->getAsCXXRecordDecl()) {
+        if (record->getQualifiedNameAsString() == "JS::Value")
+            return QualTypeGCInfo { OuterType::Value, true };
     }
 
     return {};
@@ -202,11 +206,11 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
                             << "GC::Ptr";
                 }
             }
-        } else if (outer_type == OuterType::GCPtr || outer_type == OuterType::RawPtr) {
+        } else if (outer_type == OuterType::GCPtr || outer_type == OuterType::RawPtr || outer_type == OuterType::Value) {
             if (!base_type_inherits_from_cell) {
                 auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Specialization type must inherit from GC::Cell");
                 diag_engine.Report(field->getLocation(), diag_id);
-            } else if (outer_type == OuterType::GCPtr) {
+            } else if (outer_type != OuterType::RawPtr) {
                 fields_that_need_visiting.push_back(field);
             }
         } else if (outer_type == OuterType::Root) {
