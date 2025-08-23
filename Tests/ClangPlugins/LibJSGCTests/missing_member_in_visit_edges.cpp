@@ -18,4 +18,7 @@ class TestClass : public JS::Object {
 
     // expected-error@+1 {{GC-allocated member is not visited in TestClass::visit_edges}}
     GC::Ptr<JS::Object> m_object;
+
+    // expected-error@+1 {{GC-allocated member is not visited in TestClass::visit_edges}}
+    JS::Value m_value;
 };
