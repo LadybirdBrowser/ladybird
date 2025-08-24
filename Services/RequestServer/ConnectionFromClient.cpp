@@ -154,7 +154,16 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
         Vector<u8> bytes_to_send;
         bytes_to_send.resize(send_buffer.used_buffer_size());
         send_buffer.peek_some(bytes_to_send);
+#if !defined(AK_OS_WINDOWS)
         auto result = Core::System::write(this->writer_fd, bytes_to_send);
+#else
+        auto result = [this, bytes_to_send]() -> ErrorOr<ssize_t> {
+            auto sent = ::send(this->writer_fd, reinterpret_cast<char const*>(bytes_to_send.data()), bytes_to_send.size(), 0);
+            if (sent == SOCKET_ERROR)
+                return Error::from_windows_error();
+            return static_cast<DWORD>(sent);
+        }();
+#endif
         if (result.is_error()) {
             if (result.error().code() != EAGAIN) {
                 return result.release_error();
@@ -455,12 +464,6 @@ void ConnectionFromClient::set_use_system_dns()
     default_resolver()->dns.reset_connection();
 }
 
-#ifdef AK_OS_WINDOWS
-void ConnectionFromClient::start_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData)
-{
-    VERIFY(0 && "RequestServer::ConnectionFromClient::start_request is not implemented");
-}
-#else
 void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
@@ -488,7 +491,20 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
                 return;
             }
 
+        // FIXME: Should we create an abstraction here (e.g. RequestStream?) for the RequestServer read/write fds creation and response data writes?
+        //  The Unix impl would create fds via pipe2 and just uses a File stream and the Windows impl would create fds via socketpair and use a LocalSocket stream
+#if !defined(AK_OS_WINDOWS)
             auto fds_or_error = Core::System::pipe2(O_NONBLOCK);
+#else
+            auto fds_or_error = []() -> ErrorOr<Array<int, 2>> {
+                int socket_fds[2] {};
+                TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
+                int option = 1;
+                TRY(Core::System::ioctl(socket_fds[0], FIONBIO, option));
+                TRY(Core::System::ioctl(socket_fds[1], FIONBIO, option));
+                return Array { socket_fds[0], socket_fds[1] };
+            }();
+#endif
             if (fds_or_error.is_error()) {
                 dbgln("StartRequest: Failed to create pipe: {}", fds_or_error.error());
                 return;
@@ -585,7 +601,6 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             m_active_requests.set(request_id, move(request));
         });
 }
-#endif
 
 static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& code)
 {
