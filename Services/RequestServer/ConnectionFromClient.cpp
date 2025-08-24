@@ -22,6 +22,7 @@
 #include <LibWebSocket/Message.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/RequestClientEndpoint.h>
+#include <RequestServer/RequestPipe.h>
 #ifdef AK_OS_WINDOWS
 // needed because curl.h includes winsock2.h
 #    include <AK/Windows.h>
@@ -111,7 +112,7 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     Vector<curl_slist*> curl_string_lists;
     i32 request_id { 0 };
     WeakPtr<ConnectionFromClient> client;
-    int writer_fd { 0 };
+    RefPtr<RequestPipe> pipe;
     HTTP::HeaderMap headers;
     bool got_all_headers { false };
     bool is_connect_only { false };
@@ -123,13 +124,13 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     NonnullRefPtr<Core::Notifier> write_notifier;
     bool done_fetching { false };
 
-    ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, int writer_fd)
+    ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, RefPtr<RequestPipe> pipe)
         : multi(multi)
         , easy(easy)
         , request_id(request_id)
         , client(client)
-        , writer_fd(writer_fd)
-        , write_notifier(Core::Notifier::construct(writer_fd, Core::NotificationType::Write))
+        , pipe(pipe)
+        , write_notifier(Core::Notifier::construct(pipe ? pipe->writer_fd() : -1, Core::NotificationType::Write))
     {
         write_notifier->set_enabled(false);
         write_notifier->on_activation = [this] {
@@ -154,7 +155,7 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
         Vector<u8> bytes_to_send;
         bytes_to_send.resize(send_buffer.used_buffer_size());
         send_buffer.peek_some(bytes_to_send);
-        auto result = Core::System::write(this->writer_fd, bytes_to_send);
+        auto result = pipe->write(bytes_to_send);
         if (result.is_error()) {
             if (result.error().code() != EAGAIN) {
                 return result.release_error();
@@ -183,9 +184,6 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
         if (!send_buffer.is_eof()) {
             dbgln("Warning: Request destroyed with buffered data (it's likely that the client disappeared or the request was cancelled)");
         }
-
-        if (writer_fd > 0)
-            MUST(Core::System::close(writer_fd));
 
         auto result = curl_multi_remove_handle(multi, easy);
         VERIFY(result == CURLM_OK);
@@ -455,12 +453,6 @@ void ConnectionFromClient::set_use_system_dns()
     default_resolver()->dns.reset_connection();
 }
 
-#ifdef AK_OS_WINDOWS
-void ConnectionFromClient::start_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData)
-{
-    VERIFY(0 && "RequestServer::ConnectionFromClient::start_request is not implemented");
-}
-#else
 void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
@@ -488,18 +480,16 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
                 return;
             }
 
-            auto fds_or_error = Core::System::pipe2(O_NONBLOCK);
-            if (fds_or_error.is_error()) {
-                dbgln("StartRequest: Failed to create pipe: {}", fds_or_error.error());
+            auto pipe_or_error = RequestPipe::try_create();
+            if (pipe_or_error.is_error()) {
+                dbgln("StartRequest: Failed to create pipe: {}", pipe_or_error.error());
                 return;
             }
 
-            auto fds = fds_or_error.release_value();
-            auto writer_fd = fds[1];
-            auto reader_fd = fds[0];
-            async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
+            auto pipe = pipe_or_error.release_value();
+            async_request_started(request_id, IPC::File::adopt_fd(pipe->reader_fd()));
 
-            auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, writer_fd);
+            auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, move(pipe));
             request->url = url.to_string();
 
             auto set_option = [easy](auto option, auto value) {
@@ -585,7 +575,6 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             m_active_requests.set(request_id, move(request));
         });
 }
-#endif
 
 static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& code)
 {
@@ -780,7 +769,7 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
 
         auto connect_only_request_id = get_random<i32>();
 
-        auto request = make<ActiveRequest>(*this, m_curl_multi, easy, connect_only_request_id, 0);
+        auto request = make<ActiveRequest>(*this, m_curl_multi, easy, connect_only_request_id, nullptr);
         request->url = url_string_value;
         request->is_connect_only = true;
 
