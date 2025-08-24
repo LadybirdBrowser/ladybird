@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['paint-order'] = "normal stroke" should not set the property value
+Pass	e.style['paint-order'] = "fill fill" should not set the property value
+Pass	e.style['paint-order'] = "markers normal" should not set the property value

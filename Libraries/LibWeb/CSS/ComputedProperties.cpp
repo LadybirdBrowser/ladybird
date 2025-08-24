@@ -1938,6 +1938,42 @@ ShapeRendering ComputedProperties::shape_rendering() const
     return keyword_to_shape_rendering(value.to_keyword()).release_value();
 }
 
+PaintOrderList ComputedProperties::paint_order() const
+{
+    auto const& value = property(PropertyID::PaintOrder);
+    if (value.is_keyword()) {
+        auto keyword = value.as_keyword().keyword();
+        if (keyword == Keyword::Normal)
+            return InitialValues::paint_order();
+        auto paint_order_keyword = keyword_to_paint_order(keyword);
+        VERIFY(paint_order_keyword.has_value());
+        switch (*paint_order_keyword) {
+        case PaintOrder::Fill:
+            return InitialValues::paint_order();
+        case PaintOrder::Stroke:
+            return PaintOrderList { PaintOrder::Stroke, PaintOrder::Fill, PaintOrder::Markers };
+        case PaintOrder::Markers:
+            return PaintOrderList { PaintOrder::Markers, PaintOrder::Fill, PaintOrder::Stroke };
+        }
+    }
+
+    VERIFY(value.is_value_list());
+    auto const& value_list = value.as_value_list();
+    VERIFY(value_list.size() == 2);
+    PaintOrderList paint_order_list {};
+    auto sum = 0;
+    for (auto i = 0; i < 2; i++) {
+        auto keyword = value_list.value_at(i, false)->as_keyword().keyword();
+        auto paint_order_keyword = keyword_to_paint_order(keyword);
+        VERIFY(paint_order_keyword.has_value());
+        sum += to_underlying(*paint_order_keyword);
+        paint_order_list[i] = *paint_order_keyword;
+    }
+    VERIFY(sum <= 3);
+    paint_order_list[2] = static_cast<PaintOrder>(3 - sum);
+    return paint_order_list;
+}
+
 WillChange ComputedProperties::will_change() const
 {
     auto const& value = property(PropertyID::WillChange);
