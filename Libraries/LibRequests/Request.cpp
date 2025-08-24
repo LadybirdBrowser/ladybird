@@ -9,6 +9,20 @@
 
 namespace Requests {
 
+ErrorOr<NonnullOwnPtr<ReadStream>> ReadStream::create(int reader_fd)
+{
+#if defined(AK_OS_WINDOWS)
+    auto local_socket = TRY(Core::LocalSocket::adopt_fd(reader_fd));
+    auto notifier = local_socket->notifier();
+    VERIFY(notifier);
+    return adopt_own(*new ReadStream(move(local_socket), notifier.release_nonnull()));
+#else
+    auto file = TRY(Core::File::adopt_fd(reader_fd, Core::File::OpenMode::Read));
+    auto notifier = Core::Notifier::construct(reader_fd, Core::Notifier::Type::Read);
+    return adopt_own(*new ReadStream(move(file), move(notifier)));
+#endif
+}
+
 Request::Request(RequestClient& client, i32 request_id)
     : m_client(client)
     , m_request_id(request_id)
@@ -37,11 +51,11 @@ void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
     VERIFY(m_fd == -1);
     m_fd = fd;
 
-    auto notifier = Core::Notifier::construct(fd, Core::Notifier::Type::Read);
-    auto stream = MUST(Core::File::adopt_fd(fd, Core::File::OpenMode::Read));
+    auto read_stream = MUST(ReadStream::create(fd));
+    auto notifier = read_stream->notifier();
     notifier->on_activation = move(m_internal_stream_data->read_notifier->on_activation);
-    m_internal_stream_data->read_notifier = move(notifier);
-    m_internal_stream_data->read_stream = move(stream);
+    m_internal_stream_data->read_notifier = notifier;
+    m_internal_stream_data->read_stream = move(read_stream);
 }
 
 void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_buffered_request_finished)
@@ -117,7 +131,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
     m_internal_stream_data = make<InternalStreamData>();
     m_internal_stream_data->read_notifier = Core::Notifier::construct(fd(), Core::Notifier::Type::Read);
     if (fd() != -1)
-        m_internal_stream_data->read_stream = MUST(Core::File::adopt_fd(fd(), Core::File::OpenMode::Read));
+        m_internal_stream_data->read_stream = MUST(ReadStream::create(fd()));
 
     auto user_on_finish = move(on_finish);
     on_finish = [this](auto total_size, auto const& timing_info, auto network_error) {
