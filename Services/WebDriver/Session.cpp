@@ -18,7 +18,6 @@
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
 #include <WebDriver/Session.h>
-#include <unistd.h>
 
 namespace WebDriver {
 
@@ -195,7 +194,11 @@ void Session::close()
 
 ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<ServerPromise> promise)
 {
+#if defined(AK_OS_WINDOWS)
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocketWindows>, "Need to handle other IPC transports here");
+#else
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+#endif
 
     dbgln("Listening for WebDriver connection on {}", *m_web_content_socket_path);
 
@@ -254,7 +257,7 @@ ErrorOr<void> Session::start(LaunchBrowserCallback const& launch_browser_callbac
 {
     auto promise = ServerPromise::construct();
 
-    m_web_content_socket_path = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), getpid(), m_session_id);
+    m_web_content_socket_path = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), Core::System::getpid(), m_session_id);
     m_web_content_server = TRY(create_server(promise));
 
     m_browser_process = TRY(launch_browser_callback(*m_web_content_socket_path, m_options.headless));
