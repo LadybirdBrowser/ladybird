@@ -300,6 +300,7 @@ constexpr PropertyID first_inherited_longhand_property_id = PropertyID::@first_i
 constexpr PropertyID last_inherited_longhand_property_id = PropertyID::@last_inherited_longhand_property_id@;
 constexpr PropertyID first_longhand_property_id = PropertyID::@first_longhand_property_id@;
 constexpr PropertyID last_longhand_property_id = PropertyID::@last_longhand_property_id@;
+constexpr size_t number_of_longhand_properties = to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1;
 
 enum class Quirk {
     // https://quirks.spec.whatwg.org/#the-hashless-hex-color-quirk
