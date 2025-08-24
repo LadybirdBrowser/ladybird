@@ -288,9 +288,9 @@ If you want to run the debugger, first place the content below in `.vscode/launc
             "name": "Attach to WebContent",
             "type": "lldb",
             "request": "attach",
-            "program": "${workspaceFolder}/Build/debug/bin/Ladybird.app/Contents/MacOS/WebContent",
+            "program": "${workspaceFolder}/Build/debug/bin/Ladybird.app/Contents/MacOS/WebContent"
         }
-    ],
+    ]
 }
 ```
 
@@ -303,20 +303,36 @@ CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ BUILD_P
 Running Ladybird in this way will pause execution until a debugger is attached. You can then run the debugger by going to the **Run and Debug** menu and selecting the **Attach to WebContent** configuration.
 
 #### Linux
-For Linux, the `launch.json` will instead be the file below.
+For Linux, the `.vscode/launch.json` will instead be the file below.
 
 ```json
 {
-  "version": "2.0.0",
-  "configurations": [
-    {
-      "name": "Attach and debug",
-      "type": "cppdbg",
-      "request": "attach",
-      "program": "${workspaceRoot}/Build/debug/libexec/WebContent",
-      "MIMode": "gdb",
-    },
-  ]
+    "version": "2.0.0",
+    "configurations": [
+        {
+            "name": "Attach to WebContent",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "${workspaceRoot}/Build/debug/libexec/WebContent",
+            "MIMode": "gdb"
+        }
+    ]
+}
+```
+
+Or for LLDB debugging:
+
+```json
+{
+    "version": "2.0.0",
+    "configurations": [
+        {
+            "name": "Attach to WebContent",
+            "type": "lldb",
+            "request": "attach",
+            "program": "${workspaceRoot}/Build/debug/libexec/WebContent"
+        }
+    ]
 }
 ```
 
@@ -326,7 +342,7 @@ Running Ladybird as follows:
 BUILD_PRESET=Debug Meta/ladybird.py run ladybird --debug-process WebContent
 ```
 
-Then follow the same steps found in the Mac section. Notice also that you need to have `gdb` (the GNU Debugger) installed.
+Then follow the same steps found in the Mac section. Notice also that you need to have `gdb` (the GNU Debugger) or `lldb` (the LLVM debugger) installed.
 
 ### License snippet
 

@@ -20,6 +20,7 @@ you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
 * [Qt Creator](EditorConfiguration/QtCreatorConfiguration.md)
 * [Vim](EditorConfiguration/VimConfiguration.md)
 * [VS Code](EditorConfiguration/VSCodeConfiguration.md)
+* [VS Code Dev Container](EditorConfiguration/VSCodeDevContainer.md)
 
 ## Development
 * [How to Contribute](../CONTRIBUTING.md)
