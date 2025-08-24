@@ -222,6 +222,7 @@ void CanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
         return;
     m_size = size;
     m_surface = nullptr;
+    m_painter = nullptr;
 }
 
 void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
@@ -238,6 +239,7 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 
     auto skia_backend_context = canvas_element().navigable()->traversable_navigable()->skia_backend_context();
     m_surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, canvas_element().bitmap_size_for_canvas(), color_type, Gfx::AlphaType::Premultiplied);
+    m_painter = nullptr;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
     // Thus, the bitmap of such a context starts off as opaque black instead of transparent black;
