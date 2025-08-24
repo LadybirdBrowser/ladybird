@@ -10,6 +10,7 @@ set(SOURCES
     ConnectionFromClient.cpp
     CURL.cpp
     Request.cpp
+    RequestPipe.cpp
     Resolver.cpp
     WebSocketImplCurl.cpp
 )
