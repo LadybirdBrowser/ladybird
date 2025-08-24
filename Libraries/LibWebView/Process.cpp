@@ -9,6 +9,10 @@
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
 #include <LibWebView/Process.h>
+#if defined(AK_OS_WINDOWS)
+#    include <AK/ScopeGuard.h>
+#    include <AK/Windows.h>
+#endif
 
 namespace WebView {
 
@@ -50,18 +54,6 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     return ProcessAndIPCTransport { move(process), make<IPC::Transport>(move(ipc_socket)) };
 }
 
-#ifdef AK_OS_WINDOWS
-// FIXME: Implement WebView::Process::get_process_pid on Windows
-ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView, StringView)
-{
-    VERIFY(0 && "WebView::Process::get_process_pid is not implemented");
-}
-// FIXME: Implement WebView::Process::create_ipc_socket on Windows
-ErrorOr<int> Process::create_ipc_socket(ByteString const&)
-{
-    VERIFY(0 && "WebView::Process::create_ipc_socket is not implemented");
-}
-#else
 ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, StringView pid_path)
 {
     if (Core::System::stat(pid_path).is_error())
@@ -89,7 +81,16 @@ ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, Strin
         TRY(Core::System::unlink(pid_path));
         return OptionalNone {};
     }
-    if (kill(*pid, 0) < 0) {
+    bool const process_not_found = [&pid]() {
+#if defined(AK_OS_WINDOWS)
+        HANDLE process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, *pid);
+        ScopeGuard handle_guard = [&process_handle] { CloseHandle(process_handle); };
+        return process_handle == nullptr;
+#else
+        return kill(*pid, 0) < 0;
+#endif
+    }();
+    if (process_not_found) {
         warnln("{} PID file '{}' exists with PID {}, but process cannot be found", process_name, pid_path, *pid);
         TRY(Core::System::unlink(pid_path));
         return OptionalNone {};
@@ -104,6 +105,13 @@ ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
     if (!Core::System::stat(socket_path).is_error())
         TRY(Core::System::unlink(socket_path));
 
+#if defined(AK_OS_WINDOWS)
+    auto socket_fd = TRY(Core::System::socket(AF_LOCAL, SOCK_STREAM, 0));
+    int option = 1;
+    TRY(Core::System::ioctl(socket_fd, FIONBIO, option));
+    if (SetHandleInformation(to_handle(socket_fd), HANDLE_FLAG_INHERIT, 0) == 0)
+        return Error::from_windows_error();
+#else
 #    ifdef SOCK_NONBLOCK
     auto socket_fd = TRY(Core::System::socket(AF_LOCAL, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0));
 #    else
@@ -117,6 +125,7 @@ ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
 #    if !defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_GNU_HURD)
     TRY(Core::System::fchmod(socket_fd, 0600));
 #    endif
+#endif
 
     auto socket_address = Core::SocketAddress::local(socket_path);
     auto socket_address_un = socket_address.to_sockaddr_un().release_value();
@@ -126,7 +135,6 @@ ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
 
     return socket_fd;
 }
-#endif
 
 ErrorOr<Process::ProcessPaths> Process::paths_for_process(StringView process_name)
 {
