@@ -610,6 +610,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'padding-right': '0px'
 'paddingTop': '0px'
 'padding-top': '0px'
+'paintOrder': 'normal'
+'paint-order': 'normal'
 'placeContent': 'normal'
 'place-content': 'normal'
 'placeItems': 'normal legacy'

@@ -41,6 +41,7 @@ All properties associated with getComputedStyle(document.body):
     "math-depth",
     "math-shift",
     "math-style",
+    "paint-order",
     "pointer-events",
     "quotes",
     "shape-rendering",

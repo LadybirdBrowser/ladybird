@@ -77,6 +77,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::MaskType),
         NamedPropertyID(CSS::PropertyID::Opacity),
         NamedPropertyID(CSS::PropertyID::Overflow),
+        NamedPropertyID(CSS::PropertyID::PaintOrder),
         NamedPropertyID(CSS::PropertyID::PointerEvents),
         NamedPropertyID(CSS::PropertyID::R, { SVG::TagNames::circle }),
         NamedPropertyID(CSS::PropertyID::Rx, { SVG::TagNames::ellipse, SVG::TagNames::rect }),

@@ -2889,6 +2889,17 @@
       "unitless-length"
     ]
   },
+  "paint-order": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-identifiers": [
+      "normal"
+    ],
+    "valid-types": [
+      "paint-order"
+    ]
+  },
   "place-content": {
     "inherited": false,
     "initial": "normal",

@@ -199,6 +199,7 @@ public:
     ClipRule clip_rule() const;
     float flood_opacity() const;
     CSS::ShapeRendering shape_rendering() const;
+    PaintOrderList paint_order() const;
 
     WillChange will_change() const;
 
