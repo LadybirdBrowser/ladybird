@@ -120,9 +120,15 @@ bool PageClient::is_connection_open() const
     return client().is_open();
 }
 
-bool PageClient::is_url_suitable_for_same_process_navigation(URL::URL const& current_url, URL::URL const& target_url) const
+bool PageClient::is_url_suitable_for_same_process_navigation([[maybe_unused]] URL::URL const& current_url, [[maybe_unused]] URL::URL const& target_url) const
 {
+#if defined(AK_OS_WINDOWS)
+    // FIXME: Attempting to request a new process for navigation causes the existing WebContent process to crash, which results in the actual request to not be initiated in the first place.
+    //  Note that this crash occurs for any type of request to shutdown (e.g. manually closing a tab). The Winsock2 error code seems to be WSANOTINITIALISED, so seems to be related to our init/cleanup of WinSock implementation
+    return true;
+#else
     return WebView::is_url_suitable_for_same_process_navigation(current_url, target_url);
+#endif
 }
 
 void PageClient::request_new_process_for_navigation(URL::URL const& url)
