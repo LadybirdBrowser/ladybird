@@ -10,6 +10,11 @@ set(SOURCES
     ConnectionFromClient.cpp
     WebSocketImplCurl.cpp
 )
+if (WIN32)
+    list(APPEND SOURCES RequestPipeWindows.cpp)
+else()
+    list(APPEND SOURCES RequestPipe.cpp)
+endif()
 
 set(GENERATED_SOURCES
     RequestClientEndpoint.h
