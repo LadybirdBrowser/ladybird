@@ -106,9 +106,6 @@ Request::~Request()
     if (!m_response_buffer.is_eof())
         dbgln("Warning: Request destroyed with buffered data (it's likely that the client disappeared or the request was cancelled)");
 
-    if (m_client_writer_fd != -1)
-        MUST(Core::System::close(m_client_writer_fd));
-
     if (m_curl_easy_handle) {
         auto result = curl_multi_remove_handle(m_curl_multi_handle, m_curl_easy_handle);
         VERIFY(result == CURLM_OK);
@@ -219,21 +216,23 @@ void Request::handle_read_cache_state()
     m_reason_phrase = m_cache_entry_reader->reason_phrase();
     m_response_headers = m_cache_entry_reader->headers();
 
-    auto fds = Core::System::pipe2(O_NONBLOCK);
-    if (fds.is_error()) {
-        dbgln("Request::handle_read_from_cache_state: Failed to create pipe: {}", fds.error());
+    auto pipe_or_error = RequestPipe::create();
+    if (pipe_or_error.is_error()) {
+        dbgln("Request::handle_read_from_cache_state: Failed to create pipe: {}", pipe_or_error.error());
         transition_to_state(State::Error);
         return;
     }
 
-    m_client.async_request_started(m_request_id, IPC::File::adopt_fd(fds.value().at(0)));
-    m_client_writer_fd = fds.value().at(1);
+    auto pipe = pipe_or_error.release_value();
+
+    m_client.async_request_started(m_request_id, IPC::File::adopt_fd(pipe.reader_fd()));
+    m_client_request_pipe = move(pipe);
 
     m_client.async_headers_became_available(m_request_id, m_response_headers, m_status_code, m_reason_phrase);
     m_sent_response_headers_to_client = true;
 
     m_cache_entry_reader->pipe_to(
-        m_client_writer_fd,
+        m_client_request_pipe.value().writer_fd(),
         [this](auto bytes_sent) {
             m_bytes_transferred_to_client = bytes_sent;
             m_curl_result_code = CURLE_OK;
@@ -300,10 +299,6 @@ void Request::handle_connect_state()
 
 void Request::handle_fetch_state()
 {
-#if defined(AK_OS_WINDOWS)
-    dbgln("FIXME: Request::handle_fetch_state: Not implemented on Windows");
-    transition_to_state(State::Error);
-#else
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: DNS lookup successful");
 
     m_curl_easy_handle = curl_easy_init();
@@ -314,18 +309,20 @@ void Request::handle_fetch_state()
     }
 
     if (!m_start_offset_of_response_resumed_from_cache.has_value()) {
-        auto fds = Core::System::pipe2(O_NONBLOCK);
-        if (fds.is_error()) {
-            dbgln("Request::handle_start_fetch_state: Failed to create pipe: {}", fds.error());
+        auto pipe_or_error = RequestPipe::create();
+        if (pipe_or_error.is_error()) {
+            dbgln("Request::handle_start_fetch_state: Failed to create pipe: {}", pipe_or_error.error());
             transition_to_state(State::Error);
             return;
         }
 
-        m_client.async_request_started(m_request_id, IPC::File::adopt_fd(fds.value().at(0)));
-        m_client_writer_fd = fds.value().at(1);
+        auto pipe = pipe_or_error.release_value();
+
+        m_client.async_request_started(m_request_id, IPC::File::adopt_fd(pipe.reader_fd()));
+        m_client_request_pipe = move(pipe);
     }
 
-    m_client_writer_notifier = Core::Notifier::construct(m_client_writer_fd, Core::NotificationType::Write);
+    m_client_writer_notifier = Core::Notifier::construct(m_client_request_pipe.value().writer_fd(), Core::NotificationType::Write);
     m_client_writer_notifier->set_enabled(false);
 
     m_client_writer_notifier->on_activation = [this] {
@@ -412,7 +409,6 @@ void Request::handle_fetch_state()
 
     auto result = curl_multi_add_handle(m_curl_multi_handle, m_curl_easy_handle);
     VERIFY(result == CURLM_OK);
-#endif
 }
 
 void Request::handle_complete_state()
@@ -562,7 +558,7 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
     bytes_to_send.resize(available_bytes);
     m_response_buffer.peek_some(bytes_to_send);
 
-    auto result = Core::System::write(m_client_writer_fd, bytes_to_send);
+    auto result = m_client_request_pipe.value().write(bytes_to_send);
     if (result.is_error()) {
         if (result.error().code() != EAGAIN)
             return result.release_error();
