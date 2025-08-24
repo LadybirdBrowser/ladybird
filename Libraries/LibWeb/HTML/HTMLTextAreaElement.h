@@ -32,6 +32,7 @@ public:
     virtual ~HTMLTextAreaElement() override;
 
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
 
     String const& type() const
     {

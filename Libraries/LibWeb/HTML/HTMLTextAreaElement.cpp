@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
@@ -41,6 +42,24 @@ HTMLTextAreaElement::HTMLTextAreaElement(DOM::Document& document, DOM::Qualified
 
 HTMLTextAreaElement::~HTMLTextAreaElement() = default;
 
+GC::Ptr<Layout::Node> HTMLTextAreaElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+{
+    auto layout_node = Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    if (layout_node && layout_node->is_box()) {
+        // Set natural dimensions based on cols and rows attributes
+        auto& font = layout_node->first_available_font();
+        // Use the same measurement as CSS ch units for consistency
+        // See: https://github.com/whatwg/html/issues/10458
+        auto ch_width = font.pixel_metrics().advance_of_ascii_zero;
+        auto natural_width = CSSPixels::nearest_value_for(cols() * ch_width);
+        auto line_height = font.pixel_size();
+        auto natural_height = CSSPixels::nearest_value_for(rows() * line_height);
+        static_cast<Layout::Box&>(*layout_node).set_natural_width(natural_width);
+        static_cast<Layout::Box&>(*layout_node).set_natural_height(natural_height);
+    }
+    return layout_node;
+}
+
 void HTMLTextAreaElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
@@ -52,6 +71,8 @@ void HTMLTextAreaElement::adjust_computed_style(CSS::ComputedProperties& style)
     if (style.display().is_inline_outside() && style.display().is_flow_inside())
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
 
+    // NOTE: The natural width is set in create_layout_node() for proper intrinsic sizing.
+    //       We still need to set default width here when no CSS width is specified.
     if (style.property(CSS::PropertyID::Width).has_auto())
         style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(cols(), CSS::Length::Type::Ch)));
     if (style.property(CSS::PropertyID::Height).has_auto())

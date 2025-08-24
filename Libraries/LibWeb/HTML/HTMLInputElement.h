@@ -279,6 +279,9 @@ private:
     // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):dimension-attributes
     virtual bool supports_dimension_attributes() const override { return type_state() == TypeAttributeState::ImageButton; }
 
+    bool is_text_input_type() const;
+    void set_natural_width_from_size(Layout::Box& layout_node) const;
+
     // ^Layout::ImageProvider
     virtual bool is_image_available() const override;
     virtual Optional<CSSPixels> intrinsic_width() const override;
