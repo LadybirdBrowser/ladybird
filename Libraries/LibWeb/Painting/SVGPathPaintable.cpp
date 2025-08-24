@@ -109,91 +109,109 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
         .paint_transform = paint_transform,
     };
 
-    auto fill_opacity = graphics_element.fill_opacity().value_or(1);
-    auto winding_rule = to_gfx_winding_rule(graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero));
-    if (auto paint_style = graphics_element.fill_paint_style(paint_context); paint_style.has_value()) {
-        context.display_list_recorder().fill_path({
-            .path = closed_path(),
-            .opacity = fill_opacity,
-            .paint_style_or_color = *paint_style,
-            .winding_rule = winding_rule,
-            .should_anti_alias = should_anti_alias(),
-        });
-    } else if (auto fill_color = graphics_element.fill_color(); fill_color.has_value()) {
-        context.display_list_recorder().fill_path({
-            .path = closed_path(),
-            .paint_style_or_color = fill_color->with_opacity(fill_opacity),
-            .winding_rule = winding_rule,
-            .should_anti_alias = should_anti_alias(),
-        });
-    }
-
-    Gfx::Path::CapStyle cap_style;
-    switch (graphics_element.stroke_linecap().value_or(CSS::InitialValues::stroke_linecap())) {
-    case CSS::StrokeLinecap::Butt:
-        cap_style = Gfx::Path::CapStyle::Butt;
-        break;
-    case CSS::StrokeLinecap::Round:
-        cap_style = Gfx::Path::CapStyle::Round;
-        break;
-    case CSS::StrokeLinecap::Square:
-        cap_style = Gfx::Path::CapStyle::Square;
-        break;
-    }
-
-    Gfx::Path::JoinStyle join_style;
-    switch (graphics_element.stroke_linejoin().value_or(CSS::InitialValues::stroke_linejoin())) {
-    case CSS::StrokeLinejoin::Miter:
-        join_style = Gfx::Path::JoinStyle::Miter;
-        break;
-    case CSS::StrokeLinejoin::Round:
-        join_style = Gfx::Path::JoinStyle::Round;
-        break;
-    case CSS::StrokeLinejoin::Bevel:
-        join_style = Gfx::Path::JoinStyle::Bevel;
-        break;
-    }
-
-    CSS::CalculationResolutionContext calculation_context {
-        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(layout_node()),
+    auto paint_fill = [&] {
+        auto fill_opacity = graphics_element.fill_opacity().value_or(1);
+        auto winding_rule = to_gfx_winding_rule(graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero));
+        if (auto paint_style = graphics_element.fill_paint_style(paint_context); paint_style.has_value()) {
+            context.display_list_recorder().fill_path({
+                .path = closed_path(),
+                .opacity = fill_opacity,
+                .paint_style_or_color = *paint_style,
+                .winding_rule = winding_rule,
+                .should_anti_alias = should_anti_alias(),
+            });
+        } else if (auto fill_color = graphics_element.fill_color(); fill_color.has_value()) {
+            context.display_list_recorder().fill_path({
+                .path = closed_path(),
+                .paint_style_or_color = fill_color->with_opacity(fill_opacity),
+                .winding_rule = winding_rule,
+                .should_anti_alias = should_anti_alias(),
+            });
+        }
     };
-    auto miter_limit = graphics_element.stroke_miterlimit().value_or(CSS::InitialValues::stroke_miterlimit()).resolved(calculation_context).value_or(0);
 
-    auto stroke_opacity = graphics_element.stroke_opacity().value_or(1);
+    auto paint_stroke = [&] {
+        Gfx::Path::CapStyle cap_style;
+        switch (graphics_element.stroke_linecap().value_or(CSS::InitialValues::stroke_linecap())) {
+        case CSS::StrokeLinecap::Butt:
+            cap_style = Gfx::Path::CapStyle::Butt;
+            break;
+        case CSS::StrokeLinecap::Round:
+            cap_style = Gfx::Path::CapStyle::Round;
+            break;
+        case CSS::StrokeLinecap::Square:
+            cap_style = Gfx::Path::CapStyle::Square;
+            break;
+        }
 
-    // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
-    auto viewbox_scale = paint_transform.x_scale();
-    float stroke_thickness = graphics_element.stroke_width().value_or(1) * viewbox_scale;
-    auto stroke_dasharray = graphics_element.stroke_dasharray();
-    for (auto& value : stroke_dasharray)
-        value *= viewbox_scale;
-    float stroke_dashoffset = graphics_element.stroke_dashoffset().value_or(0) * viewbox_scale;
+        Gfx::Path::JoinStyle join_style;
+        switch (graphics_element.stroke_linejoin().value_or(CSS::InitialValues::stroke_linejoin())) {
+        case CSS::StrokeLinejoin::Miter:
+            join_style = Gfx::Path::JoinStyle::Miter;
+            break;
+        case CSS::StrokeLinejoin::Round:
+            join_style = Gfx::Path::JoinStyle::Round;
+            break;
+        case CSS::StrokeLinejoin::Bevel:
+            join_style = Gfx::Path::JoinStyle::Bevel;
+            break;
+        }
 
-    if (auto paint_style = graphics_element.stroke_paint_style(paint_context); paint_style.has_value()) {
-        context.display_list_recorder().stroke_path({
-            .cap_style = cap_style,
-            .join_style = join_style,
-            .miter_limit = static_cast<float>(miter_limit),
-            .dash_array = stroke_dasharray,
-            .dash_offset = stroke_dashoffset,
-            .path = path,
-            .opacity = stroke_opacity,
-            .paint_style_or_color = *paint_style,
-            .thickness = stroke_thickness,
-            .should_anti_alias = should_anti_alias(),
-        });
-    } else if (auto stroke_color = graphics_element.stroke_color(); stroke_color.has_value()) {
-        context.display_list_recorder().stroke_path({
-            .cap_style = cap_style,
-            .join_style = join_style,
-            .miter_limit = static_cast<float>(miter_limit),
-            .dash_array = stroke_dasharray,
-            .dash_offset = stroke_dashoffset,
-            .path = path,
-            .paint_style_or_color = stroke_color->with_opacity(stroke_opacity),
-            .thickness = stroke_thickness,
-            .should_anti_alias = should_anti_alias(),
-        });
+        CSS::CalculationResolutionContext calculation_context {
+            .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(layout_node()),
+        };
+        auto miter_limit = graphics_element.stroke_miterlimit().value_or(CSS::InitialValues::stroke_miterlimit()).resolved(calculation_context).value_or(0);
+
+        auto stroke_opacity = graphics_element.stroke_opacity().value_or(1);
+
+        // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
+        auto viewbox_scale = paint_transform.x_scale();
+        float stroke_thickness = graphics_element.stroke_width().value_or(1) * viewbox_scale;
+        auto stroke_dasharray = graphics_element.stroke_dasharray();
+        for (auto& value : stroke_dasharray)
+            value *= viewbox_scale;
+        float stroke_dashoffset = graphics_element.stroke_dashoffset().value_or(0) * viewbox_scale;
+
+        if (auto paint_style = graphics_element.stroke_paint_style(paint_context); paint_style.has_value()) {
+            context.display_list_recorder().stroke_path({
+                .cap_style = cap_style,
+                .join_style = join_style,
+                .miter_limit = static_cast<float>(miter_limit),
+                .dash_array = stroke_dasharray,
+                .dash_offset = stroke_dashoffset,
+                .path = path,
+                .opacity = stroke_opacity,
+                .paint_style_or_color = *paint_style,
+                .thickness = stroke_thickness,
+                .should_anti_alias = should_anti_alias(),
+            });
+        } else if (auto stroke_color = graphics_element.stroke_color(); stroke_color.has_value()) {
+            context.display_list_recorder().stroke_path({
+                .cap_style = cap_style,
+                .join_style = join_style,
+                .miter_limit = static_cast<float>(miter_limit),
+                .dash_array = stroke_dasharray,
+                .dash_offset = stroke_dashoffset,
+                .path = path,
+                .paint_style_or_color = stroke_color->with_opacity(stroke_opacity),
+                .thickness = stroke_thickness,
+                .should_anti_alias = should_anti_alias(),
+            });
+        }
+    };
+
+    for (auto paint_order : graphics_element.paint_order()) {
+        switch (paint_order) {
+        case CSS::PaintOrder::Fill:
+            paint_fill();
+            break;
+        case CSS::PaintOrder::Stroke:
+            paint_stroke();
+            break;
+        case CSS::PaintOrder::Markers:
+            // FIXME: Implement marker painting
+            break;
+        }
     }
 }
 

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!-- Based on https://wpt.live/svg/painting/reftests/paint-order-001.svg with markers removed -->
+<link rel="match" href="../../expected/svg/paint-order-ref.html" />
+<svg id="svg-root" width="100%" height="100%" viewBox="0 0 480 360" xmlns="http://www.w3.org/2000/svg">
+     <defs>
+        <rect id="rectangle" width="2" height="2" style="fill:blue" />
+        <path id="path" d="m -25,-25 0,50 50,0 0,-50 z"/>
+    </defs>
+    <g font-size="16" style="fill:lavender;stroke:green;stroke-width:5px;">
+        <use href="#path" transform="translate(30,30)" />
+        <use href="#path" transform="translate(150,30)" style="paint-order:normal" />
+        <use href="#path" transform="translate(30, 150)" style="paint-order:fill" />
+        <use href="#path" transform="translate(150,150)" style="paint-order:fill stroke" />
+        <use href="#path" transform="translate(30,270)" style="paint-order:stroke" />
+        <use href="#path" transform="translate(150,270)" style="paint-order:stroke fill" />
+    </g>
+</svg>
