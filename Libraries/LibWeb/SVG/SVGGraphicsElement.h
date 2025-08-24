@@ -39,6 +39,7 @@ public:
     Optional<float> stroke_dashoffset() const;
     Optional<float> stroke_width() const;
     Optional<float> fill_opacity() const;
+    CSS::PaintOrderList paint_order() const;
     Optional<CSS::StrokeLinecap> stroke_linecap() const;
     Optional<CSS::StrokeLinejoin> stroke_linejoin() const;
     Optional<CSS::NumberOrCalculated> stroke_miterlimit() const;

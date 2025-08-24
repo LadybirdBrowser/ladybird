@@ -202,6 +202,13 @@ Optional<float> SVGGraphicsElement::fill_opacity() const
     return layout_node()->computed_values().fill_opacity();
 }
 
+CSS::PaintOrderList SVGGraphicsElement::paint_order() const
+{
+    if (!layout_node())
+        return CSS::InitialValues::paint_order();
+    return layout_node()->computed_values().paint_order();
+}
+
 Optional<CSS::StrokeLinecap> SVGGraphicsElement::stroke_linecap() const
 {
     if (!layout_node())
