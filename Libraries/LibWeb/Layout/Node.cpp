@@ -1125,6 +1125,14 @@ bool Node::is_inline_table() const
     return display.is_inline_outside() && display.is_table_inside();
 }
 
+bool Node::is_atomic_inline() const
+{
+    if (is_replaced_box())
+        return true;
+    auto display = this->display();
+    return display.is_inline_outside() && !display.is_flow_inside();
+}
+
 GC::Ref<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 {
     auto wrapper = heap().allocate<BlockContainer>(const_cast<DOM::Document&>(document()), nullptr, computed_values().clone_inherited_values());

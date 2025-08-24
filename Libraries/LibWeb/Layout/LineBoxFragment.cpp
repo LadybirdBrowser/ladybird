@@ -68,7 +68,7 @@ Utf16View LineBoxFragment::text() const
 
 bool LineBoxFragment::is_atomic_inline() const
 {
-    return layout_node().is_replaced_box() || (layout_node().display().is_inline_outside() && !layout_node().display().is_flow_inside());
+    return layout_node().is_atomic_inline();
 }
 
 CSS::Direction LineBoxFragment::resolve_glyph_run_direction(Gfx::GlyphRun::TextType text_type) const

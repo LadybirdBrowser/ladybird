@@ -95,6 +95,8 @@ public:
     bool is_inline_block() const;
     bool is_inline_table() const;
 
+    bool is_atomic_inline() const;
+
     bool is_out_of_flow(FormattingContext const&) const;
 
     // These are used to optimize hot is<T> variants for some classes where dynamic_cast is too slow.

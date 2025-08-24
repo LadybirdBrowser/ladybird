@@ -258,6 +258,8 @@ void LayoutState::commit(Box& root)
 
     auto try_to_relocate_fragment_in_inline_node = [&](auto& fragment, size_t line_index) -> bool {
         for (auto const* parent = fragment.layout_node().parent(); parent; parent = parent->parent()) {
+            if (parent->is_atomic_inline())
+                break;
             if (is<InlineNode>(*parent)) {
                 auto& inline_node = const_cast<InlineNode&>(static_cast<InlineNode const&>(*parent));
                 auto line_paintable = inline_node.create_paintable_for_line_with_index(line_index);
