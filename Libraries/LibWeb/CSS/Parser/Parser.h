@@ -454,6 +454,7 @@ private:
     RefPtr<StyleValue const> parse_math_depth_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_opacity_value(PropertyID property_id, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_overflow_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_paint_order_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_place_content_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_place_items_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_place_self_value(TokenStream<ComponentValue>&);

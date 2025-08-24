@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 38 tests
 
-30 Pass
-8 Fail
+32 Pass
+6 Fail
 Pass	Property fill has initial value rgb(0, 0, 0)
 Pass	Property fill inherits
 Pass	Property fill-rule has initial value nonzero
@@ -32,8 +32,8 @@ Fail	Property marker-mid has initial value none
 Fail	Property marker-mid inherits
 Fail	Property marker-end has initial value none
 Fail	Property marker-end inherits
-Fail	Property paint-order has initial value normal
-Fail	Property paint-order inherits
+Pass	Property paint-order has initial value normal
+Pass	Property paint-order inherits
 Pass	Property color-interpolation has initial value srgb
 Pass	Property color-interpolation inherits
 Pass	Property shape-rendering has initial value auto

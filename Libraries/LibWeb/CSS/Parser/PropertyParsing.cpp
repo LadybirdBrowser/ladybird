@@ -701,6 +701,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_overflow_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::PaintOrder:
+        if (auto parsed_value = parse_paint_order_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::PlaceContent:
         if (auto parsed_value = parse_place_content_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -3854,6 +3858,84 @@ RefPtr<StyleValue const> Parser::parse_overflow_value(TokenStream<ComponentValue
     return ShorthandStyleValue::create(PropertyID::Overflow,
         { PropertyID::OverflowX, PropertyID::OverflowY },
         { *maybe_x_value, *maybe_x_value });
+}
+
+RefPtr<StyleValue const> Parser::parse_paint_order_value(TokenStream<ComponentValue>& tokens)
+{
+    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return normal;
+
+    bool has_fill = false;
+    bool has_stroke = false;
+    bool has_markers = false;
+
+    auto parse_paint_order_keyword = [&](auto& inner_tokens) -> RefPtr<StyleValue const> {
+        auto maybe_value = parse_keyword_value(inner_tokens);
+        if (!maybe_value)
+            return nullptr;
+
+        switch (maybe_value->to_keyword()) {
+        case Keyword::Fill:
+            if (has_fill)
+                return nullptr;
+            has_fill = true;
+            break;
+        case Keyword::Markers:
+            if (has_markers)
+                return nullptr;
+            has_markers = true;
+            break;
+        case Keyword::Stroke:
+            if (has_stroke)
+                return nullptr;
+            has_stroke = true;
+            break;
+        default:
+            return nullptr;
+        }
+
+        return maybe_value.release_nonnull();
+    };
+
+    tokens.discard_whitespace();
+    if (tokens.is_empty())
+        return nullptr;
+
+    auto transaction = tokens.begin_transaction();
+    auto first_keyword_value = parse_paint_order_keyword(tokens);
+    if (!first_keyword_value)
+        return nullptr;
+
+    tokens.discard_whitespace();
+    if (!tokens.has_next_token()) {
+        transaction.commit();
+        return first_keyword_value;
+    }
+
+    auto second_keyword_value = parse_paint_order_keyword(tokens);
+    if (!second_keyword_value)
+        return nullptr;
+
+    tokens.discard_whitespace();
+    if (tokens.has_next_token()) {
+        // The third keyword is parsed to ensure it is valid, but it doesn't get added to the list. This follows the
+        // shortest-serialization principle, as the value can always be inferred.
+        if (auto third_keyword_value = parse_paint_order_keyword(tokens); !third_keyword_value)
+            return nullptr;
+        tokens.discard_whitespace();
+        if (tokens.has_next_token())
+            return nullptr;
+    }
+
+    transaction.commit();
+    auto expected_second_keyword = Keyword::Fill;
+    if (first_keyword_value->to_keyword() == Keyword::Fill)
+        expected_second_keyword = Keyword::Stroke;
+
+    if (expected_second_keyword == second_keyword_value->to_keyword())
+        return first_keyword_value;
+
+    return StyleValueList::create({ first_keyword_value.release_nonnull(), second_keyword_value.release_nonnull() }, StyleValueList::Separator::Space);
 }
 
 RefPtr<StyleValue const> Parser::parse_place_content_value(TokenStream<ComponentValue>& tokens)

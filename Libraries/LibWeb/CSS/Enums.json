@@ -575,6 +575,11 @@
     "legal",
     "ledger"
   ],
+  "paint-order": [
+    "fill",
+    "stroke",
+    "markers"
+  ],
   "pointer-events": [
     "auto",
     "all",

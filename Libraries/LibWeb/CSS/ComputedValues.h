@@ -118,6 +118,8 @@ using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, CursorPredefin
 
 using ListStyleType = Variant<CounterStyleNameKeyword, String>;
 
+using PaintOrderList = Array<PaintOrder, 3>;
+
 class InitialValues {
 public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
@@ -259,6 +261,7 @@ public:
     }
     static CSS::ScrollbarWidth scrollbar_width() { return CSS::ScrollbarWidth::Auto; }
     static CSS::ShapeRendering shape_rendering() { return CSS::ShapeRendering::Auto; }
+    static PaintOrderList paint_order() { return { PaintOrder::Fill, PaintOrder::Stroke, PaintOrder::Markers }; }
     static WillChange will_change() { return WillChange::make_auto(); }
 };
 
@@ -590,6 +593,7 @@ public:
     CSS::ClipRule clip_rule() const { return m_inherited.clip_rule; }
     Color flood_color() const { return m_noninherited.flood_color; }
     float flood_opacity() const { return m_noninherited.flood_opacity; }
+    PaintOrderList paint_order() const { return m_inherited.paint_order; }
 
     LengthPercentage const& cx() const { return m_noninherited.cx; }
     LengthPercentage const& cy() const { return m_noninherited.cy; }
@@ -702,6 +706,7 @@ protected:
         CSS::FillRule fill_rule { InitialValues::fill_rule() };
         Optional<SVGPaint> stroke;
         float fill_opacity { InitialValues::fill_opacity() };
+        PaintOrderList paint_order { InitialValues::paint_order() };
         Vector<Variant<LengthPercentage, NumberOrCalculated>> stroke_dasharray;
         LengthPercentage stroke_dashoffset { InitialValues::stroke_dashoffset() };
         CSS::StrokeLinecap stroke_linecap { InitialValues::stroke_linecap() };
@@ -1032,6 +1037,7 @@ public:
     void set_flood_color(Color value) { m_noninherited.flood_color = value; }
     void set_flood_opacity(float value) { m_noninherited.flood_opacity = value; }
     void set_shape_rendering(CSS::ShapeRendering value) { m_noninherited.shape_rendering = value; }
+    void set_paint_order(PaintOrderList value) { m_inherited.paint_order = value; }
 
     void set_cx(LengthPercentage cx) { m_noninherited.cx = move(cx); }
     void set_cy(LengthPercentage cy) { m_noninherited.cy = move(cy); }

@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 47 tests
+Found 48 tests
 
-44 Pass
+45 Pass
 3 Fail
 Pass	clip-path presentation attribute supported on an irrelevant element
 Pass	clip-rule presentation attribute supported on an irrelevant element
@@ -29,6 +29,7 @@ Pass	mask-type presentation attribute supported on an irrelevant element
 Pass	mask presentation attribute supported on an irrelevant element
 Pass	opacity presentation attribute supported on an irrelevant element
 Pass	overflow presentation attribute supported on an irrelevant element
+Pass	paint-order presentation attribute supported on an irrelevant element
 Pass	pointer-events presentation attribute supported on an irrelevant element
 Pass	shape-rendering presentation attribute supported on an irrelevant element
 Pass	stop-color presentation attribute supported on an irrelevant element
