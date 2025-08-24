@@ -128,8 +128,8 @@ ErrorOr<void> access(StringView pathname, int mode, int flags = 0);
 ErrorOr<ByteString> readlink(StringView pathname);
 ErrorOr<int> poll(Span<struct pollfd>, int timeout);
 
-#if !defined(AK_OS_WINDOWS)
 ErrorOr<void> kill(pid_t, int signal);
+#if !defined(AK_OS_WINDOWS)
 ErrorOr<void> chown(StringView pathname, uid_t uid, gid_t gid);
 ErrorOr<pid_t> posix_spawn(StringView path, posix_spawn_file_actions_t const* file_actions, posix_spawnattr_t const* attr, char* const arguments[], char* const envp[]);
 ErrorOr<pid_t> posix_spawnp(StringView path, posix_spawn_file_actions_t* const file_actions, posix_spawnattr_t* const attr, char* const arguments[], char* const envp[]);
