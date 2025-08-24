@@ -327,7 +327,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     if (request == "dump-all-resolved-styles") {
         auto dump_style = [](String const& title, Web::CSS::ComputedProperties const& style, HashMap<FlyString, Web::CSS::StyleProperty> const& custom_properties) {
             dbgln("+ {}", title);
-            for (size_t i = 0; i < Web::CSS::ComputedProperties::number_of_properties; ++i) {
+            for (size_t i = to_underlying(Web::CSS::first_longhand_property_id); i < to_underlying(Web::CSS::last_longhand_property_id); ++i) {
                 auto property = style.maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
                 dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::SerializationMode::Normal) : ""_string);
             }
