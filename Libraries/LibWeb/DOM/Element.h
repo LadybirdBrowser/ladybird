@@ -215,7 +215,6 @@ public:
     GC::Ptr<CSS::ComputedProperties> computed_properties(Optional<CSS::PseudoElement> = {});
     GC::Ptr<CSS::ComputedProperties const> computed_properties(Optional<CSS::PseudoElement> = {}) const;
     void set_computed_properties(Optional<CSS::PseudoElement>, GC::Ptr<CSS::ComputedProperties>);
-    GC::Ref<CSS::ComputedProperties> resolved_css_values(Optional<CSS::PseudoElement> = {});
 
     [[nodiscard]] GC::Ptr<CSS::CascadedProperties> cascaded_properties(Optional<CSS::PseudoElement>) const;
     void set_cascaded_properties(Optional<CSS::PseudoElement>, GC::Ptr<CSS::CascadedProperties>);
