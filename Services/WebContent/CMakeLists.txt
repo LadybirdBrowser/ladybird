@@ -40,7 +40,9 @@ target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
 if(WIN32)
     find_package(unofficial-angle REQUIRED CONFIG)
-    target_link_libraries(WebContent PRIVATE LibTextCodec unofficial::angle::libGLESv2)
+    find_package(SQLite3 REQUIRED)
+    target_link_libraries(WebContent PRIVATE LibMedia LibTextCodec SQLite::SQLite3 unofficial::angle::libGLESv2)
+    lagom_windows_bin(WebContent)
 endif()
 
 
