@@ -30,6 +30,25 @@ function(lagom_copy_runtime_dlls target_name)
     endif()
 endfunction()
 
+# https://learn.microsoft.com/en-us/cpp/build/reference/subsystem-specify-subsystem?view=msvc-170
+# Add /SUBSYSTEM:WINDOWS linker flag and defines the default WinMain. This makes the executable target not launch with a console
+function(lagom_subsystem_windows target_name)
+    if(WIN32)
+        set_target_properties(${target_name} PROPERTIES
+            WIN32_EXECUTABLE TRUE
+            LINK_FLAGS "/ENTRY:mainCRTStartup"
+        )
+    endif()
+endfunction()
+
+function(lagom_windows_bin target_name)
+    cmake_parse_arguments(PARSE_ARGV 2 LAGOM_WINDOWS_BIN "CONSOLE" "" "")
+    lagom_copy_runtime_dlls(${target_name})
+    if (NOT LAGOM_WINDOWS_BIN_CONSOLE)
+        lagom_subsystem_windows(${target_name})
+    endif()
+endfunction()
+
 function(lagom_lib target_name fs_name)
     cmake_parse_arguments(LAGOM_LIBRARY "EXPLICIT_SYMBOL_EXPORT" "LIBRARY_TYPE" "SOURCES;LIBS" ${ARGN})
     string(REPLACE "Lib" "" library ${target_name})
@@ -92,7 +111,7 @@ function(lagom_test source)
     endif()
     add_executable(${LAGOM_TEST_NAME} ${source})
     target_link_libraries(${LAGOM_TEST_NAME} PRIVATE AK LibCore LibFileSystem LibTest ${LAGOM_TEST_CUSTOM_MAIN} ${LAGOM_TEST_LIBS})
-    lagom_copy_runtime_dlls(${LAGOM_TEST_NAME})
+    lagom_windows_bin(${LAGOM_TEST_NAME} CONSOLE)
 
     if (WIN32)
         target_include_directories(${LAGOM_TEST_NAME} PRIVATE ${PTHREAD_INCLUDE_DIR})
@@ -130,7 +149,7 @@ function(ladybird_bin name)
     add_executable(${name} ${SOURCES} ${GENERATED_SOURCES})
     add_executable(Lagom::${name} ALIAS ${name})
     target_link_libraries(${name} PUBLIC GenericClangPlugin)
-    lagom_copy_runtime_dlls(${name})
+    lagom_windows_bin(${name})
     install(
             TARGETS ${target_name}
             EXPORT LagomTargets
