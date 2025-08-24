@@ -153,8 +153,8 @@ public:
     template<typename Callback>
     auto for_each_split_view(char separator, SplitBehavior split_behavior, Callback callback) const
     {
-        StringView seperator_view { &separator, 1 };
-        return for_each_split_view(seperator_view, split_behavior, callback);
+        StringView separator_view { &separator, 1 };
+        return for_each_split_view(separator_view, split_behavior, callback);
     }
 
     template<typename Callback>

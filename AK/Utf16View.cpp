@@ -270,8 +270,8 @@ Optional<size_t> Utf16View::find_code_unit_offset(char16_t needle, size_t start_
 
 Vector<Utf16View> Utf16View::split_view(char16_t separator, SplitBehavior split_behavior) const
 {
-    Utf16View seperator_view { &separator, 1 };
-    return split_view(seperator_view, split_behavior);
+    Utf16View separator_view { &separator, 1 };
+    return split_view(separator_view, split_behavior);
 }
 
 Vector<Utf16View> Utf16View::split_view(Utf16View const& separator, SplitBehavior split_behavior) const

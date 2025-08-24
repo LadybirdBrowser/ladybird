@@ -603,8 +603,8 @@ public:
     template<typename Callback>
     constexpr void for_each_split_view(char16_t separator, SplitBehavior split_behavior, Callback&& callback) const
     {
-        Utf16View seperator_view { &separator, 1 };
-        for_each_split_view(seperator_view, split_behavior, forward<Callback>(callback));
+        Utf16View separator_view { &separator, 1 };
+        for_each_split_view(separator_view, split_behavior, forward<Callback>(callback));
     }
 
     template<typename Callback>
