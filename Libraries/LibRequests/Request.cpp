@@ -37,8 +37,13 @@ void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
     VERIFY(m_fd == -1);
     m_fd = fd;
 
-    auto notifier = Core::Notifier::construct(fd, Core::Notifier::Type::Read);
+#if defined(AK_OS_WINDOWS)
+    auto stream = MUST(Core::LocalSocket::adopt_fd(fd));
+    auto notifier = stream->notifier();
+#else
     auto stream = MUST(Core::File::adopt_fd(fd, Core::File::OpenMode::Read));
+    auto notifier = Core::Notifier::construct(fd, Core::Notifier::Type::Read);
+#endif
     notifier->on_activation = move(m_internal_stream_data->read_notifier->on_activation);
     m_internal_stream_data->read_notifier = move(notifier);
     m_internal_stream_data->read_stream = move(stream);
@@ -117,7 +122,11 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
     m_internal_stream_data = make<InternalStreamData>();
     m_internal_stream_data->read_notifier = Core::Notifier::construct(fd(), Core::Notifier::Type::Read);
     if (fd() != -1)
+#if defined(AK_OS_WINDOWS)
+        m_internal_stream_data->read_stream = MUST(Core::LocalSocket::adopt_fd(fd()));
+#else
         m_internal_stream_data->read_stream = MUST(Core::File::adopt_fd(fd(), Core::File::OpenMode::Read));
+#endif
 
     auto user_on_finish = move(on_finish);
     on_finish = [this](auto total_size, auto const& timing_info, auto network_error) {
