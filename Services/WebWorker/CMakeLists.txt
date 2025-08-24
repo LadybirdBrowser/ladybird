@@ -24,4 +24,11 @@ target_link_libraries(WebWorker PRIVATE webworkerservice)
 if(WIN32)
     find_package(pthread REQUIRED)
     target_include_directories(WebWorker PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
+    add_custom_command(TARGET WebWorker POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:WebWorker>
+            $<TARGET_FILE_DIR:WebWorker>
+        COMMAND_EXPAND_LISTS
+    )
 endif()

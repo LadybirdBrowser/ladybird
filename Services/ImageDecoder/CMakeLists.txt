@@ -24,3 +24,13 @@ target_include_directories(imagedecoderservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Se
 
 target_link_libraries(ImageDecoder PRIVATE imagedecoderservice LibCore LibMain LibThreading)
 target_link_libraries(imagedecoderservice PRIVATE LibCore LibGfx LibIPC LibImageDecoderClient LibMain LibThreading)
+
+if (WIN32)
+    add_custom_command(TARGET ImageDecoder POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ImageDecoder>
+            $<TARGET_FILE_DIR:ImageDecoder>
+        COMMAND_EXPAND_LISTS
+    )
+endif()

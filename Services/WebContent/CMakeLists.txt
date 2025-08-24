@@ -53,7 +53,15 @@ target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
 if(WIN32)
     find_package(unofficial-angle REQUIRED CONFIG)
-    target_link_libraries(WebContent PRIVATE LibTextCodec unofficial::angle::libGLESv2)
+    find_package(SQLite3 REQUIRED)
+    target_link_libraries(WebContent PRIVATE LibMedia LibTextCodec SQLite::SQLite3 unofficial::angle::libGLESv2)
+    add_custom_command(TARGET WebContent POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:WebContent>
+            $<TARGET_FILE_DIR:WebContent>
+        COMMAND_EXPAND_LISTS
+    )
 endif()
 
 
