@@ -128,7 +128,7 @@ size_t CSSStyleProperties::length() const
     if (is_computed()) {
         if (!owner_node().has_value())
             return 0;
-        return to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1;
+        return number_of_longhand_properties;
     }
 
     return m_properties.size();

@@ -1058,7 +1058,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
     auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element, this](auto const& keyframe_values) {
         HashMap<PropertyID, RefPtr<StyleValue const>> result;
         HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
-        auto property_is_set_by_use_initial = MUST(Bitmap::create(to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1, false));
+        auto property_is_set_by_use_initial = MUST(Bitmap::create(number_of_longhand_properties, false));
 
         auto property_is_logical_alias_including_shorthands = [&](PropertyID property_id) {
             if (property_is_shorthand(property_id))
