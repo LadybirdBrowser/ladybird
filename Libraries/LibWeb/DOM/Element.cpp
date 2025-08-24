@@ -805,8 +805,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
     HashMap<size_t, RefPtr<CSS::StyleValue const>> old_values_with_relative_units;
-    for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
+    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
+        // FIXME: We should use the specified value rather than the cascaded value as the cascaded value may include
+        //        unresolved CSS-wide keywords (e.g. 'initial' or 'inherit') rather than the resolved value.
         auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
         RefPtr old_value = computed_properties->maybe_null_property(property_id);
         // Update property if it uses relative units as it might have been affected by a change in ancestor element style.
