@@ -851,22 +851,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     return invalidation;
 }
 
-GC::Ref<CSS::ComputedProperties> Element::resolved_css_values(Optional<CSS::PseudoElement> type)
-{
-    auto element_computed_style = CSS::CSSStyleProperties::create_resolved_style(realm(), AbstractElement { *this, type });
-    auto properties = heap().allocate<CSS::ComputedProperties>();
-
-    for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
-        auto property_id = (CSS::PropertyID)i;
-        auto maybe_value = element_computed_style->property(property_id);
-        if (!maybe_value.has_value())
-            continue;
-        properties->set_property(property_id, maybe_value.release_value().value);
-    }
-
-    return properties;
-}
-
 DOMTokenList* Element::class_list()
 {
     if (!m_class_list)
