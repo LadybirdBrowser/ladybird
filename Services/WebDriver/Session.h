@@ -22,7 +22,6 @@
 #include <LibWeb/WebDriver/Response.h>
 #include <WebDriver/Client.h>
 #include <WebDriver/WebContentConnection.h>
-#include <unistd.h>
 
 namespace WebDriver {
 
