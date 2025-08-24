@@ -674,7 +674,7 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
     if (!old_style.computed_font_list().equals(new_style.computed_font_list()))
         invalidation.relayout = true;
 
-    for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
+    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto old_value = old_style.maybe_null_property(property_id);
         auto new_value = new_style.maybe_null_property(property_id);
