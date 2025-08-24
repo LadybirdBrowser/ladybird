@@ -50,6 +50,7 @@ if (ANDROID)
 endif()
 
 if (WIN32)
+    lagom_subsystem_windows(RequestServer)
     add_custom_command(TARGET RequestServer POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             -E copy_if_different

@@ -16,6 +16,7 @@ target_link_libraries(WebDriver PRIVATE LibCore LibFileSystem LibGfx LibIPC LibJ
 target_link_libraries(WebDriver PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
 if (WIN32)
+    lagom_subsystem_windows(WebDriver)
     add_custom_command(TARGET WebDriver POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             -E copy_if_different

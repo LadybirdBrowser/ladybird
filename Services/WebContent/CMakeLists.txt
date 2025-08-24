@@ -55,6 +55,7 @@ if(WIN32)
     find_package(unofficial-angle REQUIRED CONFIG)
     find_package(SQLite3 REQUIRED)
     target_link_libraries(WebContent PRIVATE LibMedia LibTextCodec SQLite::SQLite3 unofficial::angle::libGLESv2)
+    lagom_subsystem_windows(WebContent)
     add_custom_command(TARGET WebContent POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             -E copy_if_different

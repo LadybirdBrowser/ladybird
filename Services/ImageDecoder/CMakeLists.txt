@@ -26,6 +26,7 @@ target_link_libraries(ImageDecoder PRIVATE imagedecoderservice LibCore LibMain L
 target_link_libraries(imagedecoderservice PRIVATE LibCore LibGfx LibIPC LibImageDecoderClient LibMain LibThreading)
 
 if (WIN32)
+    lagom_subsystem_windows(ImageDecoder)
     add_custom_command(TARGET ImageDecoder POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             -E copy_if_different
