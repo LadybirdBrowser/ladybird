@@ -238,7 +238,12 @@ String serialize_a_css_declaration(StringView property, StringView value, Import
     StringBuilder builder;
 
     // 2. Append property to s.
-    builder.append(property);
+    // AD-HOC: There's no place currently on the spec where the property name properly escaped,
+    //         and this needs to be done when custom properties have special characters.
+    //         Related spec issues:
+    //          - https://github.com/w3c/csswg-drafts/issues/11729
+    //          - https://github.com/w3c/csswg-drafts/issues/12258
+    serialize_an_identifier(builder, property);
 
     // 3. Append ": " (U+003A U+0020) to s.
     builder.append(": "sv);
