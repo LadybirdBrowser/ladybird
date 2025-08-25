@@ -112,7 +112,12 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::Computed
     // In particular, using appearance: none allows authors to suppress the native appearance of widgets,
     // giving them a primitive appearance where CSS can be used to restyle them.
     if (style->appearance() == CSS::Appearance::None) {
-        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+        auto layout_node = Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+        // Set natural width for text-based inputs even when appearance: none
+        if (layout_node && is_text_input_type()) {
+            set_natural_width_from_size(static_cast<Layout::Box&>(*layout_node));
+        }
+        return layout_node;
     }
 
     if (type_state() == TypeAttributeState::SubmitButton || type_state() == TypeAttributeState::Button || type_state() == TypeAttributeState::ResetButton)
@@ -124,7 +129,43 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::Computed
     if (type_state() == TypeAttributeState::RadioButton)
         return heap().allocate<Layout::RadioButton>(document(), *this, move(style));
 
-    return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    // For text-based inputs, set natural width based on size attribute
+    auto layout_node = Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    if (layout_node && is_text_input_type()) {
+        set_natural_width_from_size(static_cast<Layout::Box&>(*layout_node));
+    }
+    return layout_node;
+}
+
+bool HTMLInputElement::is_text_input_type() const
+{
+    // Text-based inputs are those that create text input shadow trees (see create_shadow_tree_if_needed)
+    switch (type_state()) {
+    case TypeAttributeState::Hidden:
+    case TypeAttributeState::RadioButton:
+    case TypeAttributeState::Checkbox:
+    case TypeAttributeState::Button:
+    case TypeAttributeState::SubmitButton:
+    case TypeAttributeState::ResetButton:
+    case TypeAttributeState::ImageButton:
+    case TypeAttributeState::Color:
+    case TypeAttributeState::FileUpload:
+    case TypeAttributeState::Range:
+        return false;
+    default:
+        // All other types (text, email, password, search, tel, url, number, date, etc.) are text inputs
+        return true;
+    }
+}
+
+void HTMLInputElement::set_natural_width_from_size(Layout::Box& layout_node) const
+{
+    auto& font = layout_node.first_available_font();
+    // Use the same measurement as CSS ch units for consistency
+    // See: https://github.com/whatwg/html/issues/10458
+    auto ch_width = font.pixel_metrics().advance_of_ascii_zero;
+    auto natural_width = CSSPixels::nearest_value_for(size() * ch_width);
+    layout_node.set_natural_width(natural_width);
 }
 
 void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
@@ -141,7 +182,9 @@ void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
     if (style.display().is_inline_outside() && style.display().is_flow_inside())
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
 
-    if (type_state() != TypeAttributeState::FileUpload) {
+    // Set default width based on size attribute when no CSS width is specified
+    // The natural_width in create_layout_node() provides intrinsic sizing for flex/grid
+    if (is_text_input_type()) {
         if (style.property(CSS::PropertyID::Width).has_auto())
             style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(size(), CSS::Length::Type::Ch)));
     }

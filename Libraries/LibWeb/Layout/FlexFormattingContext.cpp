@@ -1929,6 +1929,14 @@ CSSPixels FlexFormattingContext::calculate_main_min_content_contribution(FlexIte
         auto inner_min_content_size = calculate_min_content_main_size(item);
         if (computed_main_size(item.box).is_auto())
             return inner_min_content_size;
+
+        // During intrinsic sizing, percentages in the main axis cannot be resolved
+        // and should be treated as auto
+        if (m_available_space_for_items->main.is_intrinsic_sizing_constraint()
+            && computed_main_size(item.box).is_percentage()) {
+            return inner_min_content_size;
+        }
+
         auto inner_preferred_size = is_row_layout() ? get_pixel_width(item.box, computed_main_size(item.box)) : get_pixel_height(item.box, computed_main_size(item.box));
         return max(inner_min_content_size, inner_preferred_size);
     }();
@@ -1950,6 +1958,14 @@ CSSPixels FlexFormattingContext::calculate_main_max_content_contribution(FlexIte
         auto inner_max_content_size = calculate_max_content_main_size(item);
         if (computed_main_size(item.box).is_auto())
             return inner_max_content_size;
+
+        // During intrinsic sizing, percentages in the main axis cannot be resolved
+        // and should be treated as auto
+        if (m_available_space_for_items->main.is_intrinsic_sizing_constraint()
+            && computed_main_size(item.box).is_percentage()) {
+            return inner_max_content_size;
+        }
+
         auto inner_preferred_size = is_row_layout() ? get_pixel_width(item.box, computed_main_size(item.box)) : get_pixel_height(item.box, computed_main_size(item.box));
         return max(inner_max_content_size, inner_preferred_size);
     }();
