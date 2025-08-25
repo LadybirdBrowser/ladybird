@@ -7,6 +7,7 @@ import socketserver
 import sys
 import time
 
+from collections import defaultdict
 from typing import Dict
 from typing import Optional
 
@@ -28,6 +29,7 @@ class Echo:
     body: Optional[str]
     delay_ms: Optional[int]
     reason_phrase: Optional[str]
+    reflect_headers_in_body: bool
 
 
 # In-memory store for echo responses
@@ -60,11 +62,18 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             echo.delay_ms = data.get("delay_ms", None)
             echo.headers = data.get("headers", None)
             echo.reason_phrase = data.get("reason_phrase", None)
+            echo.reflect_headers_in_body = data.get("reflect_headers_in_body", False)
 
             is_using_reserved_path = echo.path.startswith("/static") or echo.path.startswith("/echo")
 
             # Return 400: Bad Request if invalid params are given or a reserved path is given
-            if echo.method is None or echo.path is None or echo.status is None or is_using_reserved_path:
+            if (
+                echo.method is None
+                or echo.path is None
+                or echo.status is None
+                or (echo.body is not None and echo.reflect_headers_in_body)
+                or is_using_reserved_path
+            ):
                 self.send_response(400)
                 self.send_header("Content-Type", "text/plain")
                 self.end_headers()
@@ -138,7 +147,13 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_header(header, value)
                 self.end_headers()
 
-            response_body = echo.body or ""
+            if echo.reflect_headers_in_body:
+                headers = defaultdict(list)
+                for key in self.headers.keys():
+                    headers[key] = self.headers.get_all(key)
+                response_body = json.dumps(headers)
+            else:
+                response_body = echo.body or ""
             self.wfile.write(response_body.encode("utf-8"))
         else:
             self.send_error(404, f"Echo response not found for {key}")
