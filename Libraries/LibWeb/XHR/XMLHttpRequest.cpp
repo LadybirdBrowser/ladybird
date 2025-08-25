@@ -110,7 +110,6 @@ static void fire_progress_event(XMLHttpRequestEventTarget& target, FlyString con
     event_init.length_computable = length;
     event_init.loaded = transmitted;
     event_init.total = length;
-    // FIXME: If we're in an async context, this will propagate to a callback context which can't propagate it anywhere else and does not expect this to fail.
     target.dispatch_event(*ProgressEvent::create(target.realm(), event_name, event_init));
 }
 
@@ -779,8 +778,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
             // 2. Handle errors for this.
             // NOTE: This cannot throw, as `handle_errors` only throws in a synchronous context.
-            // FIXME: However, we can receive allocation failures, but we can't propagate them anywhere currently.
-            handle_errors().release_value_but_fixme_should_propagate_errors();
+            MUST(handle_errors());
 
             // 3. If this’s response is a network error, then return.
             if (m_response->is_network_error())
@@ -790,7 +788,6 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             m_state = State::HeadersReceived;
 
             // 5. Fire an event named readystatechange at this.
-            // FIXME: We're in an async context, so we can't propagate the error anywhere.
             dispatch_event(*DOM::Event::create(this->realm(), EventNames::readystatechange));
 
             // 6. If this’s state is not headers received, then return.
@@ -800,20 +797,16 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             // 7. If this’s response’s body is null, then run handle response end-of-body for this and return.
             if (!m_response->body()) {
                 // NOTE: This cannot throw, as `handle_response_end_of_body` only throws in a synchronous context.
-                // FIXME: However, we can receive allocation failures, but we can't propagate them anywhere currently.
-                handle_response_end_of_body().release_value_but_fixme_should_propagate_errors();
+                MUST(handle_response_end_of_body());
                 return;
             }
 
             // 8. Let length be the result of extracting a length from this’s response’s header list.
-            // FIXME: We're in an async context, so we can't propagate the error anywhere.
             auto length = m_response->header_list()->extract_length();
 
             // 9. If length is not an integer, then set it to 0.
             if (!length.has<u64>())
                 length = 0;
-
-            // FIXME: We can't implement these steps yet, as we don't fully implement the Streams standard.
 
             // 10. Let processBodyChunk given bytes be these steps:
             auto process_body_chunks = GC::create_function(heap(), [this, length](ByteBuffer byte_buffer) {
@@ -837,8 +830,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             // 11. Let processEndOfBody be this step: run handle response end-of-body for this.
             auto process_end_of_body = GC::create_function(heap(), [this]() {
                 // NOTE: This cannot throw, as `handle_response_end_of_body` only throws in a synchronous context.
-                // FIXME: However, we can receive allocation failures, but we can't propagate them anywhere currently.
-                handle_response_end_of_body().release_value_but_fixme_should_propagate_errors();
+                MUST(handle_response_end_of_body());
             });
 
             // 12. Let processBodyError be these steps:
@@ -848,8 +840,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                 m_response = Fetch::Infrastructure::Response::network_error(vm, "A network error occurred processing body."_string);
                 // 2. Run handle errors for this.
                 // NOTE: This cannot throw, as `handle_errors` only throws in a synchronous context.
-                // FIXME: However, we can receive allocation failures, but we can't propagate them anywhere currently.
-                handle_errors().release_value_but_fixme_should_propagate_errors();
+                MUST(handle_errors());
             });
 
             // 13. Incrementally read this’s response’s body, given processBodyChunk, processEndOfBody, processBodyError, and this’s relevant global object.
@@ -890,7 +881,9 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
             timer->start();
         }
-    } else {
+    }
+    // 12. Otherwise, if this’s synchronous flag is set:
+    else {
         // 1. Let processedResponse be false.
         IGNORE_USE_IN_ESCAPING_LAMBDA bool processed_response = false;
 
@@ -1202,7 +1195,6 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::handle_response_end_of_body()
     m_send = false;
 
     // 9. Fire an event named readystatechange at xhr.
-    // FIXME: If we're in an async context, this will propagate to a callback context which can't propagate it anywhere else and does not expect this to fail.
     dispatch_event(*DOM::Event::create(realm, EventNames::readystatechange));
 
     // 10. Fire a progress event named load at xhr with transmitted and length.
@@ -1254,7 +1246,6 @@ JS::ThrowCompletionOr<void> XMLHttpRequest::request_error_steps(FlyString const&
     }
 
     // 5. Fire an event named readystatechange at xhr.
-    // FIXME: Since we're in an async context, this will propagate to a callback context which can't propagate it anywhere else and does not expect this to fail.
     dispatch_event(*DOM::Event::create(realm(), EventNames::readystatechange));
 
     // 6. If xhr’s upload complete flag is unset, then:
