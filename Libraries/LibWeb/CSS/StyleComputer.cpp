@@ -1058,7 +1058,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
     auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element, this](auto const& keyframe_values) {
         HashMap<PropertyID, RefPtr<StyleValue const>> result;
         HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
-        auto property_is_set_by_use_initial = MUST(Bitmap::create(to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1, false));
+        auto property_is_set_by_use_initial = MUST(Bitmap::create(number_of_longhand_properties, false));
 
         auto property_is_logical_alias_including_shorthands = [&](PropertyID property_id) {
             if (property_is_shorthand(property_id))
@@ -1098,7 +1098,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         };
 
         compute_font(computed_properties, &element, pseudo_element);
-        absolutize_values(computed_properties, element);
+        absolutize_values(computed_properties);
         Length::FontMetrics font_metrics {
             computed_properties.font_size(),
             computed_properties.first_available_computed_font().pixel_metrics()
@@ -1348,23 +1348,23 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
     }
 
     auto normalize_transition_length_list = [&properties, &style](PropertyID property, auto make_default_value) {
-        auto const* style_value = style.maybe_null_property(property);
+        auto const& style_value = style.property(property);
         StyleValueVector list;
 
-        if (style_value && !style_value->is_value_list()) {
+        if (!style_value.is_value_list()) {
             for (size_t i = 0; i < properties.size(); i++)
-                list.append(*style_value);
+                list.append(style_value);
             return list;
         }
 
-        if (!style_value || !style_value->is_value_list() || style_value->as_value_list().size() == 0) {
+        if (style_value.as_value_list().size() == 0) {
             auto default_value = make_default_value();
             for (size_t i = 0; i < properties.size(); i++)
                 list.append(default_value);
             return list;
         }
 
-        auto const& value_list = style_value->as_value_list();
+        auto const& value_list = style_value.as_value_list();
         for (size_t i = 0; i < properties.size(); i++)
             list.append(value_list.value_at(i, true));
 
@@ -2136,48 +2136,28 @@ Gfx::Font const& StyleComputer::initial_font() const
     return font;
 }
 
-void StyleComputer::absolutize_values(ComputedProperties& style, GC::Ptr<DOM::Element const> element) const
+void StyleComputer::absolutize_values(ComputedProperties& style) const
 {
     Length::FontMetrics font_metrics {
-        root_element_font_metrics_for_element(element).font_size,
+        style.font_size(),
         style.first_available_computed_font().pixel_metrics()
     };
 
-    // "A percentage value specifies an absolute font size relative to the parent element’s computed font-size. Negative percentages are invalid."
-    auto& font_size_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::FontSize)];
-    if (font_size_value_slot && font_size_value_slot->is_percentage()) {
-        auto parent_font_size = get_inherit_value(CSS::PropertyID::FontSize, element)->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
-        font_size_value_slot = LengthStyleValue::create(
-            Length::make_px(CSSPixels::nearest_value_for(parent_font_size * font_size_value_slot->as_percentage().percentage().as_fraction())));
-    }
-
-    auto font_size = font_size_value_slot->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
-    font_metrics.font_size = font_size;
-    style.set_font_size({}, font_size);
-
-    // NOTE: Percentage line-height values are relative to the font-size of the element.
-    //       We have to resolve them right away, so that the *computed* line-height is ready for inheritance.
-    //       We can't simply absolutize *all* percentage values against the font size,
-    //       because most percentages are relative to containing block metrics.
-    auto& line_height_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::LineHeight)];
-    if (line_height_value_slot && line_height_value_slot->is_percentage()) {
-        line_height_value_slot = LengthStyleValue::create(
-            Length::make_px(CSSPixels::nearest_value_for(font_size * static_cast<double>(line_height_value_slot->as_percentage().percentage().as_fraction()))));
-    }
+    auto const& line_height_specified_value = style.property(CSS::PropertyID::LineHeight, ComputedProperties::WithAnimationsApplied::No);
 
     auto line_height = style.compute_line_height(viewport_rect(), font_metrics, m_root_element_font_metrics);
     font_metrics.line_height = line_height;
 
     // NOTE: line-height might be using lh which should be resolved against the parent line height (like we did here already)
-    if (line_height_value_slot && line_height_value_slot->is_length())
-        line_height_value_slot = LengthStyleValue::create(Length::make_px(line_height));
+    if (line_height_specified_value.is_length() || line_height_specified_value.is_percentage())
+        style.set_property(PropertyID::LineHeight, LengthStyleValue::create(Length::make_px(line_height)), style.is_property_inherited(PropertyID::LineHeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
 
-    for (size_t i = 0; i < style.m_property_values.size(); ++i) {
-        auto& value_slot = style.m_property_values[i];
-        if (!value_slot)
-            continue;
-        value_slot = value_slot->absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics);
-    }
+    style.for_each_property([&](PropertyID property_id, auto& value) {
+        auto const& absolutized_value = value.absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics);
+        auto const& is_inherited = style.is_property_inherited(property_id) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No;
+
+        style.set_property(property_id, absolutized_value, is_inherited);
+    });
 
     style.set_line_height({}, line_height);
 }
@@ -2396,7 +2376,7 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
 
     compute_math_depth(style, {});
     compute_font(style, nullptr, {});
-    absolutize_values(style, nullptr);
+    absolutize_values(style);
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
     style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
@@ -2633,14 +2613,12 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
 
     // Animation declarations [css-animations-2]
     auto animation_name = [&]() -> Optional<String> {
-        auto const animation_name = computed_style->maybe_null_property(PropertyID::AnimationName);
-        if (!animation_name)
+        auto const& animation_name = computed_style->property(PropertyID::AnimationName);
+        if (animation_name.is_keyword() && animation_name.to_keyword() == Keyword::None)
             return OptionalNone {};
-        if (animation_name->is_keyword() && animation_name->to_keyword() == Keyword::None)
-            return OptionalNone {};
-        if (animation_name->is_string())
-            return animation_name->as_string().string_value().to_string();
-        return animation_name->to_string(SerializationMode::Normal);
+        if (animation_name.is_string())
+            return animation_name.as_string().string_value().to_string();
+        return animation_name.to_string(SerializationMode::Normal);
     }();
 
     if (animation_name.has_value()) {
@@ -2708,7 +2686,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     compute_font(computed_style, &element, pseudo_element);
 
     // 4. Absolutize values, turning font/viewport relative lengths into absolute lengths
-    absolutize_values(computed_style, element);
+    absolutize_values(computed_style);
 
     // 5. Run automatic box type transformations
     transform_box_type_if_needed(computed_style, element, pseudo_element);

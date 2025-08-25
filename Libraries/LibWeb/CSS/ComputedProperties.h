@@ -31,7 +31,6 @@ class WEB_API ComputedProperties final : public JS::Cell {
 
 public:
     static constexpr double normal_line_height_scale = 1.15;
-    static constexpr size_t number_of_properties = to_underlying(last_property_id) + 1;
 
     virtual ~ComputedProperties() override;
 
@@ -40,7 +39,7 @@ public:
     {
         for (size_t i = 0; i < m_property_values.size(); ++i) {
             if (m_property_values[i])
-                callback((PropertyID)i, *m_property_values[i]);
+                callback(static_cast<PropertyID>(i + to_underlying(first_longhand_property_id)), *m_property_values[i]);
         }
     }
 
@@ -67,7 +66,6 @@ public:
         Yes,
     };
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
-    StyleValue const* maybe_null_property(PropertyID) const;
     void revert_property(PropertyID, ComputedProperties const& style_for_revert);
 
     GC::Ptr<CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
@@ -227,8 +225,7 @@ public:
 
     [[nodiscard]] CSSPixels line_height() const { return *m_line_height; }
     void set_line_height(Badge<StyleComputer> const&, CSSPixels line_height) { m_line_height = line_height; }
-    [[nodiscard]] CSSPixels font_size() const { return *m_font_size; }
-    void set_font_size(Badge<StyleComputer> const&, CSSPixels font_size) { m_font_size = font_size; }
+    [[nodiscard]] CSSPixels font_size() const;
 
     bool operator==(ComputedProperties const&) const;
 
@@ -259,8 +256,6 @@ public:
     }
 
 private:
-    friend class StyleComputer;
-
     ComputedProperties();
 
     virtual void visit_edges(Visitor&) override;
@@ -271,10 +266,10 @@ private:
     GC::Ptr<CSSStyleDeclaration const> m_animation_name_source;
     GC::Ptr<CSSStyleDeclaration const> m_transition_property_source;
 
-    Array<RefPtr<StyleValue const>, number_of_properties> m_property_values;
-    Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
-    Array<u8, ceil_div(number_of_properties, 8uz)> m_property_inherited {};
-    Array<u8, ceil_div(number_of_properties, 8uz)> m_animated_property_inherited {};
+    Array<RefPtr<StyleValue const>, number_of_longhand_properties> m_property_values;
+    Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_property_important {};
+    Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_property_inherited {};
+    Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_animated_property_inherited {};
 
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_animated_property_values;
 
@@ -283,7 +278,6 @@ private:
     RefPtr<Gfx::Font const> m_first_available_computed_font;
 
     Optional<CSSPixels> m_line_height;
-    Optional<CSSPixels> m_font_size;
 
     PseudoClassBitmap m_attempted_pseudo_class_matches;
 };

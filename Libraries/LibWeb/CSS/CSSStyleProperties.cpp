@@ -128,7 +128,7 @@ size_t CSSStyleProperties::length() const
     if (is_computed()) {
         if (!owner_node().has_value())
             return 0;
-        return to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1;
+        return number_of_longhand_properties;
     }
 
     return m_properties.size();
@@ -187,15 +187,9 @@ Optional<StyleProperty> CSSStyleProperties::property(PropertyID property_id) con
         if (!layout_node) {
             auto style = element.document().style_computer().compute_style(element, pseudo_element);
 
-            // FIXME: This is a stopgap until we implement shorthand -> longhand conversion.
-            auto const* value = style->maybe_null_property(property_id);
-            if (!value) {
-                dbgln("FIXME: CSSStyleProperties::property(property_id={:#x}) No value for property ID in newly computed style case.", to_underlying(property_id));
-                return {};
-            }
             return StyleProperty {
                 .property_id = property_id,
-                .value = *value,
+                .value = style->property(property_id),
             };
         }
 

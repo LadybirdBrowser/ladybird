@@ -150,7 +150,6 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
             // value on this"
             // Ensure style is computed on the element before we try to read it.
             element.document().update_style();
-            auto longhands_count = to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1;
 
             // Some custom properties set on the element might also be in the registered custom properties set, so we
             // want the size of the union of the two sets.
@@ -160,7 +159,7 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
             for (auto const& [key, _] : element.document().registered_custom_properties())
                 custom_properties.set(key);
 
-            return longhands_count + custom_properties.size();
+            return number_of_longhand_properties + custom_properties.size();
         },
         [](GC::Ref<CSSStyleDeclaration> const& declaration) { return declaration->length(); });
 }
@@ -185,10 +184,13 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
                     return registered_custom_property.value()->initial_style_value();
                 return nullptr;
             }
-            // FIXME: This will only ever be null for pseudo-elements. What should we do in that case?
-            //        The property's value is also sometimes null. Is that correct?
-            if (auto computed_properties = element.computed_properties())
-                return computed_properties->maybe_null_property(property_id.value());
+
+            if (*property_id >= first_longhand_property_id && *property_id <= last_longhand_property_id) {
+                // FIXME: This will only ever be null for pseudo-elements. What should we do in that case?
+                if (auto computed_properties = element.computed_properties())
+                    return computed_properties->property(property_id.value());
+            }
+
             return nullptr;
         },
         [&property](GC::Ref<CSSStyleDeclaration>& declaration) {

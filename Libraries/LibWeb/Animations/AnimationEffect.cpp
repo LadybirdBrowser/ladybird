@@ -634,13 +634,13 @@ void AnimationEffect::visit_edges(JS::Cell::Visitor& visitor)
 static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_for_animated_properties(HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& old_properties, HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& new_properties)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
-    auto old_and_new_properties = MUST(Bitmap::create(to_underlying(CSS::last_property_id) + 1, 0));
+    auto old_and_new_properties = MUST(Bitmap::create(CSS::number_of_longhand_properties, 0));
     for (auto const& [property_id, _] : old_properties)
-        old_and_new_properties.set(to_underlying(property_id), 1);
+        old_and_new_properties.set(to_underlying(property_id) - to_underlying(CSS::first_longhand_property_id), 1);
     for (auto const& [property_id, _] : new_properties)
-        old_and_new_properties.set(to_underlying(property_id), 1);
-    for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
-        if (!old_and_new_properties.get(i))
+        old_and_new_properties.set(to_underlying(property_id) - to_underlying(CSS::first_longhand_property_id), 1);
+    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
+        if (!old_and_new_properties.get(i - to_underlying(CSS::first_longhand_property_id)))
             continue;
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto const* old_value = old_properties.get(property_id).value_or({});
