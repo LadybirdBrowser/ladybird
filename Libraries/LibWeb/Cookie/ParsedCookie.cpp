@@ -184,11 +184,6 @@ void process_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringV
     }
 }
 
-static constexpr AK::Duration maximum_cookie_age()
-{
-    return AK::Duration::from_seconds(400LL * 24 * 60 * 60);
-}
-
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.1
 void on_expires_attribute(ParsedCookie& parsed_cookie, StringView attribute_value)
 {
@@ -201,7 +196,7 @@ void on_expires_attribute(ParsedCookie& parsed_cookie, StringView attribute_valu
 
     // 3. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days in the future or sooner, see
     //    Section 5.5).
-    auto cookie_age_limit = UnixDateTime::now() + maximum_cookie_age();
+    auto cookie_age_limit = UnixDateTime::now() + maximum_cookie_age;
 
     // 4. If the expiry-time is more than cookie-age-limit, the user agent MUST set the expiry time to cookie-age-limit
     //    in seconds.
@@ -243,7 +238,7 @@ void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_valu
     }
 
     // 5. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days or less, see Section 5.5).
-    auto cookie_age_limit = maximum_cookie_age();
+    auto cookie_age_limit = maximum_cookie_age;
 
     // 6. Set delta-seconds to the smaller of its present value and cookie-age-limit.
     if (*delta_seconds > cookie_age_limit.to_seconds())

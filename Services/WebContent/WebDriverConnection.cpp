@@ -89,7 +89,8 @@ static JsonValue serialize_cookie(Web::Cookie::Cookie const& cookie)
     serialized_cookie.set("domain"sv, cookie.domain);
     serialized_cookie.set("secure"sv, cookie.secure);
     serialized_cookie.set("httpOnly"sv, cookie.http_only);
-    serialized_cookie.set("expiry"sv, cookie.expiry_time.seconds_since_epoch());
+    if (cookie.persistent)
+        serialized_cookie.set("expiry"sv, cookie.expiry_time.seconds_since_epoch()); // Must not be set if omitted when adding a cookie.
     serialized_cookie.set("sameSite"sv, Web::Cookie::same_site_to_string(cookie.same_site));
 
     return serialized_cookie;

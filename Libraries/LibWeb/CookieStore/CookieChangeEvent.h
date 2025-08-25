@@ -8,6 +8,7 @@
 
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/WebIDL/CachedAttribute.h>
 
 namespace Web::CookieStore {
 
@@ -31,10 +32,14 @@ public:
     Vector<CookieListItem> changed() const { return m_changed; }
     Vector<CookieListItem> deleted() const { return m_deleted; }
 
+    DEFINE_CACHED_ATTRIBUTE(changed);
+    DEFINE_CACHED_ATTRIBUTE(deleted);
+
 private:
     CookieChangeEvent(JS::Realm&, FlyString const& event_name, CookieChangeEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
     Vector<CookieListItem> m_changed;
     Vector<CookieListItem> m_deleted;
