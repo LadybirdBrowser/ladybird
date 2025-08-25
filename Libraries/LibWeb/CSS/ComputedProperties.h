@@ -258,8 +258,6 @@ public:
     }
 
 private:
-    friend class StyleComputer;
-
     ComputedProperties();
 
     virtual void visit_edges(Visitor&) override;

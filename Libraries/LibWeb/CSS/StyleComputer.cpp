@@ -2143,21 +2143,25 @@ void StyleComputer::absolutize_values(ComputedProperties& style) const
         style.first_available_computed_font().pixel_metrics()
     };
 
-    auto& line_height_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::LineHeight)];
+    auto const& line_height_specified_value = style.property(CSS::PropertyID::LineHeight, ComputedProperties::WithAnimationsApplied::No);
 
     auto line_height = style.compute_line_height(viewport_rect(), font_metrics, m_root_element_font_metrics);
     font_metrics.line_height = line_height;
 
     // NOTE: line-height might be using lh which should be resolved against the parent line height (like we did here already)
-    if (line_height_value_slot && (line_height_value_slot->is_length() || line_height_value_slot->is_percentage()))
-        line_height_value_slot = LengthStyleValue::create(Length::make_px(line_height));
+    if (line_height_specified_value.is_length() || line_height_specified_value.is_percentage()) {
+        auto const& computed_value = LengthStyleValue::create(Length::make_px(line_height));
+        auto is_inherited = style.is_property_inherited(PropertyID::LineHeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No;
 
-    for (size_t i = 0; i < style.m_property_values.size(); ++i) {
-        auto& value_slot = style.m_property_values[i];
-        if (!value_slot)
-            continue;
-        value_slot = value_slot->absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics);
+        style.set_property(PropertyID::LineHeight, computed_value, is_inherited);
     }
+
+    style.for_each_property([&](PropertyID property_id, auto& value) {
+        auto const& absolutized_value = value.absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics);
+        auto is_inherited = style.is_property_inherited(property_id) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No;
+
+        style.set_property(property_id, absolutized_value, is_inherited);
+    });
 
     style.set_line_height({}, line_height);
 }
