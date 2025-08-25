@@ -47,12 +47,12 @@ sudo apt update -y && sudo apt install cmake -y
 
 ```bash
 # Add LLVM GPG signing key
-sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
+wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg
 
 # Optional: Verify the GPG key manually
 
 # Use the key to authorize an entry for apt.llvm.org in apt sources list
-echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
 # Update apt package list and install clang and associated packages
 sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
