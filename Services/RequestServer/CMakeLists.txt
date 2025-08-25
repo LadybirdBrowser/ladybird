@@ -48,3 +48,14 @@ if (ANDROID)
     # We need s_ladybird_resource_root from LibWebView
     target_link_libraries(requestserverservice PUBLIC LibWebView)
 endif()
+
+if (WIN32)
+    lagom_subsystem_windows(RequestServer)
+    add_custom_command(TARGET RequestServer POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:RequestServer>
+            $<TARGET_FILE_DIR:RequestServer>
+        COMMAND_EXPAND_LISTS
+    )
+endif()

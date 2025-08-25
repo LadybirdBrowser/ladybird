@@ -30,6 +30,17 @@ function(lagom_copy_runtime_dlls target_name)
     endif()
 endfunction()
 
+# https://learn.microsoft.com/en-us/cpp/build/reference/subsystem-specify-subsystem?view=msvc-170
+# Add /SUBSYSTEM:WINDOWS linker flag and defines the default WinMain. This makes the executable target not launch with a console
+function(lagom_subsystem_windows target)
+    if(WIN32)
+        set_target_properties(${target} PROPERTIES
+            WIN32_EXECUTABLE TRUE
+            LINK_FLAGS "/ENTRY:mainCRTStartup"
+        )
+    endif()
+endfunction()
+
 function(lagom_lib target_name fs_name)
     cmake_parse_arguments(LAGOM_LIBRARY "EXPLICIT_SYMBOL_EXPORT" "LIBRARY_TYPE" "SOURCES;LIBS" ${ARGN})
     string(REPLACE "Lib" "" library ${target_name})
