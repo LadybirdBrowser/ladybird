@@ -601,6 +601,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     if (auto const& user_agent_preset = Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
         client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, *user_agents.get(*user_agent_preset));
 
+    default_zoom_level_factor_changed();
     languages_changed();
     autoplay_settings_changed();
     do_not_track_changed();
@@ -649,6 +650,12 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         builder.append("</body></html>"sv);
         load_html(builder.to_byte_string());
     }
+}
+
+void ViewImplementation::default_zoom_level_factor_changed()
+{
+    auto const default_zoom_level_factor = Application::settings().default_zoom_level_factor();
+    set_zoom(default_zoom_level_factor);
 }
 
 void ViewImplementation::languages_changed()

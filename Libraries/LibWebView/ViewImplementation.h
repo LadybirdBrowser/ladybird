@@ -266,6 +266,7 @@ protected:
     };
     void handle_web_content_process_crash(LoadErrorPage = LoadErrorPage::Yes);
 
+    virtual void default_zoom_level_factor_changed() override;
     virtual void languages_changed() override;
     virtual void autoplay_settings_changed() override;
     virtual void do_not_track_changed() override;

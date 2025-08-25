@@ -23,6 +23,9 @@ namespace WebView {
 
 static constexpr auto new_tab_page_url_key = "newTabPageURL"sv;
 
+static constexpr auto default_zoom_level_factor_key = "defaultZoomLevelFactor"sv;
+static constexpr double initial_zoom_level_factor = 1.0;
+
 static constexpr auto languages_key = "languages"sv;
 static auto default_language = "en"_string;
 
@@ -90,6 +93,9 @@ Settings Settings::create(Badge<Application>)
             settings.m_new_tab_page_url = parsed_new_tab_page_url.release_value();
     }
 
+    if (auto factor = settings_json.value().get_double_with_precision_loss(default_zoom_level_factor_key); factor.has_value())
+        settings.m_default_zoom_level_factor = factor.release_value();
+
     if (auto languages = settings_json.value().get(languages_key); languages.has_value())
         settings.m_languages = parse_json_languages(*languages);
 
@@ -147,6 +153,7 @@ Settings Settings::create(Badge<Application>)
 Settings::Settings(ByteString settings_path)
     : m_settings_path(move(settings_path))
     , m_new_tab_page_url(URL::about_newtab())
+    , m_default_zoom_level_factor(initial_zoom_level_factor)
     , m_languages({ default_language })
 {
 }
@@ -155,6 +162,7 @@ JsonValue Settings::serialize_json() const
 {
     JsonObject settings;
     settings.set(new_tab_page_url_key, m_new_tab_page_url.serialize());
+    settings.set(default_zoom_level_factor_key, m_default_zoom_level_factor);
 
     JsonArray languages;
     languages.ensure_capacity(m_languages.size());
@@ -239,6 +247,7 @@ JsonValue Settings::serialize_json() const
 void Settings::restore_defaults()
 {
     m_new_tab_page_url = URL::about_newtab();
+    m_default_zoom_level_factor = initial_zoom_level_factor;
     m_languages = { default_language };
     m_search_engine.clear();
     m_custom_search_engines.clear();
@@ -251,6 +260,7 @@ void Settings::restore_defaults()
 
     for (auto& observer : m_observers) {
         observer.new_tab_page_url_changed();
+        observer.default_zoom_level_factor_changed();
         observer.languages_changed();
         observer.search_engine_changed();
         observer.autocomplete_engine_changed();
@@ -267,6 +277,15 @@ void Settings::set_new_tab_page_url(URL::URL new_tab_page_url)
 
     for (auto& observer : m_observers)
         observer.new_tab_page_url_changed();
+}
+
+void Settings::set_default_zoom_level_factor(double const zoom_level)
+{
+    m_default_zoom_level_factor = zoom_level;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.default_zoom_level_factor_changed();
 }
 
 Vector<String> Settings::parse_json_languages(JsonValue const& languages)

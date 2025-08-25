@@ -317,6 +317,11 @@
                     <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
                 </div>
 
+                <div class="card-group">
+                    <label for="default-zoom-level">Default Zoom Level</label>
+                    <select id="default-zoom-level"></select>
+                </div>
+
                 <hr />
 
                 <div class="card-group inline-container">
@@ -345,7 +350,9 @@
 
                 <div class="card-group">
                     <label for="autocomplete-engine">Search Suggestions</label>
-                    <p class="description">Select the engine that will provide search suggestions.</p>
+                    <p class="description">
+                        Select the engine that will provide search suggestions.
+                    </p>
                     <select id="autocomplete-engine">
                         <option value="">Disable search suggestions</option>
                         <hr />
@@ -509,6 +516,7 @@
             };
         </script>
 
+        <script src="resource://ladybird/about-pages/settings/default-zoom-level.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/languages.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/network.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/new-tab-page.js" type="module"></script>

@@ -644,6 +644,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     for (size_t i = 0; i < concurrency; ++i) {
         auto view = TestWebView::create(theme, window_size);
         view->on_load_finish = [&](auto const&) { ++loaded_web_views; };
+        // FIXME: Figure out a better way to ensure that tests use default browser settings.
+        view->reset_zoom();
 
         views.unchecked_append(move(view));
     }
