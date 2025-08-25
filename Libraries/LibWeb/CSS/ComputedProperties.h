@@ -227,8 +227,7 @@ public:
 
     [[nodiscard]] CSSPixels line_height() const { return *m_line_height; }
     void set_line_height(Badge<StyleComputer> const&, CSSPixels line_height) { m_line_height = line_height; }
-    [[nodiscard]] CSSPixels font_size() const { return *m_font_size; }
-    void set_font_size(Badge<StyleComputer> const&, CSSPixels font_size) { m_font_size = font_size; }
+    [[nodiscard]] CSSPixels font_size() const;
 
     bool operator==(ComputedProperties const&) const;
 
@@ -283,7 +282,6 @@ private:
     RefPtr<Gfx::Font const> m_first_available_computed_font;
 
     Optional<CSSPixels> m_line_height;
-    Optional<CSSPixels> m_font_size;
 
     PseudoClassBitmap m_attempted_pseudo_class_matches;
 };

@@ -1977,4 +1977,9 @@ WillChange ComputedProperties::will_change() const
     return WillChange::make_auto();
 }
 
+CSSPixels ComputedProperties::font_size() const
+{
+    return property(PropertyID::FontSize).as_length().length().absolute_length_to_px();
+}
+
 }
