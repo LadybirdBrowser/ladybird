@@ -54,6 +54,7 @@ public:
 
     ReadonlySpan<String> types() const;
     String get_data(String const& format) const;
+    void set_data(String const& format_argument, String const& value);
     GC::Ref<FileAPI::FileList> files() const;
 
     Optional<DragDataStore::Mode> mode() const;
