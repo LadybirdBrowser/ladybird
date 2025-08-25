@@ -495,8 +495,13 @@ static bool is_ignorable_whitespace(Layout::Node const& node)
 
     if (node.is_anonymous() && node.is_block_container() && static_cast<BlockContainer const&>(node).children_are_inline()) {
         bool contains_only_white_space = true;
-        node.for_each_in_inclusive_subtree_of_type<TextNode>([&contains_only_white_space](auto& text_node) {
-            if (!text_node.text_for_rendering().is_ascii_whitespace()) {
+        node.for_each_in_inclusive_subtree([&contains_only_white_space](auto& descendant) {
+            if (auto* text_node = as_if<TextNode>(descendant)) {
+                if (!text_node->text_for_rendering().is_ascii_whitespace()) {
+                    contains_only_white_space = false;
+                    return TraversalDecision::Break;
+                }
+            } else if (descendant.is_out_of_flow()) {
                 contains_only_white_space = false;
                 return TraversalDecision::Break;
             }
