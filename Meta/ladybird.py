@@ -196,7 +196,7 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
 
-    switfc: Optional[str] = None
+    swiftc: Optional[str] = None
     validate_cmake_version()
 
     if "Swift" in preset:
@@ -217,7 +217,7 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         f"-DCMAKE_CXX_COMPILER={cxx}",
     ]
 
-    if switfc:
+    if swiftc:
         config_args.append(f"-DCMAKE_Swift_COMPILER={swiftc}")
 
     if platform.host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
