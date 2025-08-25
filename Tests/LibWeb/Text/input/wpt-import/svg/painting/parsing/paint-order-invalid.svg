@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="800px">
+  <title>SVG Painting: parsing paint-order with invalid values</title>
+  <metadata>
+    <h:link rel="help" href="https://svgwg.org/svg2-draft/painting.html#PaintOrderProperty"/>
+    <h:meta name="assert" content="paint-order supports only the grammar 'normal | [ fill || stroke || markers ]'."/>
+    <h:meta name="assert" content="paint-order uses the shortest serialization."/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/parsing-testcommon.js"/>
+  <script><![CDATA[
+
+test_invalid_value("paint-order", "normal stroke");
+test_invalid_value("paint-order", "fill fill");
+test_invalid_value("paint-order", "markers normal");
+
+  ]]></script>
+</svg>
