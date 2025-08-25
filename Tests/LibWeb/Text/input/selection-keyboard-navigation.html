@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<div>foo bar baz</div>
+<script src="include.js"></script>
+<script>
+test(() => {
+    function reportSelection() {
+        const range = getSelection().getRangeAt(0);
+        println(`${range.startContainer.nodeName} ${range.startOffset} - ${range.endContainer.nodeName} ${range.endOffset}`);
+    }
+
+    const divElm = document.querySelector('div');
+    getSelection().setBaseAndExtent(divElm.childNodes[0], 0, divElm.childNodes[0], 3);
+    reportSelection();
+
+    const modAlt = 1 << 0;
+    const modControl = 1 << 1;
+    const modShift = 1 << 2;
+    const modWordJump = modAlt | modControl;  // macOS uses Mod_Alt, we should probably select just one modifier here.
+
+    println('--- Left/Right key should not modify a selection on uneditable contents ---');
+    internals.sendKey(divElm, 'Right');
+    reportSelection();
+    internals.sendKey(divElm, 'Left');
+    reportSelection();
+
+    println('--- Neither should WordJump + Left/Right ---');
+    internals.sendKey(divElm, 'Right', modWordJump);
+    reportSelection();
+    internals.sendKey(divElm, 'Left', modWordJump);
+    reportSelection();
+
+    println('--- Shift + Left/Right key however, should modify the selection ---');
+    internals.sendKey(divElm, 'Right', modShift);
+    reportSelection();
+    internals.sendKey(divElm, 'Left', modShift);
+    reportSelection();
+
+    println('--- Shift + WordJump + Left/Right as well ---');
+    internals.sendKey(divElm, 'Right', modWordJump | modShift);
+    reportSelection();
+    internals.sendKey(divElm, 'Right', modWordJump | modShift);
+    reportSelection();
+    internals.sendKey(divElm, 'Left', modWordJump | modShift);
+    reportSelection();
+});
+</script>

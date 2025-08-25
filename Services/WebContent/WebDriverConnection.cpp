@@ -1961,7 +1961,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
     else if (is<Web::HTML::HTMLElement>(*element) && static_cast<Web::HTML::HTMLElement&>(*element).is_content_editable()) {
         // If element does not currently have focus, set the text insertion caret after any child content.
         auto* document = current_browsing_context().active_document();
-        document->set_focused_element(element);
+        document->set_focused_area(element);
     }
     // -> otherwise
     else if (is<Web::HTML::FormAssociatedTextControlElement>(*element)) {

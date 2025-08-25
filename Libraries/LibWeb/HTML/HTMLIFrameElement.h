@@ -26,6 +26,9 @@ public:
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
+    // ^EventTarget
+    virtual bool is_focusable() const override { return true; }
+
     void set_current_navigation_was_lazy_loaded(bool value);
 
     Optional<HighResolutionTime::DOMHighResTimeStamp> const& pending_resource_start_time() const { return m_pending_resource_start_time; }

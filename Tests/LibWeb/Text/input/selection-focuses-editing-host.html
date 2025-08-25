@@ -2,6 +2,8 @@
 <div id="a" contenteditable>foo</div>
 <div id="b" contenteditable>foo<span>bar</span></div>
 <button id="c">press me</button>
+<div id="d" contenteditable>foo <span contenteditable>bar</span></div>
+<div id="e" contenteditable>foo <span contenteditable="false">bar <span contenteditable>baz</span></span></div>
 <script src="include.js"></script>
 <script>
 test(() => {
@@ -26,6 +28,16 @@ test(() => {
     buttonElm.addEventListener('click', () => getSelection().setBaseAndExtent(divB.childNodes[0], 0, divB.childNodes[0], 0));
     const buttonRect = buttonElm.getBoundingClientRect();
     internals.click(buttonRect.left + 5, buttonRect.top + 5);
+    reportSelectionAndFocus();
+
+    println('-- Nested editing host --');
+    const spanC = document.querySelector('div#d span');
+    getSelection().setBaseAndExtent(spanC.childNodes[0], 0, spanC.childNodes[0], 3);
+    reportSelectionAndFocus();
+
+    println('-- Nested editing host with uneditable element as parent --');
+    const spanD = document.querySelector('div#e span span');
+    getSelection().setBaseAndExtent(spanD.childNodes[0], 0, spanD.childNodes[0], 3);
     reportSelectionAndFocus();
 });
 </script>

@@ -78,39 +78,58 @@ void EditingHostManager::set_selection_focus(GC::Ref<DOM::Node> focus_node, size
     m_document->reset_cursor_blink_cycle();
 }
 
+GC::Ptr<Selection::Selection> EditingHostManager::get_selection_for_navigation(CollapseSelection collapse) const
+{
+    // In order for navigation to happen inside an editing host, the document must have a selection,
+    auto selection = m_document->get_selection();
+    if (!selection)
+        return {};
+
+    // and the focus node must be inside a text node,
+    auto focus_node = selection->focus_node();
+    if (!is<Text>(focus_node.ptr()))
+        return {};
+
+    // and if we're performing collapsed navigation (i.e. moving the caret), the focus node must be editable.
+    if (collapse == CollapseSelection::Yes && !focus_node->is_editable())
+        return {};
+
+    return selection;
+}
+
 void EditingHostManager::move_cursor_to_start(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
-    auto node = selection->anchor_node();
-    if (!node || !is<DOM::Text>(*node))
+    auto selection = get_selection_for_navigation(collapse);
+    if (!selection)
         return;
+    auto node = selection->focus_node();
 
     if (collapse == CollapseSelection::Yes) {
         MUST(selection->collapse(node, 0));
         m_document->reset_cursor_blink_cycle();
         return;
     }
-    MUST(selection->set_base_and_extent(*node, selection->anchor_offset(), *node, 0));
+    MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, 0));
 }
 
 void EditingHostManager::move_cursor_to_end(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
-    auto node = selection->anchor_node();
-    if (!node || !is<DOM::Text>(*node))
+    auto selection = get_selection_for_navigation(collapse);
+    if (!selection)
         return;
+    auto node = selection->focus_node();
 
     if (collapse == CollapseSelection::Yes) {
         m_document->reset_cursor_blink_cycle();
         MUST(selection->collapse(node, node->length()));
         return;
     }
-    MUST(selection->set_base_and_extent(*node, selection->anchor_offset(), *node, node->length()));
+    MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, node->length()));
 }
 
 void EditingHostManager::increment_cursor_position_offset(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
+    auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
     selection->move_offset_to_next_character(collapse == CollapseSelection::Yes);
@@ -118,7 +137,7 @@ void EditingHostManager::increment_cursor_position_offset(CollapseSelection coll
 
 void EditingHostManager::decrement_cursor_position_offset(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
+    auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
     selection->move_offset_to_previous_character(collapse == CollapseSelection::Yes);
@@ -126,7 +145,7 @@ void EditingHostManager::decrement_cursor_position_offset(CollapseSelection coll
 
 void EditingHostManager::increment_cursor_position_to_next_word(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
+    auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
     selection->move_offset_to_next_word(collapse == CollapseSelection::Yes);
@@ -134,7 +153,7 @@ void EditingHostManager::increment_cursor_position_to_next_word(CollapseSelectio
 
 void EditingHostManager::decrement_cursor_position_to_previous_word(CollapseSelection collapse)
 {
-    auto selection = m_document->get_selection();
+    auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
     selection->move_offset_to_previous_word(collapse == CollapseSelection::Yes);
@@ -161,21 +180,16 @@ void EditingHostManager::handle_delete(DeleteDirection direction)
     // When the user instructs the user agent to delete the next character inside an editing host, such as by pressing
     // the Delete key while the cursor is in an editable node, the user agent must call execCommand("forwarddelete") on
     // the relevant document.
-
-    auto editing_result = [&] {
-        if (direction == DeleteDirection::Backward)
-            return m_document->exec_command(Editing::CommandNames::delete_, false, {});
-        if (direction == DeleteDirection::Forward)
-            return m_document->exec_command(Editing::CommandNames::forwardDelete, false, {});
-        VERIFY_NOT_REACHED();
-    }();
-
+    auto command = direction == DeleteDirection::Backward ? Editing::CommandNames::delete_ : Editing::CommandNames::forwardDelete;
+    auto editing_result = m_document->exec_command(command, false, {});
     if (editing_result.is_exception())
         dbgln("handle_delete(): editing resulted in exception: {}", editing_result.exception());
 }
 
 EventResult EditingHostManager::handle_return_key(FlyString const& ui_input_type)
 {
+    VERIFY(ui_input_type == UIEvents::InputTypes::insertParagraph || ui_input_type == UIEvents::InputTypes::insertLineBreak);
+
     // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
     // When the user instructs the user agent to insert a line break inside an editing host, such as by pressing the
     // Enter key while the cursor is in an editable node, the user agent must call execCommand("insertparagraph") on the
@@ -183,19 +197,14 @@ EventResult EditingHostManager::handle_return_key(FlyString const& ui_input_type
     // When the user instructs the user agent to insert a line break inside an editing host without breaking out of the
     // current block, such as by pressing Shift-Enter or Option-Enter while the cursor is in an editable node, the user
     // agent must call execCommand("insertlinebreak") on the relevant document.
-    auto editing_result = [&] {
-        if (ui_input_type == UIEvents::InputTypes::insertParagraph)
-            return m_document->exec_command(Editing::CommandNames::insertParagraph, false, {});
-        if (ui_input_type == UIEvents::InputTypes::insertLineBreak)
-            return m_document->exec_command(Editing::CommandNames::insertLineBreak, false, {});
-        VERIFY_NOT_REACHED();
-    }();
-
+    auto command = ui_input_type == UIEvents::InputTypes::insertParagraph
+        ? Editing::CommandNames::insertParagraph
+        : Editing::CommandNames::insertLineBreak;
+    auto editing_result = m_document->exec_command(command, false, {});
     if (editing_result.is_exception()) {
         dbgln("handle_return_key(): editing resulted in exception: {}", editing_result.exception());
         return EventResult::Dropped;
     }
-
     return editing_result.value() ? EventResult::Handled : EventResult::Dropped;
 }
 

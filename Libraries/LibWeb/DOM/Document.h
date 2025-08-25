@@ -35,7 +35,6 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/History.h>
-#include <LibWeb/HTML/LazyLoadingElement.h>
 #include <LibWeb/HTML/NavigationType.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -431,10 +430,10 @@ public:
 
     void set_editable(bool editable) { m_editable = editable; }
 
-    Element* focused_element() { return m_focused_element.ptr(); }
-    Element const* focused_element() const { return m_focused_element.ptr(); }
-
-    void set_focused_element(GC::Ptr<Element>);
+    // // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
+    GC::Ptr<Node> focused_area() { return m_focused_area; }
+    GC::Ptr<Node const> focused_area() const { return m_focused_area; }
+    void set_focused_area(GC::Ptr<Node>);
 
     HTML::FocusTrigger last_focus_trigger() const { return m_last_focus_trigger; }
     void set_last_focus_trigger(HTML::FocusTrigger trigger) { m_last_focus_trigger = trigger; }
@@ -1017,7 +1016,9 @@ private:
 
     bool m_editable { false };
 
-    GC::Ptr<Element> m_focused_element;
+    // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
+    GC::Ptr<Node> m_focused_area;
+
     HTML::FocusTrigger m_last_focus_trigger { HTML::FocusTrigger::Other };
 
     GC::Ptr<Element> m_active_element;
