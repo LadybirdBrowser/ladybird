@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	custom property '--a'
+Pass	custom property '--a;b'
+Pass	custom property '---'
+Pass	custom property '--\'
+Pass	custom property '--ab'
+Pass	custom property '--0'
