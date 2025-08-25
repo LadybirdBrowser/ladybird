@@ -2143,21 +2143,13 @@ void StyleComputer::absolutize_values(ComputedProperties& style) const
         style.first_available_computed_font().pixel_metrics()
     };
 
-    // NOTE: Percentage line-height values are relative to the font-size of the element.
-    //       We have to resolve them right away, so that the *computed* line-height is ready for inheritance.
-    //       We can't simply absolutize *all* percentage values against the font size,
-    //       because most percentages are relative to containing block metrics.
     auto& line_height_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::LineHeight)];
-    if (line_height_value_slot && line_height_value_slot->is_percentage()) {
-        line_height_value_slot = LengthStyleValue::create(
-            Length::make_px(CSSPixels::nearest_value_for(style.font_size() * static_cast<double>(line_height_value_slot->as_percentage().percentage().as_fraction()))));
-    }
 
     auto line_height = style.compute_line_height(viewport_rect(), font_metrics, m_root_element_font_metrics);
     font_metrics.line_height = line_height;
 
     // NOTE: line-height might be using lh which should be resolved against the parent line height (like we did here already)
-    if (line_height_value_slot && line_height_value_slot->is_length())
+    if (line_height_value_slot && (line_height_value_slot->is_length() || line_height_value_slot->is_percentage()))
         line_height_value_slot = LengthStyleValue::create(Length::make_px(line_height));
 
     for (size_t i = 0; i < style.m_property_values.size(); ++i) {
