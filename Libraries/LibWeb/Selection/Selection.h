@@ -68,6 +68,8 @@ public:
     void move_offset_to_previous_character(bool collapse_selection);
     void move_offset_to_next_word(bool collapse_selection);
     void move_offset_to_previous_word(bool collapse_selection);
+    void move_offset_to_next_line(bool collapse_selection);
+    void move_offset_to_previous_line(bool collapse_selection);
 
 private:
     Selection(GC::Ref<JS::Realm>, GC::Ref<DOM::Document>);
