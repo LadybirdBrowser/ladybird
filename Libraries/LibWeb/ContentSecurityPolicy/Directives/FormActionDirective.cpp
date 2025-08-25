@@ -18,7 +18,7 @@ FormActionDirective::FormActionDirective(String name, Vector<String> value)
 {
 }
 
-Directive::Result FormActionDirective::pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request const> request, NavigationType navigation_type, GC::Ref<Policy const> policy) const
+Directive::Result FormActionDirective::pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request> request, NavigationType navigation_type, GC::Ref<Policy const> policy) const
 {
     // 1. Assert: policy is unused in this algorithm.
     // FIXME: File spec issue, because this is not the case. The policy is required to resolve 'self'.

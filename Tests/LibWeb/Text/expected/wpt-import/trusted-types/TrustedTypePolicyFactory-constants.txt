@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	trustedTypes.emptyHTML returns the intended value.
+Pass	trustedTypes.emptyHTML cannot be redefined.
+Pass	trustedTypes.emptyHTML cannot be redefined via defineProperty.
+Pass	trustedTypes.emptyScript returns the intended value.
+Pass	trustedTypes.emptyScript cannot be redefined.
+Pass	trustedTypes.emptyScript cannot be redefined via defineProperty.

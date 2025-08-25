@@ -31,11 +31,6 @@ namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedTypePolicyFactory);
 
-GC::Ref<TrustedTypePolicyFactory> TrustedTypePolicyFactory::create(JS::Realm& realm)
-{
-    return realm.create<TrustedTypePolicyFactory>(realm);
-}
-
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-getattributetype
 Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String const& tag_name, Utf16String& attribute, Optional<Utf16String> element_ns, Optional<Utf16String> attr_ns)
 {
@@ -76,7 +71,7 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String c
 
     // 8. If attributeData is not null, then set expectedType to the interface’s name of the value of the fourth member of attributeData.
     if (attribute_data.has_value()) {
-        expected_type = attribute_data.value().trusted_type;
+        expected_type = to_string(attribute_data.value().trusted_type);
     }
 
     // 9. Return expectedType.
@@ -108,24 +103,30 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16String co
     // 4. Let expectedType be null.
     Optional<Utf16String> expected_type;
 
-    static Vector<Array<Utf16String, 3>> const table {
-        { "HTMLIFrameElement"_utf16, "srcdoc"_utf16, "TrustedHTML"_utf16 },
-        { "HTMLScriptElement"_utf16, "innerText"_utf16, "TrustedScript"_utf16 },
-        { "HTMLScriptElement"_utf16, "src"_utf16, "TrustedScriptURL"_utf16 },
-        { "HTMLScriptElement"_utf16, "text"_utf16, "TrustedScript"_utf16 },
-        { "HTMLScriptElement"_utf16, "textContent"_utf16, "TrustedScript"_utf16 },
-        { "*"_utf16, "innerHTML"_utf16, "TrustedHTML"_utf16 },
-        { "*"_utf16, "outerHTML"_utf16, "TrustedHTML"_utf16 },
+    struct TrustedTypesPropertyTypeData {
+        Utf16String interface;
+        Utf16String property;
+        TrustedTypeName trusted_type;
+    };
+
+    static Vector<TrustedTypesPropertyTypeData> const table {
+        { "HTMLIFrameElement"_utf16, "srcdoc"_utf16, TrustedTypeName::TrustedHTML },
+        { "HTMLScriptElement"_utf16, "innerText"_utf16, TrustedTypeName::TrustedScript },
+        { "HTMLScriptElement"_utf16, "src"_utf16, TrustedTypeName::TrustedScriptURL },
+        { "HTMLScriptElement"_utf16, "text"_utf16, TrustedTypeName::TrustedScript },
+        { "HTMLScriptElement"_utf16, "textContent"_utf16, TrustedTypeName::TrustedScript },
+        { "*"_utf16, "innerHTML"_utf16, TrustedTypeName::TrustedHTML },
+        { "*"_utf16, "outerHTML"_utf16, TrustedTypeName::TrustedHTML },
     };
 
     // 5. Find the row in the following table, where the first column is "*" or interface’s name, and property is in the second column.
     // If a matching row is found, set expectedType to the interface’s name of the value of the third column.
     auto const matching_row = table.first_matching([&interface, &property](auto const& row) {
-        return (row[0] == interface || row[0] == "*"sv) && row[1] == property;
+        return (row.interface == interface || row.interface == "*"sv) && row.property == property;
     });
 
     if (matching_row.has_value()) {
-        expected_type = matching_row.value()[2];
+        expected_type = to_string(matching_row.value().trusted_type);
     }
 
     // 6. Return expectedType.
@@ -147,6 +148,8 @@ void TrustedTypePolicyFactory::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_default_policy);
+    visitor.visit(m_empty_html);
+    visitor.visit(m_empty_script);
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy
@@ -179,6 +182,26 @@ bool TrustedTypePolicyFactory::is_script_url(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedScriptURL and has an associated data value set, false otherwise.
     return value.is_object() && is<TrustedScriptURL>(value.as_object());
+}
+
+GC::Ref<TrustedHTML const> TrustedTypePolicyFactory::empty_html()
+{
+    auto& realm = this->realm();
+
+    if (!m_empty_html)
+        m_empty_html = realm.create<TrustedHTML>(realm, ""_utf16);
+
+    return GC::Ref { *m_empty_html };
+}
+
+GC::Ref<TrustedScript const> TrustedTypePolicyFactory::empty_script()
+{
+    auto& realm = this->realm();
+
+    if (!m_empty_script)
+        m_empty_script = realm.create<TrustedScript>(realm, ""_utf16);
+
+    return GC::Ref { *m_empty_script };
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
@@ -293,10 +316,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&
     // 2. If attributeNs is null, and attribute is the name of an event handler content attribute, then:
     if (!attribute_ns.has_value()) {
 #undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)                                                                                \
-    if (attribute == HTML::AttributeNames::attribute_name) {                                                                   \
-        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                     \
-        return TrustedTypeData { "Element"_utf16, {}, attribute, "TrustedScript"_utf16, "Element " #attribute_name ""_utf16 }; \
+#define __ENUMERATE(attribute_name, event_name)                                                                                                      \
+    if (attribute == HTML::AttributeNames::attribute_name) {                                                                                         \
+        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                                           \
+        return TrustedTypeData { "Element"_utf16, {}, attribute.to_utf8(), TrustedTypeName::TrustedScript, InjectionSink::Element##attribute_name }; \
     }
         ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
         ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
@@ -304,10 +327,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&
     }
 
     static Vector<TrustedTypeData> const table {
-        { "HTMLIFrameElement"_utf16, {}, "srcdoc"_utf16, "TrustedHTML"_utf16, "HTMLIFrameElement srcdoc"_utf16 },
-        { "HTMLScriptElement"_utf16, {}, "src"_utf16, "TrustedScriptURL"_utf16, "HTMLScriptElement src"_utf16 },
-        { "SVGScriptElement"_utf16, {}, "href"_utf16, "TrustedScriptURL"_utf16, "SVGScriptElement href"_utf16 },
-        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), "href"_utf16, "TrustedScriptURL"_utf16, "SVGScriptElement href"_utf16 },
+        { "HTMLIFrameElement"_utf16, {}, HTML::AttributeNames::srcdoc, TrustedTypeName::TrustedHTML, InjectionSink::HTMLIFrameElementsrcdoc },
+        { "HTMLScriptElement"_utf16, {}, HTML::AttributeNames::src, TrustedTypeName::TrustedScriptURL, InjectionSink::HTMLScriptElementsrc },
+        { "SVGScriptElement"_utf16, {}, HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElementhref },
+        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElementhref },
     };
 
     // 3. Find the row in the following table, where element is in the first column, attributeNs is in the second column,

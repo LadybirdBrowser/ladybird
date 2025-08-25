@@ -18,7 +18,7 @@ class FormActionDirective final : public Directive {
 public:
     virtual ~FormActionDirective() = default;
 
-    virtual Result pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Policy const>) const override;
+    virtual Result pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request>, NavigationType, GC::Ref<Policy const>) const override;
 
 private:
     FormActionDirective(String name, Vector<String> value);

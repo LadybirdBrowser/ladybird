@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+
+<meta http-equiv="Content-Security-Policy" content="trusted-types">
+<body>
+<script>
+  // No name given test
+  test(t => {
+    assert_throws_js(TypeError,
+      () => window.trustedTypes.createPolicy('SomeName', { createHTML: s => s } ),
+      "createPolicy with an empty trusted-types CSP directive");
+  }, "No name list given - policy creation fails.");
+</script>
+

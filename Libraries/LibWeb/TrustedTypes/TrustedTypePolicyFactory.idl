@@ -8,8 +8,8 @@ interface TrustedTypePolicyFactory {
     boolean isHTML(any value);
     boolean isScript(any value);
     boolean isScriptURL(any value);
-    [FIXME] readonly attribute TrustedHTML emptyHTML;
-    [FIXME] readonly attribute TrustedScript emptyScript;
+    readonly attribute TrustedHTML emptyHTML;
+    readonly attribute TrustedScript emptyScript;
     Utf16DOMString? getAttributeType(
         Utf16DOMString tagName,
         Utf16DOMString attribute,
