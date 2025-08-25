@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang=en class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Absolute positioning changing containing block</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#abspos" title="9. Absolute Positioning">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/abspos/absolute-positioning-changing-containing-block-001-ref.html">
+<meta name="assert" content="This test checks that absolutelly positioned children of a grid are properly sized when the containing block switches between the grid container and a grid ancestor.">
+<style>
+.wrapper {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 25px;
+  background: purple;
+  position: relative;
+}
+
+.grid {
+  display: grid;
+  grid-template: 10px / 10px;
+  width: 50px;
+  height: 50px;
+  background: lightblue;
+}
+
+.item {
+  width: 75%;
+  height: 75%;
+  background: orange;
+  position: absolute;
+}
+</style>
+
+<p>The test PASS if you see an orange box inside a purple box on top and a small orange box inside a light blue box inside a purple box on bottom.</p>
+
+<div class="wrapper">
+  <div id="grid-as-cb" class="grid" style="position: relative;">
+    <div class="item"></div>
+  </div>
+</div>
+<div class="wrapper">
+  <div id="grid-as-parent" class="grid">
+    <div class="item"></div>
+  </div>
+</div>
+
+<script>
+  window.requestAnimationFrame(() => {
+    document.getElementById("grid-as-cb").style.position = "initial";
+    document.getElementById("grid-as-parent").style.position = "relative";
+    document.body.offsetLeft;
+    document.documentElement.classList.remove('reftest-wait');
+  });
+</script>
+
+</html>
