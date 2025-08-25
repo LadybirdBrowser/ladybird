@@ -264,6 +264,7 @@ MathMLElement
 MediaCapabilities
 MediaElementAudioSourceNode
 MediaError
+MediaKeySystemAccess
 MediaList
 MediaQueryList
 MediaQueryListEvent
