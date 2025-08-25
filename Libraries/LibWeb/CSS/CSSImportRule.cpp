@@ -140,8 +140,29 @@ void CSSImportRule::fetch()
 
             // 4. Let importedStylesheet be the result of parsing byteStream given parsedUrl.
             // FIXME: Tidy up our parsing API. For now, do the decoding here.
-            // FIXME: Get the encoding from the response somehow.
+
+            // https://drafts.csswg.org/css-syntax/#determine-the-fallback-encoding
             auto encoding = "utf-8"sv;
+
+            // 1. If HTTP or equivalent protocol provides an encoding label (e.g. via the charset parameter of the Content-Type header)
+            //    for the stylesheet, get an encoding from encoding label. If that does not return failure, return it.
+            auto extracted_mime_type = response->header_list()->extract_mime_type();
+
+            if (extracted_mime_type.has_value()) {
+                auto maybe_encoding = extracted_mime_type->parameters().get("charset"sv);
+
+                if (maybe_encoding.has_value())
+                    encoding = maybe_encoding.value();
+            }
+
+            // FIXME: 2. Otherwise, check stylesheet’s byte stream. If the first 1024 bytes of the stream begin with the hex sequence
+            //           40 63 68 61 72 73 65 74 20 22 XX* 22 3B
+            //           where each XX byte is a value between 0₁₆ and 21₁₆ inclusive or a value between 23₁₆ and 7F₁₆ inclusive,
+            //           then get an encoding from a string formed out of the sequence of XX bytes, interpreted as ASCII.
+            //           If the return value was utf-16be or utf-16le, return utf-8; if it was anything else except failure, return it.
+            // FIXME: 3. Otherwise, if an environment encoding is provided by the referring document, return it.
+            // FIXME: 4. Otherwise, return utf-8.
+
             auto maybe_decoder = TextCodec::decoder_for(encoding);
             if (!maybe_decoder.has_value()) {
                 dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {} Unsupported encoding: {}", parsed_url, encoding);
