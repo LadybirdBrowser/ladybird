@@ -64,6 +64,7 @@ enum class ShouldComputeRole {
     X(EditingInsertion)                             \
     X(ElementAttributeChange)                       \
     X(ElementSetShadowRoot)                         \
+    X(Fullscreen)                                   \
     X(HTMLDialogElementSetIsModal)                  \
     X(HTMLHyperlinkElementHrefChange)               \
     X(HTMLIFrameElementGeometryChange)              \
