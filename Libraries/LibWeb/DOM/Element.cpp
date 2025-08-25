@@ -676,12 +676,8 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
 
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
-        auto old_value = old_style.maybe_null_property(property_id);
-        auto new_value = new_style.maybe_null_property(property_id);
-        if (!old_value && !new_value)
-            continue;
 
-        invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
+        invalidation |= CSS::compute_property_invalidation(property_id, old_style.property(property_id), new_style.property(property_id));
     }
     return invalidation;
 }
@@ -810,7 +806,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         // FIXME: We should use the specified value rather than the cascaded value as the cascaded value may include
         //        unresolved CSS-wide keywords (e.g. 'initial' or 'inherit') rather than the resolved value.
         auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
-        RefPtr old_value = computed_properties->maybe_null_property(property_id);
+        RefPtr old_value = computed_properties->property(property_id);
         // Update property if it uses relative units as it might have been affected by a change in ancestor element style.
         if (preabsolutized_value && preabsolutized_value->is_length() && preabsolutized_value->as_length().length().is_font_relative()) {
             auto is_inherited = computed_properties->is_property_inherited(property_id);
@@ -842,7 +838,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     document().style_computer().absolutize_values(*computed_properties);
 
     for (auto [property_id, old_value] : old_values_with_relative_units) {
-        auto new_value = computed_properties->maybe_null_property(static_cast<CSS::PropertyID>(property_id));
+        auto const& new_value = computed_properties->property(static_cast<CSS::PropertyID>(property_id));
         invalidation |= CSS::compute_property_invalidation(static_cast<CSS::PropertyID>(property_id), old_value, new_value);
     }
 

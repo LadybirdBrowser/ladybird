@@ -187,15 +187,9 @@ Optional<StyleProperty> CSSStyleProperties::property(PropertyID property_id) con
         if (!layout_node) {
             auto style = element.document().style_computer().compute_style(element, pseudo_element);
 
-            // FIXME: This is a stopgap until we implement shorthand -> longhand conversion.
-            auto const* value = style->maybe_null_property(property_id);
-            if (!value) {
-                dbgln("FIXME: CSSStyleProperties::property(property_id={:#x}) No value for property ID in newly computed style case.", to_underlying(property_id));
-                return {};
-            }
             return StyleProperty {
                 .property_id = property_id,
-                .value = *value,
+                .value = style->property(property_id),
             };
         }
 

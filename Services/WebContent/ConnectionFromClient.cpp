@@ -328,8 +328,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         auto dump_style = [](String const& title, Web::CSS::ComputedProperties const& style, HashMap<FlyString, Web::CSS::StyleProperty> const& custom_properties) {
             dbgln("+ {}", title);
             for (size_t i = to_underlying(Web::CSS::first_longhand_property_id); i < to_underlying(Web::CSS::last_longhand_property_id); ++i) {
-                auto property = style.maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
-                dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::SerializationMode::Normal) : ""_string);
+                dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), style.property(static_cast<Web::CSS::PropertyID>(i)).to_string(Web::CSS::SerializationMode::Normal));
             }
             for (auto const& [name, property] : custom_properties) {
                 dbgln("|  {} = {}", name, property.value->to_string(Web::CSS::SerializationMode::Normal));

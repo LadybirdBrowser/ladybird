@@ -159,16 +159,6 @@ StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnima
     return *m_property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
 }
 
-StyleValue const* ComputedProperties::maybe_null_property(PropertyID property_id) const
-{
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-
-    if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
-        return animated_value.value();
-
-    return m_property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
-}
-
 Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(PropertyID id) const
 {
     auto const& value = property(id);
