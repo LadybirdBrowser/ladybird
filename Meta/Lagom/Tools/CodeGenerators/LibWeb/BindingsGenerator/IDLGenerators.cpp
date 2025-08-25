@@ -79,6 +79,7 @@ static bool is_platform_object(Type const& type)
         "IDBIndex"sv,
         "IDBKeyRange"sv,
         "IDBObjectStore"sv,
+        "IDBRecord"sv,
         "IDBTransaction"sv,
         "ImageBitmap"sv,
         "ImageData"sv,

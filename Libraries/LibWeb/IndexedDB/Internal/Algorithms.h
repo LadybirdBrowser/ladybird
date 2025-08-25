@@ -8,6 +8,7 @@
 
 #include <AK/Variant.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/IDBCursorPrototype.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
@@ -16,6 +17,12 @@
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::IndexedDB {
+
+enum class RecordKind {
+    Key,
+    Value,
+    Record
+};
 
 using KeyPath = Variant<String, Vector<String>>;
 using RecordSource = Variant<GC::Ref<ObjectStore>, GC::Ref<Index>>;
@@ -58,5 +65,9 @@ GC::Ref<JS::Array> retrieve_multiple_referenced_values_from_an_index(JS::Realm&,
 GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
 void queue_a_database_task(GC::Ref<GC::Function<void()>>);
 bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop>);
+bool is_a_potentially_valid_key_range(JS::Realm&, JS::Value);
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, RecordKind, Bindings::IDBCursorDirection, Optional<WebIDL::UnsignedLong>);
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, RecordKind, Bindings::IDBCursorDirection, Optional<WebIDL::UnsignedLong>);
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_items(JS::Realm&, IDBRequestSource, RecordKind, JS::Value, Optional<WebIDL::UnsignedLong>);
 
 }

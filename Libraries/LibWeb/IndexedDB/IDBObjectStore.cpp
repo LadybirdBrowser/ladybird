@@ -72,7 +72,9 @@ WebIDL::ExceptionOr<void> IDBObjectStore::set_name(String const& value)
     // 3. Let store be this’s object store.
     auto& store = m_store;
 
-    // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 4. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 5. If transaction is not an upgrade transaction, throw an "InvalidStateError" DOMException.
     if (!transaction->is_upgrade_transaction())
@@ -157,7 +159,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const
     if (!transaction->is_upgrade_transaction())
         return WebIDL::InvalidStateError::create(realm, "Transaction is not an upgrade transaction"_utf16);
 
-    // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 4. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -195,25 +199,29 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-index
 WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::index(String const& name)
 {
+    auto& realm = this->realm();
+
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
 
     // 2. Let store be this’s object store.
-    [[maybe_unused]] auto store = this->store();
+    auto store = this->store();
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 4. If transaction’s state is finished, then throw an "InvalidStateError" DOMException.
     if (transaction->state() == IDBTransaction::TransactionState::Finished)
-        return WebIDL::InvalidStateError::create(realm(), "Transaction is finished"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "Transaction is finished"_utf16);
 
     // 5. Let index be the index named name in this’s index set if one exists, or throw a "NotFoundError" DOMException otherwise.
     auto index = m_indexes.get(name);
     if (!index.has_value())
-        return WebIDL::NotFoundError::create(realm(), "Index not found in object store"_utf16);
+        return WebIDL::NotFoundError::create(realm, "Index not found in object store"_utf16);
 
     // 6. Return an index handle associated with index and this.
-    return IDBIndex::create(realm(), *index, *this);
+    return IDBIndex::create(realm, *index, *this);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-deleteindex
@@ -231,7 +239,9 @@ WebIDL::ExceptionOr<void> IDBObjectStore::delete_index(String const& name)
     if (!transaction->is_upgrade_transaction())
         return WebIDL::InvalidStateError::create(realm, "Transaction is not an upgrade transaction"_utf16);
 
-    // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 4. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -262,7 +272,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
     // 2. Let store be handle’s object store.
     auto& store = *handle->store();
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store.is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -370,7 +382,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::count(Optional<JS::Valu
     // 2. Let store be this's object store.
     auto store = this->store();
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -401,7 +415,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get(JS::Value query)
     // 2. Let store be this's object store.
     auto store = this->store();
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -432,7 +448,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_cursor(JS::Value q
     // 2. Let store be this's object store.
     [[maybe_unused]] auto store = this->store();
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -472,7 +490,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::delete_(JS::Value query
     // 2. Let store be this’s object store.
     auto store = this->store();
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -507,7 +527,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::clear()
     // 2. Let store be this’s object store.
     auto store = this->store();
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -539,7 +561,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_key(JS::Value query
     // 2. Let store be this’s object store.
     auto store = this->store();
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -560,34 +584,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_key(JS::Value query
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-getall
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all(Optional<JS::Value> value, Optional<WebIDL::UnsignedLong> count)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all(Optional<JS::Value> query_or_options, Optional<WebIDL::UnsignedLong> count)
 {
-    auto& realm = this->realm();
-
-    // 1. Let transaction be this’s transaction.
-    auto transaction = this->transaction();
-
-    // 2. Let store be this’s object store.
-    auto store = this->store();
-
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
-
-    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting all"_utf16);
-
-    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
-    auto range = TRY(convert_a_value_to_a_key_range(realm, move(value)));
-
-    // 6. Let operation be an algorithm to run retrieve multiple values from an object store with the current Realm record, store, range, and count if given.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, store, range, count] -> WebIDL::ExceptionOr<JS::Value> {
-        return retrieve_multiple_values_from_an_object_store(realm, store, range, count);
-    });
-
-    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
-    dbgln_if(IDB_DEBUG, "Executing request for get all with uuid {}", result->uuid());
-    return result;
+    // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this,
+    //    "value", queryOrOptions, and count if given. Rethrow any exceptions.
+    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Value, *query_or_options, count);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-openkeycursor
@@ -601,7 +602,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_key_cursor(JS::Val
     // 2. Let store be this’s object store.
     [[maybe_unused]] auto store = this->store();
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If store has been deleted, throw an "InvalidStateError" DOMException.
+    if (store->is_deleted())
+        return WebIDL::InvalidStateError::create(realm, "Object store is deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
@@ -630,34 +633,25 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_key_cursor(JS::Val
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-getallkeys
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_keys(Optional<JS::Value> query, Optional<WebIDL::UnsignedLong> count)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_keys(Optional<JS::Value> query_or_options, Optional<WebIDL::UnsignedLong> count)
 {
-    auto& realm = this->realm();
+    // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this, "key",
+    //    queryOrOptions, and count if given. Rethrow any exceptions.
+    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Key, *query_or_options, count);
+}
 
-    // 1. Let transaction be this’s transaction.
-    auto transaction = this->transaction();
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#dom-idbobjectstore-getallrecords
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_records(IDBGetAllOptions const& options)
+{
+    // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this,
+    //    "record", and options. Rethrow any exceptions.
 
-    // 2. Let store be this’s object store.
-    auto store = this->store();
+    auto converted_options = JS::Object::create(realm(), nullptr);
+    MUST(converted_options->create_data_property("query"_utf16_fly_string, options.query));
+    MUST(converted_options->create_data_property("count"_utf16_fly_string, options.count.has_value() ? JS::Value(options.count.value()) : JS::js_undefined()));
+    MUST(converted_options->create_data_property("direction"_utf16_fly_string, JS::PrimitiveString::create(realm().vm(), idl_enum_to_string(options.direction))));
 
-    // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
-
-    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting all keys"_utf16);
-
-    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
-    auto range = TRY(convert_a_value_to_a_key_range(realm, move(query)));
-
-    // 6. Let operation be an algorithm to run retrieve multiple keys from an object store with store, range, and count if given.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, store, range, count] -> WebIDL::ExceptionOr<JS::Value> {
-        return retrieve_multiple_keys_from_an_object_store(realm, store, range, count);
-    });
-
-    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
-    dbgln_if(IDB_DEBUG, "Executing request for get all keys with uuid {}", result->uuid());
-    return result;
+    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Record, converted_options, {});
 }
 
 }
