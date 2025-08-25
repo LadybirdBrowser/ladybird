@@ -254,7 +254,7 @@ ErrorOr<void> Session::start(LaunchBrowserCallback const& launch_browser_callbac
 {
     auto promise = ServerPromise::construct();
 
-    m_web_content_socket_path = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), getpid(), m_session_id);
+    m_web_content_socket_path = ByteString::formatted("{}/webdriver/session_{}_{}", Core::StandardPaths::tempfile_directory(), getpid(), m_session_id);
     m_web_content_server = TRY(create_server(promise));
 
     m_browser_process = TRY(launch_browser_callback(*m_web_content_socket_path, m_options.headless));
