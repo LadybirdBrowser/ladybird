@@ -22,9 +22,9 @@
 #    define PRINT_ERROR(s) (void)::fputs((s), stderr)
 #endif
 
-#if defined(AK_HAS_STD_STACKTRACE)
-#    include <stacktrace>
-#    include <string>
+#if defined(AK_HAS_CPPTRACE)
+#    include <cpptrace/cpptrace.hpp>
+#    include <iostream>
 #elif defined(AK_HAS_BACKTRACE_HEADER)
 #    include <AK/StringBuilder.h>
 #    include <AK/StringView.h>
@@ -39,22 +39,21 @@
 
 extern "C" {
 
-#if defined(AK_HAS_STD_STACKTRACE)
-void dump_backtrace()
+#if defined(AK_HAS_CPPTRACE)
+void dump_backtrace(int frames_to_skip)
 {
-    // We assume the stacktrace implementation demangles symbols, as does microsoft/STL
-    PRINT_ERROR(std::to_string(std::stacktrace::current(2)).c_str());
-    PRINT_ERROR("\n");
+    // We should be using cpptrace for everything but android.
+    cpptrace::generate_trace(frames_to_skip).print(std::cerr);
 }
 #elif defined(AK_HAS_BACKTRACE_HEADER)
-void dump_backtrace()
+void dump_backtrace(int frames_to_skip)
 {
     // Grab symbols and dso name for up to 256 frames
     void* trace[256] = {};
     int const num_frames = backtrace(trace, array_size(trace));
     char** syms = backtrace_symbols(trace, num_frames);
 
-    for (auto i = 0; i < num_frames; ++i) {
+    for (auto i = frames_to_skip; i < num_frames; ++i) {
         // If there is a C++ symbol name in the line of the backtrace, demangle it
         StringView sym(syms[i], strlen(syms[i]));
         StringBuilder error_builder;
@@ -93,7 +92,7 @@ void dump_backtrace()
     free(syms);
 }
 #else
-void dump_backtrace()
+void dump_backtrace([[maybe_unused]] int frames_to_skip)
 {
     PRINT_ERROR("dump_backtrace() is not supported with the current compilation options.\n");
 }
@@ -104,16 +103,27 @@ bool ak_colorize_output(void)
 #if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID)
     return true;
 #elif defined(AK_OS_WINDOWS)
-    return false;
+    HANDLE hStdErr = GetStdHandle(STD_ERROR_HANDLE);
+    if (hStdErr == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hStdErr, &dwMode)) {
+        return false;
+    }
+    DWORD mask = ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+
+    return (dwMode & mask) == mask;
 #else
     return isatty(STDERR_FILENO) == 1;
 #endif
 }
 
-void ak_trap(void)
+NEVER_INLINE void ak_trap(void)
 {
-#if defined(AK_HAS_BACKTRACE_HEADER) || defined(AK_HAS_STD_STACKTRACE)
-    dump_backtrace();
+#if defined(AK_HAS_BACKTRACE_HEADER) || defined(AK_HAS_CPPTRACE)
+    // Skip 3 frames to get to caller. That is dump_backtrace, ak_trap, and ak_verification_failed.
+    dump_backtrace(3);
 #endif
     __builtin_trap();
 }
@@ -136,7 +146,6 @@ static AssertionHandlerFunc get_custom_assertion_handler()
 #    pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
         auto handler = reinterpret_cast<AssertionHandlerFunc>(GetProcAddress(module, "ak_assertion_handler"));
 #    pragma clang diagnostic pop
-        FreeLibrary(module);
         return handler;
     }
     return nullptr;
