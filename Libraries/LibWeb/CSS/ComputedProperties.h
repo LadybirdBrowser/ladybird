@@ -66,7 +66,6 @@ public:
         Yes,
     };
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
-    StyleValue const* maybe_null_property(PropertyID) const;
     void revert_property(PropertyID, ComputedProperties const& style_for_revert);
 
     GC::Ptr<CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }

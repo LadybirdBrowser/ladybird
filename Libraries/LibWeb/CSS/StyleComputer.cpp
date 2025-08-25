@@ -1348,23 +1348,23 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
     }
 
     auto normalize_transition_length_list = [&properties, &style](PropertyID property, auto make_default_value) {
-        auto const* style_value = style.maybe_null_property(property);
+        auto const& style_value = style.property(property);
         StyleValueVector list;
 
-        if (style_value && !style_value->is_value_list()) {
+        if (!style_value.is_value_list()) {
             for (size_t i = 0; i < properties.size(); i++)
-                list.append(*style_value);
+                list.append(style_value);
             return list;
         }
 
-        if (!style_value || !style_value->is_value_list() || style_value->as_value_list().size() == 0) {
+        if (style_value.as_value_list().size() == 0) {
             auto default_value = make_default_value();
             for (size_t i = 0; i < properties.size(); i++)
                 list.append(default_value);
             return list;
         }
 
-        auto const& value_list = style_value->as_value_list();
+        auto const& value_list = style_value.as_value_list();
         for (size_t i = 0; i < properties.size(); i++)
             list.append(value_list.value_at(i, true));
 
@@ -2617,14 +2617,12 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
 
     // Animation declarations [css-animations-2]
     auto animation_name = [&]() -> Optional<String> {
-        auto const animation_name = computed_style->maybe_null_property(PropertyID::AnimationName);
-        if (!animation_name)
+        auto const& animation_name = computed_style->property(PropertyID::AnimationName);
+        if (animation_name.is_keyword() && animation_name.to_keyword() == Keyword::None)
             return OptionalNone {};
-        if (animation_name->is_keyword() && animation_name->to_keyword() == Keyword::None)
-            return OptionalNone {};
-        if (animation_name->is_string())
-            return animation_name->as_string().string_value().to_string();
-        return animation_name->to_string(SerializationMode::Normal);
+        if (animation_name.is_string())
+            return animation_name.as_string().string_value().to_string();
+        return animation_name.to_string(SerializationMode::Normal);
     }();
 
     if (animation_name.has_value()) {
