@@ -57,13 +57,17 @@ void ComputedProperties::visit_edges(Visitor& visitor)
 
 bool ComputedProperties::is_property_important(PropertyID property_id) const
 {
-    size_t n = to_underlying(property_id);
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+
+    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
     return m_property_important[n / 8] & (1 << (n % 8));
 }
 
 void ComputedProperties::set_property_important(PropertyID property_id, Important important)
 {
-    size_t n = to_underlying(property_id);
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+
+    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
     if (important == Important::Yes)
         m_property_important[n / 8] |= (1 << (n % 8));
     else
@@ -72,19 +76,25 @@ void ComputedProperties::set_property_important(PropertyID property_id, Importan
 
 bool ComputedProperties::is_property_inherited(PropertyID property_id) const
 {
-    size_t n = to_underlying(property_id);
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+
+    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
     return m_property_inherited[n / 8] & (1 << (n % 8));
 }
 
 bool ComputedProperties::is_animated_property_inherited(PropertyID property_id) const
 {
-    size_t n = to_underlying(property_id);
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+
+    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
     return m_animated_property_inherited[n / 8] & (1 << (n % 8));
 }
 
 void ComputedProperties::set_property_inherited(PropertyID property_id, Inherited inherited)
 {
-    size_t n = to_underlying(property_id);
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+
+    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
     if (inherited == Inherited::Yes)
         m_property_inherited[n / 8] |= (1 << (n % 8));
     else
@@ -93,7 +103,9 @@ void ComputedProperties::set_property_inherited(PropertyID property_id, Inherite
 
 void ComputedProperties::set_animated_property_inherited(PropertyID property_id, Inherited inherited)
 {
-    size_t n = to_underlying(property_id);
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+
+    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
     if (inherited == Inherited::Yes)
         m_animated_property_inherited[n / 8] |= (1 << (n % 8));
     else
@@ -102,14 +114,18 @@ void ComputedProperties::set_animated_property_inherited(PropertyID property_id,
 
 void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
 {
-    m_property_values[to_underlying(id)] = move(value);
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+
+    m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
     set_property_important(id, important);
     set_property_inherited(id, inherited);
 }
 
 void ComputedProperties::revert_property(PropertyID id, ComputedProperties const& style_for_revert)
 {
-    m_property_values[to_underlying(id)] = style_for_revert.m_property_values[to_underlying(id)];
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+
+    m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = style_for_revert.m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)];
     set_property_important(id, style_for_revert.is_property_important(id) ? Important::Yes : Important::No);
     set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
 }
@@ -132,20 +148,25 @@ void ComputedProperties::reset_animated_properties(Badge<Animations::KeyframeEff
 
 StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+
     if (return_animated_value == WithAnimationsApplied::Yes) {
         if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
             return *animated_value.value();
     }
 
     // By the time we call this method, all properties have values assigned.
-    return *m_property_values[to_underlying(property_id)];
+    return *m_property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
 }
 
 StyleValue const* ComputedProperties::maybe_null_property(PropertyID property_id) const
 {
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+
     if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
         return animated_value.value();
-    return m_property_values[to_underlying(property_id)];
+
+    return m_property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
 }
 
 Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(PropertyID id) const

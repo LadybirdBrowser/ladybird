@@ -31,7 +31,6 @@ class WEB_API ComputedProperties final : public JS::Cell {
 
 public:
     static constexpr double normal_line_height_scale = 1.15;
-    static constexpr size_t number_of_properties = to_underlying(last_property_id) + 1;
 
     virtual ~ComputedProperties() override;
 
@@ -40,7 +39,7 @@ public:
     {
         for (size_t i = 0; i < m_property_values.size(); ++i) {
             if (m_property_values[i])
-                callback((PropertyID)i, *m_property_values[i]);
+                callback(static_cast<PropertyID>(i + to_underlying(first_longhand_property_id)), *m_property_values[i]);
         }
     }
 
@@ -268,10 +267,10 @@ private:
     GC::Ptr<CSSStyleDeclaration const> m_animation_name_source;
     GC::Ptr<CSSStyleDeclaration const> m_transition_property_source;
 
-    Array<RefPtr<StyleValue const>, number_of_properties> m_property_values;
-    Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
-    Array<u8, ceil_div(number_of_properties, 8uz)> m_property_inherited {};
-    Array<u8, ceil_div(number_of_properties, 8uz)> m_animated_property_inherited {};
+    Array<RefPtr<StyleValue const>, number_of_longhand_properties> m_property_values;
+    Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_property_important {};
+    Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_property_inherited {};
+    Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_animated_property_inherited {};
 
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_animated_property_values;
 
