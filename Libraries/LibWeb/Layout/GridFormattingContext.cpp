@@ -1937,11 +1937,14 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         // is that of the corresponding padding edge of the grid container (the padding edge of the scrollable area, if the grid container
         // overflows). These lines become the first and last lines (0th and -0th) of the augmented grid used for positioning absolutely-positioned items.
         CSSPixels height = 0;
-        for (auto const& row_track : m_grid_rows_and_gaps) {
-            height += row_track.base_size;
+        if (m_available_space->height.is_definite()) {
+            height = m_available_space->height.to_px_or_zero();
+        } else {
+            for (auto const& row_track : m_grid_rows_and_gaps)
+                height += row_track.base_size;
         }
-        height += m_grid_container_used_values.padding_top;
-        height += m_grid_container_used_values.padding_bottom;
+        height += m_grid_container_used_values.padding_top + m_grid_container_used_values.padding_bottom;
+
         area_rect.set_height(height);
         area_rect.set_y(-m_grid_container_used_values.padding_top);
     }
@@ -1954,11 +1957,14 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         }
     } else {
         CSSPixels width = 0;
-        for (auto const& col_track : m_grid_columns_and_gaps) {
-            width += col_track.base_size;
+        if (m_available_space->width.is_definite()) {
+            width = m_available_space->width.to_px_or_zero();
+        } else {
+            for (auto const& col_track : m_grid_columns_and_gaps)
+                width += col_track.base_size;
         }
-        width += m_grid_container_used_values.padding_left;
-        width += m_grid_container_used_values.padding_right;
+        width += m_grid_container_used_values.padding_left + m_grid_container_used_values.padding_right;
+
         area_rect.set_width(width);
         area_rect.set_x(-m_grid_container_used_values.padding_left);
     }
