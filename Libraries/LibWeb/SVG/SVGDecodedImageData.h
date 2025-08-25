@@ -18,7 +18,7 @@ class SVGDecodedImageData final : public HTML::DecodedImageData {
 
 public:
     class SVGPageClient;
-    static ErrorOr<GC::Ref<SVGDecodedImageData>> create(JS::Realm&, GC::Ref<Page>, URL::URL const&, ByteBuffer encoded_svg);
+    static ErrorOr<GC::Ref<SVGDecodedImageData>> create(JS::Realm&, GC::Ref<Page>, URL::URL const&, ReadonlyBytes encoded_svg);
     virtual ~SVGDecodedImageData() override;
 
     virtual RefPtr<Gfx::ImmutableBitmap> bitmap(size_t frame_index, Gfx::IntSize) const override;

@@ -9,6 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/HTMLLinkElementPrototype.h>
@@ -34,6 +35,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web::HTML {
 
@@ -596,8 +598,31 @@ void HTMLLinkElement::resource_did_load_favicon()
     document().check_favicon_after_loading_link_resource();
 }
 
-static NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, GC::Ref<DOM::Document> document)
+static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, GC::Ref<DOM::Document> document)
 {
+    if (favicon_url.basename().ends_with(".svg"sv)) {
+        auto result = SVG::SVGDecodedImageData::create(document->realm(), document->page(), favicon_url, favicon_data);
+        auto promise = Core::Promise<bool>::construct();
+        if (result.is_error()) {
+            promise->reject(Error::from_string_view("Failed to decode SVG favicon"sv));
+            return promise;
+        }
+
+        // FIXME: Calculate size based on device pixel ratio
+        Gfx::IntSize size { 32, 32 };
+        auto immutable_bitmap = result.release_value()->bitmap(0, size);
+        auto bitmap = immutable_bitmap->bitmap();
+        if (!bitmap) {
+            promise->reject(Error::from_string_view("Failed to get bitmap from SVG favicon"sv));
+            return promise;
+        }
+        auto navigable = document->navigable();
+        if (navigable && navigable->is_traversable())
+            navigable->traversable_navigable()->page().client().page_did_change_favicon(*bitmap);
+        promise->resolve(true);
+        return promise;
+    }
+
     auto on_failed_decode = [favicon_url]([[maybe_unused]] Error& error) {
         dbgln_if(IMAGE_DECODER_DEBUG, "Failed to decode favicon {}: {}", favicon_url, error);
     };
@@ -614,8 +639,7 @@ static NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> decode_favicon(
     };
 
     auto promise = Platform::ImageCodecPlugin::the().decode_image(favicon_data, move(on_successful_decode), move(on_failed_decode));
-
-    return promise;
+    return promise->map<bool>([](auto const&) { return true; });
 }
 
 bool HTMLLinkElement::load_favicon_and_use_if_window_is_active()
