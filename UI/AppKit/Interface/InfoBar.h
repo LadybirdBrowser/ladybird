@@ -16,7 +16,7 @@ using InfoBarDismissed = void (^)(void);
 
 - (void)showWithMessage:(NSString*)message
       dismissButtonTitle:(NSString*)title
-    dismissButtonClicked:(InfoBarDismissed)on_dimissed
+    dismissButtonClicked:(InfoBarDismissed)on_dismissed
                activeTab:(Tab*)tab;
 - (void)hide;
 

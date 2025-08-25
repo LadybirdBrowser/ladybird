@@ -198,10 +198,10 @@ The generated code provides:
 - The `PseudoClassMetadata` struct which holds a representation of the data from the JSON file
 - `PseudoClassMetadata pseudo_class_metadata(PseudoClass)` to retrieve that data
 
-## PsuedoElements.json
+## PseudoElements.json
 
 This is a single JSON object, with pseudo-element names as keys and the values being objects with fields for the pseudo-element.
-This generated `PsuedoElement.h` and `PseudoElement.cpp`.
+This generated `PseudoElement.h` and `PseudoElement.cpp`.
 
 Each entry has the following properties:
 

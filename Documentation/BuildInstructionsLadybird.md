@@ -105,7 +105,7 @@ sudo zypper install libpulse-devel
 
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install the package `python312` and create a virtual environment (venv) in this case.
 
-A virtual enviroment can be created in your home directory and once the `source` command is issued `python3 --version` will show that the current version is python 3.12 within the virtual environment shell session.
+A virtual environment can be created in your home directory and once the `source` command is issued `python3 --version` will show that the current version is python 3.12 within the virtual environment shell session.
 ```
 python3.12 -m venv ~/python312_venv
 source ~/python312_venv/bin/activate

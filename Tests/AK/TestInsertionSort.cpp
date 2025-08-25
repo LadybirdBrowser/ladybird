@@ -35,7 +35,7 @@ TEST_CASE(sorts_ascending)
     }
 }
 
-TEST_CASE(sorts_decending)
+TEST_CASE(sorts_descending)
 {
     srand(seed);
 

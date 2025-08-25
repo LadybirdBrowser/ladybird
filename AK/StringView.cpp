@@ -47,8 +47,8 @@ StringView::StringView(ByteBuffer const& buffer)
 
 Vector<StringView> StringView::split_view(char const separator, SplitBehavior split_behavior) const
 {
-    StringView seperator_view { &separator, 1 };
-    return split_view(seperator_view, split_behavior);
+    StringView separator_view { &separator, 1 };
+    return split_view(separator_view, split_behavior);
 }
 
 Vector<StringView> StringView::split_view(StringView separator, SplitBehavior split_behavior) const
