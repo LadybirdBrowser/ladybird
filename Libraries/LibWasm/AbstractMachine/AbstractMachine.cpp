@@ -270,7 +270,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 auxiliary_instance,
                 Vector<Value> {},
                 entry,
-                entry.instructions().size(),
+                entry.instructions().size() - 1,
             });
             auto result = config.execute(interpreter);
             if (result.is_trap())

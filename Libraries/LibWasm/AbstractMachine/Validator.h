@@ -361,6 +361,7 @@ private:
 
     Context m_context;
     Vector<Frame> m_frames;
+    size_t m_max_frame_size { 0 };
     COWVector<GlobalType> m_globals_without_internal_globals;
 };
 
