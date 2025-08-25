@@ -1098,7 +1098,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         };
 
         compute_font(computed_properties, &element, pseudo_element);
-        absolutize_values(computed_properties, element);
+        absolutize_values(computed_properties);
         Length::FontMetrics font_metrics {
             computed_properties.font_size(),
             computed_properties.first_available_computed_font().pixel_metrics()
@@ -2136,24 +2136,12 @@ Gfx::Font const& StyleComputer::initial_font() const
     return font;
 }
 
-void StyleComputer::absolutize_values(ComputedProperties& style, GC::Ptr<DOM::Element const> element) const
+void StyleComputer::absolutize_values(ComputedProperties& style) const
 {
     Length::FontMetrics font_metrics {
-        root_element_font_metrics_for_element(element).font_size,
+        style.font_size(),
         style.first_available_computed_font().pixel_metrics()
     };
-
-    // "A percentage value specifies an absolute font size relative to the parent element’s computed font-size. Negative percentages are invalid."
-    auto& font_size_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::FontSize)];
-    if (font_size_value_slot && font_size_value_slot->is_percentage()) {
-        auto parent_font_size = get_inherit_value(CSS::PropertyID::FontSize, element)->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
-        font_size_value_slot = LengthStyleValue::create(
-            Length::make_px(CSSPixels::nearest_value_for(parent_font_size * font_size_value_slot->as_percentage().percentage().as_fraction())));
-    }
-
-    auto font_size = font_size_value_slot->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
-    font_metrics.font_size = font_size;
-    style.set_font_size({}, font_size);
 
     // NOTE: Percentage line-height values are relative to the font-size of the element.
     //       We have to resolve them right away, so that the *computed* line-height is ready for inheritance.
@@ -2162,7 +2150,7 @@ void StyleComputer::absolutize_values(ComputedProperties& style, GC::Ptr<DOM::El
     auto& line_height_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::LineHeight)];
     if (line_height_value_slot && line_height_value_slot->is_percentage()) {
         line_height_value_slot = LengthStyleValue::create(
-            Length::make_px(CSSPixels::nearest_value_for(font_size * static_cast<double>(line_height_value_slot->as_percentage().percentage().as_fraction()))));
+            Length::make_px(CSSPixels::nearest_value_for(style.font_size() * static_cast<double>(line_height_value_slot->as_percentage().percentage().as_fraction()))));
     }
 
     auto line_height = style.compute_line_height(viewport_rect(), font_metrics, m_root_element_font_metrics);
@@ -2396,7 +2384,7 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
 
     compute_math_depth(style, {});
     compute_font(style, nullptr, {});
-    absolutize_values(style, nullptr);
+    absolutize_values(style);
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
     style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
@@ -2708,7 +2696,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     compute_font(computed_style, &element, pseudo_element);
 
     // 4. Absolutize values, turning font/viewport relative lengths into absolute lengths
-    absolutize_values(computed_style, element);
+    absolutize_values(computed_style);
 
     // 5. Run automatic box type transformations
     transform_box_type_if_needed(computed_style, element, pseudo_element);
