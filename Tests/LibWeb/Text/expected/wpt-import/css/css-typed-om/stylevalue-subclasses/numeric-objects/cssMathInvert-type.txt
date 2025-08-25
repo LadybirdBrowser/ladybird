@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	Inverting a type with empty map returns the empty map
-Fail	Inverting a type negates all its exponents
-Fail	Inverting an inverted type returns the original type
+3 Pass
+Pass	Inverting a type with empty map returns the empty map
+Pass	Inverting a type negates all its exponents
+Pass	Inverting an inverted type returns the original type

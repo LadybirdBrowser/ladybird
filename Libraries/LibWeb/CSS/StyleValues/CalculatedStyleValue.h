@@ -117,6 +117,8 @@ public:
 
     String dump() const;
 
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, String const& associated_property) const override;
+
 private:
     explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode const> calculation, NumericType resolved_type, CalculationContext context)
         : StyleValue(Type::Calculated)
@@ -249,6 +251,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent) const = 0;
     virtual bool equals(CalculationNode const&) const = 0;
+    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const { return nullptr; }
 
 protected:
     CalculationNode(Type, Optional<NumericType>);
@@ -287,6 +290,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     NumericCalculationNode(NumericValue, NumericType);
@@ -306,6 +310,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     SumCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -325,6 +330,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -345,6 +351,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     explicit NegateCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -365,6 +372,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     InvertCalculationNode(NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
@@ -385,6 +393,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     MinCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -405,6 +414,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -425,6 +435,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     ClampCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);

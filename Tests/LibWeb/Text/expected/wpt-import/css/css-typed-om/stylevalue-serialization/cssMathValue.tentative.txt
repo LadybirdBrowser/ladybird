@@ -1,3 +1,30 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 25 tests
+
+25 Pass
+Pass	CSSMathMax with one argument serializes correctly
+Pass	CSSMathMax with more than one argument serializes correctly
+Pass	CSSMathMax with pixel arguments serializes correctly
+Pass	CSSMathMax containing nested CSSMathValues serializes correctly
+Pass	CSSMathMin with one argument serializes correctly
+Pass	CSSMathMin with more than one argument serializes correctly
+Pass	CSSMathMin with pixel arguments serializes correctly
+Pass	CSSMathMin containing nested CSSMathValues serializes correctly
+Pass	CSSMathClamp with lower, value and upper arguments serializes correctly
+Pass	CSSMathClamp with pixel arguments serializes correctly
+Pass	CSSMathClamp containing nested CSSMathValues serializes correctly
+Pass	CSSMathSum with one argument serializes correctly
+Pass	CSSMathSum with more than one argument serializes correctly
+Pass	CSSMathSum with a CSSMathNegate as first value serializes correctly
+Pass	CSSMathSum containing a CSSMathNegate after first value serializes correctly
+Pass	CSSMathSum nested inside a CSSMathValue serializes correctly
+Pass	CSSMathNegate serializes correctly
+Pass	CSSMathNegate nested inside a CSSMathValue serializes correctly
+Pass	CSSMathProduct with one argument serializes correctly
+Pass	CSSMathProduct with more than one argument serializes correctly
+Pass	CSSMathProduct with a CSSMathInvert as first value serializes correctly
+Pass	CSSMathProduct containing a CSSMathInvert after first value serializes correctly
+Pass	CSSMathProduct nested inside a CSSMathValue serializes correctly
+Pass	CSSMathInvert serializes correctly
+Pass	CSSMathInvert nested inside a CSSMathValue serializes correctly

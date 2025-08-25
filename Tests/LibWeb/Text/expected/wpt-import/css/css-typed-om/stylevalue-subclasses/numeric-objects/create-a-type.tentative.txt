@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	Creating a type from "number" returns {}
-Fail	Creating a type from "percent" returns { percent: 1 }
-Fail	Creating a type from <length> returns { length: 1 }
-Fail	Creating a type from <angle> returns { angle: 1 }
-Fail	Creating a type from <time> returns { time: 1 }
-Fail	Creating a type from <frequency> returns { frequency: 1 }
-Fail	Creating a type from <resolution> returns { resolution: 1 }
-Fail	Creating a type from <flex> returns { flex: 1 }
+8 Pass
+Pass	Creating a type from "number" returns {}
+Pass	Creating a type from "percent" returns { percent: 1 }
+Pass	Creating a type from <length> returns { length: 1 }
+Pass	Creating a type from <angle> returns { angle: 1 }
+Pass	Creating a type from <time> returns { time: 1 }
+Pass	Creating a type from <frequency> returns { frequency: 1 }
+Pass	Creating a type from <resolution> returns { resolution: 1 }
+Pass	Creating a type from <flex> returns { flex: 1 }

@@ -1,3 +1,32 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 27 tests
+
+27 Fail
+Fail	Constructing a CSSRotate with a CSSUnitValue with type other than angle for the angle throws a TypeError
+Fail	Constructing a CSSRotate with a CSSMathValue that doesn't match <angle> for the angle throws a TypeError
+Fail	Constructing a CSSRotate with a CSSUnitValue with type other than number for the coordinates throws a TypeError
+Fail	Constructing a CSSRotate with a CSSMathValue that doesn't match <number> for the coordinates throws a TypeError
+Fail	Updating CSSRotate.x to a CSSUnitValue with type other than number throws a TypeError
+Fail	Updating CSSRotate.x to a CSSMathValue that doesn't match <number> throws a TypeError
+Fail	Updating CSSRotate.y to a CSSUnitValue with type other than number throws a TypeError
+Fail	Updating CSSRotate.y to a CSSMathValue that doesn't match <number> throws a TypeError
+Fail	Updating CSSRotate.z to a CSSUnitValue with type other than number throws a TypeError
+Fail	Updating CSSRotate.z to a CSSMathValue that doesn't match <number> throws a TypeError
+Fail	Updating CSSRotate.angle to a CSSUnitValue with type other than angle throws a TypeError
+Fail	Updating CSSRotate.angle to a CSSMathValue that doesn't match <angle> throws a TypeError
+Fail	CSSRotate can be constructed from a single angle
+Fail	CSSRotate can be constructed from numberish coordinates
+Fail	CSSRotate can be constructed from CSSMathValues
+Fail	CSSRotate.x can be updated to a double
+Fail	CSSRotate.x can be updated to a number CSSUnitValue
+Fail	CSSRotate.x can be updated to a CSSMathValue matching <number>
+Fail	CSSRotate.y can be updated to a double
+Fail	CSSRotate.y can be updated to a number CSSUnitValue
+Fail	CSSRotate.y can be updated to a CSSMathValue matching <number>
+Fail	CSSRotate.z can be updated to a double
+Fail	CSSRotate.z can be updated to a number CSSUnitValue
+Fail	CSSRotate.z can be updated to a CSSMathValue matching <number>
+Fail	CSSRotate.angle can be updated to a degree CSSUnitValue
+Fail	CSSRotate.angle can be updated to a CSSMathValue matching <angle>
+Fail	Modifying CSSRotate.is2D can be updated to true or false

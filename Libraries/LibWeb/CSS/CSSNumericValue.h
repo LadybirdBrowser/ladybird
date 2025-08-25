@@ -15,15 +15,18 @@
 namespace Web::CSS {
 
 struct CSSNumericType {
-    WebIDL::Long length {};
-    WebIDL::Long angle {};
-    WebIDL::Long time {};
-    WebIDL::Long frequency {};
-    WebIDL::Long resolution {};
-    WebIDL::Long flex {};
-    WebIDL::Long percent {};
-    Optional<Bindings::CSSNumericBaseType> percent_hint {};
+    Optional<WebIDL::Long> length;
+    Optional<WebIDL::Long> angle;
+    Optional<WebIDL::Long> time;
+    Optional<WebIDL::Long> frequency;
+    Optional<WebIDL::Long> resolution;
+    Optional<WebIDL::Long> flex;
+    Optional<WebIDL::Long> percent;
+    Optional<Bindings::CSSNumericBaseType> percent_hint;
 };
+
+// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
+using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
 class CSSNumericValue : public CSSStyleValue {
@@ -39,11 +42,16 @@ public:
     };
     virtual ~CSSNumericValue() override = default;
 
+    bool equals_for_bindings(Vector<CSSNumberish>) const;
+    virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
+
     CSSNumericType type_for_bindings() const;
     NumericType const& type() const { return m_type; }
 
     virtual String to_string() const final override { return to_string({}); }
     String to_string(SerializationParams const&) const;
+
+    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, String const& css_text);
 
 protected:
     explicit CSSNumericValue(JS::Realm&, NumericType);
@@ -53,7 +61,6 @@ protected:
     NumericType m_type;
 };
 
-// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
-using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
+GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm&, CSSNumberish const&, Optional<FlyString> unit = {});
 
 }

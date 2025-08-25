@@ -1,3 +1,56 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 51 tests
+
+51 Fail
+Fail	Constructing a CSSRGB with an angle CSSUnitValue for the color channels throws a SyntaxError.
+Fail	Constructing a CSSRGB with a CSSMathValue that doesn"t match <number> for the color channels throws a SyntaxError.
+Fail	Constructing a CSSRGB with undefined for the color channels throws a SyntaxError.
+Fail	Constructing a CSSRGB with a CSS math calculation for the color channels throws a SyntaxError.
+Fail	Constructing a CSSRGB with a CSS number for the alpha channels throws a SyntaxError.
+Fail	Updating CSSRGB. r to an angle CSSUnitValue throws a SyntaxError.
+Fail	Updating CSSRGB. r to a CSSMathValue that doesn"t match <number> throws a SyntaxError.
+Fail	Updating CSSRGB. r to undefined throws a SyntaxError.
+Fail	Updating CSSRGB. r to a CSS math calculation throws a SyntaxError.
+Fail	Updating CSSRGB. g to an angle CSSUnitValue throws a SyntaxError.
+Fail	Updating CSSRGB. g to a CSSMathValue that doesn"t match <number> throws a SyntaxError.
+Fail	Updating CSSRGB. g to undefined throws a SyntaxError.
+Fail	Updating CSSRGB. g to a CSS math calculation throws a SyntaxError.
+Fail	Updating CSSRGB. b to an angle CSSUnitValue throws a SyntaxError.
+Fail	Updating CSSRGB. b to a CSSMathValue that doesn"t match <number> throws a SyntaxError.
+Fail	Updating CSSRGB. b to undefined throws a SyntaxError.
+Fail	Updating CSSRGB. b to a CSS math calculation throws a SyntaxError.
+Fail	Updating CSSRGB. alpha to an angle CSSUnitValue throws a SyntaxError.
+Fail	Updating CSSRGB. alpha to a CSSMathValue that doesn"t match <number> throws a SyntaxError.
+Fail	Updating CSSRGB. alpha to undefined throws a SyntaxError.
+Fail	Updating CSSRGB. alpha to a CSS math calculation throws a SyntaxError.
+Fail	Updating the alpha channel to a CSS number throws a SyntaxError.
+Fail	CSSRGB can be constructed from three numbers and will get an alpha of 100%.
+Fail	CSSRGB can be constructed from four numbers.
+Fail	CSSRGB.r can be updated with a number with the resulting value being a percentage.
+Fail	CSSRGB.r can be updated with a CSS number.
+Fail	CSSRGB.r can be updated with CSS percent.
+Fail	CSSRGB.r can be updated with CSS math sum.
+Fail	CSSRGB.r can be updated with CSS math product.
+Fail	CSSRGB.r can be updated with CSS math max.
+Fail	CSSRGB.r can be updated with CSS math min.
+Fail	CSSRGB.g can be updated with a number with the resulting value being a percentage.
+Fail	CSSRGB.g can be updated with a CSS number.
+Fail	CSSRGB.g can be updated with CSS percent.
+Fail	CSSRGB.g can be updated with CSS math sum.
+Fail	CSSRGB.g can be updated with CSS math product.
+Fail	CSSRGB.g can be updated with CSS math max.
+Fail	CSSRGB.g can be updated with CSS math min.
+Fail	CSSRGB.b can be updated with a number with the resulting value being a percentage.
+Fail	CSSRGB.b can be updated with a CSS number.
+Fail	CSSRGB.b can be updated with CSS percent.
+Fail	CSSRGB.b can be updated with CSS math sum.
+Fail	CSSRGB.b can be updated with CSS math product.
+Fail	CSSRGB.b can be updated with CSS math max.
+Fail	CSSRGB.b can be updated with CSS math min.
+Fail	CSSRGB.alpha can be updated with a number with the resulting value being a percentage.
+Fail	CSSRGB.alpha can be updated with CSS percent.
+Fail	CSSRGB.alpha can be updated with CSS math sum.
+Fail	CSSRGB.alpha can be updated with CSS math product.
+Fail	CSSRGB.alpha can be updated with CSS math max.
+Fail	CSSRGB.alpha can be updated with CSS math min.

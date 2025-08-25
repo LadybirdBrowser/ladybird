@@ -55,6 +55,7 @@ static bool is_platform_object(Type const& type)
         "CredentialsContainer"sv,
         "CryptoKey"sv,
         "CSSKeywordValue"sv,
+        "CSSNumericArray"sv,
         "CSSNumericValue"sv,
         "CSSStyleValue"sv,
         "CSSUnitValue"sv,
@@ -354,6 +355,7 @@ static ByteString make_input_acceptable_cpp(ByteString const& input)
             "inline",
             "mutable",
             "namespace",
+            "operator",
             "register",
             "switch",
             "template")) {
@@ -2061,7 +2063,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
     } else if (interface.enumerations.contains(type.name())) {
         // Handle Enum? values, which were null-checked above
-        if (type.is_nullable())
+        if (type.is_nullable() || is_optional)
             scoped_generator.set("value", ByteString::formatted("{}.value()", value));
         scoped_generator.append(R"~~~(
     @result_expression@ JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(@value@));
@@ -3224,7 +3226,7 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
                 auto implemented_as = attribute.extended_attributes.get("ImplementedAs").value();
                 attribute_generator.set("attribute.cpp_name", implemented_as);
             } else {
-                attribute_generator.set("attribute.cpp_name", attribute.name.to_snakecase());
+                attribute_generator.set("attribute.cpp_name", make_input_acceptable_cpp(attribute.name.to_snakecase()));
             }
 
             if (attribute.extended_attributes.contains("Reflect")) {
@@ -3891,7 +3893,7 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
             auto implemented_as = attribute.extended_attributes.get("ImplementedAs").value();
             attribute_generator.set("attribute.cpp_name", implemented_as);
         } else {
-            attribute_generator.set("attribute.cpp_name", attribute.name.to_snakecase());
+            attribute_generator.set("attribute.cpp_name", make_input_acceptable_cpp(attribute.name.to_snakecase()));
         }
 
         if (attribute.extended_attributes.contains("Reflect")) {

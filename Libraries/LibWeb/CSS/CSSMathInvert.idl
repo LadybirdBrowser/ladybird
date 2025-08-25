@@ -1,0 +1,9 @@
+#import <CSS/CSSMathValue.idl>
+#import <CSS/CSSNumericValue.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssmathinvert
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSMathInvert : CSSMathValue {
+    constructor(CSSNumberish arg);
+    readonly attribute CSSNumericValue value;
+};

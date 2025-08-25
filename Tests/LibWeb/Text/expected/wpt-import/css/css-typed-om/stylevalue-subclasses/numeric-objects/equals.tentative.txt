@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 11 tests
 
-11 Fail
-Fail	Two CSSUnitValues with same value and unit are equal
-Fail	Two CSSUnitValues with different values are not equal
-Fail	Two CSSUnitValues with different units are not equal
-Fail	Two CSSMathValues with different types are not equal
-Fail	Two CSSMathValues with different number of values are not equal
-Fail	Two CSSMathValues with different values are not equal
-Fail	Two CSSMathValues with same structure are equal
-Fail	Multiple CSSMathValues with same structure are equal
-Fail	Multiple CSSMathValues with one different are not equal
-Fail	Two CSSMathClamp with same value and unit are equal
-Fail	Two CSSMathClamp with different units are not equal
+11 Pass
+Pass	Two CSSUnitValues with same value and unit are equal
+Pass	Two CSSUnitValues with different values are not equal
+Pass	Two CSSUnitValues with different units are not equal
+Pass	Two CSSMathValues with different types are not equal
+Pass	Two CSSMathValues with different number of values are not equal
+Pass	Two CSSMathValues with different values are not equal
+Pass	Two CSSMathValues with same structure are equal
+Pass	Multiple CSSMathValues with same structure are equal
+Pass	Multiple CSSMathValues with one different are not equal
+Pass	Two CSSMathClamp with same value and unit are equal
+Pass	Two CSSMathClamp with different units are not equal
