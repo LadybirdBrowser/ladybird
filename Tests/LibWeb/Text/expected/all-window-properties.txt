@@ -350,6 +350,7 @@ SVGDescElement
 SVGElement
 SVGEllipseElement
 SVGFEBlendElement
+SVGFECompositeElement
 SVGFEFloodElement
 SVGFEGaussianBlurElement
 SVGFEMergeElement
