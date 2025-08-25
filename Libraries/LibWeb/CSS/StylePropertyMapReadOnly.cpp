@@ -184,10 +184,13 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
                     return registered_custom_property.value()->initial_style_value();
                 return nullptr;
             }
-            // FIXME: This will only ever be null for pseudo-elements. What should we do in that case?
-            //        The property's value is also sometimes null. Is that correct?
-            if (auto computed_properties = element.computed_properties())
-                return computed_properties->maybe_null_property(property_id.value());
+
+            if (*property_id >= first_longhand_property_id && *property_id <= last_longhand_property_id) {
+                // FIXME: This will only ever be null for pseudo-elements. What should we do in that case?
+                if (auto computed_properties = element.computed_properties())
+                    return computed_properties->property(property_id.value());
+            }
+
             return nullptr;
         },
         [&property](GC::Ref<CSSStyleDeclaration>& declaration) {
