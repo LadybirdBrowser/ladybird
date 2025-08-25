@@ -1238,8 +1238,8 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
         // FIXME: Use a FrozenArray
         Vector<GC::Root<MessagePort>> new_ports;
         for (auto const& object : deserialize_record.transferred_values) {
-            if (is<HTML::MessagePort>(*object)) {
-                new_ports.append(as<MessagePort>(*object));
+            if (auto* message_port = as_if<HTML::MessagePort>(*object)) {
+                new_ports.append(*message_port);
             }
         }
 

@@ -215,11 +215,12 @@ static void merge_with_the_next_text_node(DOM::Text& node)
     auto next = node.next_sibling();
 
     // 2. If next is not a Text node, then return.
-    if (!is<DOM::Text>(next))
+    auto* text = as_if<DOM::Text>(next);
+    if (!text)
         return;
 
     // 3. Replace data with node, node's data's length, 0, and next's data.
-    MUST(node.replace_data(node.length_in_utf16_code_units(), 0, static_cast<DOM::Text const&>(*next).data()));
+    MUST(node.replace_data(node.length_in_utf16_code_units(), 0, text->data()));
 
     // 4. Remove next.
     next->remove();
@@ -253,8 +254,8 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(Utf16View const& value)
         merge_with_the_next_text_node(static_cast<DOM::Text&>(*next->previous_sibling()));
 
     // 8. If previous is a Text node, then merge with the next text node given previous.
-    if (is<DOM::Text>(previous))
-        merge_with_the_next_text_node(static_cast<DOM::Text&>(*previous));
+    if (auto* previous_text = as_if<DOM::Text>(previous))
+        merge_with_the_next_text_node(*previous_text);
 
     set_needs_style_update(true);
     return {};
@@ -842,7 +843,8 @@ GC::Ptr<DOM::NodeList> HTMLElement::labels()
 
     if (!m_labels) {
         m_labels = DOM::LiveNodeList::create(realm(), root(), DOM::LiveNodeList::Scope::Descendants, [&](auto& node) {
-            return is<HTMLLabelElement>(node) && as<HTMLLabelElement>(node).control() == this;
+            auto* label_element = as_if<HTMLLabelElement>(node);
+            return label_element && label_element->control() == this;
         });
     }
 

@@ -1049,14 +1049,15 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(StringView value)
     auto fragment = TRY(as<Element>(*context).parse_fragment(value));
 
     // 4. If context is a template element, then set context to the template element's template contents (a DocumentFragment).
-    if (is<HTML::HTMLTemplateElement>(*context))
-        context = as<HTML::HTMLTemplateElement>(*context).content();
+    auto* template_element = as_if<HTML::HTMLTemplateElement>(*context);
+    if (template_element)
+        context = template_element->content();
 
     // 5. Replace all with fragment within context.
     context->replace_all(fragment);
 
     // NOTE: We don't invalidate style & layout for <template> elements since they don't affect rendering.
-    if (!is<HTML::HTMLTemplateElement>(*context)) {
+    if (!template_element) {
         context->set_needs_style_update(true);
 
         if (context->is_connected()) {

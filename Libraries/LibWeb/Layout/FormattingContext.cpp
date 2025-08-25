@@ -871,9 +871,9 @@ void FormattingContext::compute_width_for_absolutely_positioned_replaced_element
     // but the rest of section 10.3.7 is replaced by the following rules:
 
     // 1. The used value of 'width' is determined as for inline replaced elements.
-    if (is<ReplacedBox>(box)) {
+    if (auto const* replaced = as_if<ReplacedBox>(box)) {
         // FIXME: This const_cast is gross.
-        static_cast<ReplacedBox&>(const_cast<Box&>(box)).prepare_for_replaced_layout();
+        const_cast<ReplacedBox&>(*replaced).prepare_for_replaced_layout();
     }
 
     auto width = compute_width_for_replaced_element(box, available_space);

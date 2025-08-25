@@ -638,8 +638,8 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, StyleValue
             return {};
         Optional<Painting::PaintableBox const&> paintable_box;
         if (auto layout_node = element.layout_node()) {
-            if (auto paintable = layout_node->first_paintable(); paintable && is<Painting::PaintableBox>(paintable))
-                paintable_box = *static_cast<Painting::PaintableBox*>(paintable);
+            if (auto* paintable = as_if<Painting::PaintableBox>(layout_node->first_paintable()))
+                paintable_box = *paintable;
         }
         if (auto matrix = transformation->to_matrix(paintable_box); !matrix.is_error())
             return matrix.value();

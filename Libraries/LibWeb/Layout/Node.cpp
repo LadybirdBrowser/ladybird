@@ -1056,10 +1056,9 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
 
     // If this is a `display:table` box with an anonymous wrapper parent,
     // the parent inherits style from *this* node, not the other way around.
-    if (display().is_table_inside() && is<TableWrapper>(parent())) {
-        auto& table_wrapper = *static_cast<TableWrapper*>(parent());
-        static_cast<CSS::MutableComputedValues&>(static_cast<CSS::ComputedValues&>(const_cast<CSS::ImmutableComputedValues&>(table_wrapper.computed_values()))).inherit_from(computed_values());
-        transfer_table_box_computed_values_to_wrapper_computed_values(table_wrapper.mutable_computed_values());
+    if (auto* table_wrapper = as_if<TableWrapper>(parent()); table_wrapper && display().is_table_inside()) {
+        static_cast<CSS::MutableComputedValues&>(static_cast<CSS::ComputedValues&>(const_cast<CSS::ImmutableComputedValues&>(table_wrapper->computed_values()))).inherit_from(computed_values());
+        transfer_table_box_computed_values_to_wrapper_computed_values(table_wrapper->mutable_computed_values());
     }
 
     // Propagate style to all anonymous children (except table wrappers!)

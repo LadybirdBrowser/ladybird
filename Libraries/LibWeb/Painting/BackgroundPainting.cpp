@@ -41,9 +41,8 @@ static RefPtr<DisplayList> compute_text_clip_paths(DisplayListRecordingContext& 
     };
 
     paintable.for_each_in_inclusive_subtree([&](auto& paintable) {
-        if (is<PaintableWithLines>(paintable)) {
-            auto const& paintable_lines = static_cast<PaintableWithLines const&>(paintable);
-            for (auto const& fragment : paintable_lines.fragments()) {
+        if (auto* paintable_lines = as_if<PaintableWithLines>(paintable)) {
+            for (auto const& fragment : paintable_lines->fragments()) {
                 if (is<Layout::TextNode>(fragment.layout_node()))
                     add_text_clip_path(fragment);
             }

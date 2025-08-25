@@ -136,11 +136,11 @@ String Node::base_uri() const
 const HTML::HTMLAnchorElement* Node::enclosing_link_element() const
 {
     for (auto* node = this; node; node = node->parent()) {
-        if (!is<HTML::HTMLAnchorElement>(*node))
+        auto const* anchor_element = as_if<HTML::HTMLAnchorElement>(*node);
+        if (!anchor_element)
             continue;
-        auto const& anchor_element = static_cast<HTML::HTMLAnchorElement const&>(*node);
-        if (anchor_element.has_attribute(HTML::AttributeNames::href))
-            return &anchor_element;
+        if (anchor_element->has_attribute(HTML::AttributeNames::href))
+            return anchor_element;
     }
     return nullptr;
 }
@@ -153,8 +153,8 @@ const HTML::HTMLElement* Node::enclosing_html_element() const
 const HTML::HTMLElement* Node::enclosing_html_element_with_attribute(FlyString const& attribute) const
 {
     for (auto* node = this; node; node = node->parent()) {
-        if (is<HTML::HTMLElement>(*node) && as<HTML::HTMLElement>(*node).has_attribute(attribute))
-            return as<HTML::HTMLElement>(node);
+        if (auto* html_element = as_if<HTML::HTMLElement>(*node); html_element && html_element->has_attribute(attribute))
+            return html_element;
     }
     return nullptr;
 }
@@ -354,13 +354,13 @@ Optional<String> Node::node_value() const
     // The nodeValue getter steps are to return the following, switching on the interface this implements:
 
     // If Attr, return this’s value.
-    if (is<Attr>(this)) {
-        return as<Attr>(this)->value();
+    if (auto* attr = as_if<Attr>(this)) {
+        return attr->value();
     }
 
     // If CharacterData, return this’s data.
-    if (is<CharacterData>(this)) {
-        return as<CharacterData>(this)->data().to_utf8_but_should_be_ported_to_utf16();
+    if (auto* character_data = as_if<CharacterData>(this)) {
+        return character_data->data().to_utf8_but_should_be_ported_to_utf16();
     }
 
     // Otherwise, return null.
@@ -375,11 +375,11 @@ void Node::set_node_value(Optional<String> const& maybe_value)
     auto value = maybe_value.value_or(String {});
 
     // If Attr, set an existing attribute value with this and the given value.
-    if (is<Attr>(this)) {
-        as<Attr>(this)->set_value(move(value));
-    } else if (is<CharacterData>(this)) {
+    if (auto* attr = as_if<Attr>(this)) {
+        attr->set_value(move(value));
+    } else if (auto* character_data = as_if<CharacterData>(this)) {
         // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
-        as<CharacterData>(this)->set_data(Utf16String::from_utf8(value));
+        character_data->set_data(Utf16String::from_utf8(value));
     }
 
     // Otherwise, do nothing.
@@ -545,8 +545,8 @@ Node& Node::shadow_including_root()
     // The shadow-including root of an object is its root’s host’s shadow-including root,
     // if the object’s root is a shadow root; otherwise its root.
     auto& node_root = root();
-    if (is<ShadowRoot>(node_root)) {
-        if (auto* host = static_cast<ShadowRoot&>(node_root).host(); host)
+    if (auto* shadow_root = as_if<ShadowRoot>(node_root)) {
+        if (auto* host = shadow_root->host(); host)
             return host->shadow_including_root();
     }
     return node_root;

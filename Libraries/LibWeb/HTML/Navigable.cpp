@@ -1228,8 +1228,10 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
 
     // 26. If navigable's container is an iframe, and response's timing allow passed flag is set,
     //     then set navigable's container's pending resource-timing start time to null.
-    if (navigable->container() && is<HTML::HTMLIFrameElement>(*navigable->container()) && response_holder->response()->timing_allow_passed())
-        static_cast<HTML::HTMLIFrameElement&>(*navigable->container()).set_pending_resource_start_time({});
+    if (navigable->container() && response_holder->response()->timing_allow_passed()) {
+        if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*navigable->container()))
+            iframe_element->set_pending_resource_start_time({});
+    }
 
     // 27. Return a new navigation params, with
     //     id: navigationId

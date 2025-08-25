@@ -81,9 +81,8 @@ void BlockFormattingContext::run(AvailableSpace const& available_space)
     else
         layout_block_level_children(root(), available_space);
 
-    if (is<FieldSetBox>(root())) {
-        auto const& fieldset_box = as<FieldSetBox>(root());
-        if (!(fieldset_box.has_rendered_legend())) {
+    if (auto* fieldset_box = as_if<FieldSetBox>(root())) {
+        if (!fieldset_box->has_rendered_legend()) {
             return;
         }
 
@@ -188,10 +187,9 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
 
     if (box_is_sized_as_replaced_element(box, available_space)) {
         // FIXME: This should not be done *by* ReplacedBox
-        if (is<ReplacedBox>(box)) {
-            auto& replaced = as<ReplacedBox>(box);
+        if (auto* replaced = as_if<ReplacedBox>(box)) {
             // FIXME: This const_cast is gross.
-            const_cast<ReplacedBox&>(replaced).prepare_for_replaced_layout();
+            const_cast<ReplacedBox&>(*replaced).prepare_for_replaced_layout();
         }
         compute_width_for_block_level_replaced_element_in_normal_flow(box, available_space);
         if (box.is_floating()) {
@@ -822,17 +820,15 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     // If we do not do this then left-floating elements inside the list item will push the marker to the right,
     // in some cases even causing it to overlap with the non-floating content of the list.
     CSSPixels left_space_before_children_formatted;
-    if (is<ListItemBox>(box)) {
-        auto const& li_box = static_cast<ListItemBox const&>(box);
-
+    if (auto const* li_box = as_if<ListItemBox>(box)) {
         // We need to ensure that our height and width are final before we calculate our left offset.
         // Otherwise, the y at which we calculate the intrusion by floats might be incorrect.
-        ensure_sizes_correct_for_left_offset_calculation(li_box);
+        ensure_sizes_correct_for_left_offset_calculation(*li_box);
 
-        auto const& list_item_state = m_state.get(li_box);
-        auto const& marker_state = m_state.get(*li_box.marker());
+        auto const& list_item_state = m_state.get(*li_box);
+        auto const& marker_state = m_state.get(*li_box->marker());
 
-        auto offset_y = max(CSSPixels(0), (li_box.marker()->computed_values().line_height() - marker_state.content_height()) / 2);
+        auto offset_y = max(CSSPixels(0), (li_box->marker()->computed_values().line_height() - marker_state.content_height()) / 2);
         auto space_used_before_children_formatted = intrusion_by_floats_into_box(list_item_state, offset_y);
 
         left_space_before_children_formatted = space_used_before_children_formatted.left;
@@ -884,8 +880,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     compute_inset(box, content_box_rect(block_container_state).size());
 
     // Now that our children are formatted we place the ListItemBox with the left space we remembered.
-    if (is<ListItemBox>(box))
-        layout_list_item_marker(static_cast<ListItemBox const&>(box), left_space_before_children_formatted);
+    if (auto const* li_box = as_if<ListItemBox>(box))
+        layout_list_item_marker(*li_box, left_space_before_children_formatted);
 
     bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.offset.y() + box_state.content_height() + box_state.margin_box_bottom());
 

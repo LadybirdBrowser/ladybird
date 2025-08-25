@@ -477,9 +477,8 @@ GC::Ref<WebIDL::Promise> FontFace::load()
 
         // FIXME: We should probably put the 'font cache' on the WindowOrWorkerGlobalScope instead of tying it to the document's style computer
         auto& global = HTML::relevant_global_object(*font);
-        if (is<HTML::Window>(global)) {
-            auto& window = static_cast<HTML::Window&>(global);
-            auto& style_computer = const_cast<StyleComputer&>(window.document()->style_computer());
+        if (auto* window = as_if<HTML::Window>(global)) {
+            auto& style_computer = const_cast<StyleComputer&>(window->document()->style_computer());
 
             // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
             ParsedFontFace parsed_font_face {

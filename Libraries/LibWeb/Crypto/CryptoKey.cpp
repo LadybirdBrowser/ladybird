@@ -117,9 +117,10 @@ static JS::ThrowCompletionOr<CryptoKeyPair*> impl_from(JS::VM& vm)
     else
         this_object = TRY(this_value.to_object(vm));
 
-    if (!is<CryptoKeyPair>(this_object))
+    auto* crypto_key_pair = as_if<CryptoKeyPair>(this_object);
+    if (!crypto_key_pair)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CryptoKeyPair");
-    return static_cast<CryptoKeyPair*>(this_object);
+    return crypto_key_pair;
 }
 
 JS_DEFINE_NATIVE_FUNCTION(CryptoKeyPair::public_key_getter)

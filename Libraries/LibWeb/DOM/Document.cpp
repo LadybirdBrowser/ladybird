@@ -904,9 +904,7 @@ HTML::HTMLHtmlElement* Document::html_element()
 {
     // The html element of a document is its document element, if it's an html element, and null otherwise.
     auto* html = document_element();
-    if (is<HTML::HTMLHtmlElement>(html))
-        return as<HTML::HTMLHtmlElement>(html);
-    return nullptr;
+    return as_if<HTML::HTMLHtmlElement>(html);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#the-head-element-2

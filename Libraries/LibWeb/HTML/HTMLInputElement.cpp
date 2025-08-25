@@ -494,11 +494,9 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
 
         // 3. If the user activated the control while explicitly selecting a coordinate, then set the element's selected
         //    coordinate to that coordinate.
-        if (event.is_trusted() && is<UIEvents::MouseEvent>(event)) {
-            auto const& mouse_event = static_cast<UIEvents::MouseEvent const&>(event);
-
-            CSSPixels x { mouse_event.offset_x() };
-            CSSPixels y { mouse_event.offset_y() };
+        if (auto* mouse_event = as_if<UIEvents::MouseEvent>(event); mouse_event && event.is_trusted()) {
+            CSSPixels x { mouse_event->offset_x() };
+            CSSPixels y { mouse_event->offset_y() };
 
             m_selected_coordinate = { x.to_int(), y.to_int() };
         }
