@@ -80,12 +80,7 @@ ErrorOr<Vector<String>> FontDatabase::font_directories()
     return paths_vector;
 
 #else
-#    if defined(AK_OS_SERENITY)
-    return Vector<String> { {
-        "/res/fonts"_string,
-    } };
-
-#    elif defined(AK_OS_MACOS)
+#    if defined(AK_OS_MACOS)
     return Vector<String> { {
         "/System/Library/Fonts"_string,
         "/Library/Fonts"_string,
