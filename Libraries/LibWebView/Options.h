@@ -85,6 +85,7 @@ struct BrowserOptions {
     Optional<ByteString> webdriver_content_ipc_path {};
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;
+    Optional<ByteString> webserial_device_path {};
 };
 
 enum class IsLayoutTestMode {
@@ -154,6 +155,7 @@ struct WebContentOptions {
     CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
     Optional<u16> echo_server_port {};
     PaintViewportScrollbars paint_viewport_scrollbars { PaintViewportScrollbars::Yes };
+    Optional<StringView> webserial_device_path {};
 };
 
 }

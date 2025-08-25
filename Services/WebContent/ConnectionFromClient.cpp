@@ -433,6 +433,11 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         Web::ContentFilter::the().set_filtering_enabled(argument == "on");
         return;
     }
+
+    if (request == "webserial-device-path") {
+        page->page().set_webserial_device_path(MUST(String::from_byte_string(argument)));
+        return;
+    }
 }
 
 void ConnectionFromClient::get_source(u64 page_id)

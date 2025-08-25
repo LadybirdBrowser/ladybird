@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<body>
+  <button>Fake user gesture</button>
+</body>
+
+<script>
+  'use strict';
+
+  test_driver.set_test_context(parent);
+
+  window.onmessage = messageEvent => {
+    switch (messageEvent.data.type) {
+      case 'GetPorts':
+        navigator.serial.getPorts()
+            .then(ports => parent.postMessage('Success', '*'))
+            .catch(err => parent.postMessage(`FAIL: ${err}`, '*'));
+        break;
+      case 'RequestPort':
+        test_driver.click(document.getElementsByTagName('button')[0])
+            .then(() => navigator.serial.requestPort({filters: []}))
+            .then(port => parent.postMessage('Success', '*'))
+            .catch(err => parent.postMessage(`FAIL: ${err}`, '*'));
+        break;
+      default:
+        parent.postMessage(
+            `FAIL: Bad message type: ${messageEvent.data}`, '*');
+    };
+  };
+</script>
