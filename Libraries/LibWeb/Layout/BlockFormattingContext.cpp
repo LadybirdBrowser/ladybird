@@ -7,6 +7,8 @@
 
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -818,11 +820,15 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         resolve_used_height_if_treated_as_auto(box, available_space_for_height_resolution);
     }
 
+    // This monster basically means: "a ListItemBox that does not have specified content in the ::marker pseudo-element".
+    // This happens for ::marker with content 'normal'.
+    bool is_list_item_box_without_css_content = is<ListItemBox>(box) && (!(box.dom_node() && box.dom_node()->is_element() && static_cast<DOM::Element const*>(box.dom_node())->computed_properties(CSS::PseudoElement::Marker)->property(CSS::PropertyID::Content).is_content()));
+
     // Before we insert the children of a list item we need to know the location of the marker.
     // If we do not do this then left-floating elements inside the list item will push the marker to the right,
     // in some cases even causing it to overlap with the non-floating content of the list.
     CSSPixels left_space_before_children_formatted;
-    if (is<ListItemBox>(box)) {
+    if (is_list_item_box_without_css_content) {
         auto const& li_box = static_cast<ListItemBox const&>(box);
 
         // We need to ensure that our height and width are final before we calculate our left offset.
@@ -884,8 +890,10 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     compute_inset(box, content_box_rect(block_container_state).size());
 
     // Now that our children are formatted we place the ListItemBox with the left space we remembered.
-    if (is<ListItemBox>(box))
+    if (is_list_item_box_without_css_content)
+        // The marker pseudo-element will be created from a ListItemMarkerBox
         layout_list_item_marker(static_cast<ListItemBox const&>(box), left_space_before_children_formatted);
+    // Otherwise, it will be a dealt with as a generic pseudo-element with the content of the ::marker pseudo-element.
 
     bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.offset.y() + box_state.content_height() + box_state.margin_box_bottom());
 
