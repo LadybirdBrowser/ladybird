@@ -323,9 +323,9 @@ public:
     Vector<NonnullOwnPtr<Interface>> partial_interfaces;
     Vector<Interface&> imported_modules;
 
-    HashMap<ByteString, Vector<Function&>> overload_sets;
-    HashMap<ByteString, Vector<Function&>> static_overload_sets;
-    HashMap<ByteString, Vector<Constructor&>> constructor_overload_sets;
+    OrderedHashMap<ByteString, Vector<Function&>> overload_sets;
+    OrderedHashMap<ByteString, Vector<Function&>> static_overload_sets;
+    OrderedHashMap<ByteString, Vector<Constructor&>> constructor_overload_sets;
 
     // https://webidl.spec.whatwg.org/#dfn-support-indexed-properties
     bool supports_indexed_properties() const { return indexed_property_getter.has_value(); }
