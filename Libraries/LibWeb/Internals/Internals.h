@@ -69,6 +69,10 @@ public:
 
     GC::Ptr<DOM::ShadowRoot> get_shadow_root(GC::Ref<DOM::Element>);
 
+    void handle_sdl_input_events();
+
+    GC::Ref<InternalGamepad> connect_virtual_gamepad();
+
 private:
     explicit Internals(JS::Realm&);
 

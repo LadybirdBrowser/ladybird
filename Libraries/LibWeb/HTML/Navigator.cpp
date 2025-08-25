@@ -41,6 +41,7 @@ void Navigator::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Navigator);
     Base::initialize(realm);
+    NavigatorGamepadPartial::check_for_connected_gamepads();
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-pdfviewerenabled
@@ -65,6 +66,7 @@ bool Navigator::webdriver() const
 void Navigator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    NavigatorGamepadPartial::visit_edges(visitor);
     visitor.visit(m_mime_type_array);
     visitor.visit(m_plugin_array);
     visitor.visit(m_clipboard);

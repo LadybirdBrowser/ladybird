@@ -4450,6 +4450,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
     case PolicyControlledFeature::FocusWithoutUserActivation:
         // FIXME: Implement allowlist for this.
         return true;
+    case PolicyControlledFeature::Gamepad:
+        // FIXME: Implement allowlist for this.
+        return true;
     }
 
     // 4. Return false.

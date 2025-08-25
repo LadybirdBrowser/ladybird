@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Gamepad/NavigatorGamepad.h>
+#include <LibWeb/GamepadAPI/NavigatorGamepad.h>
 #include <LibWeb/HTML/MimeTypeArray.h>
 #include <LibWeb/HTML/NavigatorBeacon.h>
 #include <LibWeb/HTML/NavigatorConcurrentHardware.h>
@@ -27,7 +27,7 @@ class Navigator : public Bindings::PlatformObject
     , public NavigatorBeaconPartial
     , public NavigatorConcurrentHardwareMixin
     , public NavigatorDeviceMemoryMixin
-    , public Gamepad::NavigatorGamepadPartial
+    , public GamepadAPI::NavigatorGamepadPartial
     , public NavigatorIDMixin
     , public NavigatorLanguageMixin
     , public NavigatorOnLineMixin
