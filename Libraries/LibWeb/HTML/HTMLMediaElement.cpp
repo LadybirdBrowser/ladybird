@@ -715,8 +715,8 @@ private:
         }
 
         // 14. ⌛ If the node after pointer is a source element, let candidate be that element.
-        if (is<HTMLSourceElement>(next_sibling))
-            candidate = static_cast<HTMLSourceElement*>(next_sibling);
+        if (auto* source_element = as_if<HTMLSourceElement>(next_sibling))
+            candidate = source_element;
 
         // 15. ⌛ Advance pointer so that the node before pointer is now the node that was after pointer, and the node
         //     after pointer is the node after the node that used to be after pointer, if any.

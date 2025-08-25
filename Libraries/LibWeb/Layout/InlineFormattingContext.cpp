@@ -308,19 +308,18 @@ void InlineFormattingContext::generate_line_boxes()
             break;
         }
         case InlineLevelIterator::Item::Type::AbsolutelyPositionedElement:
-            if (is<Box>(*item.node)) {
-                auto const& box = static_cast<Layout::Box const&>(*item.node);
+            if (auto const* box = as_if<Box>(*item.node)) {
                 // Calculation of static position for absolute boxes is delayed until trailing whitespaces are removed.
-                absolute_boxes.append(&box);
+                absolute_boxes.append(box);
             }
             break;
 
         case InlineLevelIterator::Item::Type::FloatingElement:
-            if (is<Box>(*item.node)) {
+            if (auto* box = as_if<Box>(*item.node)) {
                 (void)parent().clear_floating_boxes(*item.node, *this);
                 // Even if this introduces clearance, we do NOT reset the margin state, because that is clearance
                 // between floats and does not contribute to the height of the Inline Formatting Context.
-                parent().layout_floating_box(static_cast<Layout::Box const&>(*item.node), containing_block(), *m_available_space, 0, &line_builder);
+                parent().layout_floating_box(*box, containing_block(), *m_available_space, 0, &line_builder);
             }
             break;
 

@@ -61,9 +61,9 @@ bool LineBoxFragment::is_justifiable_whitespace() const
 
 Utf16View LineBoxFragment::text() const
 {
-    if (!is<TextNode>(layout_node()))
-        return {};
-    return as<TextNode>(layout_node()).text_for_rendering().substring_view(m_start, m_length);
+    if (auto* text_node = as_if<TextNode>(layout_node()))
+        return text_node->text_for_rendering().substring_view(m_start, m_length);
+    return {};
 }
 
 bool LineBoxFragment::is_atomic_inline() const

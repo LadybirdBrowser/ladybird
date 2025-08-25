@@ -508,7 +508,7 @@ bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::
 Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const
 {
     auto const& root_node = element.root();
-    auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
+    auto shadow_root = as_if<DOM::ShadowRoot>(root_node);
     auto element_shadow_root = element.shadow_root();
     auto const& element_namespace_uri = element.namespace_uri();
 

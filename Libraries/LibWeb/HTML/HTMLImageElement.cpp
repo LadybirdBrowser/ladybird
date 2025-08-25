@@ -1087,8 +1087,8 @@ static void update_the_source_set(DOM::Element& element)
     VERIFY(is<HTMLImageElement>(element) || is<HTMLLinkElement>(element));
 
     // 1. Set el's source set to an empty source set.
-    if (is<HTMLImageElement>(element))
-        static_cast<HTMLImageElement&>(element).set_source_set(SourceSet {});
+    if (auto* image_element = as_if<HTMLImageElement>(element))
+        image_element->set_source_set(SourceSet {});
     else if (is<HTMLLinkElement>(element))
         TODO();
 

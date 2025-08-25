@@ -164,8 +164,7 @@ static bool default_passive_value(FlyString const& type, EventTarget* event_targ
         if (is<HTML::Window>(event_target))
             return true;
 
-        if (is<Node>(event_target)) {
-            auto* node = as<Node>(event_target);
+        if (auto* node = as_if<Node>(event_target)) {
             if (&node->document() == event_target || node->document().document_element() == event_target || node->document().body() == event_target)
                 return true;
         }
@@ -400,8 +399,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         GC::Ptr<Element> element;
         GC::Ptr<Document> document;
 
-        if (is<Element>(this)) {
-            auto* element_event_target = as<Element>(this);
+        if (auto* element_event_target = as_if<Element>(this)) {
             element = element_event_target;
             document = &element_event_target->document();
         } else {

@@ -213,8 +213,7 @@ GC::Ptr<HTMLTableSectionElement> HTMLTableElement::t_head()
     // The tHead IDL attribute must return, on getting, the first thead element child of the table element,
     // if any, or null otherwise.
     for (auto* child = first_child(); child; child = child->next_sibling()) {
-        if (is<HTMLTableSectionElement>(*child)) {
-            auto table_section_element = &as<HTMLTableSectionElement>(*child);
+        if (auto* table_section_element = as_if<HTMLTableSectionElement>(*child)) {
             if (table_section_element->local_name() == TagNames::thead)
                 return table_section_element;
         }
@@ -248,8 +247,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::set_t_head(HTMLTableSectionElement* 
             continue;
         if (is<HTMLTableCaptionElement>(*child))
             continue;
-        if (is<HTMLTableColElement>(*child)) {
-            auto table_col_element = &as<HTMLTableColElement>(*child);
+        if (auto* table_col_element = as_if<HTMLTableColElement>(*child)) {
             if (table_col_element->local_name() == TagNames::colgroup)
                 continue;
         }
@@ -280,8 +278,7 @@ GC::Ref<HTMLTableSectionElement> HTMLTableElement::create_t_head()
             continue;
         if (is<HTMLTableCaptionElement>(*child))
             continue;
-        if (is<HTMLTableColElement>(*child)) {
-            auto table_col_element = &as<HTMLTableColElement>(*child);
+        if (auto* table_col_element = as_if<HTMLTableColElement>(*child)) {
             if (table_col_element->local_name() == TagNames::colgroup)
                 continue;
         }
@@ -311,8 +308,7 @@ GC::Ptr<HTMLTableSectionElement> HTMLTableElement::t_foot()
     // The tFoot IDL attribute must return, on getting, the first tfoot element child of the table element,
     // if any, or null otherwise.
     for (auto* child = first_child(); child; child = child->next_sibling()) {
-        if (is<HTMLTableSectionElement>(*child)) {
-            auto table_section_element = &as<HTMLTableSectionElement>(*child);
+        if (auto* table_section_element = as_if<HTMLTableSectionElement>(*child)) {
             if (table_section_element->local_name() == TagNames::tfoot)
                 return table_section_element;
         }
@@ -384,8 +380,7 @@ GC::Ref<HTMLTableSectionElement> HTMLTableElement::create_t_body()
     for (auto* child = last_child(); child; child = child->previous_sibling()) {
         if (!is<HTMLElement>(*child))
             continue;
-        if (is<HTMLTableSectionElement>(*child)) {
-            auto table_section_element = &as<HTMLTableSectionElement>(*child);
+        if (auto* table_section_element = as_if<HTMLTableSectionElement>(*child)) {
             if (table_section_element->local_name() == TagNames::tbody) {
                 // We have found an element which is a <tbody> we'll insert after this
                 child_to_insert_before = child->next_sibling();

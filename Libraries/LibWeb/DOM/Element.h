@@ -491,10 +491,11 @@ public:
     void for_each_numbered_item_owned_by_list_owner(Callback callback)
     {
         for (auto* node = this->first_child(); node != nullptr; node = node->next_in_pre_order(this)) {
-            if (!is<Element>(*node))
+            auto* element = as_if<Element>(node);
+            if (!element)
                 continue;
 
-            static_cast<Element*>(node)->m_is_contained_in_list_subtree = true;
+            element->m_is_contained_in_list_subtree = true;
 
             if (node->is_html_ol_ul_menu_element()) {
                 // Skip list nodes and their descendents. They have their own, unrelated ordinals.
@@ -506,8 +507,6 @@ public:
 
             if (!node->layout_node())
                 continue; // Skip nodes that do not participate in the layout.
-
-            auto* element = static_cast<Element*>(node);
 
             if (!element->computed_properties()->display().is_list_item())
                 continue; // Skip nodes that are not list items.

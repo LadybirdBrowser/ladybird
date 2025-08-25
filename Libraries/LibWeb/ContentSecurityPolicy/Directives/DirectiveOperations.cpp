@@ -897,9 +897,8 @@ MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Elem
                 VERIFY(is<HTML::HTMLElement>(element.ptr()) || is<SVG::SVGElement>(element.ptr()));
 
                 String element_nonce;
-                if (is<HTML::HTMLElement>(element.ptr())) {
-                    auto const& html_element = static_cast<HTML::HTMLElement const&>(*element);
-                    element_nonce = html_element.nonce();
+                if (auto* html_element = as_if<HTML::HTMLElement>(element.ptr())) {
+                    element_nonce = html_element->nonce();
                 } else {
                     auto const& svg_element = as<SVG::SVGElement>(*element);
                     element_nonce = svg_element.nonce();
