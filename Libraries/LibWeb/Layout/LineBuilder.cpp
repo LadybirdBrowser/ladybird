@@ -283,11 +283,22 @@ void LineBuilder::update_last_line()
 
             // NOTE: For fragments with a <length> vertical-align, shift the line box baseline down by the length.
             //       This ensures that we make enough vertical space on the line for any manually-aligned fragments.
+            // However, flex items should ignore vertical-align.
+            bool parent_is_flex_item_for_baseline = false;
+            if (fragment.layout_node().parent() && fragment.layout_node().parent()->parent()) {
+                parent_is_flex_item_for_baseline = fragment.layout_node().parent()->parent()->display().is_flex_inside();
+            }
+            bool is_flex_container_for_baseline = fragment.layout_node().display().is_flex_inside();
+            bool skip_vertical_align = (parent_is_flex_item_for_baseline || is_flex_container_for_baseline) && !fragment.layout_node().document().in_quirks_mode();
+
             if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
-                if (length_percentage->is_length())
-                    fragment_baseline += length_percentage->length().to_px(fragment.layout_node());
-                else if (length_percentage->is_percentage())
-                    fragment_baseline += line_height.scaled(length_percentage->percentage().as_fraction());
+                // Don't apply vertical-align length adjustments to flex items (unless in quirks mode)
+                if (!skip_vertical_align) {
+                    if (length_percentage->is_length())
+                        fragment_baseline += length_percentage->length().to_px(fragment.layout_node());
+                    else if (length_percentage->is_percentage())
+                        fragment_baseline += line_height.scaled(length_percentage->percentage().as_fraction());
+                }
             }
 
             line_box_baseline = max(line_box_baseline, fragment_baseline);
@@ -352,16 +363,42 @@ void LineBuilder::update_last_line()
         };
 
         auto const& vertical_align = fragment.layout_node().computed_values().vertical_align();
-        if (vertical_align.has<CSS::VerticalAlign>()) {
-            new_fragment_block_offset = block_offset_value_for_alignment(vertical_align.get<CSS::VerticalAlign>());
+
+        // Debug: log the fragment and its vertical-align value
+        // dbgln("PROCESSING FRAGMENT: {} (atomic_inline: {})", fragment.layout_node().debug_description(), fragment.is_atomic_inline());
+        // if (!vertical_align.has<CSS::VerticalAlign>() || vertical_align.get<CSS::VerticalAlign>() != CSS::VerticalAlign::Baseline) {
+        //     dbgln("  -> has non-baseline vertical-align");
+        // }
+
+        // Check if this fragment's parent is a flex item (child of flex container)
+        bool parent_is_flex_item = false;
+        if (fragment.layout_node().parent() && fragment.layout_node().parent()->parent()) {
+            parent_is_flex_item = fragment.layout_node().parent()->parent()->display().is_flex_inside();
+        }
+
+        // Also check if this fragment itself is a flex container (inline-flex case)
+        bool is_flex_container = fragment.layout_node().display().is_flex_inside();
+
+        // Fragments inside flex items OR flex containers themselves should ignore vertical-align, but not in quirks mode
+        if ((parent_is_flex_item || is_flex_container) && !fragment.layout_node().document().in_quirks_mode()) {
+            // dbgln("LineBuilder: IGNORING VERTICAL-ALIGN for {}", fragment.layout_node().debug_description());
+            new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline);
         } else {
-            if (auto const* length_percentage = vertical_align.get_pointer<CSS::LengthPercentage>()) {
-                if (length_percentage->is_length()) {
-                    auto vertical_align_amount = length_percentage->length().to_px(fragment.layout_node());
-                    new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
-                } else if (length_percentage->is_percentage()) {
-                    auto vertical_align_amount = m_context.containing_block().computed_values().line_height().scaled(length_percentage->percentage().as_fraction());
-                    new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
+            // Apply vertical-align for non-flex items
+            if (vertical_align.has<CSS::VerticalAlign>()) {
+                // dbgln("APPLYING VERTICAL-ALIGN keyword for {}", fragment.layout_node().debug_description());
+                new_fragment_block_offset = block_offset_value_for_alignment(vertical_align.get<CSS::VerticalAlign>());
+            } else {
+                if (auto const* length_percentage = vertical_align.get_pointer<CSS::LengthPercentage>()) {
+                    if (length_percentage->is_length()) {
+                        auto vertical_align_amount = length_percentage->length().to_px(fragment.layout_node());
+                        // dbgln("LineBuilder: APPLYING VERTICAL-ALIGN length {}px for {}", vertical_align_amount, fragment.layout_node().debug_description());
+                        new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
+                    } else if (length_percentage->is_percentage()) {
+                        auto vertical_align_amount = m_context.containing_block().computed_values().line_height().scaled(length_percentage->percentage().as_fraction());
+                        // dbgln("APPLYING VERTICAL-ALIGN percentage for {}", fragment.layout_node().debug_description());
+                        new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
+                    }
                 }
             }
         }
@@ -385,11 +422,21 @@ void LineBuilder::update_last_line()
                 top_of_inline_box = (fragment.block_offset() + fragment.baseline() - CSSPixels::nearest_value_for(font_metrics.ascent) - half_leading);
                 bottom_of_inline_box = (fragment.block_offset() + fragment.baseline() + CSSPixels::nearest_value_for(font_metrics.descent) + half_leading);
             }
+            // Check if this fragment is a flex item and should ignore vertical-align
+            bool parent_is_flex_item_for_box = false;
+            if (fragment.layout_node().parent() && fragment.layout_node().parent()->parent()) {
+                parent_is_flex_item_for_box = fragment.layout_node().parent()->parent()->display().is_flex_inside();
+            }
+            bool is_flex_container_for_box = fragment.layout_node().display().is_flex_inside();
+
             if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
-                if (length_percentage->is_length())
-                    bottom_of_inline_box += length_percentage->length().to_px(fragment.layout_node());
-                else if (length_percentage->is_percentage())
-                    bottom_of_inline_box += m_context.containing_block().computed_values().line_height().scaled(length_percentage->percentage().as_fraction());
+                // Don't apply vertical-align length adjustments to flex items (unless in quirks mode)
+                if (!((parent_is_flex_item_for_box || is_flex_container_for_box) && !fragment.layout_node().document().in_quirks_mode())) {
+                    if (length_percentage->is_length())
+                        bottom_of_inline_box += length_percentage->length().to_px(fragment.layout_node());
+                    else if (length_percentage->is_percentage())
+                        bottom_of_inline_box += m_context.containing_block().computed_values().line_height().scaled(length_percentage->percentage().as_fraction());
+                }
             }
         }
 

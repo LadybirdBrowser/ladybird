@@ -1811,9 +1811,14 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
 {
     auto const& box_state = m_state.get(box);
 
+    bool is_flex_item = box.parent() && box.parent()->display().is_flex_inside();
+    bool is_flex_container = box.display().is_flex_inside();
+    bool skip_vertical_align = (is_flex_item || is_flex_container) && !box.document().in_quirks_mode();
+
     // https://www.w3.org/TR/CSS2/visudet.html#propdef-vertical-align
     auto const& vertical_align = box.computed_values().vertical_align();
-    if (vertical_align.has<CSS::VerticalAlign>()) {
+
+    if (!skip_vertical_align && vertical_align.has<CSS::VerticalAlign>()) {
         switch (vertical_align.get<CSS::VerticalAlign>()) {
         case CSS::VerticalAlign::Top:
             // Top: Align the top of the aligned subtree with the top of the line box.
