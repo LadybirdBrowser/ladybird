@@ -22,7 +22,7 @@ require('lspconfig').clangd.setup {
   -- you can delete this line.
   -- on_attach = ...,
 
-  -- This is where you'd put capabilities (i.e. if you're useing nvim-cmp)
+  -- This is where you'd put capabilities (i.e. if you're using nvim-cmp)
   -- capabilities = ...,
 
   -- If you have another clangd installation, put it here. Note that we use

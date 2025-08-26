@@ -13,15 +13,15 @@ enum class VideoIntro : u8 {
     Well = 0x1,
     Hello = 0x2,
     Friends = 0x4,
-    ExclimationMark = 0x8,
-    CompleteIntro = Well | Hello | Friends | ExclimationMark,
+    ExclamationMark = 0x8,
+    CompleteIntro = Well | Hello | Friends | ExclamationMark,
 };
 
 AK_ENUM_BITWISE_OPERATORS(VideoIntro);
 
 TEST_CASE(bitwise_or)
 {
-    auto intro = VideoIntro::Well | VideoIntro::Hello | VideoIntro::Friends | VideoIntro::ExclimationMark;
+    auto intro = VideoIntro::Well | VideoIntro::Hello | VideoIntro::Friends | VideoIntro::ExclamationMark;
     EXPECT_EQ(intro, VideoIntro::CompleteIntro);
 }
 
@@ -34,7 +34,7 @@ TEST_CASE(bitwise_and)
 TEST_CASE(bitwise_xor)
 {
     auto intro = VideoIntro::Well | VideoIntro::Hello | VideoIntro::Friends;
-    EXPECT_EQ(intro ^ VideoIntro::CompleteIntro, VideoIntro::ExclimationMark);
+    EXPECT_EQ(intro ^ VideoIntro::CompleteIntro, VideoIntro::ExclamationMark);
 }
 
 TEST_CASE(bitwise_not)
@@ -46,7 +46,7 @@ TEST_CASE(bitwise_not)
 TEST_CASE(bitwise_or_equal)
 {
     auto intro = VideoIntro::Well | VideoIntro::Hello | VideoIntro::Friends;
-    EXPECT_EQ(intro |= VideoIntro::ExclimationMark, VideoIntro::CompleteIntro);
+    EXPECT_EQ(intro |= VideoIntro::ExclamationMark, VideoIntro::CompleteIntro);
 }
 
 TEST_CASE(bitwise_and_equal)
@@ -58,7 +58,7 @@ TEST_CASE(bitwise_and_equal)
 TEST_CASE(bitwise_xor_equal)
 {
     auto intro = VideoIntro::Well | VideoIntro::Hello | VideoIntro::Friends;
-    EXPECT_EQ(intro ^= VideoIntro::CompleteIntro, VideoIntro::ExclimationMark);
+    EXPECT_EQ(intro ^= VideoIntro::CompleteIntro, VideoIntro::ExclamationMark);
 }
 
 TEST_CASE(has_flag)

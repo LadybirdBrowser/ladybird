@@ -9,7 +9,7 @@
 #if __has_include(<swift/bridging>)
 #    include <swift/bridging>
 // FIXME: Workaround for Xcode 14/15. When swif becomes required, we should bump the
-//        required Xcode verison to one that supports all the features we are using.
+//        required Xcode version to one that supports all the features we are using.
 #    ifndef SWIFT_UNCHECKED_SENDABLE
 #        define SWIFT_UNCHECKED_SENDABLE
 #        define SWIFT_NONCOPYABLE

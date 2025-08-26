@@ -17,7 +17,7 @@ static constexpr CGFloat const INFO_BAR_HEIGHT = 40;
 
 @property (nonatomic, strong) NSTextField* text_label;
 @property (nonatomic, strong) NSButton* dismiss_button;
-@property (nonatomic, copy) InfoBarDismissed on_dimissed;
+@property (nonatomic, copy) InfoBarDismissed on_dismissed;
 
 @end
 
@@ -47,13 +47,13 @@ static constexpr CGFloat const INFO_BAR_HEIGHT = 40;
 
 - (void)showWithMessage:(NSString*)message
       dismissButtonTitle:(NSString*)title
-    dismissButtonClicked:(InfoBarDismissed)on_dimissed
+    dismissButtonClicked:(InfoBarDismissed)on_dismissed
                activeTab:(Tab*)tab
 {
     [self.text_label setStringValue:message];
 
     self.dismiss_button.title = title;
-    self.on_dimissed = on_dimissed;
+    self.on_dismissed = on_dismissed;
 
     if (tab) {
         [self attachToTab:tab];
@@ -64,8 +64,8 @@ static constexpr CGFloat const INFO_BAR_HEIGHT = 40;
 
 - (void)dismiss:(id)sender
 {
-    if (self.on_dimissed) {
-        self.on_dimissed();
+    if (self.on_dismissed) {
+        self.on_dismissed();
     }
 
     [self hide];
