@@ -579,7 +579,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     if (attempt_instantiate || print_compiled) {
-        Wasm::AbstractMachine machine;
 #if !defined(AK_OS_WINDOWS)
         Optional<Wasm::Wasi::Implementation> wasi_impl;
 
