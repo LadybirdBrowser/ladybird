@@ -876,6 +876,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                 if (!request->done()) {
                     m_timed_out = true;
                     m_fetch_controller->terminate();
+                    MUST(handle_errors());
                 }
             });
 
