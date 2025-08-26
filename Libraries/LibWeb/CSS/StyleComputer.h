@@ -155,7 +155,7 @@ public:
 
     [[nodiscard]] RuleCache const& get_pseudo_class_rule_cache(PseudoClass) const;
 
-    [[nodiscard]] Vector<MatchingRule const*> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::PseudoElement>, PseudoClassBitmap& attempted_psuedo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;
+    [[nodiscard]] Vector<MatchingRule const*> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::PseudoElement>, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;
 
     InvalidationSet invalidation_set_for_properties(Vector<InvalidationSet::Property> const&) const;
     bool invalidation_property_used_in_has_selector(InvalidationSet::Property const&) const;

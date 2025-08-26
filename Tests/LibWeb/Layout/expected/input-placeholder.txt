@@ -35,8 +35,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <input#placeholder> at (9,36) content-size 200x25 inline-block [BFC] children: not-inline
         Box <div> at (11,37) content-size 196x23 flex-container(row) [FFC] children: not-inline
           BlockContainer <div> at (11,37) content-size 196x23 flex-item [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 40, rect: [11,37 407.859375x23] baseline: 17.5
-                "This placeholder should also be visisble"
+            frag 0 from TextNode start: 0, length: 39, rect: [11,37 396.171875x23] baseline: 17.5
+                "This placeholder should also be visible"
             TextNode <#text>
           BlockContainer <div> at (207,37) content-size 0x23 flex-item [BFC] children: inline
             TextNode <#text>
@@ -61,9 +61,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableBox (Box<DIV>) [433,9 200x25]
           PaintableWithLines (BlockContainer<DIV>) [435,10 196x23]
             TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<INPUT>#placeholder) [8,35 202x27] overflow: [9,36 409.859375x26]
-        PaintableBox (Box<DIV>) [9,36 200x25] overflow: [9,36 409.859375x26]
-          PaintableWithLines (BlockContainer<DIV>) [11,37 196x23] overflow: [11,37 407.859375x23]
+      PaintableWithLines (BlockContainer<INPUT>#placeholder) [8,35 202x27] overflow: [9,36 398.171875x26]
+        PaintableBox (Box<DIV>) [9,36 200x25] overflow: [9,36 398.171875x26]
+          PaintableWithLines (BlockContainer<DIV>) [11,37 196x23] overflow: [11,37 396.171875x23]
             TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer<DIV>) [207,37 0x23]
 

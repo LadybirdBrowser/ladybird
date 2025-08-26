@@ -143,7 +143,7 @@ TEST_CASE(data_url)
     EXPECT_EQ(result.base_url, OptionalNone {});
 }
 
-TEST_CASE(non_special_scheme_and_arbitary_hostname)
+TEST_CASE(non_special_scheme_and_arbitrary_hostname)
 {
     auto input = "foo://bar"_string;
     auto result = MUST(URL::Pattern::ConstructorStringParser::parse(input.code_points()));
