@@ -1098,7 +1098,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         };
 
         compute_font(computed_properties, &element, pseudo_element);
-        absolutize_values(computed_properties);
+        compute_property_values(computed_properties);
         Length::FontMetrics font_metrics {
             computed_properties.font_size(),
             computed_properties.first_available_computed_font().pixel_metrics()
@@ -2149,7 +2149,7 @@ Gfx::Font const& StyleComputer::initial_font() const
     return font;
 }
 
-void StyleComputer::absolutize_values(ComputedProperties& style) const
+void StyleComputer::compute_property_values(ComputedProperties& style) const
 {
     Length::FontMetrics font_metrics {
         style.font_size(),
@@ -2169,9 +2169,26 @@ void StyleComputer::absolutize_values(ComputedProperties& style) const
         style.set_property(PropertyID::LineHeight, computed_value, is_inherited);
     }
 
-    style.for_each_property([&](PropertyID property_id, auto& value) {
-        auto const& absolutized_value = value.absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics);
-        auto is_inherited = style.is_property_inherited(property_id) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No;
+    PropertyValueComputationContext computation_context {
+        .length_resolution_context = {
+            .viewport_rect = viewport_rect(),
+            .font_metrics = font_metrics,
+            .root_font_metrics = m_root_element_font_metrics,
+        }
+    };
+
+    // NOTE: This doesn't necessarily return the specified value if we have already computed this property but that
+    //       doesn't matter as a computed value is always valid as a specified value.
+    Function<NonnullRefPtr<StyleValue const>(PropertyID)> const get_property_specified_value = [&](auto property_id) -> NonnullRefPtr<StyleValue const> {
+        return style.property(property_id);
+    };
+
+    style.for_each_property([&](PropertyID property_id, auto& specified_value) {
+        auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context);
+
+        // FIXME: Any required absolutization should be done within compute_value_of_property() - we can remove this once that's implemented.
+        auto const& absolutized_value = computed_value->absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics);
+        auto const& is_inherited = style.is_property_inherited(property_id) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No;
 
         style.set_property(property_id, absolutized_value, is_inherited);
     });
@@ -2393,7 +2410,7 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
 
     compute_math_depth(style, {});
     compute_font(style, nullptr, {});
-    absolutize_values(style);
+    compute_property_values(style);
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
     style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
@@ -2702,8 +2719,8 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     // 3. Compute the font, since that may be needed for font-relative CSS units
     compute_font(computed_style, &element, pseudo_element);
 
-    // 4. Absolutize values, turning font/viewport relative lengths into absolute lengths
-    absolutize_values(computed_style);
+    // 4. Convert properties into their computed forms
+    compute_property_values(computed_style);
 
     // 5. Run automatic box type transformations
     transform_box_type_if_needed(computed_style, element, pseudo_element);
@@ -3155,6 +3172,17 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
             });
     }
     abstract_element.set_custom_properties(move(resolved_custom_properties));
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(PropertyID property_id, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const&, PropertyValueComputationContext const&)
+{
+    switch (property_id) {
+    default:
+        // FIXME: We should replace this with a VERIFY_NOT_REACHED() once all properties have their own handling.
+        return specified_value;
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::AbstractElement> element) const
