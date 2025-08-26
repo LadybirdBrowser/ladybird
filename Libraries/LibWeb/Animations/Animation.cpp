@@ -1182,7 +1182,6 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
     // 6. If current finished state is false and animation’s current finished promise is already resolved, set
     //    animation’s current finished promise to a new promise in the relevant Realm of animation.
     if (!current_finished_state && m_is_finished) {
-        HTML::TemporaryExecutionContext execution_context { realm };
         m_current_finished_promise = WebIDL::create_promise(realm);
         m_is_finished = false;
     }
