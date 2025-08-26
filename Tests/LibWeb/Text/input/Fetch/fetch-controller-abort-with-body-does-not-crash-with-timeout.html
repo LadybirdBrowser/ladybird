@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const timeoutSignal = AbortSignal.timeout(0);
+        fetch('data:text/plain,fetched from far', { signal: timeoutSignal, body: "message in a bottle", method: "POST" });
+        setTimeout(() => {
+            println("PASS! (Didn't crash)");
+            done();
+        }, 1);
+    });
+</script>
