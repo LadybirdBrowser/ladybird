@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	date should step correctly
+Pass	time should step correctly
+Pass	month should step correctly
+Pass	week should step correctly
