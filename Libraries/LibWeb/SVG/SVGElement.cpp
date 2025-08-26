@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2023, Preston Taylor <95388976+PrestonLTaylor@users.noreply.github.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -298,17 +299,28 @@ GC::Ptr<SVGElement> SVGElement::viewport_element()
     return nullptr;
 }
 
+GC::Ref<SVGAnimatedLength> SVGElement::fake_animated_length_fixme() const
+{
+    // FIXME: All callers of this method must implement their animated length correctly.
+    auto base_length = SVGLength::create(realm(), 0, 0, SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, 0, SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+}
+
 GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::PropertyID property) const
 {
     // FIXME: Create a proper animated value when animations are supported.
-    auto make_length = [&] {
+    auto make_length = [&](SVGLength::ReadOnly read_only) {
         if (auto const computed_properties = this->computed_properties()) {
             if (auto length = computed_properties->length_percentage(property); length.has_value())
-                return SVGLength::from_length_percentage(realm(), *length);
+                return SVGLength::from_length_percentage(realm(), *length, read_only);
         }
-        return SVGLength::create(realm(), 0, 0.0f);
+        return SVGLength::create(realm(), 0, 0, read_only);
     };
-    return SVGAnimatedLength::create(realm(), make_length(), make_length());
+    return SVGAnimatedLength::create(
+        realm(),
+        make_length(SVGLength::ReadOnly::No),
+        make_length(SVGLength::ReadOnly::Yes));
 }
 
 }

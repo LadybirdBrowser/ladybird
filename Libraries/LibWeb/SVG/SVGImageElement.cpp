@@ -81,10 +81,8 @@ void SVGImageElement::attribute_changed(FlyString const& name, Optional<String> 
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__x
 GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::x()
 {
-    if (!m_x) {
-        auto& realm = this->realm();
-        m_x = SVGAnimatedLength::create(realm, SVGLength::create(realm, 0, 0), SVGLength::create(realm, 0, 0));
-    }
+    if (!m_x)
+        m_x = fake_animated_length_fixme();
 
     return *m_x;
 }
@@ -92,10 +90,8 @@ GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::x()
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__y
 GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::y()
 {
-    if (!m_y) {
-        auto& realm = this->realm();
-        m_y = SVGAnimatedLength::create(realm, SVGLength::create(realm, 0, 0), SVGLength::create(realm, 0, 0));
-    }
+    if (!m_y)
+        m_y = fake_animated_length_fixme();
 
     return *m_y;
 }
@@ -105,7 +101,10 @@ GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::width()
 {
     if (!m_width) {
         auto& realm = this->realm();
-        m_width = SVGAnimatedLength::create(realm, SVGLength::create(realm, 0, intrinsic_width().value_or(0).to_double()), SVGLength::create(realm, 0, 0));
+        m_width = SVGAnimatedLength::create(
+            realm,
+            SVGLength::create(realm, 0, intrinsic_width().value_or(0).to_double(), SVGLength::ReadOnly::No),
+            SVGLength::create(realm, 0, 0, SVGLength::ReadOnly::Yes));
     }
 
     return *m_width;
@@ -116,7 +115,10 @@ GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::height()
 {
     if (!m_height) {
         auto& realm = this->realm();
-        m_height = SVGAnimatedLength::create(realm, SVGLength::create(realm, 0, intrinsic_height().value_or(0).to_double()), SVGLength::create(realm, 0, 0));
+        m_height = SVGAnimatedLength::create(
+            realm,
+            SVGLength::create(realm, 0, intrinsic_height().value_or(0).to_double(), SVGLength::ReadOnly::No),
+            SVGLength::create(realm, 0, 0, SVGLength::ReadOnly::Yes));
     }
 
     return *m_height;

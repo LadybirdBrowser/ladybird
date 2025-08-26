@@ -162,26 +162,22 @@ Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGP
 
 GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::x1() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::y1() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::x2() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::y2() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 }

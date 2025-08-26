@@ -218,38 +218,32 @@ Optional<Painting::PaintStyle> SVGRadialGradientElement::to_gfx_paint_style(SVGP
 
 GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::cx() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::cy() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::fx() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::fy() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::fr() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::r() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 }
