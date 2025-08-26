@@ -53,6 +53,7 @@ static Vector<ByteString> create_arguments(ByteString const& socket_path, bool h
     arguments.append("--force-new-process"sv);
     arguments.append("--enable-autoplay"sv);
     arguments.append("--disable-scrollbar-painting"sv);
+    arguments.append("--webserial-device-path=/dev/ttyUSB0"sv); // Enables WebSerial API support
     if (force_cpu_painting)
         arguments.append("--force-cpu-painting"sv);
 
