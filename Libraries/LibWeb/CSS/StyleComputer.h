@@ -189,12 +189,17 @@ public:
 
     [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::Element&, Optional<PseudoElement>, CascadedProperties&) const;
 
-    void absolutize_values(ComputedProperties&) const;
+    void compute_property_values(ComputedProperties&) const;
     void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::PseudoElement>) const;
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
 
     static NonnullRefPtr<StyleValue const> compute_value_of_custom_property(DOM::AbstractElement, FlyString const& custom_property, Optional<Parser::GuardedSubstitutionContexts&> = {});
+
+    struct PropertyValueComputationContext {
+        Length::ResolutionContext length_resolution_context;
+    };
+    static NonnullRefPtr<StyleValue const> compute_value_of_property(PropertyID, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, PropertyValueComputationContext const&);
 
 private:
     virtual void visit_edges(Visitor&) override;
