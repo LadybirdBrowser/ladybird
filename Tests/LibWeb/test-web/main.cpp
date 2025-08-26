@@ -803,14 +803,14 @@ static void handle_signal(int signal)
 
     auto now = UnixDateTime::now();
     WebView::ViewImplementation::for_each_view([&](WebView::ViewImplementation const& view) {
-        dbg("- View {}: {} ", view.view_id(), view.url());
+        dbg("- View {}: ", view.view_id());
 
         auto maybe_test = s_test_by_view.get(&view);
         if (maybe_test.has_value()) {
             auto const& test = *maybe_test.release_value();
-            dbgln("(duration: {})", human_readable_time(now - test.start_time));
+            dbgln("{} (duration: {})", test.relative_path, human_readable_time(now - test.start_time));
         } else {
-            dbgln("(no active test)");
+            dbgln("{} (no active test)", view.url());
         }
 
         return IterationDecision::Continue;
