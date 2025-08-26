@@ -54,7 +54,7 @@ struct BaseKeyframe {
 };
 
 // https://www.w3.org/TR/web-animations-1/#the-keyframeeffect-interface
-class KeyframeEffect : public AnimationEffect {
+class KeyframeEffect final : public AnimationEffect {
     WEB_PLATFORM_OBJECT(KeyframeEffect, AnimationEffect);
     GC_DECLARE_ALLOCATOR(KeyframeEffect);
 
