@@ -1,0 +1,9 @@
+rect.x.baseVal: 1
+rect.x.animVal: 1
+rect.y.baseVal: 2
+rect.y.animVal: 2
+rect.width.baseVal: 3
+rect.width.animVal: 3
+rect.height.baseVal: 4
+rect.height.animVal: 4
+Expected exception: NoModificationAllowedError: Cannot modify value of read-only SVGLength

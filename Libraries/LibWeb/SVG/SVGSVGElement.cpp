@@ -274,7 +274,7 @@ void SVGSVGElement::deselect_all() const
 GC::Ref<SVGLength> SVGSVGElement::create_svg_length() const
 {
     // A new, detached SVGLength object whose value is the unitless <number> 0.
-    return SVGLength::create(realm(), SVGLength::SVG_LENGTHTYPE_NUMBER, 0);
+    return SVGLength::create(realm(), SVGLength::SVG_LENGTHTYPE_NUMBER, 0, SVGLength::ReadOnly::No);
 }
 
 GC::Ref<Geometry::DOMPoint> SVGSVGElement::create_svg_point() const

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <rect id="rect" x="1" y="2" width="3" height="4" />
+</svg>
+<script>
+test(() => {
+    println(`rect.x.baseVal: ${rect.x.baseVal.value}`);
+    println(`rect.x.animVal: ${rect.x.animVal.value}`);
+    println(`rect.y.baseVal: ${rect.y.baseVal.value}`);
+    println(`rect.y.animVal: ${rect.y.animVal.value}`);
+    println(`rect.width.baseVal: ${rect.width.baseVal.value}`);
+    println(`rect.width.animVal: ${rect.width.animVal.value}`);
+    println(`rect.height.baseVal: ${rect.height.baseVal.value}`);
+    println(`rect.height.animVal: ${rect.height.animVal.value}`);
+
+    try {
+        rect.x.animVal.value = 2;
+    } catch (e) {
+        println(`Expected exception: ${e}`);
+    }
+});
+</script>

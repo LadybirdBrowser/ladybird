@@ -215,9 +215,9 @@ GC::Ref<SVGAnimatedLength> SVGUseElement::x() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_x.value_or(0));
-    auto anim_length = SVGLength::create(realm(), 0, m_x.value_or(0));
-    return SVGAnimatedLength::create(realm(), move(base_length), move(anim_length));
+    auto base_length = SVGLength::create(realm(), 0, m_x.value_or(0), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, m_x.value_or(0), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementYAttribute
@@ -225,21 +225,19 @@ GC::Ref<SVGAnimatedLength> SVGUseElement::y() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_y.value_or(0));
-    auto anim_length = SVGLength::create(realm(), 0, m_y.value_or(0));
-    return SVGAnimatedLength::create(realm(), move(base_length), move(anim_length));
+    auto base_length = SVGLength::create(realm(), 0, m_y.value_or(0), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, m_y.value_or(0), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
 GC::Ref<SVGAnimatedLength> SVGUseElement::width() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 GC::Ref<SVGAnimatedLength> SVGUseElement::height() const
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
+    return fake_animated_length_fixme();
 }
 
 // https://svgwg.org/svg2-draft/struct.html#TermInstanceRoot

@@ -30,23 +30,32 @@ public:
     static constexpr unsigned short SVG_LENGTHTYPE_PT = 9;
     static constexpr unsigned short SVG_LENGTHTYPE_PC = 10;
 
-    [[nodiscard]] static GC::Ref<SVGLength> create(JS::Realm&, u8 unit_type, float value);
-    virtual ~SVGLength() override;
+    enum class ReadOnly : u8 {
+        Yes,
+        No,
+    };
 
-    u8 unit_type() const { return m_unit_type; }
+    [[nodiscard]] static GC::Ref<SVGLength> create(JS::Realm&, u8 unit_type, float value, ReadOnly);
+    virtual ~SVGLength() override;
 
     float value() const { return m_value; }
     WebIDL::ExceptionOr<void> set_value(float value);
 
-    [[nodiscard]] static GC::Ref<SVGLength> from_length_percentage(JS::Realm&, CSS::LengthPercentage const&);
+    u8 unit_type() const { return m_unit_type; }
+    ReadOnly read_only() const { return m_read_only; }
+
+    [[nodiscard]] static GC::Ref<SVGLength> from_length_percentage(JS::Realm&, CSS::LengthPercentage const&, ReadOnly);
 
 private:
-    SVGLength(JS::Realm&, u8 unit_type, float value);
+    SVGLength(JS::Realm&, u8 unit_type, float value, ReadOnly);
 
     virtual void initialize(JS::Realm&) override;
 
-    u8 m_unit_type { 0 };
     float m_value { 0 };
+    u8 m_unit_type { 0 };
+
+    // https://svgwg.org/svg2-draft/types.html#ReadOnlyLength
+    ReadOnly m_read_only;
 };
 
 }
