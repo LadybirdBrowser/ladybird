@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023-2024, Matthew Olsson <mattco@serenityos.org>.
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -934,7 +935,9 @@ GC::Ptr<DOM::Document> Animation::document_for_timing() const
 
 void Animation::notify_timeline_time_did_change()
 {
-    update_finished_state(DidSeek::No, SynchronouslyNotify::Yes);
+    // Update finished state if not already finished; prevents recurring invalidation when the timeline updates.
+    if (!m_is_finished)
+        update_finished_state(DidSeek::No, SynchronouslyNotify::Yes);
 
     // Act on the pending play or pause task
     if (m_pending_play_task == TaskState::Scheduled) {
@@ -1330,13 +1333,11 @@ GC::Ref<WebIDL::Promise> Animation::current_finished_promise() const
 
 void Animation::invalidate_effect()
 {
-    if (!m_effect) {
+    if (!m_effect)
         return;
-    }
 
-    if (auto* target = m_effect->target(); target) {
+    if (auto* target = m_effect->target())
         target->document().set_needs_animated_style_update();
-    }
 }
 
 Animation::Animation(JS::Realm& realm)

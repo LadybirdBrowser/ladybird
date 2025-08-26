@@ -1574,11 +1574,10 @@ void Document::update_animated_style_if_needed()
 
     for (auto& timeline : m_associated_animation_timelines) {
         for (auto& animation : timeline->associated_animations()) {
-            if (animation->is_idle() || animation->is_finished())
+            if (animation->is_idle())
                 continue;
-            if (auto effect = animation->effect()) {
+            if (auto effect = animation->effect())
                 effect->update_computed_properties(context);
-            }
         }
     }
 

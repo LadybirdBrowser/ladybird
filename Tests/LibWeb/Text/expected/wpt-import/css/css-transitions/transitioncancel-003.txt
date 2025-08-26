@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Mid-transition transition changes affect subsequent transitions
+1 Pass
+Pass	Mid-transition transition changes affect subsequent transitions
