@@ -20,6 +20,7 @@
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
 
 namespace Web::SVG {
@@ -184,6 +185,20 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(Element* to_clone)
     if (to_clone && is_valid_reference_element(*to_clone)) {
         // The ‘use’ element references another element, a copy of which is rendered in place of the ‘use’ in the document.
         auto cloned_reference_node = MUST(to_clone->clone_node(nullptr, true));
+        if (is<SVGSVGElement>(cloned_reference_node.ptr()) || is<SVGSymbolElement>(cloned_reference_node.ptr())) {
+            auto& cloned_element = as<SVGElement>(*cloned_reference_node);
+
+            // The width and height properties on the ‘use’ element override the values for the corresponding
+            // properties on a referenced ‘svg’ or ‘symbol’ element when determining the used value for that property
+            // on the instance root element. However, if the computed value for the property on the ‘use’ element is
+            // auto, then the property is computed as normal for the element instance.
+            if (has_attribute(AttributeNames::width)) {
+                MUST(cloned_element.set_attribute(AttributeNames::width, get_attribute_value(AttributeNames::width)));
+            }
+            if (has_attribute(AttributeNames::height)) {
+                MUST(cloned_element.set_attribute(AttributeNames::height, get_attribute_value(AttributeNames::height)));
+            }
+        }
         shadow_root()->append_child(cloned_reference_node).release_value_but_fixme_should_propagate_errors();
     }
 }
