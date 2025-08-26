@@ -1,0 +1,108 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<html>
+ <head>
+  <title>HTMLInputElement valueAsDate</title>
+  <link rel="author" title="pmdartus" href="mailto:dartus.pierremarie@gmail.com">
+  <link rel=help href="https://html.spec.whatwg.org/#dom-input-valueasdate">
+
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+ </head>
+ <body>
+  <h3>input_valueAsDate</h3>
+  <hr>
+  <div id="log"></div>
+
+  <input id="input_date" type="date" />
+  <input id="input_month" type="month" />
+  <input id="input_week" type="week" />
+  <input id="input_time" type="time" />
+
+  <script>
+   "use strict";
+
+   function testValueAsDateGetter(type, element, cases) {
+     for (const [actualValue, expectedValueAsDate] of cases) {
+       test(
+         () => {
+           element.value = actualValue;
+
+           const actualValueAsDate = element.valueAsDate;
+           if (actualValueAsDate instanceof Date) {
+             assert_equals(
+               actualValueAsDate.getTime(),
+               expectedValueAsDate.getTime(),
+               `valueAsDate returns an invalid date (actual: ${actualValueAsDate.toISOString()}, ` +
+               `expected: ${expectedValueAsDate.toISOString()})`
+             );
+           } else {
+             assert_equals(actualValueAsDate, expectedValueAsDate);
+           }
+         },
+         `valueAsDate getter on type ${type} (with value: ${JSON.stringify(actualValue)})`
+       );
+     }
+   }
+
+   function testValueAsDateSetter(type, element, cases) {
+     for (const [valueDateStr, expectedValue] of cases) {
+       test(() => {
+         element.valueAsDate = new Date(valueDateStr);
+         assert_equals(element.value, expectedValue);
+       }, `valueAsDate setter on type ${type} (new Date(${JSON.stringify(valueDateStr)}))`);
+     }
+   }
+
+   const dateInput = document.getElementById("input_date");
+   testValueAsDateGetter("date", dateInput, [
+     ["", null],
+     ["0000-12-10", null],
+     ["2019-00-12", null],
+     ["2019-12-00", null],
+     ["2019-13-10", null],
+     ["2019-02-29", null],
+     ["2019-12-10", new Date("2019-12-10T00:00:00.000Z")],
+     ["2016-02-29", new Date("2016-02-29T00:00:00.000Z")] // Leap year
+   ]);
+   testValueAsDateSetter("date", dateInput, [
+     ["2019-12-10T00:00:00.000Z", "2019-12-10"],
+     ["2016-02-29T00:00:00.000Z", "2016-02-29"] // Leap year
+   ]);
+
+   const monthInput = document.getElementById("input_month");
+   testValueAsDateGetter("month", monthInput, [
+     ["", null],
+     ["0000-12", null],
+     ["2019-00", null],
+     ["2019-12", new Date("2019-12-01T00:00:00.000Z")]
+   ]);
+   testValueAsDateSetter("month", monthInput, [["2019-12-01T00:00:00.000Z", "2019-12"]]);
+
+   const weekInput = document.getElementById("input_week");
+   testValueAsDateGetter("week", weekInput, [
+     ["", null],
+     ["0000-W50", null],
+     ["2019-W00", null],
+     ["2019-W60", null],
+     ["2019-W50", new Date("2019-12-09T00:00:00.000Z")]
+   ]);
+   testValueAsDateSetter("week", weekInput, [["2019-12-09T00:00:00.000Z", "2019-W50"]]);
+
+   const timeInput = document.getElementById("input_time");
+   testValueAsDateGetter("time", timeInput, [
+     ["", null],
+     ["24:00", null],
+     ["00:60", null],
+     ["00:00", new Date("1970-01-01T00:00:00.000Z")],
+     ["12:00", new Date("1970-01-01T12:00:00.000Z")],
+     ["23:59", new Date("1970-01-01T23:59:00.000Z")]
+   ]);
+   testValueAsDateSetter("time", timeInput, [
+     ["1970-01-01T00:00:00.000Z", "00:00"],
+     ["1970-01-01T12:00:00.000Z", "12:00"],
+     ["1970-01-01T23:59:00.000Z", "23:59"]
+   ]);
+  </script>
+ </body>
+</html>

@@ -2376,6 +2376,15 @@ static Utf16String convert_number_to_month_string(double input)
     return Utf16String::formatted("{:04d}-{:02d}", static_cast<int>(year), static_cast<int>(months) + 1);
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-date-string
+static Utf16String convert_date_to_month_string(double input)
+{
+    // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid month
+    // string that represents the month that has input months between it and January 1970.
+    auto date = AK::UnixDateTime::from_milliseconds_since_epoch(input);
+    return date.to_utf16_string("%Y-%m"sv, AK::UnixDateTime::LocalTime::No);
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-number-string
 static Utf16String convert_number_to_week_string(double input)
 {
@@ -2490,6 +2499,31 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
         return JS::Date::create(realm(), JS::make_date(JS::make_day(date.year, date.month - 1, date.day), 0));
     }
 
+    // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-string-date
+    if (type_state() == TypeAttributeState::Month) {
+        // If parsing a month from input results in an error, then return an error;
+        auto maybe_year_and_month = parse_a_month_string(input);
+        if (!maybe_year_and_month.has_value())
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse month string"sv };
+        auto year_and_month = maybe_year_and_month.value();
+
+        // otherwise, return a new Date object representing midnight UTC on the morning of the first day of the parsed month.
+        return JS::Date::create(realm(), JS::make_date(JS::make_day(year_and_month.year, year_and_month.month - 1, 1), 0));
+    }
+
+    // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-value-string-date
+    if (type_state() == TypeAttributeState::Week) {
+        // If parsing a week from input results in an error, then return an error;
+        auto maybe_week = parse_a_week_string(input);
+        if (!maybe_week.has_value())
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse week string"sv };
+        auto week = maybe_week.value();
+
+        // otherwise, return a new Date object representing midnight UTC on the morning of the Monday of the parsed week.
+        auto datetime = UnixDateTime::from_iso8601_week(week.week_year, week.week);
+        return JS::Date::create(realm(), datetime.milliseconds_since_epoch());
+    }
+
     // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-date
     if (type_state() == TypeAttributeState::Time) {
         // If parsing a time from input results in an error, then return an error;
@@ -2522,6 +2556,20 @@ Utf16String HTMLInputElement::convert_date_to_string(GC::Ref<JS::Date> input) co
         // Return a valid date string that represents the date current at the time represented by input in the UTC time zone.
         // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-date-string
         return convert_number_to_date_string(input->date_value());
+    }
+
+    // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-date-string
+    if (type_state() == TypeAttributeState::Month) {
+        // Return a valid month string that represents the month current at the time represented by input in the UTC time zone.
+        // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-month-string
+        return convert_date_to_month_string(input->date_value());
+    }
+
+    // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-value-date-string
+    if (type_state() == TypeAttributeState::Week) {
+        // Return a valid week string that represents the week current at the time represented by input in the UTC time zone.
+        // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-week-string
+        return convert_number_to_week_string(input->date_value());
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-date
