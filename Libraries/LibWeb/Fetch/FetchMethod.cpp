@@ -143,7 +143,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit
         controller_holder->controller()->abort(relevant_realm, request_object->signal()->reason());
 
         // AD-HOC: An execution context is required for Promise functions.
-        HTML::TemporaryExecutionContext execution_context { relevant_realm };
+        HTML::TemporaryExecutionContext execution_context { relevant_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 4. Abort the fetch() call with p, request, responseObject, and requestObject’s signal’s abort reason.
         abort_fetch(relevant_realm, *promise_capability, request, response_object, request_object->signal()->reason());
