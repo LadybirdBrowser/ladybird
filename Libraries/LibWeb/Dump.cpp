@@ -162,8 +162,7 @@ void dump_tree(Layout::Node const& layout_node, bool show_cascaded_properties)
 void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool show_cascaded_properties, bool interactive)
 {
     static size_t indent = 0;
-    for (size_t i = 0; i < indent; ++i)
-        builder.append("  "sv);
+    builder.append_repeated("  "sv, indent);
 
     FlyString tag_name;
     if (layout_node.is_anonymous())
@@ -383,8 +382,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     }
 
     auto dump_fragment = [&](auto& fragment, size_t fragment_index) {
-        for (size_t i = 0; i < indent; ++i)
-            builder.append("  "sv);
+        builder.append_repeated("  "sv, indent);
         builder.appendff("  {}frag {}{} from {} ",
             fragment_color_on,
             fragment_index,
@@ -396,8 +394,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             fragment.absolute_rect(),
             fragment.baseline());
         if (is<Layout::TextNode>(fragment.layout_node())) {
-            for (size_t i = 0; i < indent; ++i)
-                builder.append("  "sv);
+            builder.append_repeated("  "sv, indent);
             auto const& layout_text = static_cast<Layout::TextNode const&>(fragment.layout_node());
             auto fragment_text = layout_text.text_for_rendering().substring_view(fragment.start_offset(), fragment.length_in_code_units());
             builder.appendff("      \"{}\"\n", fragment_text);
@@ -436,8 +433,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         quick_sort(properties, [](auto& a, auto& b) { return a.name < b.name; });
 
         for (auto& property : properties) {
-            for (size_t i = 0; i < indent; ++i)
-                builder.append("    "sv);
+            builder.append_repeated("    "sv, indent);
             builder.appendff("  ({}: {})\n", property.name, property.value);
         }
     }
