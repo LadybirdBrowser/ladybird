@@ -17,7 +17,9 @@
 namespace Web::HTML {
 
 SourceSet::SourceSet()
-    : m_source_size(CSS::Length::make_auto())
+    // Note: m_source_size always gets reassigned to its proper value during one of the construction algorithms.
+    //       0px is just a fake value here so that we don't have to muddy the type system by using Optional.
+    : m_source_size(CSS::Length::make_px(0))
 {
 }
 
