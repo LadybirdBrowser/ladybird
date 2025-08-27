@@ -369,7 +369,7 @@ void NodeWithStyle::visit_edges(Visitor& visitor)
 }
 
 // https://www.w3.org/TR/css-values-4/#snap-a-length-as-a-border-width
-static CSSPixels snap_a_length_as_a_border_width(double device_pixels_per_css_pixel, CSSPixels length)
+CSSPixels NodeWithStyle::snap_a_length_as_a_border_width(double device_pixels_per_css_pixel, CSSPixels length)
 {
     // 1. Assert: len is non-negative.
     VERIFY(length >= 0);
@@ -835,16 +835,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         border.color = computed_style.color_or_fallback(color_property, CSS::ColorResolutionContext::for_layout_node_with_style(*this), computed_values.color());
         border.line_style = computed_style.line_style(style_property);
 
-        // https://w3c.github.io/csswg-drafts/css-backgrounds/#border-style
-        // none
-        //    No border. Color and width are ignored (i.e., the border has width 0). Note this means that the initial value of border-image-width will also resolve to zero.
-        // hidden
-        //    Same as none, but has different behavior in the border conflict resolution rules for border-collapsed tables [CSS2].
-        if (border.line_style == CSS::LineStyle::None || border.line_style == CSS::LineStyle::Hidden) {
-            border.width = 0;
-        } else {
-            border.width = snap_a_length_as_a_border_width(document().page().client().device_pixels_per_css_pixel(), resolve_border_width(width_property));
-        }
+        // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation
+        border.width = max(CSSPixels { 0 }, computed_style.length(width_property).absolute_length_to_px());
     };
 
     do_border_style(computed_values.border_left(), CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor, CSS::PropertyID::BorderLeftStyle);
