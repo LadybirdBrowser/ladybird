@@ -878,6 +878,7 @@ set(SOURCES
     SVG/SVGFEMergeNodeElement.cpp
     SVG/SVGFEOffsetElement.cpp
     SVG/SVGFilterElement.cpp
+    SVG/SVGFitToViewBox.cpp
     SVG/SVGForeignObjectElement.cpp
     SVG/SVGGElement.cpp
     SVG/SVGGeometryElement.cpp

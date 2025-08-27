@@ -34,14 +34,14 @@ void SVGSVGElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGSVGElement);
     Base::initialize(realm);
-    m_view_box_for_bindings = realm.create<SVGAnimatedRect>(realm);
+    SVGFitToViewBox::initialize(realm);
 }
 
 void SVGSVGElement::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    SVGFitToViewBox::visit_edges(visitor);
     visitor.visit(m_active_view_element);
-    visitor.visit(m_view_box_for_bindings);
 }
 
 GC::Ptr<Layout::Node> SVGSVGElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
@@ -120,21 +120,8 @@ void SVGSVGElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
 void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
+    SVGFitToViewBox::attribute_changed(*this, name, value);
 
-    if (name.equals_ignoring_ascii_case(SVG::AttributeNames::viewBox)) {
-        if (!value.has_value()) {
-            m_view_box_for_bindings->set_nulled(true);
-        } else {
-            m_view_box = try_parse_view_box(value.value_or(String {}));
-            m_view_box_for_bindings->set_nulled(!m_view_box.has_value());
-            if (m_view_box.has_value()) {
-                m_view_box_for_bindings->set_base_val(Gfx::DoubleRect { m_view_box->min_x, m_view_box->min_y, m_view_box->width, m_view_box->height });
-                m_view_box_for_bindings->set_anim_val(Gfx::DoubleRect { m_view_box->min_x, m_view_box->min_y, m_view_box->width, m_view_box->height });
-            }
-        }
-    }
-    if (name.equals_ignoring_ascii_case(SVG::AttributeNames::preserveAspectRatio))
-        m_preserve_aspect_ratio = AttributeParser::parse_preserve_aspect_ratio(value.value_or(String {}));
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::width) || name.equals_ignoring_ascii_case(SVG::AttributeNames::height))
         update_fallback_view_box_for_svg_as_image();
 }
@@ -188,13 +175,13 @@ void SVGSVGElement::set_fallback_view_box_for_svg_as_image(Optional<ViewBox> vie
     m_fallback_view_box_for_svg_as_image = view_box;
 }
 
-Optional<ViewBox> SVGSVGElement::view_box() const
+Optional<ViewBox> SVGSVGElement::active_view_box() const
 {
     if (m_active_view_element && m_active_view_element->view_box().has_value())
         return m_active_view_element->view_box().value();
 
-    if (m_view_box.has_value())
-        return m_view_box;
+    if (auto view_box = SVGFitToViewBox::view_box(); view_box.has_value())
+        return view_box;
 
     // NOTE: If the parent is a document, we're an <svg> element used as an image.
     if (parent() && parent()->is_document() && m_fallback_view_box_for_svg_as_image.has_value())

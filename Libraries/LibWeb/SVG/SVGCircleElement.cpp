@@ -12,7 +12,6 @@
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGCircleElement.h>
-#include <LibWeb/SVG/SVGViewport.h>
 
 namespace Web::SVG {
 
@@ -56,6 +55,13 @@ void SVGCircleElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
     auto r_attribute = attribute(SVG::AttributeNames::r);
     if (auto r_value = parse_css_value(parsing_context, r_attribute.value_or(String {}), CSS::PropertyID::R))
         cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::R, r_value.release_nonnull());
+}
+
+static CSSPixels normalized_diagonal_length(CSSPixelSize viewport_size)
+{
+    if (viewport_size.width() == viewport_size.height())
+        return viewport_size.width();
+    return sqrt((viewport_size.width() * viewport_size.width()) + (viewport_size.height() * viewport_size.height())) / CSSPixels::nearest_value_for(AK::Sqrt2<float>);
 }
 
 Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
