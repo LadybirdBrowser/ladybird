@@ -356,8 +356,8 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         }
     }
 
-    if (is<Layout::NodeWithStyleAndBoxModelMetrics>(layout_node)
-        && static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(layout_node).continuation_of_node())
+    if (auto const* potential_continuation_node = as_if<Layout::NodeWithStyleAndBoxModelMetrics>(layout_node);
+        potential_continuation_node && potential_continuation_node->continuation_of_node())
         builder.append(" continuation"sv);
 
     builder.append("\n"sv);
