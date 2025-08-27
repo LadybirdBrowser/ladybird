@@ -17,7 +17,7 @@
 namespace Web::HTML {
 
 SourceSet::SourceSet()
-    : m_source_size(CSS::Length::make_auto())
+    : m_source_size(CSS::LengthOrAuto::make_auto())
 {
 }
 
@@ -339,7 +339,7 @@ descriptor_parser:
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parse-a-sizes-attribute
-CSS::LengthOrCalculated parse_a_sizes_attribute(DOM::Element const& element, StringView sizes, HTML::HTMLImageElement const* img)
+CSS::LengthOrAutoOrCalculated parse_a_sizes_attribute(DOM::Element const& element, StringView sizes, HTML::HTMLImageElement const* img)
 {
     auto css_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { element.document() }, sizes);
     return css_parser.parse_as_sizes_attribute(element, img);
@@ -389,11 +389,11 @@ SourceSet SourceSet::create(DOM::Element const& element, String const& default_s
 void SourceSet::normalize_source_densities(DOM::Element const& element)
 {
     // 1. Let source size be source set's source size.
-    auto source_size = [&] {
+    auto source_size = [&] -> CSS::LengthOrAuto {
         if (!m_source_size.is_calculated()) {
             // If the source size is viewport-relative, resolve it against the viewport right now.
-            if (m_source_size.value().is_viewport_relative()) {
-                return CSS::Length::make_px(m_source_size.value().viewport_relative_length_to_px(element.document().viewport_rect()));
+            if (m_source_size.value().is_length() && m_source_size.value().length().is_viewport_relative()) {
+                return CSS::Length::make_px(m_source_size.value().length().viewport_relative_length_to_px(element.document().viewport_rect()));
             }
 
             // FIXME: Resolve font-relative lengths against the relevant font size.
@@ -401,7 +401,7 @@ void SourceSet::normalize_source_densities(DOM::Element const& element)
         }
 
         CSS::CalculationResolutionContext context { .length_resolution_context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { const_cast<DOM::Element&>(element) }) };
-        return m_source_size.resolved(context).value_or(CSS::Length::make_auto());
+        return m_source_size.resolved(context).value_or(CSS::LengthOrAuto::make_auto());
     }();
 
     // 2. For each image source in source set:
@@ -416,8 +416,8 @@ void SourceSet::normalize_source_densities(DOM::Element const& element)
         auto descriptor_value_set = false;
         if (image_source.descriptor.has<ImageSource::WidthDescriptorValue>()) {
             auto& width_descriptor = image_source.descriptor.get<ImageSource::WidthDescriptorValue>();
-            if (source_size.is_absolute()) {
-                auto source_size_in_pixels = source_size.absolute_length_to_px();
+            if (source_size.is_length() && source_size.length().is_absolute()) {
+                auto source_size_in_pixels = source_size.length().absolute_length_to_px();
                 if (source_size_in_pixels != 0) {
                     image_source.descriptor = ImageSource::PixelDensityDescriptorValue {
                         .value = (width_descriptor.value / source_size_in_pixels).to_double()

@@ -46,10 +46,10 @@ struct SourceSet {
     SourceSet();
 
     Vector<ImageSource> m_sources;
-    CSS::LengthOrCalculated m_source_size;
+    CSS::LengthOrAutoOrCalculated m_source_size;
 };
 
 SourceSet parse_a_srcset_attribute(StringView);
-[[nodiscard]] CSS::LengthOrCalculated parse_a_sizes_attribute(DOM::Element const& element, StringView sizes, HTML::HTMLImageElement const* img = nullptr);
+[[nodiscard]] CSS::LengthOrAutoOrCalculated parse_a_sizes_attribute(DOM::Element const& element, StringView sizes, HTML::HTMLImageElement const* img = nullptr);
 
 }
