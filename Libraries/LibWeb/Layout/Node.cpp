@@ -653,8 +653,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     //        we just manually grab the value from `color`. This makes it dependent on `color` being
     //        specified first, so it's far from ideal.
     computed_values.set_text_decoration_color(computed_style.color_or_fallback(CSS::PropertyID::TextDecorationColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), computed_values.color()));
-    if (auto maybe_text_decoration_thickness = computed_style.length_percentage(CSS::PropertyID::TextDecorationThickness, *this, CSS::ComputedProperties::ClampNegativeLengths::No); maybe_text_decoration_thickness.has_value())
-        computed_values.set_text_decoration_thickness(maybe_text_decoration_thickness.release_value());
+    computed_values.set_text_decoration_thickness(computed_style.text_decoration_thickness());
 
     computed_values.set_webkit_text_fill_color(computed_style.color_or_fallback(CSS::PropertyID::WebkitTextFillColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), computed_values.color()));
 
