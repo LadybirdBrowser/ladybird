@@ -175,16 +175,16 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     String identifier;
     if (layout_node.dom_node() && is<DOM::Element>(*layout_node.dom_node())) {
         auto& element = as<DOM::Element>(*layout_node.dom_node());
-        StringBuilder builder;
+        StringBuilder identifier_builder;
         if (element.id().has_value() && !element.id()->is_empty()) {
-            builder.append('#');
-            builder.append(*element.id());
+            identifier_builder.append('#');
+            identifier_builder.append(*element.id());
         }
         for (auto& class_name : element.class_names()) {
-            builder.append('.');
-            builder.append(class_name);
+            identifier_builder.append('.');
+            identifier_builder.append(class_name);
         }
-        identifier = MUST(builder.to_string());
+        identifier = MUST(identifier_builder.to_string());
     }
 
     StringView nonbox_color_on = ""sv;
