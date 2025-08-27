@@ -119,6 +119,7 @@ public:
     OutlineStyle outline_style() const;
     Vector<TextDecorationLine> text_decoration_line() const;
     TextDecorationStyle text_decoration_style() const;
+    TextDecorationThickness text_decoration_thickness() const;
     TextTransform text_transform() const;
     Vector<ShadowData> text_shadow(Layout::Node const&) const;
     TextWrapMode text_wrap_mode() const;
