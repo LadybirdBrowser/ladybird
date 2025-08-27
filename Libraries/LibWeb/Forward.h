@@ -1052,6 +1052,7 @@ class SVGFEBlendElement;
 class SVGFEFloodElement;
 class SVGFEGaussianBlurElement;
 class SVGFilterElement;
+class SVGFitToViewBox;
 class SVGForeignObjectElement;
 class SVGGeometryElement;
 class SVGGraphicsElement;

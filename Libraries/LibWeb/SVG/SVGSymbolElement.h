@@ -6,13 +6,13 @@
 
 #pragma once
 
+#include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
-#include <LibWeb/SVG/SVGViewport.h>
 
 namespace Web::SVG {
 
 class SVGSymbolElement final : public SVGGraphicsElement
-    , public SVGViewport {
+    , public SVGFitToViewBox {
     WEB_PLATFORM_OBJECT(SVGSymbolElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGSymbolElement);
 
@@ -21,15 +21,6 @@ public:
 
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
-
-    virtual Optional<ViewBox> view_box() const override { return m_view_box; }
-    virtual Optional<PreserveAspectRatio> preserve_aspect_ratio() const override
-    {
-        // FIXME: Support the `preserveAspectRatio` attribute on <symbol>.
-        return {};
-    }
-
-    GC::Ref<SVGAnimatedRect> view_box_for_bindings() { return *m_view_box_for_bindings; }
 
 private:
     SVGSymbolElement(DOM::Document&, DOM::QualifiedName);
@@ -42,10 +33,6 @@ private:
     bool is_direct_child_of_use_shadow_tree() const;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
-
-    Optional<ViewBox> m_view_box;
-
-    GC::Ptr<SVGAnimatedRect> m_view_box_for_bindings;
 };
 
 }

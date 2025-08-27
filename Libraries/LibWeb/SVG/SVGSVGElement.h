@@ -11,17 +11,17 @@
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
+#include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGLength.h>
 #include <LibWeb/SVG/SVGTransform.h>
-#include <LibWeb/SVG/SVGViewport.h>
 #include <LibWeb/SVG/ViewBox.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::SVG {
 
 class SVGSVGElement final : public SVGGraphicsElement
-    , public SVGViewport {
+    , public SVGFitToViewBox {
     WEB_PLATFORM_OBJECT(SVGSVGElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGSVGElement);
 
@@ -34,15 +34,11 @@ public:
     virtual bool requires_svg_container() const override { return false; }
     virtual bool is_svg_container() const override { return true; }
 
-    virtual Optional<ViewBox> view_box() const override;
+    virtual Optional<ViewBox> active_view_box() const override;
 
     void set_active_view_element(GC::Ptr<SVGViewElement> view_element) { m_active_view_element = view_element; }
 
-    virtual Optional<PreserveAspectRatio> preserve_aspect_ratio() const override { return m_preserve_aspect_ratio; }
-
     void set_fallback_view_box_for_svg_as_image(Optional<ViewBox>);
-
-    GC::Ref<SVGAnimatedRect> view_box_for_bindings() { return *m_view_box_for_bindings; }
 
     GC::Ref<SVGAnimatedLength> x() const;
     GC::Ref<SVGAnimatedLength> y() const;
@@ -107,12 +103,7 @@ private:
 
     void update_fallback_view_box_for_svg_as_image();
 
-    Optional<ViewBox> m_view_box;
-    Optional<PreserveAspectRatio> m_preserve_aspect_ratio;
-
     Optional<ViewBox> m_fallback_view_box_for_svg_as_image;
-
-    GC::Ptr<SVGAnimatedRect> m_view_box_for_bindings;
 
     GC::Ptr<SVGViewElement> m_active_view_element;
 };

@@ -30,13 +30,13 @@ void SVGSymbolElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGSymbolElement);
     Base::initialize(realm);
-    m_view_box_for_bindings = realm.create<SVGAnimatedRect>(realm);
+    SVGFitToViewBox::initialize(realm);
 }
 
 void SVGSymbolElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_view_box_for_bindings);
+    SVGFitToViewBox::visit_edges(visitor);
 }
 
 bool SVGSymbolElement::is_presentational_hint(FlyString const& name) const
@@ -66,15 +66,7 @@ void SVGSymbolElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
 void SVGSymbolElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
-
-    if (name.equals_ignoring_ascii_case(SVG::AttributeNames::viewBox)) {
-        m_view_box = try_parse_view_box(value.value_or(String {}));
-        m_view_box_for_bindings->set_nulled(!m_view_box.has_value());
-        if (m_view_box.has_value()) {
-            m_view_box_for_bindings->set_base_val(Gfx::DoubleRect { m_view_box->min_x, m_view_box->min_y, m_view_box->width, m_view_box->height });
-            m_view_box_for_bindings->set_anim_val(Gfx::DoubleRect { m_view_box->min_x, m_view_box->min_y, m_view_box->width, m_view_box->height });
-        }
-    }
+    SVGFitToViewBox::attribute_changed(*this, name, value);
 }
 
 bool SVGSymbolElement::is_direct_child_of_use_shadow_tree() const

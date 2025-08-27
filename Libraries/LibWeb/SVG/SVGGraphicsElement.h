@@ -14,6 +14,7 @@
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedTransformList.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/SVG/ViewBox.h>
@@ -46,6 +47,13 @@ public:
     Optional<float> stroke_opacity() const;
     Optional<FillRule> fill_rule() const;
     Optional<ClipRule> clip_rule() const;
+
+    virtual Optional<ViewBox> active_view_box() const
+    {
+        if (auto* svg_fit_to_view_box = as_if<SVGFitToViewBox>(*this))
+            return svg_fit_to_view_box->view_box();
+        return {};
+    }
 
     float visible_stroke_width() const
     {
