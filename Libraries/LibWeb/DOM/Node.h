@@ -129,6 +129,7 @@ enum class SetNeedsLayoutReason {
     X(NodeSetTextContent)                                 \
     X(None)                                               \
     X(SVGGraphicsElementTransformChange)                  \
+    X(SVGViewBoxChange)                                   \
     X(StyleChange)
 
 enum class SetNeedsLayoutTreeUpdateReason {
