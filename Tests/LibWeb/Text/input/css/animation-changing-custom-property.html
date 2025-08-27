@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <div id="foo" style="--foo: red"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            const anim = foo.animate([{ color: "black" }, { color: "var(--foo)" }], 1000);
+
+            foo.style = "--foo: green";
+
+            anim.pause();
+            anim.currentTime = 500;
+
+            println(getComputedStyle(foo).color);
+        });
+    </script>
+</html>
