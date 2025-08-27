@@ -22,7 +22,7 @@ void SVGFitToViewBox::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_view_box_for_bindings);
 }
 
-void SVGFitToViewBox::attribute_changed(DOM::Element&, FlyString const& name, Optional<String> const& value)
+void SVGFitToViewBox::attribute_changed(DOM::Element& element, FlyString const& name, Optional<String> const& value)
 {
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::viewBox)) {
         if (!value.has_value()) {
@@ -35,8 +35,10 @@ void SVGFitToViewBox::attribute_changed(DOM::Element&, FlyString const& name, Op
                 m_view_box_for_bindings->set_anim_val(Gfx::DoubleRect { m_view_box->min_x, m_view_box->min_y, m_view_box->width, m_view_box->height });
             }
         }
+        element.set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::SVGViewBoxChange);
     } else if (name.equals_ignoring_ascii_case(SVG::AttributeNames::preserveAspectRatio)) {
         m_preserve_aspect_ratio = AttributeParser::parse_preserve_aspect_ratio(value.value_or(String {}));
+        element.set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::SVGViewBoxChange);
     }
 }
 
