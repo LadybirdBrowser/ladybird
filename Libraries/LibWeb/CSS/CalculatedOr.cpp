@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -65,6 +66,30 @@ Optional<Length> LengthOrCalculated::resolve_calculated(NonnullRefPtr<Calculated
 NonnullRefPtr<StyleValue const> LengthOrCalculated::create_style_value() const
 {
     return LengthStyleValue::create(value());
+}
+
+Optional<LengthOrAuto> LengthOrAutoOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
+{
+    return calculated->resolve_length(context).map([](auto& length) { return LengthOrAuto { length }; });
+}
+
+NonnullRefPtr<StyleValue const> LengthOrAutoOrCalculated::create_style_value() const
+{
+    auto const& length_or_auto = value();
+    if (length_or_auto.is_auto())
+        return KeywordStyleValue::create(Keyword::Auto);
+    return LengthStyleValue::create(length_or_auto.length());
+}
+
+bool LengthOrAutoOrCalculated::is_auto() const
+{
+    return !is_calculated() && value().is_auto();
+}
+
+LengthOrCalculated LengthOrAutoOrCalculated::without_auto() const
+{
+    VERIFY(!is_auto());
+    return value().length();
 }
 
 Optional<double> NumberOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
