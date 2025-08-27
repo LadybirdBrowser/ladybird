@@ -2413,7 +2413,7 @@ static Utf16String convert_number_to_date_string(double input)
     // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid
     // date string that represents the date that, in UTC, is current input milliseconds after midnight UTC
     // on the morning of 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0Z").
-    auto date = AK::UnixDateTime::from_seconds_since_epoch(input / 1000.);
+    auto date = AK::UnixDateTime::from_milliseconds_since_epoch(input);
     return date.to_utf16_string("%Y-%m-%d"sv, AK::UnixDateTime::LocalTime::No);
 }
 
