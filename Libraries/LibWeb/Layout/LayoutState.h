@@ -157,12 +157,9 @@ struct LayoutState {
         void set_static_position_rect(StaticPositionRect const& static_position_rect) { m_static_position_rect = static_position_rect; }
         CSSPixelPoint static_position() const
         {
-            CSSPixelSize size;
-            size.set_width(content_width() + padding_left + padding_right + border_left + border_right + margin_left + margin_right);
-            size.set_height(content_height() + padding_top + padding_bottom + border_top + border_bottom + margin_top + margin_bottom);
             if (!m_static_position_rect.has_value())
                 return {};
-            return m_static_position_rect->aligned_position_for_box_with_size(size);
+            return m_static_position_rect->aligned_position_for_box_with_size({ margin_box_width(), margin_box_height() });
         }
 
     private:
