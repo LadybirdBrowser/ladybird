@@ -144,7 +144,6 @@ public:
     static CSS::TextJustify text_justify() { return CSS::TextJustify::Auto; }
     static CSS::Positioning position() { return CSS::Positioning::Static; }
     static CSS::TextDecorationLine text_decoration_line() { return CSS::TextDecorationLine::None; }
-    static CSS::Length text_decoration_thickness() { return Length::make_auto(); }
     static CSS::TextDecorationStyle text_decoration_style() { return CSS::TextDecorationStyle::Solid; }
     static CSS::TextTransform text_transform() { return CSS::TextTransform::None; }
     static CSS::TextOverflow text_overflow() { return CSS::TextOverflow::Clip; }
@@ -424,6 +423,12 @@ struct BorderRadiusData {
     CSS::LengthPercentage vertical_radius { InitialValues::border_radius() };
 };
 
+struct TextDecorationThickness {
+    struct Auto { };
+    struct FromFont { };
+    Variant<Auto, FromFont, LengthPercentage> value;
+};
+
 // FIXME: Find a better place for this helper.
 inline Gfx::ScalingMode to_gfx_scaling_mode(CSS::ImageRendering css_value, Gfx::IntRect source, Gfx::IntRect target)
 {
@@ -473,7 +478,7 @@ public:
     CSS::TextWrapMode text_wrap_mode() const { return m_inherited.text_wrap_mode; }
     CSS::TextRendering text_rendering() const { return m_inherited.text_rendering; }
     Vector<CSS::TextDecorationLine> const& text_decoration_line() const { return m_noninherited.text_decoration_line; }
-    CSS::LengthPercentage const& text_decoration_thickness() const { return m_noninherited.text_decoration_thickness; }
+    TextDecorationThickness const& text_decoration_thickness() const { return m_noninherited.text_decoration_thickness; }
     CSS::TextDecorationStyle text_decoration_style() const { return m_noninherited.text_decoration_style; }
     Color text_decoration_color() const { return m_noninherited.text_decoration_color; }
     CSS::TextTransform text_transform() const { return m_inherited.text_transform; }
@@ -730,7 +735,7 @@ protected:
         Optional<int> z_index;
         // FIXME: Store this as flags in a u8.
         Vector<CSS::TextDecorationLine> text_decoration_line { InitialValues::text_decoration_line() };
-        CSS::LengthPercentage text_decoration_thickness { InitialValues::text_decoration_thickness() };
+        TextDecorationThickness text_decoration_thickness { TextDecorationThickness::Auto {} };
         CSS::TextDecorationStyle text_decoration_style { InitialValues::text_decoration_style() };
         Color text_decoration_color { InitialValues::color() };
         CSS::TextOverflow text_overflow { InitialValues::text_overflow() };
@@ -893,7 +898,7 @@ public:
     void set_text_align(CSS::TextAlign text_align) { m_inherited.text_align = text_align; }
     void set_text_justify(CSS::TextJustify text_justify) { m_inherited.text_justify = text_justify; }
     void set_text_decoration_line(Vector<CSS::TextDecorationLine> value) { m_noninherited.text_decoration_line = move(value); }
-    void set_text_decoration_thickness(CSS::LengthPercentage value) { m_noninherited.text_decoration_thickness = move(value); }
+    void set_text_decoration_thickness(TextDecorationThickness value) { m_noninherited.text_decoration_thickness = move(value); }
     void set_text_decoration_style(CSS::TextDecorationStyle value) { m_noninherited.text_decoration_style = value; }
     void set_text_decoration_color(Color value) { m_noninherited.text_decoration_color = value; }
     void set_text_transform(CSS::TextTransform value) { m_inherited.text_transform = value; }

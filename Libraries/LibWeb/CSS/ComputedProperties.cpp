@@ -1171,6 +1171,28 @@ TextDecorationStyle ComputedProperties::text_decoration_style() const
     return keyword_to_text_decoration_style(value.to_keyword()).release_value();
 }
 
+TextDecorationThickness ComputedProperties::text_decoration_thickness() const
+{
+    auto const& value = property(PropertyID::TextDecorationThickness);
+    if (value.is_keyword()) {
+        switch (value.to_keyword()) {
+        case Keyword::Auto:
+            return { TextDecorationThickness::Auto {} };
+        case Keyword::FromFont:
+            return { TextDecorationThickness::FromFont {} };
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+    if (value.is_length())
+        return TextDecorationThickness { LengthPercentage { value.as_length().length() } };
+    if (value.is_percentage())
+        return TextDecorationThickness { LengthPercentage { value.as_percentage().percentage() } };
+    if (value.is_calculated())
+        return TextDecorationThickness { LengthPercentage { value.as_calculated() } };
+    VERIFY_NOT_REACHED();
+}
+
 TextTransform ComputedProperties::text_transform() const
 {
     auto const& value = property(PropertyID::TextTransform);
