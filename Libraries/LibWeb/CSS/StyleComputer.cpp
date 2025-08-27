@@ -1103,6 +1103,9 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             computed_properties.font_size(),
             computed_properties.first_available_computed_font().pixel_metrics()
         };
+
+        HashMap<PropertyID, RefPtr<StyleValue const>> specified_values;
+
         for (auto const& [property_id, value] : keyframe_values.properties) {
             bool is_use_initial = false;
 
@@ -1118,7 +1121,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 });
 
             if (!style_value) {
-                result.set(property_id, nullptr);
+                specified_values.set(property_id, nullptr);
                 continue;
             }
 
@@ -1135,11 +1138,11 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 auto physical_longhand_id_bitmap_index = to_underlying(physical_longhand_id) - to_underlying(first_longhand_property_id);
 
                 // Don't overwrite values if this is the result of a UseInitial
-                if (result.contains(physical_longhand_id) && result.get(physical_longhand_id) != nullptr && is_use_initial)
+                if (specified_values.contains(physical_longhand_id) && specified_values.get(physical_longhand_id) != nullptr && is_use_initial)
                     return;
 
                 // Don't overwrite unless the value was originally set by a UseInitial or this property is preferred over the one that set it originally
-                if (result.contains(physical_longhand_id) && result.get(physical_longhand_id) != nullptr && !property_is_set_by_use_initial.get(physical_longhand_id_bitmap_index) && !is_property_preferred(property_id, longhands_set_by_property_id.get(physical_longhand_id).value()))
+                if (specified_values.contains(physical_longhand_id) && specified_values.get(physical_longhand_id) != nullptr && !property_is_set_by_use_initial.get(physical_longhand_id_bitmap_index) && !is_property_preferred(property_id, longhands_set_by_property_id.get(physical_longhand_id).value()))
                     return;
 
                 auto const& specified_value_with_css_wide_keywords_applied = [&]() -> StyleValue const& {
@@ -1161,9 +1164,34 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
 
                 longhands_set_by_property_id.set(physical_longhand_id, property_id);
                 property_is_set_by_use_initial.set(physical_longhand_id_bitmap_index, is_use_initial);
-                result.set(physical_longhand_id, { specified_value_with_css_wide_keywords_applied.absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics) });
+                specified_values.set(physical_longhand_id, specified_value_with_css_wide_keywords_applied);
             });
         }
+
+        PropertyValueComputationContext property_value_computation_context {
+            .length_resolution_context = {
+                .viewport_rect = viewport_rect(),
+                .font_metrics = font_metrics,
+                .root_font_metrics = m_root_element_font_metrics },
+        };
+
+        // NOTE: This doesn't necessarily return the specified value if we reach into computed_properties but that
+        //       doesn't matter as a computed value is always valid as a specified value.
+        Function<NonnullRefPtr<StyleValue const>(PropertyID)> get_property_specified_value = [&](PropertyID property_id) -> NonnullRefPtr<StyleValue const> {
+            if (auto keyframe_value = specified_values.get(property_id); keyframe_value.has_value() && keyframe_value.value())
+                return *keyframe_value.value();
+
+            return computed_properties.property(property_id);
+        };
+
+        for (auto const& [property_id, style_value] : specified_values) {
+            if (!style_value)
+                continue;
+
+            auto const& computed_value = compute_value_of_property(property_id, *style_value, get_property_specified_value, property_value_computation_context);
+            result.set(property_id, computed_value->absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics));
+        }
+
         return result;
     };
     HashMap<PropertyID, RefPtr<StyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
