@@ -31,7 +31,7 @@ LayoutState::UsedValues& LayoutState::get_mutable(NodeWithStyle const& node)
 
     auto new_used_values = adopt_own(*new UsedValues);
     auto* new_used_values_ptr = new_used_values.ptr();
-    new_used_values->set_node(const_cast<NodeWithStyle&>(node), containing_block_used_values);
+    new_used_values->set_node(node, containing_block_used_values);
     used_values_per_layout_node.set(node, move(new_used_values));
     return *new_used_values_ptr;
 }
@@ -45,7 +45,7 @@ LayoutState::UsedValues const& LayoutState::get(NodeWithStyle const& node) const
 
     auto new_used_values = adopt_own(*new UsedValues);
     auto* new_used_values_ptr = new_used_values.ptr();
-    new_used_values->set_node(const_cast<NodeWithStyle&>(node), containing_block_used_values);
+    new_used_values->set_node(node, containing_block_used_values);
     const_cast<LayoutState*>(this)->used_values_per_layout_node.set(node, move(new_used_values));
     return *new_used_values_ptr;
 }
@@ -489,7 +489,7 @@ void LayoutState::commit(Box& root)
     }
 }
 
-void LayoutState::UsedValues::set_node(NodeWithStyle& node, UsedValues const* containing_block_used_values)
+void LayoutState::UsedValues::set_node(NodeWithStyle const& node, UsedValues const* containing_block_used_values)
 {
     m_node = &node;
     m_containing_block_used_values = containing_block_used_values;
