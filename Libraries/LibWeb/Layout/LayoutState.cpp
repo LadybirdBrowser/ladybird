@@ -387,34 +387,40 @@ void LayoutState::commit(Box& root)
     resolve_relative_positions();
 
     // Measure size of paintables created for inline nodes.
-    for (auto& paintable_with_lines : inline_node_paintables) {
-        if (!is<InlineNode>(paintable_with_lines->layout_node())) {
+    for (auto* paintable_with_lines : inline_node_paintables) {
+        if (!is<InlineNode>(paintable_with_lines->layout_node()))
             continue;
-        }
 
         Optional<CSSPixelPoint> offset;
         CSSPixelSize size;
         auto line_index = paintable_with_lines->line_index();
-        paintable_with_lines->for_each_in_inclusive_subtree_of_type<Painting::PaintableWithLines>([&offset, &size, &line_index](auto& paintable) {
-            if (paintable.line_index() == line_index) {
-                auto const& fragments = paintable.fragments();
-                if (!fragments.is_empty()) {
-                    if (!offset.has_value() || (fragments.first().offset().x() < offset.value().x())) {
-                        offset = fragments.first().offset();
-                    }
-                }
-                for (auto const& fragment : fragments) {
-                    // FIXME: Padding and margin of nested inlines not included in fragment width
-                    size.set_width(size.width() + fragment.width());
+        paintable_with_lines->for_each_in_inclusive_subtree_of_type<Painting::PaintableWithLines>([&](auto& paintable) {
+            if (paintable.line_index() != line_index)
+                return TraversalDecision::Continue;
+
+            if (&paintable != paintable_with_lines) {
+                auto const& used_values = get(paintable.layout_node_with_style_and_box_metrics());
+                size.set_width(size.width() + used_values.margin_box_left() + used_values.margin_box_right());
+            }
+
+            auto const& fragments = paintable.fragments();
+            if (!fragments.is_empty()) {
+                if (!offset.has_value() || (fragments.first().offset().x() < offset.value().x()))
+                    offset = fragments.first().offset();
+                if (&paintable == paintable_with_lines->first_child()) {
+                    auto const& used_values = get(paintable.layout_node_with_style_and_box_metrics());
+                    offset->translate_by(-used_values.margin_box_left(), 0);
                 }
             }
+            for (auto const& fragment : fragments)
+                size.set_width(size.width() + fragment.width());
             return TraversalDecision::Continue;
         });
 
         if (offset.has_value()) {
-            if (!paintable_with_lines->fragments().is_empty()) {
+            if (!paintable_with_lines->fragments().is_empty())
                 offset.value().set_y(paintable_with_lines->fragments().first().offset().y());
-            }
+
             // FIXME: If this paintable does not have any fragment we do no know the y offset. It should be where text should
             // start if there had been any for this node. Pick y offset of the leftmost fragment in the inclusive subtree in the meantime.
             paintable_with_lines->set_offset(offset.value());
@@ -428,21 +434,21 @@ void LayoutState::commit(Box& root)
             size.set_height(paintable_with_lines->layout_node().computed_values().line_height());
         }
 
-        paintable_with_lines->set_content_size(size.width(), size.height());
+        paintable_with_lines->set_content_size(size);
     }
 
     // Measure overflow in scroll containers.
     for (auto& it : used_values_per_layout_node) {
         auto& used_values = *it.value;
-        if (!used_values.node().is_box())
+        auto const* box = as_if<Box>(used_values.node());
+        if (!box)
             continue;
-        auto const& box = static_cast<Layout::Box const&>(used_values.node());
-        measure_scrollable_overflow(box);
+        measure_scrollable_overflow(*box);
 
         // The scroll offset can become invalid if the scrollable overflow rectangle has changed after layout.
         // For example, if the scroll container has been scrolled to the very end and is then resized to become larger
         // (scrollable overflow rect become smaller), the scroll offset would be out of bounds.
-        auto& paintable_box = const_cast<Painting::PaintableBox&>(*box.paintable_box());
+        auto& paintable_box = const_cast<Painting::PaintableBox&>(*box->paintable_box());
         if (!paintable_box.scroll_offset().is_zero())
             paintable_box.set_scroll_offset(paintable_box.scroll_offset());
     }
