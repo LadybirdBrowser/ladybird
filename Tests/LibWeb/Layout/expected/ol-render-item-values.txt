@@ -1,41 +1,41 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x104 [BFC] children: not-inline
-    BlockContainer <body> at (8,16) content-size 784x72 children: not-inline
-      BlockContainer <(anonymous)> at (8,16) content-size 784x0 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x104 [0+0+0 800 0+0+0] [0+0+0 104 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,16) content-size 784x72 [8+0+0 784 0+0+8] [8+0+0 72 0+0+16] children: not-inline
+      BlockContainer <(anonymous)> at (8,16) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <ol> at (48,16) content-size 744x72 children: not-inline
-        BlockContainer <(anonymous)> at (48,16) content-size 744x0 children: inline
+      BlockContainer <ol> at (48,16) content-size 744x72 [0+0+40 744 0+0+0] [16+0+0 72 0+0+16] children: not-inline
+        BlockContainer <(anonymous)> at (48,16) content-size 744x0 [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text>
-        ListItemBox <li> at (48,16) content-size 744x18 children: inline
+        ListItemBox <li> at (48,16) content-size 744x18 [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [48,16 47.21875x18] baseline: 13.796875
               "Seven"
-          ListItemMarkerBox <(anonymous)> at (27,17) content-size 21.0625x16 children: not-inline
+          ListItemMarkerBox <(anonymous)> at (27,17) content-size 21.0625x16 [0+0+0 21.0625 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text>
-        BlockContainer <(anonymous)> at (48,34) content-size 744x0 children: inline
+        BlockContainer <(anonymous)> at (48,34) content-size 744x0 [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text>
-        ListItemBox <li> at (48,34) content-size 744x18 children: inline
+        ListItemBox <li> at (48,34) content-size 744x18 [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 28, rect: [48,34 242.4375x18] baseline: 13.796875
               "Minus one hundred and twelve"
-          ListItemMarkerBox <(anonymous)> at (8,35) content-size 40.328125x16 children: not-inline
+          ListItemMarkerBox <(anonymous)> at (8,35) content-size 40.328125x16 [0+0+0 40.328125 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text>
-        BlockContainer <(anonymous)> at (48,52) content-size 744x0 children: inline
+        BlockContainer <(anonymous)> at (48,52) content-size 744x0 [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text>
           TextNode <#text>
-        ListItemBox <li> at (48,52) content-size 744x18 children: inline
+        ListItemBox <li> at (48,52) content-size 744x18 [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 23, rect: [48,52 206.5x18] baseline: 13.796875
               "Two to the power of ten"
-          ListItemMarkerBox <(anonymous)> at (3,53) content-size 44.84375x16 children: not-inline
+          ListItemMarkerBox <(anonymous)> at (3,53) content-size 44.84375x16 [0+0+0 44.84375 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text>
-        BlockContainer <(anonymous)> at (48,70) content-size 744x0 children: inline
+        BlockContainer <(anonymous)> at (48,70) content-size 744x0 [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text>
-        ListItemBox <li> at (48,70) content-size 744x18 children: inline
+        ListItemBox <li> at (48,70) content-size 744x18 [0+0+0 744 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [48,70 51.34375x18] baseline: 13.796875
               "Eleven"
-          ListItemMarkerBox <(anonymous)> at (23,71) content-size 25.03125x16 children: not-inline
+          ListItemMarkerBox <(anonymous)> at (23,71) content-size 25.03125x16 [0+0+0 25.03125 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           TextNode <#text>
-        BlockContainer <(anonymous)> at (48,88) content-size 744x0 children: inline
+        BlockContainer <(anonymous)> at (48,88) content-size 744x0 [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,104) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,104) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

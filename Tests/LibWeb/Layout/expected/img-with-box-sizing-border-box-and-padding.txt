@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x116 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x100 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x116 [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x100 [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] children: inline
       frag 0 from ImageBox start: 0, length: 0, rect: [29,29 58x58] baseline: 100
       frag 1 from ImageBox start: 0, length: 0, rect: [129,29 58x58] baseline: 100
-      ImageBox <img.with-height> at (29,29) content-size 58x58 children: not-inline
-      ImageBox <img.with-width> at (129,29) content-size 58x58 children: not-inline
+      ImageBox <img.with-height> at (29,29) content-size 58x58 [0+1+20 58 20+1+0] [0+1+20 58 20+1+0] children: not-inline
+      ImageBox <img.with-width> at (129,29) content-size 58x58 [0+1+20 58 20+1+0] [0+1+20 58 20+1+0] children: not-inline
       TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

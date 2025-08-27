@@ -1,16 +1,16 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x164 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x146 children: not-inline
-      BlockContainer <div.px-indent> at (11,11) content-size 778x70 children: not-inline
-        BlockContainer <(anonymous)> at (11,11) content-size 778x18 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x164 [0+1+0 798 0+1+0] [0+1+0 164 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x146 [8+1+0 780 0+1+8] [8+1+0 146 0+1+8] children: not-inline
+      BlockContainer <div.px-indent> at (11,11) content-size 778x70 [0+1+0 778 0+1+0] [0+1+0 70 0+1+0] children: not-inline
+        BlockContainer <(anonymous)> at (11,11) content-size 778x18 [0+0+0 778 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 11, rect: [61,11 92.390625x18] baseline: 13.796875
               "50px indent"
           TextNode <#text>
-        BlockContainer <p> at (12,46) content-size 776x18 children: inline
+        BlockContainer <p> at (12,46) content-size 776x18 [0+1+0 776 0+1+0] [16+1+0 18 0+1+16] children: inline
           frag 0 from TextNode start: 0, length: 12, rect: [62,46 90.921875x18] baseline: 13.796875
               "is inherited"
           TextNode <#text>
-      BlockContainer <div.pct-indent> at (11,83) content-size 100x72 children: inline
+      BlockContainer <div.pct-indent> at (11,83) content-size 100x72 [0+1+0 100 0+1+678] [0+1+0 72 0+1+0] children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [61,83 30.34375x18] baseline: 13.796875
             "50%"
         frag 1 from TextNode start: 4, length: 11, rect: [11,101 88.15625x18] baseline: 13.796875

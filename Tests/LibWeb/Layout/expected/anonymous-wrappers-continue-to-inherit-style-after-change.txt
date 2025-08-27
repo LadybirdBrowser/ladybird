@@ -1,11 +1,11 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x105.875 [BFC] children: not-inline
-    BlockContainer <body> at (8,21.4375) content-size 784x76.4375 children: not-inline
-      BlockContainer <h1> at (8,21.4375) content-size 784x37 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x105.875 [0+0+0 800 0+0+0] [0+0+0 105.875 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,21.4375) content-size 784x76.4375 [8+0+0 784 0+0+8] [8+0+0 76.4375 0+0+8] children: not-inline
+      BlockContainer <h1> at (8,21.4375) content-size 784x37 [0+0+0 784 0+0+0] [21.4375+0+0 37 0+0+21.4375] children: inline
         frag 0 from TextNode start: 0, length: 6, rect: [8,21.4375 105.53125x37] baseline: 28.09375
             "header"
         TextNode <#text>
-      BlockContainer <(anonymous)> at (8,79.875) content-size 784x18 children: inline
+      BlockContainer <(anonymous)> at (8,79.875) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 24, rect: [8,79.875 212.125x18] baseline: 13.796875
             "anonymously wrapped text"
         TextNode <#text>

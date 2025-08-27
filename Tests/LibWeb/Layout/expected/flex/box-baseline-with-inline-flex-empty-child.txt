@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x42 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x24 children: not-inline
-      BlockContainer <div.first> at (11,11) content-size 778x22 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x42 [0+1+0 798 0+1+0] [0+1+0 42 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x24 [8+1+0 780 0+1+8] [8+1+0 24 0+1+8] children: not-inline
+      BlockContainer <div.first> at (11,11) content-size 778x22 [0+1+0 778 0+1+0] [0+1+0 22 0+1+0] children: inline
         frag 0 from Box start: 0, length: 0, rect: [22,22 0x0] baseline: 22
-        Box <span.second> at (22,22) content-size 0x0 flex-container(row) [FFC] children: not-inline
-          BlockContainer <(anonymous)> at (22,22) content-size 0x0 [BFC] children: inline
+        Box <span.second> at (22,22) content-size 0x0 flex-container(row) [0+1+10 0 10+1+0] [0+1+10 0 10+1+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at (22,22) content-size 0x0 [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
             TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

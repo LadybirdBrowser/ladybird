@@ -1,9 +1,9 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x56 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x40 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x56 [0+0+0 800 0+0+0] [0+0+0 56 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x40 [8+0+0 784 0+0+8] [8+0+0 40 0+0+8] children: inline
       frag 0 from Box start: 0, length: 0, rect: [28,28 49.75x0] baseline: 26
-      Box <div.button> at (28,28) content-size 49.75x0 flex-container(row) [FFC] children: not-inline
-        BlockContainer <(anonymous)> at (28,16.5) content-size 49.75x23 flex-item [BFC] children: inline
+      Box <div.button> at (28,28) content-size 49.75x0 flex-container(row) [0+0+20 49.75 20+0+0] [0+0+20 0 20+0+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> at (28,16.5) content-size 49.75x23 flex-item [0+0+0 49.75 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [28,16.5 49.75x23] baseline: 17.5
               "Hello"
           TextNode <#text>

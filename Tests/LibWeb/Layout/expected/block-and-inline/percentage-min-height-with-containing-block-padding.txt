@@ -1,8 +1,8 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x616 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x600 children: not-inline
-      BlockContainer <div.container> at (8,108) content-size 784x500 children: not-inline
-        BlockContainer <div.hmm> at (18,118) content-size 764x250 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x616 [0+0+0 800 0+0+0] [0+0+0 616 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x600 [8+0+0 784 0+0+8] [8+0+0 600 0+0+8] children: not-inline
+      BlockContainer <div.container> at (8,108) content-size 784x500 [0+0+0 784 0+0+0] [0+0+100 500 0+0+0] children: not-inline
+        BlockContainer <div.hmm> at (18,118) content-size 764x250 [0+10+0 764 0+10+0] [0+10+0 250 0+10+0] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [18,118 36.84375x18] baseline: 13.796875
               "hello"
           TextNode <#text>

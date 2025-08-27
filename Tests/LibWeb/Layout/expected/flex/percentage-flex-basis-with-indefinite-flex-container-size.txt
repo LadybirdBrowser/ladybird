@@ -1,8 +1,8 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
-    Box <body.outer> at (8,8) content-size 200x18 flex-container(column) [FFC] children: not-inline
-      BlockContainer <div.middle> at (8,8) content-size 200x18 flex-item [BFC] children: not-inline
-        BlockContainer <div.inner> at (8,8) content-size 200x18 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    Box <body.outer> at (8,8) content-size 200x18 flex-container(column) [8+0+0 200 0+0+592] [8+0+0 18 0+0+8] [FFC] children: not-inline
+      BlockContainer <div.middle> at (8,8) content-size 200x18 flex-item [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.inner> at (8,8) content-size 200x18 [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 20, rect: [8,8 174.234375x18] baseline: 13.796875
               "percentages are hard"
           TextNode <#text>

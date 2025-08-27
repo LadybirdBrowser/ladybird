@@ -1,11 +1,11 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x220 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x204 children: not-inline
-      TableWrapper <(anonymous)> at (370.1875,8) content-size 59.625x204 [BFC] children: not-inline
-        Box <table> at (371.1875,9) content-size 57.625x202 table-box [TFC] children: not-inline
-          Box <tbody> at (373.1875,11) content-size 53.625x198 table-row-group children: not-inline
-            Box <tr> at (373.1875,11) content-size 53.625x198 table-row children: not-inline
-              BlockContainer <td> at (374.1875,101) content-size 51.625x18 table-cell [BFC] children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x220 [0+0+0 800 0+0+0] [0+0+0 220 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x204 [8+0+0 784 0+0+8] [8+0+0 204 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at (370.1875,8) content-size 59.625x204 [362.1875+0+0 59.625 0+0+362.1875] [0+0+0 204 0+0+0] [BFC] children: not-inline
+        Box <table> at (371.1875,9) content-size 57.625x202 table-box [0+1+0 57.625 0+1+0] [0+1+0 202 0+1+0] [TFC] children: not-inline
+          Box <tbody> at (373.1875,11) content-size 53.625x198 table-row-group [0+0+0 53.625 0+0+0] [0+0+0 198 0+0+0] children: not-inline
+            Box <tr> at (373.1875,11) content-size 53.625x198 table-row [0+0+0 53.625 0+0+0] [0+0+0 198 0+0+0] children: not-inline
+              BlockContainer <td> at (374.1875,101) content-size 51.625x18 table-cell [0+0+1 51.625 1+0+0] [0+0+90 18 90+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 6, rect: [374.1875,101 51.625x18] baseline: 13.796875
                     "center"
                 TextNode <#text>

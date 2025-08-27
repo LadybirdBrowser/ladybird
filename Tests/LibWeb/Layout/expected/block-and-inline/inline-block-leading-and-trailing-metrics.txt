@@ -1,53 +1,53 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x76 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x60 children: not-inline
-      BlockContainer <div#a> at (9,9) content-size 782x18 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x76 [0+0+0 800 0+0+0] [0+0+0 76 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x60 [8+0+0 784 0+0+8] [8+0+0 60 0+0+8] children: not-inline
+      BlockContainer <div#a> at (9,9) content-size 782x18 [0+1+0 782 0+1+0] [0+1+0 18 0+1+0] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 88.453125x18] baseline: 13.796875
-        BlockContainer <i> at (9,9) content-size 88.453125x18 inline-block [BFC] children: inline
+        BlockContainer <i> at (9,9) content-size 88.453125x18 inline-block [0+0+0 88.453125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 12, rect: [9,9 88.453125x18] baseline: 13.796875
               "inline-block"
           TextNode <#text>
-        InlineNode <b>
+        InlineNode <b> [0+0+20 41.296875 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 6, rect: [117.453125,9 41.296875x18] baseline: 13.796875
               "inline"
           TextNode <#text>
-        InlineNode <u>
+        InlineNode <u> [0+0+0 41.296875 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 6, rect: [158.75,9 41.296875x18] baseline: 13.796875
               "inline"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,28) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,28) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div#b> at (9,29) content-size 782x18 children: inline
+      BlockContainer <div#b> at (9,29) content-size 782x18 [0+1+0 782 0+1+0] [0+1+0 18 0+1+0] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [70.296875,29 88.453125x18] baseline: 13.796875
-        InlineNode <i>
+        InlineNode <i> [0+0+0 41.296875 20+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 6, rect: [9,29 41.296875x18] baseline: 13.796875
               "inline"
           TextNode <#text>
-        BlockContainer <b> at (70.296875,29) content-size 88.453125x18 inline-block [BFC] children: inline
+        BlockContainer <b> at (70.296875,29) content-size 88.453125x18 inline-block [0+0+0 88.453125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 12, rect: [70.296875,29 88.453125x18] baseline: 13.796875
               "inline-block"
           TextNode <#text>
-        InlineNode <u>
+        InlineNode <u> [0+0+0 41.296875 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 6, rect: [158.75,29 41.296875x18] baseline: 13.796875
               "inline"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,48) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,48) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div#c> at (9,49) content-size 782x18 children: inline
+      BlockContainer <div#c> at (9,49) content-size 782x18 [0+1+0 782 0+1+0] [0+1+0 18 0+1+0] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [131.59375,49 88.453125x18] baseline: 13.796875
-        InlineNode <i>
+        InlineNode <i> [0+0+0 41.296875 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 6, rect: [9,49 41.296875x18] baseline: 13.796875
               "inline"
           TextNode <#text>
-        InlineNode <b>
+        InlineNode <b> [0+0+20 41.296875 20+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 6, rect: [70.296875,49 41.296875x18] baseline: 13.796875
               "inline"
           TextNode <#text>
-        BlockContainer <u> at (131.59375,49) content-size 88.453125x18 inline-block [BFC] children: inline
+        BlockContainer <u> at (131.59375,49) content-size 88.453125x18 inline-block [0+0+0 88.453125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 12, rect: [131.59375,49 88.453125x18] baseline: 13.796875
               "inline-block"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,68) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,68) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

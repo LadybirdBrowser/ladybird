@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x60 [BFC] children: not-inline
-    BlockContainer <body> at (5,5) content-size 150x50 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x60 [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (5,5) content-size 150x50 [0+5+0 150 0+5+640] [0+5+0 50 0+5+0] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [5,5 100x50] baseline: 50
       frag 1 from BlockContainer start: 0, length: 0, rect: [105,5 100x50] baseline: 50
-      BlockContainer <div.foo> at (5,5) content-size 100x50 inline-block [BFC] children: not-inline
-      BlockContainer <div.bar> at (105,5) content-size 100x50 inline-block [BFC] children: not-inline
+      BlockContainer <div.foo> at (5,5) content-size 100x50 inline-block [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
+      BlockContainer <div.bar> at (105,5) content-size 100x50 inline-block [0+0+0 100 0+0+-50] [0+0+0 50 0+0+0] [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x60]

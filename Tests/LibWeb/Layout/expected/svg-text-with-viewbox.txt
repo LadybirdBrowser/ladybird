@@ -1,20 +1,20 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x277.328125 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x261.328125 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x277.328125 [0+0+0 800 0+0+0] [0+0+0 277.328125 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x261.328125 [8+0+0 784 0+0+8] [8+0+0 261.328125 0+0+8] children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 784x261.328125] baseline: 261.328125
-      SVGSVGBox <svg> at (8,8) content-size 784x261.328125 [SVG] children: inline
+      SVGSVGBox <svg> at (8,8) content-size 784x261.328125 [0+0+0 784 0+0+0] [0+0+0 261.328125 0+0+0] [SVG] children: inline
         TextNode <#text>
         TextNode <#text>
-        SVGTextBox <text.small> at (76.40625,90.28125) content-size 46.46875x35.578125 children: inline
+        SVGTextBox <text.small> at (76.40625,90.28125) content-size 46.46875x35.578125 [0+0+0 46.46875 0+0+0] [0+0+0 35.578125 0+0+0] children: inline
           TextNode <#text>
         TextNode <#text>
-        SVGTextBox <text.heavy> at (143.640625,58.21875) content-size 145.90625x65.453125 children: inline
+        SVGTextBox <text.heavy> at (143.640625,58.21875) content-size 145.90625x65.453125 [0+0+0 145.90625 0+0+0] [0+0+0 65.453125 0+0+0] children: inline
           TextNode <#text>
         TextNode <#text>
-        SVGTextBox <text.small> at (190.359375,155.734375) content-size 32.84375x32.671875 children: inline
+        SVGTextBox <text.small> at (190.359375,155.734375) content-size 32.84375x32.671875 [0+0+0 32.84375 0+0+0] [0+0+0 32.671875 0+0+0] children: inline
           TextNode <#text>
         TextNode <#text>
-        SVGTextBox <text.Rrrrr> at (226.96875,92.46875) content-size 514.125x106.03125 children: inline
+        SVGTextBox <text.Rrrrr> at (226.96875,92.46875) content-size 514.125x106.03125 [0+0+0 514.125 0+0+0] [0+0+0 106.03125 0+0+0] children: inline
           TextNode <#text>
         TextNode <#text>
       TextNode <#text>

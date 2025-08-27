@@ -1,12 +1,12 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x31 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x0 children: not-inline
-      Box <div.grid> at (11,11) content-size 96.421875x20 floating [GFC] children: not-inline
-        BlockContainer <div.whee> at (12,12) content-size 37.953125x18 [BFC] children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x31 [0+1+0 798 0+1+0] [0+1+0 31 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x0 [8+1+0 780 0+1+8] [8+1+0 0 0+1+8] children: not-inline
+      Box <div.grid> at (11,11) content-size 96.421875x20 floating [0+1+0 96.421875 0+1+0] [0+1+0 20 0+1+0] [GFC] children: not-inline
+        BlockContainer <div.whee> at (12,12) content-size 37.953125x18 [0+1+0 37.953125 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [12,12 37.953125x18] baseline: 13.796875
               "whee"
           TextNode <#text>
-        BlockContainer <div.yeehaw> at (51.953125,12) content-size 54.46875x18 [BFC] children: inline
+        BlockContainer <div.yeehaw> at (51.953125,12) content-size 54.46875x18 [0+1+0 54.46875 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [51.953125,12 54.46875x18] baseline: 13.796875
               "yeehaw"
           TextNode <#text>

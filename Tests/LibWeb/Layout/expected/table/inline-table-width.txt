@@ -1,26 +1,26 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x64 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x48 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x64 [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x48 [8+0+0 784 0+0+8] [8+0+0 48 0+0+8] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 135.984375x46] baseline: 15.296875
-      BlockContainer <table> at (9,9) content-size 135.984375x46 inline-block [BFC] children: not-inline
-        TableWrapper <(anonymous)> at (9,9) content-size 135.984375x46 inline-block [BFC] children: not-inline
-          Box <(anonymous)> at (9,9) content-size 135.984375x46 inline-table table-box [TFC] children: not-inline
-            Box <tbody> at (11,11) content-size 131.984375x42 table-row-group children: not-inline
-              Box <tr> at (11,11) content-size 131.984375x20 table-row children: not-inline
-                BlockContainer <td> at (12,12) content-size 87.90625x18 table-cell [BFC] children: inline
+      BlockContainer <table> at (9,9) content-size 135.984375x46 inline-block [0+1+0 135.984375 0+1+0] [0+1+0 46 0+1+0] [BFC] children: not-inline
+        TableWrapper <(anonymous)> at (9,9) content-size 135.984375x46 inline-block [0+0+0 135.984375 0+0+0] [0+0+0 46 0+0+0] [BFC] children: not-inline
+          Box <(anonymous)> at (9,9) content-size 135.984375x46 inline-table table-box [0+0+0 135.984375 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
+            Box <tbody> at (11,11) content-size 131.984375x42 table-row-group [0+0+0 131.984375 0+0+0] [0+0+0 42 0+0+0] children: not-inline
+              Box <tr> at (11,11) content-size 131.984375x20 table-row [0+0+0 131.984375 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+                BlockContainer <td> at (12,12) content-size 87.90625x18 table-cell [0+0+1 87.90625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 2, rect: [12,12 15.734375x18] baseline: 13.796875
                       "ID"
                   TextNode <#text>
-                BlockContainer <td> at (103.90625,12) content-size 38.078125x18 table-cell [BFC] children: inline
+                BlockContainer <td> at (103.90625,12) content-size 38.078125x18 table-cell [0+0+1 38.078125 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 4, rect: [103.90625,12 27.84375x18] baseline: 13.796875
                       "null"
                   TextNode <#text>
-              Box <tr> at (11,33) content-size 131.984375x20 table-row children: not-inline
-                BlockContainer <td> at (12,34) content-size 87.90625x18 table-cell [BFC] children: inline
+              Box <tr> at (11,33) content-size 131.984375x20 table-row [0+0+0 131.984375 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+                BlockContainer <td> at (12,34) content-size 87.90625x18 table-cell [0+0+1 87.90625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 11, rect: [12,34 87.90625x18] baseline: 13.796875
                       "Is Selected"
                   TextNode <#text>
-                BlockContainer <td> at (103.90625,34) content-size 38.078125x18 table-cell [BFC] children: inline
+                BlockContainer <td> at (103.90625,34) content-size 38.078125x18 table-cell [0+0+1 38.078125 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 5, rect: [103.90625,34 38.078125x18] baseline: 13.796875
                       "false"
                   TextNode <#text>

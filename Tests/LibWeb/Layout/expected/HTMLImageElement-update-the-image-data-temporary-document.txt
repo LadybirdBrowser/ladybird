@@ -1,12 +1,12 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x166 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x150 children: not-inline
-      BlockContainer <(anonymous)> at (8,8) content-size 784x0 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x166 [0+0+0 800 0+0+0] [0+0+0 166 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x150 [8+0+0 784 0+0+8] [8+0+0 150 0+0+8] children: not-inline
+      BlockContainer <(anonymous)> at (8,8) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div#image-container> at (8,8) content-size 784x150 children: inline
+      BlockContainer <div#image-container> at (8,8) content-size 784x150 [0+0+0 784 0+0+0] [0+0+0 150 0+0+0] children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [8,8 150x150] baseline: 150
-        ImageBox <img> at (8,8) content-size 150x150 children: not-inline
-      BlockContainer <(anonymous)> at (8,158) content-size 784x0 children: inline
+        ImageBox <img> at (8,8) content-size 150x150 [0+0+0 150 0+0+0] [0+0+0 150 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at (8,158) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
         TextNode <#text>
 

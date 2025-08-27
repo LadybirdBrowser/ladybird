@@ -1,9 +1,9 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x0 positioned children: not-inline
-      BlockContainer <main> at (8,8) content-size 120x0 positioned [BFC] children: not-inline
-        BlockContainer <div#asset-grid> at (18,18) content-size 100x0 children: not-inline
-          BlockContainer <div#virtual-timeline> at (18,18) content-size 100x30 children: not-inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x0 positioned [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
+      BlockContainer <main> at (8,8) content-size 120x0 positioned [0+0+0 120 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+        BlockContainer <div#asset-grid> at (18,18) content-size 100x0 [0+10+0 100 0+10+0] [0+10+0 0 0+10+0] children: not-inline
+          BlockContainer <div#virtual-timeline> at (18,18) content-size 100x30 [0+0+0 100 0+0+0] [0+0+0 30 0+0+0] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]

@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x43 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x27 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x43 [0+0+0 800 0+0+0] [0+0+0 43 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x27 [8+0+0 784 0+0+8] [8+0+0 27 0+0+8] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 200x25] baseline: 18.5
-      BlockContainer <input#foo> at (9,9) content-size 200x25 inline-block [BFC] children: not-inline
-        Box <div> at (11,10) content-size 196x23 flex-container(row) [FFC] children: not-inline
-          BlockContainer <div> at (11,10) content-size 196x23 flex-item [BFC] children: inline
+      BlockContainer <input#foo> at (9,9) content-size 200x25 inline-block [0+1+0 200 0+1+0] [0+1+0 25 0+1+0] [BFC] children: not-inline
+        Box <div> at (11,10) content-size 196x23 flex-container(row) [0+0+2 196 2+0+0] [0+0+1 23 1+0+0] [FFC] children: not-inline
+          BlockContainer <div> at (11,10) content-size 196x23 flex-item [0+0+0 196 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 4, rect: [11,10 62.1875x23] baseline: 17.5
                 "PASS"
             TextNode <#text>

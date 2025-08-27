@@ -1,9 +1,9 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 0x0 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
-      BlockContainer <div.round> at (8,8) content-size 80x0 children: not-inline
-        BlockContainer <div.mod> at (8,8) content-size 100x0 children: not-inline
-          BlockContainer <div.rem> at (8,8) content-size 120x0 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 0x0 [0+0+0 0 0+0+800] [0+0+0 0 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+-8] [8+0+0 0 0+0+8] children: not-inline
+      BlockContainer <div.round> at (8,8) content-size 80x0 [0+0+0 80 0+0+-80] [0+0+0 0 0+0+0] children: not-inline
+        BlockContainer <div.mod> at (8,8) content-size 100x0 [0+0+0 100 0+0+-20] [0+0+0 0 0+0+0] children: not-inline
+          BlockContainer <div.rem> at (8,8) content-size 120x0 [0+0+0 120 0+0+-20] [0+0+0 0 0+0+0] children: inline
             TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

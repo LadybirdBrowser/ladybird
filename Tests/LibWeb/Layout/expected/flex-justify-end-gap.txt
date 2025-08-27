@@ -1,33 +1,33 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x474 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x458 children: not-inline
-      Box <div.container.col> at (10,10) content-size 50x400 flex-container(column) [FFC] children: not-inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x474 [0+0+0 800 0+0+0] [0+0+0 474 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x458 [8+0+0 784 0+0+8] [8+0+0 458 0+0+8] children: not-inline
+      Box <div.container.col> at (10,10) content-size 50x400 flex-container(column) [0+2+0 50 0+2+730] [0+2+0 400 0+2+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.item> at (10,160) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <div.item> at (10,160) content-size 50x50 flex-item [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.item> at (10,260) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <div.item> at (10,260) content-size 50x50 flex-item [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.item> at (10,360) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <div.item> at (10,360) content-size 50x50 flex-item [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,412) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,412) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      Box <div.container.row> at (10,414) content-size 400x50 flex-container(row) [FFC] children: not-inline
+      Box <div.container.row> at (10,414) content-size 400x50 flex-container(row) [0+2+0 400 0+2+380] [0+2+0 50 0+2+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.item> at (160,414) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <div.item> at (160,414) content-size 50x50 flex-item [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.item> at (260,414) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <div.item> at (260,414) content-size 50x50 flex-item [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.item> at (360,414) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <div.item> at (360,414) content-size 50x50 flex-item [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,466) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,466) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
         TextNode <#text>
 

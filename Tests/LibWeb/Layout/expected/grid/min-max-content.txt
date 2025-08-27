@@ -1,22 +1,22 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x18 children: not-inline
-      Box <div.grid-container> at (8,8) content-size 784x18 [GFC] children: not-inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x18 [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: not-inline
+      Box <div.grid-container> at (8,8) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.grid-item> at (8,8) content-size 100x18 [BFC] children: inline
+        BlockContainer <div.grid-item> at (8,8) content-size 100x18 [0+0+0 100 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 11, rect: [8,8 93.765625x18] baseline: 13.796875
               "min-content"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.grid-item> at (208,8) content-size 98.640625x18 [BFC] children: inline
+        BlockContainer <div.grid-item> at (208,8) content-size 98.640625x18 [0+0+0 98.640625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 11, rect: [208,8 98.640625x18] baseline: 13.796875
               "max-content"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.grid-item> at (306.640625,8) content-size 485.359375x18 [BFC] children: inline
+        BlockContainer <div.grid-item> at (306.640625,8) content-size 485.359375x18 [0+0+0 485.359375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [306.640625,8 21.609375x18] baseline: 13.796875
               "1fr"
           TextNode <#text>

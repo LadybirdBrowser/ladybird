@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x0 children: inline
-      Box <div.container> at (8,8) content-size 100x100 positioned flex-container(row) [FFC] children: not-inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x0 [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
+      Box <div.container> at (8,8) content-size 100x100 positioned flex-container(row) [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.top-right> at (48,18) content-size 50x50 positioned [BFC] children: not-inline
+        BlockContainer <div.top-right> at (48,18) content-size 50x50 positioned [500+5+5 50 5+5+0] [0+5+5 50 5+5+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
       TextNode <#text>

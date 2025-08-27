@@ -1,21 +1,21 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x41 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x25 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x41 [0+0+0 800 0+0+0] [0+0+0 41 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x25 [8+0+0 784 0+0+8] [8+0+0 25 0+0+8] children: inline
       frag 0 from TextNode start: 0, length: 1, rect: [20.4375,13 8x18] baseline: 13.796875
           " "
       frag 1 from TextNode start: 0, length: 1, rect: [41.171875,13 8x18] baseline: 13.796875
           " "
-      InlineNode <span.a>
+      InlineNode <span.a> [0+0+0 12.4375 0+0+0] [0+0+0 24 0+0+0]
         frag 0 from TextNode start: 0, length: 1, rect: [8,8 12.4375x24] baseline: 18.140625
             "x"
         TextNode <#text>
       TextNode <#text>
-      InlineNode <span.b>
+      InlineNode <span.b> [0+0+0 12.734375 0+0+0] [0+0+0 24 0+0+0]
         frag 0 from TextNode start: 0, length: 1, rect: [28.4375,8 12.734375x24] baseline: 18.296875
             "x"
         TextNode <#text>
       TextNode <#text>
-      InlineNode <span.c>
+      InlineNode <span.c> [0+0+0 13.03125 0+0+0] [0+0+0 25 0+0+0]
         frag 0 from TextNode start: 0, length: 1, rect: [49.171875,8 13.03125x25] baseline: 18.953125
             "x"
         TextNode <#text>

@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x178 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 55.359375x162 children: not-inline
-      TableWrapper <(anonymous)> at (8,8) content-size 55.359375x162 [BFC] children: not-inline
-        Box <div> at (8,8) content-size 55.359375x162 table-box [TFC] children: inline
-          Box <(anonymous)> at (8,8) content-size 55.359375x162 table-row children: inline
-            BlockContainer <(anonymous)> at (8,8) content-size 55.359375x162 table-cell [BFC] children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x178 [0+0+0 800 0+0+0] [0+0+0 178 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 55.359375x162 [8+0+0 55.359375 0+0+736.640625] [8+0+0 162 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at (8,8) content-size 55.359375x162 [0+0+0 55.359375 0+0+0] [0+0+0 162 0+0+0] [BFC] children: not-inline
+        Box <div> at (8,8) content-size 55.359375x162 table-box [0+0+0 55.359375 0+0+0] [0+0+0 162 0+0+0] [TFC] children: inline
+          Box <(anonymous)> at (8,8) content-size 55.359375x162 table-row [0+0+0 55.359375 0+0+0] [0+0+0 162 0+0+0] children: inline
+            BlockContainer <(anonymous)> at (8,8) content-size 55.359375x162 table-cell [0+0+0 55.359375 0+0+0] [0+0+0 162 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 1, length: 4, rect: [8,8 28.40625x18] baseline: 13.796875
                   "well"
               frag 1 from TextNode start: 6, length: 5, rect: [8,26 36.84375x18] baseline: 13.796875

@@ -1,7 +1,7 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x56 [BFC] children: not-inline
-    BlockContainer <body> at (110,10) content-size 300x38 positioned children: not-inline
-      BlockContainer <div> at (61,11) content-size 200x36 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x56 [0+1+0 798 0+1+0] [0+1+0 56 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at (110,10) content-size 300x38 positioned [8+1+0 300 0+1+488] [8+1+0 38 0+1+8] children: not-inline
+      BlockContainer <div> at (61,11) content-size 200x36 [-50+1+0 200 0+1+148] [0+1+0 36 0+1+0] children: inline
         frag 0 from TextNode start: 0, length: 19, rect: [61,11 159.859375x18] baseline: 13.796875
             "there are no floats"
         frag 1 from TextNode start: 20, length: 21, rect: [61,29 163.875x18] baseline: 13.796875

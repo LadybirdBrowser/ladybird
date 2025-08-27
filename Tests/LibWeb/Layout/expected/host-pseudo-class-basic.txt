@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x64 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x48 children: not-inline
-      BlockContainer <main> at (8,8) content-size 784x48 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x64 [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x48 [8+0+0 784 0+0+8] [8+0+0 48 0+0+8] children: not-inline
+      BlockContainer <main> at (8,8) content-size 784x48 [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [23,23 343.96875x18] baseline: 28.796875
-        BlockContainer <div> at (23,23) content-size 343.96875x18 inline-block [BFC] children: inline
-          InlineNode <span>
+        BlockContainer <div> at (23,23) content-size 343.96875x18 inline-block [0+5+10 343.96875 10+5+0] [0+5+10 18 10+5+0] [BFC] children: inline
+          InlineNode <span> [0+0+0 343.96875 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 42, rect: [23,23 343.96875x18] baseline: 13.796875
                 "hello :host and :host(<compound-selector>)"
             TextNode <#text>

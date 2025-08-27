@@ -1,8 +1,8 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x114 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x98 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x114 [0+0+0 800 0+0+0] [0+0+0 114 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x98 [8+0+0 784 0+0+8] [8+0+0 98 0+0+8] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [48,48 54.109375x18] baseline: 53.796875
-      BlockContainer <div> at (48,48) content-size 54.109375x18 inline-block [BFC] children: inline
+      BlockContainer <div> at (48,48) content-size 54.109375x18 inline-block [0+0+40 54.109375 40+0+0] [0+0+40 18 40+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 6, rect: [48,48 54.109375x18] baseline: 13.796875
             "New UI"
         TextNode <#text>

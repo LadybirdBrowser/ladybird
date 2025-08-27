@@ -1,7 +1,7 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x38 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x20 children: not-inline
-      BlockContainer <span.text> at (11,11) content-size 66.671875x18 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x38 [0+1+0 798 0+1+0] [0+1+0 38 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x20 [8+1+0 780 0+1+8] [8+1+0 20 0+1+8] children: not-inline
+      BlockContainer <span.text> at (11,11) content-size 66.671875x18 [0+1+0 66.671875 0+1+711.328125] [0+1+0 18 0+1+0] children: inline
         frag 0 from TextNode start: 0, length: 7, rect: [11,11 66.671875x18] baseline: 13.796875
             "Trimmed"
         TextNode <#text>

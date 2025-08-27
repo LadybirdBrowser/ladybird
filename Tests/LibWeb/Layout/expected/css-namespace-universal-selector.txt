@@ -1,14 +1,14 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x340 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x324 children: not-inline
-      SVGSVGBox <svg> at (18,18) content-size 100x100 [SVG] children: not-inline
-      BlockContainer <(anonymous)> at (8,128) content-size 784x0 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x340 [0+0+0 800 0+0+0] [0+0+0 340 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x324 [8+0+0 784 0+0+8] [8+0+0 324 0+0+8] children: not-inline
+      SVGSVGBox <svg> at (18,18) content-size 100x100 [0+10+0 100 0+10+664] [0+10+0 100 0+10+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at (8,128) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <math> at (9,129) content-size 100x100 children: not-inline
-      BlockContainer <(anonymous)> at (8,230) content-size 784x0 children: inline
+      BlockContainer <math> at (9,129) content-size 100x100 [0+1+0 100 0+1+682] [0+1+0 100 0+1+0] children: not-inline
+      BlockContainer <(anonymous)> at (8,230) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div> at (9,231) content-size 100x100 children: not-inline
-      BlockContainer <(anonymous)> at (8,332) content-size 784x0 children: inline
+      BlockContainer <div> at (9,231) content-size 100x100 [0+1+0 100 0+1+682] [0+1+0 100 0+1+0] children: not-inline
+      BlockContainer <(anonymous)> at (8,332) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

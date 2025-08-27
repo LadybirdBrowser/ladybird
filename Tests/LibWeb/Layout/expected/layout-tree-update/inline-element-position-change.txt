@@ -1,16 +1,16 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x79.875 [BFC] children: not-inline
-    BlockContainer <body> at (8,21.4375) content-size 784x37 children: not-inline
-      BlockContainer <(anonymous)> at (8,21.4375) content-size 784x0 children: inline
-        InlineNode <a>
-          InlineNode <span#foo>
-      BlockContainer <(anonymous)> at (8,21.4375) content-size 784x37 children: not-inline continuation
-        BlockContainer <h1> at (8,21.4375) content-size 784x37 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x79.875 [0+0+0 800 0+0+0] [0+0+0 79.875 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,21.4375) content-size 784x37 [8+0+0 784 0+0+8] [8+0+0 37 0+0+21.4375] children: not-inline
+      BlockContainer <(anonymous)> at (8,21.4375) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        InlineNode <a> [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <span#foo> [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+      BlockContainer <(anonymous)> at (8,21.4375) content-size 784x37 [0+0+0 784 0+0+0] [0+0+0 37 0+0+0] children: not-inline continuation
+        BlockContainer <h1> at (8,21.4375) content-size 784x37 [0+0+0 784 0+0+0] [21.4375+0+0 37 0+0+21.4375] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [8,21.4375 63.5625x37] baseline: 28.09375
               "test"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,79.875) content-size 784x0 children: inline
-        InlineNode <a> continuation
+      BlockContainer <(anonymous)> at (8,79.875) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        InlineNode <a> [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] continuation
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

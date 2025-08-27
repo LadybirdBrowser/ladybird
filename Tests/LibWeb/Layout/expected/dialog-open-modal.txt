@@ -1,12 +1,12 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x0 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x0 [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
       TextNode <#text>
-  BlockContainer <(anonymous)> at (0,0) content-size 800x600 positioned [BFC] children: not-inline
-  Box <dialog#modal> at (358.84375,291) content-size 82.3125x18 positioned flex-container(row) [FFC] children: not-inline
+  BlockContainer <(anonymous)> at (0,0) content-size 800x600 positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  Box <dialog#modal> at (358.84375,291) content-size 82.3125x18 positioned flex-container(row) [339.84375+3+16 82.3125 16+3+339.84375] [272+3+16 18 16+3+272] [FFC] children: not-inline
     BlockContainer <(anonymous)> (not painted) [BFC] children: inline
       TextNode <#text>
-    BlockContainer <span> at (358.84375,291) content-size 82.3125x18 flex-item [BFC] children: inline
+    BlockContainer <span> at (358.84375,291) content-size 82.3125x18 flex-item [0+0+0 82.3125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
       frag 0 from TextNode start: 0, length: 10, rect: [358.84375,291 82.3125x18] baseline: 13.796875
           "I'm a node"
       TextNode <#text>

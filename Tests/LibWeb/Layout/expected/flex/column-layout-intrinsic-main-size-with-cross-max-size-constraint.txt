@@ -1,7 +1,7 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x116 [BFC] children: not-inline
-    Box <body> at (8,8) content-size 784x100 flex-container(column) [FFC] children: not-inline
-      BlockContainer <div> at (8,8) content-size 784x100 flex-item [BFC] children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x116 [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x100 flex-container(column) [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] [FFC] children: not-inline
+      BlockContainer <div> at (8,8) content-size 784x100 flex-item [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 16, rect: [8,8 126.390625x18] baseline: 13.796875
             "Start free trial"
         TextNode <#text>
