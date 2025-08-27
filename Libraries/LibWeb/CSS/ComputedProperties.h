@@ -82,7 +82,6 @@ public:
         No,
         Yes,
     };
-    LengthPercentage length_percentage_or_fallback(PropertyID, Layout::NodeWithStyle const&, ClampNegativeLengths, LengthPercentage const& fallback) const;
     Optional<LengthPercentage> length_percentage(PropertyID, Layout::NodeWithStyle const&, ClampNegativeLengths) const;
     LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Layout::NodeWithStyle const&, ClampNegativeLengths, Length const& default_value) const;
     Color color_or_fallback(PropertyID, ColorResolutionContext, Color fallback) const;
