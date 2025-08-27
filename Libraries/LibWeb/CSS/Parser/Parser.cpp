@@ -1648,14 +1648,19 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
     return StyleProperty { declaration.important, property_id.value(), value.release_value(), {} };
 }
 
-Optional<LengthOrCalculated> Parser::parse_source_size_value(TokenStream<ComponentValue>& tokens)
+Optional<LengthOrAutoOrCalculated> Parser::parse_source_size_value(TokenStream<ComponentValue>& tokens)
 {
     if (tokens.next_token().is_ident("auto"sv)) {
         tokens.discard_a_token(); // auto
-        return LengthOrCalculated { Length::make_auto() };
+        return LengthOrAutoOrCalculated { LengthOrAuto::make_auto() };
     }
 
-    return parse_length(tokens);
+    if (auto parsed = parse_length(tokens); parsed.has_value()) {
+        if (parsed->is_calculated())
+            return LengthOrAutoOrCalculated { parsed->calculated() };
+        return LengthOrAutoOrCalculated { parsed->value() };
+    }
+    return {};
 }
 
 bool Parser::context_allows_quirky_length() const
@@ -1732,11 +1737,7 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
     auto unparsed_sizes_list = parse_a_comma_separated_list_of_component_values(m_token_stream);
 
     // 2. Let size be null.
-    Optional<LengthOrCalculated> size;
-
-    auto size_is_auto = [&size]() {
-        return !size->is_calculated() && size->value().is_auto();
-    };
+    Optional<LengthOrAutoOrCalculated> size;
 
     auto remove_all_consecutive_whitespace_tokens_from_the_end_of = [](auto& tokens) {
         while (!tokens.is_empty() && tokens.last().is_token() && tokens.last().token().is(Token::Type::Whitespace))
@@ -1781,7 +1782,7 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
         // 3. If size is auto, and img is not null, and img is being rendered, and img allows auto-sizes,
         //    then set size to the concrete object size width of img, in CSS pixels.
         // FIXME: "img is being rendered" - we just see if it has a bitmap for now
-        if (size_is_auto() && img && img->immutable_bitmap() && img->allows_auto_sizes()) {
+        if (size->is_auto() && img && img->immutable_bitmap() && img->allows_auto_sizes()) {
             // FIXME: The spec doesn't seem to tell us how to determine the concrete size of an <img>, so use the default sizing algorithm.
             //        Should this use some of the methods from FormattingContext?
             auto concrete_size = run_default_sizing_algorithm(
@@ -1807,8 +1808,8 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
             }
 
             // 2. If size is not auto, then return size. Otherwise, continue.
-            if (!size_is_auto())
-                return size.release_value();
+            if (!size->is_auto())
+                return size->without_auto();
             continue;
         }
 
@@ -1822,8 +1823,8 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
         }
 
         // 5. If size is not auto, then return size. Otherwise, continue.
-        if (!size_is_auto())
-            return size.value();
+        if (!size->is_auto())
+            return size->without_auto();
     }
 
     // 4. Return 100vw.
