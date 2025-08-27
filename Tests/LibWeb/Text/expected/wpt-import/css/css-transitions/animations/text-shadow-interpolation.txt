@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 168 tests
 
-138 Pass
-30 Fail
+148 Pass
+20 Fail
 Pass	CSS Transitions: property <text-shadow> from neutral to [green 20px 20px 20px] at (-0.3) should be [rgb(255, 176, 0) 7px 33px 7px]
 Pass	CSS Transitions: property <text-shadow> from neutral to [green 20px 20px 20px] at (0) should be [rgb(255, 165, 0) 10px 30px 10px]
 Pass	CSS Transitions: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.3) should be [rgb(179, 154, 0) 13px 27px 13px]
@@ -16,18 +16,18 @@ Pass	CSS Transitions with transition: all: property <text-shadow> from neutral t
 Pass	CSS Transitions with transition: all: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.6) should be [rgb(102, 143, 0) 16px 24px 16px]
 Pass	CSS Transitions with transition: all: property <text-shadow> from neutral to [green 20px 20px 20px] at (1) should be [rgb(0, 128, 0) 20px 20px 20px]
 Pass	CSS Transitions with transition: all: property <text-shadow> from neutral to [green 20px 20px 20px] at (1.5) should be [rgb(0, 110, 0) 25px 15px 25px]
-Fail	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (-0.3) should be [rgb(255, 176, 0) 7px 33px 7px]
-Fail	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0) should be [rgb(255, 165, 0) 10px 30px 10px]
-Fail	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.3) should be [rgb(179, 154, 0) 13px 27px 13px]
-Fail	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.6) should be [rgb(102, 143, 0) 16px 24px 16px]
+Pass	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (-0.3) should be [rgb(255, 176, 0) 7px 33px 7px]
+Pass	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0) should be [rgb(255, 165, 0) 10px 30px 10px]
+Pass	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.3) should be [rgb(179, 154, 0) 13px 27px 13px]
+Pass	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.6) should be [rgb(102, 143, 0) 16px 24px 16px]
 Pass	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (1) should be [rgb(0, 128, 0) 20px 20px 20px]
-Fail	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (1.5) should be [rgb(0, 110, 0) 25px 15px 25px]
-Fail	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (-0.3) should be [rgb(255, 176, 0) 7px 33px 7px]
-Fail	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0) should be [rgb(255, 165, 0) 10px 30px 10px]
-Fail	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.3) should be [rgb(179, 154, 0) 13px 27px 13px]
-Fail	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.6) should be [rgb(102, 143, 0) 16px 24px 16px]
+Pass	CSS Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (1.5) should be [rgb(0, 110, 0) 25px 15px 25px]
+Pass	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (-0.3) should be [rgb(255, 176, 0) 7px 33px 7px]
+Pass	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0) should be [rgb(255, 165, 0) 10px 30px 10px]
+Pass	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.3) should be [rgb(179, 154, 0) 13px 27px 13px]
+Pass	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (0.6) should be [rgb(102, 143, 0) 16px 24px 16px]
 Pass	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (1) should be [rgb(0, 128, 0) 20px 20px 20px]
-Fail	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (1.5) should be [rgb(0, 110, 0) 25px 15px 25px]
+Pass	Web Animations: property <text-shadow> from neutral to [green 20px 20px 20px] at (1.5) should be [rgb(0, 110, 0) 25px 15px 25px]
 Fail	CSS Transitions: property <text-shadow> from [initial] to [green 20px 20px 20px] at (-0.3) should be [rgba(0, 0, 0, 0) -6px -6px 0px]
 Pass	CSS Transitions: property <text-shadow> from [initial] to [green 20px 20px 20px] at (0) should be [rgba(0, 0, 0, 0) 0px 0px 0px]
 Fail	CSS Transitions: property <text-shadow> from [initial] to [green 20px 20px 20px] at (0.3) should be [rgba(0, 128, 0, 0.3) 6px 6px 6px]

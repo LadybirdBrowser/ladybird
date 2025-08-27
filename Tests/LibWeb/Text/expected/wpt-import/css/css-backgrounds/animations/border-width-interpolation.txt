@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 256 tests
 
-102 Pass
-154 Fail
+112 Pass
+144 Fail
 Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (-0.3) should be [17px 37px 57px 77px]
 Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0) should be [20px 40px 60px 80px]
 Pass	CSS Transitions: property <border-width> from [20px 40px 60px 80px] to [30px 50px 70px 90px] at (0.3) should be [23px 43px 63px 83px]
@@ -40,18 +40,18 @@ Pass	CSS Transitions with transition: all: property <border-left-width> from neu
 Pass	CSS Transitions with transition: all: property <border-left-width> from neutral to [20px] at (0.6) should be [16px]
 Pass	CSS Transitions with transition: all: property <border-left-width> from neutral to [20px] at (1) should be [20px]
 Pass	CSS Transitions with transition: all: property <border-left-width> from neutral to [20px] at (1.5) should be [25px]
-Fail	CSS Animations: property <border-left-width> from neutral to [20px] at (-0.3) should be [7px]
-Fail	CSS Animations: property <border-left-width> from neutral to [20px] at (0) should be [10px]
-Fail	CSS Animations: property <border-left-width> from neutral to [20px] at (0.3) should be [13px]
-Fail	CSS Animations: property <border-left-width> from neutral to [20px] at (0.6) should be [16px]
+Pass	CSS Animations: property <border-left-width> from neutral to [20px] at (-0.3) should be [7px]
+Pass	CSS Animations: property <border-left-width> from neutral to [20px] at (0) should be [10px]
+Pass	CSS Animations: property <border-left-width> from neutral to [20px] at (0.3) should be [13px]
+Pass	CSS Animations: property <border-left-width> from neutral to [20px] at (0.6) should be [16px]
 Pass	CSS Animations: property <border-left-width> from neutral to [20px] at (1) should be [20px]
-Fail	CSS Animations: property <border-left-width> from neutral to [20px] at (1.5) should be [25px]
-Fail	Web Animations: property <border-left-width> from neutral to [20px] at (-0.3) should be [7px]
-Fail	Web Animations: property <border-left-width> from neutral to [20px] at (0) should be [10px]
-Fail	Web Animations: property <border-left-width> from neutral to [20px] at (0.3) should be [13px]
-Fail	Web Animations: property <border-left-width> from neutral to [20px] at (0.6) should be [16px]
+Pass	CSS Animations: property <border-left-width> from neutral to [20px] at (1.5) should be [25px]
+Pass	Web Animations: property <border-left-width> from neutral to [20px] at (-0.3) should be [7px]
+Pass	Web Animations: property <border-left-width> from neutral to [20px] at (0) should be [10px]
+Pass	Web Animations: property <border-left-width> from neutral to [20px] at (0.3) should be [13px]
+Pass	Web Animations: property <border-left-width> from neutral to [20px] at (0.6) should be [16px]
 Pass	Web Animations: property <border-left-width> from neutral to [20px] at (1) should be [20px]
-Fail	Web Animations: property <border-left-width> from neutral to [20px] at (1.5) should be [25px]
+Pass	Web Animations: property <border-left-width> from neutral to [20px] at (1.5) should be [25px]
 Fail	CSS Transitions: property <border-left-width> from [initial] to [23px] at (-0.3) should be [0px]
 Fail	CSS Transitions: property <border-left-width> from [initial] to [23px] at (0) should be [3px]
 Fail	CSS Transitions: property <border-left-width> from [initial] to [23px] at (0.3) should be [9px]

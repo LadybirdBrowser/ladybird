@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 324 tests
 
-314 Pass
-10 Fail
+324 Pass
 Pass	CSS Transitions: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (-1) should be [rect(-20px 180px -20px 180px)]
 Pass	CSS Transitions: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0) should be [rect(0px 100px 0px 100px)]
 Pass	CSS Transitions: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.25) should be [rect(5px 80px 5px 80px)]
@@ -16,18 +15,18 @@ Pass	CSS Transitions with transition: all: property <clip> from neutral to [rect
 Pass	CSS Transitions with transition: all: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.75) should be [rect(15px 40px 15px 40px)]
 Pass	CSS Transitions with transition: all: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (1) should be [rect(20px 20px 20px 20px)]
 Pass	CSS Transitions with transition: all: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (2) should be [rect(40px -60px 40px -60px)]
-Fail	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (-1) should be [rect(-20px 180px -20px 180px)]
-Fail	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0) should be [rect(0px 100px 0px 100px)]
-Fail	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.25) should be [rect(5px 80px 5px 80px)]
-Fail	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.75) should be [rect(15px 40px 15px 40px)]
+Pass	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (-1) should be [rect(-20px 180px -20px 180px)]
+Pass	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0) should be [rect(0px 100px 0px 100px)]
+Pass	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.25) should be [rect(5px 80px 5px 80px)]
+Pass	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.75) should be [rect(15px 40px 15px 40px)]
 Pass	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (1) should be [rect(20px 20px 20px 20px)]
-Fail	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (2) should be [rect(40px -60px 40px -60px)]
-Fail	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (-1) should be [rect(-20px 180px -20px 180px)]
-Fail	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0) should be [rect(0px 100px 0px 100px)]
-Fail	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.25) should be [rect(5px 80px 5px 80px)]
-Fail	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.75) should be [rect(15px 40px 15px 40px)]
+Pass	CSS Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (2) should be [rect(40px -60px 40px -60px)]
+Pass	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (-1) should be [rect(-20px 180px -20px 180px)]
+Pass	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0) should be [rect(0px 100px 0px 100px)]
+Pass	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.25) should be [rect(5px 80px 5px 80px)]
+Pass	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (0.75) should be [rect(15px 40px 15px 40px)]
 Pass	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (1) should be [rect(20px 20px 20px 20px)]
-Fail	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (2) should be [rect(40px -60px 40px -60px)]
+Pass	Web Animations: property <clip> from neutral to [rect(20px, 20px, 20px, 20px)] at (2) should be [rect(40px -60px 40px -60px)]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <clip> from [initial] to [rect(20px, 20px, 20px, 20px)] at (-0.3) should be [initial]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <clip> from [initial] to [rect(20px, 20px, 20px, 20px)] at (0) should be [initial]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <clip> from [initial] to [rect(20px, 20px, 20px, 20px)] at (0.3) should be [initial]

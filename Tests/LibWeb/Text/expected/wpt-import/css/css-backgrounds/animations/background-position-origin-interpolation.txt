@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 280 tests
 
-104 Pass
-176 Fail
+112 Pass
+168 Fail
 Pass	CSS Transitions: property <background-position> from neutral to [left 20px top 20px] at (0) should be [10px 10px]
 Pass	CSS Transitions: property <background-position> from neutral to [left 20px top 20px] at (0.25) should be [12.5px 12.5px]
 Pass	CSS Transitions: property <background-position> from neutral to [left 20px top 20px] at (0.5) should be [15px 15px]
@@ -14,15 +14,15 @@ Pass	CSS Transitions with transition: all: property <background-position> from n
 Pass	CSS Transitions with transition: all: property <background-position> from neutral to [left 20px top 20px] at (0.5) should be [15px 15px]
 Pass	CSS Transitions with transition: all: property <background-position> from neutral to [left 20px top 20px] at (0.75) should be [17.5px 17.5px]
 Pass	CSS Transitions with transition: all: property <background-position> from neutral to [left 20px top 20px] at (1) should be [20px 20px]
-Fail	CSS Animations: property <background-position> from neutral to [left 20px top 20px] at (0) should be [10px 10px]
-Fail	CSS Animations: property <background-position> from neutral to [left 20px top 20px] at (0.25) should be [12.5px 12.5px]
-Fail	CSS Animations: property <background-position> from neutral to [left 20px top 20px] at (0.5) should be [15px 15px]
-Fail	CSS Animations: property <background-position> from neutral to [left 20px top 20px] at (0.75) should be [17.5px 17.5px]
+Pass	CSS Animations: property <background-position> from neutral to [left 20px top 20px] at (0) should be [10px 10px]
+Pass	CSS Animations: property <background-position> from neutral to [left 20px top 20px] at (0.25) should be [12.5px 12.5px]
+Pass	CSS Animations: property <background-position> from neutral to [left 20px top 20px] at (0.5) should be [15px 15px]
+Pass	CSS Animations: property <background-position> from neutral to [left 20px top 20px] at (0.75) should be [17.5px 17.5px]
 Pass	CSS Animations: property <background-position> from neutral to [left 20px top 20px] at (1) should be [20px 20px]
-Fail	Web Animations: property <background-position> from neutral to [left 20px top 20px] at (0) should be [10px 10px]
-Fail	Web Animations: property <background-position> from neutral to [left 20px top 20px] at (0.25) should be [12.5px 12.5px]
-Fail	Web Animations: property <background-position> from neutral to [left 20px top 20px] at (0.5) should be [15px 15px]
-Fail	Web Animations: property <background-position> from neutral to [left 20px top 20px] at (0.75) should be [17.5px 17.5px]
+Pass	Web Animations: property <background-position> from neutral to [left 20px top 20px] at (0) should be [10px 10px]
+Pass	Web Animations: property <background-position> from neutral to [left 20px top 20px] at (0.25) should be [12.5px 12.5px]
+Pass	Web Animations: property <background-position> from neutral to [left 20px top 20px] at (0.5) should be [15px 15px]
+Pass	Web Animations: property <background-position> from neutral to [left 20px top 20px] at (0.75) should be [17.5px 17.5px]
 Pass	Web Animations: property <background-position> from neutral to [left 20px top 20px] at (1) should be [20px 20px]
 Fail	CSS Transitions: property <background-position> from [initial] to [left 20px top 20px] at (0) should be [0% 0%]
 Fail	CSS Transitions: property <background-position> from [initial] to [left 20px top 20px] at (0.25) should be [calc(0% + 5px) calc(0% + 5px)]

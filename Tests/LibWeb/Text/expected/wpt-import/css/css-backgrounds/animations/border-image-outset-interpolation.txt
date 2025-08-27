@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 168 tests
 
-134 Pass
-34 Fail
+144 Pass
+24 Fail
 Pass	CSS Transitions: property <border-image-outset> from neutral to [2px] at (-0.3) should be [0.7px]
 Pass	CSS Transitions: property <border-image-outset> from neutral to [2px] at (0) should be [1px]
 Pass	CSS Transitions: property <border-image-outset> from neutral to [2px] at (0.3) should be [1.3px]
@@ -16,18 +16,18 @@ Pass	CSS Transitions with transition: all: property <border-image-outset> from n
 Pass	CSS Transitions with transition: all: property <border-image-outset> from neutral to [2px] at (0.6) should be [1.6px]
 Pass	CSS Transitions with transition: all: property <border-image-outset> from neutral to [2px] at (1) should be [2px]
 Pass	CSS Transitions with transition: all: property <border-image-outset> from neutral to [2px] at (1.5) should be [2.5px]
-Fail	CSS Animations: property <border-image-outset> from neutral to [2px] at (-0.3) should be [0.7px]
-Fail	CSS Animations: property <border-image-outset> from neutral to [2px] at (0) should be [1px]
-Fail	CSS Animations: property <border-image-outset> from neutral to [2px] at (0.3) should be [1.3px]
-Fail	CSS Animations: property <border-image-outset> from neutral to [2px] at (0.6) should be [1.6px]
+Pass	CSS Animations: property <border-image-outset> from neutral to [2px] at (-0.3) should be [0.7px]
+Pass	CSS Animations: property <border-image-outset> from neutral to [2px] at (0) should be [1px]
+Pass	CSS Animations: property <border-image-outset> from neutral to [2px] at (0.3) should be [1.3px]
+Pass	CSS Animations: property <border-image-outset> from neutral to [2px] at (0.6) should be [1.6px]
 Pass	CSS Animations: property <border-image-outset> from neutral to [2px] at (1) should be [2px]
-Fail	CSS Animations: property <border-image-outset> from neutral to [2px] at (1.5) should be [2.5px]
-Fail	Web Animations: property <border-image-outset> from neutral to [2px] at (-0.3) should be [0.7px]
-Fail	Web Animations: property <border-image-outset> from neutral to [2px] at (0) should be [1px]
-Fail	Web Animations: property <border-image-outset> from neutral to [2px] at (0.3) should be [1.3px]
-Fail	Web Animations: property <border-image-outset> from neutral to [2px] at (0.6) should be [1.6px]
+Pass	CSS Animations: property <border-image-outset> from neutral to [2px] at (1.5) should be [2.5px]
+Pass	Web Animations: property <border-image-outset> from neutral to [2px] at (-0.3) should be [0.7px]
+Pass	Web Animations: property <border-image-outset> from neutral to [2px] at (0) should be [1px]
+Pass	Web Animations: property <border-image-outset> from neutral to [2px] at (0.3) should be [1.3px]
+Pass	Web Animations: property <border-image-outset> from neutral to [2px] at (0.6) should be [1.6px]
 Pass	Web Animations: property <border-image-outset> from neutral to [2px] at (1) should be [2px]
-Fail	Web Animations: property <border-image-outset> from neutral to [2px] at (1.5) should be [2.5px]
+Pass	Web Animations: property <border-image-outset> from neutral to [2px] at (1.5) should be [2.5px]
 Fail	CSS Transitions: property <border-image-outset> from [initial] to [2] at (-0.3) should be [0]
 Pass	CSS Transitions: property <border-image-outset> from [initial] to [2] at (0) should be [0]
 Pass	CSS Transitions: property <border-image-outset> from [initial] to [2] at (0.3) should be [0.6]

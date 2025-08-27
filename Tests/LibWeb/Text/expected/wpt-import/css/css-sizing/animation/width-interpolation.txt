@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 456 tests
 
-404 Pass
-52 Fail
+414 Pass
+42 Fail
 Pass	CSS Transitions: property <width> from neutral to [40px] at (-0.3) should be [1px]
 Pass	CSS Transitions: property <width> from neutral to [40px] at (0) should be [10px]
 Pass	CSS Transitions: property <width> from neutral to [40px] at (0.3) should be [19px]
@@ -16,18 +16,18 @@ Pass	CSS Transitions with transition: all: property <width> from neutral to [40p
 Pass	CSS Transitions with transition: all: property <width> from neutral to [40px] at (0.6) should be [28px]
 Pass	CSS Transitions with transition: all: property <width> from neutral to [40px] at (1) should be [40px]
 Pass	CSS Transitions with transition: all: property <width> from neutral to [40px] at (1.5) should be [55px]
-Fail	CSS Animations: property <width> from neutral to [40px] at (-0.3) should be [1px]
-Fail	CSS Animations: property <width> from neutral to [40px] at (0) should be [10px]
-Fail	CSS Animations: property <width> from neutral to [40px] at (0.3) should be [19px]
-Fail	CSS Animations: property <width> from neutral to [40px] at (0.6) should be [28px]
+Pass	CSS Animations: property <width> from neutral to [40px] at (-0.3) should be [1px]
+Pass	CSS Animations: property <width> from neutral to [40px] at (0) should be [10px]
+Pass	CSS Animations: property <width> from neutral to [40px] at (0.3) should be [19px]
+Pass	CSS Animations: property <width> from neutral to [40px] at (0.6) should be [28px]
 Pass	CSS Animations: property <width> from neutral to [40px] at (1) should be [40px]
-Fail	CSS Animations: property <width> from neutral to [40px] at (1.5) should be [55px]
-Fail	Web Animations: property <width> from neutral to [40px] at (-0.3) should be [1px]
-Fail	Web Animations: property <width> from neutral to [40px] at (0) should be [10px]
-Fail	Web Animations: property <width> from neutral to [40px] at (0.3) should be [19px]
-Fail	Web Animations: property <width> from neutral to [40px] at (0.6) should be [28px]
+Pass	CSS Animations: property <width> from neutral to [40px] at (1.5) should be [55px]
+Pass	Web Animations: property <width> from neutral to [40px] at (-0.3) should be [1px]
+Pass	Web Animations: property <width> from neutral to [40px] at (0) should be [10px]
+Pass	Web Animations: property <width> from neutral to [40px] at (0.3) should be [19px]
+Pass	Web Animations: property <width> from neutral to [40px] at (0.6) should be [28px]
 Pass	Web Animations: property <width> from neutral to [40px] at (1) should be [40px]
-Fail	Web Animations: property <width> from neutral to [40px] at (1.5) should be [55px]
+Pass	Web Animations: property <width> from neutral to [40px] at (1.5) should be [55px]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <width> from [initial] to [40px] at (-0.3) should be [initial]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <width> from [initial] to [40px] at (0) should be [initial]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <width> from [initial] to [40px] at (0.3) should be [initial]

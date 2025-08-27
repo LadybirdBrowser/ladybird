@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 360 tests
 
-350 Pass
-10 Fail
+360 Pass
 Pass	CSS Transitions: property <scale> from [-10 5] to [10 -5] at (-1) should be [-30 15]
 Pass	CSS Transitions: property <scale> from [-10 5] to [10 -5] at (0) should be [-10 5]
 Pass	CSS Transitions: property <scale> from [-10 5] to [10 -5] at (0.25) should be [-5 2.5]
@@ -184,18 +183,18 @@ Pass	CSS Transitions with transition: all: property <scale> from neutral to [1.5
 Pass	CSS Transitions with transition: all: property <scale> from neutral to [1.5 1] at (0.75) should be [1.4 1]
 Pass	CSS Transitions with transition: all: property <scale> from neutral to [1.5 1] at (1) should be [1.5 1]
 Pass	CSS Transitions with transition: all: property <scale> from neutral to [1.5 1] at (2) should be [1.9 1]
-Fail	CSS Animations: property <scale> from neutral to [1.5 1] at (-1) should be [0.7 1]
-Fail	CSS Animations: property <scale> from neutral to [1.5 1] at (0) should be [1.1 1]
-Fail	CSS Animations: property <scale> from neutral to [1.5 1] at (0.25) should be [1.2 1]
-Fail	CSS Animations: property <scale> from neutral to [1.5 1] at (0.75) should be [1.4 1]
+Pass	CSS Animations: property <scale> from neutral to [1.5 1] at (-1) should be [0.7 1]
+Pass	CSS Animations: property <scale> from neutral to [1.5 1] at (0) should be [1.1 1]
+Pass	CSS Animations: property <scale> from neutral to [1.5 1] at (0.25) should be [1.2 1]
+Pass	CSS Animations: property <scale> from neutral to [1.5 1] at (0.75) should be [1.4 1]
 Pass	CSS Animations: property <scale> from neutral to [1.5 1] at (1) should be [1.5 1]
-Fail	CSS Animations: property <scale> from neutral to [1.5 1] at (2) should be [1.9 1]
-Fail	Web Animations: property <scale> from neutral to [1.5 1] at (-1) should be [0.7 1]
-Fail	Web Animations: property <scale> from neutral to [1.5 1] at (0) should be [1.1 1]
-Fail	Web Animations: property <scale> from neutral to [1.5 1] at (0.25) should be [1.2 1]
-Fail	Web Animations: property <scale> from neutral to [1.5 1] at (0.75) should be [1.4 1]
+Pass	CSS Animations: property <scale> from neutral to [1.5 1] at (2) should be [1.9 1]
+Pass	Web Animations: property <scale> from neutral to [1.5 1] at (-1) should be [0.7 1]
+Pass	Web Animations: property <scale> from neutral to [1.5 1] at (0) should be [1.1 1]
+Pass	Web Animations: property <scale> from neutral to [1.5 1] at (0.25) should be [1.2 1]
+Pass	Web Animations: property <scale> from neutral to [1.5 1] at (0.75) should be [1.4 1]
 Pass	Web Animations: property <scale> from neutral to [1.5 1] at (1) should be [1.5 1]
-Fail	Web Animations: property <scale> from neutral to [1.5 1] at (2) should be [1.9 1]
+Pass	Web Animations: property <scale> from neutral to [1.5 1] at (2) should be [1.9 1]
 Pass	CSS Transitions: property <scale> from [initial] to [2 0.5 1] at (-1) should be [0 1.5]
 Pass	CSS Transitions: property <scale> from [initial] to [2 0.5 1] at (0) should be [1]
 Pass	CSS Transitions: property <scale> from [initial] to [2 0.5 1] at (0.25) should be [1.25 0.875]

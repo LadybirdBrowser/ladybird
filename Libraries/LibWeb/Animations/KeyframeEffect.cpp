@@ -936,7 +936,7 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
         return make<AnimationUpdateContext::ElementData>(move(old_animated_properties), computed_properties);
     });
 
-    target->document().style_computer().collect_animation_into(*target, pseudo_element_type(), *this, *computed_properties, CSS::StyleComputer::AnimationRefresh::Yes);
+    target->document().style_computer().collect_animation_into(*target, pseudo_element_type(), *this, *computed_properties);
 }
 
 }
