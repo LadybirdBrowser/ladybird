@@ -1217,11 +1217,18 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         if (from_rect.top_edge.is_auto() != to_rect.top_edge.is_auto() || from_rect.right_edge.is_auto() != to_rect.right_edge.is_auto() || from_rect.bottom_edge.is_auto() != to_rect.bottom_edge.is_auto() || from_rect.left_edge.is_auto() != to_rect.left_edge.is_auto())
             return {};
 
+        auto interpolate_length_or_auto = [](LengthOrAuto const& from, LengthOrAuto const& to, float delta) {
+            if (from.is_auto() && to.is_auto())
+                return LengthOrAuto::make_auto();
+            // FIXME: Actually handle the units not matching.
+            return LengthOrAuto { Length { interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta), from.length().type() } };
+        };
+
         return RectStyleValue::create({
-            Length(interpolate_raw(from_rect.top_edge.raw_value(), to_rect.top_edge.raw_value(), delta), from_rect.top_edge.type()),
-            Length(interpolate_raw(from_rect.right_edge.raw_value(), to_rect.right_edge.raw_value(), delta), from_rect.right_edge.type()),
-            Length(interpolate_raw(from_rect.bottom_edge.raw_value(), to_rect.bottom_edge.raw_value(), delta), from_rect.bottom_edge.type()),
-            Length(interpolate_raw(from_rect.left_edge.raw_value(), to_rect.left_edge.raw_value(), delta), from_rect.left_edge.type()),
+            interpolate_length_or_auto(from_rect.top_edge, to_rect.top_edge, delta),
+            interpolate_length_or_auto(from_rect.right_edge, to_rect.right_edge, delta),
+            interpolate_length_or_auto(from_rect.bottom_edge, to_rect.bottom_edge, delta),
+            interpolate_length_or_auto(from_rect.left_edge, to_rect.left_edge, delta),
         });
     }
     case StyleValue::Type::Transformation:
