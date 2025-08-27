@@ -1,0 +1,59 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 106 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 90 0+0+8] children: not-inline
+      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        InlineNode <span.a> at [10,8] [0+2+0 86.953125 0+2+0] [0+2+0 18 0+2+0]
+          InlineNode <span.b> at [40,8] [0+0+30 26.953125 30+0+0] [0+0+0 18 0+0+0]
+            frag 0 from TextNode start: 0, length: 3, rect: [40,8 26.953125x18] baseline: 13.796875
+                "whf"
+            TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <hr> at [9,35] [0+1+0 782 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        InlineNode <span.a> at [10,44] [0+2+0 190.109375 0+2+0] [0+2+0 18 0+2+0]
+          InlineNode <span.b> at [40,44] [0+0+30 130.109375 30+0+0] [0+0+0 18 0+0+0]
+            frag 0 from TextNode start: 0, length: 2, rect: [40,44 20.515625x18] baseline: 13.796875
+                "wh"
+            frag 1 from TextNode start: 0, length: 1, rect: [163.671875,44 6.4375x18] baseline: 13.796875
+                "f"
+            TextNode <#text> (not painted)
+            InlineNode <span.b> at [90.515625,44] [0+0+30 43.15625 30+0+0] [0+0+0 18 0+0+0]
+              frag 0 from TextNode start: 0, length: 5, rect: [90.515625,44 43.15625x18] baseline: 13.796875
+                  " foo "
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <hr> at [9,71] [0+1+0 782 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [8,80] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        InlineNode <span.a> at [10,80] [0+2+0 26.953125 0+2+0] [0+2+0 18 0+2+0]
+          InlineNode <span.c> at [10,80] [0+0+0 26.953125 0+0+0] [0+0+30 18 30+0+0]
+            frag 0 from TextNode start: 0, length: 3, rect: [10,80 26.953125x18] baseline: 13.796875
+                "whf"
+            TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x106]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x90]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x18]
+        PaintableWithLines (InlineNode<SPAN>.a) [8,6 90.953125x22]
+          PaintableWithLines (InlineNode<SPAN>.b) [10,8 86.953125x18]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<HR>) [8,34 784x2]
+      PaintableWithLines (BlockContainer(anonymous)) [8,44 784x18]
+        PaintableWithLines (InlineNode<SPAN>.a) [8,42 194.109375x22]
+          PaintableWithLines (InlineNode<SPAN>.b) [10,44 190.109375x18]
+            TextPaintable (TextNode<#text>)
+            PaintableWithLines (InlineNode<SPAN>.b) [60.515625,44 103.15625x18]
+              TextPaintable (TextNode<#text>)
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<HR>) [8,70 784x2]
+      PaintableWithLines (BlockContainer(anonymous)) [8,80 784x18]
+        PaintableWithLines (InlineNode<SPAN>.a) [8,78 30.953125x22]
+          PaintableWithLines (InlineNode<SPAN>.c) [10,50 26.953125x78]
+            TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x106] [children: 0] (z-index: auto)
