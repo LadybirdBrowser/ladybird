@@ -1,3 +1,12 @@
+--- hit test ---
+<#text>
+index: 5
+<BODY>
+--- hit test ---
+<BODY>
+index: 0
+<HTML>
+
 <#text>
 5
 <#text>
