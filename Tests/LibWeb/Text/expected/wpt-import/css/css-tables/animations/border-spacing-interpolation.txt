@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 120 tests
 
-102 Pass
-18 Fail
+112 Pass
+8 Fail
 Pass	CSS Transitions: property <border-spacing> from neutral to [20px] at (-0.3) should be [7px 7px]
 Pass	CSS Transitions: property <border-spacing> from neutral to [20px] at (0) should be [10px 10px]
 Pass	CSS Transitions: property <border-spacing> from neutral to [20px] at (0.3) should be [13px 13px]
@@ -16,18 +16,18 @@ Pass	CSS Transitions with transition: all: property <border-spacing> from neutra
 Pass	CSS Transitions with transition: all: property <border-spacing> from neutral to [20px] at (0.6) should be [16px 16px]
 Pass	CSS Transitions with transition: all: property <border-spacing> from neutral to [20px] at (1) should be [20px 20px]
 Pass	CSS Transitions with transition: all: property <border-spacing> from neutral to [20px] at (1.5) should be [25px 25px]
-Fail	CSS Animations: property <border-spacing> from neutral to [20px] at (-0.3) should be [7px 7px]
-Fail	CSS Animations: property <border-spacing> from neutral to [20px] at (0) should be [10px 10px]
-Fail	CSS Animations: property <border-spacing> from neutral to [20px] at (0.3) should be [13px 13px]
-Fail	CSS Animations: property <border-spacing> from neutral to [20px] at (0.6) should be [16px 16px]
+Pass	CSS Animations: property <border-spacing> from neutral to [20px] at (-0.3) should be [7px 7px]
+Pass	CSS Animations: property <border-spacing> from neutral to [20px] at (0) should be [10px 10px]
+Pass	CSS Animations: property <border-spacing> from neutral to [20px] at (0.3) should be [13px 13px]
+Pass	CSS Animations: property <border-spacing> from neutral to [20px] at (0.6) should be [16px 16px]
 Pass	CSS Animations: property <border-spacing> from neutral to [20px] at (1) should be [20px 20px]
-Fail	CSS Animations: property <border-spacing> from neutral to [20px] at (1.5) should be [25px 25px]
-Fail	Web Animations: property <border-spacing> from neutral to [20px] at (-0.3) should be [7px 7px]
-Fail	Web Animations: property <border-spacing> from neutral to [20px] at (0) should be [10px 10px]
-Fail	Web Animations: property <border-spacing> from neutral to [20px] at (0.3) should be [13px 13px]
-Fail	Web Animations: property <border-spacing> from neutral to [20px] at (0.6) should be [16px 16px]
+Pass	CSS Animations: property <border-spacing> from neutral to [20px] at (1.5) should be [25px 25px]
+Pass	Web Animations: property <border-spacing> from neutral to [20px] at (-0.3) should be [7px 7px]
+Pass	Web Animations: property <border-spacing> from neutral to [20px] at (0) should be [10px 10px]
+Pass	Web Animations: property <border-spacing> from neutral to [20px] at (0.3) should be [13px 13px]
+Pass	Web Animations: property <border-spacing> from neutral to [20px] at (0.6) should be [16px 16px]
 Pass	Web Animations: property <border-spacing> from neutral to [20px] at (1) should be [20px 20px]
-Fail	Web Animations: property <border-spacing> from neutral to [20px] at (1.5) should be [25px 25px]
+Pass	Web Animations: property <border-spacing> from neutral to [20px] at (1.5) should be [25px 25px]
 Fail	CSS Transitions: property <border-spacing> from [initial] to [20px] at (-0.3) should be [0px 0px]
 Pass	CSS Transitions: property <border-spacing> from [initial] to [20px] at (0) should be [0px 0px]
 Pass	CSS Transitions: property <border-spacing> from [initial] to [20px] at (0.3) should be [6px 6px]

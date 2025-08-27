@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 364 tests
 
-108 Pass
-256 Fail
+110 Pass
+254 Fail
 Fail	CSS Transitions: property <background-size> from neutral to [20px 20px, 0px 0px] at (-0.25) should be [ 7.5px  7.5px, 12.5px 12.5px,  7.5px  7.5px, 12.5px 12.5px]
 Pass	CSS Transitions: property <background-size> from neutral to [20px 20px, 0px 0px] at (0) should be [10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px]
 Fail	CSS Transitions: property <background-size> from neutral to [20px 20px, 0px 0px] at (0.25) should be [12.5px 12.5px,  7.5px  7.5px, 12.5px 12.5px,  7.5px  7.5px]
@@ -19,14 +19,14 @@ Fail	CSS Transitions with transition: all: property <background-size> from neutr
 Fail	CSS Transitions with transition: all: property <background-size> from neutral to [20px 20px, 0px 0px] at (1) should be [20.0px 20.0px,  0.0px  0.0px, 20.0px 20.0px,  0.0px  0.0px]
 Fail	CSS Transitions with transition: all: property <background-size> from neutral to [20px 20px, 0px 0px] at (1.25) should be [22.5px 22.5px,  0.0px  0.0px, 22.5px 22.5px,  0.0px  0.0px]
 Fail	CSS Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (-0.25) should be [ 7.5px  7.5px, 12.5px 12.5px,  7.5px  7.5px, 12.5px 12.5px]
-Fail	CSS Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0) should be [10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px]
+Pass	CSS Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0) should be [10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px]
 Fail	CSS Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0.25) should be [12.5px 12.5px,  7.5px  7.5px, 12.5px 12.5px,  7.5px  7.5px]
 Fail	CSS Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0.5) should be [15.0px 15.0px,  5.0px  5.0px, 15.0px 15.0px,  5.0px  5.0px]
 Fail	CSS Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0.75) should be [17.5px 17.5px,  2.5px  2.5px, 17.5px 17.5px,  2.5px  2.5px]
 Fail	CSS Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (1) should be [20.0px 20.0px,  0.0px  0.0px, 20.0px 20.0px,  0.0px  0.0px]
 Fail	CSS Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (1.25) should be [22.5px 22.5px,  0.0px  0.0px, 22.5px 22.5px,  0.0px  0.0px]
 Fail	Web Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (-0.25) should be [ 7.5px  7.5px, 12.5px 12.5px,  7.5px  7.5px, 12.5px 12.5px]
-Fail	Web Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0) should be [10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px]
+Pass	Web Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0) should be [10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px]
 Fail	Web Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0.25) should be [12.5px 12.5px,  7.5px  7.5px, 12.5px 12.5px,  7.5px  7.5px]
 Fail	Web Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0.5) should be [15.0px 15.0px,  5.0px  5.0px, 15.0px 15.0px,  5.0px  5.0px]
 Fail	Web Animations: property <background-size> from neutral to [20px 20px, 0px 0px] at (0.75) should be [17.5px 17.5px,  2.5px  2.5px, 17.5px 17.5px,  2.5px  2.5px]

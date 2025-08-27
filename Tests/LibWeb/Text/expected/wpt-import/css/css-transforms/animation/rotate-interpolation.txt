@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 360 tests
 
-238 Pass
-122 Fail
+248 Pass
+112 Fail
 Pass	CSS Transitions: property <rotate> from [100deg] to [180deg] at (-1) should be [20deg]
 Pass	CSS Transitions: property <rotate> from [100deg] to [180deg] at (0) should be [100deg]
 Pass	CSS Transitions: property <rotate> from [100deg] to [180deg] at (0.125) should be [110deg]
@@ -136,18 +136,18 @@ Pass	CSS Transitions with transition: all: property <rotate> from neutral to [30
 Pass	CSS Transitions with transition: all: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
 Pass	CSS Transitions with transition: all: property <rotate> from neutral to [30deg] at (1) should be [30deg]
 Pass	CSS Transitions with transition: all: property <rotate> from neutral to [30deg] at (2) should be [50deg]
-Fail	CSS Animations: property <rotate> from neutral to [30deg] at (-1) should be [-10deg]
-Fail	CSS Animations: property <rotate> from neutral to [30deg] at (0) should be [10deg]
-Fail	CSS Animations: property <rotate> from neutral to [30deg] at (0.25) should be [15deg]
-Fail	CSS Animations: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
+Pass	CSS Animations: property <rotate> from neutral to [30deg] at (-1) should be [-10deg]
+Pass	CSS Animations: property <rotate> from neutral to [30deg] at (0) should be [10deg]
+Pass	CSS Animations: property <rotate> from neutral to [30deg] at (0.25) should be [15deg]
+Pass	CSS Animations: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
 Pass	CSS Animations: property <rotate> from neutral to [30deg] at (1) should be [30deg]
-Fail	CSS Animations: property <rotate> from neutral to [30deg] at (2) should be [50deg]
-Fail	Web Animations: property <rotate> from neutral to [30deg] at (-1) should be [-10deg]
-Fail	Web Animations: property <rotate> from neutral to [30deg] at (0) should be [10deg]
-Fail	Web Animations: property <rotate> from neutral to [30deg] at (0.25) should be [15deg]
-Fail	Web Animations: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
+Pass	CSS Animations: property <rotate> from neutral to [30deg] at (2) should be [50deg]
+Pass	Web Animations: property <rotate> from neutral to [30deg] at (-1) should be [-10deg]
+Pass	Web Animations: property <rotate> from neutral to [30deg] at (0) should be [10deg]
+Pass	Web Animations: property <rotate> from neutral to [30deg] at (0.25) should be [15deg]
+Pass	Web Animations: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
 Pass	Web Animations: property <rotate> from neutral to [30deg] at (1) should be [30deg]
-Fail	Web Animations: property <rotate> from neutral to [30deg] at (2) should be [50deg]
+Pass	Web Animations: property <rotate> from neutral to [30deg] at (2) should be [50deg]
 Pass	CSS Transitions: property <rotate> from [inherit] to [270deg] at (-1) should be [-90deg]
 Pass	CSS Transitions: property <rotate> from [inherit] to [270deg] at (0) should be [90deg]
 Pass	CSS Transitions: property <rotate> from [inherit] to [270deg] at (0.25) should be [135deg]

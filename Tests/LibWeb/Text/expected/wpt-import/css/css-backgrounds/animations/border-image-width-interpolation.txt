@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 558 tests
 
-464 Pass
-94 Fail
+478 Pass
+80 Fail
 Pass	CSS Transitions: property <border-image-width> from neutral to [20px] at (-0.3) should be [7px]
 Pass	CSS Transitions: property <border-image-width> from neutral to [20px] at (0) should be [10px]
 Pass	CSS Transitions: property <border-image-width> from neutral to [20px] at (0.3) should be [13px]
@@ -20,22 +20,22 @@ Pass	CSS Transitions with transition: all: property <border-image-width> from ne
 Pass	CSS Transitions with transition: all: property <border-image-width> from neutral to [20px] at (1.5) should be [25px]
 Pass	CSS Transitions with transition: all: property <border-image-width> from neutral to [20px] at (5) should be [60px]
 Pass	CSS Transitions with transition: all: property <border-image-width> from neutral to [20px] at (10) should be [110px]
-Fail	CSS Animations: property <border-image-width> from neutral to [20px] at (-0.3) should be [7px]
-Fail	CSS Animations: property <border-image-width> from neutral to [20px] at (0) should be [10px]
-Fail	CSS Animations: property <border-image-width> from neutral to [20px] at (0.3) should be [13px]
-Fail	CSS Animations: property <border-image-width> from neutral to [20px] at (0.6) should be [16px]
+Pass	CSS Animations: property <border-image-width> from neutral to [20px] at (-0.3) should be [7px]
+Pass	CSS Animations: property <border-image-width> from neutral to [20px] at (0) should be [10px]
+Pass	CSS Animations: property <border-image-width> from neutral to [20px] at (0.3) should be [13px]
+Pass	CSS Animations: property <border-image-width> from neutral to [20px] at (0.6) should be [16px]
 Pass	CSS Animations: property <border-image-width> from neutral to [20px] at (1) should be [20px]
-Fail	CSS Animations: property <border-image-width> from neutral to [20px] at (1.5) should be [25px]
-Fail	CSS Animations: property <border-image-width> from neutral to [20px] at (5) should be [60px]
-Fail	CSS Animations: property <border-image-width> from neutral to [20px] at (10) should be [110px]
-Fail	Web Animations: property <border-image-width> from neutral to [20px] at (-0.3) should be [7px]
-Fail	Web Animations: property <border-image-width> from neutral to [20px] at (0) should be [10px]
-Fail	Web Animations: property <border-image-width> from neutral to [20px] at (0.3) should be [13px]
-Fail	Web Animations: property <border-image-width> from neutral to [20px] at (0.6) should be [16px]
+Pass	CSS Animations: property <border-image-width> from neutral to [20px] at (1.5) should be [25px]
+Pass	CSS Animations: property <border-image-width> from neutral to [20px] at (5) should be [60px]
+Pass	CSS Animations: property <border-image-width> from neutral to [20px] at (10) should be [110px]
+Pass	Web Animations: property <border-image-width> from neutral to [20px] at (-0.3) should be [7px]
+Pass	Web Animations: property <border-image-width> from neutral to [20px] at (0) should be [10px]
+Pass	Web Animations: property <border-image-width> from neutral to [20px] at (0.3) should be [13px]
+Pass	Web Animations: property <border-image-width> from neutral to [20px] at (0.6) should be [16px]
 Pass	Web Animations: property <border-image-width> from neutral to [20px] at (1) should be [20px]
-Fail	Web Animations: property <border-image-width> from neutral to [20px] at (1.5) should be [25px]
-Fail	Web Animations: property <border-image-width> from neutral to [20px] at (5) should be [60px]
-Fail	Web Animations: property <border-image-width> from neutral to [20px] at (10) should be [110px]
+Pass	Web Animations: property <border-image-width> from neutral to [20px] at (1.5) should be [25px]
+Pass	Web Animations: property <border-image-width> from neutral to [20px] at (5) should be [60px]
+Pass	Web Animations: property <border-image-width> from neutral to [20px] at (10) should be [110px]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <border-image-width> from [initial] to [20px] at (-0.3) should be [initial]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <border-image-width> from [initial] to [20px] at (0) should be [initial]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <border-image-width> from [initial] to [20px] at (0.3) should be [initial]
