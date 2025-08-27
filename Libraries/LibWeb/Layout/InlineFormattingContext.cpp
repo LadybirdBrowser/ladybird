@@ -443,12 +443,12 @@ void InlineFormattingContext::generate_line_boxes()
         }
     }
 
+    line_builder.update_last_line();
+
     for (auto* box : absolute_boxes) {
         auto& box_state = m_state.get_mutable(*box);
         box_state.set_static_position_rect(calculate_static_position_rect(*box));
     }
-
-    line_builder.update_last_line();
 }
 
 bool InlineFormattingContext::any_floats_intrude_at_block_offset(CSSPixels block_offset) const
@@ -499,20 +499,13 @@ void InlineFormattingContext::set_vertical_float_clearance(CSSPixels vertical_fl
 
 StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box const& box) const
 {
-    CSSPixels x = 0;
-    CSSPixels y = 0;
-
     VERIFY(box.parent());
     VERIFY(box.parent()->children_are_inline());
-    // We're an abspos box with inline siblings. This is gonna get messy!
+
+    CSSPixelPoint position;
     if (auto const* sibling = box.previous_sibling()) {
-        // Hard case: there's a previous sibling. This means there's already inline content
-        // preceding the hypothetical static position of `box` within its containing block.
-        // If we had been position:static, that inline content would have been wrapped in
-        // anonymous block box, so now we get to imagine what the world might have looked like
-        // in that scenario..
-        // Basically, we find its last associated line box fragment and place `box` under it.
-        // FIXME: I'm 100% sure this can be smarter, better and faster.
+        // We're calculating the position for an absolutely positioned box with a previous sibling in an IFC. We need to
+        // position the box at the top right corner of the last fragment of this sibling.
         LineBoxFragment const* last_fragment = nullptr;
         auto const& cb_state = m_state.get(*sibling->containing_block());
         for (auto const& line_box : cb_state.line_boxes) {
@@ -522,15 +515,12 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
             }
         }
         if (last_fragment) {
-            x = last_fragment->offset().x() + last_fragment->width();
-            y = last_fragment->offset().y() + last_fragment->height();
+            position.set_x(last_fragment->offset().x() + last_fragment->width());
+            position.set_y(last_fragment->offset().y());
         }
-    } else {
-        // Easy case: no previous sibling, we're at the top of the containing block.
     }
-    StaticPositionRect static_position_rect;
-    static_position_rect.rect = { { x, y }, { 0, 0 } };
-    return static_position_rect;
+
+    return { .rect = { position, { 0, 0 } } };
 }
 
 }
