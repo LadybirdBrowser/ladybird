@@ -1,99 +1,99 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x420 [0+0+0 800 0+0+0] [0+0+0 420 0+0+0] [BFC] children: not-inline
-    BlockContainer <(anonymous)> at (0,0) content-size 800x0 [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
-      TextNode <#text>
-    BlockContainer <body> at (20,20) content-size 480x380 [15+5+0 480 0+5+295] [15+5+0 380 0+5+15] children: not-inline
-      BlockContainer <(anonymous)> at (20,20) content-size 480x0 [0+0+0 480 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      BlockContainer <dl> at (25,25) content-size 470x0 [0+0+5 470 5+0+0] [0+0+5 0 5+0+0] children: inline
-        TextNode <#text>
-        BlockContainer <dt> at (40,40) content-size 49.984375x280 floating [0+5+10 49.984375 10+5+0] [0+5+10 280 10+5+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 420 0+0+0] [BFC] children: not-inline
+    BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+      TextNode <#text> (not painted)
+    BlockContainer <body> at [20,20] [15+5+0 480 0+5+295] [15+5+0 380 0+5+15] children: not-inline
+      BlockContainer <(anonymous)> at [20,20] [0+0+0 480 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <dl> at [25,25] [0+0+5 470 5+0+0] [0+0+5 0 5+0+0] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <dt> at [40,40] floating [0+5+10 49.984375 10+5+0] [0+5+10 280 10+5+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [40,40 28.3125x10] baseline: 8
               "toggle"
-          TextNode <#text>
-        TextNode <#text>
-        BlockContainer <dd> at (135,45) content-size 340x270 floating [10+10+10 340 10+10+0] [0+10+10 270 10+10+0] [BFC] children: not-inline
-          BlockContainer <(anonymous)> at (135,45) content-size 340x0 [0+0+0 340 0+0+0] [0+0+0 0 0+0+0] children: inline
-            TextNode <#text>
-          BlockContainer <ul> at (135,45) content-size 340x0 [0+0+0 340 0+0+0] [0+0+0 0 0+0+0] children: inline
-            TextNode <#text>
-            BlockContainer <li> at (150,60) content-size 50x90 floating [0+5+10 50 10+5+0] [0+5+10 90 10+5+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        BlockContainer <dd> at [135,45] floating [10+10+10 340 10+10+0] [0+10+10 270 10+10+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> at [135,45] [0+0+0 340 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <ul> at [135,45] [0+0+0 340 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+            BlockContainer <li> at [150,60] floating [0+5+10 50 10+5+0] [0+5+10 90 10+5+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 7, rect: [150,60 37.890625x10] baseline: 8
                   "the way"
-              TextNode <#text>
-            TextNode <#text>
-            BlockContainer <li#bar> at (235,55) content-size 139.96875x90 floating [10+0+10 139.96875 10+0+10] [0+0+10 90 10+0+0] [BFC] children: not-inline
-              BlockContainer <(anonymous)> at (235,55) content-size 139.96875x0 [0+0+0 139.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text>
-              BlockContainer <p> at (235,55) content-size 139.96875x10 [0+0+0 139.96875 0+0+0] [0+0+0 10 0+0+0] children: inline
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            BlockContainer <li#bar> at [235,55] floating [10+0+10 139.96875 10+0+10] [0+0+10 90 10+0+0] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [235,55] [0+0+0 139.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <p> at [235,55] [0+0+0 139.96875 0+0+0] [0+0+0 10 0+0+0] children: inline
                 frag 0 from TextNode start: 0, length: 14, rect: [235,55 74.296875x10] baseline: 8
                     "the world ends"
-                TextNode <#text>
-              BlockContainer <(anonymous)> at (235,65) content-size 139.96875x0 [0+0+0 139.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text>
-                InlineNode <form> [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
-                  TextNode <#text>
-              BlockContainer <(anonymous)> at (235,65) content-size 139.96875x19 [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: not-inline continuation
-                BlockContainer <p> at (235,65) content-size 139.96875x19 [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [235,65] [0+0+0 139.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+                InlineNode <form> at [235,65] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
+                  TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [235,65] [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: not-inline continuation
+                BlockContainer <p> at [235,65] [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: inline
                   frag 0 from TextNode start: 1, length: 5, rect: [235,65 27.5x19] baseline: 12.5
                       "bang "
                   frag 1 from RadioButton start: 0, length: 0, rect: [262.5,65 12x12] baseline: 12
-                  TextNode <#text>
-                  RadioButton <input> at (262.5,65) content-size 12x12 inline-block [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] children: not-inline
-                  TextNode <#text>
-              BlockContainer <(anonymous)> at (235,84) content-size 139.96875x0 [0+0+0 139.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
-                InlineNode <form> [0+0+0 0 0+0+0] [0+0+0 10 0+0+0] continuation
-                  TextNode <#text>
-              BlockContainer <(anonymous)> at (235,84) content-size 139.96875x19 [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: not-inline continuation
-                BlockContainer <p> at (235,84) content-size 139.96875x19 [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: inline
+                  TextNode <#text> (not painted)
+                  RadioButton <input> at [262.5,65] inline-block [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] children: not-inline
+                  TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [235,84] [0+0+0 139.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
+                InlineNode <form> at [235,84] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0] continuation
+                  TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [235,84] [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: not-inline continuation
+                BlockContainer <p> at [235,84] [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: inline
                   frag 0 from TextNode start: 1, length: 8, rect: [235,84 45.171875x19] baseline: 12.5
                       "whimper "
                   frag 1 from RadioButton start: 0, length: 0, rect: [280.171875,84 12x12] baseline: 12
-                  TextNode <#text>
-                  RadioButton <input> at (280.171875,84) content-size 12x12 inline-block [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] children: not-inline
-                  TextNode <#text>
-              BlockContainer <(anonymous)> at (235,103) content-size 139.96875x0 [0+0+0 139.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
-                InlineNode <form> [0+0+0 0 0+0+0] [0+0+0 10 0+0+0] continuation
-                  TextNode <#text>
-                TextNode <#text>
-            TextNode <#text>
-            BlockContainer <li> at (409.96875,60) content-size 50x90 floating [0+5+10 50 10+5+0] [0+5+10 90 10+5+0] [BFC] children: inline
+                  TextNode <#text> (not painted)
+                  RadioButton <input> at [280.171875,84] inline-block [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] children: not-inline
+                  TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [235,103] [0+0+0 139.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
+                InlineNode <form> at [235,103] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0] continuation
+                  TextNode <#text> (not painted)
+                TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            BlockContainer <li> at [409.96875,60] floating [0+5+10 50 10+5+0] [0+5+10 90 10+5+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 6, rect: [409.96875,60 31.59375x10] baseline: 8
                   "i grow"
               frag 1 from TextNode start: 7, length: 3, rect: [409.96875,70 14.015625x10] baseline: 8
                   "old"
-              TextNode <#text>
-            TextNode <#text>
-            BlockContainer <li#baz> at (145,185) content-size 100x100 floating [0+0+10 100 10+0+0] [10+0+10 100 10+0+10] [BFC] children: inline
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            BlockContainer <li#baz> at [145,185] floating [0+0+10 100 10+0+0] [10+0+10 100 10+0+10] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 6, rect: [145,185 29.421875x10] baseline: 8
                   "pluot?"
-              TextNode <#text>
-            TextNode <#text>
-          BlockContainer <(anonymous)> at (135,45) content-size 340x0 [0+0+0 340 0+0+0] [0+0+0 0 0+0+0] children: inline
-            TextNode <#text>
-            BlockContainer <blockquote> at (280,195) content-size 50x90 floating [20+5+0 50 0+15+10] [10+10+10 90 10+20+10] [BFC] children: not-inline
-              BlockContainer <(anonymous)> at (280,195) content-size 50x0 [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text>
-              BlockContainer <address> at (280,195) content-size 50x20 [0+0+0 50 0+0+0] [0+0+0 20 0+0+0] children: inline
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> at [135,45] [0+0+0 340 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+            BlockContainer <blockquote> at [280,195] floating [20+5+0 50 0+15+10] [10+10+10 90 10+20+10] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [280,195] [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <address> at [280,195] [0+0+0 50 0+0+0] [0+0+0 20 0+0+0] children: inline
                 frag 0 from TextNode start: 0, length: 3, rect: [280,195 17.28125x10] baseline: 8
                     "bar"
                 frag 1 from TextNode start: 4, length: 6, rect: [280,205 30.234375x10] baseline: 8
                     "maids,"
-                TextNode <#text>
-              BlockContainer <(anonymous)> at (280,215) content-size 50x0 [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text>
-            TextNode <#text>
-            BlockContainer <h1> at (365,185) content-size 100x100 floating [0+0+10 100 10+0+0] [10+0+10 100 10+0+10] [BFC] children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [280,215] [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            BlockContainer <h1> at [365,185] floating [0+0+10 100 10+0+0] [10+0+10 100 10+0+10] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 11, rect: [365,185 56.421875x10] baseline: 8
                   "sing to me,"
               frag 1 from TextNode start: 12, length: 12, rect: [365,195 65.46875x10] baseline: 8
                   "erbarme dich"
-              TextNode <#text>
-            TextNode <#text>
-        TextNode <#text>
-      BlockContainer <(anonymous)> at (20,30) content-size 480x0 [0+0+0 480 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      BlockContainer <p> at (20,335) content-size 480x65 [0+0+0 480 0+0+0] [0+0+0 65 0+0+0] children: inline
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [20,30] [0+0+0 480 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <p> at [20,335] [0+0+0 480 0+0+0] [0+0+0 65 0+0+0] children: inline
         frag 0 from TextNode start: 1, length: 90, rect: [20,335 473.6875x13] baseline: 9.5
             "This is a nonsensical document, but syntactically valid HTML 4.0. All 100%-conformant CSS1"
         frag 1 from TextNode start: 92, length: 74, rect: [20,348 396.96875x13] baseline: 9.5
@@ -108,19 +108,19 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
             "Once you have finished evaluating this test, you can return to the "
         frag 6 from TextNode start: 0, length: 1, rect: [425.5,387 2.71875x13] baseline: 9.5
             "."
-        TextNode <#text>
-        InlineNode <a> [0+0+0 103.03125 0+0+0] [0+0+0 13 0+0+0]
+        TextNode <#text> (not painted)
+        InlineNode <a> at [227.9375,361] [0+0+0 103.03125 0+0+0] [0+0+0 13 0+0+0]
           frag 0 from TextNode start: 0, length: 20, rect: [227.9375,361 103.03125x13] baseline: 9.5
               "reference rendering,"
-          TextNode <#text>
-        TextNode <#text>
-        InlineNode <a> [0+0+0 59.90625 0+0+0] [0+0+0 13 0+0+0]
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <a> at [365.59375,387] [0+0+0 59.90625 0+0+0] [0+0+0 13 0+0+0]
           frag 0 from TextNode start: 0, length: 11, rect: [365.59375,387 59.90625x13] baseline: 9.5
               "parent page"
-          TextNode <#text>
-        TextNode <#text>
-      BlockContainer <(anonymous)> at (20,400) content-size 480x0 [0+0+0 480 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [20,400] [0+0+0 480 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x420]

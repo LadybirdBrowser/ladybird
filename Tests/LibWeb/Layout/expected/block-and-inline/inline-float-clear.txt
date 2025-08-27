@@ -1,18 +1,18 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x73 [0+0+0 800 0+0+0] [0+0+0 73 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (9,9) content-size 687.5x48 [8+1+0 687.5 0+1+102.5] [8+1+0 48 0+1+8] children: not-inline
-      BlockContainer <(anonymous)> at (9,9) content-size 687.5x0 [0+0+0 687.5 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      BlockContainer <div#A> at (9,9) content-size 687.5x16 [0+0+0 687.5 0+0+0] [0+0+0 16 0+0+16] children: not-inline
-      BlockContainer <(anonymous)> at (9,41) content-size 687.5x0 [0+0+0 687.5 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-        BlockContainer <div#B> at (648.5,41) content-size 48x16 floating [0+0+0 48 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-        TextNode <#text>
-        BlockContainer <div#C> at (648.5,57) content-size 48x16 floating [0+0+0 48 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-        TextNode <#text>
-      BlockContainer <div#D> at (9,41) content-size 687.5x16 [0+0+0 687.5 0+0+0] [0+0+0 16 0+0+0] children: not-inline
-      BlockContainer <(anonymous)> at (9,57) content-size 687.5x0 [0+0+0 687.5 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 73 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [9,9] [8+1+0 687.5 0+1+102.5] [8+1+0 48 0+1+8] children: not-inline
+      BlockContainer <(anonymous)> at [9,9] [0+0+0 687.5 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div#A> at [9,9] [0+0+0 687.5 0+0+0] [0+0+0 16 0+0+16] children: not-inline
+      BlockContainer <(anonymous)> at [9,41] [0+0+0 687.5 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <div#B> at [648.5,41] floating [0+0+0 48 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+        BlockContainer <div#C> at [648.5,57] floating [0+0+0 48 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <div#D> at [9,41] [0+0+0 687.5 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [9,57] [0+0+0 687.5 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x73]

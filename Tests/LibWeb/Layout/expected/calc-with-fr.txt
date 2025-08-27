@@ -1,19 +1,19 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x70 [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x54 [8+0+0 784 0+0+8] [8+0+0 54 0+0+8] children: not-inline
-      Box <div.container> at (8,8) content-size 784x54 [0+0+0 784 0+0+0] [0+0+0 54 0+0+0] [GFC] children: not-inline
-        BlockContainer <div> at (8,8) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 54 0+0+8] children: not-inline
+      Box <div.container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 54 0+0+0] [GFC] children: not-inline
+        BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x18] baseline: 13.796875
               "1"
-          TextNode <#text>
-        BlockContainer <div> at (8,26) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [8,26] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [8,26 8.8125x18] baseline: 13.796875
               "2"
-          TextNode <#text>
-        BlockContainer <div> at (8,44) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [8,44] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [8,44 9.09375x18] baseline: 13.796875
               "3"
-          TextNode <#text>
+          TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x70]

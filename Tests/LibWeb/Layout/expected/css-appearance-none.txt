@@ -1,6 +1,6 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x132 [0+0+0 800 0+0+0] [0+0+0 132 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x116 [8+0+0 784 0+0+8] [8+0+0 116 0+0+8] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 132 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 116 0+0+8] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 0x18] baseline: 15.796875
       frag 1 from TextNode start: 0, length: 13, rect: [18,10 116.171875x18] baseline: 13.796875
           "Normal button"
@@ -19,40 +19,40 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
       frag 10 from BlockContainer start: 0, length: 0, rect: [8,119 0x0] baseline: 0
       frag 11 from TextNode start: 0, length: 19, rect: [8,106 169.234375x18] baseline: 13.796875
           "No appearance radio"
-      BlockContainer <input> at (13,10) content-size 0x18 inline-block [0+1+4 0 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> at (13,10) content-size 0x18 flex-container(column) [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at (13,10) content-size 0x18 flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+      BlockContainer <input> at [13,10] inline-block [0+1+4 0 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [13,10] flex-container(column) [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [13,10] flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
             frag 0 from BlockContainer start: 0, length: 0, rect: [13,23 0x0] baseline: 0
-            BlockContainer <span> at (13,23) content-size 0x0 inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-              TextNode <#text>
-      TextNode <#text>
-      BreakNode <br>
-      TextNode <#text>
-      BlockContainer <input> at (13,32) content-size 0x18 inline-block [0+1+4 0 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> at (13,32) content-size 0x18 flex-container(column) [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at (13,32) content-size 0x18 flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            BlockContainer <span> at [13,23] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+              TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      BreakNode <br> (not painted)
+      TextNode <#text> (not painted)
+      BlockContainer <input> at [13,32] inline-block [0+1+4 0 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [13,32] flex-container(column) [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [13,32] flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
             frag 0 from BlockContainer start: 0, length: 0, rect: [13,45 0x0] baseline: 0
-            BlockContainer <span> at (13,45) content-size 0x0 inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
-              TextNode <#text>
-      TextNode <#text>
-      BreakNode <br>
-      TextNode <#text>
-      CheckBox <input> at (8,52) content-size 13x13 inline-block [0+0+0 13 0+0+0] [0+0+0 13 0+0+0] children: not-inline
-      TextNode <#text>
-      BreakNode <br>
-      TextNode <#text>
-      BlockContainer <input> at (8,83) content-size 0x0 inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
-      TextNode <#text>
-      BreakNode <br>
-      TextNode <#text>
-      RadioButton <input> at (8,89) content-size 12x12 inline-block [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] children: not-inline
-      TextNode <#text>
-      BreakNode <br>
-      TextNode <#text>
-      BlockContainer <input> at (8,119) content-size 0x0 inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
-      TextNode <#text>
-      BreakNode <br>
-      TextNode <#text>
+            BlockContainer <span> at [13,45] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+              TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      BreakNode <br> (not painted)
+      TextNode <#text> (not painted)
+      CheckBox <input> at [8,52] inline-block [0+0+0 13 0+0+0] [0+0+0 13 0+0+0] children: not-inline
+      TextNode <#text> (not painted)
+      BreakNode <br> (not painted)
+      TextNode <#text> (not painted)
+      BlockContainer <input> at [8,83] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+      TextNode <#text> (not painted)
+      BreakNode <br> (not painted)
+      TextNode <#text> (not painted)
+      RadioButton <input> at [8,89] inline-block [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] children: not-inline
+      TextNode <#text> (not painted)
+      BreakNode <br> (not painted)
+      TextNode <#text> (not painted)
+      BlockContainer <input> at [8,119] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+      TextNode <#text> (not painted)
+      BreakNode <br> (not painted)
+      TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x132]

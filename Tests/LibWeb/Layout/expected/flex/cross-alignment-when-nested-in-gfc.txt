@@ -1,9 +1,9 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-      Box <div#Main> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [GFC] children: not-inline
-        Box <div#MiddleColumn> at (0,0) content-size 800x600 flex-container(row) [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [FFC] children: not-inline
-          BlockContainer <div.MiddleHeader> at (0,0) content-size 100x100 flex-item [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+      Box <div#Main> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [GFC] children: not-inline
+        Box <div#MiddleColumn> at [0,0] flex-container(row) [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [FFC] children: not-inline
+          BlockContainer <div.MiddleHeader> at [0,0] flex-item [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]

@@ -1,28 +1,28 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x1780 [0+0+0 800 0+0+0] [0+0+0 1780 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,70) content-size 784x1640 [8+0+0 784 0+0+8] [8+0+0 1640 0+0+70] children: not-inline
-      BlockContainer <p.min-block-test> at (8,70) content-size 784x700 [0+0+0 784 0+0+0] [70+0+0 700 0+0+70] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1780 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,70] [8+0+0 784 0+0+8] [8+0+0 1640 0+0+70] children: not-inline
+      BlockContainer <p.min-block-test> at [8,70] [0+0+0 784 0+0+0] [70+0+0 700 0+0+70] children: inline
         frag 0 from TextNode start: 0, length: 2, rect: [8,70 85.875x80] baseline: 60.984375
             "KK"
-        TextNode <#text>
-      BlockContainer <(anonymous)> at (8,840) content-size 784x80 [0+0+0 784 0+0+0] [0+0+0 80 0+0+0] children: inline
-        TextNode <#text>
-        BreakNode <br>
-        TextNode <#text>
-      BlockContainer <p.max-block-test> at (8,990) content-size 200x100 [0+0+0 200 0+0+584] [70+0+0 100 0+0+70] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,840] [0+0+0 784 0+0+0] [0+0+0 80 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p.max-block-test> at [8,990] [0+0+0 200 0+0+584] [70+0+0 100 0+0+70] children: inline
         frag 0 from TextNode start: 0, length: 2, rect: [8,990 85.875x80] baseline: 60.984375
             "KK"
-        TextNode <#text>
-      BlockContainer <(anonymous)> at (8,1160) content-size 784x80 [0+0+0 784 0+0+0] [0+0+0 80 0+0+0] children: inline
-        TextNode <#text>
-        BreakNode <br>
-        TextNode <#text>
-      BlockContainer <p.block-size-test> at (8,1310) content-size 200x400 [0+0+0 200 0+0+584] [70+0+0 400 0+0+70] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,1160] [0+0+0 784 0+0+0] [0+0+0 80 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p.block-size-test> at [8,1310] [0+0+0 200 0+0+584] [70+0+0 400 0+0+70] children: inline
         frag 0 from TextNode start: 0, length: 2, rect: [8,1310 85.875x80] baseline: 60.984375
             "KK"
-        TextNode <#text>
-      BlockContainer <(anonymous)> at (8,1780) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,1780] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1780]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x1780]

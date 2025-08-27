@@ -1,46 +1,46 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x470 [0+1+0 798 0+1+0] [0+1+0 470 0+1+0] [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x452 [8+1+0 780 0+1+8] [8+1+0 452 0+1+8] children: not-inline
-      Box <div.grid> at (11,11) content-size 500x450 [0+1+0 500 0+1+278] [0+1+0 450 0+1+0] [GFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 470 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 452 0+1+8] children: not-inline
+      Box <div.grid> at [11,11] [0+1+0 500 0+1+278] [0+1+0 450 0+1+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.left-margin-auto.right-margin-auto> at (99.71875,12) content-size 322.5625x18 [87.71875+1+0 322.5625 0+1+87.71875] [0+1+0 18 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.left-margin-auto.right-margin-auto> at [99.71875,12] [87.71875+1+0 322.5625 0+1+87.71875] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 38, rect: [99.71875,12 322.5625x18] baseline: 13.796875
               "auto horizontal margins and auto width"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.left-margin-auto> at (252.375,32) content-size 257.625x18 [240.375+1+0 257.625 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.left-margin-auto> at [252.375,32] [240.375+1+0 257.625 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 31, rect: [252.375,32 257.625x18] baseline: 13.796875
               "auto left margin and auto width"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.right-margin-auto> at (12,52) content-size 268.484375x18 [0+1+0 268.484375 0+1+229.515625] [0+1+0 18 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.right-margin-auto> at [12,52] [0+1+0 268.484375 0+1+229.515625] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 32, rect: [12,52 268.484375x18] baseline: 13.796875
               "auto right margin and auto width"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.left-margin-auto.right-margin-auto.fit-content-width> at (75.25,72) content-size 371.484375x18 [63.25+1+0 371.484375 0+1+63.25] [0+1+0 18 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.left-margin-auto.right-margin-auto.fit-content-width> at [75.25,72] [63.25+1+0 371.484375 0+1+63.25] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 45, rect: [75.25,72 371.484375x18] baseline: 13.796875
               "auto horizontal margins and fit-content width"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.left-margin-auto.fit-content-width> at (203.453125,92) content-size 306.546875x18 [191.453125+1+0 306.546875 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.left-margin-auto.fit-content-width> at [203.453125,92] [191.453125+1+0 306.546875 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 38, rect: [203.453125,92 306.546875x18] baseline: 13.796875
               "auto left margin and fit-content width"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.right-margin-auto.fit-content-width> at (12,112) content-size 317.40625x18 [0+1+0 317.40625 0+1+180.59375] [0+1+0 18 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.right-margin-auto.fit-content-width> at [12,112] [0+1+0 317.40625 0+1+180.59375] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 39, rect: [12,112 317.40625x18] baseline: 13.796875
               "auto right margin and fit-content width"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.left-margin-auto.right-margin-auto.fixed-width> at (236,132) content-size 50x108 [224+1+0 50 0+1+224] [0+1+0 108 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.left-margin-auto.right-margin-auto.fixed-width> at [236,132] [224+1+0 50 0+1+224] [0+1+0 108 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [236,132 36.328125x18] baseline: 13.796875
               "auto"
           frag 1 from TextNode start: 5, length: 10, rect: [236,150 81.84375x18] baseline: 13.796875
@@ -53,10 +53,10 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
               "fixed"
           frag 5 from TextNode start: 34, length: 5, rect: [236,222 39.796875x18] baseline: 13.796875
               "width"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.left-margin-auto.fixed-width> at (460,242) content-size 50x108 [448+1+0 50 0+1+0] [0+1+0 108 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.left-margin-auto.fixed-width> at [460,242] [448+1+0 50 0+1+0] [0+1+0 108 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [460,242 36.328125x18] baseline: 13.796875
               "auto"
           frag 1 from TextNode start: 5, length: 4, rect: [460,260 26.25x18] baseline: 13.796875
@@ -69,10 +69,10 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
               "fixed"
           frag 5 from TextNode start: 27, length: 5, rect: [460,332 39.796875x18] baseline: 13.796875
               "width"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.right-margin-auto.fixed-width> at (12,352) content-size 50x108 [0+1+0 50 0+1+448] [0+1+0 108 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.right-margin-auto.fixed-width> at [12,352] [0+1+0 50 0+1+448] [0+1+0 108 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [12,352 36.328125x18] baseline: 13.796875
               "auto"
           frag 1 from TextNode start: 5, length: 5, rect: [12,370 37.109375x18] baseline: 13.796875
@@ -85,11 +85,11 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
               "fixed"
           frag 5 from TextNode start: 28, length: 5, rect: [12,442 39.796875x18] baseline: 13.796875
               "width"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (10,462) content-size 780x0 [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [10,462] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x472]

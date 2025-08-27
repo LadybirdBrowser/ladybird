@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x340 [0+0+0 800 0+0+0] [0+0+0 340 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x324 [8+0+0 784 0+0+8] [8+0+0 324 0+0+8] children: not-inline
-      Box <div.grid-container> at (8,8) content-size 784x324 [0+0+0 784 0+0+0] [0+0+0 324 0+0+0] [GFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 340 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 324 0+0+8] children: not-inline
+      Box <div.grid-container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 324 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item.item-span-one-one> at (401.46875,8) content-size 390.53125x135 [0+0+0 390.53125 0+0+0] [0+0+0 135 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item.item-span-one-one> at [401.46875,8] [0+0+0 390.53125 0+0+0] [0+0+0 135 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 40, rect: [401.46875,8 319.171875x18] baseline: 13.796875
               "In a sollicitudin augue. Sed ante augue,"
           frag 1 from TextNode start: 42, length: 42, rect: [401.46875,26 335.125x18] baseline: 13.796875
@@ -13,10 +13,10 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
               "Pellentesque diam libero, ultrices eget eleifend"
           frag 3 from TextNode start: 134, length: 22, rect: [401.46875,62 182.8125x18] baseline: 13.796875
               "at, consequat ut orci."
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item.item-span-one-two> at (401.46875,143) content-size 390.53125x189 [0+0+0 390.53125 0+0+0] [0+0+0 189 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item.item-span-one-two> at [401.46875,143] [0+0+0 390.53125 0+0+0] [0+0+0 189 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 43, rect: [401.46875,143 359.15625x18] baseline: 13.796875
               "Suspendisse potenti. Pellentesque at varius"
           frag 1 from TextNode start: 45, length: 41, rect: [401.46875,161 318.5625x18] baseline: 13.796875
@@ -31,10 +31,10 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
               "porta, nunc metus porttitor nibh, nec"
           frag 6 from TextNode start: 260, length: 31, rect: [401.46875,251 242.921875x18] baseline: 13.796875
               "bibendum nulla lectus ut felis."
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item.item-span-two> at (8,8) content-size 393.46875x324 [0+0+0 393.46875 0+0+0] [0+0+0 324 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item.item-span-two> at [8,8] [0+0+0 393.46875 0+0+0] [0+0+0 324 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 39, rect: [8,8 337.6875x18] baseline: 13.796875
               "Lorem ipsum dolor sit amet, consectetur"
           frag 1 from TextNode start: 41, length: 47, rect: [8,26 376.34375x18] baseline: 13.796875
@@ -71,9 +71,9 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
               "auctor in arcu. Ut cursus magna sit amet nulla"
           frag 17 from TextNode start: 771, length: 36, rect: [8,314 294.90625x18] baseline: 13.796875
               "cursus, vitae gravida mauris dictum."
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
+          TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x340]

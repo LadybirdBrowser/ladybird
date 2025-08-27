@@ -1,11 +1,11 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x18 [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: inline
       frag 0 from Box start: 0, length: 0, rect: [8,8 10x10.3125] baseline: 13.796875
-      Box <div.inline-flex.aspect-ratio> at (8,8) content-size 10x10.3125 flex-container(row) [0+0+0 10 0+0+0] [0+0+0 10.3125 0+0+0] [FFC] children: not-inline
-        BlockContainer <div.img-wrapper> at (8,8) content-size 10x10.3125 flex-item [0+0+0 10 0+0+0] [0+0+0 10.3125 0+0+0] [BFC] children: inline
+      Box <div.inline-flex.aspect-ratio> at [8,8] flex-container(row) [0+0+0 10 0+0+0] [0+0+0 10.3125 0+0+0] [FFC] children: not-inline
+        BlockContainer <div.img-wrapper> at [8,8] flex-item [0+0+0 10 0+0+0] [0+0+0 10.3125 0+0+0] [BFC] children: inline
           frag 0 from ImageBox start: 0, length: 0, rect: [8,11 10x10] baseline: 10
-          ImageBox <img> at (8,11) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+          ImageBox <img> at [8,11] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]

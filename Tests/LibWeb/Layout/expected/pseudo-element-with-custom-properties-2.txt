@@ -1,44 +1,44 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x477 [0+0+0 800 0+0+0] [0+0+0 477 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x461 [8+0+0 784 0+0+8] [8+0+0 461 0+0+8] children: not-inline
-      BlockContainer <(anonymous)> at (8,8) content-size 784x23 [0+0+0 784 0+0+0] [0+0+0 23 0+0+0] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 477 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 461 0+0+8] children: not-inline
+      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 23 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 40, rect: [8,8 391.796875x23] baseline: 17.5
             "Variable set by inline style of element:"
-        TextNode <#text>
-        BreakNode <br>
-        TextNode <#text>
-      BlockContainer <div.a> at (8,31) content-size 784x100 [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.a> at [8,31] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,31 200x100] baseline: 100
-        BlockContainer <(anonymous)> at (8,31) content-size 200x100 inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,131) content-size 784x69 [0+0+0 784 0+0+0] [0+0+0 69 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [8,31] inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,131] [0+0+0 784 0+0+0] [0+0+0 69 0+0+0] children: inline
         frag 0 from TextNode start: 1, length: 42, rect: [8,177 441.40625x23] baseline: 17.5
             "Variable set by CSS rule matching element:"
-        TextNode <#text>
-        BreakNode <br>
-        BreakNode <br>
-        TextNode <#text>
-        BreakNode <br>
-        TextNode <#text>
-      BlockContainer <div.b> at (8,200) content-size 784x100 [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.b> at [8,200] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,200 200x100] baseline: 100
-        BlockContainer <(anonymous)> at (8,200) content-size 200x100 inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,300) content-size 784x69 [0+0+0 784 0+0+0] [0+0+0 69 0+0+0] children: inline
+        BlockContainer <(anonymous)> at [8,200] inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,300] [0+0+0 784 0+0+0] [0+0+0 69 0+0+0] children: inline
         frag 0 from TextNode start: 1, length: 49, rect: [8,346 520.765625x23] baseline: 17.5
             "Variable set by CSS rule matching pseudo element:"
-        TextNode <#text>
-        BreakNode <br>
-        BreakNode <br>
-        TextNode <#text>
-        BreakNode <br>
-        TextNode <#text>
-      BlockContainer <div.c> at (8,369) content-size 784x100 [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.c> at [8,369] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,369 200x100] baseline: 100
-        BlockContainer <(anonymous)> at (8,369) content-size 200x100 inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,469) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+        BlockContainer <(anonymous)> at [8,369] inline-block [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,469] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x477]

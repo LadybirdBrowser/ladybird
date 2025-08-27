@@ -1,32 +1,32 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x216 [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x200 [8+0+0 784 0+0+8] [8+0+0 200 0+0+8] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 200 0+0+8] children: inline
       frag 0 from TextNode start: 0, length: 1, rect: [87.296875,154 8x18] baseline: 13.796875
           " "
       frag 1 from TextNode start: 0, length: 1, rect: [205.453125,154 8x18] baseline: 13.796875
           " "
       frag 2 from TextNode start: 0, length: 1, rect: [327.125,154 8x18] baseline: 13.796875
           " "
-      InlineNode <span.one> [0+0+0 79.296875 0+0+0] [0+0+0 200 0+0+0]
+      InlineNode <span.one> at [8,8] [0+0+0 79.296875 0+0+0] [0+0+0 200 0+0+0]
         frag 0 from TextNode start: 0, length: 1, rect: [8,8 79.296875x200] baseline: 159.96875
             "1"
-        TextNode <#text>
-      TextNode <#text>
-      InlineNode <span.two> [0+0+0 110.15625 0+0+0] [0+0+0 200 0+0+0]
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      InlineNode <span.two> at [95.296875,8] [0+0+0 110.15625 0+0+0] [0+0+0 200 0+0+0]
         frag 0 from TextNode start: 0, length: 1, rect: [95.296875,8 110.15625x200] baseline: 159.96875
             "2"
-        TextNode <#text>
-      TextNode <#text>
-      InlineNode <span.three> [0+0+0 113.671875 0+0+0] [0+0+0 200 0+0+0]
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      InlineNode <span.three> at [213.453125,8] [0+0+0 113.671875 0+0+0] [0+0+0 200 0+0+0]
         frag 0 from TextNode start: 0, length: 1, rect: [213.453125,8 113.671875x200] baseline: 159.96875
             "3"
-        TextNode <#text>
-      TextNode <#text>
-      InlineNode <span.four> [0+0+0 96.875 0+0+0] [0+0+0 200 0+0+0]
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      InlineNode <span.four> at [335.125,8] [0+0+0 96.875 0+0+0] [0+0+0 200 0+0+0]
         frag 0 from TextNode start: 0, length: 1, rect: [335.125,8 96.875x200] baseline: 159.96875
             "4"
-        TextNode <#text>
-      TextNode <#text>
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]

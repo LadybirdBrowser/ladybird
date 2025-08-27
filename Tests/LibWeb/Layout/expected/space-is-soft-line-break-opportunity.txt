@@ -1,19 +1,19 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x54 [0+0+0 800 0+0+0] [0+0+0 54 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x38 [8+0+0 784 0+0+8] [8+0+0 38 0+0+8] children: not-inline
-      BlockContainer <div.fixed_width> at (9,9) content-size 50x36 [0+1+0 50 0+1+732] [0+1+0 36 0+1+0] children: inline
-        TextNode <#text>
-        InlineNode <span.nowrap> [0+0+0 33.921875 0+0+0] [0+0+0 18 0+0+0]
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 54 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 38 0+0+8] children: not-inline
+      BlockContainer <div.fixed_width> at [9,9] [0+1+0 50 0+1+732] [0+1+0 36 0+1+0] children: inline
+        TextNode <#text> (not painted)
+        InlineNode <span.nowrap> at [9,9] [0+0+0 33.921875 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 3, rect: [9,9 33.921875x18] baseline: 13.796875
               "ABC"
-          TextNode <#text>
-        InlineNode <span> [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
-          TextNode <#text>
-        InlineNode <span.nowrap> [0+0+0 33.921875 0+0+0] [0+0+0 18 0+0+0]
+          TextNode <#text> (not painted)
+        InlineNode <span> at [9,9] [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+          TextNode <#text> (not painted)
+        InlineNode <span.nowrap> at [9,27] [0+0+0 33.921875 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 3, rect: [9,27 33.921875x18] baseline: 13.796875
               "ABC"
-          TextNode <#text>
-        TextNode <#text>
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x54]

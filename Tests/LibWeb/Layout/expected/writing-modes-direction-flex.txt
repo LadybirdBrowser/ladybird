@@ -1,36 +1,36 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x52 [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x36 [8+0+0 784 0+0+8] [8+0+0 36 0+0+8] children: not-inline
-      Box <div> at (8,8) content-size 784x18 flex-container(row) [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-        BlockContainer <div> at (763.96875,8) content-size 28.03125x18 flex-item [0+0+0 28.03125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 36 0+0+8] children: not-inline
+      Box <div> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+        BlockContainer <div> at [763.96875,8] flex-item [0+0+0 28.03125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [763.96875,8 28.03125x18] baseline: 13.796875
               "aaa"
-          TextNode <#text>
-        BlockContainer <div> at (735.5625,8) content-size 28.40625x18 flex-item [0+0+0 28.40625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [735.5625,8] flex-item [0+0+0 28.40625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [735.5625,8 28.40625x18] baseline: 13.796875
               "bbb"
-          TextNode <#text>
-        BlockContainer <div> at (708.890625,8) content-size 26.671875x18 flex-item [0+0+0 26.671875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [708.890625,8] flex-item [0+0+0 26.671875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [708.890625,8 26.671875x18] baseline: 13.796875
               "ccc"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,26) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      Box <div> at (8,26) content-size 784x18 flex-container(row-reverse) [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-        BlockContainer <div> at (8,26) content-size 28.03125x18 flex-item [0+0+0 28.03125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,26] flex-container(row-reverse) [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+        BlockContainer <div> at [8,26] flex-item [0+0+0 28.03125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [8,26 28.03125x18] baseline: 13.796875
               "aaa"
-          TextNode <#text>
-        BlockContainer <div> at (36.03125,26) content-size 28.40625x18 flex-item [0+0+0 28.40625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [36.03125,26] flex-item [0+0+0 28.40625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [36.03125,26 28.40625x18] baseline: 13.796875
               "bbb"
-          TextNode <#text>
-        BlockContainer <div> at (64.4375,26) content-size 26.671875x18 flex-item [0+0+0 26.671875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [64.4375,26] flex-item [0+0+0 26.671875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [64.4375,26 26.671875x18] baseline: 13.796875
               "ccc"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,44) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]

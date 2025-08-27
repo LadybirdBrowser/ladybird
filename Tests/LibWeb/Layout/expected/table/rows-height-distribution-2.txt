@@ -1,12 +1,12 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x316 [0+0+0 800 0+0+0] [0+0+0 316 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x300 [8+0+0 784 0+0+8] [8+0+0 300 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at (8,8) content-size 200x300 [0+0+0 200 0+0+584] [0+0+0 300 0+0+0] [BFC] children: not-inline
-        Box <div.table> at (8,8) content-size 200x300 table-box [0+0+0 200 0+0+0] [0+0+0 300 0+0+0] [TFC] children: not-inline
-          Box <div.row.a> at (8,8) content-size 200x150 table-row [0+0+0 200 0+0+0] [0+0+0 150 0+0+0] children: not-inline
-            BlockContainer <div.cell> at (8,8) content-size 200x0 table-cell [0+0+0 200 0+0+0] [0+0+0 0 150+0+0] [BFC] children: not-inline
-          Box <div.row.b> at (8,158) content-size 200x150 table-row [0+0+0 200 0+0+0] [0+0+0 150 0+0+0] children: not-inline
-            BlockContainer <div.cell> at (8,158) content-size 200x0 table-cell [0+0+0 200 0+0+0] [0+0+0 0 150+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 316 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 300 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 200 0+0+584] [0+0+0 300 0+0+0] [BFC] children: not-inline
+        Box <div.table> at [8,8] table-box [0+0+0 200 0+0+0] [0+0+0 300 0+0+0] [TFC] children: not-inline
+          Box <div.row.a> at [8,8] table-row [0+0+0 200 0+0+0] [0+0+0 150 0+0+0] children: not-inline
+            BlockContainer <div.cell> at [8,8] table-cell [0+0+0 200 0+0+0] [0+0+0 0 150+0+0] [BFC] children: not-inline
+          Box <div.row.b> at [8,158] table-row [0+0+0 200 0+0+0] [0+0+0 150 0+0+0] children: not-inline
+            BlockContainer <div.cell> at [8,158] table-cell [0+0+0 200 0+0+0] [0+0+0 0 150+0+0] [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x316]

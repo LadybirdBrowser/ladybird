@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x36 [0+0+0 800 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
-    Box <body> at (8,8) content-size 200x20 flex-container(row) [8+0+0 200 0+0+592] [8+0+0 20 0+0+8] [FFC] children: not-inline
-      SVGSVGBox <svg> at (8,8) content-size 20x20 flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [SVG] children: not-inline
-        SVGGeometryBox <rect> at (8,8) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
-      BlockContainer <div> at (28,8) content-size 100x20 flex-item [0+0+0 100 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
-        TextNode <#text>
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
+    Box <body> at [8,8] flex-container(row) [8+0+0 200 0+0+592] [8+0+0 20 0+0+8] [FFC] children: not-inline
+      SVGSVGBox <svg> at [8,8] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [SVG] children: not-inline
+        SVGGeometryBox <rect> at [8,8] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <div> at [28,8] flex-item [0+0+0 100 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x36]

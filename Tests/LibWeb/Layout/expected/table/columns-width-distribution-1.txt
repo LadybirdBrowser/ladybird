@@ -1,15 +1,15 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x132 [0+0+0 800 0+0+0] [0+0+0 132 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x116 [8+0+0 784 0+0+8] [8+0+0 116 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at (8,8) content-size 784x116 [0+0+0 784 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
-        Box <table.ambox> at (9,9) content-size 782x114 table-box [0+1+0 782 0+1+0] [0+1+0 114 0+1+0] [TFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 132 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 116 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
+        Box <table.ambox> at [9,9] table-box [0+1+0 782 0+1+0] [0+1+0 114 0+1+0] [TFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text>
-          Box <tbody> at (11,11) content-size 778x110 table-row-group [0+0+0 778 0+0+0] [0+0+0 110 0+0+0] children: not-inline
-            Box <tr> at (11,11) content-size 778x110 table-row [0+0+0 778 0+0+0] [0+0+0 110 0+0+0] children: not-inline
-              BlockContainer <td.mbox-image> at (12,41) content-size 50x50 table-cell [0+0+1 50 1+0+0] [0+0+30 50 30+0+0] [BFC] children: not-inline
-                BlockContainer <div.mbox-image-div> at (12,41) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
-              BlockContainer <td.mbox-text> at (66,12) content-size 722x108 table-cell [0+0+1 722 1+0+0] [0+0+1 108 1+0+0] [BFC] children: inline
+            TextNode <#text> (not painted)
+          Box <tbody> at [11,11] table-row-group [0+0+0 778 0+0+0] [0+0+0 110 0+0+0] children: not-inline
+            Box <tr> at [11,11] table-row [0+0+0 778 0+0+0] [0+0+0 110 0+0+0] children: not-inline
+              BlockContainer <td.mbox-image> at [12,41] table-cell [0+0+1 50 1+0+0] [0+0+30 50 30+0+0] [BFC] children: not-inline
+                BlockContainer <div.mbox-image-div> at [12,41] [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
+              BlockContainer <td.mbox-text> at [66,12] table-cell [0+0+1 722 1+0+0] [0+0+1 108 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 1, length: 84, rect: [66,12 689.640625x18] baseline: 13.796875
                     "In a scene set in a lawyer's office, the lawyer sits alone and bounces a rubber ball"
                 frag 1 from TextNode start: 86, length: 84, rect: [66,30 695.5625x18] baseline: 13.796875
@@ -22,7 +22,7 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                     "significant other. Finally, the lawyer instructs their assistant to send in the next"
                 frag 5 from TextNode start: 424, length: 7, rect: [66,102 47.21875x18] baseline: 13.796875
                     "client."
-                TextNode <#text>
+                TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x132]

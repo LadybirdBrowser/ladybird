@@ -1,26 +1,26 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x1252 [0+1+0 798 0+1+0] [0+1+0 1252 0+1+0] [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x1234 [8+1+0 780 0+1+8] [8+1+0 1234 0+1+8] children: not-inline
-      BlockContainer <div.w.min> at (11,11) content-size 2x18 [0+1+0 2 0+1+776] [0+1+0 18 0+1+0] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 1252 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 1234 0+1+8] children: not-inline
+      BlockContainer <div.w.min> at [11,11] [0+1+0 2 0+1+776] [0+1+0 18 0+1+0] children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [12,21 2x2] baseline: 4
-        ImageBox <img> at (12,21) content-size 2x2 [0+1+0 2 0+1+0] [0+1+0 2 0+1+0] children: not-inline
-      BlockContainer <(anonymous)> at (10,30) content-size 780x0 [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      BlockContainer <div.w.max> at (11,31) content-size 402x404 [0+1+0 402 0+1+376] [0+1+0 404 0+1+0] children: inline
+        ImageBox <img> at [12,21] [0+1+0 2 0+1+0] [0+1+0 2 0+1+0] children: not-inline
+      BlockContainer <(anonymous)> at [10,30] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.w.max> at [11,31] [0+1+0 402 0+1+376] [0+1+0 404 0+1+0] children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [12,32 402x402] baseline: 404
-        ImageBox <img> at (12,32) content-size 402x402 [0+1+0 402 0+1+0] [0+1+0 402 0+1+0] children: not-inline
-      BlockContainer <(anonymous)> at (10,436) content-size 780x0 [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      BlockContainer <div.h.min> at (11,437) content-size 778x402 [0+1+0 778 0+1+0] [0+1+0 402 0+1+0] children: inline
+        ImageBox <img> at [12,32] [0+1+0 402 0+1+0] [0+1+0 402 0+1+0] children: not-inline
+      BlockContainer <(anonymous)> at [10,436] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.h.min> at [11,437] [0+1+0 778 0+1+0] [0+1+0 402 0+1+0] children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [12,438 402x402] baseline: 404
-        ImageBox <img> at (12,438) content-size 402x402 [0+1+0 402 0+1+0] [0+1+0 402 0+1+0] children: not-inline
-      BlockContainer <(anonymous)> at (10,840) content-size 780x0 [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      BlockContainer <div.h.max> at (11,841) content-size 778x402 [0+1+0 778 0+1+0] [0+1+0 402 0+1+0] children: inline
+        ImageBox <img> at [12,438] [0+1+0 402 0+1+0] [0+1+0 402 0+1+0] children: not-inline
+      BlockContainer <(anonymous)> at [10,840] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.h.max> at [11,841] [0+1+0 778 0+1+0] [0+1+0 402 0+1+0] children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [12,842 402x402] baseline: 404
-        ImageBox <img> at (12,842) content-size 402x402 [0+1+0 402 0+1+0] [0+1+0 402 0+1+0] children: not-inline
-      BlockContainer <(anonymous)> at (10,1244) content-size 780x0 [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+        ImageBox <img> at [12,842] [0+1+0 402 0+1+0] [0+1+0 402 0+1+0] children: not-inline
+      BlockContainer <(anonymous)> at [10,1244] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1254]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x1254]

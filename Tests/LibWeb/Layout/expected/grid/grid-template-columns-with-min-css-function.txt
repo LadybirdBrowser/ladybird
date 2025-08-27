@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x57 [0+1+0 798 0+1+0] [0+1+0 57 0+1+0] [BFC] children: not-inline
-    Box <body> at (10,10) content-size 780x39 [8+1+0 780 0+1+8] [8+1+0 39 0+1+8] [GFC] children: not-inline
-      BlockContainer <h1> at (55.5,11) content-size 689x37 [0+1+0 689 0+1+0] [0+1+0 37 0+1+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 57 0+1+0] [BFC] children: not-inline
+    Box <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 39 0+1+8] [GFC] children: not-inline
+      BlockContainer <h1> at [55.5,11] [0+1+0 689 0+1+0] [0+1+0 37 0+1+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 13, rect: [55.5,11 200.40625x37] baseline: 28.09375
             "hello friends"
-        TextNode <#text>
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x59]

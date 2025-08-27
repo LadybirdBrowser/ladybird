@@ -1,18 +1,18 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x38 [0+0+0 800 0+0+0] [0+0+0 38 0+0+0] [BFC] children: not-inline
-    Box <body> at (8,8) content-size 50x22 flex-container(row) [8+0+0 50 0+0+742] [8+0+0 22 0+0+8] [FFC] children: not-inline
-      BlockContainer <div> at (8,8) content-size 285.546875x22 flex-item [0+0+0 285.546875 0+0+0] [0+0+0 22 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 38 0+0+0] [BFC] children: not-inline
+    Box <body> at [8,8] flex-container(row) [8+0+0 50 0+0+742] [8+0+0 22 0+0+8] [FFC] children: not-inline
+      BlockContainer <div> at [8,8] flex-item [0+0+0 285.546875 0+0+0] [0+0+0 22 0+0+0] [BFC] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 275.546875x18] baseline: 15.796875
-        TextNode <#text>
-        BlockContainer <button> at (13,10) content-size 275.546875x18 inline-block [0+1+4 275.546875 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
-          BlockContainer <(anonymous)> at (13,10) content-size 275.546875x18 flex-container(column) [0+0+0 275.546875 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-            BlockContainer <(anonymous)> at (13,10) content-size 275.546875x18 flex-item [0+0+0 275.546875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <button> at [13,10] inline-block [0+1+4 275.546875 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> at [13,10] flex-container(column) [0+0+0 275.546875 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+            BlockContainer <(anonymous)> at [13,10] flex-item [0+0+0 275.546875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 1, length: 24, rect: [13,10 275.546875x18] baseline: 13.796875
                   "LOOOOOOOOOOOOOOOOOOOOONG"
-              TextNode <#text>
-        TextNode <#text>
+              TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-        TextNode <#text>
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x38]

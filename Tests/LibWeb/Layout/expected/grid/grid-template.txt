@@ -1,53 +1,53 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x216 [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x200 [8+0+0 784 0+0+8] [8+0+0 200 0+0+8] children: not-inline
-      Box <div.mw-page-container-inner> at (8,8) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [GFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 200 0+0+8] children: not-inline
+      Box <div.mw-page-container-inner> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.vector-main-menu-container> at (8,8) content-size 196x0 [0+0+0 196 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.vector-main-menu-container> at [8,8] [0+0+0 196 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.vector-sitenotice-container> at (8,8) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.vector-sitenotice-container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.mw-content-container> at (204,8) content-size 588x0 [0+0+0 588 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.mw-content-container> at [204,8] [0+0+0 588 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.mw-footer-container> at (8,8) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.mw-footer-container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,8) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-        TextNode <#text>
-      Box <section#page> at (8,8) content-size 784x200 [0+0+0 784 0+0+0] [0+0+0 200 0+0+0] [GFC] children: not-inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      Box <section#page> at [8,8] [0+0+0 784 0+0+0] [0+0+0 200 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <header> at (8,8) content-size 784x30 [0+0+0 784 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <header> at [8,8] [0+0+0 784 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [8,8 55.703125x18] baseline: 13.796875
               "Header"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <nav> at (8,38) content-size 120x170 [0+0+0 120 0+0+0] [0+0+0 170 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <nav> at [8,38] [0+0+0 120 0+0+0] [0+0+0 170 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 10, rect: [8,38 80.6875x18] baseline: 13.796875
               "Navigation"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <main> at (128,38) content-size 664x140 [0+0+0 664 0+0+0] [0+0+0 140 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <main> at [128,38] [0+0+0 664 0+0+0] [0+0+0 140 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [128,38 79.515625x18] baseline: 13.796875
               "Main area"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <footer> at (128,178) content-size 664x30 [0+0+0 664 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <footer> at [128,178] [0+0+0 664 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [128,178 57.671875x18] baseline: 13.796875
               "Footer"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,208) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,208] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]

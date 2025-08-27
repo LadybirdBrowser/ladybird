@@ -1,18 +1,18 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x18 [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: inline
       frag 0 from TextNode start: 0, length: 1, rect: [736.65625,8 8x18] baseline: 13.796875
           " "
-      InlineNode <span> [0+0+0 46.71875 0+0+0] [0+0+0 18 0+0+0]
+      InlineNode <span> at [689.9375,8] [0+0+0 46.71875 0+0+0] [0+0+0 18 0+0+0]
         frag 0 from TextNode start: 0, length: 5, rect: [689.9375,8 46.71875x18] baseline: 13.796875
             "aaaaa"
-        TextNode <#text>
-      TextNode <#text>
-      InlineNode <span> [0+0+0 47.34375 0+0+0] [0+0+0 18 0+0+0]
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      InlineNode <span> at [744.65625,8] [0+0+0 47.34375 0+0+0] [0+0+0 18 0+0+0]
         frag 0 from TextNode start: 0, length: 5, rect: [744.65625,8 47.34375x18] baseline: 13.796875
             "bbbbb"
-        TextNode <#text>
-      TextNode <#text>
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]

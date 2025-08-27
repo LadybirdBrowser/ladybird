@@ -1,13 +1,13 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x18 [0+1+0 798 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x0 [8+1+0 780 0+1+8] [8+1+0 0 0+1+8] children: inline
-      TextNode <#text>
-      BlockContainer <div.only-t-l> at (6,6) content-size 10x10 positioned [0+1+0 10 0+1+0] [0+1+0 10 0+1+0] [BFC] children: not-inline
-      TextNode <#text>
-      BlockContainer <div.only-mt-ml> at (16,16) content-size 10x10 positioned [5+1+0 10 0+1+5] [5+1+0 10 0+1+5] [BFC] children: not-inline
-      TextNode <#text>
-      BlockContainer <div.both> at (11,11) content-size 10x10 positioned [5+1+0 10 0+1+5] [5+1+0 10 0+1+5] [BFC] children: not-inline
-      TextNode <#text>
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 0 0+1+8] children: inline
+      TextNode <#text> (not painted)
+      BlockContainer <div.only-t-l> at [6,6] positioned [0+1+0 10 0+1+0] [0+1+0 10 0+1+0] [BFC] children: not-inline
+      TextNode <#text> (not painted)
+      BlockContainer <div.only-mt-ml> at [16,16] positioned [5+1+0 10 0+1+5] [5+1+0 10 0+1+5] [BFC] children: not-inline
+      TextNode <#text> (not painted)
+      BlockContainer <div.both> at [11,11] positioned [5+1+0 10 0+1+5] [5+1+0 10 0+1+5] [BFC] children: not-inline
+      TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x20]

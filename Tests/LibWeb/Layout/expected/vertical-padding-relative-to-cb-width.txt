@@ -1,19 +1,19 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x30 [0+1+0 798 0+1+0] [0+1+0 30 0+1+0] [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x12 [8+1+0 780 0+1+8] [8+1+0 12 0+1+8] children: not-inline
-      BlockContainer <(anonymous)> at (10,10) content-size 780x0 [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      BlockContainer <div.cb> at (11,11) content-size 600x10 [0+1+0 600 0+1+178] [0+1+0 10 0+1+0] children: not-inline
-        BlockContainer <(anonymous)> at (11,11) content-size 600x0 [0+0+0 600 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text>
-        BlockContainer <div.foo> at (12,72) content-size 598x18 [0+1+0 598 0+1+0] [0+1+60 18 120+1+0] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 30 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 12 0+1+8] children: not-inline
+      BlockContainer <(anonymous)> at [10,10] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.cb> at [11,11] [0+1+0 600 0+1+178] [0+1+0 10 0+1+0] children: not-inline
+        BlockContainer <(anonymous)> at [11,11] [0+0+0 600 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.foo> at [12,72] [0+1+0 598 0+1+0] [0+1+60 18 120+1+0] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [12,72 27.15625x18] baseline: 13.796875
               "foo"
-          TextNode <#text>
-        BlockContainer <(anonymous)> at (11,211) content-size 600x18 [0+0+0 600 0+0+0] [0+0+0 18 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [11,211] [0+0+0 600 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 1, length: 3, rect: [11,211 27.640625x18] baseline: 13.796875
               "bar"
-          TextNode <#text>
+          TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x32] overflow: [1,1 798x228]
