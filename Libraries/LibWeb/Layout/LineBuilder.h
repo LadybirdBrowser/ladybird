@@ -16,7 +16,6 @@ class LineBuilder {
 
 public:
     LineBuilder(InlineFormattingContext&, LayoutState&, LayoutState::UsedValues& containing_block_used_values, CSS::Direction, CSS::WritingMode);
-    ~LineBuilder();
 
     enum class ForcedBreak {
         No,
