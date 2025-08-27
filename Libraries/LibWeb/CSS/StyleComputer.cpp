@@ -1129,8 +1129,6 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             if (style_value->is_pending_substitution())
                 continue;
 
-            if (style_value->is_revert() || style_value->is_revert_layer())
-                style_value = computed_properties.property(property_id);
             if (style_value->is_unresolved())
                 style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, property_id, style_value->as_unresolved());
 
@@ -1146,9 +1144,26 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 if (result.contains(physical_longhand_id) && result.get(physical_longhand_id) != nullptr && !property_is_set_by_use_initial.get(physical_longhand_id_bitmap_index) && !is_property_preferred(property_id, longhands_set_by_property_id.get(physical_longhand_id).value()))
                     return;
 
+                auto const& specified_value_with_css_wide_keywords_applied = [&]() -> StyleValue const& {
+                    if (longhand_value.is_inherit() || (longhand_value.is_unset() && is_inherited_property(longhand_id))) {
+                        if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, &element); inherited_animated_value.has_value())
+                            return inherited_animated_value.value();
+
+                        return get_inherit_value(longhand_id, &element);
+                    }
+
+                    if (longhand_value.is_initial() || longhand_value.is_unset())
+                        return property_initial_value(longhand_id);
+
+                    if (longhand_value.is_revert() || longhand_value.is_revert_layer())
+                        return computed_properties.property(longhand_id);
+
+                    return longhand_value;
+                }();
+
                 longhands_set_by_property_id.set(physical_longhand_id, property_id);
                 property_is_set_by_use_initial.set(physical_longhand_id_bitmap_index, is_use_initial);
-                result.set(physical_longhand_id, { longhand_value.absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics) });
+                result.set(physical_longhand_id, { specified_value_with_css_wide_keywords_applied.absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics) });
             });
         }
         return result;
