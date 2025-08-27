@@ -1351,7 +1351,7 @@ RefPtr<StyleValue const> Parser::parse_rect_value(TokenStream<ComponentValue>& t
 
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { "rect"sv });
 
-    Vector<Length, 4> params;
+    Vector<LengthOrAuto, 4> params;
     auto argument_tokens = TokenStream { function_token.function().value };
 
     enum class CommaRequirement {
@@ -1379,7 +1379,7 @@ RefPtr<StyleValue const> Parser::parse_rect_value(TokenStream<ComponentValue>& t
         // Negative lengths are permitted.
         if (argument_tokens.next_token().is_ident("auto"sv)) {
             (void)argument_tokens.consume_a_token(); // `auto`
-            params.append(Length::make_auto());
+            params.append(LengthOrAuto::make_auto());
         } else {
             auto maybe_length = parse_length(argument_tokens);
             if (!maybe_length.has_value())
