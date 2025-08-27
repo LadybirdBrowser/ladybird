@@ -151,9 +151,7 @@ bool Utf16View::is_ascii() const
 {
     if (has_ascii_storage())
         return true;
-
-    // FIXME: Petition simdutf to implement an ASCII validator for UTF-16.
-    return all_of(utf16_span(), AK::is_ascii);
+    return simdutf::validate_utf16_as_ascii(m_string.utf16, length_in_code_units());
 }
 
 bool Utf16View::validate() const
