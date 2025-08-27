@@ -1,7 +1,7 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x116 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x100 children: not-inline
-      BlockContainer <div> at (8,8) content-size 100x100 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x116 [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x100 [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] children: not-inline
+      BlockContainer <div> at (8,8) content-size 100x100 [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [8,8 26.953125x18] baseline: 13.796875
             "whf"
         TextNode <#text>

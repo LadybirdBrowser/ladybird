@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x66 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x50 children: not-inline
-      SVGSVGBox <svg#outer> at (8,8) content-size 50x50 [SVG] children: not-inline
-        SVGGraphicsBox <g> at (8,8) content-size 25x25 children: not-inline
-          SVGSVGBox <svg#inner> at (8,8) content-size 25x25 [SVG] children: not-inline
-            SVGGeometryBox <rect> at (8,13) content-size 25x15 children: not-inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x66 [0+0+0 800 0+0+0] [0+0+0 66 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x50 [8+0+0 784 0+0+8] [8+0+0 50 0+0+8] children: not-inline
+      SVGSVGBox <svg#outer> at (8,8) content-size 50x50 [0+0+0 50 0+0+734] [0+0+0 50 0+0+0] [SVG] children: not-inline
+        SVGGraphicsBox <g> at (8,8) content-size 25x25 [0+0+0 25 0+0+0] [0+0+0 25 0+0+0] children: not-inline
+          SVGSVGBox <svg#inner> at (8,8) content-size 25x25 [0+0+0 25 0+0+0] [0+0+0 25 0+0+0] [SVG] children: not-inline
+            SVGGeometryBox <rect> at (8,13) content-size 25x15 [0+0+0 25 0+0+0] [0+0+0 15 0+0+0] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x66]

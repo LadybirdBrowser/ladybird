@@ -1,7 +1,7 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x18 children: inline
-      InlineNode <object>
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x18 [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: inline
+      InlineNode <object> [0+0+0 181.5 0+0+0] [0+0+0 18 0+0+0]
         frag 0 from TextNode start: 1, length: 23, rect: [8,8 181.5x18] baseline: 13.796875
             "This should be visible!"
         TextNode <#text>

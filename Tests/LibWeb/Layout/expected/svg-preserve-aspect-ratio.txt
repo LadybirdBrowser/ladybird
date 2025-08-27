@@ -1,6 +1,6 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x274 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x258 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x274 [0+0+0 800 0+0+0] [0+0+0 274 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x258 [8+0+0 784 0+0+8] [8+0+0 258 0+0+8] children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [9,84 100x50] baseline: 52
       frag 1 from TextNode start: 0, length: 1, rect: [110,121 8x18] baseline: 13.796875
           " "
@@ -36,69 +36,69 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       frag 22 from TextNode start: 0, length: 1, rect: [240,248 8x18] baseline: 13.796875
           " "
       frag 23 from SVGSVGBox start: 0, length: 0, rect: [249,201 160x60] baseline: 62
-      SVGSVGBox <svg> at (9,84) content-size 100x50 [SVG] children: inline
+      SVGSVGBox <svg> at (9,84) content-size 100x50 [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] [SVG] children: inline
         TextNode <#text>
-        SVGGeometryBox <circle> at (34,84) content-size 50x50 children: not-inline
-        TextNode <#text>
-      TextNode <#text>
-      SVGSVGBox <svg> at (119,84) content-size 100x50 [SVG] children: inline
-        TextNode <#text>
-        SVGGeometryBox <circle> at (119,84) content-size 50x50 children: not-inline
+        SVGGeometryBox <circle> at (34,84) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
         TextNode <#text>
       TextNode <#text>
-      SVGSVGBox <svg> at (229,84) content-size 100x50 [SVG] children: inline
+      SVGSVGBox <svg> at (119,84) content-size 100x50 [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] [SVG] children: inline
         TextNode <#text>
-        SVGGeometryBox <circle> at (279,84) content-size 50x50 children: not-inline
-        TextNode <#text>
-      TextNode <#text>
-      SVGSVGBox <svg> at (339,84) content-size 100x50 [SVG] children: inline
-        TextNode <#text>
-        SVGGeometryBox <circle> at (339,84) content-size 100x100 children: not-inline
+        SVGGeometryBox <circle> at (119,84) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
         TextNode <#text>
       TextNode <#text>
-      SVGSVGBox <svg> at (449,84) content-size 100x50 [SVG] children: inline
+      SVGSVGBox <svg> at (229,84) content-size 100x50 [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] [SVG] children: inline
         TextNode <#text>
-        SVGGeometryBox <circle> at (449,59) content-size 100x100 children: not-inline
-        TextNode <#text>
-      TextNode <#text>
-      SVGSVGBox <svg> at (559,84) content-size 100x50 [SVG] children: inline
-        TextNode <#text>
-        SVGGeometryBox <circle> at (559,34) content-size 100x100 children: not-inline
+        SVGGeometryBox <circle> at (279,84) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
         TextNode <#text>
       TextNode <#text>
-      SVGSVGBox <svg> at (669,9) content-size 50x125 [SVG] children: inline
+      SVGSVGBox <svg> at (339,84) content-size 100x50 [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] [SVG] children: inline
         TextNode <#text>
-        SVGGeometryBox <circle> at (669,9) content-size 50x50 children: not-inline
-        TextNode <#text>
-      TextNode <#text>
-      SVGSVGBox <svg> at (729,9) content-size 50x125 [SVG] children: inline
-        TextNode <#text>
-        SVGGeometryBox <circle> at (729,46.5) content-size 50x50 children: not-inline
+        SVGGeometryBox <circle> at (339,84) content-size 100x100 [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
         TextNode <#text>
       TextNode <#text>
-      SVGSVGBox <svg> at (9,136) content-size 50x125 [SVG] children: inline
+      SVGSVGBox <svg> at (449,84) content-size 100x50 [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] [SVG] children: inline
         TextNode <#text>
-        SVGGeometryBox <circle> at (9,211) content-size 50x50 children: not-inline
-        TextNode <#text>
-      TextNode <#text>
-      SVGSVGBox <svg> at (69,136) content-size 50x125 [SVG] children: inline
-        TextNode <#text>
-        SVGGeometryBox <circle> at (69,136) content-size 125x125 children: not-inline
+        SVGGeometryBox <circle> at (449,59) content-size 100x100 [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
         TextNode <#text>
       TextNode <#text>
-      SVGSVGBox <svg> at (129,136) content-size 50x125 [SVG] children: inline
+      SVGSVGBox <svg> at (559,84) content-size 100x50 [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] [SVG] children: inline
         TextNode <#text>
-        SVGGeometryBox <circle> at (91.5,136) content-size 125x125 children: not-inline
-        TextNode <#text>
-      TextNode <#text>
-      SVGSVGBox <svg> at (189,136) content-size 50x125 [SVG] children: inline
-        TextNode <#text>
-        SVGGeometryBox <circle> at (114,136) content-size 125x125 children: not-inline
+        SVGGeometryBox <circle> at (559,34) content-size 100x100 [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
         TextNode <#text>
       TextNode <#text>
-      SVGSVGBox <svg> at (249,201) content-size 160x60 [SVG] children: inline
+      SVGSVGBox <svg> at (669,9) content-size 50x125 [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] [SVG] children: inline
         TextNode <#text>
-        SVGGeometryBox <circle> at (249,201) content-size 160x60 children: not-inline
+        SVGGeometryBox <circle> at (669,9) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
+        TextNode <#text>
+      TextNode <#text>
+      SVGSVGBox <svg> at (729,9) content-size 50x125 [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] [SVG] children: inline
+        TextNode <#text>
+        SVGGeometryBox <circle> at (729,46.5) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
+        TextNode <#text>
+      TextNode <#text>
+      SVGSVGBox <svg> at (9,136) content-size 50x125 [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] [SVG] children: inline
+        TextNode <#text>
+        SVGGeometryBox <circle> at (9,211) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
+        TextNode <#text>
+      TextNode <#text>
+      SVGSVGBox <svg> at (69,136) content-size 50x125 [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] [SVG] children: inline
+        TextNode <#text>
+        SVGGeometryBox <circle> at (69,136) content-size 125x125 [0+0+0 125 0+0+0] [0+0+0 125 0+0+0] children: not-inline
+        TextNode <#text>
+      TextNode <#text>
+      SVGSVGBox <svg> at (129,136) content-size 50x125 [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] [SVG] children: inline
+        TextNode <#text>
+        SVGGeometryBox <circle> at (91.5,136) content-size 125x125 [0+0+0 125 0+0+0] [0+0+0 125 0+0+0] children: not-inline
+        TextNode <#text>
+      TextNode <#text>
+      SVGSVGBox <svg> at (189,136) content-size 50x125 [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] [SVG] children: inline
+        TextNode <#text>
+        SVGGeometryBox <circle> at (114,136) content-size 125x125 [0+0+0 125 0+0+0] [0+0+0 125 0+0+0] children: not-inline
+        TextNode <#text>
+      TextNode <#text>
+      SVGSVGBox <svg> at (249,201) content-size 160x60 [0+1+0 160 0+1+0] [0+1+0 60 0+1+0] [SVG] children: inline
+        TextNode <#text>
+        SVGGeometryBox <circle> at (249,201) content-size 160x60 [0+0+0 160 0+0+0] [0+0+0 60 0+0+0] children: not-inline
         TextNode <#text>
       TextNode <#text>
 

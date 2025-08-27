@@ -1,13 +1,13 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x66 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x50 children: not-inline
-      BlockContainer <div#a> at (8,8) content-size 100x50 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x66 [0+0+0 800 0+0+0] [0+0+0 66 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x50 [8+0+0 784 0+0+8] [8+0+0 50 0+0+8] children: not-inline
+      BlockContainer <div#a> at (8,8) content-size 100x50 [0+0+0 100 0+0+684] [0+0+0 50 0+0+0] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 100x50] baseline: 50
         TextNode <#text>
-        BlockContainer <div#b> at (8,8) content-size 100x50 inline-block [BFC] children: inline
+        BlockContainer <div#b> at (8,8) content-size 100x50 inline-block [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
           frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 100x50] baseline: 50
           TextNode <#text>
-          SVGSVGBox <svg> at (8,8) content-size 100x50 [SVG] children: inline
+          SVGSVGBox <svg> at (8,8) content-size 100x50 [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [SVG] children: inline
             TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

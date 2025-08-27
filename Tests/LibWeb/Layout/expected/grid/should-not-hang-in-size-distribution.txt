@@ -1,8 +1,8 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
-    Box <body> at (8,8) content-size 784x18 [GFC] children: not-inline
-      BlockContainer <div#item> at (8,8) content-size 783.984375x18 [BFC] children: not-inline
-        BlockContainer <div#block> at (8,8) content-size 783.984375x18 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x18 [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] [GFC] children: not-inline
+      BlockContainer <div#item> at (8,8) content-size 783.984375x18 [0+0+0 783.984375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+        BlockContainer <div#block> at (8,8) content-size 783.984375x18 [0+0+0 783.984375 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 26, rect: [8,8 210.484375x18] baseline: 13.796875
               "Taika Waititi's Best Roles"
           TextNode <#text>

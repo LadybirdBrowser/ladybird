@@ -1,8 +1,8 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x466 [BFC] children: not-inline
-    Box <body> at (8,8) content-size 500x450 [GFC] children: not-inline
-      BlockContainer <div.a> at (8,183) content-size 500x0 [BFC] children: not-inline
-      BlockContainer <div.b> at (8,183) content-size 500x0 [BFC] children: not-inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x466 [0+0+0 800 0+0+0] [0+0+0 466 0+0+0] [BFC] children: not-inline
+    Box <body> at (8,8) content-size 500x450 [8+0+0 500 0+0+292] [8+0+0 450 0+0+8] [GFC] children: not-inline
+      BlockContainer <div.a> at (8,183) content-size 500x0 [0+0+0 500 0+0+0] [50+0+125 0 0+0+0] [BFC] children: not-inline
+      BlockContainer <div.b> at (8,183) content-size 500x0 [0+0+0 500 0+0+0] [0+0+0 0 175+0+100] [BFC] children: not-inline
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text>
 

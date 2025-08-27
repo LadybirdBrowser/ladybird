@@ -152,14 +152,14 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     --indent;
 }
 
-void dump_tree(Layout::Node const& layout_node, bool show_box_model, bool show_cascaded_properties)
+void dump_tree(Layout::Node const& layout_node, bool show_cascaded_properties)
 {
     StringBuilder builder;
-    dump_tree(builder, layout_node, show_box_model, show_cascaded_properties, true);
+    dump_tree(builder, layout_node, show_cascaded_properties, true);
     dbgln("{}", builder.string_view());
 }
 
-void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool show_box_model, bool show_cascaded_properties, bool interactive)
+void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool show_cascaded_properties, bool interactive)
 {
     static size_t indent = 0;
     for (size_t i = 0; i < indent; ++i)
@@ -217,7 +217,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     }
 
     auto dump_box_model = [&] {
-        if (show_box_model && layout_node.first_paintable() && layout_node.first_paintable()->is_paintable_box()) {
+        if (layout_node.first_paintable() && layout_node.first_paintable()->is_paintable_box()) {
             auto const& paintable_box = static_cast<Painting::PaintableBox const&>(*layout_node.first_paintable());
             auto const& box_model = paintable_box.box_model();
             // Dump the horizontal box properties
@@ -352,7 +352,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                 builder.append("\n"sv);
                 if (auto const* nested_layout_root = document->layout_node()) {
                     ++indent;
-                    dump_tree(builder, *nested_layout_root, show_box_model, show_cascaded_properties, interactive);
+                    dump_tree(builder, *nested_layout_root, show_cascaded_properties, interactive);
                     --indent;
                 }
             }
@@ -375,7 +375,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                         builder.append("  "sv);
                     builder.append("(SVG-as-image isolated context)\n"sv);
 
-                    dump_tree(builder, *svg_data.svg_document().layout_node(), show_box_model, show_cascaded_properties, interactive);
+                    dump_tree(builder, *svg_data.svg_document().layout_node(), show_cascaded_properties, interactive);
                     --indent;
                 }
             }
@@ -444,7 +444,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
     ++indent;
     layout_node.for_each_child([&](auto& child) {
-        dump_tree(builder, child, show_box_model, show_cascaded_properties, interactive);
+        dump_tree(builder, child, show_cascaded_properties, interactive);
         return IterationDecision::Continue;
     });
     --indent;

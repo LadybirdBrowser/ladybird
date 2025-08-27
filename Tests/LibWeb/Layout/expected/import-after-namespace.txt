@@ -1,31 +1,31 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x463 [BFC] children: not-inline
-    BlockContainer <body> at (8,16) content-size 784x434 children: not-inline
-      BlockContainer <p> at (8,16) content-size 784x18 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x463 [0+0+0 800 0+0+0] [0+0+0 463 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,16) content-size 784x434 [8+0+0 784 0+0+8] [8+0+0 434 0+0+13] children: not-inline
+      BlockContainer <p> at (8,16) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 35, rect: [8,16 290.765625x18] baseline: 13.796875
             "All divs below should be 100px wide"
         TextNode <#text>
-      BlockContainer <(anonymous)> at (8,50) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,50) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div#target1> at (8,50) content-size 100x100 children: not-inline
-      BlockContainer <(anonymous)> at (8,150) content-size 784x0 children: inline
+      BlockContainer <div#target1> at (8,50) content-size 100x100 [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at (8,150) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div#target2> at (8,150) content-size 100x100 children: not-inline
-      BlockContainer <(anonymous)> at (8,250) content-size 784x0 children: inline
+      BlockContainer <div#target2> at (8,150) content-size 100x100 [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at (8,250) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div#target3> at (8,250) content-size 100x100 children: not-inline
-      BlockContainer <(anonymous)> at (8,350) content-size 784x0 children: inline
+      BlockContainer <div#target3> at (8,250) content-size 100x100 [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at (8,350) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div#target4> at (8,350) content-size 100x100 children: not-inline
-      BlockContainer <(anonymous)> at (8,450) content-size 784x0 children: inline
-        TextNode <#text>
-        TextNode <#text>
+      BlockContainer <div#target4> at (8,350) content-size 100x100 [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at (8,450) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
         TextNode <#text>
         TextNode <#text>
         TextNode <#text>
-      BlockContainer <pre#out> at (8,463) content-size 784x0 children: not-inline
-      BlockContainer <(anonymous)> at (8,463) content-size 784x0 children: inline
+        TextNode <#text>
+        TextNode <#text>
+      BlockContainer <pre#out> at (8,463) content-size 784x0 [0+0+0 784 0+0+0] [13+0+0 0 0+0+13] children: not-inline
+      BlockContainer <(anonymous)> at (8,463) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

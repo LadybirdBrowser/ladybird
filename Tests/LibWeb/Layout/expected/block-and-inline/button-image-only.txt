@@ -1,13 +1,13 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x440 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x424 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x440 [0+0+0 800 0+0+0] [0+0+0 440 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x424 [8+0+0 784 0+0+8] [8+0+0 424 0+0+8] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 420x420] baseline: 422
-      BlockContainer <button> at (13,10) content-size 420x420 inline-block [BFC] children: not-inline
-        BlockContainer <(anonymous)> at (13,10) content-size 420x420 flex-container(column) [FFC] children: not-inline
-          BlockContainer <(anonymous)> at (13,10) content-size 420x420 flex-item [BFC] children: inline
+      BlockContainer <button> at (13,10) content-size 420x420 inline-block [0+1+4 420 4+1+0] [0+1+1 420 1+1+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at (13,10) content-size 420x420 flex-container(column) [0+0+0 420 0+0+0] [0+0+0 420 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at (13,10) content-size 420x420 flex-item [0+0+0 420 0+0+0] [0+0+0 420 0+0+0] [BFC] children: inline
             frag 0 from ImageBox start: 0, length: 0, rect: [13,10 420x420] baseline: 420
             TextNode <#text>
-            ImageBox <img> at (13,10) content-size 420x420 children: not-inline
+            ImageBox <img> at (13,10) content-size 420x420 [0+0+0 420 0+0+0] [0+0+0 420 0+0+0] children: not-inline
             TextNode <#text>
             TextNode <#text>
 

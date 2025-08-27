@@ -1,11 +1,11 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (2,2) content-size 796x64 [BFC] children: not-inline
-    BlockContainer <body> at (12,12) content-size 600x44 children: not-inline
-      BlockContainer <div.exekiller> at (14,14) content-size 200x18 positioned children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (2,2) content-size 796x64 [0+2+0 796 0+2+0] [0+2+0 64 0+2+0] [BFC] children: not-inline
+    BlockContainer <body> at (12,12) content-size 600x44 [8+2+0 600 0+2+184] [8+2+0 44 0+2+8] children: not-inline
+      BlockContainer <div.exekiller> at (14,14) content-size 200x18 positioned [0+2+0 200 0+2+396] [0+2+0 18 0+2+0] children: inline
         frag 0 from TextNode start: 0, length: 9, rect: [14,14 65.4375x18] baseline: 13.796875
             "exekiller"
         TextNode <#text>
-      BlockContainer <div.athena> at (24,26) content-size 200x18 positioned children: inline
+      BlockContainer <div.athena> at (24,26) content-size 200x18 positioned [0+2+0 200 0+2+396] [0+2+0 18 0+2+0] children: inline
         frag 0 from TextNode start: 0, length: 6, rect: [24,26 53.171875x18] baseline: 13.796875
             "athena"
         TextNode <#text>

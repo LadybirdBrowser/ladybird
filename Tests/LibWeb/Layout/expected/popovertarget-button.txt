@@ -1,17 +1,17 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x18 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x18 [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [13,19 0x0] baseline: 4
-      BlockContainer <button#button> at (13,19) content-size 0x0 inline-block [BFC] children: not-inline
-        BlockContainer <(anonymous)> at (13,19) content-size 0x0 flex-container(column) [FFC] children: not-inline
-          BlockContainer <(anonymous)> at (13,19) content-size 0x0 inline-block [BFC] children: not-inline
+      BlockContainer <button#button> at (13,19) content-size 0x0 inline-block [0+1+4 0 4+1+0] [0+1+1 0 1+1+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at (13,19) content-size 0x0 flex-container(column) [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at (13,19) content-size 0x0 inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
       TextNode <#text>
       TextNode <#text>
       TextNode <#text>
-  BlockContainer <(anonymous)> at (0,0) content-size 800x600 positioned [BFC] children: not-inline
-  BlockContainer <div#pop> at (358.84375,291) content-size 82.3125x18 positioned [BFC] children: inline
+  BlockContainer <(anonymous)> at (0,0) content-size 800x600 positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <div#pop> at (358.84375,291) content-size 82.3125x18 positioned [351.84375+3+4 82.3125 4+3+351.84375] [284+3+4 18 4+3+284] [BFC] children: inline
     TextNode <#text>
-    InlineNode <span>
+    InlineNode <span> [0+0+0 82.3125 0+0+0] [0+0+0 18 0+0+0]
       frag 0 from TextNode start: 0, length: 10, rect: [358.84375,291 82.3125x18] baseline: 13.796875
           "I'm a node"
       TextNode <#text>

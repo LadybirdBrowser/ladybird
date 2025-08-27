@@ -1,19 +1,19 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x70 [BFC] children: not-inline
-    Box <body> at (10,10) content-size 500x52 flex-container(row) [FFC] children: not-inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x70 [0+1+0 798 0+1+0] [0+1+0 70 0+1+0] [BFC] children: not-inline
+    Box <body> at (10,10) content-size 500x52 flex-container(row) [8+1+0 500 0+1+288] [8+1+0 52 0+1+8] [FFC] children: not-inline
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text>
-      BlockContainer <div.big> at (11,11) content-size 381.625x50 flex-item [BFC] children: not-inline
+      BlockContainer <div.big> at (11,11) content-size 381.625x50 flex-item [0+1+0 381.625 0+1+0] [0+1+0 50 0+1+0] [BFC] children: not-inline
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text>
-      BlockContainer <div.buttons> at (394.625,11) content-size 114.375x50 flex-item [BFC] children: inline
+      BlockContainer <div.buttons> at (394.625,11) content-size 114.375x50 flex-item [0+1+0 114.375 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [395.625,12 57.046875x18] baseline: 14.796875
         frag 1 from BlockContainer start: 0, length: 0, rect: [454.671875,12 53.328125x18] baseline: 14.796875
-        BlockContainer <div.button> at (395.625,12) content-size 57.046875x18 inline-block [BFC] children: inline
+        BlockContainer <div.button> at (395.625,12) content-size 57.046875x18 inline-block [0+1+0 57.046875 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [395.625,12 57.046875x18] baseline: 13.796875
               "Accept"
           TextNode <#text>
-        BlockContainer <div.button> at (454.671875,12) content-size 53.328125x18 inline-block [BFC] children: inline
+        BlockContainer <div.button> at (454.671875,12) content-size 53.328125x18 inline-block [0+1+0 53.328125 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [454.671875,12 53.328125x18] baseline: 13.796875
               "Reject"
           TextNode <#text>

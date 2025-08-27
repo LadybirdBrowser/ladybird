@@ -1,12 +1,12 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x166 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x150 children: not-inline
-      TableWrapper <(anonymous)> at (8,8) content-size 200x150 [BFC] children: not-inline
-        Box <div.table> at (8,8) content-size 200x150 table-box [TFC] children: not-inline
-          Box <div.row.a> at (8,8) content-size 200x50 table-row children: not-inline
-            BlockContainer <div.cell> at (8,8) content-size 200x0 table-cell [BFC] children: not-inline
-          Box <div.row.b> at (8,58) content-size 200x100 table-row children: not-inline
-            BlockContainer <div.cell> at (8,58) content-size 200x0 table-cell [BFC] children: not-inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x166 [0+0+0 800 0+0+0] [0+0+0 166 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x150 [8+0+0 784 0+0+8] [8+0+0 150 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at (8,8) content-size 200x150 [0+0+0 200 0+0+584] [0+0+0 150 0+0+0] [BFC] children: not-inline
+        Box <div.table> at (8,8) content-size 200x150 table-box [0+0+0 200 0+0+0] [0+0+0 150 0+0+0] [TFC] children: not-inline
+          Box <div.row.a> at (8,8) content-size 200x50 table-row [0+0+0 200 0+0+0] [0+0+0 50 0+0+0] children: not-inline
+            BlockContainer <div.cell> at (8,8) content-size 200x0 table-cell [0+0+0 200 0+0+0] [0+0+0 0 50+0+0] [BFC] children: not-inline
+          Box <div.row.b> at (8,58) content-size 200x100 table-row [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+            BlockContainer <div.cell> at (8,58) content-size 200x0 table-cell [0+0+0 200 0+0+0] [0+0+0 0 100+0+0] [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x166]

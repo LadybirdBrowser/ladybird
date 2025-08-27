@@ -1,8 +1,8 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x0 children: not-inline
-      BlockContainer <div#container> at (8,8) content-size 784x0 children: not-inline
-        BlockContainer <div> at (8,8) content-size 1x1 positioned [BFC] children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x0 [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
+      BlockContainer <div#container> at (8,8) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+        BlockContainer <div> at (8,8) content-size 1x1 positioned [0+0+0 1 0+0+0] [0+0+0 1 0+0+0] [BFC] children: inline
           frag 0 from NavigableContainerViewport start: 0, length: 0, rect: [18,18 10x10] baseline: 30
           frag 1 from NavigableContainerViewport start: 0, length: 0, rect: [18,48 10x10] baseline: 30
           frag 2 from NavigableContainerViewport start: 0, length: 0, rect: [18,78 10x10] baseline: 30
@@ -13,55 +13,55 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           frag 7 from NavigableContainerViewport start: 0, length: 0, rect: [18,228 10x10] baseline: 30
           frag 8 from NavigableContainerViewport start: 0, length: 0, rect: [18,258 10x10] baseline: 30
           frag 9 from NavigableContainerViewport start: 0, length: 0, rect: [18,288 10x10] baseline: 30
-          NavigableContainerViewport <iframe> at (18,18) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,18) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
-          NavigableContainerViewport <iframe> at (18,48) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,48) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
-          NavigableContainerViewport <iframe> at (18,78) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,78) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
-          NavigableContainerViewport <iframe> at (18,108) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,108) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
-          NavigableContainerViewport <iframe> at (18,138) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,138) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
-          NavigableContainerViewport <iframe> at (18,168) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,168) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
-          NavigableContainerViewport <iframe> at (18,198) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,198) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
-          NavigableContainerViewport <iframe> at (18,228) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,228) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
-          NavigableContainerViewport <iframe> at (18,258) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,258) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
-          NavigableContainerViewport <iframe> at (18,288) content-size 10x10 children: not-inline (url: about:blank)
-            Viewport <#document> at (0,0) content-size 10x10 children: not-inline
-              BlockContainer <html> at (0,0) content-size 10x16 [BFC] children: not-inline
-                BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+          NavigableContainerViewport <iframe> at (18,288) content-size 10x10 [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
+            Viewport <#document> at (0,0) content-size 10x10 [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <html> at (0,0) content-size 10x16 [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <body> at (8,8) content-size 0x0 [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

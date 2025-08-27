@@ -1,13 +1,13 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x154 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x138 children: not-inline
-      BlockContainer <details> at (68,68) content-size 664x18 children: not-inline
-        ListItemBox <summary> at (84,68) content-size 656x18 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x154 [0+0+0 800 0+0+0] [0+0+0 154 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x138 [8+0+0 784 0+0+8] [8+0+0 138 0+0+8] children: not-inline
+      BlockContainer <details> at (68,68) content-size 664x18 [0+10+50 664 50+10+0] [0+10+50 18 50+10+0] children: not-inline
+        ListItemBox <summary> at (84,68) content-size 656x18 [0+0+0 656 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [84,68 36.84375x18] baseline: 13.796875
               "hello"
-          ListItemMarkerBox <(anonymous)> at (68,73) content-size 8x8 children: not-inline
+          ListItemMarkerBox <(anonymous)> at (68,73) content-size 8x8 [0+0+0 8 0+0+0] [0+0+0 8 0+0+0] children: not-inline
           TextNode <#text>
-        BlockContainer <slot> at (68,86) content-size 664x0 children: not-inline
+        BlockContainer <slot> at (68,86) content-size 664x0 [0+0+0 664 0+0+0] [0+0+0 0 0+0+0] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x154]

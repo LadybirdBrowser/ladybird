@@ -1,16 +1,16 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x28 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x12 children: not-inline
-      TableWrapper <(anonymous)> at (8,8) content-size 12x12 [BFC] children: not-inline
-        Box <table> at (8,8) content-size 12x12 table-box [TFC] children: not-inline
-          Box <tbody> at (10,10) content-size 8x8 table-row-group children: not-inline
-            Box <tr> at (10,10) content-size 8x8 table-row children: not-inline
-              BlockContainer <td> at (11,11) content-size 6x6 table-cell [BFC] children: not-inline
-                TableWrapper <(anonymous)> at (11,11) content-size 6x6 [BFC] children: not-inline
-                  Box <table> at (11,11) content-size 6x6 table-box [TFC] children: not-inline
-                    Box <tbody> at (13,13) content-size 2x2 table-row-group children: not-inline
-                      Box <tr> at (13,13) content-size 2x2 table-row children: not-inline
-                        BlockContainer <td> at (14,14) content-size 0x0 table-cell [BFC] children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x28 [0+0+0 800 0+0+0] [0+0+0 28 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x12 [8+0+0 784 0+0+8] [8+0+0 12 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at (8,8) content-size 12x12 [0+0+0 12 0+0+772] [0+0+0 12 0+0+0] [BFC] children: not-inline
+        Box <table> at (8,8) content-size 12x12 table-box [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] [TFC] children: not-inline
+          Box <tbody> at (10,10) content-size 8x8 table-row-group [0+0+0 8 0+0+0] [0+0+0 8 0+0+0] children: not-inline
+            Box <tr> at (10,10) content-size 8x8 table-row [0+0+0 8 0+0+0] [0+0+0 8 0+0+0] children: not-inline
+              BlockContainer <td> at (11,11) content-size 6x6 table-cell [0+0+1 6 1+0+0] [0+0+1 6 1+0+0] [BFC] children: not-inline
+                TableWrapper <(anonymous)> at (11,11) content-size 6x6 [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+                  Box <table> at (11,11) content-size 6x6 table-box [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [TFC] children: not-inline
+                    Box <tbody> at (13,13) content-size 2x2 table-row-group [0+0+0 2 0+0+0] [0+0+0 2 0+0+0] children: not-inline
+                      Box <tr> at (13,13) content-size 2x2 table-row [0+0+0 2 0+0+0] [0+0+0 2 0+0+0] children: not-inline
+                        BlockContainer <td> at (14,14) content-size 0x0 table-cell [0+0+1 0 1+0+0] [0+0+1 0 1+0+0] [BFC] children: inline
                           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

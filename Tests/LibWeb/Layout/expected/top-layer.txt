@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x0 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x0 [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
       TextNode <#text>
-  BlockContainer <(anonymous)> at (0,0) content-size 800x600 positioned [BFC] children: not-inline
-  BlockContainer <dialog#dialog> at (196.671875,275) content-size 406.65625x50 positioned [BFC] children: not-inline
-    BlockContainer <p> at (196.671875,291) content-size 406.65625x18 children: inline
+  BlockContainer <(anonymous)> at (0,0) content-size 800x600 positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <dialog#dialog> at (196.671875,275) content-size 406.65625x50 positioned [177.671875+3+16 406.65625 16+3+177.671875] [256+3+16 50 16+3+256] [BFC] children: not-inline
+    BlockContainer <p> at (196.671875,291) content-size 406.65625x18 [0+0+0 406.65625 0+0+0] [16+0+0 18 0+0+16] children: inline
       frag 0 from TextNode start: 0, length: 50, rect: [196.671875,291 406.65625x18] baseline: 13.796875
           "Dialog's layout node should be a child of viewport"
       TextNode <#text>

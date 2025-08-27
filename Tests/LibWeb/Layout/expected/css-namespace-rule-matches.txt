@@ -1,14 +1,14 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x63 [BFC] children: not-inline
-    BlockContainer <body> at (8,20) content-size 784x23 children: not-inline
-      BlockContainer <p> at (8,20) content-size 784x23 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x63 [0+0+0 800 0+0+0] [0+0+0 63 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,20) content-size 784x23 [8+0+0 784 0+0+8] [8+0+0 23 0+0+20] children: not-inline
+      BlockContainer <p> at (8,20) content-size 784x23 [0+0+0 784 0+0+0] [20+0+0 23 0+0+20] children: inline
         TextNode <#text>
-        InlineNode <a>
+        InlineNode <a> [0+0+10 163.9375 10+0+0] [0+0+10 23 10+0+0]
           frag 0 from TextNode start: 0, length: 15, rect: [18,20 163.9375x23] baseline: 17.5
               "Should be green"
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <(anonymous)> at (8,63) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,63) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

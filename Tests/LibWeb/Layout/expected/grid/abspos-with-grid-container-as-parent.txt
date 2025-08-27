@@ -1,41 +1,41 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x0 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 400x275 positioned [BFC] children: not-inline
-      BlockContainer <div#fill> at (8,8) content-size 100x100 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x0 [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 400x275 positioned [8+0+0 400 0+0+8] [8+0+0 275 0+0+8] [BFC] children: not-inline
+      BlockContainer <div#fill> at (8,8) content-size 100x100 [0+0+0 100 0+0+300] [0+0+0 100 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 5, rect: [8,8 36.84375x18] baseline: 13.796875
             "hello"
         TextNode <#text>
-      BlockContainer <(anonymous)> at (8,108) content-size 400x0 children: inline
+      BlockContainer <(anonymous)> at (8,108) content-size 400x0 [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div#grid> at (8,108) content-size 400x75 [BFC] children: inline
+      BlockContainer <div#grid> at (8,108) content-size 400x75 [0+0+0 400 0+0+0] [0+0+0 75 0+0+0] [BFC] children: inline
         TextNode <#text>
-        BlockContainer <div#grid-item-abspos> at (8,8) content-size 60.890625x25 positioned [BFC] children: inline
+        BlockContainer <div#grid-item-abspos> at (8,8) content-size 60.890625x25 positioned [0+0+0 60.890625 0+0+0] [0+0+0 25 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 8, rect: [8,8 60.890625x18] baseline: 13.796875
               "top left"
           TextNode <#text>
         TextNode <#text>
-        BlockContainer <div#grid-item-abspos> at (336.25,8) content-size 71.75x25 positioned [BFC] children: inline
+        BlockContainer <div#grid-item-abspos> at (336.25,8) content-size 71.75x25 positioned [0+0+0 71.75 0+0+0] [0+0+0 25 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [336.25,8 71.75x18] baseline: 13.796875
               "top right"
           TextNode <#text>
         TextNode <#text>
-        BlockContainer <div#grid-item-abspos> at (8,258) content-size 90.359375x25 positioned [BFC] children: inline
+        BlockContainer <div#grid-item-abspos> at (8,258) content-size 90.359375x25 positioned [0+0+0 90.359375 0+0+0] [0+0+0 25 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 11, rect: [8,258 90.359375x18] baseline: 13.796875
               "bottom left"
           TextNode <#text>
         TextNode <#text>
-        BlockContainer <div#grid-item-abspos> at (306.78125,258) content-size 101.21875x25 positioned [BFC] children: inline
+        BlockContainer <div#grid-item-abspos> at (306.78125,258) content-size 101.21875x25 positioned [0+0+0 101.21875 0+0+0] [0+0+0 25 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 12, rect: [306.78125,258 101.21875x18] baseline: 13.796875
               "bottom right"
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <(anonymous)> at (8,183) content-size 400x0 children: inline
+      BlockContainer <(anonymous)> at (8,183) content-size 400x0 [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      BlockContainer <div#fill> at (8,183) content-size 100x100 children: inline
+      BlockContainer <div#fill> at (8,183) content-size 100x100 [0+0+0 100 0+0+300] [0+0+0 100 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 5, rect: [8,183 36.84375x18] baseline: 13.796875
             "hello"
         TextNode <#text>
-      BlockContainer <(anonymous)> at (8,283) content-size 400x0 children: inline
+      BlockContainer <(anonymous)> at (8,283) content-size 400x0 [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

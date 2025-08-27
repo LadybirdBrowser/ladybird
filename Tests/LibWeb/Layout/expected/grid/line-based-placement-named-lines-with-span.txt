@@ -1,36 +1,36 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x240 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x224 children: not-inline
-      BlockContainer <(anonymous)> at (8,8) content-size 784x0 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x240 [0+0+0 800 0+0+0] [0+0+0 240 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x224 [8+0+0 784 0+0+8] [8+0+0 224 0+0+8] children: not-inline
+      BlockContainer <(anonymous)> at (8,8) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
-      Box <div.wrapper> at (8,8) content-size 784x224 [GFC] children: not-inline
+      Box <div.wrapper> at (8,8) content-size 784x224 [0+0+0 784 0+0+0] [0+0+0 224 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.a> at (28,28) content-size 170x28 [BFC] children: inline
+        BlockContainer <div.box.a> at (28,28) content-size 170x28 [0+0+20 170 20+0+0] [0+0+20 28 20+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [28,28 21.40625x28] baseline: 21.1875
               "A"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.b> at (248,28) content-size 170x28 [BFC] children: inline
+        BlockContainer <div.box.b> at (248,28) content-size 170x28 [0+0+20 170 20+0+0] [0+0+20 28 20+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [248,28 14.015625x28] baseline: 21.1875
               "B"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.c> at (28,106) content-size 60x28 [BFC] children: inline
+        BlockContainer <div.box.c> at (28,106) content-size 60x28 [0+0+20 60 20+0+0] [0+0+20 28 20+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [28,106 15.46875x28] baseline: 21.1875
               "C"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.d> at (138,106) content-size 280x28 [BFC] children: inline
+        BlockContainer <div.box.d> at (138,106) content-size 280x28 [0+0+20 280 20+0+0] [0+0+20 28 20+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [138,106 16.71875x28] baseline: 21.1875
               "D"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div.box.e> at (28,184) content-size 390x28 [BFC] children: inline
+        BlockContainer <div.box.e> at (28,184) content-size 390x28 [0+0+20 390 20+0+0] [0+0+20 28 20+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [28,184 17.796875x28] baseline: 21.1875
               "E"
           TextNode <#text>

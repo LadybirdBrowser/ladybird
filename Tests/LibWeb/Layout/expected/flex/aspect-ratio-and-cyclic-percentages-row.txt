@@ -1,12 +1,12 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x216 [BFC] children: not-inline
-    Box <body> at (8,8) content-size 300x200 flex-container(row) [FFC] children: not-inline
-      BlockContainer <main> at (8,8) content-size 27.640625x200 flex-item [BFC] children: not-inline
-        BlockContainer <article> at (8,8) content-size 27.640625x27.640625 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x216 [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: not-inline
+    Box <body> at (8,8) content-size 300x200 flex-container(row) [8+0+0 300 0+0+492] [8+0+0 200 0+0+8] [FFC] children: not-inline
+      BlockContainer <main> at (8,8) content-size 27.640625x200 flex-item [0+0+0 27.640625 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
+        BlockContainer <article> at (8,8) content-size 27.640625x27.640625 [0+0+0 27.640625 0+0+0] [0+0+0 27.640625 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x18] baseline: 13.796875
               "foo"
           TextNode <#text>
-        BlockContainer <article> at (8,35.640625) content-size 27.640625x27.640625 children: inline
+        BlockContainer <article> at (8,35.640625) content-size 27.640625x27.640625 [0+0+0 27.640625 0+0+0] [0+0+0 27.640625 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [8,35.640625 27.640625x18] baseline: 13.796875
               "bar"
           TextNode <#text>

@@ -1,7 +1,7 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x349 [BFC] children: not-inline
-    Box <body.hero> at (2,2) content-size 600x347 flex-container(column) [FFC] children: not-inline
-      BlockContainer <div.header> at (102,3) content-size 400x345 flex-item [BFC] children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x349 [0+1+0 798 0+1+0] [0+1+0 349 0+1+0] [BFC] children: not-inline
+    Box <body.hero> at (2,2) content-size 600x347 flex-container(column) [0+1+0 600 0+1+196] [0+1+0 347 0+1+0] [FFC] children: not-inline
+      BlockContainer <div.header> at (102,3) content-size 400x345 flex-item [0+1+0 400 0+1+0] [0+1+0 345 0+1+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 11, rect: [102,3 340.5x69] baseline: 52.484375
             "This entire"
         frag 1 from TextNode start: 12, length: 11, rect: [102,72 341.25x69] baseline: 52.484375

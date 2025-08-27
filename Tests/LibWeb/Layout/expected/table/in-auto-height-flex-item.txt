@@ -1,11 +1,11 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x40 [BFC] children: not-inline
-    Box <body> at (10,10) content-size 780x22 flex-container(row) [FFC] children: not-inline
-      BlockContainer <div.upper> at (11,11) content-size 41.78125x20 flex-item [BFC] children: not-inline
-        TableWrapper <(anonymous)> at (11,11) content-size 41.78125x20 [BFC] children: not-inline
-          Box <(anonymous)> at (11,11) content-size 41.78125x20 table-box [TFC] children: not-inline
-            Box <(anonymous)> at (11,11) content-size 41.78125x20 table-row children: not-inline
-              BlockContainer <div.cell> at (12,12) content-size 39.78125x18 table-cell [BFC] children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x40 [0+1+0 798 0+1+0] [0+1+0 40 0+1+0] [BFC] children: not-inline
+    Box <body> at (10,10) content-size 780x22 flex-container(row) [8+1+0 780 0+1+8] [8+1+0 22 0+1+8] [FFC] children: not-inline
+      BlockContainer <div.upper> at (11,11) content-size 41.78125x20 flex-item [0+1+0 41.78125 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
+        TableWrapper <(anonymous)> at (11,11) content-size 41.78125x20 [0+0+0 41.78125 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+          Box <(anonymous)> at (11,11) content-size 41.78125x20 table-box [0+0+0 41.78125 0+0+0] [0+0+0 20 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at (11,11) content-size 41.78125x20 table-row [0+0+0 41.78125 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <div.cell> at (12,12) content-size 39.78125x18 table-cell [0+1+0 39.78125 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 5, rect: [12,12 39.78125x18] baseline: 13.796875
                     "Hello"
                 TextNode <#text>

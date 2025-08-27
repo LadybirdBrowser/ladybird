@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x186 [BFC] children: not-inline
-    BlockContainer <body> at (8,16) content-size 784x154 children: not-inline
-      BlockContainer <p> at (8,16) content-size 784x18 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x186 [0+0+0 800 0+0+0] [0+0+0 186 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,16) content-size 784x154 [8+0+0 784 0+0+8] [8+0+0 154 0+0+16] children: not-inline
+      BlockContainer <p> at (8,16) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 1, rect: [26.125,16 14.265625x18] baseline: 13.796875
             "A"
-        InlineNode <(anonymous)>
+        InlineNode <(anonymous)> [0+0+0 18.125 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [8,16 6.34375x18] baseline: 13.796875
               "1"
           frag 1 from TextNode start: 0, length: 2, rect: [14.34375,16 11.78125x18] baseline: 13.796875
@@ -12,10 +12,10 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           TextNode <#text>
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <p> at (8,50) content-size 784x18 children: inline
+      BlockContainer <p> at (8,50) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 1, rect: [28.59375,50 9.34375x18] baseline: 13.796875
             "B"
-        InlineNode <(anonymous)>
+        InlineNode <(anonymous)> [0+0+0 20.59375 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [8,50 8.8125x18] baseline: 13.796875
               "2"
           frag 1 from TextNode start: 0, length: 2, rect: [16.8125,50 11.78125x18] baseline: 13.796875
@@ -23,10 +23,10 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           TextNode <#text>
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <p> at (8,84) content-size 784x18 children: inline
+      BlockContainer <p> at (8,84) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 1, rect: [28.875,84 10.3125x18] baseline: 13.796875
             "C"
-        InlineNode <(anonymous)>
+        InlineNode <(anonymous)> [0+0+0 20.875 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [8,84 9.09375x18] baseline: 13.796875
               "3"
           frag 1 from TextNode start: 0, length: 2, rect: [17.09375,84 11.78125x18] baseline: 13.796875
@@ -34,10 +34,10 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           TextNode <#text>
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <p> at (8,118) content-size 784x18 children: inline
+      BlockContainer <p> at (8,118) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 1, rect: [27.53125,118 11.140625x18] baseline: 13.796875
             "D"
-        InlineNode <(anonymous)>
+        InlineNode <(anonymous)> [0+0+0 19.53125 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [8,118 7.75x18] baseline: 13.796875
               "4"
           frag 1 from TextNode start: 0, length: 2, rect: [15.75,118 11.78125x18] baseline: 13.796875
@@ -45,10 +45,10 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           TextNode <#text>
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <p> at (8,152) content-size 784x18 children: inline
+      BlockContainer <p> at (8,152) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 1, rect: [28.234375,152 11.859375x18] baseline: 13.796875
             "E"
-        InlineNode <(anonymous)>
+        InlineNode <(anonymous)> [0+0+0 20.234375 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [8,152 8.453125x18] baseline: 13.796875
               "5"
           frag 1 from TextNode start: 0, length: 2, rect: [16.453125,152 11.78125x18] baseline: 13.796875

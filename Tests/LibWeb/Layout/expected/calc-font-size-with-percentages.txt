@@ -1,7 +1,7 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x126 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x110 children: not-inline
-      BlockContainer <div.test> at (8,8) content-size 784x110 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x126 [0+0+0 800 0+0+0] [0+0+0 126 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x110 [8+0+0 784 0+0+8] [8+0+0 110 0+0+8] children: not-inline
+      BlockContainer <div.test> at (8,8) content-size 784x110 [0+0+0 784 0+0+0] [0+0+0 110 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 20, rect: [8,8 500.8125x55] baseline: 41.890625
             "i resolved enough of"
         frag 1 from TextNode start: 21, length: 16, rect: [8,63 406.40625x55] baseline: 41.890625

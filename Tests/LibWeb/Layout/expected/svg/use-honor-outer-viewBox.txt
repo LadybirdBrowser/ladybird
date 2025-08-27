@@ -1,13 +1,13 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x118 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x102 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x118 [0+0+0 800 0+0+0] [0+0+0 118 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x102 [8+0+0 784 0+0+8] [8+0+0 102 0+0+8] children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [9,9 100x100] baseline: 102
-      SVGSVGBox <svg#outer> at (9,9) content-size 100x100 [SVG] children: inline
+      SVGSVGBox <svg#outer> at (9,9) content-size 100x100 [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [SVG] children: inline
         TextNode <#text>
-        SVGGraphicsBox <use> at (9,9) content-size 100x100 children: inline
-          SVGSVGBox <svg#whee> at (9,9) content-size 100x100 [SVG] children: inline
+        SVGGraphicsBox <use> at (9,9) content-size 100x100 [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: inline
+          SVGSVGBox <svg#whee> at (9,9) content-size 100x100 [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [SVG] children: inline
             TextNode <#text>
-            SVGGeometryBox <rect> at (9,9) content-size 50x50 children: inline
+            SVGGeometryBox <rect> at (9,9) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: inline
               TextNode <#text>
         TextNode <#text>
       TextNode <#text>

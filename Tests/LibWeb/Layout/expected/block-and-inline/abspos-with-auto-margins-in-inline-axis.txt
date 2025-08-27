@@ -1,9 +1,9 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x18 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x0 children: not-inline
-      BlockContainer <div#foo> at (350,1) content-size 100x100 positioned [BFC] children: not-inline
-      BlockContainer <div#bar> at (699,101) content-size 100x100 positioned [BFC] children: not-inline
-      BlockContainer <div#baz> at (1,201) content-size 100x100 positioned [BFC] children: not-inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x18 [0+1+0 798 0+1+0] [0+1+0 18 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x0 [8+1+0 780 0+1+8] [8+1+0 0 0+1+8] children: not-inline
+      BlockContainer <div#foo> at (350,1) content-size 100x100 positioned [349+1+0 100 0+1+349] [0+1+0 100 0+1+0] [BFC] children: not-inline
+      BlockContainer <div#bar> at (699,101) content-size 100x100 positioned [698+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: not-inline
+      BlockContainer <div#baz> at (1,201) content-size 100x100 positioned [0+1+0 100 0+1+698] [0+1+0 100 0+1+0] [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x20]

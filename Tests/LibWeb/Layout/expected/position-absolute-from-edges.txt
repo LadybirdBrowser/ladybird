@@ -1,15 +1,15 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x0 children: inline
-      BlockContainer <div#container> at (28,28) content-size 500x400 positioned [BFC] children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x0 [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
+      BlockContainer <div#container> at (28,28) content-size 500x400 positioned [0+20+0 500 0+20+0] [0+20+0 400 0+20+0] [BFC] children: inline
         TextNode <#text>
-        BlockContainer <div#red> at (58,58) content-size 100x100 positioned [BFC] children: not-inline
+        BlockContainer <div#red> at (58,58) content-size 100x100 positioned [0+10+0 100 0+10+0] [0+10+0 100 0+10+0] [BFC] children: not-inline
         TextNode <#text>
-        BlockContainer <div#green> at (358,98) content-size 100x100 positioned [BFC] children: not-inline
+        BlockContainer <div#green> at (358,98) content-size 100x100 positioned [50+0+0 100 0+0+50] [50+0+0 100 0+0+50] [BFC] children: not-inline
         TextNode <#text>
-        BlockContainer <div#blue> at (48,308) content-size 100x100 positioned [BFC] children: not-inline
+        BlockContainer <div#blue> at (48,308) content-size 100x100 positioned [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
         TextNode <#text>
-        BlockContainer <div#yellow> at (408,308) content-size 100x100 positioned [BFC] children: not-inline
+        BlockContainer <div#yellow> at (408,308) content-size 100x100 positioned [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
         TextNode <#text>
       TextNode <#text>
 

@@ -1,8 +1,8 @@
-Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x416 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 400x400 floating [BFC] children: not-inline
-      ImageBox <img> at (58,8) content-size 300x400 children: not-inline
-      BlockContainer <(anonymous)> at (8,408) content-size 400x0 children: inline
+Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x416 [0+0+0 800 0+0+0] [0+0+0 416 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 400x400 floating [8+0+0 400 0+0+8] [8+0+0 400 0+0+8] [BFC] children: not-inline
+      ImageBox <img> at (58,8) content-size 300x400 [0+0+50 300 50+0+0] [0+0+0 400 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at (8,408) content-size 400x0 [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
