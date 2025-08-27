@@ -16,10 +16,10 @@
 namespace Web::CSS {
 
 struct WEB_API EdgeRect {
-    Length top_edge;
-    Length right_edge;
-    Length bottom_edge;
-    Length left_edge;
+    LengthOrAuto top_edge;
+    LengthOrAuto right_edge;
+    LengthOrAuto bottom_edge;
+    LengthOrAuto left_edge;
     CSSPixelRect resolved(Layout::Node const&, CSSPixelRect) const;
     bool operator==(EdgeRect const&) const = default;
 };
