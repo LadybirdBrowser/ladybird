@@ -21,12 +21,6 @@ LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_s
     begin_new_line(false);
 }
 
-LineBuilder::~LineBuilder()
-{
-    if (m_last_line_needs_update)
-        update_last_line();
-}
-
 void LineBuilder::break_line(ForcedBreak forced_break, Optional<CSSPixels> next_item_width)
 {
     // FIXME: Respect inline direction.
@@ -35,7 +29,9 @@ void LineBuilder::break_line(ForcedBreak forced_break, Optional<CSSPixels> next_
     last_line_box.m_has_break = true;
     last_line_box.m_has_forced_break = forced_break == ForcedBreak::Yes;
 
+    m_last_line_needs_update = true;
     update_last_line();
+
     size_t break_count = 0;
     bool floats_intrude_at_current_y = false;
     do {
@@ -192,9 +188,11 @@ bool LineBuilder::should_break(CSSPixels next_item_width)
 
 void LineBuilder::update_last_line()
 {
+    if (!m_last_line_needs_update)
+        return;
     m_last_line_needs_update = false;
-    auto& line_boxes = m_containing_block_used_values.line_boxes;
 
+    auto& line_boxes = m_containing_block_used_values.line_boxes;
     if (line_boxes.is_empty())
         return;
 
