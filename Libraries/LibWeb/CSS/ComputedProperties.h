@@ -78,6 +78,7 @@ public:
     [[nodiscard]] Variant<LengthPercentage, NormalGap> gap_value(PropertyID) const;
     LengthPercentage length_percentage_or_fallback(PropertyID, LengthPercentage const& fallback) const;
     Optional<LengthPercentage> length_percentage(PropertyID) const;
+    Length length(PropertyID) const;
     LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Length const& default_value) const;
     Color color_or_fallback(PropertyID, ColorResolutionContext, Color fallback) const;
     ColorInterpolation color_interpolation() const;

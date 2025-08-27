@@ -243,6 +243,9 @@ public:
     CSS::ImmutableComputedValues const& computed_values() const { return static_cast<CSS::ImmutableComputedValues const&>(*m_computed_values); }
     CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
 
+    // FIXME: Move this to StyleComputer once all users are migrated
+    static CSSPixels snap_a_length_as_a_border_width(double device_pixels_per_css_pixel, CSSPixels length);
+
     void apply_style(CSS::ComputedProperties const&);
 
     Gfx::Font const& first_available_font() const;

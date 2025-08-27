@@ -198,8 +198,10 @@ public:
 
     struct PropertyValueComputationContext {
         Length::ResolutionContext length_resolution_context;
+        double device_pixels_per_css_pixel;
     };
     static NonnullRefPtr<StyleValue const> compute_value_of_property(PropertyID, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, PropertyValueComputationContext const&);
+    static NonnullRefPtr<StyleValue const> compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& specified_value, NonnullRefPtr<StyleValue const> const& style_specified_value, PropertyValueComputationContext const&);
 
 private:
     virtual void visit_edges(Visitor&) override;

@@ -246,6 +246,11 @@ Optional<LengthPercentage> ComputedProperties::length_percentage(PropertyID id) 
     return {};
 }
 
+Length ComputedProperties::length(PropertyID property_id) const
+{
+    return property(property_id).as_length().length();
+}
+
 LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Length const& default_value) const
 {
     LengthBox box;

@@ -1173,6 +1173,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 .viewport_rect = viewport_rect(),
                 .font_metrics = font_metrics,
                 .root_font_metrics = m_root_element_font_metrics },
+            .device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel()
         };
 
         // NOTE: This doesn't necessarily return the specified value if we reach into computed_properties but that
@@ -2202,7 +2203,8 @@ void StyleComputer::compute_property_values(ComputedProperties& style) const
             .viewport_rect = viewport_rect(),
             .font_metrics = font_metrics,
             .root_font_metrics = m_root_element_font_metrics,
-        }
+        },
+        .device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel()
     };
 
     // NOTE: This doesn't necessarily return the specified value if we have already computed this property but that
@@ -3202,15 +3204,62 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
     abstract_element.set_custom_properties(move(resolved_custom_properties));
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(PropertyID property_id, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const&, PropertyValueComputationContext const&)
+static CSSPixels line_width_keyword_to_css_pixels(Keyword keyword)
+{
+    // https://drafts.csswg.org/css-backgrounds/#typedef-line-width
+    //	The thin, medium, and thick keywords are equivalent to 1px, 3px, and 5px, respectively.
+    switch (keyword) {
+    case Keyword::Thin:
+        return CSSPixels { 1 };
+    case Keyword::Medium:
+        return CSSPixels { 3 };
+    case Keyword::Thick:
+        return CSSPixels { 5 };
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(PropertyID property_id, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, PropertyValueComputationContext const& computation_context)
 {
     switch (property_id) {
+    case PropertyID::BorderBottomWidth:
+        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderBottomStyle), computation_context);
+    case PropertyID::BorderLeftWidth:
+        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderLeftStyle), computation_context);
+    case PropertyID::BorderRightWidth:
+        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderRightStyle), computation_context);
+    case PropertyID::BorderTopWidth:
+        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderTopStyle), computation_context);
     default:
         // FIXME: We should replace this with a VERIFY_NOT_REACHED() once all properties have their own handling.
         return specified_value;
     }
 
     VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& specified_value, NonnullRefPtr<StyleValue const> const& style_specified_value, PropertyValueComputationContext const& computation_context)
+{
+    // https://drafts.csswg.org/css-backgrounds/#border-width
+    // absolute length, snapped as a border width; zero if the border style is none or hidden
+    if (first_is_one_of(style_specified_value->to_keyword(), Keyword::None, Keyword::Hidden))
+        return LengthStyleValue::create(Length::make_px(0));
+
+    auto const absolute_length = [&]() -> CSSPixels {
+        if (specified_value->is_calculated())
+            return specified_value->as_calculated().resolve_length({ .length_resolution_context = computation_context.length_resolution_context })->absolute_length_to_px();
+
+        if (specified_value->is_length())
+            return specified_value->as_length().length().to_px(computation_context.length_resolution_context);
+
+        if (specified_value->is_keyword())
+            return line_width_keyword_to_css_pixels(specified_value->to_keyword());
+
+        VERIFY_NOT_REACHED();
+    }();
+
+    return LengthStyleValue::create(Length::make_px(Layout::NodeWithStyle::snap_a_length_as_a_border_width(computation_context.device_pixels_per_css_pixel, absolute_length)));
 }
 
 void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::AbstractElement> element) const

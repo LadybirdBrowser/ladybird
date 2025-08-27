@@ -790,22 +790,6 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // -> Any other property
         //    The resolved value is the computed value.
         //    NOTE: This is handled inside the `default` case.
-    case PropertyID::BorderBottomWidth: {
-        auto border_bottom_width = layout_node.computed_values().border_bottom().width;
-        return LengthStyleValue::create(Length::make_px(border_bottom_width));
-    }
-    case PropertyID::BorderLeftWidth: {
-        auto border_left_width = layout_node.computed_values().border_left().width;
-        return LengthStyleValue::create(Length::make_px(border_left_width));
-    }
-    case PropertyID::BorderRightWidth: {
-        auto border_right_width = layout_node.computed_values().border_right().width;
-        return LengthStyleValue::create(Length::make_px(border_right_width));
-    }
-    case PropertyID::BorderTopWidth: {
-        auto border_top_width = layout_node.computed_values().border_top().width;
-        return LengthStyleValue::create(Length::make_px(border_top_width));
-    }
     case PropertyID::Contain: {
         auto const& contain = layout_node.computed_values().contain();
         if (contain.layout_containment && contain.style_containment && contain.paint_containment) {
