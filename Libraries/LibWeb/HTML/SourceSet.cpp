@@ -400,15 +400,8 @@ void SourceSet::normalize_source_densities(DOM::Element const& element)
             return m_source_size.value();
         }
 
-        // HACK: Flush any pending layouts here so we get an up-to-date length resolution context.
-        // FIXME: We should have a way to build a LengthResolutionContext for any DOM node without going through the layout tree.
-        const_cast<DOM::Document&>(element.document()).update_layout(DOM::UpdateLayoutReason::SourceSetNormalizeSourceDensities);
-        if (element.layout_node()) {
-            CSS::CalculationResolutionContext context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*element.layout_node()) };
-            return m_source_size.resolved(context).value_or(CSS::Length::make_auto());
-        }
-        // FIXME: This is wrong, but we don't have a better way to resolve lengths without a layout node yet.
-        return CSS::Length::make_auto();
+        CSS::CalculationResolutionContext context { .length_resolution_context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { const_cast<DOM::Element&>(element) }) };
+        return m_source_size.resolved(context).value_or(CSS::Length::make_auto());
     }();
 
     // 2. For each image source in source set:
