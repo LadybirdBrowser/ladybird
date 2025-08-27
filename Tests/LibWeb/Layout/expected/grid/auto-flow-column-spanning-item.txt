@@ -1,11 +1,11 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
-    Box <body> at (8,8) content-size 784x18 [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] [GFC] children: not-inline
-      BlockContainer <div> at (8,8) content-size 151.359375x18 [0+0+0 151.359375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
-      BlockContainer <div.item> at (159.359375,8) content-size 632.59375x18 [0+0+0 632.59375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    Box <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] [GFC] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 151.359375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+      BlockContainer <div.item> at [159.359375,8] [0+0+0 632.59375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [159.359375,8 27.15625x18] baseline: 13.796875
             "foo"
-        TextNode <#text>
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]

@@ -1,8 +1,8 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x516 [0+0+0 800 0+0+0] [0+0+0 516 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x500 [8+0+0 784 0+0+8] [8+0+0 500 0+0+8] children: not-inline
-      Box <div.grid> at (8,8) content-size 100x500 [0+0+0 100 0+0+684] [0+0+0 500 0+0+0] [GFC] children: not-inline
-        ImageBox <img> at (8,8) content-size 500x500 [0+0+0 500 0+0+0] [0+0+0 500 0+0+0] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 516 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 500 0+0+8] children: not-inline
+      Box <div.grid> at [8,8] [0+0+0 100 0+0+684] [0+0+0 500 0+0+0] [GFC] children: not-inline
+        ImageBox <img> at [8,8] [0+0+0 500 0+0+0] [0+0+0 500 0+0+0] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x516]

@@ -1,38 +1,38 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x286 [0+0+0 800 0+0+0] [0+0+0 286 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x270 [8+0+0 784 0+0+8] [8+0+0 270 0+0+8] children: not-inline
-      Box <div.grid-container> at (58,58) content-size 170x170 positioned [0+0+50 170 50+0+514] [0+0+50 170 50+0+0] [GFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 286 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 270 0+0+8] children: not-inline
+      Box <div.grid-container> at [58,58] positioned [0+0+50 170 50+0+514] [0+0+50 170 50+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item> at (58,58) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item> at [58,58] [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [58,58 6.34375x18] baseline: 13.796875
               "1"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item> at (128,58) content-size 100x50 [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item> at [128,58] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [128,58 8.8125x18] baseline: 13.796875
               "2"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item> at (58,128) content-size 50x100 [0+0+0 50 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item> at [58,128] [0+0+0 50 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [58,128 9.09375x18] baseline: 13.796875
               "3"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item> at (128,128) content-size 100x100 [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item> at [128,128] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [128,128 7.75x18] baseline: 13.796875
               "4"
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.abspos-box> at (228,8) content-size 50x270 positioned [0+0+0 50 0+0+0] [0+0+0 270 0+0+0] [BFC] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.abspos-box> at [228,8] positioned [0+0+0 50 0+0+0] [0+0+0 270 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,278) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,278] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x286]

@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x267 [0+0+0 800 0+0+0] [0+0+0 267 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x110 [8+0+0 784 0+0+8] [8+0+0 110 0+0+100] children: not-inline
-      BlockContainer <div> at (8,8) content-size 784x110 [0+0+0 784 0+0+0] [0+0+0 110 0+0+0] children: not-inline
-        BlockContainer <div.square.white> at (8,8) content-size 100x100 floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-        BlockContainer <div.clearfix> at (8,108) content-size 10x10 [0+0+0 10 0+0+774] [9999+0+0 10 0+0+100] children: not-inline
-        BlockContainer <div.square.black> at (8,218) content-size 49x49 floating [0+0+0 49 0+0+0] [0+0+0 49 0+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 267 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 110 0+0+100] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 110 0+0+0] children: not-inline
+        BlockContainer <div.square.white> at [8,8] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.clearfix> at [8,108] [0+0+0 10 0+0+774] [9999+0+0 10 0+0+100] children: not-inline
+        BlockContainer <div.square.black> at [8,218] floating [0+0+0 49 0+0+0] [0+0+0 49 0+0+0] [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x267]

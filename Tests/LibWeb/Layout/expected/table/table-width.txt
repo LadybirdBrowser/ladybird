@@ -1,11 +1,11 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x230 [0+0+0 800 0+0+0] [0+0+0 230 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x214 [8+0+0 784 0+0+8] [8+0+0 214 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at (8,8) content-size 784x214 [0+0+0 784 0+0+0] [0+0+0 214 0+0+0] [BFC] children: not-inline
-        Box <table.table> at (108,108) content-size 584x14 table-box [0+100+0 584 0+100+0] [0+100+0 14 0+100+0] [TFC] children: not-inline
-          Box <tbody> at (110,110) content-size 580x10 table-row-group [0+0+0 580 0+0+0] [0+0+0 10 0+0+0] children: not-inline
-            Box <tr> at (110,110) content-size 580x10 table-row [0+0+0 580 0+0+0] [0+0+0 10 0+0+0] children: not-inline
-              BlockContainer <td.cell> at (111,115) content-size 578x0 table-cell [0+0+1 578 1+0+0] [0+0+5 0 5+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 230 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 214 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 214 0+0+0] [BFC] children: not-inline
+        Box <table.table> at [108,108] table-box [0+100+0 584 0+100+0] [0+100+0 14 0+100+0] [TFC] children: not-inline
+          Box <tbody> at [110,110] table-row-group [0+0+0 580 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Box <tr> at [110,110] table-row [0+0+0 580 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+              BlockContainer <td.cell> at [111,115] table-cell [0+0+1 578 1+0+0] [0+0+5 0 5+0+0] [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x230]

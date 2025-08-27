@@ -1,13 +1,13 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x366 [0+0+0 800 0+0+0] [0+0+0 366 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x350 [8+0+0 784 0+0+8] [8+0+0 350 0+0+8] children: not-inline
-      BlockContainer <div#foo> at (8,8) content-size 100x100 [0+0+0 100 0+0+684] [0+0+0 100 0+0+25] children: not-inline
-      BlockContainer <(anonymous)> at (8,133) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      BlockContainer <div#bar> at (8,158) content-size 200x200 [0+0+0 200 0+0+584] [100+0+0 200 0+0+0] children: not-inline
-        BlockContainer <div#baz> at (8,158) content-size 100x100 [0+0+0 100 0+0+100] [-50+0+0 100 0+0+0] children: not-inline
-      BlockContainer <(anonymous)> at (8,358) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 366 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 350 0+0+8] children: not-inline
+      BlockContainer <div#foo> at [8,8] [0+0+0 100 0+0+684] [0+0+0 100 0+0+25] children: not-inline
+      BlockContainer <(anonymous)> at [8,133] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div#bar> at [8,158] [0+0+0 200 0+0+584] [100+0+0 200 0+0+0] children: not-inline
+        BlockContainer <div#baz> at [8,158] [0+0+0 100 0+0+100] [-50+0+0 100 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,358] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x366]

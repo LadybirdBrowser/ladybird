@@ -1,13 +1,13 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x54 [0+0+0 800 0+0+0] [0+0+0 54 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x38 [8+0+0 784 0+0+8] [8+0+0 38 0+0+8] children: not-inline
-      Box <div#flex-container> at (18,18) content-size 764x18 flex-container(row) [0+0+10 764 10+0+0] [0+0+10 18 10+0+0] [FFC] children: not-inline
-        BlockContainer <div#absolute> at (18,18) content-size 50x50 positioned [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
-          BlockContainer <div#orange> at (18,18) content-size 50x50 [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
-        BlockContainer <div#red> at (18,18) content-size 9.703125x18 flex-item [0+0+0 9.703125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 54 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 38 0+0+8] children: not-inline
+      Box <div#flex-container> at [18,18] flex-container(row) [0+0+10 764 10+0+0] [0+0+10 18 10+0+0] [FFC] children: not-inline
+        BlockContainer <div#absolute> at [18,18] positioned [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
+          BlockContainer <div#orange> at [18,18] [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
+        BlockContainer <div#red> at [18,18] flex-item [0+0+0 9.703125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [18,18 9.703125x18] baseline: 13.796875
               "x"
-          TextNode <#text>
+          TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x54]

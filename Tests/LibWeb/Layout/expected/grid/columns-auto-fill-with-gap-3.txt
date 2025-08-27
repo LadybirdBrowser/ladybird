@@ -1,14 +1,14 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
-    Box <body> at (8,8) content-size 784x18 [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] [GFC] children: not-inline
-      BlockContainer <div> at (8,8) content-size 63.125x18 [0+0+0 63.125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    Box <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] [GFC] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 63.125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 7, rect: [8,8 63.125x18] baseline: 13.796875
             "Explore"
-        TextNode <#text>
-      BlockContainer <div> at (121.125,8) content-size 100.0625x18 [0+0+0 100.0625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [121.125,8] [0+0+0 100.0625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 12, rect: [121.125,8 100.0625x18] baseline: 13.796875
             "Wiki Content"
-        TextNode <#text>
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]

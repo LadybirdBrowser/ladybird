@@ -1,11 +1,11 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x356 [0+0+0 800 0+0+0] [0+0+0 356 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,16) content-size 784x324 [8+0+0 784 0+0+8] [8+0+0 324 0+0+16] children: not-inline
-      BlockContainer <div> at (8,16) content-size 784x154 [0+0+0 784 0+0+0] [0+0+0 154 0+0+0] children: not-inline
-        BlockContainer <p> at (8,16) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 356 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 324 0+0+16] children: not-inline
+      BlockContainer <div> at [8,16] [0+0+0 784 0+0+0] [0+0+0 154 0+0+0] children: not-inline
+        BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [36.8125,16 44.75x18] baseline: 13.796875
               "Never"
-          InlineNode <(anonymous)> [0+0+0 28.8125 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,16] [0+0+0 28.8125 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,16 6.34375x18] baseline: 13.796875
                 "1"
             frag 1 from TextNode start: 0, length: 1, rect: [14.34375,16 4.34375x18] baseline: 13.796875
@@ -14,15 +14,15 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "1"
             frag 3 from TextNode start: 0, length: 2, rect: [25.03125,16 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-        BlockContainer <p> at (8,50) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,50] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [39.28125,50 52.15625x18] baseline: 13.796875
               "Gonna"
-          InlineNode <(anonymous)> [0+0+0 31.28125 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,50] [0+0+0 31.28125 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,50 6.34375x18] baseline: 13.796875
                 "1"
             frag 1 from TextNode start: 0, length: 1, rect: [14.34375,50 4.34375x18] baseline: 13.796875
@@ -31,15 +31,15 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "2"
             frag 3 from TextNode start: 0, length: 2, rect: [27.5,50 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-        BlockContainer <p> at (8,84) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,84] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [39.5625,84 34.71875x18] baseline: 13.796875
               "Give"
-          InlineNode <(anonymous)> [0+0+0 31.5625 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,84] [0+0+0 31.5625 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,84 6.34375x18] baseline: 13.796875
                 "1"
             frag 1 from TextNode start: 0, length: 1, rect: [14.34375,84 4.34375x18] baseline: 13.796875
@@ -48,15 +48,15 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "3"
             frag 3 from TextNode start: 0, length: 2, rect: [27.78125,84 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-        BlockContainer <p> at (8,118) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,118] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [38.21875,118 31.21875x18] baseline: 13.796875
               "You"
-          InlineNode <(anonymous)> [0+0+0 30.21875 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,118] [0+0+0 30.21875 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,118 6.34375x18] baseline: 13.796875
                 "1"
             frag 1 from TextNode start: 0, length: 1, rect: [14.34375,118 4.34375x18] baseline: 13.796875
@@ -65,15 +65,15 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "4"
             frag 3 from TextNode start: 0, length: 2, rect: [26.4375,118 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-        BlockContainer <p> at (8,152) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,152] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 2, rect: [38.921875,152 20.71875x18] baseline: 13.796875
               "Up"
-          InlineNode <(anonymous)> [0+0+0 30.921875 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,152] [0+0+0 30.921875 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,152 6.34375x18] baseline: 13.796875
                 "1"
             frag 1 from TextNode start: 0, length: 1, rect: [14.34375,152 4.34375x18] baseline: 13.796875
@@ -82,16 +82,16 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "5"
             frag 3 from TextNode start: 0, length: 2, rect: [27.140625,152 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-      BlockContainer <div> at (8,186) content-size 784x154 [0+0+0 784 0+0+0] [0+0+0 154 0+0+0] children: not-inline
-        BlockContainer <p> at (8,186) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,186] [0+0+0 784 0+0+0] [0+0+0 154 0+0+0] children: not-inline
+        BlockContainer <p> at [8,186] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [39.28125,186 44.75x18] baseline: 13.796875
               "Never"
-          InlineNode <(anonymous)> [0+0+0 31.28125 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,186] [0+0+0 31.28125 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,186 8.8125x18] baseline: 13.796875
                 "2"
             frag 1 from TextNode start: 0, length: 1, rect: [16.8125,186 4.34375x18] baseline: 13.796875
@@ -100,15 +100,15 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "1"
             frag 3 from TextNode start: 0, length: 2, rect: [27.5,186 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-        BlockContainer <p> at (8,220) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,220] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [41.75,220 52.15625x18] baseline: 13.796875
               "Gonna"
-          InlineNode <(anonymous)> [0+0+0 33.75 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,220] [0+0+0 33.75 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,220 8.8125x18] baseline: 13.796875
                 "2"
             frag 1 from TextNode start: 0, length: 1, rect: [16.8125,220 4.34375x18] baseline: 13.796875
@@ -117,15 +117,15 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "2"
             frag 3 from TextNode start: 0, length: 2, rect: [29.96875,220 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-        BlockContainer <p> at (8,254) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,254] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [42.03125,254 26.4375x18] baseline: 13.796875
               "Let"
-          InlineNode <(anonymous)> [0+0+0 34.03125 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,254] [0+0+0 34.03125 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,254 8.8125x18] baseline: 13.796875
                 "2"
             frag 1 from TextNode start: 0, length: 1, rect: [16.8125,254 4.34375x18] baseline: 13.796875
@@ -134,15 +134,15 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "3"
             frag 3 from TextNode start: 0, length: 2, rect: [30.25,254 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-        BlockContainer <p> at (8,288) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,288] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [40.6875,288 31.21875x18] baseline: 13.796875
               "You"
-          InlineNode <(anonymous)> [0+0+0 32.6875 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,288] [0+0+0 32.6875 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,288 8.8125x18] baseline: 13.796875
                 "2"
             frag 1 from TextNode start: 0, length: 1, rect: [16.8125,288 4.34375x18] baseline: 13.796875
@@ -151,15 +151,15 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "4"
             frag 3 from TextNode start: 0, length: 2, rect: [28.90625,288 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-        BlockContainer <p> at (8,322) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,322] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [41.390625,322 42.328125x18] baseline: 13.796875
               "Down"
-          InlineNode <(anonymous)> [0+0+0 33.390625 0+0+0] [0+0+0 18 0+0+0]
+          InlineNode <(anonymous)> at [8,322] [0+0+0 33.390625 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 1, rect: [8,322 8.8125x18] baseline: 13.796875
                 "2"
             frag 1 from TextNode start: 0, length: 1, rect: [16.8125,322 4.34375x18] baseline: 13.796875
@@ -168,13 +168,13 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
                 "5"
             frag 3 from TextNode start: 0, length: 2, rect: [29.609375,322 11.78125x18] baseline: 13.796875
                 ": "
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-            TextNode <#text>
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,356) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,356] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x356]

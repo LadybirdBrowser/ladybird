@@ -1,10 +1,10 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x592 [0+0+0 800 0+0+0] [0+0+0 592 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x576 [8+0+0 784 0+0+8] [8+0+0 576 0+0+8] children: not-inline
-      Box <div.grid-container> at (8,8) content-size 784x576 [0+0+0 784 0+0+0] [0+0+0 576 0+0+0] [GFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 592 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 576 0+0+8] children: not-inline
+      Box <div.grid-container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 576 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item.item-span-one-one> at (108.640625,8) content-size 101.515625x252 [0+0+0 101.515625 0+0+0] [0+0+0 252 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item.item-span-one-one> at [108.640625,8] [0+0+0 101.515625 0+0+0] [0+0+0 252 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 4, rect: [108.640625,8 31.546875x18] baseline: 13.796875
               "In a"
           frag 1 from TextNode start: 6, length: 12, rect: [108.640625,26 84.84375x18] baseline: 13.796875
@@ -33,10 +33,10 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
               "consequat"
           frag 13 from TextNode start: 148, length: 8, rect: [108.640625,242 61.609375x18] baseline: 13.796875
               "ut orci."
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item.item-span-one-two> at (108.640625,260) content-size 101.515625x324 [0+0+0 101.515625 0+0+0] [0+0+0 324 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item.item-span-one-two> at [108.640625,260] [0+0+0 101.515625 0+0+0] [0+0+0 324 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 11, rect: [108.640625,260 98.65625x18] baseline: 13.796875
               "Suspendisse"
           frag 1 from TextNode start: 13, length: 8, rect: [108.640625,278 60.734375x18] baseline: 13.796875
@@ -73,10 +73,10 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
               "nisi luctus"
           frag 17 from TextNode start: 176, length: 3, rect: [108.640625,566 20.546875x18] baseline: 13.796875
               "at."
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
-        BlockContainer <div.grid-item.item-span-two> at (8,8) content-size 100.640625x576 [0+0+0 100.640625 0+0+0] [0+0+0 576 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.grid-item.item-span-two> at [8,8] [0+0+0 100.640625 0+0+0] [0+0+0 576 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 5, rect: [8,8 50.96875x18] baseline: 13.796875
               "Lorem"
           frag 1 from TextNode start: 7, length: 11, rect: [8,26 94.9375x18] baseline: 13.796875
@@ -125,9 +125,9 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
               "Proin sed"
           frag 23 from TextNode start: 218, length: 9, rect: [8,422 68.296875x18] baseline: 13.796875
               "orci leo."
-          TextNode <#text>
+          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text>
+          TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x592]

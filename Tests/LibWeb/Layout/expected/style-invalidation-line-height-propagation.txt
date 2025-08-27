@@ -1,14 +1,14 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x36 [0+0+0 800 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x20 [8+0+0 784 0+0+8] [8+0+0 20 0+0+8] children: not-inline
-      BlockContainer <div> at (8,8) content-size 784x10 [0+0+0 784 0+0+0] [0+0+0 10 0+0+0] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 20 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 10 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 11, rect: [8,8 98x10] baseline: 9.796875
             "foo bar baz"
-        TextNode <#text>
-      BlockContainer <(anonymous)> at (8,18) content-size 784x10 [0+0+0 784 0+0+0] [0+0+0 10 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,18] [0+0+0 784 0+0+0] [0+0+0 10 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 11, rect: [8,18 98x10] baseline: 9.796875
             "foo bar baz"
-        TextNode <#text>
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x36]

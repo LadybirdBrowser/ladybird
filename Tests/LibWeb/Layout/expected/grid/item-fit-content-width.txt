@@ -1,16 +1,16 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x18 [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: not-inline
-      Box <div.flex> at (8,8) content-size 784x18 flex-container(row) [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
-        Box <div.grid> at (8,8) content-size 67.4375x18 flex-item [0+0+0 67.4375 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
-          BlockContainer <div.w-fit> at (8,8) content-size 31.25x18 [0+0+0 31.25 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: not-inline
+      Box <div.flex> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
+        Box <div.grid> at [8,8] flex-item [0+0+0 67.4375 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
+          BlockContainer <div.w-fit> at [8,8] [0+0+0 31.25 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 4, rect: [8,8 31.25x18] baseline: 13.796875
                 "Col1"
-            TextNode <#text>
-          BlockContainer <div.w-fit> at (41.71875,8) content-size 33.71875x18 [0+0+0 33.71875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div.w-fit> at [41.71875,8] [0+0+0 33.71875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 4, rect: [41.71875,8 33.71875x18] baseline: 13.796875
                 "Col2"
-            TextNode <#text>
+            TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]

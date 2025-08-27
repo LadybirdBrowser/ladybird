@@ -1,7 +1,7 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x118 [0+0+0 800 0+0+0] [0+0+0 118 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x102 [8+0+0 784 0+0+8] [8+0+0 102 0+0+8] children: not-inline
-      BlockContainer <div> at (9,9) content-size 100x100 [0+1+0 100 0+1+682] [0+1+0 100 0+1+0] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 118 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 102 0+0+8] children: not-inline
+      BlockContainer <div> at [9,9] [0+1+0 100 0+1+682] [0+1+0 100 0+1+0] children: inline
         frag 0 from TextNode start: 1, length: 3, rect: [9,9 27.15625x18] baseline: 13.796875
             "foo"
         frag 1 from TextNode start: 4, length: 1, rect: [36.15625,9 9x18] baseline: 13.796875
@@ -62,11 +62,11 @@ Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 
             " "
         frag 29 from TextNode start: 9, length: 3, rect: [79.796875,99 27.203125x18] baseline: 13.796875
             "baz"
-        TextNode <#text>
-        BreakNode <br>
-        TextNode <#text>
-        BreakNode <br>
-        TextNode <#text>
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x118]

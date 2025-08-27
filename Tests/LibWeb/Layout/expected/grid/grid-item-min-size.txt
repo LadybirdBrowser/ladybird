@@ -1,15 +1,15 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x212 [0+0+0 800 0+0+0] [0+0+0 212 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x0 [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
-      Box <div.grid> at (8,8) content-size 102x204 floating [0+0+0 102 0+0+0] [0+0+0 204 0+0+0] [GFC] children: not-inline
-        BlockContainer <div.first> at (9,9) content-size 100x100 [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 212 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
+      Box <div.grid> at [8,8] floating [0+0+0 102 0+0+0] [0+0+0 204 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.first> at [9,9] [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [9,9 36.03125x18] baseline: 13.796875
               "first"
-          TextNode <#text>
-        BlockContainer <div.second> at (9,111) content-size 100x100 [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.second> at [9,111] [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 6, rect: [9,111 54.78125x18] baseline: 13.796875
               "second"
-          TextNode <#text>
+          TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x212]

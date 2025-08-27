@@ -1,16 +1,16 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x52 [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x36 [8+0+0 784 0+0+8] [8+0+0 36 0+0+8] children: not-inline
-      BlockContainer <div.wrapper> at (8,8) content-size 784x36 [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] children: not-inline
-        TableWrapper <(anonymous)> at (108,8) content-size 584x36 [100+0+0 584 0+0+100] [0+0+0 36 0+0+0] [BFC] children: not-inline
-          Box <div.box> at (108,8) content-size 584x36 table-box [0+0+0 584 0+0+0] [0+0+0 36 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at (108,8) content-size 584x36 table-row [0+0+0 584 0+0+0] [0+0+0 36 0+0+0] children: not-inline
-              BlockContainer <div.cell> at (108,8) content-size 584x36 table-cell [0+0+0 584 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 36 0+0+8] children: not-inline
+      BlockContainer <div.wrapper> at [8,8] [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] children: not-inline
+        TableWrapper <(anonymous)> at [108,8] [100+0+0 584 0+0+100] [0+0+0 36 0+0+0] [BFC] children: not-inline
+          Box <div.box> at [108,8] table-box [0+0+0 584 0+0+0] [0+0+0 36 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [108,8] table-row [0+0+0 584 0+0+0] [0+0+0 36 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [108,8] table-cell [0+0+0 584 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 58, rect: [108,8 569.859375x18] baseline: 13.796875
                     "DaTa DisplaYiNg CSS WeBpaGE ScReEn OF aR AddITioN COmmOnLY"
                 frag 1 from TextNode start: 59, length: 40, rect: [108,26 399.9375x18] baseline: 13.796875
                     "To AdJuSt PRiCiNG sTYLiNG ceLL oF TAbLeS"
-                TextNode <#text>
+                TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]

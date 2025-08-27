@@ -1,21 +1,21 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x70 [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x54 [8+0+0 784 0+0+8] [8+0+0 54 0+0+8] children: not-inline
-      Box <div.container> at (9,9) content-size 600x52 flex-container(row) [0+1+0 600 0+1+182] [0+1+0 52 0+1+0] [FFC] children: not-inline
-        BlockContainer <div.box> at (20,10) content-size 150x50 flex-item [10+1+0 150 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 54 0+0+8] children: not-inline
+      Box <div.container> at [9,9] flex-container(row) [0+1+0 600 0+1+182] [0+1+0 52 0+1+0] [FFC] children: not-inline
+        BlockContainer <div.box> at [20,10] flex-item [10+1+0 150 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 11, rect: [20,10 86.359375x18] baseline: 13.796875
               "left margin"
-          TextNode <#text>
-        BlockContainer <div.box> at (172,10) content-size 150x50 flex-item [0+1+0 150 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.box> at [172,10] flex-item [0+1+0 150 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 18, rect: [172,10 141.28125x18] baseline: 13.796875
               "follow immediately"
-          TextNode <#text>
-        BlockContainer <div.box> at (458,10) content-size 150x50 flex-item [0+1+0 150 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.box> at [458,10] flex-item [0+1+0 150 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 17, rect: [458,10 138.296875x18] baseline: 13.796875
               "over at the right"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,62) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,62] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x70]

@@ -1,19 +1,19 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x94 [0+0+0 800 0+0+0] [0+0+0 94 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,16) content-size 784x70 [8+0+0 784 0+0+8] [8+0+0 70 0+0+8] children: not-inline
-      BlockContainer <p> at (8,16) content-size 784x18 [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 94 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 70 0+0+8] children: not-inline
+      BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 18 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 36, rect: [18.625,16 300x18] baseline: 13.796875
             "P should generate a ::before pseudo."
-        InlineNode <(anonymous)> [0+0+0 10.625 0+0+0] [0+0+0 18 0+0+0]
+        InlineNode <(anonymous)> at [8,16] [0+0+0 10.625 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [8,16 10.625x18] baseline: 13.796875
               "+"
-          TextNode <#text>
-        TextNode <#text>
-      BlockContainer <(anonymous)> at (8,50) content-size 784x36 [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,50] [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 14, rect: [8,68 120.578125x18] baseline: 13.796875
             "BR should not!"
-        BreakNode <br>
-        TextNode <#text>
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x94]

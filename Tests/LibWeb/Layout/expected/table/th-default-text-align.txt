@@ -1,111 +1,111 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x338 [0+0+0 800 0+0+0] [0+0+0 338 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x322 [8+0+0 784 0+0+8] [8+0+0 322 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at (8,8) content-size 132.40625x46 [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
-        Box <table> at (8,8) content-size 132.40625x46 table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
-          Box <tbody> at (10,10) content-size 128.40625x42 table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
-            Box <tr> at (10,10) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,11) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 338 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 322 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,8] table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,10] table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
+            Box <tr> at [10,10] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,11] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 7, rect: [47.59375,11 53.21875x18] baseline: 13.796875
                     "default"
-                TextNode <#text>
-            Box <tr> at (10,32) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,33) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+            Box <tr> at [10,32] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,33] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 15, rect: [11,33 126.40625x18] baseline: 13.796875
                     "lorem ipsum sit"
-                TextNode <#text>
-      BlockContainer <(anonymous)> at (8,54) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      TableWrapper <(anonymous)> at (8,54) content-size 132.40625x46 [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
-        Box <table.a> at (8,54) content-size 132.40625x46 table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
-          Box <tbody> at (10,56) content-size 128.40625x42 table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
-            Box <tr> at (10,56) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,57) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,54] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,54] [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
+        Box <table.a> at [8,54] table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,56] table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
+            Box <tr> at [10,56] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,57] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 7, rect: [11,57 49.9375x18] baseline: 13.796875
                     "left tr"
-                TextNode <#text>
-            Box <tr> at (10,78) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,79) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+            Box <tr> at [10,78] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,79] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 15, rect: [11,79 126.40625x18] baseline: 13.796875
                     "lorem ipsum sit"
-                TextNode <#text>
-      BlockContainer <(anonymous)> at (8,100) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      TableWrapper <(anonymous)> at (8,100) content-size 132.40625x46 [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
-        Box <table.b> at (8,100) content-size 132.40625x46 table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
-          Box <tbody> at (10,102) content-size 128.40625x42 table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
-            Box <tr> at (10,102) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,103) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,100] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,100] [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
+        Box <table.b> at [8,100] table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,102] table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
+            Box <tr> at [10,102] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,103] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 9, rect: [36.546875,103 75.3125x18] baseline: 13.796875
                     "center tr"
-                TextNode <#text>
-            Box <tr> at (10,124) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,125) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+            Box <tr> at [10,124] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,125] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 15, rect: [11,125 126.40625x18] baseline: 13.796875
                     "lorem ipsum sit"
-                TextNode <#text>
-      BlockContainer <(anonymous)> at (8,146) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      TableWrapper <(anonymous)> at (8,146) content-size 132.40625x46 [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
-        Box <table.c> at (8,146) content-size 132.40625x46 table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
-          Box <tbody> at (10,148) content-size 128.40625x42 table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
-            Box <tr> at (10,148) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,149) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,146] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,146] [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
+        Box <table.c> at [8,146] table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,148] table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
+            Box <tr> at [10,148] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,149] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 8, rect: [76.609375,149 60.796875x18] baseline: 13.796875
                     "right tr"
-                TextNode <#text>
-            Box <tr> at (10,170) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,171) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+            Box <tr> at [10,170] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,171] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 15, rect: [11,171 126.40625x18] baseline: 13.796875
                     "lorem ipsum sit"
-                TextNode <#text>
-      BlockContainer <(anonymous)> at (8,192) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      TableWrapper <(anonymous)> at (8,192) content-size 132.40625x46 [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
-        Box <table.d> at (8,192) content-size 132.40625x46 table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
-          Box <tbody> at (10,194) content-size 128.40625x42 table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
-            Box <tr> at (10,194) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,195) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,192] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,192] [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
+        Box <table.d> at [8,192] table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,194] table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
+            Box <tr> at [10,194] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,195] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 8, rect: [11,195 54.8125x18] baseline: 13.796875
                     "left tbl"
-                TextNode <#text>
-            Box <tr> at (10,216) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,217) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+            Box <tr> at [10,216] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,217] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 15, rect: [11,217 126.40625x18] baseline: 13.796875
                     "lorem ipsum sit"
-                TextNode <#text>
-      BlockContainer <(anonymous)> at (8,238) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      TableWrapper <(anonymous)> at (8,238) content-size 132.40625x46 [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
-        Box <table> at (8,238) content-size 132.40625x46 table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
-          Box <tbody> at (10,240) content-size 128.40625x42 table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
-            Box <tr> at (10,240) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,241) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,238] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,238] [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,238] table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,240] table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
+            Box <tr> at [10,240] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,241] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 11, rect: [11,241 76.34375x18] baseline: 13.796875
                     "left tr inl"
-                TextNode <#text>
-            Box <tr> at (10,262) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,263) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+            Box <tr> at [10,262] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,263] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 15, rect: [11,263 126.40625x18] baseline: 13.796875
                     "lorem ipsum sit"
-                TextNode <#text>
-      BlockContainer <(anonymous)> at (8,284) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      TableWrapper <(anonymous)> at (8,284) content-size 132.40625x46 [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
-        Box <table> at (8,284) content-size 132.40625x46 table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
-          Box <tbody> at (10,286) content-size 128.40625x42 table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
-            Box <tr> at (10,286) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,287) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,284] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,284] [0+0+0 132.40625 0+0+651.59375] [0+0+0 46 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,284] table-box [0+0+0 132.40625 0+0+0] [0+0+0 46 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,286] table-row-group [0+0+0 128.40625 0+0+0] [0+0+0 42 0+0+0] children: not-inline
+            Box <tr> at [10,286] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,287] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 12, rect: [11,287 81.21875x18] baseline: 13.796875
                     "left tbl inl"
-                TextNode <#text>
-            Box <tr> at (10,308) content-size 128.40625x20 table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
-              BlockContainer <th> at (11,309) content-size 126.40625x18 table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
+                TextNode <#text> (not painted)
+            Box <tr> at [10,308] table-row [0+0+0 128.40625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+              BlockContainer <th> at [11,309] table-cell [0+0+1 126.40625 1+0+0] [0+0+1 18 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 15, rect: [11,309 126.40625x18] baseline: 13.796875
                     "lorem ipsum sit"
-                TextNode <#text>
-      BlockContainer <(anonymous)> at (8,330) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,330] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x338]

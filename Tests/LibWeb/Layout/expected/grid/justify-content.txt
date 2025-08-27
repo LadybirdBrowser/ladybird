@@ -1,83 +1,83 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x142 [0+0+0 800 0+0+0] [0+0+0 142 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x126 [8+0+0 784 0+0+8] [8+0+0 126 0+0+8] children: not-inline
-      Box <div.container> at (8,8) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
-        BlockContainer <div> at (8,8) content-size 392x18 [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 142 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 126 0+0+8] children: not-inline
+      Box <div.container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
+        BlockContainer <div> at [8,8] [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [8,8 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-        BlockContainer <div> at (400,8) content-size 392x18 [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [400,8] [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [400,8 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,26) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      Box <div.container> at (8,26) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
-        BlockContainer <div> at (8,26) content-size 392x18 [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.container> at [8,26] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
+        BlockContainer <div> at [8,26] [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [8,26 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-        BlockContainer <div> at (400,26) content-size 392x18 [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [400,26] [0+0+0 392 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [400,26 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,44) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      Box <div.container> at (8,44) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
-        BlockContainer <div> at (8,44) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.container> at [8,44] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
+        BlockContainer <div> at [8,44] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [8,44 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-        BlockContainer <div> at (75.96875,44) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [75.96875,44] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [75.96875,44 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,62) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      Box <div.container> at (8,62) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
-        BlockContainer <div> at (332.03125,62) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,62] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.container> at [8,62] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
+        BlockContainer <div> at [332.03125,62] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [332.03125,62 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-        BlockContainer <div> at (400,62) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [400,62] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [400,62 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,80) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      Box <div.container> at (8,80) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
-        BlockContainer <div> at (656.0625,80) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,80] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.container> at [8,80] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
+        BlockContainer <div> at [656.0625,80] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [656.0625,80 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-        BlockContainer <div> at (724.03125,80) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [724.03125,80] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [724.03125,80 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,98) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      Box <div.container> at (8,98) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
-        BlockContainer <div> at (8,98) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,98] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.container> at [8,98] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
+        BlockContainer <div> at [8,98] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [8,98 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-        BlockContainer <div> at (75.96875,98) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [75.96875,98] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [75.96875,98 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,116) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
-      Box <div.container> at (8,116) content-size 784x18 [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
-        BlockContainer <div> at (656.0625,116) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,116] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.container> at [8,116] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] [GFC] children: not-inline
+        BlockContainer <div> at [656.0625,116] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [656.0625,116 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-        BlockContainer <div> at (724.03125,116) content-size 67.96875x18 [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [724.03125,116] [0+0+0 67.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [724.03125,116 67.96875x18] baseline: 13.796875
               "wikipedia"
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,134) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,134] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x142]

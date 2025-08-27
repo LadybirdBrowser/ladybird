@@ -1,24 +1,24 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x116 [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x100 [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] children: not-inline
-      BlockContainer <div#containing-block> at (8,8) content-size 200x100 [0+0+0 200 0+0+584] [0+0+0 100 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at (8,8) content-size 200x0 [0+0+0 200 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text>
-        Box <div#inner-flex> at (8,8) content-size 200x0 flex-container(row) [0+0+0 200 0+0+0] [0+0+0 0 0+0+0] [FFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] children: not-inline
+      BlockContainer <div#containing-block> at [8,8] [0+0+0 200 0+0+584] [0+0+0 100 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 200 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        Box <div#inner-flex> at [8,8] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 0 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-            TextNode <#text>
-          BlockContainer <div> at (83,8) content-size 50x100 positioned [0+0+0 50 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-            BlockContainer <(anonymous)> at (83,8) content-size 50x0 [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: inline
-              TextNode <#text>
-            BlockContainer <span> at (83,8) content-size 50x0 [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: not-inline
-            BlockContainer <(anonymous)> at (83,8) content-size 50x0 [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: inline
-              TextNode <#text>
+            TextNode <#text> (not painted)
+          BlockContainer <div> at [83,8] positioned [0+0+0 50 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [83,8] [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+            BlockContainer <span> at [83,8] [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [83,8] [0+0+0 50 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-            TextNode <#text>
-        BlockContainer <(anonymous)> at (8,8) content-size 200x0 [0+0+0 200 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text>
-      BlockContainer <(anonymous)> at (8,108) content-size 784x0 [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text>
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 200 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,108] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]

@@ -1,17 +1,17 @@
-Viewport <#document> at (0,0) content-size 800x600 [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x36 [0+0+0 800 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x20 [8+0+0 784 0+0+8] [8+0+0 20 0+0+8] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 20 0+0+8] children: inline
       frag 0 from TextNode start: 0, length: 14, rect: [8,8 112.421875x18] baseline: 13.796875
           "text text text"
       frag 1 from BlockContainer start: 0, length: 0, rect: [120.421875,8 110.375x20] baseline: 13.796875
       frag 2 from TextNode start: 0, length: 16, rect: [230.796875,8 129.546875x18] baseline: 13.796875
           "more inline text"
-      TextNode <#text>
-      BlockContainer <span.displaced_text> at (150.421875,48) content-size 110.375x20 positioned inline-block [0+0+0 110.375 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+      TextNode <#text> (not painted)
+      BlockContainer <span.displaced_text> at [150.421875,48] positioned inline-block [0+0+0 110.375 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 14, rect: [150.421875,48 110.375x18] baseline: 13.796875
             "displaced text"
-        TextNode <#text>
-      TextNode <#text>
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x36] overflow: [0,0 800x68]
