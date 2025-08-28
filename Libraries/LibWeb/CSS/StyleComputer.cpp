@@ -3220,6 +3220,28 @@ static CSSPixels line_width_keyword_to_css_pixels(Keyword keyword)
     }
 }
 
+// https://www.w3.org/TR/css-values-4/#snap-a-length-as-a-border-width
+static CSSPixels snap_a_length_as_a_border_width(double device_pixels_per_css_pixel, CSSPixels length)
+{
+    // 1. Assert: len is non-negative.
+    VERIFY(length >= 0);
+
+    // 2. If len is an integer number of device pixels, do nothing.
+    auto device_pixels = length.to_double() * device_pixels_per_css_pixel;
+    if (device_pixels == trunc(device_pixels))
+        return length;
+
+    // 3. If len is greater than zero, but less than 1 device pixel, round len up to 1 device pixel.
+    if (device_pixels > 0 && device_pixels < 1)
+        return CSSPixels::nearest_value_for(1 / device_pixels_per_css_pixel);
+
+    // 4. If len is greater than 1 device pixel, round it down to the nearest integer number of device pixels.
+    if (device_pixels > 1)
+        return CSSPixels::nearest_value_for(floor(device_pixels) / device_pixels_per_css_pixel);
+
+    return length;
+}
+
 NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(PropertyID property_id, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, PropertyValueComputationContext const& computation_context)
 {
     switch (property_id) {
@@ -3261,7 +3283,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(N
         VERIFY_NOT_REACHED();
     }();
 
-    return LengthStyleValue::create(Length::make_px(Layout::NodeWithStyle::snap_a_length_as_a_border_width(computation_context.device_pixels_per_css_pixel, absolute_length)));
+    return LengthStyleValue::create(Length::make_px(snap_a_length_as_a_border_width(computation_context.device_pixels_per_css_pixel, absolute_length)));
 }
 
 void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::AbstractElement> element) const
