@@ -8,7 +8,7 @@
 
 namespace Web::CSS {
 
-Size::Size(Type type, LengthPercentage length_percentage)
+Size::Size(Type type, Optional<LengthPercentage> length_percentage)
     : m_type(type)
     , m_length_percentage(move(length_percentage))
 {
@@ -16,17 +16,19 @@ Size::Size(Type type, LengthPercentage length_percentage)
 
 CSSPixels Size::to_px(Layout::Node const& node, CSSPixels reference_value) const
 {
-    return m_length_percentage.resolved(node, reference_value).to_px(node);
+    if (!m_length_percentage.has_value())
+        return 0;
+    return m_length_percentage->resolved(node, reference_value).to_px(node);
 }
 
 Size Size::make_auto()
 {
-    return Size { Type::Auto, Length::make_auto() };
+    return Size { Type::Auto };
 }
 
 Size Size::make_px(CSSPixels px)
 {
-    return make_length(CSS::Length::make_px(px));
+    return make_length(Length::make_px(px));
 }
 
 Size Size::make_length(Length length)
@@ -58,12 +60,12 @@ Size Size::make_length_percentage(LengthPercentage const& length_percentage)
 
 Size Size::make_min_content()
 {
-    return Size { Type::MinContent, Length::make_auto() };
+    return Size { Type::MinContent };
 }
 
 Size Size::make_max_content()
 {
-    return Size { Type::MaxContent, Length::make_auto() };
+    return Size { Type::MaxContent };
 }
 
 Size Size::make_fit_content(LengthPercentage available_space)
@@ -73,13 +75,12 @@ Size Size::make_fit_content(LengthPercentage available_space)
 
 Size Size::make_fit_content()
 {
-    // NOTE: We use "auto" as a stand-in for "stretch" here.
-    return Size { Type::FitContent, Length::make_auto() };
+    return Size { Type::FitContent };
 }
 
 Size Size::make_none()
 {
-    return Size { Type::None, Length::make_auto() };
+    return Size { Type::None };
 }
 
 bool Size::contains_percentage() const
@@ -95,7 +96,7 @@ bool Size::contains_percentage() const
         //        but we have to update a lot of code to handle this.
         return false;
     default:
-        return m_length_percentage.contains_percentage();
+        return m_length_percentage->contains_percentage();
     }
 }
 
@@ -107,13 +108,15 @@ String Size::to_string(SerializationMode mode) const
     case Type::Calculated:
     case Type::Length:
     case Type::Percentage:
-        return m_length_percentage.to_string(mode);
+        return m_length_percentage->to_string(mode);
     case Type::MinContent:
         return "min-content"_string;
     case Type::MaxContent:
         return "max-content"_string;
     case Type::FitContent:
-        return MUST(String::formatted("fit-content({})", m_length_percentage.to_string(mode)));
+        if (!m_length_percentage.has_value())
+            return "fit-content"_string;
+        return MUST(String::formatted("fit-content({})", m_length_percentage->to_string(mode)));
     case Type::None:
         return "none"_string;
     }

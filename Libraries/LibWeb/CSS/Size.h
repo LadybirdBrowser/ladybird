@@ -55,22 +55,22 @@ public:
     CalculatedStyleValue const& calculated() const
     {
         VERIFY(is_calculated());
-        return m_length_percentage.calculated();
+        return m_length_percentage->calculated();
     }
 
-    CSS::Length const& length() const
+    Length const& length() const
     {
         VERIFY(is_length());
-        return m_length_percentage.length();
+        return m_length_percentage->length();
     }
 
-    CSS::Percentage const& percentage() const
+    Percentage const& percentage() const
     {
         VERIFY(is_percentage());
-        return m_length_percentage.percentage();
+        return m_length_percentage->percentage();
     }
 
-    CSS::LengthPercentage const& fit_content_available_space() const
+    Optional<LengthPercentage> const& fit_content_available_space() const
     {
         VERIFY(is_fit_content());
         return m_length_percentage;
@@ -80,10 +80,10 @@ public:
     bool operator==(Size const&) const = default;
 
 private:
-    Size(Type type, LengthPercentage);
+    explicit Size(Type type, Optional<LengthPercentage> = {});
 
     Type m_type {};
-    CSS::LengthPercentage m_length_percentage;
+    Optional<LengthPercentage> m_length_percentage;
 };
 
 }
