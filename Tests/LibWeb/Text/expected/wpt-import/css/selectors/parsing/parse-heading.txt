@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+17 Pass
+11 Fail
+Pass	":heading" should be a valid selector
+Pass	":heading(2)" should be a valid selector
+Pass	":heading(99999)" should be a valid selector
+Pass	":heading(0)" should be a valid selector
+Pass	":heading(0, 1, 2)" should be a valid selector
+Pass	":heading(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)" should be a valid selector
+Pass	":heading(-1)" should be a valid selector
+Pass	"h1:heading" should be a valid selector
+Pass	"h1:heading(1)" should be a valid selector
+Pass	"h1:heading(2)" should be a valid selector
+Pass	":heading()" should be an invalid selector
+Pass	":heading(1.0)" should be an invalid selector
+Pass	":heading(1.4)" should be an invalid selector
+Fail	":heading(n)" should be an invalid selector
+Fail	":heading(odd)" should be an invalid selector
+Fail	":heading(even)" should be an invalid selector
+Fail	":heading(2n)" should be an invalid selector
+Fail	":heading(2n+1)" should be an invalid selector
+Fail	":heading(2n+2)" should be an invalid selector
+Fail	":heading(-n+3)" should be an invalid selector
+Fail	":heading(2n, 3n)" should be an invalid selector
+Fail	":heading(2, 3n)" should be an invalid selector
+Fail	":heading(2 of .foo)" should be an invalid selector
+Fail	":heading(2n of .foo)" should be an invalid selector
+Pass	":heading(calc(1))" should be an invalid selector
+Pass	":heading(max(1, 2))" should be an invalid selector
+Pass	":heading(min(1, 2)" should be an invalid selector
+Pass	":heading(var(--level))" should be an invalid selector
