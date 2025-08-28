@@ -76,6 +76,13 @@ enum class SVGUnits {
     UserSpaceOnUse
 };
 
+struct ViewBox {
+    double min_x { 0 };
+    double min_y { 0 };
+    double width { 0 };
+    double height { 0 };
+};
+
 using GradientUnits = SVGUnits;
 using MaskUnits = SVGUnits;
 using MaskContentUnits = SVGUnits;
@@ -141,6 +148,7 @@ public:
     static Optional<PreserveAspectRatio> parse_preserve_aspect_ratio(StringView input);
     static Optional<SVGUnits> parse_units(StringView input);
     static Optional<SpreadMethod> parse_spread_method(StringView input);
+    static Optional<ViewBox> parse_viewbox(StringView input);
 
 private:
     AttributeParser(StringView source);

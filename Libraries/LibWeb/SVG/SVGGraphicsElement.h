@@ -17,7 +17,6 @@
 #include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/TagNames.h>
-#include <LibWeb/SVG/ViewBox.h>
 
 namespace Web::SVG {
 

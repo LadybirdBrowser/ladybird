@@ -15,7 +15,6 @@
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGLength.h>
 #include <LibWeb/SVG/SVGTransform.h>
-#include <LibWeb/SVG/ViewBox.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::SVG {

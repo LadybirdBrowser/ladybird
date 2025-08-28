@@ -702,6 +702,48 @@ Optional<Vector<Transform>> AttributeParser::parse_transform()
     return transform_list;
 }
 
+Optional<ViewBox> AttributeParser::parse_viewbox(StringView input)
+{
+    AttributeParser parser { input };
+    ViewBox viewbox;
+
+    parser.parse_whitespace();
+    auto maybe_min_x = parser.parse_coordinate();
+    if (maybe_min_x.is_error())
+        return {};
+    viewbox.min_x = maybe_min_x.value();
+
+    if (!parser.match_comma_whitespace())
+        return {};
+    parser.parse_comma_whitespace();
+    auto maybe_min_y = parser.parse_coordinate();
+    if (maybe_min_y.is_error())
+        return {};
+    viewbox.min_y = maybe_min_y.value();
+
+    if (!parser.match_comma_whitespace())
+        return {};
+    parser.parse_comma_whitespace();
+    auto maybe_width = parser.parse_length();
+    if (maybe_width.is_error())
+        return {};
+    viewbox.width = maybe_width.value();
+
+    if (!parser.match_comma_whitespace())
+        return {};
+    parser.parse_comma_whitespace();
+    auto maybe_height = parser.parse_length();
+    if (maybe_height.is_error())
+        return {};
+    viewbox.height = maybe_height.value();
+
+    parser.parse_whitespace();
+    if (!parser.done())
+        return {};
+
+    return viewbox;
+}
+
 bool AttributeParser::match_whitespace() const
 {
     if (done())
