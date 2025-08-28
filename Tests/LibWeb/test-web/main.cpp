@@ -785,7 +785,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         }
     }
 
-    return fail_count + timeout_count + crashed_count;
+    return fail_count + timeout_count + crashed_count + tests_remaining;
 }
 
 static void handle_signal(int signal)
