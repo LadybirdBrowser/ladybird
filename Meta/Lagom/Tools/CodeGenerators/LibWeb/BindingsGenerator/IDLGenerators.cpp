@@ -630,7 +630,24 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     scoped_generator.set("js_name", js_name);
     scoped_generator.set("js_suffix", js_suffix);
     scoped_generator.set("legacy_null_to_empty_string", legacy_null_to_empty_string ? "true" : "false");
-    scoped_generator.set("parameter.type.name", parameter.type->name());
+
+    auto const& type = parameter.type;
+    scoped_generator.set("parameter.type.name", type->name());
+
+    if (!libweb_interface_namespaces.span().contains_slow(type->name())) {
+        if (is_javascript_builtin(type))
+            scoped_generator.set("parameter.type.name.normalized", ByteString::formatted("JS::{}", type->name()));
+        else
+            scoped_generator.set("parameter.type.name.normalized", type->name());
+    } else {
+        // e.g. Document.getSelection which returns Selection, which is in the Selection namespace.
+        StringBuilder builder;
+        builder.append(type->name());
+        builder.append("::"sv);
+        builder.append(type->name());
+        scoped_generator.set("parameter.type.name.normalized", builder.to_byte_string());
+    }
+
     scoped_generator.set("parameter.name", parameter.name);
 
     if (explicit_null) {
@@ -685,41 +702,41 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         if (!parameter.type->is_nullable()) {
             if (!optional) {
                 scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name@>(@js_name@@js_suffix@.as_object()))
+    if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name.normalized@>(@js_name@@js_suffix@.as_object()))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
 
-    auto& @cpp_name@ = static_cast<@parameter.type.name@&>(@js_name@@js_suffix@.as_object());
+    auto& @cpp_name@ = static_cast<@parameter.type.name.normalized@&>(@js_name@@js_suffix@.as_object());
 )~~~");
             } else {
                 scoped_generator.append(R"~~~(
-    GC::Ptr<@parameter.type.name@> @cpp_name@;
+    GC::Ptr<@parameter.type.name.normalized@> @cpp_name@;
     if (!@js_name@@js_suffix@.is_undefined()) {
-        if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name@>(@js_name@@js_suffix@.as_object()))
+        if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name.normalized@>(@js_name@@js_suffix@.as_object()))
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
 
-        @cpp_name@ = static_cast<@parameter.type.name@&>(@js_name@@js_suffix@.as_object());
+        @cpp_name@ = static_cast<@parameter.type.name.normalized@&>(@js_name@@js_suffix@.as_object());
     }
 )~~~");
             }
         } else {
             if (explicit_null) {
                 scoped_generator.append(R"~~~(
-    Optional<GC::Ptr<@parameter.type.name@>> @cpp_name@;
+    Optional<GC::Ptr<@parameter.type.name.normalized@>> @cpp_name@;
     if (maybe_@js_name@@js_suffix@.has_value()) {
         auto @js_name@@js_suffix@ = maybe_@js_name@@js_suffix@.release_value();
 )~~~");
             } else {
                 scoped_generator.append(R"~~~(
-    GC::Ptr<@parameter.type.name@> @cpp_name@;
+    GC::Ptr<@parameter.type.name.normalized@> @cpp_name@;
 )~~~");
             }
 
             scoped_generator.append(R"~~~(
     if (!@js_name@@js_suffix@.is_nullish()) {
-        if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name@>(@js_name@@js_suffix@.as_object()))
+        if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name.normalized@>(@js_name@@js_suffix@.as_object()))
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
 
-        @cpp_name@ = &static_cast<@parameter.type.name@&>(@js_name@@js_suffix@.as_object());
+        @cpp_name@ = &static_cast<@parameter.type.name.normalized@&>(@js_name@@js_suffix@.as_object());
     }
 )~~~");
 
@@ -925,7 +942,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         enum_generator.set("enum.default.cpp_value", *default_value_cpp_name);
         enum_generator.set("js_name.as_string", ByteString::formatted("{}{}_string", enum_generator.get("js_name"sv), enum_generator.get("js_suffix"sv)));
         enum_generator.append(R"~~~(
-    @parameter.type.name@ @cpp_name@ { @parameter.type.name@::@enum.default.cpp_value@ };
+    @parameter.type.name.normalized@ @cpp_name@ { @parameter.type.name.normalized@::@enum.default.cpp_value@ };
 )~~~");
 
         if (optional) {
@@ -947,7 +964,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
             enum_generator.append(R"~~~(
     @else@if (@js_name.as_string@ == "@enum.alt.name@"sv)
-        @cpp_name@ = @parameter.type.name@::@enum.alt.value@;
+        @cpp_name@ = @parameter.type.name.normalized@::@enum.alt.value@;
 )~~~");
         }
 
@@ -977,7 +994,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     if (!@js_name@@js_suffix@.is_nullish() && !@js_name@@js_suffix@.is_object())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
 
-    @parameter.type.name@ @cpp_name@ {};
+    @parameter.type.name.normalized@ @cpp_name@ {};
 )~~~");
         auto current_dictionary_name = parameter.type->name();
         auto* current_dictionary = &interface.dictionaries.find(current_dictionary_name)->value;
