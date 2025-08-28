@@ -1173,7 +1173,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                         if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, &element); inherited_animated_value.has_value())
                             return inherited_animated_value.value();
 
-                        return get_inherit_value(longhand_id, &element);
+                        return get_non_animated_inherit_value(longhand_id, &element);
                     }
 
                     if (longhand_value.is_initial() || longhand_value.is_unset())
@@ -1737,7 +1737,7 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
     return cascaded_properties;
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::get_inherit_value(CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element)
+NonnullRefPtr<StyleValue const> StyleComputer::get_non_animated_inherit_value(CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element)
 {
     auto parent_element = element ? element->element_to_inherit_style_from(pseudo_element) : nullptr;
 
@@ -2682,7 +2682,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
 
         // FIXME: Logical properties should inherit from their parent's equivalent unmapped logical property.
         if (should_inherit) {
-            value = get_inherit_value(property_id, &element, pseudo_element);
+            value = get_non_animated_inherit_value(property_id, &element, pseudo_element);
             animated_value = get_animated_inherit_value(property_id, &element, pseudo_element);
             inherited = ComputedProperties::Inherited::Yes;
         }
