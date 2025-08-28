@@ -435,7 +435,7 @@ String Selector::SimpleSelector::serialize() const
             // For pseudo-classes with both a function and identifier form, see if they have arguments.
             switch (pseudo_class.type) {
             case PseudoClass::Heading:
-                return !pseudo_class.an_plus_b_patterns.is_empty();
+                return !pseudo_class.levels.is_empty();
             case PseudoClass::Host:
                 return !pseudo_class.argument_selector_list.is_empty();
             default:
@@ -483,6 +483,10 @@ String Selector::SimpleSelector::serialize() const
             case PseudoClassMetadata::ParameterType::LanguageRanges:
                 // The serialization of a comma-separated list of each argument’s serialization as a string, preserving relative order.
                 s.join(", "sv, pseudo_class.languages);
+                break;
+            case PseudoClassMetadata::ParameterType::LevelList:
+                // AD-HOC: not in the spec.
+                s.join(", "sv, pseudo_class.levels);
                 break;
             }
             s.append(')');

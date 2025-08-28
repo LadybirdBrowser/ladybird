@@ -51,7 +51,7 @@
     "argument": "<relative-selector-list>"
   },
   "heading": {
-    "argument": "<an+b>#?"
+    "argument": "<level>#?"
   },
   "high-value": {
     "argument": ""
