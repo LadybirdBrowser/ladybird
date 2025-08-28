@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none" id="svg-element"></svg>
+<script>
+    test(() => {
+        const svgElement = document.getElementById("svg-element");
+        svgElement.setAttribute("viewBox", "0,1,2,3");
+        println(svgElement.viewBox.baseVal.x);
+        println(svgElement.viewBox.baseVal.y);
+        println(svgElement.viewBox.baseVal.width);
+        println(svgElement.viewBox.baseVal.height);
+        svgElement.setAttribute("viewBox", "  4  ,  5  ,  6  ,  7  ");
+        println(svgElement.viewBox.baseVal.x);
+        println(svgElement.viewBox.baseVal.y);
+        println(svgElement.viewBox.baseVal.width);
+        println(svgElement.viewBox.baseVal.height);
+        svgElement.setAttribute("viewBox", "8 9,10 11");
+        println(svgElement.viewBox.baseVal.x);
+        println(svgElement.viewBox.baseVal.y);
+        println(svgElement.viewBox.baseVal.width);
+        println(svgElement.viewBox.baseVal.height);
+        svgElement.setAttribute("viewBox", "");
+        println(svgElement.viewBox.baseVal);
+        svgElement.setAttribute("viewBox", " , , , ");
+        println(svgElement.viewBox.baseVal);
+        svgElement.setAttribute("viewBox", "12");
+        println(svgElement.viewBox.baseVal);
+        svgElement.setAttribute("viewBox", "13,");
+        println(svgElement.viewBox.baseVal);
+        svgElement.setAttribute("viewBox", ",14");
+        println(svgElement.viewBox.baseVal);
+        svgElement.setAttribute("viewBox", "15,16,17,18,");
+        println(svgElement.viewBox.baseVal);
+    });
+</script>

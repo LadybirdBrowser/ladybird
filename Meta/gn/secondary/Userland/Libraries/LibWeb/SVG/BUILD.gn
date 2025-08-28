@@ -48,6 +48,5 @@ source_set("SVG") {
     "SVGTransformList.cpp",
     "SVGUseElement.cpp",
     "TagNames.cpp",
-    "ViewBox.cpp",
   ]
 }

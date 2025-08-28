@@ -9,7 +9,6 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
-#include <LibWeb/SVG/ViewBox.h>
 
 namespace Web::SVG {
 
