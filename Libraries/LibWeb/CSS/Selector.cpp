@@ -462,12 +462,7 @@ String Selector::SimpleSelector::serialize() const
             case PseudoClassMetadata::ParameterType::ANPlusB:
             case PseudoClassMetadata::ParameterType::ANPlusBOf:
                 // The result of serializing the value using the rules to serialize an <an+b> value.
-                s.append(pseudo_class.an_plus_b_patterns.first().serialize());
-                break;
-            case PseudoClassMetadata::ParameterType::ANPlusBList:
-                serialize_a_comma_separated_list(s, pseudo_class.an_plus_b_patterns, [](auto& builder, ANPlusBPattern const& an_plus_b) {
-                    builder.append(an_plus_b.serialize());
-                });
+                s.append(pseudo_class.an_plus_b_pattern.serialize());
                 break;
             case PseudoClassMetadata::ParameterType::CompoundSelector:
             case PseudoClassMetadata::ParameterType::ForgivingSelectorList:

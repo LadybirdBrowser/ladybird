@@ -670,8 +670,6 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::NthLastChild:
     case CSS::PseudoClass::NthOfType:
     case CSS::PseudoClass::NthLastOfType: {
-        auto& an_plus_b = pseudo_class.an_plus_b_patterns.first();
-
         auto const* parent = element.parent();
         if (!parent)
             return false;
@@ -726,7 +724,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         default:
             VERIFY_NOT_REACHED();
         }
-        return an_plus_b.matches(index);
+        return pseudo_class.an_plus_b_pattern.matches(index);
     }
     case CSS::PseudoClass::Playing: {
         if (!is<HTML::HTMLMediaElement>(element))

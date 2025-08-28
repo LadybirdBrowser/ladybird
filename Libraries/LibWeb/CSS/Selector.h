@@ -93,8 +93,8 @@ public:
         struct PseudoClassSelector {
             PseudoClass type;
 
-            // Used for the :nth-*() pseudo-classes, and :heading()
-            Vector<ANPlusBPattern> an_plus_b_patterns {};
+            // Used for the :nth-*() pseudo-classes
+            ANPlusBPattern an_plus_b_pattern {};
 
             // FIXME: This would make more sense as part of SelectorList but that's currently a `using`
             bool is_forgiving { false };
