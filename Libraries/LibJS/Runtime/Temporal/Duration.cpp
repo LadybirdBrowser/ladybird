@@ -1378,8 +1378,8 @@ ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM& vm, InternalD
 {
     // 1. If IsCalendarUnit(unit) is true, or timeZone is not UNSET and unit is DAY, then
     if (is_calendar_unit(unit) || (time_zone.has_value() && unit == Unit::Day)) {
-        // a. Let sign be InternalDurationSign(duration).
-        auto sign = internal_duration_sign(duration);
+        // a. If InternalDurationSign(duration) < 0, let sign be -1; else let sign be 1.
+        auto sign = internal_duration_sign(duration) < 0 ? -1 : 1;
 
         // b. Let record be ? NudgeToCalendarUnit(sign, duration, destEpochNs, isoDateTime, timeZone, calendar, 1, unit, TRUNC).
         auto record = TRY(nudge_to_calendar_unit(vm, sign, duration, dest_epoch_ns, iso_date_time, time_zone, calendar, 1, unit, RoundingMode::Trunc));
