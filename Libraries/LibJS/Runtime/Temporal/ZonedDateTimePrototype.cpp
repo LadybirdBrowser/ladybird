@@ -776,15 +776,15 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_string)
     // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", UNSET).
     auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, Unset {}));
 
-    // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
+    // 10. Let showTimeZone be ? GetTemporalShowTimeZoneNameOption(resolvedOptions).
+    auto show_time_zone = TRY(get_temporal_show_time_zone_name_option(vm, resolved_options));
+
+    // 11. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
     TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time));
 
-    // 11. If smallestUnit is HOUR, throw a RangeError exception.
+    // 12. If smallestUnit is HOUR, throw a RangeError exception.
     if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && *unit == Unit::Hour)
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
-
-    // 12. Let showTimeZone be ? GetTemporalShowTimeZoneNameOption(resolvedOptions).
-    auto show_time_zone = TRY(get_temporal_show_time_zone_name_option(vm, resolved_options));
 
     // 13. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
     auto precision = to_seconds_string_precision_record(smallest_unit, digits);

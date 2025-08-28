@@ -268,15 +268,15 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::to_string)
     // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", UNSET).
     auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, Unset {}));
 
-    // 8. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
+    // 8. Let timeZone be ? Get(resolvedOptions, "timeZone").
+    auto time_zone_value = TRY(resolved_options->get(vm.names.timeZone));
+
+    // 9. Perform ? ValidateTemporalUnitValue(smallestUnit, TIME).
     TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, UnitGroup::Time));
 
-    // 9. If smallestUnit is HOUR, throw a RangeError exception.
+    // 10. If smallestUnit is HOUR, throw a RangeError exception.
     if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && *unit == Unit::Hour)
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
-
-    // 10. Let timeZone be ? Get(resolvedOptions, "timeZone").
-    auto time_zone_value = TRY(resolved_options->get(vm.names.timeZone));
 
     String time_zone_buffer;
     Optional<StringView> time_zone;
