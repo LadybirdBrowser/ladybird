@@ -1477,9 +1477,9 @@ RefPtr<StyleValue const> Parser::parse_single_background_size_value(PropertyID p
 {
     auto transaction = tokens.begin_transaction();
 
-    auto get_length_percentage = [](StyleValue const& style_value) -> Optional<LengthPercentage> {
+    auto get_length_percentage_or_auto = [](StyleValue const& style_value) -> Optional<LengthPercentageOrAuto> {
         if (style_value.has_auto())
-            return LengthPercentage { Length::make_auto() };
+            return LengthPercentageOrAuto::make_auto();
         if (style_value.is_percentage())
             return LengthPercentage { style_value.as_percentage().percentage() };
         if (style_value.is_length())
@@ -1501,8 +1501,8 @@ RefPtr<StyleValue const> Parser::parse_single_background_size_value(PropertyID p
 
     auto maybe_y_value = parse_css_value_for_property(property, tokens);
     if (!maybe_y_value) {
-        auto y_value = LengthPercentage { Length::make_auto() };
-        auto x_size = get_length_percentage(*x_value);
+        auto y_value = LengthPercentageOrAuto::make_auto();
+        auto x_size = get_length_percentage_or_auto(*x_value);
         if (!x_size.has_value())
             return nullptr;
 
@@ -1511,8 +1511,8 @@ RefPtr<StyleValue const> Parser::parse_single_background_size_value(PropertyID p
     }
 
     auto y_value = maybe_y_value.release_nonnull();
-    auto x_size = get_length_percentage(*x_value);
-    auto y_size = get_length_percentage(*y_value);
+    auto x_size = get_length_percentage_or_auto(*x_value);
+    auto y_size = get_length_percentage_or_auto(*y_value);
 
     if (!x_size.has_value() || !y_size.has_value())
         return nullptr;

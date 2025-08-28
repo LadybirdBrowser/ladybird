@@ -1100,6 +1100,18 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta));
         if (from.is_percentage() && to.is_percentage())
             return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta));
+        // FIXME: Interpolate calculations
+        return {};
+    };
+
+    static auto interpolate_length_percentage_or_auto = [](LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta) -> Optional<LengthPercentageOrAuto> {
+        if (from.is_auto() && to.is_auto())
+            return LengthPercentageOrAuto::make_auto();
+        if (from.is_length() && to.is_length())
+            return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta));
+        if (from.is_percentage() && to.is_percentage())
+            return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta));
+        // FIXME: Interpolate calculations
         return {};
     };
 
@@ -1107,8 +1119,8 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
     case StyleValue::Type::Angle:
         return AngleStyleValue::create(Angle::make_degrees(interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta)));
     case StyleValue::Type::BackgroundSize: {
-        auto interpolated_x = interpolate_length_percentage(from.as_background_size().size_x(), to.as_background_size().size_x(), delta);
-        auto interpolated_y = interpolate_length_percentage(from.as_background_size().size_y(), to.as_background_size().size_y(), delta);
+        auto interpolated_x = interpolate_length_percentage_or_auto(from.as_background_size().size_x(), to.as_background_size().size_x(), delta);
+        auto interpolated_y = interpolate_length_percentage_or_auto(from.as_background_size().size_y(), to.as_background_size().size_y(), delta);
         if (!interpolated_x.has_value() || !interpolated_y.has_value())
             return {};
 
