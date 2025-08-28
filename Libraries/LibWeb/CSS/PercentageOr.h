@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -214,6 +214,75 @@ public:
     Length const& length() const { return get_t(); }
 };
 
+class LengthPercentageOrAuto {
+public:
+    LengthPercentageOrAuto(LengthPercentage length_percentage)
+    {
+        if (length_percentage.is_auto())
+            m_length_percentage = {};
+        else
+            m_length_percentage = move(length_percentage);
+    }
+
+    LengthPercentageOrAuto(Length length)
+    {
+        if (length.is_auto())
+            m_length_percentage = {};
+        else
+            m_length_percentage = move(length);
+    }
+
+    LengthPercentageOrAuto(Percentage percentage)
+        : m_length_percentage(move(percentage))
+    {
+    }
+
+    static LengthPercentageOrAuto make_auto()
+    {
+        return LengthPercentageOrAuto();
+    }
+
+    bool is_auto() const { return !m_length_percentage.has_value(); }
+    bool is_length() const { return m_length_percentage.has_value() && m_length_percentage->is_length(); }
+    bool is_percentage() const { return m_length_percentage.has_value() && m_length_percentage->is_percentage(); }
+    bool is_calculated() const { return m_length_percentage.has_value() && m_length_percentage->is_calculated(); }
+
+    bool contains_percentage() const { return m_length_percentage.has_value() && m_length_percentage->contains_percentage(); }
+
+    LengthPercentage const& length_percentage() const { return m_length_percentage.value(); }
+    Length const& length() const { return m_length_percentage->length(); }
+    Percentage const& percentage() const { return m_length_percentage->percentage(); }
+    NonnullRefPtr<CalculatedStyleValue const> const& calculated() const { return m_length_percentage->calculated(); }
+
+    LengthOrAuto resolved_or_auto(Layout::Node const& layout_node, CSSPixels reference_value) const
+    {
+        if (is_auto())
+            return LengthOrAuto::make_auto();
+        return length_percentage().resolved(layout_node, reference_value);
+    }
+
+    CSSPixels to_px_or_zero(Layout::Node const& layout_node, CSSPixels reference_value) const
+    {
+        if (is_auto())
+            return 0;
+        return length_percentage().to_px(layout_node, reference_value);
+    }
+
+    String to_string(SerializationMode mode) const
+    {
+        if (is_auto())
+            return "auto"_string;
+        return m_length_percentage->to_string(mode);
+    }
+
+    bool operator==(LengthPercentageOrAuto const&) const = default;
+
+private:
+    LengthPercentageOrAuto() = default;
+
+    Optional<LengthPercentage> m_length_percentage;
+};
+
 class TimePercentage : public PercentageOr<Time, TimePercentage> {
 public:
     using PercentageOr<Time, TimePercentage>::PercentageOr;
@@ -253,6 +322,14 @@ struct AK::Formatter<Web::CSS::LengthPercentage> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::LengthPercentage const& length_percentage)
     {
         return Formatter<StringView>::format(builder, length_percentage.to_string(Web::CSS::SerializationMode::Normal));
+    }
+};
+
+template<>
+struct AK::Formatter<Web::CSS::LengthPercentageOrAuto> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::LengthPercentageOrAuto const& length_percentage_or_auto)
+    {
+        return Formatter<StringView>::format(builder, length_percentage_or_auto.to_string(Web::CSS::SerializationMode::Normal));
     }
 };
 
