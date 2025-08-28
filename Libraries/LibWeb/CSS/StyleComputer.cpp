@@ -3231,6 +3231,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderRightStyle), computation_context);
     case PropertyID::BorderTopWidth:
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderTopStyle), computation_context);
+    case PropertyID::OutlineWidth:
+        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::OutlineStyle), computation_context);
     default:
         // FIXME: We should replace this with a VERIFY_NOT_REACHED() once all properties have their own handling.
         return specified_value;

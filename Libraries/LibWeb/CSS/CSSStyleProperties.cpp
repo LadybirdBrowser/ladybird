@@ -821,10 +821,6 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         auto opacity = layout_node.computed_values().flood_opacity();
         return NumberStyleValue::create(opacity);
     }
-    case PropertyID::OutlineWidth: {
-        auto outline_width = layout_node.computed_values().outline_width();
-        return LengthStyleValue::create(outline_width);
-    }
     case PropertyID::WebkitTextFillColor:
         return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().webkit_text_fill_color());
     case PropertyID::Invalid:

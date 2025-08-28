@@ -1516,8 +1516,7 @@ void PaintableBox::resolve_paint_properties()
     set_transform_origin({ x, y });
 
     // Outlines
-    auto outline_width = computed_values.outline_width().to_px(layout_node);
-    auto outline_data = borders_data_for_outline(layout_node, computed_values.outline_color(), computed_values.outline_style(), outline_width);
+    auto outline_data = borders_data_for_outline(layout_node, computed_values.outline_color(), computed_values.outline_style(), computed_values.outline_width());
     auto outline_offset = computed_values.outline_offset().to_px(layout_node);
     set_outline_data(outline_data);
     set_outline_offset(outline_offset);
