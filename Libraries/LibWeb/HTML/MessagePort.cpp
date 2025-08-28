@@ -99,7 +99,11 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(HTML::TransferDataEncoder&
     // 3. If value is entangled with another port remotePort, then:
     if (is_entangled()) {
         // 1. Set remotePort's has been shipped flag to true.
-        m_remote_port->m_has_been_shipped = true;
+
+        // NOTE: We have to null check here because we can be entangled with a port living in another agent.
+        //       In that case, we'll have a transport, but no remote port object.
+        if (m_remote_port)
+            m_remote_port->m_has_been_shipped = true;
 
         auto fd = MUST(m_transport->release_underlying_transport_for_transfer());
         m_transport.clear();
