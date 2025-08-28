@@ -23,7 +23,8 @@ public:
     virtual Optional<CSSPixels> intrinsic_height() const = 0;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const = 0;
 
-    virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize) const = 0;
+    virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap() const;
+    virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap_sized(Gfx::IntSize) const = 0;
     virtual void set_visible_in_viewport(bool) = 0;
 
     virtual void image_provider_visit_edges(GC::Cell::Visitor& visitor) const

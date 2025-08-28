@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 228 tests
 
-44 Pass
-184 Fail
+52 Pass
+176 Fail
 Pass	raster image
 Pass	raster image (when not rendered)
 Pass	raster image with width/height attributes
@@ -72,10 +72,10 @@ Fail	SVG image, with natural height, viewBox with 0 width
 Fail	SVG image, with natural height, viewBox with 0 width (when not rendered)
 Fail	SVG image, with natural height, viewBox with 0 height
 Fail	SVG image, with natural height, viewBox with 0 height (when not rendered)
-Fail	SVG image, with natural width and height
-Fail	SVG image, with natural width and height (when not rendered)
-Fail	SVG image, with natural width and height, and aspect ratio from viewBox
-Fail	SVG image, with natural width and height, and aspect ratio from viewBox (when not rendered)
+Pass	SVG image, with natural width and height
+Pass	SVG image, with natural width and height (when not rendered)
+Pass	SVG image, with natural width and height, and aspect ratio from viewBox
+Pass	SVG image, with natural width and height, and aspect ratio from viewBox (when not rendered)
 Pass	SVG image, with natural width and height of 0, and aspect ratio from viewBox
 Pass	SVG image, with natural width and height of 0, and aspect ratio from viewBox (when not rendered)
 Fail	SVG image, with natural width and height being negative, and aspect ratio from viewBox
@@ -148,10 +148,10 @@ Fail	SVG image, with natural height, viewBox with 0 width (with srcset/1x)
 Fail	SVG image, with natural height, viewBox with 0 width (with srcset/1x) (when not rendered)
 Fail	SVG image, with natural height, viewBox with 0 height (with srcset/1x)
 Fail	SVG image, with natural height, viewBox with 0 height (with srcset/1x) (when not rendered)
-Fail	SVG image, with natural width and height (with srcset/1x)
-Fail	SVG image, with natural width and height (with srcset/1x) (when not rendered)
-Fail	SVG image, with natural width and height, and aspect ratio from viewBox (with srcset/1x)
-Fail	SVG image, with natural width and height, and aspect ratio from viewBox (with srcset/1x) (when not rendered)
+Pass	SVG image, with natural width and height (with srcset/1x)
+Pass	SVG image, with natural width and height (with srcset/1x) (when not rendered)
+Pass	SVG image, with natural width and height, and aspect ratio from viewBox (with srcset/1x)
+Pass	SVG image, with natural width and height, and aspect ratio from viewBox (with srcset/1x) (when not rendered)
 Pass	SVG image, with natural width and height of 0, and aspect ratio from viewBox (with srcset/1x)
 Pass	SVG image, with natural width and height of 0, and aspect ratio from viewBox (with srcset/1x) (when not rendered)
 Fail	SVG image, with natural width and height being negative, and aspect ratio from viewBox (with srcset/1x)

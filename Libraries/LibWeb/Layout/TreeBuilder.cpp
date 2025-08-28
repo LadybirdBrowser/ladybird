@@ -206,7 +206,7 @@ public:
     virtual Optional<CSSPixels> intrinsic_height() const override { return m_image->natural_height(); }
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override { return m_image->natural_aspect_ratio(); }
 
-    virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize size) const override
+    virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap_sized(Gfx::IntSize size) const override
     {
         auto rect = DevicePixelRect { DevicePixelPoint {}, size.to_type<DevicePixels>() };
         return const_cast<Gfx::ImmutableBitmap*>(m_image->current_frame_bitmap(rect));

@@ -73,7 +73,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                 context.display_list_recorder().draw_rect(enclosing_rect, Gfx::Color::Black);
                 context.display_list_recorder().draw_text(enclosing_rect, m_alt_text, *Platform::FontPlugin::the().default_font(12), Gfx::TextAlignment::Center, computed_values().color());
             }
-        } else if (auto bitmap = m_image_provider.current_image_bitmap(image_rect_device_pixels.size().to_type<int>())) {
+        } else if (auto bitmap = m_image_provider.current_image_bitmap_sized(image_rect_device_pixels.size().to_type<int>())) {
             ScopedCornerRadiusClip corner_clip { context, image_rect_device_pixels, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
             auto image_int_rect_device_pixels = image_rect_device_pixels.to_type<int>();
             auto bitmap_rect = bitmap->rect();
