@@ -398,11 +398,10 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
 
     // 7. the child stacking contexts with positive stack levels (least positive first).
     // NOTE: Hit testing follows reverse painting order, that's why the conditions here are reversed.
-    for (ssize_t i = m_children.size() - 1; i >= 0; --i) {
-        auto const& child = *m_children[i];
-        if (child.paintable_box().computed_values().z_index().value_or(0) <= 0)
+    for (auto const* child : m_children.in_reverse()) {
+        if (child->paintable_box().computed_values().z_index().value_or(0) <= 0)
             break;
-        if (child.hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+        if (child->hit_test(transformed_position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
@@ -449,11 +448,10 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
 
     // 2. the child stacking contexts with negative stack levels (most negative first).
     // NOTE: Hit testing follows reverse painting order, that's why the conditions here are reversed.
-    for (ssize_t i = m_children.size() - 1; i >= 0; --i) {
-        auto const& child = *m_children[i];
-        if (child.paintable_box().computed_values().z_index().value_or(0) >= 0)
+    for (auto const* child : m_children.in_reverse()) {
+        if (child->paintable_box().computed_values().z_index().value_or(0) >= 0)
             break;
-        if (child.hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+        if (child->hit_test(transformed_position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
