@@ -71,7 +71,7 @@ static NonnullRefPtr<StyleValue const> with_keyword_values_resolved(DOM::Element
     case Keyword::Unset:
         return property_initial_value(property_id);
     case Keyword::Inherit:
-        return StyleComputer::get_inherit_value(property_id, { element });
+        return StyleComputer::get_non_animated_inherit_value(property_id, { element });
     default:
         break;
     }
