@@ -301,6 +301,7 @@ class InvalidationSet;
 class KeywordStyleValue;
 class Length;
 class LengthBox;
+class LengthOrAuto;
 class LengthOrCalculated;
 class LengthPercentage;
 class LengthStyleValue;

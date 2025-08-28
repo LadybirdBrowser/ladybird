@@ -251,6 +251,38 @@ private:
     double m_value { 0 };
 };
 
+class LengthOrAuto {
+public:
+    LengthOrAuto(Length length)
+        : m_length(move(length))
+    {
+    }
+
+    static LengthOrAuto make_auto() { return LengthOrAuto { OptionalNone {} }; }
+
+    bool is_length() const { return m_length.has_value(); }
+    bool is_auto() const { return !m_length.has_value(); }
+
+    Length const& length() const { return m_length.value(); }
+
+    String to_string(SerializationMode mode = SerializationMode::Normal) const
+    {
+        if (is_auto())
+            return "auto"_string;
+        return m_length->to_string(mode);
+    }
+
+    bool operator==(LengthOrAuto const&) const = default;
+
+private:
+    explicit LengthOrAuto(Optional<Length> maybe_length)
+        : m_length(move(maybe_length))
+    {
+    }
+
+    Optional<Length> m_length;
+};
+
 }
 
 template<>
@@ -258,5 +290,13 @@ struct AK::Formatter<Web::CSS::Length> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Length const& length)
     {
         return Formatter<StringView>::format(builder, length.to_string());
+    }
+};
+
+template<>
+struct AK::Formatter<Web::CSS::LengthOrAuto> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::LengthOrAuto const& length_or_auto)
+    {
+        return Formatter<StringView>::format(builder, length_or_auto.to_string());
     }
 };
