@@ -6,6 +6,7 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/FloatingPoint.h>
 #include <AK/Math.h>
 #include <AK/StringBuilder.h>
 #include <LibCrypto/BigFraction/BigFraction.h>

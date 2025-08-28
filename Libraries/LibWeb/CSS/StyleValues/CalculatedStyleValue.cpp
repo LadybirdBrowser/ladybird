@@ -7,12 +7,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CalculatedStyleValue.h"
+#include <AK/FloatingPoint.h>
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>

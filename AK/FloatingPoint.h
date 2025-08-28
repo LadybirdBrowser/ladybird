@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2022, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2022-2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <AK/StdLibExtraDetails.h>
 #include <AK/Types.h>
 
 namespace AK {
