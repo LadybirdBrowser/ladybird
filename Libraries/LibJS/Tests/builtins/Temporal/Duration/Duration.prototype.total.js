@@ -17,6 +17,14 @@ describe("correct behavior", () => {
         }
     });
 
+    test("blank duration", () => {
+        const duration = new Temporal.Duration();
+        const relativeTo = new Temporal.ZonedDateTime(1n, "UTC");
+
+        const result = duration.total({ unit: "years", relativeTo: relativeTo });
+        expect(result).toBe(0);
+    });
+
     test("relative to plain date", () => {
         const duration = new Temporal.Duration(0, 0, 0, 31);
 
