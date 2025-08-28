@@ -664,7 +664,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
     }
 
     if (pseudo_class_token.is_function()) {
-        auto parse_an_plus_b_selector = [this](auto pseudo_class, Vector<ComponentValue> const& function_values, bool allow_of) -> ParseErrorOr<Selector::SimpleSelector> {
+        auto parse_an_plus_b_selector = [this](auto pseudo_class, Vector<ComponentValue> const& function_values, bool allow_of = false) -> ParseErrorOr<Selector::SimpleSelector> {
             auto tokens = TokenStream<ComponentValue>(function_values);
             auto an_plus_b_pattern = parse_a_n_plus_b_pattern(tokens);
             if (!an_plus_b_pattern.has_value()) {
@@ -682,7 +682,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                     .type = Selector::SimpleSelector::Type::PseudoClass,
                     .value = Selector::SimpleSelector::PseudoClassSelector {
                         .type = pseudo_class,
-                        .an_plus_b_patterns = Vector { an_plus_b_pattern.release_value() } }
+                        .an_plus_b_pattern = an_plus_b_pattern.release_value() }
                 };
             }
 
@@ -705,39 +705,8 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 .type = Selector::SimpleSelector::Type::PseudoClass,
                 .value = Selector::SimpleSelector::PseudoClassSelector {
                     .type = pseudo_class,
-                    .an_plus_b_patterns = Vector { an_plus_b_pattern.release_value() },
+                    .an_plus_b_pattern = an_plus_b_pattern.release_value(),
                     .argument_selector_list = move(selector_list) }
-            };
-        };
-
-        auto parse_an_plus_b_list_selector = [this](auto pseudo_class, Vector<ComponentValue> const& function_values) -> ParseErrorOr<Selector::SimpleSelector> {
-            TokenStream tokens { function_values };
-            auto list = parse_a_comma_separated_list_of_component_values(tokens);
-            Vector<Selector::SimpleSelector::ANPlusBPattern> an_plus_b_patterns;
-
-            for (auto const& values : list) {
-                TokenStream pattern_tokens { values };
-                auto an_plus_b_pattern = parse_a_n_plus_b_pattern(pattern_tokens);
-                if (!an_plus_b_pattern.has_value()) {
-                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
-                        .name = MUST(String::formatted(":{}", pseudo_class_name(pseudo_class))),
-                        .value_string = pattern_tokens.dump_string(),
-                        .description = "Invalid An+B format."_string,
-                    });
-                    return ParseError::SyntaxError;
-                }
-                an_plus_b_patterns.append(an_plus_b_pattern.release_value());
-            }
-
-            tokens.discard_whitespace();
-            if (tokens.has_next_token())
-                return ParseError::SyntaxError;
-
-            return Selector::SimpleSelector {
-                .type = Selector::SimpleSelector::Type::PseudoClass,
-                .value = Selector::SimpleSelector::PseudoClassSelector {
-                    .type = pseudo_class,
-                    .an_plus_b_patterns = move(an_plus_b_patterns) }
             };
         };
 
@@ -787,8 +756,6 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         switch (metadata.parameter_type) {
         case PseudoClassMetadata::ParameterType::ANPlusB:
             return parse_an_plus_b_selector(pseudo_class, pseudo_function.value, false);
-        case PseudoClassMetadata::ParameterType::ANPlusBList:
-            return parse_an_plus_b_list_selector(pseudo_class, pseudo_function.value);
         case PseudoClassMetadata::ParameterType::ANPlusBOf:
             return parse_an_plus_b_selector(pseudo_class, pseudo_function.value, true);
         case PseudoClassMetadata::ParameterType::CompoundSelector: {

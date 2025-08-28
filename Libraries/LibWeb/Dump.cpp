@@ -555,8 +555,7 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                     break;
                 case CSS::PseudoClassMetadata::ParameterType::ANPlusB:
                 case CSS::PseudoClassMetadata::ParameterType::ANPlusBOf: {
-                    auto& an_plus_b = pseudo_class.an_plus_b_patterns.first();
-                    builder.appendff("(step={}, offset={}", an_plus_b.step_size, an_plus_b.offset);
+                    builder.appendff("(step={}, offset={}", pseudo_class.an_plus_b_pattern.step_size, pseudo_class.an_plus_b_pattern.offset);
                     if (!pseudo_class.argument_selector_list.is_empty()) {
                         builder.append(", selectors=[\n"sv);
                         for (auto const& child_selector : pseudo_class.argument_selector_list)
@@ -565,16 +564,6 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                         builder.append("]"sv);
                     }
                     builder.append(")"sv);
-                    break;
-                }
-                case CSS::PseudoClassMetadata::ParameterType::ANPlusBList: {
-                    builder.append("([\n"sv);
-                    for (auto& an_plus_b : pseudo_class.an_plus_b_patterns) {
-                        indent(builder, indent_levels + 2);
-                        builder.appendff("(step={}, offset={})\n", an_plus_b.step_size, an_plus_b.offset);
-                    }
-                    indent(builder, indent_levels + 1);
-                    builder.append("])"sv);
                     break;
                 }
                 case CSS::PseudoClassMetadata::ParameterType::CompoundSelector:
