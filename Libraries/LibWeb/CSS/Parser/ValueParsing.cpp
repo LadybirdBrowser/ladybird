@@ -3192,6 +3192,8 @@ RefPtr<FitContentStyleValue const> Parser::parse_fit_content_value(TokenStream<C
         return nullptr;
 
     transaction.commit();
+    if (maybe_length->is_auto())
+        return FitContentStyleValue::create();
     return FitContentStyleValue::create(maybe_length.release_value());
 }
 

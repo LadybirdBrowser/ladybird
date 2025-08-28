@@ -198,7 +198,9 @@ Size ComputedProperties::size_value(PropertyID id) const
     }
     if (value.is_fit_content()) {
         auto& fit_content = value.as_fit_content();
-        return Size::make_fit_content(fit_content.length_percentage());
+        if (auto length_percentage = fit_content.length_percentage(); length_percentage.has_value())
+            return Size::make_fit_content(length_percentage.release_value());
+        return Size::make_fit_content();
     }
 
     if (value.is_calculated())
