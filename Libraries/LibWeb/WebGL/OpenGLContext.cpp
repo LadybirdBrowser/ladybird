@@ -31,10 +31,10 @@ extern "C" {
 namespace Web::WebGL {
 
 struct OpenGLContext::Impl {
-    EGLDisplay display { nullptr };
-    EGLConfig config { nullptr };
-    EGLContext context { nullptr };
-    EGLSurface surface { nullptr };
+    EGLDisplay display { EGL_NO_DISPLAY };
+    EGLConfig config { EGL_NO_CONFIG_KHR };
+    EGLContext context { EGL_NO_CONTEXT };
+    EGLSurface surface { EGL_NO_SURFACE };
 
     GLuint framebuffer { 0 };
     GLuint color_buffer { 0 };
@@ -69,6 +69,8 @@ OpenGLContext::~OpenGLContext()
 void OpenGLContext::free_surface_resources()
 {
 #ifdef ENABLE_WEBGL
+    eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+
     if (m_impl->framebuffer) {
         glDeleteFramebuffers(1, &m_impl->framebuffer);
         m_impl->framebuffer = 0;
@@ -377,6 +379,7 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     allocate_vkimage_painting_surface();
 #    endif
     VERIFY(m_painting_surface);
+    VERIFY(eglGetCurrentContext() == m_impl->context);
 
     glGenFramebuffers(1, &m_impl->framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, m_impl->framebuffer);
