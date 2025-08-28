@@ -314,6 +314,7 @@ class LengthOrAuto;
 class LengthOrAutoOrCalculated;
 class LengthOrCalculated;
 class LengthPercentage;
+class LengthPercentageOrAuto;
 class LengthStyleValue;
 class LinearGradientStyleValue;
 class MathDepthStyleValue;
