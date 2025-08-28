@@ -15,7 +15,7 @@ class FitContentStyleValue final : public StyleValue {
 public:
     static ValueComparingNonnullRefPtr<FitContentStyleValue const> create()
     {
-        return adopt_ref(*new (nothrow) FitContentStyleValue(LengthPercentage { Length::make_auto() }));
+        return adopt_ref(*new (nothrow) FitContentStyleValue());
     }
     static ValueComparingNonnullRefPtr<FitContentStyleValue const> create(LengthPercentage length_percentage)
     {
@@ -25,9 +25,9 @@ public:
 
     virtual String to_string(SerializationMode mode) const override
     {
-        if (m_length_percentage.is_auto())
+        if (!m_length_percentage.has_value())
             return "fit-content"_string;
-        return MUST(String::formatted("fit-content({})", m_length_percentage.to_string(mode)));
+        return MUST(String::formatted("fit-content({})", m_length_percentage->to_string(mode)));
     }
 
     bool equals(StyleValue const& other) const override
@@ -37,16 +37,16 @@ public:
         return m_length_percentage == other.as_fit_content().m_length_percentage;
     }
 
-    [[nodiscard]] LengthPercentage const& length_percentage() const { return m_length_percentage; }
+    [[nodiscard]] Optional<LengthPercentage> const& length_percentage() const { return m_length_percentage; }
 
 private:
-    FitContentStyleValue(LengthPercentage length_percentage)
+    FitContentStyleValue(Optional<LengthPercentage> length_percentage = {})
         : StyleValue(Type::FitContent)
         , m_length_percentage(move(length_percentage))
     {
     }
 
-    LengthPercentage m_length_percentage;
+    Optional<LengthPercentage> m_length_percentage;
 };
 
 }
