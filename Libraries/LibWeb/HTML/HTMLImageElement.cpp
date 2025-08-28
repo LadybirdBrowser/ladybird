@@ -173,7 +173,7 @@ RefPtr<Gfx::ImmutableBitmap> HTMLImageElement::immutable_bitmap() const
     return current_image_bitmap();
 }
 
-RefPtr<Gfx::ImmutableBitmap> HTMLImageElement::default_image_bitmap(Gfx::IntSize size) const
+RefPtr<Gfx::ImmutableBitmap> HTMLImageElement::default_image_bitmap_sized(Gfx::IntSize size) const
 {
     if (auto data = m_current_request->image_data())
         return data->bitmap(0, size);
@@ -206,7 +206,7 @@ Optional<CSSPixelFraction> HTMLImageElement::intrinsic_aspect_ratio() const
     return {};
 }
 
-RefPtr<Gfx::ImmutableBitmap> HTMLImageElement::current_image_bitmap(Gfx::IntSize size) const
+RefPtr<Gfx::ImmutableBitmap> HTMLImageElement::current_image_bitmap_sized(Gfx::IntSize size) const
 {
     if (auto data = m_current_request->image_data())
         return data->bitmap(m_current_frame_index, size);

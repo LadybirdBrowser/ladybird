@@ -408,9 +408,9 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // 3. Set imageBitmap's bitmap data to a copy of image's media data, cropped to the source rectangle with formatting. If this is an animated image, imageBitmap's bitmap data must only be taken from the default image of the animation (the one that the format defines is to be used when animation is not supported or is disabled), or, if there is no such image, the first frame of the animation.
                     RefPtr<Gfx::ImmutableBitmap> immutable_bitmap;
                     if (has_natural_dimensions) {
-                        immutable_bitmap = image_element->default_image_bitmap(Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() });
+                        immutable_bitmap = image_element->default_image_bitmap_sized(Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() });
                     } else {
-                        immutable_bitmap = image_element->default_image_bitmap(Gfx::IntSize { *options->resize_width, *options->resize_height });
+                        immutable_bitmap = image_element->default_image_bitmap_sized(Gfx::IntSize { *options->resize_width, *options->resize_height });
                     }
                     auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(immutable_bitmap->bitmap(), sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure

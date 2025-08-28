@@ -239,7 +239,7 @@ Optional<CSSPixelFraction> SVGImageElement::intrinsic_aspect_ratio() const
     return {};
 }
 
-RefPtr<Gfx::ImmutableBitmap> SVGImageElement::default_image_bitmap(Gfx::IntSize size) const
+RefPtr<Gfx::ImmutableBitmap> SVGImageElement::default_image_bitmap_sized(Gfx::IntSize size) const
 {
     if (!m_resource_request)
         return {};
@@ -248,7 +248,7 @@ RefPtr<Gfx::ImmutableBitmap> SVGImageElement::default_image_bitmap(Gfx::IntSize 
     return {};
 }
 
-RefPtr<Gfx::ImmutableBitmap> SVGImageElement::current_image_bitmap(Gfx::IntSize size) const
+RefPtr<Gfx::ImmutableBitmap> SVGImageElement::current_image_bitmap_sized(Gfx::IntSize size) const
 {
     if (!m_resource_request)
         return {};
