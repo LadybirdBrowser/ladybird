@@ -27,21 +27,26 @@
 
     <!-- #f1 must be hit instead of #f2 -->
     <a id="f1"><img id="f2" style="height: 30px; width: 30px; pointer-events: none"></a>
+
+    <!-- div is positioned and creates its own stacking context, #g2 must be hit -->
+    <div id="g1" style="pointer-events: none; position: relative; z-index: 0"><a id="g2" style="pointer-events: auto">ladybird</a></div>
 </body>
 <script>
     test(() => {
-        const printHit = (x, y) => {
-            const hit = internals.hitTest(x, y);
+        const printHit = (element, x, y) => {
+            const rect = element.getBoundingClientRect();
+            const hit = internals.hitTest(rect.x + x, rect.y + y);
             printElement(hit.node);
             printElement(hit.node.parentNode);
             println('---');
         };
 
-        printHit(a1.offsetLeft + 50, a1.offsetTop + 50);
-        printHit(b1.offsetLeft + 50, b1.offsetTop + 50);
-        printHit(c1.offsetLeft + 50, c1.offsetTop + 50);
-        printHit(d4.offsetLeft + 10, d4.offsetTop + 8);
-        printHit(e1.offsetLeft + 50, e1.offsetTop + 50);
-        printHit(f1.offsetLeft + 15, f1.offsetTop + 15);
+        printHit(a1, 50, 50);
+        printHit(b1, 50, 50);
+        printHit(c2, 50, 50);
+        printHit(d4, 10, 8);
+        printHit(e1, 50, 50);
+        printHit(f1, 15, 15);
+        printHit(g1, 5, 5);
     });
 </script>

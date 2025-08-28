@@ -384,9 +384,6 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
 TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (!paintable_box().visible_for_hit_testing())
-        return TraversalDecision::Continue;
-
     auto const inverse_transform = affine_transform_matrix().inverse().value_or({});
     auto const transform_origin = paintable_box().transform_origin();
     // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
@@ -454,6 +451,9 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
         if (child->hit_test(transformed_position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
+
+    if (!paintable_box().visible_for_hit_testing())
+        return TraversalDecision::Continue;
 
     auto const enclosing_scroll_offset = paintable_box().cumulative_offset_of_enclosing_scroll_frame();
     auto const raw_position_adjusted_by_scroll_offset = position.translated(-enclosing_scroll_offset);
