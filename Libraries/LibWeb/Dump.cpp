@@ -598,6 +598,12 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                     builder.append(')');
                     break;
                 }
+                case CSS::PseudoClassMetadata::ParameterType::LevelList: {
+                    builder.append('(');
+                    builder.join(',', pseudo_class.levels);
+                    builder.append(')');
+                    break;
+                }
                 }
             }
 

@@ -77,6 +77,7 @@ struct PseudoClassMetadata {
         ForgivingRelativeSelectorList,
         Ident,
         LanguageRanges,
+        LevelList,
         RelativeSelectorList,
         SelectorList,
     } parameter_type;
@@ -183,6 +184,8 @@ PseudoClassMetadata pseudo_class_metadata(PseudoClass pseudo_class)
                 parameter_type = "Ident"_string;
             } else if (argument_string == "<language-ranges>"sv) {
                 parameter_type = "LanguageRanges"_string;
+            } else if (argument_string == "<level>#"sv) {
+                parameter_type = "LevelList"_string;
             } else if (argument_string == "<relative-selector-list>"sv) {
                 parameter_type = "RelativeSelectorList"_string;
             } else if (argument_string == "<selector-list>"sv) {

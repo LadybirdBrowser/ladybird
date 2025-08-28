@@ -899,6 +899,49 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                     .languages = move(languages) }
             };
         }
+        case PseudoClassMetadata::ParameterType::LevelList: {
+            // https://drafts.csswg.org/selectors-5/#heading-functional-pseudo
+            // :heading() = :heading( <level># )
+            // where <level> is a <number-token> with its type flag set to "integer".
+            Vector<i64> levels;
+            auto function_token_stream = TokenStream(pseudo_function.value);
+            auto level_lists = parse_a_comma_separated_list_of_component_values(function_token_stream);
+
+            for (auto const& level_tokens : level_lists) {
+                TokenStream level_token_stream { level_tokens };
+                level_token_stream.discard_whitespace();
+                auto& maybe_integer = level_token_stream.consume_a_token();
+                level_token_stream.discard_whitespace();
+
+                if (!maybe_integer.is(Token::Type::Number) || !maybe_integer.token().number().is_integer()) {
+                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                        .name = MUST(String::formatted(":{}", pseudo_function.name)),
+                        .value_string = pseudo_class_token.to_string(),
+                        .description = "Failed to parse argument as a <level>: Not an <integer> literal."_string,
+                    });
+                    return ParseError::SyntaxError;
+                }
+
+                if (level_token_stream.has_next_token()) {
+                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                        .name = MUST(String::formatted(":{}", pseudo_function.name)),
+                        .value_string = pseudo_class_token.to_string(),
+                        .description = "Failed to parse argument as a <level>: Has trailing tokens."_string,
+                    });
+                    return ParseError::SyntaxError;
+                }
+
+                levels.append(maybe_integer.token().number().integer_value());
+            }
+
+            return Selector::SimpleSelector {
+                .type = Selector::SimpleSelector::Type::PseudoClass,
+                .value = Selector::SimpleSelector::PseudoClassSelector {
+                    .type = pseudo_class,
+                    .levels = move(levels),
+                }
+            };
+        }
         case PseudoClassMetadata::ParameterType::RelativeSelectorList:
         case PseudoClassMetadata::ParameterType::SelectorList: {
             auto function_token_stream = TokenStream(pseudo_function.value);

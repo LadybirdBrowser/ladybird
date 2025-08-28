@@ -109,6 +109,9 @@ public:
                 FlyString string_value;
             };
             Optional<Ident> ident {};
+
+            // Used by :heading()
+            Vector<i64> levels {};
         };
 
         struct Name {
