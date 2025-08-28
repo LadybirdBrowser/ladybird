@@ -1693,33 +1693,33 @@ ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM& vm, DurationOp
     // 2. Let largestUnit be ? GetTemporalUnitValuedOption(options, "largestUnit", UNSET).
     auto largest_unit = TRY(get_temporal_unit_valued_option(vm, options, vm.names.largestUnit, Unset {}));
 
-    // 3. Perform ? ValidateTemporalUnitValue(largestUnit, unitGroup, « AUTO »).
+    // 3. Let roundingIncrement be ? GetRoundingIncrementOption(options).
+    auto rounding_increment = TRY(get_rounding_increment_option(vm, options));
+
+    // 4. Let roundingMode be ? GetRoundingModeOption(options, TRUNC).
+    auto rounding_mode = TRY(get_rounding_mode_option(vm, options, RoundingMode::Trunc));
+
+    // 5. Let smallestUnit be ? GetTemporalUnitValuedOption(options, "smallestUnit", UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, options, vm.names.smallestUnit, Unset {}));
+
+    // 6. Perform ? ValidateTemporalUnitValue(largestUnit, unitGroup, « AUTO »).
     TRY(validate_temporal_unit_value(vm, vm.names.largestUnit, largest_unit, unit_group, { { Auto {} } }));
 
-    // 4. If largestUnit is UNSET, then
+    // 7. If largestUnit is UNSET, then
     if (largest_unit.has<Unset>()) {
         // a. Set largestUnit to AUTO.
         largest_unit = Auto {};
     }
 
-    // 5. If disallowedUnits contains largestUnit, throw a RangeError exception.
+    // 8. If disallowedUnits contains largestUnit, throw a RangeError exception.
     if (auto* unit = largest_unit.get_pointer<Unit>(); unit && disallowed_units.contains_slow(*unit))
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.largestUnit);
 
-    // 6. Let roundingIncrement be ? GetRoundingIncrementOption(options).
-    auto rounding_increment = TRY(get_rounding_increment_option(vm, options));
-
-    // 7. Let roundingMode be ? GetRoundingModeOption(options, TRUNC).
-    auto rounding_mode = TRY(get_rounding_mode_option(vm, options, RoundingMode::Trunc));
-
-    // 8. If operation is SINCE, then
+    // 9. If operation is SINCE, then
     if (operation == DurationOperation::Since) {
         // a. Set roundingMode to NegateRoundingMode(roundingMode).
         rounding_mode = negate_rounding_mode(rounding_mode);
     }
-
-    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(options, "smallestUnit", UNSET).
-    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, options, vm.names.smallestUnit, Unset {}));
 
     // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, unitGroup).
     TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, unit_group));
