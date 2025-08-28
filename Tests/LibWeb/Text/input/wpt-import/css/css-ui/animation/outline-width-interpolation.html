@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>outline-width interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-ui-3/#outline-width">
+<meta name="assert" content="outline-width supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  outline: solid transparent;
+  outline-width: 30px;
+}
+.target {
+  width: 50px;
+  height: 50px;
+  background-color: black;
+  display: inline-block;
+  margin: 18px;
+  outline: solid orange;
+  outline-width: 10px;
+  opacity: 0.5;
+}
+.expected {
+  background-color: green;
+}
+</style>
+
+<body></body>
+
+<script>
+// NOTE: The below tests make assumptions about the values of medium (for unset
+// and initial) and thick, namely that:
+//   * medium=3px
+//   * thick=3px
+//
+// A better version of these tests would dynamically generate the expected values
+// by querying the computed style from the UA.
+
+test_interpolation({
+  property: 'outline-width',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_interpolation({
+  property: 'outline-width',
+  from: 'initial',
+  to: '23px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '3px'},
+  {at: 0.3, expect: '9px'},
+  {at: 0.6, expect: '15px'},
+  {at: 1, expect: '23px'},
+  {at: 1.5, expect: '33px'},
+]);
+
+test_interpolation({
+  property: 'outline-width',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'outline-width',
+  from: 'unset',
+  to: '23px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '3px'},
+  {at: 0.3, expect: '9px'},
+  {at: 0.6, expect: '15px'},
+  {at: 1, expect: '23px'},
+  {at: 1.5, expect: '33px'},
+]);
+
+test_interpolation({
+  property: 'outline-width',
+  from: '0px',
+  to: '10px',
+}, [
+  {at: -0.3, expect: '0px'}, // CSS outline-width can't be negative.
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '3px'},
+  {at: 0.6, expect: '6px'},
+  {at: 1, expect: '10px'},
+  {at: 1.5, expect: '15px'}
+]);
+
+test_interpolation({
+  property: 'outline-width',
+  from: 'thick',
+  to: '15px',
+}, [
+  {at: -2, expect: '0px'}, // CSS outline-width can't be negative.
+  {at: -0.3, expect: '2px'},
+  {at: 0, expect: '5px'},
+  {at: 0.3, expect: '8px'},
+  {at: 0.6, expect: '11px'},
+  {at: 1, expect: '15px'},
+  {at: 1.5, expect: '20px'}
+]);
+</script>

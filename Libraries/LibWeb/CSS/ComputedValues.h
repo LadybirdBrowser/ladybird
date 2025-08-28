@@ -223,7 +223,7 @@ public:
     static Color outline_color() { return Color::Black; }
     static CSS::Length outline_offset() { return CSS::Length::make_px(0); }
     static CSS::OutlineStyle outline_style() { return CSS::OutlineStyle::None; }
-    static CSS::Length outline_width() { return CSS::Length::make_px(3); }
+    static CSSPixels outline_width() { return 3; }
     static CSS::TableLayout table_layout() { return CSS::TableLayout::Auto; }
     static QuotesData quotes() { return QuotesData { .type = QuotesData::Type::Auto }; }
     static CSS::TransformBox transform_box() { return CSS::TransformBox::ViewBox; }
@@ -626,7 +626,7 @@ public:
     Color outline_color() const { return m_noninherited.outline_color; }
     CSS::Length outline_offset() const { return m_noninherited.outline_offset; }
     CSS::OutlineStyle outline_style() const { return m_noninherited.outline_style; }
-    CSS::Length outline_width() const { return m_noninherited.outline_width; }
+    CSSPixels outline_width() const { return m_noninherited.outline_width; }
 
     CSS::TableLayout table_layout() const { return m_noninherited.table_layout; }
 
@@ -801,7 +801,7 @@ protected:
         Color outline_color { InitialValues::outline_color() };
         CSS::Length outline_offset { InitialValues::outline_offset() };
         CSS::OutlineStyle outline_style { InitialValues::outline_style() };
-        CSS::Length outline_width { InitialValues::outline_width() };
+        CSSPixels outline_width { InitialValues::outline_width() };
         CSS::TableLayout table_layout { InitialValues::table_layout() };
         CSS::ObjectFit object_fit { InitialValues::object_fit() };
         CSS::ObjectPosition object_position { InitialValues::object_position() };
@@ -1023,7 +1023,7 @@ public:
     void set_outline_color(Color value) { m_noninherited.outline_color = value; }
     void set_outline_offset(CSS::Length value) { m_noninherited.outline_offset = value; }
     void set_outline_style(CSS::OutlineStyle value) { m_noninherited.outline_style = value; }
-    void set_outline_width(CSS::Length value) { m_noninherited.outline_width = value; }
+    void set_outline_width(CSSPixels value) { m_noninherited.outline_width = value; }
     void set_mask(MaskReference value) { m_noninherited.mask = value; }
     void set_mask_type(CSS::MaskType value) { m_noninherited.mask_type = value; }
     void set_mask_image(CSS::AbstractImageStyleValue const& value) { m_noninherited.mask_image = value; }
