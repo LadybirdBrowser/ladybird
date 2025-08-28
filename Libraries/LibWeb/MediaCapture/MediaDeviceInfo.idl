@@ -1,0 +1,16 @@
+// https://www.w3.org/TR/mediacapture-streams/#device-info
+[Exposed=Window, SecureContext]
+interface MediaDeviceInfo {
+    readonly attribute DOMString deviceId;
+    readonly attribute MediaDeviceKind kind;
+    readonly attribute DOMString label;
+    readonly attribute DOMString groupId;
+    [Default] object toJSON();
+};
+
+// https://www.w3.org/TR/mediacapture-streams/#dom-mediadevicekind
+enum MediaDeviceKind {
+    "audioinput",
+    "audiooutput",
+    "videoinput"
+};

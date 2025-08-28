@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	enumerateDevices exposes mostly empty objects ahead of successful getUserMedia call
+Fail	enumerateDevices exposes expected objects after successful getUserMedia call

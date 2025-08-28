@@ -63,7 +63,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     AK::set_rich_debug_enabled(true);
 
     // SDL is used for the Gamepad API.
-    if (!SDL_Init(SDL_INIT_GAMEPAD)) {
+    if (!SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_AUDIO | SDL_INIT_CAMERA)) {
         dbgln("Failed to initialize SDL3: {}", SDL_GetError());
         return -1;
     }

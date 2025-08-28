@@ -9,6 +9,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/Bitmap.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
@@ -4502,6 +4503,11 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
     case PolicyControlledFeature::Gamepad:
         // FIXME: Implement allowlist for this.
         return true;
+    case PolicyControlledFeature::Camera:
+    case PolicyControlledFeature::Microphone:
+        return true;
+    default:
+        VERIFY_NOT_REACHED();
     }
 
     // 4. Return false.

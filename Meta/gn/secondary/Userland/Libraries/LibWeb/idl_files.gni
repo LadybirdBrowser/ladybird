@@ -273,6 +273,8 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/IntersectionObserver/IntersectionObserverEntry.idl",
   "//Userland/Libraries/LibWeb/MathML/MathMLElement.idl",
   "//Userland/Libraries/LibWeb/MediaCapabilitiesAPI/MediaCapabilities.idl",
+  "//Userland/Libraries/LibWeb/MediaCapture/MediaDevices.idl",
+  "//Userland/Libraries/LibWeb/MediaCapture/MediaDeviceInfo.idl",
   "//Userland/Libraries/LibWeb/MediaSourceExtensions/BufferedChangeEvent.idl",
   "//Userland/Libraries/LibWeb/MediaSourceExtensions/ManagedMediaSource.idl",
   "//Userland/Libraries/LibWeb/MediaSourceExtensions/ManagedSourceBuffer.idl",

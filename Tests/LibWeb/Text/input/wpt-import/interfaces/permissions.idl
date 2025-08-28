@@ -1,0 +1,41 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Permissions (https://w3c.github.io/permissions/)
+
+[Exposed=(Window)]
+partial interface Navigator {
+  [SameObject] readonly attribute Permissions permissions;
+};
+
+[Exposed=(Worker)]
+partial interface WorkerNavigator {
+  [SameObject] readonly attribute Permissions permissions;
+};
+
+[Exposed=(Window,Worker)]
+interface Permissions {
+  Promise<PermissionStatus> query(object permissionDesc);
+};
+
+dictionary PermissionDescriptor {
+  required DOMString name;
+};
+
+[Exposed=(Window,Worker)]
+interface PermissionStatus : EventTarget {
+  readonly attribute PermissionState state;
+  readonly attribute DOMString name;
+  attribute EventHandler onchange;
+};
+
+enum PermissionState {
+  "granted",
+  "denied",
+  "prompt",
+};
+
+dictionary PermissionSetParameters {
+  required object descriptor;
+  required PermissionState state;
+};
