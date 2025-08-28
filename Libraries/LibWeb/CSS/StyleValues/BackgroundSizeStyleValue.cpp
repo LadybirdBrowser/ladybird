@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-BackgroundSizeStyleValue::BackgroundSizeStyleValue(LengthPercentage size_x, LengthPercentage size_y)
+BackgroundSizeStyleValue::BackgroundSizeStyleValue(LengthPercentageOrAuto size_x, LengthPercentageOrAuto size_y)
     : StyleValueWithDefaultOperators(Type::BackgroundSize)
     , m_properties { .size_x = move(size_x), .size_y = move(size_y) }
 {
@@ -28,8 +28,14 @@ String BackgroundSizeStyleValue::to_string(SerializationMode mode) const
 
 ValueComparingNonnullRefPtr<StyleValue const> BackgroundSizeStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
-    auto absolutized_size_x = m_properties.size_x.absolutized(viewport_rect, font_metrics, root_font_metrics);
-    auto absolutized_size_y = m_properties.size_y.absolutized(viewport_rect, font_metrics, root_font_metrics);
+    auto absolutize = [&](auto& size) -> LengthPercentageOrAuto {
+        if (size.is_auto())
+            return size;
+        return size.length_percentage().absolutized(viewport_rect, font_metrics, root_font_metrics);
+    };
+
+    auto absolutized_size_x = absolutize(m_properties.size_x);
+    auto absolutized_size_y = absolutize(m_properties.size_y);
 
     if (absolutized_size_x == m_properties.size_x && absolutized_size_y == m_properties.size_y)
         return *this;
