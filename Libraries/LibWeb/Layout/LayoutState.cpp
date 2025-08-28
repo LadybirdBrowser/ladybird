@@ -398,19 +398,16 @@ void LayoutState::commit(Box& root)
             if (paintable.line_index() != line_index)
                 return TraversalDecision::Continue;
 
-            if (&paintable != paintable_with_lines) {
-                auto const& used_values = get(paintable.layout_node_with_style_and_box_metrics());
-                size.set_width(size.width() + used_values.margin_box_left() + used_values.margin_box_right());
-            }
+            auto used_values = used_values_per_layout_node.get(paintable.layout_node_with_style_and_box_metrics());
+            if (&paintable != paintable_with_lines && used_values.has_value())
+                size.set_width(size.width() + used_values.value()->margin_box_left() + used_values.value()->margin_box_right());
 
             auto const& fragments = paintable.fragments();
             if (!fragments.is_empty()) {
-                if (!offset.has_value() || (fragments.first().offset().x() < offset.value().x()))
+                if (!offset.has_value() || (fragments.first().offset().x() < offset->x()))
                     offset = fragments.first().offset();
-                if (&paintable == paintable_with_lines->first_child()) {
-                    auto const& used_values = get(paintable.layout_node_with_style_and_box_metrics());
-                    offset->translate_by(-used_values.margin_box_left(), 0);
-                }
+                if (&paintable == paintable_with_lines->first_child() && used_values.has_value())
+                    offset->translate_by(-used_values.value()->margin_box_left(), 0);
             }
             for (auto const& fragment : fragments)
                 size.set_width(size.width() + fragment.width());
