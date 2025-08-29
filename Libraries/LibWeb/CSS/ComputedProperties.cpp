@@ -527,6 +527,12 @@ ColorInterpolation ComputedProperties::color_interpolation() const
     return keyword_to_color_interpolation(value.to_keyword()).value_or(CSS::ColorInterpolation::Auto);
 }
 
+ColorInterpolation ComputedProperties::color_interpolation_filters() const
+{
+    auto const& value = property(PropertyID::ColorInterpolationFilters);
+    return keyword_to_color_interpolation(value.to_keyword()).value_or(CSS::ColorInterpolation::Linearrgb);
+}
+
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
 PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme preferred_scheme, Optional<Vector<String> const&> document_supported_schemes) const
 {

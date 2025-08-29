@@ -131,6 +131,12 @@ struct FilterImpl {
         Gfx::IntSize tile_stitch_size;
     };
 
+    struct ColorSpaceConversion {
+        InterpolationColorSpace source_color_space { InterpolationColorSpace::SRGB };
+        InterpolationColorSpace destination_color_space { InterpolationColorSpace::SRGB };
+        Optional<Filter> input;
+    };
+
     using Operation = Variant<
         Arithmetic,
         Compose,
@@ -149,7 +155,8 @@ struct FilterImpl {
         Offset,
         Erode,
         Dilate,
-        Turbulence>;
+        Turbulence,
+        ColorSpaceConversion>;
 
     enum class OperationType : u8 {
         Arithmetic,
@@ -170,6 +177,7 @@ struct FilterImpl {
         Erode,
         Dilate,
         Turbulence,
+        ColorSpaceConversion,
     };
 
     Operation operation;

@@ -66,6 +66,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::ClipRule),
         NamedPropertyID(CSS::PropertyID::Color),
         NamedPropertyID(CSS::PropertyID::ColorInterpolation),
+        NamedPropertyID(CSS::PropertyID::ColorInterpolationFilters),
         NamedPropertyID(CSS::PropertyID::Cursor),
         NamedPropertyID(CSS::PropertyID::Cx, { SVG::TagNames::circle, SVG::TagNames::ellipse }),
         NamedPropertyID(CSS::PropertyID::Cy, { SVG::TagNames::circle, SVG::TagNames::ellipse }),

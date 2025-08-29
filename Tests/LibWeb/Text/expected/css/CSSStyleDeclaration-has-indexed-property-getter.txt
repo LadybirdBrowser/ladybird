@@ -9,6 +9,7 @@ All properties associated with getComputedStyle(document.body):
     "clip-rule",
     "color",
     "color-interpolation",
+    "color-interpolation-filters",
     "color-scheme",
     "cursor",
     "direction",

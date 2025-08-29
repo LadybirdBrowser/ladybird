@@ -1417,6 +1417,16 @@
       "color-interpolation"
     ]
   },
+  "color-interpolation-filters": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "linearrgb",
+    "requires-computation": "never",
+    "valid-types": [
+      "color-interpolation"
+    ]
+  },
   "color-scheme": {
     "affects-layout": false,
     "animation-type": "discrete",

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['color-interpolation-filters'] = "auto" should set the property value
+Pass	e.style['color-interpolation-filters'] = "sRGB" should set the property value
+Pass	e.style['color-interpolation-filters'] = "linearRGB" should set the property value
+Pass	e.style['color-interpolation-filters'] = "LiNeArRgB" should set the property value

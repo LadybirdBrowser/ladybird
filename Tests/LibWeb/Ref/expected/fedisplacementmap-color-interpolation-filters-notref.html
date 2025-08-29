@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+    }
+</style>
+<svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="black"/>
+            <stop offset="1" stop-color="white"/>
+        </linearGradient>
+        <filter id="f" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+            <feFlood flood-color="rgb(128, 128, 128)" result="displacement"/>
+            <feDisplacementMap in="SourceGraphic" in2="displacement" scale="120" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+    </defs>
+    <rect width="256" height="256" fill="url(#g)" filter="url(#f)"/>
+</svg>

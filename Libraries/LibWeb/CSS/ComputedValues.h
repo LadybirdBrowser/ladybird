@@ -11,6 +11,7 @@
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <LibGfx/FontCascadeList.h>
+#include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ColumnCount.h>
@@ -177,6 +178,7 @@ public:
     static Clear clear() { return Clear::None; }
     static Clip clip() { return Clip::make_auto(); }
     static ColorInterpolation color_interpolation() { return ColorInterpolation::Auto; }
+    static ColorInterpolation color_interpolation_filters() { return ColorInterpolation::Linearrgb; }
     static PreferredColorScheme color_scheme() { return PreferredColorScheme::Auto; }
     static ContentVisibility content_visibility() { return ContentVisibility::Visible; }
     static CursorData cursor() { return { CursorPredefined::Auto }; }
@@ -531,6 +533,19 @@ inline Gfx::ScalingMode to_gfx_scaling_mode(ImageRendering css_value, Gfx::IntSi
     VERIFY_NOT_REACHED();
 }
 
+// FIXME: Find a better place for this helper.
+inline Gfx::InterpolationColorSpace to_interpolation_color_space(ColorInterpolation css_value)
+{
+    switch (css_value) {
+    case ColorInterpolation::Linearrgb:
+        return Gfx::InterpolationColorSpace::LinearRGB;
+    case ColorInterpolation::Auto:
+    case ColorInterpolation::Srgb:
+        return Gfx::InterpolationColorSpace::SRGB;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 class ComputedValues {
     AK_MAKE_NONCOPYABLE(ComputedValues);
     AK_MAKE_NONMOVABLE(ComputedValues);
@@ -548,6 +563,7 @@ public:
     Clear clear() const { return m_noninherited.clear; }
     Clip clip() const { return m_noninherited.clip; }
     ColorInterpolation color_interpolation() const { return m_inherited.color_interpolation; }
+    ColorInterpolation color_interpolation_filters() const { return m_inherited.color_interpolation_filters; }
     PreferredColorScheme color_scheme() const { return m_inherited.color_scheme; }
     ContentVisibility content_visibility() const { return m_inherited.content_visibility; }
     Vector<CursorData> const& cursor() const { return m_inherited.cursor; }
@@ -790,6 +806,7 @@ protected:
         CSSPixels border_spacing_vertical { InitialValues::border_spacing() };
         Color color { InitialValues::color() };
         ColorInterpolation color_interpolation { InitialValues::color_interpolation() };
+        ColorInterpolation color_interpolation_filters { InitialValues::color_interpolation_filters() };
 
         PreferredColorScheme color_scheme { InitialValues::color_scheme() };
         Optional<Color> accent_color {};
@@ -995,6 +1012,7 @@ public:
     void set_caption_side(CaptionSide caption_side) { m_inherited.caption_side = caption_side; }
     void set_color(Color color) { m_inherited.color = color; }
     void set_color_interpolation(ColorInterpolation color_interpolation) { m_inherited.color_interpolation = color_interpolation; }
+    void set_color_interpolation_filters(ColorInterpolation color_interpolation_filters) { m_inherited.color_interpolation_filters = color_interpolation_filters; }
     void set_color_scheme(PreferredColorScheme color_scheme) { m_inherited.color_scheme = color_scheme; }
     void set_clip(Clip const& clip) { m_noninherited.clip = clip; }
     void set_content(ContentData const& content) { m_noninherited.content = content; }

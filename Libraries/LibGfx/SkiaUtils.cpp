@@ -43,12 +43,13 @@ sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter)
         [&](FilterImpl::Arithmetic const& op) -> sk_sp<SkImageFilter> {
             auto background = to_optional_skia_image_filter(op.background);
             auto foreground = to_optional_skia_image_filter(op.foreground);
+            static constexpr bool enforce_premultiplied_color = true;
             return SkImageFilters::Arithmetic(
                 SkFloatToScalar(op.k1),
                 SkFloatToScalar(op.k2),
                 SkFloatToScalar(op.k3),
                 SkFloatToScalar(op.k4),
-                false,
+                enforce_premultiplied_color,
                 move(background),
                 move(foreground));
         },
@@ -205,11 +206,9 @@ sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter)
             auto* g_table = op.g.has_value() ? op.g->data() : nullptr;
             auto* b_table = op.b.has_value() ? op.b->data() : nullptr;
 
-            // Color tables are applied in linear space by default, so we need to convert twice.
-            // FIXME: support sRGB space as well (i.e. don't perform these conversions).
-            auto srgb_to_linear = SkImageFilters::ColorFilter(SkColorFilters::SRGBToLinearGamma(), input);
-            auto color_table = SkImageFilters::ColorFilter(SkColorFilters::TableARGB(a_table, r_table, g_table, b_table), srgb_to_linear);
-            return SkImageFilters::ColorFilter(SkColorFilters::LinearToSRGBGamma(), color_table);
+            // NB: The color space in which the table is applied is determined by the color-interpolation-filters
+            //     property and handled by the filter graph, so the table is applied directly here.
+            return SkImageFilters::ColorFilter(SkColorFilters::TableARGB(a_table, r_table, g_table, b_table), input);
         },
         [&](FilterImpl::Saturate const& op) -> sk_sp<SkImageFilter> {
             auto input = to_optional_skia_image_filter(op.input);
@@ -279,6 +278,22 @@ sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter)
                 VERIFY_NOT_REACHED();
             }();
             return SkImageFilters::Shader(move(turbulence_shader));
+        },
+        [&](FilterImpl::ColorSpaceConversion const& op) -> sk_sp<SkImageFilter> {
+            auto input = to_optional_skia_image_filter(op.input);
+            if (op.source_color_space == op.destination_color_space)
+                return input;
+
+            sk_sp<SkColorFilter> color_space_filter;
+            switch (op.destination_color_space) {
+            case InterpolationColorSpace::LinearRGB:
+                color_space_filter = SkColorFilters::SRGBToLinearGamma();
+                break;
+            case InterpolationColorSpace::SRGB:
+                color_space_filter = SkColorFilters::LinearToSRGBGamma();
+                break;
+            }
+            return SkImageFilters::ColorFilter(move(color_space_filter), move(input));
         });
 }
 

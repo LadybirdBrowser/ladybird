@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/fecolormatrix-color-interpolation-filters-ref.html" />
+<style>
+    html, body {
+        margin: 0;
+    }
+</style>
+<svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <filter id="f">
+            <feColorMatrix type="matrix" values="0 0 0 0 0
+                                                 0 0 0 0 0.5
+                                                 0 0 0 0 0
+                                                 0 0 0 0 1"/>
+        </filter>
+    </defs>
+    <rect width="256" height="256" filter="url(#f)"/>
+</svg>
