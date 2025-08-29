@@ -49,6 +49,12 @@ Before opening an issue, please see the [issue policy](CONTRIBUTING.md#issue-pol
 
 The full contribution guidelines can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## Contributors
+
+<a href="https://github.com/LadybirdBrowser/ladybird/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=LadybirdBrowser/ladybird" />
+</a>
+
 ## License
 
 Ladybird is licensed under a 2-clause BSD license.
