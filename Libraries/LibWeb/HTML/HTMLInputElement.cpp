@@ -2913,13 +2913,6 @@ WebIDL::ExceptionOr<void> HTMLInputElement::step_up_or_down(bool is_down, WebIDL
     return {};
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
-bool HTMLInputElement::will_validate()
-{
-    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation
-    return is_candidate_for_constraint_validation();
-}
-
 Optional<ARIA::Role> HTMLInputElement::default_role() const
 {
     // http://wpt.live/html-aam/roles-dynamic-switch.tentative.window.html "Disconnected <input type=checkbox switch>"
