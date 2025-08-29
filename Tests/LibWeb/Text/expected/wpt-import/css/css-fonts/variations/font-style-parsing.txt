@@ -1,0 +1,49 @@
+Harness status: OK
+
+Found 43 tests
+
+40 Pass
+3 Fail
+Pass	Font-style (supports): 'italic' is valid
+Pass	Font-style (supports): 'italic' followed by angle is invalid
+Pass	Font-style (supports): 'italic' followed by non-number is invalid
+Pass	Font-style (supports): 'oblique' is valid
+Pass	Font-style (supports): 'oblique' followed by zero degrees is valid
+Pass	Font-style (supports): 'oblique' followed by positive angle in degrees is valid
+Pass	Font-style (supports): 'oblique' followed by positive angle in radians is valid
+Pass	Font-style (supports): 'oblique' followed by positive angle in gradians is valid
+Pass	Font-style (supports): 'oblique' followed by positive angle in turns is valid
+Pass	Font-style (supports): 'oblique' followed by number with invalid unit type is in valid
+Pass	Font-style (supports): 'oblique' followed by negative angle is valid
+Pass	Font-style (supports): 'oblique' followed by fractional angle is valid
+Pass	Font-style (supports): 'oblique' followed by maxumum 90 degree angle is valid
+Pass	Font-style (supports): 'oblique' followed by minimum -90 degree angle is valid
+Pass	Font-style (supports): 'oblique' followed by positive out of range angle is in invalid
+Pass	Font-style (supports): 'oblique' followed by negative out of range angle is in invalid
+Pass	Font-style (supports): 'oblique' followed by unit-less value is invalid
+Pass	Font-style (supports): 'oblique' followed by positive angle is valid
+Pass	Font-style (supports): 'oblique' followed by non-number is invalid
+Pass	Font-style (supports): 'oblique' and angle followed by non-number is invalid
+Pass	Font-style (supports): 'oblique' followed by isolated minus is invalid
+Pass	Font-style (supports): 'oblique' followed by minus and angle separated by space is invalid
+Pass	Font-style (supports): 'oblique' followed by minus and non-number is invalid
+Pass	Font-style (supports): 'oblique' followed by calc is valid
+Pass	Font-style (supports): 'oblique' followed by calc is valid even if it must be clamped (no computation)
+Pass	Font-style (supports): 'oblique' followed by calc is valid even if it must be clamped (with computation)
+Pass	Font-style (supports): 'oblique' followed by calc is valid even if it mixes units (with computation)
+Pass	Font-style (computed): 'italic' is valid
+Pass	Font-style (computed): 'oblique' is valid
+Pass	Font-style (computed): 'oblique' followed by zero degrees is valid
+Pass	Font-style (computed): 'oblique' followed by positive angle in degrees is valid
+Pass	Font-style (computed): 'oblique' followed by positive angle in radians is valid
+Pass	Font-style (computed): 'oblique' followed by positive angle in gradians is valid
+Pass	Font-style (computed): 'oblique' followed by positive angle in turns is valid
+Pass	Font-style (computed): 'oblique' followed by negative angle is valid
+Pass	Font-style (computed): 'oblique' followed by fractional angle is valid
+Pass	Font-style (computed): 'oblique' followed by maxumum 90 degree angle is valid
+Pass	Font-style (computed): 'oblique' followed by minimum -90 degree angle is valid
+Pass	Font-style (computed): 'oblique' followed by positive angle is valid
+Pass	Font-style (computed): 'oblique' followed by calc is valid
+Fail	Font-style (computed): 'oblique' followed by calc is valid even if it must be clamped (no computation)
+Fail	Font-style (computed): 'oblique' followed by calc is valid even if it must be clamped (with computation)
+Fail	Font-style (computed): 'oblique' followed by calc is valid even if it mixes units (with computation)

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Property font-weight value 'calc(sign(1rem - 1px) * 10)'
+Fail	Property font-weight value 'calc(sign(1rem - 1px) * -10000)'
+Fail	Property font-weight value 'calc(sign(1rem - 1px) * 10000)'

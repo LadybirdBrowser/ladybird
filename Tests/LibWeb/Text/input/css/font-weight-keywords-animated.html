@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <div style="font-weight: 400">
+        <div id="foo"></div>
+    </div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            const anim = foo.animate([{ fontWeight: "normal" }, { fontWeight: "bolder" }], 1000);
+
+            anim.pause();
+            anim.currentTime = 500;
+
+            println(getComputedStyle(foo).fontWeight);
+        });
+    </script>
+</html>
