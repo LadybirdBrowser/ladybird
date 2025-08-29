@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Testing new font-stretch values introduced in CSS Fonts level 4</title>
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-stretch-prop" />
+    <script src="../../..//resources/testharness.js"></script>
+    <script src="../../..//resources/testharnessreport.js"></script>
+</head>
+<body>
+    <div id="computedStyleTest">Abc</span></div>
+    <div id="inheritanceTest"><span style="font-stretch:125%;">Abc</span><span style="font-stretch:expanded;">Abc</span><span style="font-weight: 700;">Abc</span></div>
+    <script>
+
+        testStretchValues = [
+            { stretch: "100",               expectedComputedStretch: "100%" ,   expectedIsSupported: false, message: "only percentages, not numbers allowed" },
+            { stretch: "-1%",               expectedComputedStretch: ""  ,      expectedIsSupported: false, message: "negative values are illegal" },
+            { stretch: "0%",                expectedComputedStretch: "0%",      expectedIsSupported: true,  message: "zero is legal" },
+            { stretch: "1%",                expectedComputedStretch: "1%",      expectedIsSupported: true,  message: "legal percentage" },
+            { stretch: "10%",               expectedComputedStretch: "10%",     expectedIsSupported: true,  message: "legal percentage" },
+            { stretch: "100%",              expectedComputedStretch: "100%",    expectedIsSupported: true,  message: "legal percentage" },
+            { stretch: "1000%",             expectedComputedStretch: "1000%",   expectedIsSupported: true,  message: "legal percentage" },
+            { stretch: "1e9%",              expectedComputedStretch: "1e+009%", expectedIsSupported: true,  message: "huge legal percentage" },
+            { stretch: "ultra-condensed",   expectedComputedStretch: "50%",     expectedIsSupported: true,  message: "legal enum" },
+            { stretch: "extra-condensed",   expectedComputedStretch: "62.5%",   expectedIsSupported: true,  message: "legal enum" },
+            { stretch: "condensed",         expectedComputedStretch: "75%",     expectedIsSupported: true,  message: "legal enum" },
+            { stretch: "semi-condensed",    expectedComputedStretch: "87.5%",   expectedIsSupported: true,  message: "legal enum" },
+            { stretch: "normal",            expectedComputedStretch: "100%",    expectedIsSupported: true,  message: "legal enum" },
+            { stretch: "semi-expanded",     expectedComputedStretch: "112.5%",  expectedIsSupported: true,  message: "legal enum" },
+            { stretch: "expanded",          expectedComputedStretch: "125%",    expectedIsSupported: true,  message: "legal enum" },
+            { stretch: "extra-expanded",    expectedComputedStretch: "150%",    expectedIsSupported: true,  message: "legal enum" },
+            { stretch: "ultra-expanded",    expectedComputedStretch: "200%",    expectedIsSupported: true,  message: "legal enum" },
+            { stretch: "narrower",          expectedComputedStretch: "",        expectedIsSupported: false, message: "deprecated" },
+            { stretch: "wider",             expectedComputedStretch: "",        expectedIsSupported: false, message: "deprecated" },
+            { stretch: "calc(200.5%)",      expectedComputedStretch: "200.5%",  expectedIsSupported: true,  message: "Simple calc value" },
+            { stretch: "calc(50%*2 - 20%)", expectedComputedStretch: "80%",     expectedIsSupported: true,  message: "Valid calc expression" },
+            { stretch: "calc(-100%)",       expectedComputedStretch: "0%",      expectedIsSupported: true,  message: "Negative calc value (to be clamped)" },
+            { stretch: "calc(50% - 50%*2)", expectedComputedStretch: "0%",      expectedIsSupported: true,  message: "Negative calc expression (to be clamped)" },
+            { stretch: "calc(100)",         expectedComputedStretch: "",        expectedIsSupported: false, message: "Unit-less calc value" },
+            { stretch: "calc(100px)",       expectedComputedStretch: "",        expectedIsSupported: false, message: "Calc value with units" },
+            { stretch: "100% 700%",         expectedComputedStretch: "",        expectedIsSupported: false, message: "Extra percentage after numeric value" },
+            { stretch: "100% 100",          expectedComputedStretch: "",        expectedIsSupported: false, message: "Extra content after numeric value" },
+            { stretch: "condensed expanded",expectedComputedStretch: "",        expectedIsSupported: false, message: "Extra content after keyword value" },
+            { stretch: "calc(100%) 100%",   expectedComputedStretch: "",        expectedIsSupported: false, message: "Extra content after calc value" }
+        ];
+
+        testStretchValues.forEach(function (element) {
+            test(() => { assert_equals(window.CSS.supports("font-stretch", element.stretch), element.expectedIsSupported, element.message); }, "@supports: " + element.stretch + " - " + element.message);
+
+            // If supported, verify the computed style.
+            if (element.expectedIsSupported)
+            {
+                var testSpan = document.getElementById("computedStyleTest");
+                testSpan.style.fontStretch = element.stretch;
+                var actualStretch = window.getComputedStyle(testSpan).fontStretch;
+
+                test(() => { assert_equals(actualStretch, element.expectedComputedStretch, element.message); }, "@getComputedStyle: " + element.stretch + " - " + element.message);
+            }
+        });
+
+        // Verify computed inheritance of nested elements.
+        {
+            var base = document.getElementById("inheritanceTest");
+            var parentStretch = "condensed";
+            base.style.fontStretch = parentStretch;
+
+            test(() => {
+                var actualStretch = window.getComputedStyle(base.children[0]).fontStretch;
+                assert_equals(actualStretch, "125%", "Overridden value for " + parentStretch + " should match expected value.");
+            }, "Test font-stretch for overridden number " + parentStretch);
+
+            test(() => {
+                var actualStretch = window.getComputedStyle(base.children[1]).fontStretch;
+                assert_equals(actualStretch, "125%", "Inherited value " + parentStretch + " should match expected value.");
+            }, "Test font-stretch for overridden enum name resolved to number " + parentStretch);
+
+            test(() => {
+                var actualStretch = window.getComputedStyle(base.children[2]).fontStretch;
+                assert_equals(actualStretch, "75%", "Inherited value " + parentStretch + " should match expected value.");
+            }, "Test font-stretch for inherited named enum resolved to number " + parentStretch);
+        }
+
+   </script>
+</body>
+</html>
