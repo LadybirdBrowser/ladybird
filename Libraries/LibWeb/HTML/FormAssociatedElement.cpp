@@ -237,6 +237,13 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_form_action(String const& v
     return html_element.set_attribute(HTML::AttributeNames::formaction, value);
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
+bool FormAssociatedElement::report_validity()
+{
+    // The reportValidity() method, when invoked, must run the report validity steps on this element.
+    return report_validity_steps();
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#check-validity-steps
 bool FormAssociatedElement::check_validity_steps()
 {

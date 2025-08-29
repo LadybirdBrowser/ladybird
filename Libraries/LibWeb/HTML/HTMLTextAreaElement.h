@@ -100,7 +100,6 @@ public:
 
     bool will_validate();
     bool check_validity();
-    bool report_validity();
 
     WebIDL::Long max_length() const;
     WebIDL::ExceptionOr<void> set_max_length(WebIDL::Long);

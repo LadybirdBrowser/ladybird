@@ -140,6 +140,9 @@ public:
     String form_action() const;
     WebIDL::ExceptionOr<void> set_form_action(String const&);
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
+    bool report_validity();
+
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
     GC::Ref<ValidityState const> validity() const;
 

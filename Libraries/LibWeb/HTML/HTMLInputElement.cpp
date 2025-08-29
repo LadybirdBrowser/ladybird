@@ -2926,12 +2926,6 @@ WebIDL::ExceptionOr<bool> HTMLInputElement::check_validity()
     return check_validity_steps();
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
-WebIDL::ExceptionOr<bool> HTMLInputElement::report_validity()
-{
-    return report_validity_steps();
-}
-
 Optional<ARIA::Role> HTMLInputElement::default_role() const
 {
     // http://wpt.live/html-aam/roles-dynamic-switch.tentative.window.html "Disconnected <input type=checkbox switch>"
