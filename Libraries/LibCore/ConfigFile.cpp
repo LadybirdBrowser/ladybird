@@ -138,7 +138,7 @@ ErrorOr<void> ConfigFile::reparse()
     return {};
 }
 
-Optional<ByteString> ConfigFile::read_entry_optional(const AK::ByteString& group, const AK::ByteString& key) const
+Optional<ByteString> ConfigFile::read_entry_optional(AK::ByteString const& group, AK::ByteString const& key) const
 {
     if (!has_key(group, key))
         return {};

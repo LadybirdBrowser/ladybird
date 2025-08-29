@@ -510,7 +510,7 @@ void HTMLDialogElement::invoker_command_steps(DOM::Element& invoker, String& com
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#nearest-clicked-dialog
-GC::Ptr<HTMLDialogElement> HTMLDialogElement::nearest_clicked_dialog(UIEvents::PointerEvent const& event, const GC::Ptr<DOM::Node> target)
+GC::Ptr<HTMLDialogElement> HTMLDialogElement::nearest_clicked_dialog(UIEvents::PointerEvent const& event, GC::Ptr<DOM::Node> const target)
 {
     // To find the nearest clicked dialog, given a PointerEvent event:
 
@@ -542,7 +542,7 @@ GC::Ptr<HTMLDialogElement> HTMLDialogElement::nearest_clicked_dialog(UIEvents::P
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#light-dismiss-open-dialogs
-void HTMLDialogElement::light_dismiss_open_dialogs(UIEvents::PointerEvent const& event, const GC::Ptr<DOM::Node> target)
+void HTMLDialogElement::light_dismiss_open_dialogs(UIEvents::PointerEvent const& event, GC::Ptr<DOM::Node> const target)
 {
     // To light dismiss open dialogs, given a PointerEvent event:
 

@@ -23,7 +23,7 @@ public:
     };
 
     bool is_empty() const { return m_entries.is_empty(); }
-    bool contains(const DOM::Element&) const;
+    bool contains(DOM::Element const&) const;
 
     void add(DOM::Element& element);
     void add_marker();

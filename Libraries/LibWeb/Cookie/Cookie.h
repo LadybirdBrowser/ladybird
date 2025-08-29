@@ -48,7 +48,7 @@ struct WEB_API Cookie {
 WEB_API StringView same_site_to_string(SameSite same_site_mode);
 WEB_API SameSite same_site_from_string(StringView same_site_mode);
 
-WEB_API Optional<String> canonicalize_domain(const URL::URL& url);
+WEB_API Optional<String> canonicalize_domain(URL::URL const& url);
 WEB_API bool path_matches(StringView request_path, StringView cookie_path);
 
 }

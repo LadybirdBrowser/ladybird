@@ -36,7 +36,7 @@ bool StackOfOpenElements::has_in_scope(FlyString const& tag_name) const
     return has_in_scope_impl(tag_name, s_base_list);
 }
 
-bool StackOfOpenElements::has_in_scope_impl(const DOM::Element& target_node, Vector<FlyString> const& list) const
+bool StackOfOpenElements::has_in_scope_impl(DOM::Element const& target_node, Vector<FlyString> const& list) const
 {
     for (auto& element : m_elements.in_reverse()) {
         if (element.ptr() == &target_node)
@@ -47,7 +47,7 @@ bool StackOfOpenElements::has_in_scope_impl(const DOM::Element& target_node, Vec
     VERIFY_NOT_REACHED();
 }
 
-bool StackOfOpenElements::has_in_scope(const DOM::Element& target_node) const
+bool StackOfOpenElements::has_in_scope(DOM::Element const& target_node) const
 {
     return has_in_scope_impl(target_node, s_base_list);
 }
@@ -97,7 +97,7 @@ bool StackOfOpenElements::has_in_select_scope(FlyString const& tag_name) const
     VERIFY_NOT_REACHED();
 }
 
-bool StackOfOpenElements::contains(const DOM::Element& element) const
+bool StackOfOpenElements::contains(DOM::Element const& element) const
 {
     for (auto& element_on_stack : m_elements) {
         if (&element == element_on_stack.ptr())

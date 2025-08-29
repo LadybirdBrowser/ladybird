@@ -99,7 +99,7 @@ void RequestClient::certificate_requested(i32 request_id)
     }
 }
 
-RefPtr<WebSocket> RequestClient::websocket_connect(const URL::URL& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& request_headers)
+RefPtr<WebSocket> RequestClient::websocket_connect(URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& request_headers)
 {
     auto websocket_id = m_next_websocket_id++;
     IPCProxy::async_websocket_connect(websocket_id, url, origin, protocols, extensions, request_headers);

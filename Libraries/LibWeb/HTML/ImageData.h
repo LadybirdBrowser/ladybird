@@ -42,7 +42,7 @@ public:
     Gfx::Bitmap const& bitmap() const { return *m_bitmap; }
 
     JS::Uint8ClampedArray* data();
-    const JS::Uint8ClampedArray* data() const;
+    JS::Uint8ClampedArray const* data() const;
 
     Bindings::PredefinedColorSpace color_space() const { return m_color_space; }
 

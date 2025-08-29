@@ -142,7 +142,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_hover_label->hide();
     };
 
-    view().on_load_start = [this](const URL::URL& url, bool) {
+    view().on_load_start = [this](URL::URL const& url, bool) {
         auto url_serialized = qstring_from_ak_string(url.serialize());
 
         m_title = url_serialized;

@@ -174,7 +174,7 @@ JS::Uint8ClampedArray* ImageData::data()
     return m_data;
 }
 
-const JS::Uint8ClampedArray* ImageData::data() const
+JS::Uint8ClampedArray const* ImageData::data() const
 {
     return m_data;
 }

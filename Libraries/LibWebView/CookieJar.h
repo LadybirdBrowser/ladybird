@@ -87,8 +87,8 @@ public:
 
     ~CookieJar();
 
-    String get_cookie(const URL::URL& url, Web::Cookie::Source source);
-    void set_cookie(const URL::URL& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source);
+    String get_cookie(URL::URL const& url, Web::Cookie::Source source);
+    void set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source);
     void update_cookie(Web::Cookie::Cookie);
     void dump_cookies();
     void clear_all_cookies();
@@ -109,8 +109,8 @@ private:
         WebDriver,
     };
 
-    void store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, const URL::URL& url, String canonicalized_domain, Web::Cookie::Source source);
-    Vector<Web::Cookie::Cookie> get_matching_cookies(const URL::URL& url, StringView canonicalized_domain, Web::Cookie::Source source, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
+    void store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL::URL const& url, String canonicalized_domain, Web::Cookie::Source source);
+    Vector<Web::Cookie::Cookie> get_matching_cookies(URL::URL const& url, StringView canonicalized_domain, Web::Cookie::Source source, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
 
     Optional<PersistedStorage> m_persisted_storage;
     TransientStorage m_transient_storage;
