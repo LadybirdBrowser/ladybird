@@ -10,6 +10,9 @@
 #include <LibMain/Main.h>
 #include <string.h>
 #include <time.h>
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#endif
 
 namespace Main {
 
@@ -31,6 +34,10 @@ int main(int argc, char** argv)
 {
     tzset();
 
+#if defined(AK_OS_WINDOWS)
+    windows_init();
+#endif
+
     Vector<StringView> arguments;
     arguments.ensure_capacity(argc);
     for (int i = 0; i < argc; ++i)
@@ -41,6 +48,11 @@ int main(int argc, char** argv)
         .argv = argv,
         .strings = arguments.span(),
     });
+
+#if defined(AK_OS_WINDOWS)
+    windows_shutdown();
+#endif
+
     if (result.is_error()) {
         auto error = result.release_error();
         warnln("\033[31;1mRuntime error\033[0m: {}", error);
