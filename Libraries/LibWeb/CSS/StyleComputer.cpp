@@ -1811,125 +1811,16 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(Optional<DOM::AbstractElement> abstract_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch) const
 {
-    auto parent_element = abstract_element.has_value() ? abstract_element->element_to_inherit_style_from() : OptionalNone {};
-    GC::Ptr element = abstract_element.has_value() ? &abstract_element->element() : nullptr;
-
     auto width = font_stretch.to_font_width();
     auto weight = font_weight.to_font_weight();
-
-    auto font_size_in_px = default_user_font_size();
-
-    Gfx::FontPixelMetrics font_pixel_metrics;
-    if (parent_element.has_value() && parent_element->computed_properties())
-        font_pixel_metrics = parent_element->computed_properties()->first_available_computed_font().pixel_metrics();
-    else
-        font_pixel_metrics = Platform::FontPlugin::the().default_font(font_size_in_px.to_float())->pixel_metrics();
-    auto parent_font_size = [&]() -> CSSPixels {
-        if (!parent_element.has_value() || !parent_element->computed_properties())
-            return font_size_in_px;
-        auto const& value = parent_element->computed_properties()->property(CSS::PropertyID::FontSize);
-        if (value.is_length()) {
-            auto length = value.as_length().length();
-            if (length.is_absolute() || length.is_relative()) {
-                Length::FontMetrics font_metrics { font_size_in_px, font_pixel_metrics };
-                return length.to_px(viewport_rect(), font_metrics, root_element_font_metrics_for_element(element));
-            }
-        }
-        return font_size_in_px;
-    }();
-
-    if (font_size.is_keyword()) {
-        auto const keyword = font_size.to_keyword();
-
-        if (keyword == Keyword::Math) {
-            auto math_scaling_factor = [&]() {
-                // https://w3c.github.io/mathml-core/#the-math-script-level-property
-                // If the specified value font-size is math then the computed value of font-size is obtained by multiplying
-                // the inherited value of font-size by a nonzero scale factor calculated by the following procedure:
-                // 1. Let A be the inherited math-depth value, B the computed math-depth value, C be 0.71 and S be 1.0
-                int inherited_math_depth = parent_element.has_value() && parent_element->computed_properties()
-                    ? parent_element->computed_properties()->math_depth()
-                    : InitialValues::math_depth();
-                int computed_math_depth = math_depth;
-                auto size_ratio = 0.71;
-                auto scale = 1.0;
-                // 2. If A = B then return S.
-                bool invert_scale_factor = false;
-                if (inherited_math_depth == computed_math_depth) {
-                    return scale;
-                }
-                //    If B < A, swap A and B and set InvertScaleFactor to true.
-                else if (computed_math_depth < inherited_math_depth) {
-                    AK::swap(inherited_math_depth, computed_math_depth);
-                    invert_scale_factor = true;
-                }
-                //    Otherwise B > A and set InvertScaleFactor to false.
-                else {
-                    invert_scale_factor = false;
-                }
-                // 3. Let E be B - A > 0.
-                double e = (computed_math_depth - inherited_math_depth) > 0;
-                // FIXME: 4. If the inherited first available font has an OpenType MATH table:
-                //    - If A ≤ 0 and B ≥ 2 then multiply S by scriptScriptPercentScaleDown and decrement E by 2.
-                //    - Otherwise if A = 1 then multiply S by scriptScriptPercentScaleDown / scriptPercentScaleDown and decrement E by 1.
-                //    - Otherwise if B = 1 then multiply S by scriptPercentScaleDown and decrement E by 1.
-                // 5. Multiply S by C^E.
-                scale *= AK::pow(size_ratio, e);
-                // 6. Return S if InvertScaleFactor is false and 1/S otherwise.
-                if (!invert_scale_factor)
-                    return scale;
-                return 1.0 / scale;
-            };
-            font_size_in_px = parent_font_size.scale_by(math_scaling_factor());
-        } else {
-            // https://w3c.github.io/csswg-drafts/css-fonts/#valdef-font-size-relative-size
-            // TODO: If the parent element has a keyword font size in the absolute size keyword mapping table,
-            //       larger may compute the font size to the next entry in the table,
-            //       and smaller may compute the font size to the previous entry in the table.
-            if (auto relative_size = keyword_to_relative_size(keyword); relative_size.has_value()) {
-                if (parent_element.has_value() && parent_element->computed_properties()) {
-                    font_size_in_px = relative_size_mapping(relative_size.value(), parent_font_size);
-                }
-            } else if (auto absolute_size = keyword_to_absolute_size(keyword); absolute_size.has_value()) {
-                font_size_in_px = absolute_size_mapping(absolute_size.value(), font_size_in_px);
-            }
-        }
-    } else {
-        Length::ResolutionContext const length_resolution_context {
-            .viewport_rect = viewport_rect(),
-            .font_metrics = Length::FontMetrics { parent_font_size, font_pixel_metrics },
-            .root_font_metrics = root_element_font_metrics_for_element(element),
-        };
-
-        Optional<Length> maybe_length;
-        if (font_size.is_percentage()) {
-            // Percentages refer to parent element's font size
-            maybe_length = Length::make_px(CSSPixels::nearest_value_for(font_size.as_percentage().percentage().as_fraction() * parent_font_size.to_double()));
-
-        } else if (font_size.is_length()) {
-            maybe_length = font_size.as_length().length();
-        } else if (font_size.is_calculated()) {
-            maybe_length = font_size.as_calculated().resolve_length_deprecated({
-                .percentage_basis = Length::make_px(parent_font_size),
-                .length_resolution_context = length_resolution_context,
-            });
-        }
-        if (maybe_length.has_value()) {
-            font_size_in_px = maybe_length.value().to_px(length_resolution_context);
-        }
-    }
-
-    // FIXME: Font size can end up being negative due to interpolation - we can remove this once we correctly handle interpolation clamping.
-    if (font_size_in_px < 0)
-        font_size_in_px = 0;
 
     auto slope = font_style.to_font_slope();
 
     // FIXME: Implement the full font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 
-    float const font_size_in_pt = font_size_in_px * 0.75f;
+    float const font_size_in_pt = font_size * 0.75f;
 
     auto find_font = [&](FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
         FontFaceKey key {
@@ -2039,22 +1930,32 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
 
 void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::AbstractElement> abstract_element) const
 {
+    auto const& inheritance_parent = abstract_element.has_value() ? abstract_element->element_to_inherit_style_from() : OptionalNone {};
+
+    auto inheritance_parent_has_computed_properties = inheritance_parent.has_value() && inheritance_parent->computed_properties();
+
+    auto inherited_font_size = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_size() : InitialValues::font_size();
+    auto inherited_math_depth = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->math_depth() : InitialValues::math_depth();
+    auto length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window());
+
+    auto const& font_size_specified_value = style.property(PropertyID::FontSize);
+
+    style.set_property(
+        PropertyID::FontSize,
+        compute_font_size(font_size_specified_value, style.math_depth(), inherited_font_size, inherited_math_depth, length_resolution_context),
+        style.is_property_inherited(PropertyID::FontSize) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
-    auto const& font_size = style.property(CSS::PropertyID::FontSize);
     auto const& font_style = style.property(CSS::PropertyID::FontStyle);
     auto const& font_weight = style.property(CSS::PropertyID::FontWeight);
     auto const& font_width = style.property(CSS::PropertyID::FontWidth);
 
-    auto font_list = compute_font_for_style_values(abstract_element, font_family, font_size, font_style, font_weight, font_width, style.math_depth());
+    auto font_list = compute_font_for_style_values(font_family, style.font_size(), font_style, font_weight, font_width);
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 
     RefPtr<Gfx::Font const> const found_font = font_list->first();
 
-    style.set_property(
-        CSS::PropertyID::FontSize,
-        LengthStyleValue::create(CSS::Length::make_px(CSSPixels::nearest_value_for(found_font->pixel_size()))),
-        style.is_property_inherited(CSS::PropertyID::FontSize) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
     style.set_property(
         CSS::PropertyID::FontWeight,
         NumberStyleValue::create(font_weight.to_font_weight()),
@@ -3239,6 +3140,75 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(N
     }();
 
     return LengthStyleValue::create(Length::make_px(snap_a_length_as_a_border_width(computation_context.device_pixels_per_css_pixel, absolute_length)));
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& specified_value, int computed_math_depth, CSSPixels inherited_font_size, int inherited_math_depth, Length::ResolutionContext const& parent_length_resolution_context)
+{
+    // https://drafts.csswg.org/css-fonts/#font-size-prop
+    // an absolute length
+
+    // <absolute-size>
+    if (auto absolute_size = keyword_to_absolute_size(specified_value->to_keyword()); absolute_size.has_value())
+        return LengthStyleValue::create(Length::make_px(absolute_size_mapping(absolute_size.value(), default_user_font_size())));
+
+    // <relative-size>
+    if (auto relative_size = keyword_to_relative_size(specified_value->to_keyword()); relative_size.has_value())
+        return LengthStyleValue::create(Length::make_px(relative_size_mapping(relative_size.value(), inherited_font_size)));
+
+    // <length-percentage [0,∞]>
+    // A length value specifies an absolute font size (independent of the user agent’s font table). Negative lengths are invalid.
+    if (specified_value->is_length())
+        return LengthStyleValue::create(Length::make_px(max(CSSPixels { 0 }, specified_value->as_length().length().to_px(parent_length_resolution_context))));
+
+    // A percentage value specifies an absolute font size relative to the parent element’s computed font-size. Negative percentages are invalid.
+    if (specified_value->is_percentage())
+        return LengthStyleValue::create(Length::make_px(inherited_font_size * specified_value->as_percentage().percentage().as_fraction()));
+
+    if (specified_value->is_calculated())
+        return LengthStyleValue::create(specified_value->as_calculated().resolve_length({ .percentage_basis = Length(1, LengthUnit::Em), .length_resolution_context = parent_length_resolution_context }).value());
+
+    // math
+    // Special mathematical scaling rules must be applied when determining the computed value of the font-size property.
+    if (specified_value->to_keyword() == Keyword::Math) {
+        auto math_scaling_factor = [&]() {
+            // https://w3c.github.io/mathml-core/#the-math-script-level-property
+            // If the specified value font-size is math then the computed value of font-size is obtained by multiplying
+            // the inherited value of font-size by a nonzero scale factor calculated by the following procedure:
+            // 1. Let A be the inherited math-depth value, B the computed math-depth value, C be 0.71 and S be 1.0
+            auto size_ratio = 0.71;
+            auto scale = 1.0;
+            // 2. If A = B then return S.
+            bool invert_scale_factor = false;
+            if (inherited_math_depth == computed_math_depth) {
+                return scale;
+            }
+            //    If B < A, swap A and B and set InvertScaleFactor to true.
+            if (computed_math_depth < inherited_math_depth) {
+                AK::swap(inherited_math_depth, computed_math_depth);
+                invert_scale_factor = true;
+            }
+            //    Otherwise B > A and set InvertScaleFactor to false.
+            else {
+                invert_scale_factor = false;
+            }
+            // 3. Let E be B - A > 0.
+            double e = (computed_math_depth - inherited_math_depth) > 0;
+            // FIXME: 4. If the inherited first available font has an OpenType MATH table:
+            //    - If A ≤ 0 and B ≥ 2 then multiply S by scriptScriptPercentScaleDown and decrement E by 2.
+            //    - Otherwise if A = 1 then multiply S by scriptScriptPercentScaleDown / scriptPercentScaleDown and decrement E by 1.
+            //    - Otherwise if B = 1 then multiply S by scriptPercentScaleDown and decrement E by 1.
+            // 5. Multiply S by C^E.
+            scale *= AK::pow(size_ratio, e);
+            // 6. Return S if InvertScaleFactor is false and 1/S otherwise.
+            if (!invert_scale_factor)
+                return scale;
+            return 1.0 / scale;
+        }();
+
+        return LengthStyleValue::create(Length::make_px(inherited_font_size.scale_by(math_scaling_factor)));
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const& computation_context)
