@@ -98,8 +98,6 @@ public:
 
     u32 text_length() const;
 
-    bool will_validate();
-
     WebIDL::Long max_length() const;
     WebIDL::ExceptionOr<void> set_max_length(WebIDL::Long);
 

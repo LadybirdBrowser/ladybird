@@ -251,6 +251,14 @@ bool FormAssociatedElement::check_validity()
     return check_validity_steps();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
+bool FormAssociatedElement::will_validate() const
+{
+    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation,
+    // and false otherwise (i.e., false if any conditions are barring it from constraint validation).
+    return is_candidate_for_constraint_validation();
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#check-validity-steps
 bool FormAssociatedElement::check_validity_steps()
 {

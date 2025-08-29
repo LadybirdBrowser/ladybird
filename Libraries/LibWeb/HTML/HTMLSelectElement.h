@@ -62,8 +62,6 @@ public:
 
     Vector<GC::Root<HTMLOptionElement>> list_of_options() const;
 
-    bool will_validate();
-
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-select-element
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area

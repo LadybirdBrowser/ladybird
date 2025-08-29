@@ -232,13 +232,6 @@ u32 HTMLTextAreaElement::text_length() const
     return api_value().length_in_code_units();
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
-bool HTMLTextAreaElement::will_validate()
-{
-    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation
-    return is_candidate_for_constraint_validation();
-}
-
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-maxlength
 WebIDL::Long HTMLTextAreaElement::max_length() const
 {
