@@ -244,6 +244,13 @@ bool FormAssociatedElement::report_validity()
     return report_validity_steps();
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
+bool FormAssociatedElement::check_validity()
+{
+    // The checkValidity() method, when invoked, must run the check validity steps on this element.
+    return check_validity_steps();
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#check-validity-steps
 bool FormAssociatedElement::check_validity_steps()
 {

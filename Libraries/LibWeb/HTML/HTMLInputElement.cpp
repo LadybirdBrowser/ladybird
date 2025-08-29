@@ -2920,12 +2920,6 @@ bool HTMLInputElement::will_validate()
     return is_candidate_for_constraint_validation();
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
-WebIDL::ExceptionOr<bool> HTMLInputElement::check_validity()
-{
-    return check_validity_steps();
-}
-
 Optional<ARIA::Role> HTMLInputElement::default_role() const
 {
     // http://wpt.live/html-aam/roles-dynamic-switch.tentative.window.html "Disconnected <input type=checkbox switch>"
