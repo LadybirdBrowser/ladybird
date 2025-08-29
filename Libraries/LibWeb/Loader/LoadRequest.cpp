@@ -17,7 +17,7 @@ LoadRequest::LoadRequest()
 {
 }
 
-LoadRequest LoadRequest::create_for_url_on_page(const URL::URL& url, Page* page)
+LoadRequest LoadRequest::create_for_url_on_page(URL::URL const& url, Page* page)
 {
     LoadRequest request;
     request.set_url(url);

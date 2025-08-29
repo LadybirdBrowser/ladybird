@@ -117,6 +117,33 @@ public:
 
     [[nodiscard]] String access_key_label() const;
 
+    bool spellcheck() const;
+    void set_spellcheck(bool);
+
+    String writing_suggestions() const;
+    void set_writing_suggestions(String const&);
+
+    enum class AutocapitalizationHint {
+        Default,
+        None,
+        Sentences,
+        Words,
+        Characters
+    };
+
+    AutocapitalizationHint own_autocapitalization_hint() const;
+    String autocapitalize() const;
+    void set_autocapitalize(String const&);
+
+    enum class AutocorrectionState {
+        On,
+        Off
+    };
+
+    AutocorrectionState used_autocorrection_state() const;
+    bool autocorrect() const;
+    void set_autocorrect(bool);
+
     bool fire_a_synthetic_pointer_event(FlyString const& type, DOM::Element& target, bool not_trusted);
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-label

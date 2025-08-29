@@ -25,7 +25,7 @@ public:
     TextNode(DOM::Document&, DOM::Text&);
     virtual ~TextNode() override;
 
-    const DOM::Text& dom_node() const { return static_cast<const DOM::Text&>(*Node::dom_node()); }
+    DOM::Text const& dom_node() const { return static_cast<DOM::Text const&>(*Node::dom_node()); }
 
     Utf16String const& text_for_rendering() const;
 

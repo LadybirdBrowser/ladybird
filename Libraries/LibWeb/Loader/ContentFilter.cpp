@@ -19,7 +19,7 @@ ContentFilter::ContentFilter() = default;
 
 ContentFilter::~ContentFilter() = default;
 
-bool ContentFilter::is_filtered(const URL::URL& url) const
+bool ContentFilter::is_filtered(URL::URL const& url) const
 {
     if (!filtering_enabled())
         return false;

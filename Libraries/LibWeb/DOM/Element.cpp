@@ -3398,7 +3398,7 @@ i32 Element::ordinal_value()
     auto reversed = false;
 
     if (owner->is_html_olist_element()) {
-        auto const* ol_element = static_cast<const HTML::HTMLOListElement*>(owner);
+        auto const* ol_element = static_cast<HTML::HTMLOListElement const*>(owner);
         numbering = ol_element->starting_value().value();
         reversed = ol_element->has_attribute(HTML::AttributeNames::reversed);
     }

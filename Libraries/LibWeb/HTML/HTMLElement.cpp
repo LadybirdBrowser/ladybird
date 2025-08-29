@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
@@ -2131,6 +2132,258 @@ bool HTMLElement::draggable() const
 
     // Otherwise, the draggable IDL attribute must return false.
     return false;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-spellcheck
+bool HTMLElement::spellcheck() const
+{
+    // The spellcheck attribute is an enumerated attribute with the following keywords and states:
+    // Keyword            | State | Brief description
+    // true               | True  | Spelling and grammar will be checked.
+    // (the empty string) |       |
+    // false              | False | and grammar will not be checked.
+
+    // The attribute's missing value default and invalid value default are both the Default state. The default state
+    // indicates that the element is to act according to a default behavior, possibly based on the parent element's
+    // own spellcheck state, as defined below.
+
+    // For each element, user agents must establish a default behavior, either through defaults or through preferences
+    // expressed by the user. There are three possible default behaviors for each element:
+
+    // true-by-default
+    //     The element will be checked for spelling and grammar if its contents are editable and spellchecking is not
+    //     explicitly disabled through the spellcheck attribute.
+    // false-by-default
+    //     The element will never be checked for spelling and grammar unless spellchecking is explicitly enabled
+    //     through the spellcheck attribute.
+    // inherit-by-default
+    //     The element's default behavior is the same as its parent element's. Elements that have no parent element
+    //     cannot have this as their default behavior.
+
+    // NOTE: We use "true-by-default" for elements which are editable, editing hosts, or form associated text control
+    //       elements "false-by-default" for root elements, and "inherit-by-default" for other elements.
+
+    auto maybe_spellcheck_attribute = attribute(HTML::AttributeNames::spellcheck);
+
+    // The spellcheck IDL attribute, on getting, must return true if the element's spellcheck content attribute is in the True state,
+    if (maybe_spellcheck_attribute.has_value() && (maybe_spellcheck_attribute.value().equals_ignoring_ascii_case("true"sv) || maybe_spellcheck_attribute.value().is_empty()))
+        return true;
+
+    if (!maybe_spellcheck_attribute.has_value() || !maybe_spellcheck_attribute.value().equals_ignoring_ascii_case("false"sv)) {
+        // or if the element's spellcheck content attribute is in the Default state and the element's default behavior is true-by-default,
+        if (is_editable_or_editing_host() || is<FormAssociatedTextControlElement>(this))
+            return true;
+
+        // or if the element's spellcheck content attribute is in the Default state and the element's default behavior is inherit-by-default
+        if (auto* parent_html_element = first_ancestor_of_type<HTMLElement>()) {
+            // and the element's parent element's spellcheck IDL attribute would return true;
+            if (parent_html_element->spellcheck())
+                return true;
+        }
+    }
+
+    // if none of those conditions applies, then the attribute must instead return false.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-spellcheck
+void HTMLElement::set_spellcheck(bool spellcheck)
+{
+    // On setting, if the new value is true, then the element's spellcheck content attribute must be set to "true", otherwise it must be set to "false".
+    if (spellcheck)
+        MUST(set_attribute(HTML::AttributeNames::spellcheck, "true"_string));
+    else
+        MUST(set_attribute(HTML::AttributeNames::spellcheck, "false"_string));
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
+String HTMLElement::writing_suggestions() const
+{
+    // The writingsuggestions content attribute is an enumerated attribute with the following keywords and states:
+    // Keyword            | State | Brief description
+    // true               | True  | Writing suggestions should be offered on this element.
+    // (the empty string) |       |
+    // false              | False | Writing suggestions should not be offered on this element.
+
+    // The attribute's missing value default is the Default state. The default state indicates that the element is to
+    // act according to a default behavior, possibly based on the parent element's own writingsuggestions state, as
+    // defined below.
+
+    // The attribute's invalid value default is the True state.
+
+    // 1. If element's writingsuggestions content attribute is in the False state, return "false".
+    auto maybe_writing_suggestions_attribute = attribute(HTML::AttributeNames::writingsuggestions);
+
+    if (maybe_writing_suggestions_attribute.has_value() && maybe_writing_suggestions_attribute.value().equals_ignoring_ascii_case("false"sv))
+        return "false"_string;
+
+    // 2. If element's writingsuggestions content attribute is in the Default state, element has a parent element, and the computed writing suggestions value of element's parent element is "false", then return "false".
+    if (!maybe_writing_suggestions_attribute.has_value() && first_ancestor_of_type<HTMLElement>() && first_ancestor_of_type<HTMLElement>()->writing_suggestions() == "false"sv) {
+        return "false"_string;
+    }
+
+    // 3. Return "true".
+    return "true"_string;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
+void HTMLElement::set_writing_suggestions(String const& given_value)
+{
+    // 1. Set this's writingsuggestions content attribute to the given value.
+    MUST(set_attribute(HTML::AttributeNames::writingsuggestions, given_value));
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#own-autocapitalization-hint
+HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() const
+{
+    // The autocapitalization processing model is based on selecting among five autocapitalization hints, defined as follows:
+    //
+    // default
+    //     The user agent and input method should make their own determination of whether or not to enable autocapitalization.
+    // none
+    //     No autocapitalization should be applied (all letters should default to lowercase).
+    // sentences
+    //     The first letter of each sentence should default to a capital letter; all other letters should default to lowercase.
+    // words
+    //     The first letter of each word should default to a capital letter; all other letters should default to lowercase.
+    // characters
+    //     All letters should default to uppercase.
+
+    // The autocapitalize attribute is an enumerated attribute whose states are the possible autocapitalization hints.
+    // The autocapitalization hint specified by the attribute's state combines with other considerations to form the
+    // used autocapitalization hint, which informs the behavior of the user agent. The keywords for this attribute and
+    // their state mappings are as follows:
+
+    // Keyword    | State
+    // off        | none
+    // none       |
+    // on         | sentences
+    // sentences  |
+    // words      | words
+    // characters | characters
+
+    // The attribute's missing value default is the default state, and its invalid value default is the sentences state.
+
+    // To compute the own autocapitalization hint of an element element, run the following steps:
+    // 1. If the autocapitalize content attribute is present on element, and its value is not the empty string, return the
+    //    state of the attribute.
+    auto maybe_autocapitalize_attribute = attribute(HTML::AttributeNames::autocapitalize);
+
+    if (maybe_autocapitalize_attribute.has_value() && !maybe_autocapitalize_attribute.value().is_empty()) {
+        auto autocapitalize_attribute_string_view = maybe_autocapitalize_attribute.value().bytes_as_string_view();
+
+        if (autocapitalize_attribute_string_view.is_one_of_ignoring_ascii_case("off"sv, "none"sv))
+            return AutocapitalizationHint::None;
+
+        if (autocapitalize_attribute_string_view.equals_ignoring_ascii_case("words"sv))
+            return AutocapitalizationHint::Words;
+
+        if (autocapitalize_attribute_string_view.equals_ignoring_ascii_case("characters"sv))
+            return AutocapitalizationHint::Characters;
+
+        return AutocapitalizationHint::Sentences;
+    }
+
+    // If element is an autocapitalize-and-autocorrect inheriting element and has a non-null form owner, return the own autocapitalization hint of element's form owner.
+    auto const* form_associated_element = as_if<FormAssociatedElement>(this);
+    if (form_associated_element && form_associated_element->is_autocapitalize_and_autocorrect_inheriting() && form_associated_element->form())
+        return form_associated_element->form()->own_autocapitalization_hint();
+
+    // 3. Return default.
+    return AutocapitalizationHint::Default;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#attr-autocapitalize
+String HTMLElement::autocapitalize() const
+{
+    // The autocapitalize getter steps are to:
+    // 1. Let state be the own autocapitalization hint of this.
+    auto state = own_autocapitalization_hint();
+
+    // 2. If state is default, then return the empty string.
+    // 3. If state is none, then return "none".
+    // 4. If state is sentences, then return "sentences".
+    // 5. Return the keyword value corresponding to state.
+    switch (state) {
+    case AutocapitalizationHint::Default:
+        return String {};
+    case AutocapitalizationHint::None:
+        return "none"_string;
+    case AutocapitalizationHint::Sentences:
+        return "sentences"_string;
+    case AutocapitalizationHint::Words:
+        return "words"_string;
+    case AutocapitalizationHint::Characters:
+        return "characters"_string;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+void HTMLElement::set_autocapitalize(String const& given_value)
+{
+    // The autocapitalize setter steps are to set the autocapitalize content attribute to the given value.
+    MUST(set_attribute(HTML::AttributeNames::autocapitalize, given_value));
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#used-autocorrection-state
+HTMLElement::AutocorrectionState HTMLElement::used_autocorrection_state() const
+{
+    // The autocorrect attribute is an enumerated attribute with the following keywords and states:
+    // Keyword            | State | Brief description
+    // on                 | on    | The user agent is permitted to automatically correct spelling errors while the user
+    // (the empty string) |       | types. Whether spelling is automatically corrected while typing left is for the user
+    //                    |       | agent to decide, and may depend on the element as well as the user's preferences.
+    // off                | off   | The user agent is not allowed to automatically correct spelling while the user types.
+
+    // The attribute's invalid value default and missing value default are both the on state.
+
+    auto autocorrect_attribute_state = [](Optional<String> attribute) {
+        if (attribute.has_value() && attribute.value().equals_ignoring_ascii_case("off"sv))
+            return AutocorrectionState::Off;
+
+        return AutocorrectionState::On;
+    };
+
+    // To compute the used autocorrection state of an element element, run these steps:
+    // 1. If element is an input element whose type attribute is in one of the URL, E-mail, or Password states, then return off.
+    if (auto const* input_element = as_if<HTMLInputElement>(this)) {
+        if (first_is_one_of(input_element->type_state(), HTMLInputElement::TypeAttributeState::URL, HTMLInputElement::TypeAttributeState::Email, HTMLInputElement::TypeAttributeState::Password))
+            return AutocorrectionState::Off;
+    }
+
+    // 2. If the autocorrect content attribute is present on element, then return the state of the attribute.
+    auto maybe_autocorrect_attribute = attribute(HTML::AttributeNames::autocorrect);
+
+    if (maybe_autocorrect_attribute.has_value())
+        return autocorrect_attribute_state(maybe_autocorrect_attribute);
+
+    // 3. If element is an autocapitalize-and-autocorrect inheriting element and has a non-null form owner, then return
+    //    the state of element's form owner's autocorrect attribute.
+    if (auto const* form_associated_element = as_if<FormAssociatedElement>(this)) {
+        if (form_associated_element->is_autocapitalize_and_autocorrect_inheriting() && form_associated_element->form())
+            return autocorrect_attribute_state(form_associated_element->form()->attribute(HTML::AttributeNames::autocorrect));
+    }
+
+    // 4. Return on.
+    return AutocorrectionState::On;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-autocorrect
+bool HTMLElement::autocorrect() const
+{
+    // The autocorrect getter steps are: return true if the element's used autocorrection state is on and false if the element's used autocorrection state is off.
+    return used_autocorrection_state() == AutocorrectionState::On;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-autocorrect
+void HTMLElement::set_autocorrect(bool given_value)
+{
+    // The setter steps are: if the given value is true, then the element's autocorrect attribute must be set to "on"; otherwise it must be set to "off".
+    if (given_value)
+        MUST(set_attribute(HTML::AttributeNames::autocorrect, "on"_string));
+    else
+        MUST(set_attribute(HTML::AttributeNames::autocorrect, "off"_string));
 }
 
 }

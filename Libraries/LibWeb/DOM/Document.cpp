@@ -458,7 +458,7 @@ GC::Ref<Document> Document::create_for_fragment_parsing(JS::Realm& realm)
     return realm.create<Document>(realm, URL::about_blank(), TemporaryDocumentForFragmentParsing::Yes);
 }
 
-Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
+Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
     : ParentNode(realm, *this, NodeType::DOCUMENT_NODE)
     , m_page(Bindings::principal_host_defined_page(realm))
     , m_style_computer(realm.heap().allocate<CSS::StyleComputer>(*this))

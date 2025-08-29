@@ -23,7 +23,7 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(ParentNode);
 
-static bool contains_named_namespace(const CSS::SelectorList& selectors)
+static bool contains_named_namespace(CSS::SelectorList const& selectors)
 {
     for (auto const& selector : selectors) {
         for (auto const& compound_selector : selector->compound_selectors()) {

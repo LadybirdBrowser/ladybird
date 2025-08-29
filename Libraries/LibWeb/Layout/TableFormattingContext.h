@@ -36,7 +36,7 @@ public:
         return as<TableWrapper>(*table_box().containing_block());
     }
 
-    static bool border_is_less_specific(const CSS::BorderData& a, const CSS::BorderData& b);
+    static bool border_is_less_specific(CSS::BorderData const& a, CSS::BorderData const& b);
 
     virtual void parent_context_did_dimension_child_root_box() override;
 
@@ -150,7 +150,7 @@ private:
 
     static TableFormattingContext::ConflictingEdge const& winning_conflicting_edge(TableFormattingContext::ConflictingEdge const& a, TableFormattingContext::ConflictingEdge const& b);
 
-    static const CSS::BorderData& border_data_conflicting_edge(ConflictingEdge const& conflicting_edge);
+    static CSS::BorderData const& border_data_conflicting_edge(ConflictingEdge const& conflicting_edge);
     static Painting::PaintableBox::BorderDataWithElementKind const border_data_with_element_kind_from_conflicting_edge(ConflictingEdge const& conflicting_edge);
 
     class BorderConflictFinder {

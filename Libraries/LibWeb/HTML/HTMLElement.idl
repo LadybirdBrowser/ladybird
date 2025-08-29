@@ -24,9 +24,10 @@ interface HTMLElement : Element {
     [Reflect=accesskey, CEReactions] attribute DOMString accessKey;
     readonly attribute DOMString accessKeyLabel;
     [CEReactions] attribute boolean draggable;
-    [FIXME, CEReactions] attribute boolean spellcheck;
-    [FIXME, CEReactions] attribute DOMString autocapitalize;
-    [FIXME, CEReactions] attribute boolean autocorrect;
+    [CEReactions] attribute boolean spellcheck;
+    [CEReactions] attribute DOMString writingSuggestions;
+    [CEReactions] attribute DOMString autocapitalize;
+    [CEReactions] attribute boolean autocorrect;
 
     [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString innerText;
     [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString outerText;

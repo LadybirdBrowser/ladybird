@@ -26,7 +26,9 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(archive, "archive")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(as, "as")                                                 \
     __ENUMERATE_HTML_ATTRIBUTE(async, "async")                                           \
+    __ENUMERATE_HTML_ATTRIBUTE(autocapitalize, "autocapitalize")                         \
     __ENUMERATE_HTML_ATTRIBUTE(autocomplete, "autocomplete")                             \
+    __ENUMERATE_HTML_ATTRIBUTE(autocorrect, "autocorrect")                               \
     __ENUMERATE_HTML_ATTRIBUTE(autofocus, "autofocus")                                   \
     __ENUMERATE_HTML_ATTRIBUTE(autoplay, "autoplay")                                     \
     __ENUMERATE_HTML_ATTRIBUTE(axis, "axis")                                             \
@@ -286,6 +288,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(sizes, "sizes")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(slot, "slot")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(span, "span")                                             \
+    __ENUMERATE_HTML_ATTRIBUTE(spellcheck, "spellcheck")                                 \
     __ENUMERATE_HTML_ATTRIBUTE(src, "src")                                               \
     __ENUMERATE_HTML_ATTRIBUTE(srcdoc, "srcdoc")                                         \
     __ENUMERATE_HTML_ATTRIBUTE(srclang, "srclang")                                       \
@@ -313,7 +316,8 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(vspace, "vspace")                                         \
     __ENUMERATE_HTML_ATTRIBUTE(width, "width")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(willvalidate, "willvalidate")                             \
-    __ENUMERATE_HTML_ATTRIBUTE(wrap, "wrap")
+    __ENUMERATE_HTML_ATTRIBUTE(wrap, "wrap")                                             \
+    __ENUMERATE_HTML_ATTRIBUTE(writingsuggestions, "writingsuggestions")
 
 #define __ENUMERATE_HTML_ATTRIBUTE(name, attribute) extern WEB_API FlyString name;
 ENUMERATE_HTML_ATTRIBUTES

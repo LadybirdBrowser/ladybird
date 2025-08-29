@@ -546,8 +546,8 @@ public:
     CSS::ShapeRendering shape_rendering() const { return m_noninherited.shape_rendering; }
 
     CSS::LengthBox const& inset() const { return m_noninherited.inset; }
-    const CSS::LengthBox& margin() const { return m_noninherited.margin; }
-    const CSS::LengthBox& padding() const { return m_noninherited.padding; }
+    CSS::LengthBox const& margin() const { return m_noninherited.margin; }
+    CSS::LengthBox const& padding() const { return m_noninherited.padding; }
 
     BorderData const& border_left() const { return m_noninherited.border_left; }
     BorderData const& border_top() const { return m_noninherited.border_top; }
@@ -555,10 +555,10 @@ public:
     BorderData const& border_bottom() const { return m_noninherited.border_bottom; }
 
     bool has_noninitial_border_radii() const { return m_noninherited.has_noninitial_border_radii; }
-    const CSS::BorderRadiusData& border_bottom_left_radius() const { return m_noninherited.border_bottom_left_radius; }
-    const CSS::BorderRadiusData& border_bottom_right_radius() const { return m_noninherited.border_bottom_right_radius; }
-    const CSS::BorderRadiusData& border_top_left_radius() const { return m_noninherited.border_top_left_radius; }
-    const CSS::BorderRadiusData& border_top_right_radius() const { return m_noninherited.border_top_right_radius; }
+    CSS::BorderRadiusData const& border_bottom_left_radius() const { return m_noninherited.border_bottom_left_radius; }
+    CSS::BorderRadiusData const& border_bottom_right_radius() const { return m_noninherited.border_bottom_right_radius; }
+    CSS::BorderRadiusData const& border_top_left_radius() const { return m_noninherited.border_top_left_radius; }
+    CSS::BorderRadiusData const& border_top_right_radius() const { return m_noninherited.border_top_right_radius; }
 
     CSS::Overflow overflow_x() const { return m_noninherited.overflow_x; }
     CSS::Overflow overflow_y() const { return m_noninherited.overflow_y; }
@@ -921,8 +921,8 @@ public:
     void set_min_height(CSS::Size const& height) { m_noninherited.min_height = height; }
     void set_max_height(CSS::Size const& height) { m_noninherited.max_height = height; }
     void set_inset(CSS::LengthBox const& inset) { m_noninherited.inset = inset; }
-    void set_margin(const CSS::LengthBox& margin) { m_noninherited.margin = margin; }
-    void set_padding(const CSS::LengthBox& padding) { m_noninherited.padding = padding; }
+    void set_margin(CSS::LengthBox const& margin) { m_noninherited.margin = margin; }
+    void set_padding(CSS::LengthBox const& padding) { m_noninherited.padding = padding; }
     void set_overflow_x(CSS::Overflow value) { m_noninherited.overflow_x = value; }
     void set_overflow_y(CSS::Overflow value) { m_noninherited.overflow_y = value; }
     void set_list_style_type(CSS::ListStyleType value) { m_inherited.list_style_type = value; }

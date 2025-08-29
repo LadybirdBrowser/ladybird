@@ -149,7 +149,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#concept-bcc-content-document
-const DOM::Document* NavigableContainer::content_document() const
+DOM::Document const* NavigableContainer::content_document() const
 {
     // 1. If container's content navigable is null, then return null.
     if (m_content_navigable == nullptr)
@@ -175,7 +175,7 @@ DOM::Document const* NavigableContainer::content_document_without_origin_check()
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dom-media-getsvgdocument
-const DOM::Document* NavigableContainer::get_svg_document() const
+DOM::Document const* NavigableContainer::get_svg_document() const
 {
     // 1. Let document be this element's content document.
     auto const* document = content_document();

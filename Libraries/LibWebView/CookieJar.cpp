@@ -87,7 +87,7 @@ CookieJar::~CookieJar()
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.8.3
-String CookieJar::get_cookie(const URL::URL& url, Web::Cookie::Source source)
+String CookieJar::get_cookie(URL::URL const& url, Web::Cookie::Source source)
 {
     m_transient_storage.purge_expired_cookies();
 
@@ -118,7 +118,7 @@ String CookieJar::get_cookie(const URL::URL& url, Web::Cookie::Source source)
     return MUST(builder.to_string());
 }
 
-void CookieJar::set_cookie(const URL::URL& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source)
+void CookieJar::set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source)
 {
     auto domain = Web::Cookie::canonicalize_domain(url);
     if (!domain.has_value())
@@ -233,7 +233,7 @@ void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#name-storage-model
-void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, const URL::URL& url, String canonicalized_domain, Web::Cookie::Source source)
+void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL::URL const& url, String canonicalized_domain, Web::Cookie::Source source)
 {
     // 1. A user agent MAY ignore a received cookie in its entirety. See Section 5.3.
 
@@ -502,7 +502,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.8.3
-Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(const URL::URL& url, StringView canonicalized_domain, Web::Cookie::Source source, MatchingCookiesSpecMode mode)
+Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url, StringView canonicalized_domain, Web::Cookie::Source source, MatchingCookiesSpecMode mode)
 {
     auto now = UnixDateTime::now();
 

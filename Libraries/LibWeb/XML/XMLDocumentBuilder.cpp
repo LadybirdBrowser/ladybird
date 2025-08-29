@@ -92,7 +92,7 @@ void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)
     m_document->insert_before(document_type, m_document->first_child(), false);
 }
 
-void XMLDocumentBuilder::element_start(const XML::Name& name, OrderedHashMap<XML::Name, ByteString> const& attributes)
+void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML::Name, ByteString> const& attributes)
 {
     if (m_has_error)
         return;
@@ -184,7 +184,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, OrderedHashMap<XML
     m_current_node = node.ptr();
 }
 
-void XMLDocumentBuilder::element_end(const XML::Name& name)
+void XMLDocumentBuilder::element_end(XML::Name const& name)
 {
     if (m_has_error)
         return;

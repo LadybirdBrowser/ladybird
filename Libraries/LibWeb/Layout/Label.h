@@ -23,7 +23,7 @@ public:
     static bool is_inside_associated_label(LabelableNode const&, CSSPixelPoint);
     static bool is_associated_label_hovered(LabelableNode const&);
 
-    const HTML::HTMLLabelElement& dom_node() const { return static_cast<const HTML::HTMLLabelElement&>(*BlockContainer::dom_node()); }
+    HTML::HTMLLabelElement const& dom_node() const { return static_cast<HTML::HTMLLabelElement const&>(*BlockContainer::dom_node()); }
     HTML::HTMLLabelElement& dom_node() { return static_cast<HTML::HTMLLabelElement&>(*BlockContainer::dom_node()); }
 
     void handle_mousedown_on_label(Badge<Painting::TextPaintable>, CSSPixelPoint, unsigned button);

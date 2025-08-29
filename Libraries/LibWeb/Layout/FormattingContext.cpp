@@ -886,7 +886,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_replaced_element
     auto margin_right = computed_values.margin().right();
     auto static_position = m_state.get(box).static_position();
 
-    auto to_px = [&](const CSS::LengthPercentage& l) {
+    auto to_px = [&](CSS::LengthPercentage const& l) {
         return l.to_px(box, width_of_containing_block);
     };
 
@@ -1305,7 +1305,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_replaced_elemen
     auto margin_bottom = computed_values.margin().bottom();
     auto static_position = m_state.get(box).static_position();
 
-    auto to_px = [&](const CSS::LengthPercentage& l) {
+    auto to_px = [&](CSS::LengthPercentage const& l) {
         return l.to_px(box, height_of_containing_block);
     };
 
