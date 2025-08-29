@@ -32,7 +32,7 @@ interface HTMLButtonElement : HTMLElement {
     readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     [FIXME] boolean checkValidity();
-    [FIXME] boolean reportValidity();
+    boolean reportValidity();
     undefined setCustomValidity(DOMString error);
 
     readonly attribute NodeList labels;
