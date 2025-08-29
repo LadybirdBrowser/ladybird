@@ -160,7 +160,6 @@ public:
     WebIDL::ExceptionOr<void> step_down(WebIDL::Long n = 1);
 
     bool will_validate();
-    WebIDL::ExceptionOr<bool> check_validity();
 
     WebIDL::ExceptionOr<void> show_picker();
 

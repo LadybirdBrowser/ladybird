@@ -239,12 +239,6 @@ bool HTMLTextAreaElement::will_validate()
     return is_candidate_for_constraint_validation();
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
-bool HTMLTextAreaElement::check_validity()
-{
-    return check_validity_steps();
-}
-
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-maxlength
 WebIDL::Long HTMLTextAreaElement::max_length() const
 {
