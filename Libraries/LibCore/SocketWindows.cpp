@@ -137,7 +137,7 @@ void PosixSocketHelper::close()
 
     // shutdown is required for another end to receive FD_CLOSE
     shutdown(m_fd, SD_BOTH);
-    MUST(System::close(m_fd));
+    closesocket(m_fd);
     m_fd = -1;
 }
 
