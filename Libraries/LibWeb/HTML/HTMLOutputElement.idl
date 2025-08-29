@@ -17,9 +17,9 @@ interface HTMLOutputElement : HTMLElement {
 
     readonly attribute boolean willValidate;
     readonly attribute ValidityState validity;
-    [FIXME] readonly attribute DOMString validationMessage;
-    [FIXME] boolean checkValidity();
-    [FIXME] boolean reportValidity();
+    readonly attribute Utf16DOMString validationMessage;
+    boolean checkValidity();
+    boolean reportValidity();
     undefined setCustomValidity(DOMString error);
 
     readonly attribute NodeList labels;

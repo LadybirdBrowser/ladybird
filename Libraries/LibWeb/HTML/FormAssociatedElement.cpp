@@ -237,6 +237,46 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_form_action(String const& v
     return html_element.set_attribute(HTML::AttributeNames::formaction, value);
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
+bool FormAssociatedElement::report_validity()
+{
+    // The reportValidity() method, when invoked, must run the report validity steps on this element.
+    return report_validity_steps();
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
+bool FormAssociatedElement::check_validity()
+{
+    // The checkValidity() method, when invoked, must run the check validity steps on this element.
+    return check_validity_steps();
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-willvalidate
+bool FormAssociatedElement::will_validate() const
+{
+    // The willValidate attribute's getter must return true, if this element is a candidate for constraint validation,
+    // and false otherwise (i.e., false if any conditions are barring it from constraint validation).
+    return is_candidate_for_constraint_validation();
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validationmessage
+Utf16String FormAssociatedElement::validation_message() const
+{
+    // 1. If this element is not a candidate for constraint validation or if this element satisfies its constraints,
+    //    then return the empty string.
+    if (!is_candidate_for_constraint_validation() || satisfies_its_constraints())
+        return {};
+
+    // FIXME
+    // 2. Return a suitably localized message that the user agent would show the user if this were the only form
+    //    control with a validity constraint problem. If the user agent would not actually show a textual message in
+    //    such a situation (e.g., it would show a graphical cue instead), then return a suitably localized message that
+    //    expresses (one or more of) the validity constraint(s) that the control does not satisfy. If the element is a
+    //    candidate for constraint validation and is suffering from a custom error, then the custom validity error
+    //    message should be present in the return value.
+    return "Invalid form"_utf16;
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#check-validity-steps
 bool FormAssociatedElement::check_validity_steps()
 {

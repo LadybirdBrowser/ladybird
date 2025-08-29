@@ -25,7 +25,7 @@ enum PotentialDestination {
     "style",
     "track",
     "video",
-    "webidentity", 
+    "webidentity",
     "worker",
     "xslt",
     "fetch"

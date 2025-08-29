@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 78 tests
 
-77 Pass
-1 Fail
+78 Pass
 Pass	[INPUT in TEXT status] The required attribute is not set
 Pass	[INPUT in TEXT status] The value is not empty and required is true
 Pass	[INPUT in TEXT status] The value is empty and required is true
@@ -81,4 +80,4 @@ Pass	[select]  Selected the option with value equals to empty
 Pass	[textarea]  The required attribute is not set
 Pass	[textarea]  The value is not empty
 Pass	[textarea]  The value is empty
-Fail	validationMessage should return empty string when willValidate is false and valueMissing is true
+Pass	validationMessage should return empty string when willValidate is false and valueMissing is true
