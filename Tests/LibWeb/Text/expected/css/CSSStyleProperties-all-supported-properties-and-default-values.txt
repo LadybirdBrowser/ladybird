@@ -379,6 +379,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'color': 'rgb(0, 0, 0)'
 'colorInterpolation': 'srgb'
 'color-interpolation': 'srgb'
+'colorInterpolationFilters': 'linearrgb'
+'color-interpolation-filters': 'linearrgb'
 'colorScheme': 'normal'
 'color-scheme': 'normal'
 'columnCount': 'auto'

@@ -15,6 +15,7 @@
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibIPC/Forward.h>
@@ -72,6 +73,7 @@ public:
     static Filter erode(float radius_x, float radius_y, Optional<Filter> const& input = {});
     static Filter dilate(float radius_x, float radius_y, Optional<Filter> const& input = {});
     static Filter turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size);
+    static Filter convert_interpolation_color_space(InterpolationColorSpace source_color_space, InterpolationColorSpace destination_color_space, Optional<Filter const&> input = {});
 
     FilterImpl const& impl() const;
 

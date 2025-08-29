@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['color-interpolation-filters'] = "none" should not set the property value
+Pass	e.style['color-interpolation-filters'] = "linearRGB sRGB" should not set the property value
+Pass	e.style['color-interpolation-filters'] = "auto sRGB linearRGB" should not set the property value

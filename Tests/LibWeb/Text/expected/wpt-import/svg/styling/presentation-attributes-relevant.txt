@@ -1,12 +1,13 @@
 Harness status: OK
 
-Found 59 tests
+Found 60 tests
 
-58 Pass
+59 Pass
 1 Fail
 Pass	clip-path presentation attribute supported on a relevant element
 Pass	clip-rule presentation attribute supported on a relevant element
 Pass	color presentation attribute supported on a relevant element
+Pass	color-interpolation-filters presentation attribute supported on a relevant element
 Pass	color-interpolation presentation attribute supported on a relevant element
 Pass	cursor presentation attribute supported on a relevant element
 Pass	cx presentation attribute supported on a relevant element

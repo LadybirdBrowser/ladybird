@@ -224,6 +224,15 @@ Filter Filter::turbulence(TurbulenceType turbulence_type, float base_frequency_x
     }));
 }
 
+Filter Filter::convert_interpolation_color_space(InterpolationColorSpace source_color_space, InterpolationColorSpace destination_color_space, Optional<Filter const&> input)
+{
+    return Filter(FilterImpl::create(FilterImpl::ColorSpaceConversion {
+        .source_color_space = source_color_space,
+        .destination_color_space = destination_color_space,
+        .input = input.copy(),
+    }));
+}
+
 namespace {
 
 using ImageEncoder = Function<u64(Gfx::DecodedImageFrame const&)>;
@@ -419,6 +428,12 @@ static void encode_filter(Stream& stream, Filter const& filter, ImageEncoder con
             MUST(stream.write_value(op.num_octaves));
             MUST(stream.write_value(op.seed));
             write_int_size(stream, op.tile_stitch_size);
+        },
+        [&](FilterImpl::ColorSpaceConversion const& op) {
+            MUST(stream.write_value(FilterImpl::OperationType::ColorSpaceConversion));
+            MUST(stream.write_value(op.source_color_space));
+            MUST(stream.write_value(op.destination_color_space));
+            encode_optional_filter(stream, op.input, encode_image);
         });
 }
 
@@ -560,6 +575,12 @@ static Filter decode_filter(Stream& stream, ImageDecoder const& decode_image)
         auto seed = MUST(stream.read_value<float>());
         auto tile_stitch_size = read_int_size(stream);
         return Filter::turbulence(turbulence_type, base_frequency_x, base_frequency_y, num_octaves, seed, tile_stitch_size);
+    }
+    case FilterImpl::OperationType::ColorSpaceConversion: {
+        auto source_color_space = MUST(stream.read_value<InterpolationColorSpace>());
+        auto destination_color_space = MUST(stream.read_value<InterpolationColorSpace>());
+        auto input = decode_optional_filter(stream, decode_image);
+        return Filter::convert_interpolation_color_space(source_color_space, destination_color_space, input);
     }
     }
     VERIFY_NOT_REACHED();

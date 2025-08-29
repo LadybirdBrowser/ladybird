@@ -163,6 +163,7 @@ public:
     Color color(PropertyID, ColorResolutionContext) const;
     HashMap<PropertyID, StyleValueVector> assemble_coordinated_value_list(PropertyID base_property_id, Vector<PropertyID> const& property_ids) const;
     ColorInterpolation color_interpolation() const;
+    ColorInterpolation color_interpolation_filters() const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
     TextAnchor text_anchor() const;
     Optional<BaselineMetric> dominant_baseline() const;
