@@ -23,24 +23,6 @@ namespace Core::System {
 
 int windows_socketpair(SOCKET socks[2], int make_overlapped);
 
-static void invalid_parameter_handler(wchar_t const*, wchar_t const*, wchar_t const*, unsigned int, uintptr_t)
-{
-}
-
-static int init_crt_and_wsa()
-{
-    WSADATA wsa;
-    WORD version = MAKEWORD(2, 2);
-    int rc = WSAStartup(version, &wsa);
-    VERIFY(!rc && wsa.wVersion == version);
-
-    // Make _get_osfhandle return -1 instead of crashing on invalid fd in release (debug still __debugbreak's)
-    _set_invalid_parameter_handler(invalid_parameter_handler);
-    return 0;
-}
-
-static auto dummy = init_crt_and_wsa();
-
 ErrorOr<int> open(StringView path, int options, mode_t mode)
 {
     ByteString str = path;
