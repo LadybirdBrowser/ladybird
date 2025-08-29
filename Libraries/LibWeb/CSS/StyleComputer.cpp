@@ -1120,7 +1120,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             return camel_case_string_from_property_id(a) < camel_case_string_from_property_id(b);
         };
 
-        compute_font(computed_properties, &element, pseudo_element);
+        compute_font(computed_properties, DOM::AbstractElement { element, pseudo_element });
         compute_property_values(computed_properties);
         Length::FontMetrics font_metrics {
             computed_properties.font_size(),
@@ -2150,7 +2150,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     return font_list;
 }
 
-void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
+void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::AbstractElement> element) const
 {
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
     auto const& font_size = style.property(CSS::PropertyID::FontSize);
@@ -2158,7 +2158,7 @@ void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* 
     auto const& font_weight = style.property(CSS::PropertyID::FontWeight);
     auto const& font_width = style.property(CSS::PropertyID::FontWidth);
 
-    auto font_list = compute_font_for_style_values(element, pseudo_element, font_family, font_size, font_style, font_weight, font_width, style.math_depth());
+    auto font_list = compute_font_for_style_values(element.has_value() ? &element->element() : nullptr, element.has_value() ? element->pseudo_element() : OptionalNone {}, font_family, font_size, font_style, font_weight, font_width, style.math_depth());
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 
@@ -2175,7 +2175,7 @@ void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* 
 
     style.set_computed_font_list(*font_list);
 
-    if (element && is<HTML::HTMLHtmlElement>(*element)) {
+    if (element.has_value() && is<HTML::HTMLHtmlElement>(element->element()) && !element->pseudo_element().has_value()) {
         const_cast<StyleComputer&>(*this).m_root_element_font_metrics = calculate_root_element_font_metrics(style);
     }
 }
@@ -2488,7 +2488,7 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     }
 
     compute_math_depth(style, {});
-    compute_font(style, nullptr, {});
+    compute_font(style, {});
     compute_property_values(style);
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
@@ -2806,7 +2806,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     compute_math_depth(computed_style, abstract_element);
 
     // 3. Compute the font, since that may be needed for font-relative CSS units
-    compute_font(computed_style, &element, pseudo_element);
+    compute_font(computed_style, abstract_element);
 
     // 4. Convert properties into their computed forms
     compute_property_values(computed_style);
