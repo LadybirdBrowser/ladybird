@@ -72,14 +72,10 @@ static NonnullRefPtr<Resolver> default_resolver()
             };
         }
 
-#if !defined(AK_OS_WINDOWS)
         return DNS::Resolver::SocketResult {
             MaybeOwned<Core::Socket>(TRY(Core::BufferedUDPSocket::create(TRY(Core::UDPSocket::connect(*g_dns_info.server_address))))),
             DNS::Resolver::ConnectionMode::UDP,
         };
-#else
-        return Error::from_string_literal("Core::UDPSocket::connect() and Core::BufferedUDPSocket::create() are not implemented on Windows");
-#endif
     });
 
     s_resolver = resolver;
