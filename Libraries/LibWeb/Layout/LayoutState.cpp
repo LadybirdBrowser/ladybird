@@ -56,7 +56,7 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
     if (!box.paintable_box())
         return {};
 
-    auto& paintable_box = const_cast<Painting::PaintableBox&>(*box.paintable_box());
+    auto const& paintable_box = *box.paintable_box();
 
     if (paintable_box.scrollable_overflow_rect().has_value())
         return paintable_box.scrollable_overflow_rect().value();
@@ -151,7 +151,7 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
         has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect);
     }
 
-    paintable_box.set_overflow_data(Painting::PaintableBox::OverflowData {
+    const_cast<Painting::PaintableBox&>(paintable_box).set_overflow_data({
         .scrollable_overflow_rect = scrollable_overflow_rect,
         .has_scrollable_overflow = has_scrollable_overflow,
     });
