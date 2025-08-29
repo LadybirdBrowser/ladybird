@@ -28,7 +28,7 @@ void ListOfActiveFormattingElements::add_marker()
     m_entries.append({ nullptr });
 }
 
-bool ListOfActiveFormattingElements::contains(const DOM::Element& element) const
+bool ListOfActiveFormattingElements::contains(DOM::Element const& element) const
 {
     for (auto& entry : m_entries) {
         if (entry.element.ptr() == &element)

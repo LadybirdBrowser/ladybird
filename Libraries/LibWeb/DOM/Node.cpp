@@ -133,7 +133,7 @@ String Node::base_uri() const
     return document().base_url().to_string();
 }
 
-const HTML::HTMLAnchorElement* Node::enclosing_link_element() const
+HTML::HTMLAnchorElement const* Node::enclosing_link_element() const
 {
     for (auto* node = this; node; node = node->parent()) {
         auto const* anchor_element = as_if<HTML::HTMLAnchorElement>(*node);
@@ -145,12 +145,12 @@ const HTML::HTMLAnchorElement* Node::enclosing_link_element() const
     return nullptr;
 }
 
-const HTML::HTMLElement* Node::enclosing_html_element() const
+HTML::HTMLElement const* Node::enclosing_html_element() const
 {
     return first_ancestor_of_type<HTML::HTMLElement>();
 }
 
-const HTML::HTMLElement* Node::enclosing_html_element_with_attribute(FlyString const& attribute) const
+HTML::HTMLElement const* Node::enclosing_html_element_with_attribute(FlyString const& attribute) const
 {
     for (auto* node = this; node; node = node->parent()) {
         if (auto* html_element = as_if<HTML::HTMLElement>(*node); html_element && html_element->has_attribute(attribute))

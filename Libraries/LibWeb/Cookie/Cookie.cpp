@@ -58,7 +58,7 @@ SameSite same_site_from_string(StringView same_site_mode)
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.2
-Optional<String> canonicalize_domain(const URL::URL& url)
+Optional<String> canonicalize_domain(URL::URL const& url)
 {
     if (!url.host().has_value())
         return {};

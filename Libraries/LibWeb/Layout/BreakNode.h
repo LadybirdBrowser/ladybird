@@ -19,7 +19,7 @@ public:
     BreakNode(DOM::Document&, HTML::HTMLBRElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~BreakNode() override;
 
-    const HTML::HTMLBRElement& dom_node() const { return as<HTML::HTMLBRElement>(*Node::dom_node()); }
+    HTML::HTMLBRElement const& dom_node() const { return as<HTML::HTMLBRElement>(*Node::dom_node()); }
 
 private:
     virtual bool is_break_node() const final { return true; }

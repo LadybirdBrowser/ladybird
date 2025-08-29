@@ -467,13 +467,13 @@ Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url, O
     if (blob_url_entry.has_value()) {
         url->set_blob_url_entry(URL::BlobURLEntry {
             .object = blob_url_entry->object.visit(
-                [](const GC::Root<FileAPI::Blob>& blob) -> URL::BlobURLEntry::Object {
+                [](GC::Root<FileAPI::Blob> const& blob) -> URL::BlobURLEntry::Object {
                     return URL::BlobURLEntry::Blob {
                         .type = blob->type(),
                         .data = MUST(ByteBuffer::copy(blob->raw_bytes())),
                     };
                 },
-                [](const GC::Root<MediaSourceExtensions::MediaSource>&) -> URL::BlobURLEntry::Object { return URL::BlobURLEntry::MediaSource {}; }),
+                [](GC::Root<MediaSourceExtensions::MediaSource> const&) -> URL::BlobURLEntry::Object { return URL::BlobURLEntry::MediaSource {}; }),
             .environment { .origin = blob_url_entry->environment->origin() },
         });
     }

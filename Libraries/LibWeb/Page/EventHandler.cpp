@@ -345,7 +345,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#run-light-dismiss-activities
-static void light_dismiss_activities(UIEvents::PointerEvent const& event, const GC::Ptr<DOM::Node> target)
+static void light_dismiss_activities(UIEvents::PointerEvent const& event, GC::Ptr<DOM::Node> const target)
 {
     // To run light dismiss activities, given a PointerEvent event:
 

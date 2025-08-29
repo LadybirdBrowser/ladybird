@@ -32,7 +32,7 @@ public:
     void replace(DOM::Element const& to_remove, GC::Ref<DOM::Element> to_add);
     void insert_immediately_below(GC::Ref<DOM::Element> element_to_add, DOM::Element const& target);
 
-    const DOM::Element& current_node() const { return *m_elements.last(); }
+    DOM::Element const& current_node() const { return *m_elements.last(); }
     DOM::Element& current_node() { return *m_elements.last(); }
 
     bool has_in_scope(FlyString const& tag_name) const;
@@ -41,9 +41,9 @@ public:
     bool has_in_list_item_scope(FlyString const& tag_name) const;
     bool has_in_select_scope(FlyString const& tag_name) const;
 
-    bool has_in_scope(const DOM::Element&) const;
+    bool has_in_scope(DOM::Element const&) const;
 
-    bool contains(const DOM::Element&) const;
+    bool contains(DOM::Element const&) const;
     [[nodiscard]] bool contains_template_element() const;
 
     auto const& elements() const { return m_elements; }
@@ -64,7 +64,7 @@ public:
 
 private:
     bool has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const&) const;
-    bool has_in_scope_impl(const DOM::Element& target_node, Vector<FlyString> const&) const;
+    bool has_in_scope_impl(DOM::Element const& target_node, Vector<FlyString> const&) const;
 
     Vector<GC::Ref<DOM::Element>> m_elements;
 };

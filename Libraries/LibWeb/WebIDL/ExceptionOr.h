@@ -170,7 +170,7 @@ struct Formatter<Web::WebIDL::Exception> : Formatter<FormatString> {
 
                 if (value.is_object()) {
                     auto& object = value.as_object();
-                    static const JS::PropertyKey message_property_key { "message"_utf16_fly_string };
+                    static JS::PropertyKey const message_property_key { "message"_utf16_fly_string };
                     auto has_message_or_error = object.has_own_property(message_property_key);
                     if (!has_message_or_error.is_error() && has_message_or_error.value()) {
                         auto message_object = object.get_without_side_effects(message_property_key);

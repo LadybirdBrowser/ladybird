@@ -21,7 +21,7 @@ class WEB_API LoadRequest {
 public:
     LoadRequest();
 
-    static LoadRequest create_for_url_on_page(const URL::URL& url, Page* page);
+    static LoadRequest create_for_url_on_page(URL::URL const& url, Page* page);
 
     // The main resource is the file being displayed in a frame (unlike subresources like images, scripts, etc.)
     // If a main resource fails with an HTTP error, we may still display its content if non-empty, e.g a custom 404 page.

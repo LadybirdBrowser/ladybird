@@ -55,7 +55,7 @@ public:
     WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, size_t page_index = 0, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
 
-    Function<String(const URL::URL&, Web::HTML::ActivateTab)> on_tab_open_request;
+    Function<String(URL::URL const&, Web::HTML::ActivateTab)> on_tab_open_request;
 
     virtual void paintEvent(QPaintEvent*) override;
     virtual void resizeEvent(QResizeEvent*) override;

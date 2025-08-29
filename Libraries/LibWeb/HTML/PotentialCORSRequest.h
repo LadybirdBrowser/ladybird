@@ -19,6 +19,6 @@ enum class SameOriginFallbackFlag {
     Yes,
 };
 
-[[nodiscard]] WEB_API GC::Ref<Fetch::Infrastructure::Request> create_potential_CORS_request(JS::VM&, const URL::URL&, Optional<Fetch::Infrastructure::Request::Destination>, CORSSettingAttribute, SameOriginFallbackFlag = SameOriginFallbackFlag::No);
+[[nodiscard]] WEB_API GC::Ref<Fetch::Infrastructure::Request> create_potential_CORS_request(JS::VM&, URL::URL const&, Optional<Fetch::Infrastructure::Request::Destination>, CORSSettingAttribute, SameOriginFallbackFlag = SameOriginFallbackFlag::No);
 
 }

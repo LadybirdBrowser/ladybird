@@ -1187,7 +1187,7 @@ bool TableFormattingContext::use_fixed_mode_layout() const
     return table_box().computed_values().table_layout() == CSS::TableLayout::Fixed && (width.is_length() || width.is_percentage() || width.is_min_content() || width.is_fit_content());
 }
 
-bool TableFormattingContext::border_is_less_specific(const CSS::BorderData& a, const CSS::BorderData& b)
+bool TableFormattingContext::border_is_less_specific(CSS::BorderData const& a, CSS::BorderData const& b)
 {
     // Implements criteria for steps 1, 2 and 3 of border conflict resolution algorithm, as described in
     // https://www.w3.org/TR/CSS22/tables.html#border-conflict-resolution.
@@ -1236,7 +1236,7 @@ bool TableFormattingContext::border_is_less_specific(const CSS::BorderData& a, c
     return false;
 }
 
-const CSS::BorderData& TableFormattingContext::border_data_conflicting_edge(TableFormattingContext::ConflictingEdge const& conflicting_edge)
+CSS::BorderData const& TableFormattingContext::border_data_conflicting_edge(TableFormattingContext::ConflictingEdge const& conflicting_edge)
 {
     auto const& style = conflicting_edge.element->computed_values();
     switch (conflicting_edge.side) {

@@ -31,7 +31,7 @@ public:
     Vector<TextBlock> const& text_blocks();
     void invalidate_text_blocks_cache() { m_text_blocks.clear(); }
 
-    const DOM::Document& dom_node() const { return static_cast<const DOM::Document&>(*Node::dom_node()); }
+    DOM::Document const& dom_node() const { return static_cast<DOM::Document const&>(*Node::dom_node()); }
 
     virtual void visit_edges(Visitor&) override;
 

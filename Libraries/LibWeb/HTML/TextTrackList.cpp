@@ -34,7 +34,7 @@ void TextTrackList::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttracklist-item
-JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> TextTrackList::internal_get_own_property(const JS::PropertyKey& property_name) const
+JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> TextTrackList::internal_get_own_property(JS::PropertyKey const& property_name) const
 {
     // To determine the value of an indexed property of a TextTrackList object for a given index index, the user
     // agent must return the indexth text track in the list represented by the TextTrackList object.

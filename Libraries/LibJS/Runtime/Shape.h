@@ -150,7 +150,7 @@ private:
 
 template<>
 struct AK::Traits<JS::TransitionKey> : public DefaultTraits<JS::TransitionKey> {
-    static unsigned hash(const JS::TransitionKey& key)
+    static unsigned hash(JS::TransitionKey const& key)
     {
         return pair_int_hash(key.attributes.bits(), Traits<JS::PropertyKey>::hash(key.property_key));
     }

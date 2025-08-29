@@ -314,7 +314,7 @@ ScriptFetchOptions get_descendant_script_fetch_options(ScriptFetchOptions const&
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolving-a-module-integrity-metadata
-String resolve_a_module_integrity_metadata(const URL::URL& url, EnvironmentSettingsObject& settings_object)
+String resolve_a_module_integrity_metadata(URL::URL const& url, EnvironmentSettingsObject& settings_object)
 {
     // 1. Let map be settingsObject's global object's import map.
     auto map = as<UniversalGlobalScopeMixin>(settings_object.global_object()).import_map();

@@ -76,7 +76,7 @@ bool SVGSymbolElement::is_direct_child_of_use_shadow_tree() const
         return false;
     }
 
-    auto host = static_cast<const DOM::ShadowRoot&>(*maybe_shadow_root).host();
+    auto host = static_cast<DOM::ShadowRoot const&>(*maybe_shadow_root).host();
     return is<SVGUseElement>(host);
 }
 

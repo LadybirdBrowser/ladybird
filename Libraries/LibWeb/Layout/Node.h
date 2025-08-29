@@ -247,7 +247,7 @@ public:
 
     Gfx::Font const& first_available_font() const;
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
-    const CSS::AbstractImageStyleValue* list_style_image() const { return m_list_style_image; }
+    CSS::AbstractImageStyleValue const* list_style_image() const { return m_list_style_image; }
 
     GC::Ref<NodeWithStyle> create_anonymous_wrapper() const;
 
@@ -334,7 +334,7 @@ inline Gfx::Font const& Node::font(float scale_factor) const
     return font.with_size(font.point_size() * scale_factor);
 }
 
-inline const CSS::ImmutableComputedValues& Node::computed_values() const
+inline CSS::ImmutableComputedValues const& Node::computed_values() const
 {
     VERIFY(has_style_or_parent_with_style());
 

@@ -291,9 +291,9 @@ public:
 
     GC::Ptr<Document> owner_document() const;
 
-    const HTML::HTMLAnchorElement* enclosing_link_element() const;
-    const HTML::HTMLElement* enclosing_html_element() const;
-    const HTML::HTMLElement* enclosing_html_element_with_attribute(FlyString const&) const;
+    HTML::HTMLAnchorElement const* enclosing_link_element() const;
+    HTML::HTMLElement const* enclosing_html_element() const;
+    HTML::HTMLElement const* enclosing_html_element_with_attribute(FlyString const&) const;
 
     Utf16String child_text_content() const;
 
