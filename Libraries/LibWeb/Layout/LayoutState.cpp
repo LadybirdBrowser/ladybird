@@ -214,17 +214,9 @@ static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable =
 
 void LayoutState::commit(Box& root)
 {
-    // Go through the old paintable tree and detach everything from the layout tree.
-    // The layout tree should only point to the new paintable tree which we're about to build.
-    if (auto* old_paintable_root = root.first_paintable()) {
-        old_paintable_root->for_each_in_inclusive_subtree([&](Painting::Paintable& paintable) {
-            paintable.detach_from_layout_node();
-            return TraversalDecision::Continue;
-        });
-    }
-
-    // For completeness, also go through the layout tree and detach all paintables.
-    root.for_each_in_inclusive_subtree([&](Layout::Node& node) {
+    // Go through the layout tree and detach all paintables. The layout tree should only point to the new paintable tree
+    // which we're about to build.
+    root.for_each_in_inclusive_subtree([](Node& node) {
         node.clear_paintables();
         return TraversalDecision::Continue;
     });
