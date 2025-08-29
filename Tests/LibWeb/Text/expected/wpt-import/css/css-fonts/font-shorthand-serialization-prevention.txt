@@ -1,0 +1,194 @@
+Harness status: OK
+
+Found 188 tests
+
+160 Pass
+28 Fail
+Pass	Setting font-family to sans-serif should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-family to sans-serif should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant to normal should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant to none should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant to none should prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant to small-caps should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant to small-caps should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant to all-small-caps should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant to all-small-caps should prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-caps to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-caps to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-caps to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-caps to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-caps to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-caps to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-caps to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-caps to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-caps to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-caps to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-caps to small-caps should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-caps to small-caps should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-caps to all-small-caps should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-caps to all-small-caps should prevent the font shorthand from serializing in computed style
+Pass	Setting font-stretch to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-stretch to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-stretch to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-stretch to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-stretch to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-stretch to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-stretch to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-stretch to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-stretch to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-stretch to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-stretch to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-stretch to normal should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-stretch to 95% should prevent the font shorthand from serializing in specified style
+Pass	Setting font-stretch to 95% should prevent the font shorthand from serializing in computed style
+Fail	Setting font-kerning to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-kerning to initial should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-kerning to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-kerning to inherit should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-kerning to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-kerning to unset should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-kerning to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-kerning to revert should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-kerning to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-kerning to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-kerning to auto should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-kerning to auto should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-kerning to normal should prevent the font shorthand from serializing in specified style
+Fail	Setting font-kerning to normal should prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-ligatures to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-ligatures to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-ligatures to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-ligatures to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-ligatures to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-ligatures to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-ligatures to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-ligatures to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-ligatures to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-ligatures to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-ligatures to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-ligatures to normal should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-ligatures to none should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-ligatures to none should prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-position to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-position to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-position to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-position to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-position to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-position to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-position to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-position to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-position to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-position to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-position to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-position to normal should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-position to sub should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-position to sub should prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-numeric to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-numeric to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-numeric to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-numeric to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-numeric to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-numeric to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-numeric to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-numeric to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-numeric to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-numeric to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-numeric to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-numeric to normal should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-numeric to ordinal should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-numeric to ordinal should prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-alternates to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-alternates to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-alternates to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-alternates to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-alternates to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-alternates to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-alternates to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-alternates to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-alternates to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-alternates to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-alternates to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-alternates to normal should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-alternates to historical-forms should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-alternates to historical-forms should prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-east-asian to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-east-asian to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-east-asian to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-east-asian to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-east-asian to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-east-asian to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-east-asian to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-east-asian to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-east-asian to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-east-asian to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-east-asian to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-east-asian to normal should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-east-asian to full-width should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-east-asian to full-width should prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-emoji to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-emoji to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-emoji to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-emoji to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-emoji to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-emoji to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-emoji to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-emoji to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-emoji to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-emoji to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-emoji to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-emoji to normal should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variant-emoji to text should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variant-emoji to text should prevent the font shorthand from serializing in computed style
+Fail	Setting font-feature-settings to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-feature-settings to initial should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-feature-settings to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-feature-settings to inherit should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-feature-settings to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-feature-settings to unset should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-feature-settings to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-feature-settings to revert should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-feature-settings to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-feature-settings to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-feature-settings to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-feature-settings to normal should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-feature-settings to "sinf" should prevent the font shorthand from serializing in specified style
+Fail	Setting font-feature-settings to "sinf" should prevent the font shorthand from serializing in computed style
+Fail	Setting font-language-override to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-language-override to initial should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-language-override to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-language-override to inherit should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-language-override to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-language-override to unset should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-language-override to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-language-override to revert should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-language-override to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-language-override to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-language-override to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-language-override to normal should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-language-override to "SRB" should prevent the font shorthand from serializing in specified style
+Fail	Setting font-language-override to "SRB" should prevent the font shorthand from serializing in computed style
+Fail	Setting font-variation-settings to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variation-settings to initial should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-variation-settings to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variation-settings to inherit should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-variation-settings to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variation-settings to unset should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-variation-settings to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variation-settings to revert should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-variation-settings to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-variation-settings to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-variation-settings to normal should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-variation-settings to normal should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-variation-settings to "aaaa" 1 should prevent the font shorthand from serializing in specified style
+Fail	Setting font-variation-settings to "aaaa" 1 should prevent the font shorthand from serializing in computed style

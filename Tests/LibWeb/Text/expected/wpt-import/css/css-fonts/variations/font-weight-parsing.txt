@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 26 tests
+
+21 Pass
+5 Fail
+Pass	@supports: Values that are not multiple of 100 should be parsed successfully
+Pass	@supports: Non-integer Values should be parsed successfully
+Pass	@supports: Minimum allowed value should be parsed successfully
+Pass	@supports: Values below minimum should be rejected
+Pass	@supports: Values below zero should be rejected
+Pass	@supports: Maximum allowed value should be parsed successfully
+Pass	@supports: Values above maximum should be rejected
+Pass	@supports: Simple calc value
+Pass	@supports: Negative simple calc value (to be clamped)
+Pass	@supports: Out-of-range simple calc value (to be clamped)
+Pass	@supports: Valid calc expression
+Pass	@supports: Valid calc expression with out-of-range value (to be clamped)
+Pass	@supports: Valid calc expression with units
+Pass	@supports: Extra number after numeric value
+Pass	@supports: Extra content after numeric value
+Pass	@supports: Extra content after keyword value
+Pass	@supports: Extra content after calc value
+Pass	Computed style: Values that are not multiple of 100 should be parsed successfully
+Fail	Computed style: Non-integer Values should be parsed successfully
+Pass	Computed style: Minimum allowed value should be parsed successfully
+Pass	Computed style: Maximum allowed value should be parsed successfully
+Fail	Computed style: Simple calc value
+Fail	Computed style: Negative simple calc value (to be clamped)
+Fail	Computed style: Out-of-range simple calc value (to be clamped)
+Pass	Computed style: Valid calc expression
+Fail	Computed style: Valid calc expression with out-of-range value (to be clamped)

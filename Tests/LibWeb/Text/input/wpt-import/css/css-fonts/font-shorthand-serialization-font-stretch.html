@@ -1,0 +1,101 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: font shorthand serialization with font-stretch values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#propdef-font">
+<link rel="help" href="https://drafts.csswg.org/cssom-1/#serializing-css-values">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="test" style="font: medium serif"></div>
+<script>
+test(function() {
+    const div = document.getElementById("test");
+    div.style.fontStretch = "ultra-condensed";
+    assert_equals(div.style.fontStretch, "ultra-condensed");
+    assert_equals(div.style.font, "ultra-condensed medium serif");
+    div.style.fontStretch = "extra-condensed";
+    assert_equals(div.style.fontStretch, "extra-condensed");
+    assert_equals(div.style.font, "extra-condensed medium serif");
+    div.style.fontStretch = "condensed";
+    assert_equals(div.style.fontStretch, "condensed");
+    assert_equals(div.style.font, "condensed medium serif");
+    div.style.fontStretch = "semi-condensed";
+    assert_equals(div.style.fontStretch, "semi-condensed");
+    assert_equals(div.style.font, "semi-condensed medium serif");
+    div.style.fontStretch = "normal";
+    assert_equals(div.style.fontStretch, "normal");
+    assert_equals(div.style.font, "medium serif", "The keyword normal should be omitted");
+    div.style.fontStretch = "semi-expanded";
+    assert_equals(div.style.fontStretch, "semi-expanded");
+    assert_equals(div.style.font, "semi-expanded medium serif");
+    div.style.fontStretch = "expanded";
+    assert_equals(div.style.fontStretch, "expanded");
+    assert_equals(div.style.font, "expanded medium serif");
+    div.style.fontStretch = "extra-expanded";
+    assert_equals(div.style.fontStretch, "extra-expanded");
+    assert_equals(div.style.font, "extra-expanded medium serif");
+    div.style.fontStretch = "ultra-expanded";
+    assert_equals(div.style.fontStretch, "ultra-expanded");
+    assert_equals(div.style.font, "ultra-expanded medium serif");
+}, "Keywords should appear in serialization of font and fontStretch");
+
+test(function() {
+    const div = document.getElementById("test");
+    div.style.fontStretch = "50%";
+    assert_equals(div.style.fontStretch, "50%");
+    assert_equals(div.style.font, "ultra-condensed medium serif");
+    div.style.fontStretch = "62.5%";
+    assert_equals(div.style.fontStretch, "62.5%");
+    assert_equals(div.style.font, "extra-condensed medium serif");
+    div.style.fontStretch = "75%";
+    assert_equals(div.style.fontStretch, "75%");
+    assert_equals(div.style.font, "condensed medium serif");
+    div.style.fontStretch = "87.5%";
+    assert_equals(div.style.fontStretch, "87.5%");
+    assert_equals(div.style.font, "semi-condensed medium serif");
+    div.style.fontStretch = "100%";
+    assert_equals(div.style.fontStretch, "100%");
+    assert_equals(div.style.font, "medium serif", "The keyword normal should be omitted");
+    div.style.fontStretch = "112.5%";
+    assert_equals(div.style.fontStretch, "112.5%");
+    assert_equals(div.style.font, "semi-expanded medium serif");
+    div.style.fontStretch = "125%";
+    assert_equals(div.style.fontStretch, "125%");
+    assert_equals(div.style.font, "expanded medium serif");
+    div.style.fontStretch = "150%";
+    assert_equals(div.style.fontStretch, "150%");
+    assert_equals(div.style.font, "extra-expanded medium serif");
+    div.style.fontStretch = "200%";
+    assert_equals(div.style.fontStretch, "200%");
+    assert_equals(div.style.font, "ultra-expanded medium serif");
+    div.style.fontStretch = "50.00000%";
+    assert_equals(div.style.fontStretch, "50%");
+    assert_equals(div.style.font, "ultra-condensed medium serif");
+}, "Percentages which can be transformed into keywords should be for serialization of font, but not of fontStretch");
+
+test(function() {
+    const div = document.getElementById("test");
+    div.style.fontStretch = "25%";
+    assert_equals(div.style.fontStretch, "25%");
+    assert_equals(div.style.font, "");
+    div.style.fontStretch = "101%";
+    assert_equals(div.style.fontStretch, "101%");
+    assert_equals(div.style.font, "");
+    div.style.fontStretch = "50.01%";
+    assert_equals(div.style.fontStretch, "50.01%");
+    assert_equals(div.style.font, "");
+}, "Percentages which cannot be transformed into keywords should prevent the font shorthand from serializing, but not fontStretch");
+
+test(function() {
+    const div = document.getElementById("test");
+
+    // This isn't well-specified, but appears to be consistent across browsers.
+    div.style.fontStretch = "calc(50%)";
+    assert_equals(div.style.fontStretch, "calc(50%)");
+    assert_equals(div.style.font, "ultra-condensed medium serif");
+
+    div.style.fontStretch = "calc(50% + 25% * sign(100em - 1px))";
+    assert_equals(div.style.fontStretch, "calc(50% + (25% * sign(100em - 1px)))");
+    assert_equals(div.style.font, "");
+}, "calc() transformation into keywords");
+
+</script>
