@@ -175,7 +175,8 @@ public:
     void unload_fonts_from_sheet(CSSStyleSheet&);
 
     static CSSPixels default_user_font_size();
-    static CSSPixelFraction absolute_size_mapping(Keyword);
+    static CSSPixels absolute_size_mapping(AbsoluteSize, CSSPixels default_font_size);
+    static CSSPixels relative_size_mapping(RelativeSize, CSSPixels inherited_font_size);
     RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(Optional<DOM::AbstractElement>, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth = 0) const;
 
     [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::AbstractElement, CascadedProperties&) const;
