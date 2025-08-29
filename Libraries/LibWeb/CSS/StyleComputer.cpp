@@ -1762,32 +1762,53 @@ CSSPixels StyleComputer::default_user_font_size()
 }
 
 // https://w3c.github.io/csswg-drafts/css-fonts/#absolute-size-mapping
-CSSPixelFraction StyleComputer::absolute_size_mapping(Keyword keyword)
+CSSPixels StyleComputer::absolute_size_mapping(AbsoluteSize absolute_size, CSSPixels default_font_size)
 {
-    switch (keyword) {
-    case Keyword::XxSmall:
-        return CSSPixels(3) / 5;
-    case Keyword::XSmall:
-        return CSSPixels(3) / 4;
-    case Keyword::Small:
-        return CSSPixels(8) / 9;
-    case Keyword::Medium:
-        return 1;
-    case Keyword::Large:
-        return CSSPixels(6) / 5;
-    case Keyword::XLarge:
-        return CSSPixels(3) / 2;
-    case Keyword::XxLarge:
-        return 2;
-    case Keyword::XxxLarge:
-        return 3;
-    case Keyword::Smaller:
-        return CSSPixels(4) / 5;
-    case Keyword::Larger:
-        return CSSPixels(5) / 4;
-    default:
-        return 1;
+    // An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by the user agent. See
+    // § 2.5.1 Absolute Size Keyword Mapping Table.
+    switch (absolute_size) {
+    case AbsoluteSize::XxSmall:
+        return default_font_size * CSSPixels(3) / 5;
+    case AbsoluteSize::XSmall:
+        return default_font_size * CSSPixels(3) / 4;
+    case AbsoluteSize::Small:
+        return default_font_size * CSSPixels(8) / 9;
+    case AbsoluteSize::Medium:
+        return default_font_size;
+    case AbsoluteSize::Large:
+        return default_font_size * CSSPixels(6) / 5;
+    case AbsoluteSize::XLarge:
+        return default_font_size * CSSPixels(3) / 2;
+    case AbsoluteSize::XxLarge:
+        return default_font_size * 2;
+    case AbsoluteSize::XxxLarge:
+        return default_font_size * 3;
     }
+
+    VERIFY_NOT_REACHED();
+}
+
+// https://drafts.csswg.org/css-fonts/#font-size-prop
+CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPixels inherited_font_size)
+{
+    // A <relative-size> keyword is interpreted relative to the computed font-size of the parent element and possibly
+    // the table of font sizes.
+
+    // If the parent element has a keyword font size in the absolute size keyword mapping table, larger may compute the
+    // font size to the next entry in the table, and smaller may compute the font size to the previous entry in the
+    // table. For example, if the parent element has a font size of font-size:medium, specifying a value of larger may
+    // make the font size of the child element font-size:large.
+
+    // Instead of using next and previous items in the previous keyword table, User agents may instead use a simple
+    // ratio to increase or decrease the font size relative to the parent element. The specific ratio is unspecified,
+    // but should be around 1.2–1.5. This ratio may vary across different elements.
+    switch (relative_size) {
+    case RelativeSize::Smaller:
+        return inherited_font_size * CSSPixels(4) / 5;
+    case RelativeSize::Larger:
+        return inherited_font_size * CSSPixels(5) / 4;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(Optional<DOM::AbstractElement> abstract_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth) const
@@ -1867,12 +1888,13 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             // TODO: If the parent element has a keyword font size in the absolute size keyword mapping table,
             //       larger may compute the font size to the next entry in the table,
             //       and smaller may compute the font size to the previous entry in the table.
-            if (keyword == Keyword::Smaller || keyword == Keyword::Larger) {
+            if (auto relative_size = keyword_to_relative_size(keyword); relative_size.has_value()) {
                 if (parent_element.has_value() && parent_element->computed_properties()) {
-                    font_size_in_px = CSSPixels::nearest_value_for(parent_element->computed_properties()->first_available_computed_font().pixel_metrics().size);
+                    font_size_in_px = relative_size_mapping(relative_size.value(), parent_font_size);
                 }
+            } else if (auto absolute_size = keyword_to_absolute_size(keyword); absolute_size.has_value()) {
+                font_size_in_px = absolute_size_mapping(absolute_size.value(), font_size_in_px);
             }
-            font_size_in_px *= absolute_size_mapping(keyword);
         }
     } else {
         Length::ResolutionContext const length_resolution_context {
@@ -2504,8 +2526,18 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
             continue;
         }
 
-        if (font_size_value->is_keyword()) {
-            current_size_in_px = default_monospace_font_size_in_px * absolute_size_mapping(font_size_value->to_keyword());
+        if (auto absolute_size = keyword_to_absolute_size(font_size_value->to_keyword()); absolute_size.has_value()) {
+            current_size_in_px = absolute_size_mapping(absolute_size.value(), default_monospace_font_size_in_px);
+            continue;
+        }
+
+        if (auto relative_size = keyword_to_relative_size(font_size_value->to_keyword()); relative_size.has_value()) {
+            current_size_in_px = relative_size_mapping(relative_size.value(), current_size_in_px);
+            continue;
+        }
+
+        // FIXME: Resolve `font-size: math`
+        if (font_size_value->to_keyword() == Keyword::Math) {
             continue;
         }
 

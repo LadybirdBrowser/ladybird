@@ -1663,19 +1663,11 @@
     "initial": "medium",
     "valid-types": [
       "length [0,∞]",
-      "percentage [0,∞]"
+      "percentage [0,∞]",
+      "absolute-size",
+      "relative-size"
     ],
     "valid-identifiers": [
-      "large",
-      "larger",
-      "medium",
-      "small",
-      "smaller",
-      "x-large",
-      "x-small",
-      "xx-large",
-      "xx-small",
-      "xxx-large",
       "math"
     ],
     "percentages-resolve-to": "length",

@@ -1,4 +1,14 @@
 {
+  "absolute-size": [
+    "xx-small",
+    "x-small",
+    "small",
+    "medium",
+    "large",
+    "x-large",
+    "xx-large",
+    "xxx-large"
+  ],
   "align-content": [
     "normal",
     "start",
@@ -614,6 +624,10 @@
     "origin-when-cross-origin",
     "strict-origin-when-cross-origin",
     "unsafe-url"
+  ],
+  "relative-size": [
+    "smaller",
+    "larger"
   ],
   "repetition": [
     "no-repeat",
