@@ -11,6 +11,7 @@ set(SOURCES
     DOMNodeProperties.cpp
     HeadlessWebView.cpp
     HelperProcess.cpp
+    Menu.cpp
     Mutation.cpp
     Plugins/FontPlugin.cpp
     Plugins/ImageCodecPlugin.cpp
