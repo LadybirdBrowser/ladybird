@@ -361,6 +361,7 @@ SVGDescElement
 SVGElement
 SVGEllipseElement
 SVGFEBlendElement
+SVGFECompositeElement
 SVGFEFloodElement
 SVGFEGaussianBlurElement
 SVGFEImageElement
