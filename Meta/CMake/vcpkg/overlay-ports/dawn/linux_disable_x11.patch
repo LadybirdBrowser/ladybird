@@ -1,0 +1,62 @@
+diff --git a/build_overrides/swiftshader.gni b/build_overrides/swiftshader.gni
+index f1680be00d..72b20897b9 100644
+--- a/build_overrides/swiftshader.gni
++++ b/build_overrides/swiftshader.gni
+@@ -33,4 +33,4 @@ swiftshader_dir = "//third_party/swiftshader"
+ 
+ # Forward to ozone_platform_x11 when inside Dawn's repository
+ import("../scripts/dawn_features.gni")
+-ozone_platform_x11 = dawn_use_x11
++ozone_platform_x11 = false
+diff --git a/build_overrides/vulkan_headers.gni b/build_overrides/vulkan_headers.gni
+index 693380dd6b..f7a11ca865 100644
+--- a/build_overrides/vulkan_headers.gni
++++ b/build_overrides/vulkan_headers.gni
+@@ -27,4 +27,4 @@
+ 
+ # Fake the vulkan_use_x11 when inside Dawn's repository
+ import("../scripts/dawn_features.gni")
+-vulkan_use_x11 = dawn_use_x11
++vulkan_use_x11 = false
+diff --git a/build_overrides/vulkan_validation_layers.gni b/build_overrides/vulkan_validation_layers.gni
+index 5aa3be3d72..3909ed762c 100644
+--- a/build_overrides/vulkan_validation_layers.gni
++++ b/build_overrides/vulkan_validation_layers.gni
+@@ -37,4 +37,4 @@ vulkan_utility_libraries_dir = "//third_party/vulkan-utility-libraries/src"
+ 
+ # Forward to ozone_platform_x11 when inside Dawn's repository
+ import("../scripts/dawn_features.gni")
+-ozone_platform_x11 = dawn_use_x11
++ozone_platform_x11 = false
+diff --git a/scripts/dawn_features.gni b/scripts/dawn_features.gni
+index f4f375f95e..33814eed85 100644
+--- a/scripts/dawn_features.gni
++++ b/scripts/dawn_features.gni
+@@ -32,12 +32,12 @@ if (build_with_chromium) {
+   import("//build/config/ozone.gni")
+   import("//build/config/sanitizers/sanitizers.gni")
+ 
+-  dawn_use_x11 = ozone_platform_x11
++  dawn_use_x11 = false
+   dawn_use_wayland = false
+ } else {
+   declare_args() {
+     # Whether Dawn should enable X11 support.
+-    dawn_use_x11 = is_linux && !is_chromeos
++    dawn_use_x11 = false
+     dawn_use_wayland = false
+   }
+ }
+diff --git a/src/dawn/common/BUILD.gn b/src/dawn/common/BUILD.gn
+index 30f7134636..afdceaa2b5 100644
+--- a/src/dawn/common/BUILD.gn
++++ b/src/dawn/common/BUILD.gn
+@@ -110,7 +110,7 @@ config("internal_config") {
+   if (dawn_use_wayland) {
+     defines += [ "DAWN_USE_WAYLAND" ]
+   }
+-  if (dawn_use_x11) {
++  else if (dawn_use_x11) {
+     defines += [ "DAWN_USE_X11" ]
+   }
+   if (dawn_use_windows_ui) {

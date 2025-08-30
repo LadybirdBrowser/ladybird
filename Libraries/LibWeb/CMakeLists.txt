@@ -2,11 +2,16 @@ include(libweb_generators)
 include(vulkan)
 include(skia)
 
+find_package(PkgConfig)
+pkg_check_modules(dawn_native REQUIRED IMPORTED_TARGET unofficial-dawn-native)
+pkg_check_modules(dawn_proc REQUIRED IMPORTED_TARGET unofficial-dawn-proc)
+pkg_check_modules(webgpu_dawn REQUIRED IMPORTED_TARGET unofficial-webgpu-dawn)
+set(DAWN_TARGETS PkgConfig::dawn_native PkgConfig::dawn_proc PkgConfig::webgpu_dawn)
+
 find_package(unofficial-angle CONFIG)
 if(unofficial-angle_FOUND)
     set(ANGLE_TARGETS unofficial::angle::libEGL unofficial::angle::libGLESv2)
 else()
-    find_package(PkgConfig)
     pkg_check_modules(angle REQUIRED IMPORTED_TARGET angle)
     set(ANGLE_TARGETS PkgConfig::angle)
 endif()
@@ -1017,6 +1022,15 @@ set(SOURCES
     WebGL/WebGLTransformFeedback.cpp
     WebGL/WebGLUniformLocation.cpp
     WebGL/WebGLVertexArrayObject.cpp
+    WebGPU/GPU.cpp
+    WebGPU/GPUAdapter.cpp
+    WebGPU/GPUAdapterInfo.cpp
+    WebGPU/GPUDevice.cpp
+    WebGPU/GPUObjectBase.cpp
+    WebGPU/GPUQueue.cpp
+    WebGPU/GPUSupportedFeatures.cpp
+    WebGPU/GPUSupportedLimits.cpp
+    WebGPU/WGSLLanguageFeatures.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp
     WebIDL/Buffers.cpp
@@ -1082,7 +1096,7 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS})
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${DAWN_TARGETS} ${ANGLE_TARGETS})
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)

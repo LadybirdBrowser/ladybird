@@ -1,0 +1,13 @@
+#import <WebGPU/GPUObjectBase.idl>
+
+// https://www.w3.org/TR/webgpu/#gpuqueuedescriptor
+dictionary GPUQueueDescriptor
+         : GPUObjectDescriptorBase {
+};
+
+// https://www.w3.org/TR/webgpu/#gpuqueue
+[Exposed=(Window, Worker), SecureContext]
+interface GPUQueue {
+    // FIXME: Implement methods
+};
+GPUQueue includes GPUObjectBase;
