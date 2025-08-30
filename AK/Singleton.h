@@ -16,9 +16,7 @@ extern "C" __declspec(dllimport) void __stdcall Sleep(unsigned long);
 #    include <sched.h>
 #endif
 
-#ifndef AK_OS_SERENITY
-#    include <new>
-#endif
+#include <new>
 
 namespace AK {
 
