@@ -2460,7 +2460,14 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
     }
 
     if (should_treat_preferred_size_as_auto) {
-        auto result = item.add_margin_box_sizes(calculate_min_content_size(item, dimension), dimension);
+        CSSPixels min_content_size;
+        // NOTE: This behavior is not defined in the spec, but seems required to match other browsers.
+        if (item.box->is_scroll_container()) {
+            min_content_size = 0;
+        } else {
+            min_content_size = calculate_min_content_size(item, dimension);
+        }
+        auto result = item.add_margin_box_sizes(min_content_size, dimension);
         return min(result, maximum_size);
     }
 
