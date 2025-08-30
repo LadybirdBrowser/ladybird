@@ -359,6 +359,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/UIEvents/WheelEvent.idl",
   "//Userland/Libraries/LibWeb/UserTiming/PerformanceMark.idl",
   "//Userland/Libraries/LibWeb/UserTiming/PerformanceMeasure.idl",
+  "//Userland/Libraries/LibWeb/ViewTransition/ViewTransition.idl",
   "//Userland/Libraries/LibWeb/WebAssembly/Instance.idl",
   "//Userland/Libraries/LibWeb/WebAssembly/Memory.idl",
   "//Userland/Libraries/LibWeb/WebAssembly/Module.idl",

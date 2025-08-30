@@ -515,6 +515,18 @@ public:
         }
     }
 
+    bool captured_in_a_view_transition() const { return m_captured_in_a_view_transition; }
+    void set_captured_in_a_view_transition(bool value) { m_captured_in_a_view_transition = value; }
+
+    // https://drafts.csswg.org/css-images-4/#element-not-rendered
+    bool not_rendered() const;
+
+    // https://drafts.csswg.org/css-view-transitions-1/#document-scoped-view-transition-name
+    Optional<FlyString> document_scoped_view_transition_name();
+
+    // https://drafts.csswg.org/css-view-transitions-1/#capture-the-image
+    RefPtr<Gfx::ImmutableBitmap> capture_the_image();
+
     void set_pointer_capture(WebIDL::Long pointer_id);
     void release_pointer_capture(WebIDL::Long pointer_id);
     bool has_pointer_capture(WebIDL::Long pointer_id);
@@ -641,6 +653,9 @@ private:
 
     // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
     ProximityToTheViewport m_proximity_to_the_viewport { ProximityToTheViewport::NotDetermined };
+
+    // https://drafts.csswg.org/css-view-transitions-1/#captured-in-a-view-transition
+    bool m_captured_in_a_view_transition { false };
 
     // https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value
     Optional<i32> m_ordinal_value;
