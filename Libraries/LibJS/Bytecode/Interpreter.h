@@ -77,11 +77,6 @@ public:
 
     Executable& current_executable() { return *m_current_executable; }
     Executable const& current_executable() const { return *m_current_executable; }
-    Span<Value> allocate_argument_values(size_t argument_count)
-    {
-        m_argument_values_buffer.resize_and_keep_capacity(argument_count);
-        return m_argument_values_buffer.span();
-    }
 
     ExecutionContext& running_execution_context() { return *m_running_execution_context; }
 
@@ -101,7 +96,6 @@ private:
     GC::Ptr<Object> m_global_object { nullptr };
     GC::Ptr<DeclarativeEnvironment> m_global_declarative_environment { nullptr };
     Span<Value> m_registers_and_constants_and_locals_arguments;
-    Vector<Value> m_argument_values_buffer;
     ExecutionContext* m_running_execution_context { nullptr };
 };
 
