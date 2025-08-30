@@ -18,7 +18,6 @@
         "llvm_version": {
             "type": "string",
             "proposals": [
-                18,
                 19,
                 20,
                 "trunk"
@@ -26,5 +25,10 @@
             "default": 20,
             "description": "Select LLVM compiler version to use"
         }
+    },
+    "containerEnv": {
+        "CC": "clang-20",
+        "CXX": "clang++-20",
+        "XDG_RUNTIME_DIR": "/tmp"
     }
 }
