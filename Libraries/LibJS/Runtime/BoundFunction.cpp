@@ -69,10 +69,8 @@ ThrowCompletionOr<Value> BoundFunction::internal_call(ExecutionContext& callee_c
 }
 
 // 10.4.1.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-bound-function-exotic-objects-construct-argumentslist-newtarget
-ThrowCompletionOr<GC::Ref<Object>> BoundFunction::internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> BoundFunction::internal_construct(ExecutionContext& callee_context, FunctionObject& new_target)
 {
-    auto& vm = this->vm();
-
     // 1. Let target be F.[[BoundTargetFunction]].
     auto& target = *m_bound_target_function;
 
@@ -83,9 +81,14 @@ ThrowCompletionOr<GC::Ref<Object>> BoundFunction::internal_construct(ReadonlySpa
     auto& bound_args = m_bound_arguments;
 
     // 4. Let args be the list-concatenation of boundArgs and argumentsList.
-    auto args = GC::RootVector<Value> { heap() };
-    args.extend(bound_args);
-    args.append(arguments_list.data(), arguments_list.size());
+    auto* argument_values = callee_context.arguments.data();
+
+    for (ssize_t i = static_cast<ssize_t>(callee_context.arguments.size()) - 1; i >= static_cast<ssize_t>(bound_args.size()); --i)
+        argument_values[i] = argument_values[i - bound_args.size()];
+    for (size_t i = 0; i < bound_args.size(); ++i)
+        argument_values[i] = bound_args[i];
+
+    callee_context.passed_argument_count += bound_args.size();
 
     // 5. If SameValue(F, newTarget) is true, set newTarget to target.
     auto* final_new_target = &new_target;
@@ -93,7 +96,7 @@ ThrowCompletionOr<GC::Ref<Object>> BoundFunction::internal_construct(ReadonlySpa
         final_new_target = &target;
 
     // 6. Return ? Construct(target, args, newTarget).
-    return construct(vm, target, args.span(), final_new_target);
+    return target.internal_construct(callee_context, *final_new_target);
 }
 
 void BoundFunction::visit_edges(Visitor& visitor)

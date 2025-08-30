@@ -21,7 +21,7 @@ public:
     virtual ~BoundFunction() override = default;
 
     virtual ThrowCompletionOr<Value> internal_call(ExecutionContext&, Value this_argument) override;
-    virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ExecutionContext& arguments_list, FunctionObject& new_target) override;
 
     virtual bool is_strict_mode() const override { return m_bound_target_function->is_strict_mode(); }
     virtual bool has_constructor() const override { return m_bound_target_function->has_constructor(); }

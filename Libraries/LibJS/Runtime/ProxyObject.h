@@ -43,7 +43,7 @@ public:
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override;
     virtual ThrowCompletionOr<Value> internal_call(ExecutionContext&, Value this_argument) override;
-    virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ExecutionContext&, FunctionObject& new_target) override;
     ThrowCompletionOr<void> validate_non_revoked_proxy() const;
 
 private:
@@ -53,6 +53,8 @@ private:
 
     virtual bool is_function() const override { return m_target->is_function(); }
     virtual bool is_proxy_object() const final { return true; }
+
+    virtual ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count) override;
 
     GC::Ref<Object> m_target;
     GC::Ref<Object> m_handler;
