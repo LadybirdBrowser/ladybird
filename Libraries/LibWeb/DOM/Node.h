@@ -62,6 +62,7 @@ enum class ShouldComputeRole {
     X(DidLoseFocus)                                 \
     X(DidReceiveFocus)                              \
     X(EditingInsertion)                             \
+    X(EditingDeletion)                              \
     X(ElementAttributeChange)                       \
     X(ElementSetShadowRoot)                         \
     X(HTMLDialogElementSetIsModal)                  \
