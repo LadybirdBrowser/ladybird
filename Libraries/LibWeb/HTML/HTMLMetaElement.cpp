@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
@@ -198,6 +199,19 @@ void HTMLMetaElement::attribute_changed(FlyString const& local_name, Optional<St
         update_metadata(old_value);
     } else {
         update_metadata();
+    }
+
+    // AD-HOC: When a meta tag with a name of "RATING" and a content of "RTA-5042-1996-1400-1577-RTA" exists in the
+    //         document, the page is making use of the "Restricted to Adults" (RTA) label and might need to be blocked
+    //         by parental controls.
+    //         Adult pages also frequently set the content to "adult", so that is also checked for.
+    if (ResourceLoader::the().enable_block_adult_content()) {
+        if (auto name = get_attribute("name"_fly_string); name.has_value() && name.value().equals_ignoring_ascii_case("rating"_fly_string) && (get_attribute("content"_fly_string) == "RTA-5042-1996-1400-1577-RTA"_fly_string || get_attribute("content"_fly_string) == "adult"_fly_string || get_attribute("content"_fly_string) == "mature"_fly_string)) {
+            MUST(navigable()->navigate({ .url = URL::about_blocked(),
+                .source_document = document(),
+                .history_handling = Bindings::NavigationHistoryBehavior::Replace,
+                .user_involvement = UserNavigationInvolvement::BrowserUI }));
+        }
     }
 }
 
