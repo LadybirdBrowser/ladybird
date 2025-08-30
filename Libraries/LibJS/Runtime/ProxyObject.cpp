@@ -827,7 +827,7 @@ bool ProxyObject::has_constructor() const
 }
 
 // 10.5.13 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-construct-argumentslist-newtarget
-ThrowCompletionOr<GC::Ref<Object>> ProxyObject::internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ProxyObject::internal_construct(ExecutionContext& callee_context, FunctionObject& new_target)
 {
     LIMIT_PROXY_RECURSION_DEPTH();
 
@@ -850,11 +850,11 @@ ThrowCompletionOr<GC::Ref<Object>> ProxyObject::internal_construct(ReadonlySpan<
     // 7. If trap is undefined, then
     if (!trap) {
         // a. Return ? Construct(target, argumentsList, newTarget).
-        return construct(vm, static_cast<FunctionObject&>(*m_target), arguments_list, &new_target);
+        return as<FunctionObject>(*m_target).internal_construct(callee_context, new_target);
     }
 
     // 8. Let argArray be CreateArrayFromList(argumentsList).
-    auto arguments_array = Array::create_from(realm, arguments_list);
+    auto arguments_array = Array::create_from(realm, callee_context.arguments);
 
     // 9. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
     auto new_object = TRY(call(vm, trap, m_handler, m_target, arguments_array, &new_target));
@@ -888,6 +888,11 @@ void ProxyObject::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_target);
     visitor.visit(m_handler);
+}
+
+ThrowCompletionOr<void> ProxyObject::get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count)
+{
+    return as<FunctionObject>(*m_target).get_stack_frame_size(registers_and_constants_and_locals_count, argument_count);
 }
 
 }

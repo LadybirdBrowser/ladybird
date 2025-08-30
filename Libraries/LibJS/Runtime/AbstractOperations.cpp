@@ -105,7 +105,18 @@ ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject& function,
     // 2. If argumentsList is not present, set argumentsList to a new empty List.
 
     // 3. Return ? F.[[Construct]](argumentsList, newTarget).
-    return function.internal_construct(arguments_list, *new_target);
+    ExecutionContext* callee_context = nullptr;
+    size_t registers_and_constants_and_locals_count = 0;
+    size_t argument_count = arguments_list.size();
+    TRY(function.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, argument_count);
+
+    auto* argument_values = callee_context->arguments.data();
+    for (size_t i = 0; i < arguments_list.size(); ++i)
+        argument_values[i] = arguments_list[i];
+    callee_context->passed_argument_count = arguments_list.size();
+
+    return function.internal_construct(*callee_context, *new_target);
 }
 
 // 7.3.19 LengthOfArrayLike ( obj ), https://tc39.es/ecma262/#sec-lengthofarraylike

@@ -546,35 +546,11 @@ FLATTEN ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Executi
 }
 
 // 10.2.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
-ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(ExecutionContext& callee_context, FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
-    if (!m_bytecode_executable) {
-        if (!ecmascript_code().bytecode_executable()) {
-            if (is_module_wrapper()) {
-                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm, ecmascript_code(), kind(), name())));
-            } else {
-                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm, *this)));
-            }
-        }
-        m_bytecode_executable = ecmascript_code().bytecode_executable();
-    }
-
-    u32 arguments_count = max(arguments_list.size(), formal_parameters().size());
-    auto registers_and_constants_and_locals_count = m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size();
-    ExecutionContext* callee_context = nullptr;
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, arguments_count);
-
-    // Non-standard
-    auto arguments = callee_context->arguments;
-    if (!arguments_list.is_empty())
-        arguments.overwrite(0, arguments_list.data(), arguments_list.size() * sizeof(Value));
-    callee_context->passed_argument_count = arguments_list.size();
-    if (arguments_list.size() < formal_parameters().size()) {
-        for (size_t i = arguments_list.size(); i < formal_parameters().size(); ++i)
-            arguments[i] = js_undefined();
-    }
+    ASSERT(m_bytecode_executable);
 
     // 1. Let callerContext be the running execution context.
     // NOTE: No-op, kept by the VM in its execution context stack.
@@ -591,16 +567,16 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     }
 
     // 4. Let calleeContext be PrepareForOrdinaryCall(F, newTarget).
-    prepare_for_ordinary_call(vm, *callee_context, &new_target);
+    prepare_for_ordinary_call(vm, callee_context, &new_target);
 
     // 5. Assert: calleeContext is now the running execution context.
-    VERIFY(&vm.running_execution_context() == callee_context);
+    VERIFY(&vm.running_execution_context() == &callee_context);
 
     // 6. If kind is base, then
     if (kind == ConstructorKind::Base) {
         // a. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
         if (uses_this())
-            ordinary_call_bind_this(vm, *callee_context, this_argument);
+            ordinary_call_bind_this(vm, callee_context, this_argument);
 
         // b. Let initializeResult be Completion(InitializeInstanceElements(thisArgument, F)).
         auto initialize_result = this_argument->initialize_instance_elements(*this);
@@ -616,7 +592,7 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     }
 
     // 7. Let constructorEnv be the LexicalEnvironment of calleeContext.
-    auto constructor_env = callee_context->lexical_environment;
+    auto constructor_env = callee_context.lexical_environment;
 
     // 8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
     auto result = ordinary_call_evaluate_body(vm);
