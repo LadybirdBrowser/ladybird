@@ -160,6 +160,8 @@ private:
     virtual void system_time_zone_changed() override;
     virtual void cookies_changed(Vector<Web::Cookie::Cookie>) override;
 
+    virtual void exit_fullscreen(u64 page_id) override;
+
     NonnullOwnPtr<PageHost> m_page_host;
 
     HashMap<int, Web::FileRequest> m_requested_files {};
