@@ -37,6 +37,7 @@ public:
     virtual WebView::StorageOperationError set(String const& key, String const& value) = 0;
     virtual void clear() = 0;
     virtual void remove(String const&) = 0;
+    virtual u64 usage() const = 0;
 
     Optional<u64> quota() const { return m_quota; }
 
@@ -47,6 +48,7 @@ protected:
     }
 
     Optional<u64> m_quota;
+    u64 m_total_size_in_bytes { 0 };
 };
 
 class LocalStorageBottle final : public StorageBottle {
@@ -65,6 +67,7 @@ public:
     virtual WebView::StorageOperationError set(String const& key, String const& value) override;
     virtual void clear() override;
     virtual void remove(String const&) override;
+    virtual u64 usage() const override;
 
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
@@ -96,6 +99,7 @@ public:
     virtual WebView::StorageOperationError set(String const& key, String const& value) override;
     virtual void clear() override;
     virtual void remove(String const&) override;
+    virtual u64 usage() const override;
 
 private:
     explicit SessionStorageBottle(Optional<u64> quota)

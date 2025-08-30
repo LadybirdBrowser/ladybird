@@ -565,6 +565,16 @@ Vector<String> PageClient::page_did_request_storage_keys(Web::StorageAPI::Storag
     return response->take_keys();
 }
 
+u64 PageClient::page_did_request_storage_usage(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key)
+{
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageUsage>(storage_endpoint, storage_key);
+    if (!response) {
+        dbgln("WebContent client disconnected during DidRequestStorageUsageResponse. Exiting peacefully.");
+        exit(0);
+    }
+    return response->usage();
+}
+
 void PageClient::page_did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidClearStorage>(storage_endpoint, storage_key);
