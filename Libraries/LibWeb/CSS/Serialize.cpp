@@ -238,7 +238,8 @@ String serialize_a_css_declaration(StringView property, StringView value, Import
     StringBuilder builder;
 
     // 2. Append property to s.
-    builder.append(property);
+    // AD-HOC: we need to seralize the property identifier here, otherwise we woudn't be able to assign the declaration again, and the seralization would be incorrect
+    serialize_an_identifier(builder, property);
 
     // 3. Append ": " (U+003A U+0020) to s.
     builder.append(": "sv);
