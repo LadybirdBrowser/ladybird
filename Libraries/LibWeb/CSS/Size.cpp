@@ -44,6 +44,18 @@ Size Size::make_calculated(NonnullRefPtr<CalculatedStyleValue const> calculated)
     return Size { Type::Calculated, move(calculated) };
 }
 
+Size Size::make_length_percentage(LengthPercentage const& length_percentage)
+{
+    if (length_percentage.is_auto())
+        return make_auto();
+    if (length_percentage.is_length())
+        return make_length(length_percentage.length());
+    if (length_percentage.is_percentage())
+        return make_percentage(length_percentage.percentage());
+    VERIFY(length_percentage.is_calculated());
+    return make_calculated(length_percentage.calculated());
+}
+
 Size Size::make_min_content()
 {
     return Size { Type::MinContent, Length::make_auto() };

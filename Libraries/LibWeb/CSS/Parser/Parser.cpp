@@ -1648,14 +1648,19 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
     return StyleProperty { declaration.important, property_id.value(), value.release_value(), {} };
 }
 
-Optional<LengthOrCalculated> Parser::parse_source_size_value(TokenStream<ComponentValue>& tokens)
+Optional<LengthOrAutoOrCalculated> Parser::parse_source_size_value(TokenStream<ComponentValue>& tokens)
 {
     if (tokens.next_token().is_ident("auto"sv)) {
         tokens.discard_a_token(); // auto
-        return LengthOrCalculated { Length::make_auto() };
+        return LengthOrAutoOrCalculated { LengthOrAuto::make_auto() };
     }
 
-    return parse_length(tokens);
+    if (auto parsed = parse_length(tokens); parsed.has_value()) {
+        if (parsed->is_calculated())
+            return LengthOrAutoOrCalculated { parsed->calculated() };
+        return LengthOrAutoOrCalculated { parsed->value() };
+    }
+    return {};
 }
 
 bool Parser::context_allows_quirky_length() const
@@ -1717,14 +1722,14 @@ RefPtr<StyleValue const> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, 
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute
-LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img)
+LengthOrAutoOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img)
 {
     // When asked to parse a sizes attribute from an element element, with an img element or null img:
 
     // AD-HOC: If element has no sizes attribute, this algorithm always logs a parse error and then returns 100vw.
     //         The attribute is optional, so avoid spamming the debug log with false positives by just returning early.
     if (!element.has_attribute(HTML::AttributeNames::sizes))
-        return Length(100, Length::Type::Vw);
+        return LengthOrAuto { Length(100, Length::Type::Vw) };
 
     // 1. Let unparsed sizes list be the result of parsing a comma-separated list of component values
     //    from the value of element's sizes attribute (or the empty string, if the attribute is absent).
@@ -1732,7 +1737,7 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
     auto unparsed_sizes_list = parse_a_comma_separated_list_of_component_values(m_token_stream);
 
     // 2. Let size be null.
-    Optional<LengthOrCalculated> size;
+    Optional<LengthOrAutoOrCalculated> size;
 
     auto size_is_auto = [&size]() {
         return !size->is_calculated() && size->value().is_auto();
@@ -1827,7 +1832,7 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
     }
 
     // 4. Return 100vw.
-    return Length(100, Length::Type::Vw);
+    return LengthOrAuto { Length(100, Length::Type::Vw) };
 }
 
 bool Parser::has_ignored_vendor_prefix(StringView string)

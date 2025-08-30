@@ -30,6 +30,7 @@ public:
     static Size make_length(Length);
     static Size make_percentage(Percentage);
     static Size make_calculated(NonnullRefPtr<CalculatedStyleValue const>);
+    static Size make_length_percentage(LengthPercentage const&);
     static Size make_min_content();
     static Size make_max_content();
     static Size make_fit_content(LengthPercentage available_space);
@@ -44,6 +45,8 @@ public:
     bool is_max_content() const { return m_type == Type::MaxContent; }
     bool is_fit_content() const { return m_type == Type::FitContent; }
     bool is_none() const { return m_type == Type::None; }
+
+    bool is_length_percentage() const { return is_length() || is_percentage() || is_calculated(); }
 
     [[nodiscard]] CSSPixels to_px(Layout::Node const&, CSSPixels reference_value) const;
 
@@ -74,6 +77,7 @@ public:
     }
 
     String to_string(SerializationMode) const;
+    bool operator==(Size const&) const = default;
 
 private:
     Size(Type type, LengthPercentage);

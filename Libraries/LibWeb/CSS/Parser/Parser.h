@@ -136,7 +136,7 @@ public:
 
     static NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(ParsingParams const&, DOM::Element&, Optional<PseudoElement>, PropertyIDOrCustomPropertyName, UnresolvedStyleValue const&, Optional<GuardedSubstitutionContexts&> = {});
 
-    [[nodiscard]] LengthOrCalculated parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
+    [[nodiscard]] LengthOrAutoOrCalculated parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
     enum class StopAtComma : u8 {
         No,
@@ -287,7 +287,7 @@ private:
     Optional<TimeOrCalculated> parse_time(TokenStream<ComponentValue>&);
     Optional<TimePercentage> parse_time_percentage(TokenStream<ComponentValue>&);
 
-    Optional<LengthOrCalculated> parse_source_size_value(TokenStream<ComponentValue>&);
+    Optional<LengthOrAutoOrCalculated> parse_source_size_value(TokenStream<ComponentValue>&);
     Optional<Ratio> parse_ratio(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);
@@ -298,7 +298,7 @@ private:
 
     Optional<GridSize> parse_grid_track_breadth(TokenStream<ComponentValue>&);
     Optional<GridSize> parse_grid_inflexible_breadth(TokenStream<ComponentValue>&);
-    Optional<GridSize> parse_grid_fixed_breadth(TokenStream<ComponentValue>&);
+    Optional<LengthPercentage> parse_grid_fixed_breadth(TokenStream<ComponentValue>&);
 
     Optional<GridLineNames> parse_grid_line_names(TokenStream<ComponentValue>&);
 

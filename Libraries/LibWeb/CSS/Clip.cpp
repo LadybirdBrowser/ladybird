@@ -22,7 +22,7 @@ Clip::Clip(EdgeRect edge_rect)
 
 Clip Clip::make_auto()
 {
-    return Clip(Type::Auto, EdgeRect { Length::make_auto(), Length::make_auto(), Length::make_auto(), Length::make_auto() });
+    return Clip(Type::Auto, EdgeRect { LengthOrAuto::make_auto(), LengthOrAuto::make_auto(), LengthOrAuto::make_auto(), LengthOrAuto::make_auto() });
 }
 
 }

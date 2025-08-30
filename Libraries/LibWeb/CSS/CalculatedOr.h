@@ -154,6 +154,14 @@ public:
     NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
+class LengthOrAutoOrCalculated : public CalculatedOr<LengthOrAutoOrCalculated, LengthOrAuto> {
+public:
+    using CalculatedOr::CalculatedOr;
+
+    Optional<LengthOrAuto> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
+    NonnullRefPtr<StyleValue const> create_style_value() const;
+};
+
 class NumberOrCalculated : public CalculatedOr<NumberOrCalculated, double> {
 public:
     using CalculatedOr::CalculatedOr;

@@ -222,11 +222,6 @@ Size ComputedProperties::size_value(PropertyID id) const
     return Size::make_auto();
 }
 
-LengthPercentage ComputedProperties::length_percentage_or_fallback(PropertyID id, LengthPercentage const& fallback) const
-{
-    return length_percentage(id).value_or(fallback);
-}
-
 Optional<LengthPercentage> ComputedProperties::length_percentage(PropertyID id) const
 {
     auto const& value = property(id);
@@ -240,9 +235,6 @@ Optional<LengthPercentage> ComputedProperties::length_percentage(PropertyID id) 
     if (value.is_length())
         return value.as_length().length();
 
-    if (value.has_auto())
-        return LengthPercentage { Length::make_auto() };
-
     return {};
 }
 
@@ -253,12 +245,30 @@ Length ComputedProperties::length(PropertyID property_id) const
 
 LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Length const& default_value) const
 {
-    LengthBox box;
-    box.left() = length_percentage_or_fallback(left_id, default_value);
-    box.top() = length_percentage_or_fallback(top_id, default_value);
-    box.right() = length_percentage_or_fallback(right_id, default_value);
-    box.bottom() = length_percentage_or_fallback(bottom_id, default_value);
-    return box;
+    auto length_box_side = [this](PropertyID id, Length const& default_value) -> LengthPercentage {
+        auto const& value = property(id);
+
+        if (value.is_calculated())
+            return LengthPercentage { value.as_calculated() };
+
+        if (value.is_percentage())
+            return value.as_percentage().percentage();
+
+        if (value.is_length())
+            return value.as_length().length();
+
+        if (value.has_auto())
+            return LengthPercentage { Length::make_auto() };
+
+        return default_value;
+    };
+
+    return LengthBox {
+        length_box_side(top_id, default_value),
+        length_box_side(right_id, default_value),
+        length_box_side(bottom_id, default_value),
+        length_box_side(left_id, default_value)
+    };
 }
 
 Color ComputedProperties::color_or_fallback(PropertyID id, ColorResolutionContext color_resolution_context, Color fallback) const
@@ -1174,6 +1184,28 @@ TextDecorationStyle ComputedProperties::text_decoration_style() const
 {
     auto const& value = property(PropertyID::TextDecorationStyle);
     return keyword_to_text_decoration_style(value.to_keyword()).release_value();
+}
+
+TextDecorationThickness ComputedProperties::text_decoration_thickness() const
+{
+    auto const& value = property(PropertyID::TextDecorationThickness);
+    if (value.is_keyword()) {
+        switch (value.to_keyword()) {
+        case Keyword::Auto:
+            return { TextDecorationThickness::Auto {} };
+        case Keyword::FromFont:
+            return { TextDecorationThickness::FromFont {} };
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+    if (value.is_length())
+        return TextDecorationThickness { LengthPercentage { value.as_length().length() } };
+    if (value.is_percentage())
+        return TextDecorationThickness { LengthPercentage { value.as_percentage().percentage() } };
+    if (value.is_calculated())
+        return TextDecorationThickness { LengthPercentage { value.as_calculated() } };
+    VERIFY_NOT_REACHED();
 }
 
 TextTransform ComputedProperties::text_transform() const
