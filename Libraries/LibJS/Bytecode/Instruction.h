@@ -27,7 +27,9 @@
     O(Call)                            \
     O(CallBuiltin)                     \
     O(CallConstruct)                   \
+    O(CallConstructWithArgumentArray)  \
     O(CallDirectEval)                  \
+    O(CallDirectEvalWithArgumentArray) \
     O(CallWithArgumentArray)           \
     O(Catch)                           \
     O(ConcatString)                    \
