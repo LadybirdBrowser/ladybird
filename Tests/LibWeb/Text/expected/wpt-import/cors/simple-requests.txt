@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Fail
+Fail	No preflight GET and {"Accept":"test"}
+Fail	No preflight HEAD and {"Accept":"test"}
+Fail	No preflight POST and {"Accept":"test"}
+Fail	No preflight GET and {"accept-language":"test"}
+Fail	No preflight HEAD and {"accept-language":"test"}
+Fail	No preflight POST and {"accept-language":"test"}
+Fail	No preflight GET and {"CONTENT-language":"test"}
+Fail	No preflight HEAD and {"CONTENT-language":"test"}
+Fail	No preflight POST and {"CONTENT-language":"test"}
+Fail	No preflight GET and {"Content-Type":"application/x-www-form-urlencoded"}
+Fail	No preflight HEAD and {"Content-Type":"application/x-www-form-urlencoded"}
+Fail	No preflight POST and {"Content-Type":"application/x-www-form-urlencoded"}
+Fail	No preflight GET and {"content-type":"multipart/form-data"}
+Fail	No preflight HEAD and {"content-type":"multipart/form-data"}
+Fail	No preflight POST and {"content-type":"multipart/form-data"}
+Fail	No preflight GET and {"content-type":"text/plain"}
+Fail	No preflight HEAD and {"content-type":"text/plain"}
+Fail	No preflight POST and {"content-type":"text/plain"}
+Fail	No preflight GET and {"accept":"test","accept-language":"test","content-language":"test","content-type":"text/plain; parameter=whatever"}
+Fail	No preflight HEAD and {"accept":"test","accept-language":"test","content-language":"test","content-type":"text/plain; parameter=whatever"}
+Fail	No preflight POST and {"accept":"test","accept-language":"test","content-language":"test","content-type":"text/plain; parameter=whatever"}
+Fail	No preflight Get and {"content-type":"text/plain; parameter=extra_bonus"}
+Fail	No preflight post and {"content-type":"text/plain"}
+Fail	Check simple headers (async)
