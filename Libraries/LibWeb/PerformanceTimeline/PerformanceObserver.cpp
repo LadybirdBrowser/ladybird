@@ -8,9 +8,13 @@
 #include <LibWeb/Bindings/PerformanceObserverPrototype.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
+#include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
+#include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
+#include <LibWeb/UserTiming/PerformanceMark.h>
+#include <LibWeb/UserTiming/PerformanceMeasure.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
