@@ -39,6 +39,6 @@ private:
     EvaluationFunction m_evaluation_steps; // [[EvaluationSteps]]
 };
 
-ThrowCompletionOr<GC::Ref<Module>> parse_json_module(Realm& realm, StringView source_text, ByteString filename);
+ThrowCompletionOr<GC::Ref<SyntheticModule>> parse_json_module(Realm& realm, StringView source_text, ByteString filename);
 
 }
