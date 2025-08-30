@@ -6,11 +6,12 @@ target_sources(ladybird PRIVATE
     FindInPageWidget.cpp
     Icon.cpp
     LocationEdit.cpp
+    Menu.cpp
     Settings.cpp
+    StringUtils.cpp
     Tab.cpp
     TabBar.cpp
     TVGIconEngine.cpp
-    StringUtils.cpp
     WebContentView.cpp
     ladybird.qrc
 )
