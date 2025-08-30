@@ -2005,28 +2005,25 @@ private:
     Operand m_arguments[];
 };
 
-class CallWithArgumentArray final : public Instruction {
+template<CallType call_type>
+class CallWithArgumentArrayBase : public Instruction {
 public:
-    CallWithArgumentArray(CallType type, Operand dst, Operand callee, Operand this_value, Operand arguments, Optional<StringTableIndex> expression_string = {})
-        : Instruction(Type::CallWithArgumentArray)
+    CallWithArgumentArrayBase(Type type, Operand dst, Operand callee, Operand this_value, Operand arguments, Optional<StringTableIndex> expression_string = {})
+        : Instruction(type)
         , m_dst(dst)
         , m_callee(callee)
         , m_this_value(this_value)
         , m_arguments(arguments)
-        , m_type(type)
         , m_expression_string(expression_string)
     {
     }
 
     Operand dst() const { return m_dst; }
-    CallType call_type() const { return m_type; }
     Operand callee() const { return m_callee; }
     Operand this_value() const { return m_this_value; }
     Operand arguments() const { return m_arguments; }
     Optional<StringTableIndex> const& expression_string() const { return m_expression_string; }
 
-    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
-    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
     void visit_operands_impl(Function<void(Operand&)> visitor)
     {
         visitor(m_dst);
@@ -2035,13 +2032,45 @@ public:
         visitor(m_arguments);
     }
 
-private:
+protected:
     Operand m_dst;
     Operand m_callee;
     Operand m_this_value;
     Operand m_arguments;
-    CallType m_type;
     Optional<StringTableIndex> m_expression_string;
+};
+
+class CallWithArgumentArray final : public CallWithArgumentArrayBase<CallType::Call> {
+public:
+    CallWithArgumentArray(Operand dst, Operand callee, Operand this_value, Operand arguments, Optional<StringTableIndex> expression_string = {})
+        : CallWithArgumentArrayBase(Type::CallWithArgumentArray, dst, callee, this_value, arguments, expression_string)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+};
+
+class CallDirectEvalWithArgumentArray final : public CallWithArgumentArrayBase<CallType::DirectEval> {
+public:
+    CallDirectEvalWithArgumentArray(Operand dst, Operand callee, Operand this_value, Operand arguments, Optional<StringTableIndex> expression_string = {})
+        : CallWithArgumentArrayBase(Type::CallDirectEvalWithArgumentArray, dst, callee, this_value, arguments, expression_string)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+};
+
+class CallConstructWithArgumentArray final : public CallWithArgumentArrayBase<CallType::Construct> {
+public:
+    CallConstructWithArgumentArray(Operand dst, Operand callee, Operand this_value, Operand arguments, Optional<StringTableIndex> expression_string = {})
+        : CallWithArgumentArrayBase(Type::CallConstructWithArgumentArray, dst, callee, this_value, arguments, expression_string)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
 };
 
 class SuperCallWithArgumentArray : public Instruction {

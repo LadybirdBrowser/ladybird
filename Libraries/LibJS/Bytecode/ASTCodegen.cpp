@@ -1777,7 +1777,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
 
     if (has_spread) {
         auto arguments = TRY(arguments_to_array_for_call(generator, this->arguments())).value();
-        generator.emit<Bytecode::Op::CallWithArgumentArray>(call_type, dst, callee, this_value, arguments, expression_string_index);
+        if (call_type == Op::CallType::Construct) {
+            generator.emit<Bytecode::Op::CallConstructWithArgumentArray>(dst, callee, this_value, arguments, expression_string_index);
+        } else if (call_type == Op::CallType::DirectEval) {
+            generator.emit<Bytecode::Op::CallDirectEvalWithArgumentArray>(dst, callee, this_value, arguments, expression_string_index);
+        } else {
+            generator.emit<Bytecode::Op::CallWithArgumentArray>(dst, callee, this_value, arguments, expression_string_index);
+        }
     } else {
         Vector<ScopedOperand> argument_operands;
         argument_operands.ensure_capacity(arguments().size());
@@ -2019,7 +2025,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         auto array = generator.allocate_register();
         generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(1, array, ReadonlySpan<ScopedOperand> { &received_completion_value, 1 });
         auto inner_result = generator.allocate_register();
-        generator.emit<Bytecode::Op::CallWithArgumentArray>(Bytecode::Op::CallType::Call, inner_result, next_method, iterator, array);
+        generator.emit<Bytecode::Op::CallWithArgumentArray>(inner_result, next_method, iterator, array);
 
         // ii. If generatorKind is async, set innerResult to ? Await(innerResult).
         if (generator.is_in_async_generator_function()) {
@@ -2108,7 +2114,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         // 1. Let innerResult be ? Call(throw, iterator, « received.[[Value]] »).
         auto received_value_array = generator.allocate_register();
         generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(1, received_value_array, ReadonlySpan<ScopedOperand> { &received_completion_value, 1 });
-        generator.emit<Bytecode::Op::CallWithArgumentArray>(Bytecode::Op::CallType::Call, inner_result, throw_method, iterator, received_value_array);
+        generator.emit<Bytecode::Op::CallWithArgumentArray>(inner_result, throw_method, iterator, received_value_array);
 
         // 2. If generatorKind is async, set innerResult to ? Await(innerResult).
         if (generator.is_in_async_generator_function()) {
@@ -2205,7 +2211,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         auto call_array = generator.allocate_register();
         generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(1, call_array, ReadonlySpan<ScopedOperand> { &received_completion_value, 1 });
         auto inner_return_result = generator.allocate_register();
-        generator.emit<Bytecode::Op::CallWithArgumentArray>(Bytecode::Op::CallType::Call, inner_return_result, return_method, iterator, call_array);
+        generator.emit<Bytecode::Op::CallWithArgumentArray>(inner_return_result, return_method, iterator, call_array);
 
         // v. If generatorKind is async, set innerReturnResult to ? Await(innerReturnResult).
         if (generator.is_in_async_generator_function()) {
@@ -2542,7 +2548,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
         generator.emit<Bytecode::Op::NewArray>(arguments);
 
     auto dst = choose_dst(generator, preferred_dst);
-    generator.emit<Bytecode::Op::CallWithArgumentArray>(Bytecode::Op::CallType::Call, dst, tag, this_value, arguments);
+    generator.emit<Bytecode::Op::CallWithArgumentArray>(dst, tag, this_value, arguments);
     return dst;
 }
 
@@ -3502,7 +3508,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::G
         TRY(reference.visit(
             [&](OptionalChain::Call const& call) -> Bytecode::CodeGenerationErrorOr<void> {
                 auto arguments = TRY(arguments_to_array_for_call(generator, call.arguments)).value();
-                generator.emit<Bytecode::Op::CallWithArgumentArray>(Bytecode::Op::CallType::Call, current_value, current_value, current_base, arguments);
+                generator.emit<Bytecode::Op::CallWithArgumentArray>(current_value, current_value, current_base, arguments);
                 generator.emit_mov(current_base, generator.add_constant(js_undefined()));
                 return {};
             },
