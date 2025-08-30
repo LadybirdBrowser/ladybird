@@ -39,7 +39,7 @@ public:
     ~Resource();
 
     MimeType const& computed_mime_type() const { return m_computed_mime_type; }
-    ReadonlyBytes resource_header() const { return m_resource_header; }
+    ReadonlyBytes resource_header() const LIFETIME_BOUND { return m_resource_header; }
 
 private:
     Resource(ReadonlyBytes data, bool no_sniff, MimeType&& default_computed_mime_type);

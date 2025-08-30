@@ -68,7 +68,7 @@ public:
 
     [[nodiscard]] MappingType clone_mapping() const { return MUST(m_mapping.clone()); }
 
-    StringView as_string_view() const { return m_builder.string_view(); }
+    StringView as_string_view() const LIFETIME_BOUND { return m_builder.string_view(); }
 
     void append(StringView pattern)
     {

@@ -1084,7 +1084,7 @@ public:
 
     void set_validation_status(ValidationStatus status, Badge<Validator>) { set_validation_status(status); }
     ValidationStatus validation_status() const { return m_validation_status; }
-    StringView validation_error() const { return *m_validation_error; }
+    StringView validation_error() const LIFETIME_BOUND { return *m_validation_error; }
     void set_validation_error(ByteString error) { m_validation_error = move(error); }
 
     static ParseResult<NonnullRefPtr<Module>> parse(Stream& stream);

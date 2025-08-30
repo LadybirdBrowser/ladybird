@@ -84,8 +84,8 @@ public:
     }
 
     // This returns the internal representation. In this case, that is the value stored in little endian format.
-    constexpr Bytes bytes() { return Bytes { &m_value, sizeof(m_value) }; }
-    constexpr ReadonlyBytes bytes() const { return ReadonlyBytes { &m_value, sizeof(m_value) }; }
+    constexpr Bytes bytes() LIFETIME_BOUND { return Bytes { &m_value, sizeof(m_value) }; }
+    constexpr ReadonlyBytes bytes() const LIFETIME_BOUND { return ReadonlyBytes { &m_value, sizeof(m_value) }; }
 
     void serialize_into(Array<Bytes, 1> bytes) const;
     static LittleEndian read_from(Array<ReadonlyBytes, 1> const& bytes);

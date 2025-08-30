@@ -56,11 +56,11 @@ public:
     size_t invariant_offset { 0 };
     bool allow_commit_without_listing { true };
 
-    Utf8View text_view() const { return text.code_points(); }
-    Utf8View trivia_view() const { return trailing_trivia.code_points(); }
-    Utf8View display_trivia_view() const { return display_trivia.code_points(); }
-    StringView text_string() const { return text.bytes_as_string_view(); }
-    StringView display_trivia_string() const { return display_trivia.bytes_as_string_view(); }
+    Utf8View text_view() const LIFETIME_BOUND { return text.code_points(); }
+    Utf8View trivia_view() const LIFETIME_BOUND { return trailing_trivia.code_points(); }
+    Utf8View display_trivia_view() const LIFETIME_BOUND { return display_trivia.code_points(); }
+    StringView text_string() const LIFETIME_BOUND { return text.bytes_as_string_view(); }
+    StringView display_trivia_string() const LIFETIME_BOUND { return display_trivia.bytes_as_string_view(); }
     bool is_valid { false };
 };
 

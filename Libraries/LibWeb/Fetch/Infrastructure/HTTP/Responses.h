@@ -78,7 +78,7 @@ public:
     [[nodiscard]] virtual Status status() const { return m_status; }
     virtual void set_status(Status status) { m_status = status; }
 
-    [[nodiscard]] virtual ReadonlyBytes status_message() const { return m_status_message; }
+    [[nodiscard]] virtual ReadonlyBytes status_message() const LIFETIME_BOUND { return m_status_message; }
     virtual void set_status_message(ByteBuffer status_message) { m_status_message = move(status_message); }
 
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const { return m_header_list; }
@@ -230,7 +230,7 @@ public:
     [[nodiscard]] virtual Status status() const override { return m_internal_response->status(); }
     virtual void set_status(Status status) override { m_internal_response->set_status(status); }
 
-    [[nodiscard]] virtual ReadonlyBytes status_message() const override { return m_internal_response->status_message(); }
+    [[nodiscard]] virtual ReadonlyBytes status_message() const LIFETIME_BOUND override { return m_internal_response->status_message(); }
     virtual void set_status_message(ByteBuffer status_message) override { m_internal_response->set_status_message(move(status_message)); }
 
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_internal_response->header_list(); }
@@ -317,7 +317,7 @@ public:
     [[nodiscard]] virtual Vector<URL::URL> const& url_list() const override { return m_url_list; }
     [[nodiscard]] virtual Vector<URL::URL>& url_list() override { return m_url_list; }
     [[nodiscard]] virtual Status status() const override { return 0; }
-    [[nodiscard]] virtual ReadonlyBytes status_message() const override { return {}; }
+    [[nodiscard]] virtual ReadonlyBytes status_message() const LIFETIME_BOUND override { return {}; }
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
     [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
 
@@ -340,7 +340,7 @@ public:
 
     [[nodiscard]] virtual Type type() const override { return Type::OpaqueRedirect; }
     [[nodiscard]] virtual Status status() const override { return 0; }
-    [[nodiscard]] virtual ReadonlyBytes status_message() const override { return {}; }
+    [[nodiscard]] virtual ReadonlyBytes status_message() const LIFETIME_BOUND override { return {}; }
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
     [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
 

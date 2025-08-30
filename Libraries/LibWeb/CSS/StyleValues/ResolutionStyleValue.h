@@ -21,7 +21,7 @@ public:
 
     Resolution const& resolution() const { return m_resolution; }
     virtual double raw_value() const override { return m_resolution.raw_value(); }
-    virtual StringView unit_name() const override { return m_resolution.unit_name(); }
+    virtual StringView unit_name() const LIFETIME_BOUND override { return m_resolution.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_resolution.to_string(serialization_mode); }
 

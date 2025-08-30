@@ -17,7 +17,7 @@ struct ShortString {
     static constexpr ShortString create_empty();
     static constexpr ShortString create_with_byte_count(size_t byte_count);
 
-    ReadonlyBytes bytes() const;
+    ReadonlyBytes bytes() const LIFETIME_BOUND;
     size_t byte_count() const;
 
     // NOTE: This is the byte count shifted left 1 step and or'ed with a 1 (the SHORT_STRING_FLAG)
@@ -71,7 +71,7 @@ public:
 
     // Returns the underlying UTF-8 encoded bytes.
     // NOTE: There is no guarantee about null-termination.
-    [[nodiscard]] ReadonlyBytes bytes() const;
+    [[nodiscard]] ReadonlyBytes bytes() const LIFETIME_BOUND;
     [[nodiscard]] u32 hash() const;
     [[nodiscard]] size_t byte_count() const;
     [[nodiscard]] ALWAYS_INLINE size_t length_in_code_units() const { return byte_count(); }

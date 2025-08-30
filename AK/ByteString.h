@@ -175,7 +175,7 @@ public:
     using SearchDirection = StringUtils::SearchDirection;
     [[nodiscard]] Optional<size_t> find_any_of(StringView needles, SearchDirection direction = SearchDirection::Forward) const { return StringUtils::find_any_of(*this, needles, direction); }
 
-    [[nodiscard]] StringView find_last_split_view(char separator) const& { return view().find_last_split_view(separator); }
+    [[nodiscard]] StringView find_last_split_view(char separator) const& LIFETIME_BOUND { return view().find_last_split_view(separator); }
     [[nodiscard]] StringView find_last_split_view(char separator) const&& = delete;
 
     [[nodiscard]] ByteString substring(size_t start, size_t length) const;
@@ -194,7 +194,7 @@ public:
 
     [[nodiscard]] bool copy_characters_to_buffer(char* buffer, size_t buffer_size) const;
 
-    [[nodiscard]] ALWAYS_INLINE ReadonlyBytes bytes() const& { return m_impl->bytes(); }
+    [[nodiscard]] ALWAYS_INLINE ReadonlyBytes bytes() const& LIFETIME_BOUND { return m_impl->bytes(); }
     [[nodiscard]] ALWAYS_INLINE ReadonlyBytes bytes() const&& = delete;
 
     [[nodiscard]] ALWAYS_INLINE char const& operator[](size_t i) const
@@ -283,7 +283,7 @@ public:
         return vformatted(fmtstr.view(), variadic_format_parameters);
     }
 
-    [[nodiscard]] StringView view() const& { return { characters(), length() }; }
+    [[nodiscard]] StringView view() const& LIFETIME_BOUND { return { characters(), length() }; }
     [[nodiscard]] StringView view() const&& = delete;
 
     [[nodiscard]] ByteString replace(StringView needle, StringView replacement, ReplaceMode replace_mode = ReplaceMode::All) const { return StringUtils::replace(*this, needle, replacement, replace_mode); }

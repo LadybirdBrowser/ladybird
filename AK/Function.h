@@ -100,7 +100,7 @@ public:
         clear(false);
     }
 
-    [[nodiscard]] ReadonlyBytes raw_capture_range() const
+    [[nodiscard]] ReadonlyBytes raw_capture_range() const LIFETIME_BOUND
     {
         if (!m_size)
             return {};

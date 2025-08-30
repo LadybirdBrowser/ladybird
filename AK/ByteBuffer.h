@@ -147,14 +147,14 @@ public:
 #    pragma GCC diagnostic pop
 #endif
 
-    [[nodiscard]] Bytes bytes()
+    [[nodiscard]] Bytes bytes() LIFETIME_BOUND
     {
         return { data(), size() };
     }
-    [[nodiscard]] ReadonlyBytes bytes() const { return { data(), size() }; }
+    [[nodiscard]] ReadonlyBytes bytes() const LIFETIME_BOUND { return { data(), size() }; }
 
-    [[nodiscard]] AK::Bytes span() { return { data(), size() }; }
-    [[nodiscard]] AK::ReadonlyBytes span() const { return { data(), size() }; }
+    [[nodiscard]] AK::Bytes span() LIFETIME_BOUND { return { data(), size() }; }
+    [[nodiscard]] AK::ReadonlyBytes span() const LIFETIME_BOUND { return { data(), size() }; }
 
     [[nodiscard]] u8* offset_pointer(size_t offset) { return data() + offset; }
     [[nodiscard]] u8 const* offset_pointer(size_t offset) const { return data() + offset; }
@@ -243,7 +243,7 @@ public:
     }
 
     /// Like get_bytes_for_writing, but crashes if allocation fails.
-    Bytes must_get_bytes_for_writing(size_t length)
+    Bytes must_get_bytes_for_writing(size_t length) LIFETIME_BOUND
     {
         return MUST(get_bytes_for_writing(length));
     }
@@ -306,8 +306,8 @@ public:
         __builtin_memset(data(), 0, m_size);
     }
 
-    operator Bytes() { return bytes(); }
-    operator ReadonlyBytes() const { return bytes(); }
+    operator Bytes() LIFETIME_BOUND { return bytes(); }
+    operator ReadonlyBytes() const LIFETIME_BOUND { return bytes(); }
 
     ALWAYS_INLINE size_t capacity() const { return m_inline ? inline_capacity : m_outline_capacity; }
     ALWAYS_INLINE bool is_inline() const { return m_inline; }

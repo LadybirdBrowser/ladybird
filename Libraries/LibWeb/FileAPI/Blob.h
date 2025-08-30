@@ -53,7 +53,7 @@ public:
     GC::Ref<WebIDL::Promise> array_buffer();
     GC::Ref<WebIDL::Promise> bytes();
 
-    ReadonlyBytes raw_bytes() const { return m_byte_buffer.bytes(); }
+    ReadonlyBytes raw_bytes() const LIFETIME_BOUND { return m_byte_buffer.bytes(); }
 
     GC::Ref<Streams::ReadableStream> get_stream();
 

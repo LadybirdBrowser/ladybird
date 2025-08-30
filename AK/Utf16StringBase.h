@@ -53,7 +53,7 @@ public:
             destroy_string();
     }
 
-    ALWAYS_INLINE operator Utf16View() const& { return utf16_view(); }
+    ALWAYS_INLINE operator Utf16View() const& LIFETIME_BOUND { return utf16_view(); }
     explicit operator Utf16View() const&& = delete;
 
     [[nodiscard]] ALWAYS_INLINE String to_utf8(AllowLonelySurrogates allow_lonely_surrogates = AllowLonelySurrogates::Yes) const
@@ -71,7 +71,7 @@ public:
         return MUST(utf16_view().to_byte_string(allow_lonely_surrogates));
     }
 
-    [[nodiscard]] ALWAYS_INLINE StringView ascii_view() const&
+    [[nodiscard]] ALWAYS_INLINE StringView ascii_view() const& LIFETIME_BOUND
     {
         if (has_short_ascii_storage())
             return short_ascii_string_without_union_member_assertion().bytes();
@@ -81,7 +81,7 @@ public:
         return {};
     }
 
-    [[nodiscard]] ALWAYS_INLINE Utf16View utf16_view() const&
+    [[nodiscard]] ALWAYS_INLINE Utf16View utf16_view() const& LIFETIME_BOUND
     {
         if (has_short_ascii_storage())
             return Utf16View { ascii_view().characters_without_null_termination(), length_in_code_units() };
@@ -223,12 +223,12 @@ public:
     [[nodiscard]] ALWAYS_INLINE Utf16CodePointIterator begin() const { return utf16_view().begin(); }
     [[nodiscard]] ALWAYS_INLINE Utf16CodePointIterator end() const { return utf16_view().end(); }
 
-    [[nodiscard]] ALWAYS_INLINE Utf16View substring_view(size_t code_unit_offset, size_t code_unit_length) const
+    [[nodiscard]] ALWAYS_INLINE Utf16View substring_view(size_t code_unit_offset, size_t code_unit_length) const LIFETIME_BOUND
     {
         return utf16_view().substring_view(code_unit_offset, code_unit_length);
     }
 
-    [[nodiscard]] ALWAYS_INLINE Utf16View substring_view(size_t code_unit_offset) const
+    [[nodiscard]] ALWAYS_INLINE Utf16View substring_view(size_t code_unit_offset) const LIFETIME_BOUND
     {
         return utf16_view().substring_view(code_unit_offset);
     }

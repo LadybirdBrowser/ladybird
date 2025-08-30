@@ -256,6 +256,15 @@
 #    define AK_COMPACT_EMPTY_BASES
 #endif
 
+#if defined(LIFETIME_BOUND)
+#    undef LIFETIME_BOUND
+#endif
+#if defined(AK_COMPILER_CLANG)
+#    define LIFETIME_BOUND [[clang::lifetimebound]]
+#else
+#    define LIFETIME_BOUND
+#endif
+
 // GCC doesn't have __has_feature but clang does
 #ifndef __has_feature
 #    define __has_feature(...) 0

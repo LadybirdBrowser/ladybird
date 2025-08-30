@@ -34,11 +34,11 @@ public:
 
     Utf16FlyString(Utf16String const&);
 
-    [[nodiscard]] ALWAYS_INLINE Utf16View view() const { return m_data.utf16_view(); }
+    [[nodiscard]] ALWAYS_INLINE Utf16View view() const LIFETIME_BOUND { return m_data.utf16_view(); }
 
     ALWAYS_INLINE explicit operator Utf16String() const { return to_utf16_string(); }
 
-    ALWAYS_INLINE operator Utf16View() const& { return view(); }
+    ALWAYS_INLINE operator Utf16View() const& LIFETIME_BOUND { return view(); }
     explicit operator Utf16View() const&& = delete;
 
     ALWAYS_INLINE Utf16String to_utf16_string() const

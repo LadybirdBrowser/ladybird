@@ -28,7 +28,7 @@ public:
 
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope) override;
     virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) override;
-    virtual StringView name() const override { return m_name.bytes_as_string_view(); }
+    virtual StringView name() const LIFETIME_BOUND override { return m_name.bytes_as_string_view(); }
 
 private:
     HashMap<FlyString, Vector<NonnullRefPtr<Typeface>>, AK::ASCIICaseInsensitiveFlyStringTraits> m_typeface_by_family;
