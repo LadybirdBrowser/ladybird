@@ -41,6 +41,9 @@ public:
     ByteBuffer const& body() const { return m_body; }
     void set_body(ByteBuffer body) { m_body = move(body); }
 
+    bool respects_set_cookie() const { return m_respects_set_cookie; }
+    void set_respects_set_cookie(bool respects_set_cookie) { m_respects_set_cookie = respects_set_cookie; }
+
     void start_timer() { m_load_timer.start(); }
     AK::Duration load_time() const { return m_load_timer.elapsed_time(); }
 
@@ -84,6 +87,7 @@ private:
     Core::ElapsedTimer m_load_timer;
     GC::Root<Page> m_page;
     bool m_main_resource { false };
+    bool m_respects_set_cookie { true };
 };
 
 }
