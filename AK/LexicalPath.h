@@ -32,10 +32,10 @@ public:
 
     ByteString const& string() const { return m_string; }
 
-    StringView dirname() const { return m_dirname; }
-    StringView basename(StripExtension s = StripExtension::No) const { return s == StripExtension::No ? m_basename : m_title; }
-    StringView title() const { return m_title; }
-    StringView extension() const { return m_extension; }
+    StringView dirname() const [[clang::lifetimebound]] { return m_dirname; }
+    StringView basename(StripExtension s = StripExtension::No) const [[clang::lifetimebound]] { return s == StripExtension::No ? m_basename : m_title; }
+    StringView title() const [[clang::lifetimebound]] { return m_title; }
+    StringView extension() const [[clang::lifetimebound]] { return m_extension; }
 
     Vector<StringView> const& parts_view() const { return m_parts; }
     [[nodiscard]] Vector<ByteString> parts() const;

@@ -75,7 +75,7 @@ struct MultiHashDigestVariant {
             [&](auto const& value) { return value.data_length(); });
     }
 
-    [[nodiscard]] ReadonlyBytes bytes() const
+    [[nodiscard]] ReadonlyBytes bytes() const [[clang::lifetimebound]]
     {
         return m_digest.visit(
             [&](Empty const&) -> ReadonlyBytes { VERIFY_NOT_REACHED(); },

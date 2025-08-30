@@ -249,7 +249,7 @@ public:
 
     bool is_editing() const { return m_is_editing; }
 
-    Utf32View const buffer_view() const { return { m_buffer.data(), m_buffer.size() }; }
+    Utf32View const buffer_view() const [[clang::lifetimebound]] { return { m_buffer.data(), m_buffer.size() }; }
 
     auto prohibit_input()
     {
