@@ -35,12 +35,6 @@ Paintable::~Paintable()
 {
 }
 
-void Paintable::detach_from_layout_node()
-{
-    if (m_list_node.is_in_list())
-        m_list_node.remove();
-}
-
 void Paintable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
