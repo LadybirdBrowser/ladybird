@@ -22,7 +22,7 @@ struct Digest {
     [[nodiscard]] ALWAYS_INLINE u8 const* immutable_data() const { return data; }
     [[nodiscard]] ALWAYS_INLINE size_t data_length() const { return Size; }
 
-    [[nodiscard]] ALWAYS_INLINE ReadonlyBytes bytes() const { return { immutable_data(), data_length() }; }
+    [[nodiscard]] ALWAYS_INLINE ReadonlyBytes bytes() const LIFETIME_BOUND { return { immutable_data(), data_length() }; }
 
     [[nodiscard]] bool operator==(Digest const& other) const = default;
     [[nodiscard]] bool operator!=(Digest const& other) const = default;

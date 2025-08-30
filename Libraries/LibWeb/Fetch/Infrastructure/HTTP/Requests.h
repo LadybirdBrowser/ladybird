@@ -178,7 +178,7 @@ public:
 
     [[nodiscard]] static GC::Ref<Request> create(JS::VM&);
 
-    [[nodiscard]] ReadonlyBytes method() const { return m_method; }
+    [[nodiscard]] ReadonlyBytes method() const LIFETIME_BOUND { return m_method; }
     void set_method(ByteBuffer method) { m_method = move(method); }
 
     [[nodiscard]] bool local_urls_only() const { return m_local_urls_only; }

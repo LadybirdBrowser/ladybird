@@ -22,7 +22,7 @@ public:
 
     Length const& length() const { return m_length; }
     virtual double raw_value() const override { return m_length.raw_value(); }
-    virtual StringView unit_name() const override { return m_length.unit_name(); }
+    virtual StringView unit_name() const LIFETIME_BOUND override { return m_length.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_length.to_string(serialization_mode); }
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;

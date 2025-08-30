@@ -29,15 +29,15 @@ public:
 
     Unicode::Usage usage() const { return m_usage; }
     void set_usage(StringView usage) { m_usage = Unicode::usage_from_string(usage); }
-    StringView usage_string() const { return Unicode::usage_to_string(m_usage); }
+    StringView usage_string() const LIFETIME_BOUND { return Unicode::usage_to_string(m_usage); }
 
     Unicode::Sensitivity sensitivity() const { return m_sensitivity; }
     void set_sensitivity(Unicode::Sensitivity sensitivity) { m_sensitivity = sensitivity; }
-    StringView sensitivity_string() const { return Unicode::sensitivity_to_string(m_sensitivity); }
+    StringView sensitivity_string() const LIFETIME_BOUND { return Unicode::sensitivity_to_string(m_sensitivity); }
 
     Unicode::CaseFirst case_first() const { return m_case_first; }
     void set_case_first(StringView case_first) { m_case_first = Unicode::case_first_from_string(case_first); }
-    StringView case_first_string() const { return Unicode::case_first_to_string(m_case_first); }
+    StringView case_first_string() const LIFETIME_BOUND { return Unicode::case_first_to_string(m_case_first); }
 
     String const& collation() const { return m_collation; }
     void set_collation(String collation) { m_collation = move(collation); }

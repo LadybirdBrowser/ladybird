@@ -30,7 +30,7 @@ public:
     // Non-stream APIs for using MappedFile as a simple POSIX API wrapper.
     void* data() { return m_data; }
     void const* data() const { return m_data; }
-    ReadonlyBytes bytes() const { return { m_data, m_size }; }
+    ReadonlyBytes bytes() const LIFETIME_BOUND { return { m_data, m_size }; }
 
 private:
     explicit MappedFile(void*, size_t, Mode);

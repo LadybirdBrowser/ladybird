@@ -40,8 +40,8 @@ public:
     String to_string() const;
 
     [[nodiscard]] Utf8View code_points() const;
-    [[nodiscard]] ReadonlyBytes bytes() const { return m_data.bytes(); }
-    [[nodiscard]] StringView bytes_as_string_view() const { return m_data.bytes(); }
+    [[nodiscard]] ReadonlyBytes bytes() const LIFETIME_BOUND { return m_data.bytes(); }
+    [[nodiscard]] StringView bytes_as_string_view() const LIFETIME_BOUND { return m_data.bytes(); }
 
     [[nodiscard]] ALWAYS_INLINE bool operator==(FlyString const& other) const { return m_data.raw(Badge<FlyString> {}) == other.m_data.raw(Badge<FlyString> {}); }
     [[nodiscard]] bool operator==(String const& other) const { return m_data == other; }

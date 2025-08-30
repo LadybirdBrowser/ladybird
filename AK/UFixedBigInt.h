@@ -181,12 +181,12 @@ public:
         }
     }
 
-    Bytes bytes()
+    Bytes bytes() LIFETIME_BOUND
     {
         return Bytes(reinterpret_cast<u8*>(this), sizeof(Storage));
     }
 
-    ReadonlyBytes bytes() const
+    ReadonlyBytes bytes() const LIFETIME_BOUND
     {
         return ReadonlyBytes(reinterpret_cast<u8 const*>(this), sizeof(Storage));
     }

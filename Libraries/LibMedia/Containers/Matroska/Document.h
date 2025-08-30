@@ -27,9 +27,9 @@ class SegmentInformation {
 public:
     u64 timestamp_scale() const { return m_timestamp_scale; }
     void set_timestamp_scale(u64 timestamp_scale) { m_timestamp_scale = timestamp_scale; }
-    Utf8View muxing_app() const { return Utf8View(m_muxing_app); }
+    Utf8View muxing_app() const LIFETIME_BOUND { return Utf8View(m_muxing_app); }
     void set_muxing_app(ByteString muxing_app) { m_muxing_app = move(muxing_app); }
-    Utf8View writing_app() const { return Utf8View(m_writing_app); }
+    Utf8View writing_app() const LIFETIME_BOUND { return Utf8View(m_writing_app); }
     void set_writing_app(ByteString writing_app) { m_writing_app = move(writing_app); }
     Optional<double> duration_unscaled() const { return m_duration_unscaled; }
     void set_duration_unscaled(double duration) { m_duration_unscaled.emplace(duration); }
@@ -120,7 +120,7 @@ public:
     void set_language(FlyString const& language) { m_language = language; }
     FlyString codec_id() const { return m_codec_id; }
     void set_codec_id(FlyString const& codec_id) { m_codec_id = codec_id; }
-    ReadonlyBytes codec_private_data() const { return m_codec_private_data.span(); }
+    ReadonlyBytes codec_private_data() const LIFETIME_BOUND { return m_codec_private_data.span(); }
     ErrorOr<void> set_codec_private_data(ReadonlyBytes codec_private_data)
     {
         m_codec_private_data = TRY(FixedArray<u8>::create(codec_private_data));

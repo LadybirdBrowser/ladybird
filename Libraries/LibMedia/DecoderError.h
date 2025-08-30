@@ -63,12 +63,12 @@ public:
     }
 
     DecoderErrorCategory category() const { return m_category; }
-    StringView description() const
+    StringView description() const LIFETIME_BOUND
     {
         return m_description.visit([](StringView x) { return x; }, [](ByteString const& x) { return x.view(); });
     }
     // For compatibility with AK::Error
-    StringView string_literal() const { return description(); }
+    StringView string_literal() const LIFETIME_BOUND { return description(); }
 
 private:
     template<OneOf<StringView, ByteString> T>

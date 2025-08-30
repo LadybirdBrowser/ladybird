@@ -99,7 +99,7 @@ public:
     Realm& realm() { return *m_realm; }
     Realm const& realm() const { return *m_realm; }
 
-    StringView filename() const { return m_filename; }
+    StringView filename() const LIFETIME_BOUND { return m_filename; }
 
     GC::Ptr<ModuleEnvironment> environment() { return m_environment; }
 

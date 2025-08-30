@@ -31,7 +31,7 @@ public:
 
     u32 index() const { return m_index; }
 
-    ReadonlyBytes instruction_stream() const { return m_buffer.span(); }
+    ReadonlyBytes instruction_stream() const LIFETIME_BOUND { return m_buffer.span(); }
     u8* data() { return m_buffer.data(); }
     u8 const* data() const { return m_buffer.data(); }
     size_t size() const { return m_buffer.size(); }

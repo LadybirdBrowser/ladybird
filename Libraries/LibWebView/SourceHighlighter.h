@@ -31,7 +31,7 @@ public:
     }
     virtual ~SourceDocument() = default;
 
-    StringView text() const { return m_source; }
+    StringView text() const LIFETIME_BOUND { return m_source; }
     size_t line_count() const { return m_lines.size(); }
 
     // ^ Syntax::Document

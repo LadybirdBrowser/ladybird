@@ -24,7 +24,7 @@ public:
     virtual u16 width() const override;
     virtual u8 slope() const override;
 
-    virtual ReadonlyBytes buffer() const override { return m_buffer; }
+    virtual ReadonlyBytes buffer() const LIFETIME_BOUND override { return m_buffer; }
     virtual unsigned ttc_index() const override { return m_ttc_index; }
 
     SkTypeface const* sk_typeface() const;

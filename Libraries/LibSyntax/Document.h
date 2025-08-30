@@ -35,7 +35,7 @@ public:
 
     ByteString to_utf8() const;
 
-    Utf32View view() const { return { code_points(), length() }; }
+    Utf32View view() const LIFETIME_BOUND { return { code_points(), length() }; }
     u32 const* code_points() const { return m_text.data(); }
     size_t length() const { return m_text.size(); }
     bool set_text(Document&, StringView);

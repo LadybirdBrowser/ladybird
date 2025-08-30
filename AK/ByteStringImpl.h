@@ -42,8 +42,8 @@ public:
     // Includes NUL-terminator.
     char const* characters() const { return &m_inline_buffer[0]; }
 
-    ALWAYS_INLINE ReadonlyBytes bytes() const { return { characters(), length() }; }
-    ALWAYS_INLINE StringView view() const { return { characters(), length() }; }
+    ALWAYS_INLINE ReadonlyBytes bytes() const LIFETIME_BOUND { return { characters(), length() }; }
+    ALWAYS_INLINE StringView view() const LIFETIME_BOUND { return { characters(), length() }; }
 
     char const& operator[](size_t i) const
     {

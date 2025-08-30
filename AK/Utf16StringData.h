@@ -96,13 +96,13 @@ public:
         return m_length_in_code_points;
     }
 
-    [[nodiscard]] ALWAYS_INLINE StringView ascii_view() const
+    [[nodiscard]] ALWAYS_INLINE StringView ascii_view() const LIFETIME_BOUND
     {
         ASSERT(has_ascii_storage());
         return { m_ascii_data, length_in_code_units() };
     }
 
-    [[nodiscard]] ALWAYS_INLINE Utf16View utf16_view() const
+    [[nodiscard]] ALWAYS_INLINE Utf16View utf16_view() const LIFETIME_BOUND
     {
         if (has_ascii_storage())
             return { m_ascii_data, length_in_code_units() };

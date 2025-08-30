@@ -45,10 +45,10 @@ public:
     {
     }
 
-    StringView(ByteBuffer const&);
-    StringView(String const&);
-    StringView(FlyString const&);
-    StringView(ByteString const&);
+    StringView(LIFETIME_BOUND ByteBuffer const&);
+    StringView(LIFETIME_BOUND String const&);
+    StringView(LIFETIME_BOUND FlyString const&);
+    StringView(LIFETIME_BOUND ByteString const&);
 
     explicit StringView(ByteBuffer&&) = delete;
     explicit StringView(String&&) = delete;
