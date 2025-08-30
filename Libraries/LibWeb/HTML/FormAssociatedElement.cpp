@@ -880,6 +880,9 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
     }
 
     MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
+
+    text_node->invalidate_style(DOM::StyleInvalidationReason::EditingDeletion);
+    did_edit_text_node();
 }
 
 EventResult FormAssociatedTextControlElement::handle_return_key(FlyString const&)
