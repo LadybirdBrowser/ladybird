@@ -1989,6 +1989,10 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         }
     }
 
+    // FIXME: Font size can end up being negative due to interpolation - we can remove this once we correctly handle interpolation clamping.
+    if (font_size_in_px < 0)
+        font_size_in_px = 0;
+
     auto slope = font_style.to_font_slope();
 
     // FIXME: Implement the full font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
