@@ -33,11 +33,6 @@
             "label": "Web VNC"
         }
     },
-    "remoteEnv": {
-        "CC": "clang-20",
-        "CXX": "clang++-20",
-        "XDG_RUNTIME_DIR": "/tmp"
-    },
     // Use 'postCreateCommand' to run commands after the container is created.
     "postCreateCommand": "pre-commit install; pre-commit install --hook-type commit-msg",
     // Configure tool-specific properties.
