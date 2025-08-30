@@ -244,6 +244,11 @@ EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 co
     return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point, repeat);
 }
 
+void Page::handle_sdl_input_events()
+{
+    top_level_traversable()->event_handler().handle_sdl_input_events();
+}
+
 void Page::set_top_level_traversable(GC::Ref<HTML::TraversableNavigable> navigable)
 {
     VERIFY(!m_top_level_traversable); // Replacement is not allowed!

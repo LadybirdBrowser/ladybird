@@ -179,6 +179,8 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onfocusin, "onfocusin")                                   \
     __ENUMERATE_HTML_ATTRIBUTE(onfocusout, "onfocusout")                                 \
     __ENUMERATE_HTML_ATTRIBUTE(onformdata, "onformdata")                                 \
+    __ENUMERATE_HTML_ATTRIBUTE(ongamepadconnected, "ongamepadconnected")                 \
+    __ENUMERATE_HTML_ATTRIBUTE(ongamepaddisconnected, "ongamepaddisconnected")           \
     __ENUMERATE_HTML_ATTRIBUTE(ongotpointercapture, "ongotpointercapture")               \
     __ENUMERATE_HTML_ATTRIBUTE(onhashchange, "onhashchange")                             \
     __ENUMERATE_HTML_ATTRIBUTE(oninput, "oninput")                                       \

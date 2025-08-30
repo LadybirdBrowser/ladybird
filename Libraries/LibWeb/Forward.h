@@ -537,7 +537,11 @@ class FileList;
 
 namespace Web::Gamepad {
 
+class NavigatorGamepadPartial;
 class Gamepad;
+class GamepadButton;
+class GamepadEvent;
+class GamepadHapticActuator;
 
 }
 
@@ -801,6 +805,7 @@ class RequestList;
 namespace Web::Internals {
 
 class Internals;
+class InternalGamepad;
 class WebUI;
 
 }

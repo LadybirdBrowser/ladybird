@@ -1,0 +1,7 @@
+// https://w3c.github.io/gamepad/#dom-gamepadbutton
+[Exposed=Window]
+interface GamepadButton {
+    readonly attribute boolean pressed;
+    readonly attribute boolean touched;
+    readonly attribute double value;
+};

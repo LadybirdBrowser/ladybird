@@ -1,15 +1,26 @@
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
+#import <Gamepad/GamepadButton.idl>
+#import <Gamepad/GamepadHapticActuator.idl>
+
+// https://w3c.github.io/gamepad/#dom-gamepadmappingtype
+enum GamepadMappingType {
+    "",
+    "standard",
+    "xr-standard",
+};
+
 // https://w3c.github.io/gamepad/#dom-gamepad
 [Exposed=Window]
 interface Gamepad {
-    [FIXME] readonly attribute DOMString id;
-    [FIXME] readonly attribute long index;
-    [FIXME] readonly attribute boolean connected;
-    [FIXME] readonly attribute DOMHighResTimeStamp timestamp;
-    [FIXME] readonly attribute GamepadMappingType mapping;
-    [FIXME] readonly attribute FrozenArray<double> axes;
-    [FIXME] readonly attribute FrozenArray<GamepadButton> buttons;
+    readonly attribute Utf16DOMString id;
+    readonly attribute long index;
+    readonly attribute boolean connected;
+    readonly attribute DOMHighResTimeStamp timestamp;
+    readonly attribute GamepadMappingType mapping;
+    readonly attribute FrozenArray<double> axes;
+    readonly attribute FrozenArray<GamepadButton> buttons;
     [FIXME] readonly attribute FrozenArray<GamepadTouch> touches;
-    [FIXME, SameObject] readonly attribute GamepadHapticActuator vibrationActuator;
+    [SameObject] readonly attribute GamepadHapticActuator vibrationActuator;
 };
 
 // https://w3c.github.io/gamepad/#idl-def-navigator-partial-1

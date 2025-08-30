@@ -296,6 +296,8 @@ void EventLoop::process_input_events() const
                 page_client.report_finished_handling_input_event(event.page_id, EventResult::Dropped);
             page_client.report_finished_handling_input_event(event.page_id, result);
         }
+
+        page.handle_sdl_input_events();
     };
 
     auto documents_of_traversable_navigables = documents_in_this_event_loop_matching([&](auto const& document) {

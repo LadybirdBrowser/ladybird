@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2022-2025, Luke Wilde <lukew@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,24 +9,26 @@
 #include <AK/Forward.h>
 #include <LibWeb/Forward.h>
 
-#define ENUMERATE_WINDOW_EVENT_HANDLERS(E)                        \
-    E(onafterprint, HTML::EventNames::afterprint)                 \
-    E(onbeforeprint, HTML::EventNames::beforeprint)               \
-    E(onbeforeunload, HTML::EventNames::beforeunload)             \
-    E(onhashchange, HTML::EventNames::hashchange)                 \
-    E(onlanguagechange, HTML::EventNames::languagechange)         \
-    E(onmessage, HTML::EventNames::message)                       \
-    E(onmessageerror, HTML::EventNames::messageerror)             \
-    E(onoffline, HTML::EventNames::offline)                       \
-    E(ononline, HTML::EventNames::online)                         \
-    E(onpagehide, HTML::EventNames::pagehide)                     \
-    E(onpagereveal, HTML::EventNames::pagereveal)                 \
-    E(onpageshow, HTML::EventNames::pageshow)                     \
-    E(onpageswap, HTML::EventNames::pageswap)                     \
-    E(onpopstate, HTML::EventNames::popstate)                     \
-    E(onrejectionhandled, HTML::EventNames::rejectionhandled)     \
-    E(onstorage, HTML::EventNames::storage)                       \
-    E(onunhandledrejection, HTML::EventNames::unhandledrejection) \
+#define ENUMERATE_WINDOW_EVENT_HANDLERS(E)                             \
+    E(onafterprint, HTML::EventNames::afterprint)                      \
+    E(onbeforeprint, HTML::EventNames::beforeprint)                    \
+    E(onbeforeunload, HTML::EventNames::beforeunload)                  \
+    E(ongamepadconnected, Gamepad::EventNames::gamepadconnected)       \
+    E(ongamepaddisconnected, Gamepad::EventNames::gamepaddisconnected) \
+    E(onhashchange, HTML::EventNames::hashchange)                      \
+    E(onlanguagechange, HTML::EventNames::languagechange)              \
+    E(onmessage, HTML::EventNames::message)                            \
+    E(onmessageerror, HTML::EventNames::messageerror)                  \
+    E(onoffline, HTML::EventNames::offline)                            \
+    E(ononline, HTML::EventNames::online)                              \
+    E(onpagehide, HTML::EventNames::pagehide)                          \
+    E(onpagereveal, HTML::EventNames::pagereveal)                      \
+    E(onpageshow, HTML::EventNames::pageshow)                          \
+    E(onpageswap, HTML::EventNames::pageswap)                          \
+    E(onpopstate, HTML::EventNames::popstate)                          \
+    E(onrejectionhandled, HTML::EventNames::rejectionhandled)          \
+    E(onstorage, HTML::EventNames::storage)                            \
+    E(onunhandledrejection, HTML::EventNames::unhandledrejection)      \
     E(onunload, HTML::EventNames::unload)
 
 namespace Web::HTML {

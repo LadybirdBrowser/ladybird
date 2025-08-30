@@ -102,6 +102,8 @@ public:
     EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
+    void handle_sdl_input_events();
+
     Gfx::Palette palette() const;
     CSSPixelRect web_exposed_screen_area() const;
     CSS::PreferredColorScheme preferred_color_scheme() const;
