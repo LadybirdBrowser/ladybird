@@ -18,8 +18,6 @@ class Credential : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Credential);
 
 public:
-    [[nodiscard]] static GC::Ref<Credential> create(JS::Realm&);
-
     static GC::Ref<WebIDL::Promise> is_conditional_mediation_available(JS::VM&);
     static GC::Ref<WebIDL::Promise> will_request_conditional_creation(JS::VM&);
 
