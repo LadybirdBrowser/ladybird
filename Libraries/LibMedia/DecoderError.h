@@ -34,7 +34,8 @@ enum class DecoderErrorCategory : u32 {
 
 class DecoderError {
 public:
-    static DecoderError with_description(DecoderErrorCategory category, StringView description)
+    template<OneOf<StringView, ByteString> T>
+    static DecoderError with_description(DecoderErrorCategory category, T description)
     {
         return DecoderError(category, description);
     }
@@ -62,25 +63,30 @@ public:
     }
 
     DecoderErrorCategory category() const { return m_category; }
-    StringView description() const { return m_description; }
-    StringView string_literal() const { return m_description; }
+    StringView description() const
+    {
+        return m_description.visit([](StringView x) { return x; }, [](ByteString const& x) { return x.view(); });
+    }
+    // For compatibility with AK::Error
+    StringView string_literal() const { return description(); }
 
 private:
-    DecoderError(DecoderErrorCategory category, ByteString description)
+    template<OneOf<StringView, ByteString> T>
+    DecoderError(DecoderErrorCategory category, T description)
         : m_category(category)
         , m_description(move(description))
     {
     }
 
     DecoderErrorCategory m_category { DecoderErrorCategory::Unknown };
-    ByteString m_description;
+    Variant<StringView, ByteString> m_description;
 };
 
 #define DECODER_TRY(category, expression)                                                  \
     ({                                                                                     \
         auto&& _result = ((expression));                                                   \
         if (_result.is_error()) [[unlikely]] {                                             \
-            auto _error_string = _result.release_error().string_literal();                 \
+            auto _error_string = _result.error().string_literal();                         \
             return DecoderError::from_source_location(                                     \
                 ((category)), _error_string, SourceLocation::current());                   \
         }                                                                                  \
