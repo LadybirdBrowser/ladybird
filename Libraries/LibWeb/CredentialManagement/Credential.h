@@ -31,6 +31,7 @@ public:
 
 protected:
     explicit Credential(JS::Realm&);
+    Credential(JS::Realm&, String id);
     virtual void initialize(JS::Realm&) override;
 
     String m_id;
