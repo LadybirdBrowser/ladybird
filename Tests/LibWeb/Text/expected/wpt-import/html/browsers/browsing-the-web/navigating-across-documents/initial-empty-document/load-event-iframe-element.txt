@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	load event fires synchronously on <iframe> element created with no src
+Pass	load event fires synchronously on <iframe> element created with src=''
+Pass	load event fires synchronously on <iframe> element created with src='about:blank'
+Pass	load event fires synchronously on <iframe> element created with src='about:blank#foo'
+Pass	load event fires synchronously on <iframe> element created with src='about:blank?foo'

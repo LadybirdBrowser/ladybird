@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>"load" event fires on the iframe element when loading the initial empty document</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+<body></body>
+<script>
+"use strict";
+
+promise_test(async t => {
+  const iframe = document.createElement("iframe");
+  let loadCount = 0;
+  iframe.addEventListener("load", () => {
+    loadCount++;
+  });
+  document.body.appendChild(iframe);
+  assert_equals(loadCount, 1);
+}, "load event fires synchronously on <iframe> element created with no src");
+
+promise_test(async t => {
+  const iframe = document.createElement("iframe");
+  iframe.src = "";
+  let loadCount = 0;
+  iframe.addEventListener("load", () => {
+    loadCount++;
+  });
+  document.body.appendChild(iframe);
+  assert_equals(loadCount, 1);
+}, "load event fires synchronously on <iframe> element created with src=''");
+
+promise_test(async t => {
+  const iframe = document.createElement("iframe");
+  iframe.src = "about:blank";
+  let loadCount = 0;
+  iframe.addEventListener("load", () => {
+    loadCount++;
+  });
+  document.body.appendChild(iframe);
+  assert_equals(loadCount, 1);
+}, "load event fires synchronously on <iframe> element created with src='about:blank'");
+
+promise_test(async t => {
+  const iframe = document.createElement("iframe");
+  iframe.src = "about:blank#foo";
+  let loadCount = 0;
+  iframe.addEventListener("load", () => {
+    loadCount++;
+  });
+  document.body.appendChild(iframe);
+  assert_equals(loadCount, 1);
+}, "load event fires synchronously on <iframe> element created with src='about:blank#foo'");
+
+promise_test(async t => {
+  const iframe = document.createElement("iframe");
+  iframe.src = "about:blank?foo";
+  let loadCount = 0;
+  iframe.addEventListener("load", () => {
+    loadCount++;
+  });
+  document.body.appendChild(iframe);
+  assert_equals(loadCount, 1);
+}, "load event fires synchronously on <iframe> element created with src='about:blank?foo'");
+</script>
