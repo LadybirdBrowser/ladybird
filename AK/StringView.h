@@ -45,10 +45,10 @@ public:
     {
     }
 
-    StringView(ByteBuffer const&);
-    StringView(String const&);
-    StringView(FlyString const&);
-    StringView(ByteString const&);
+    StringView([[clang::lifetimebound]] ByteBuffer const&);
+    StringView([[clang::lifetimebound]] String const&);
+    StringView([[clang::lifetimebound]] FlyString const&);
+    StringView([[clang::lifetimebound]] ByteString const&);
 
     explicit StringView(ByteBuffer&&) = delete;
     explicit StringView(String&&) = delete;

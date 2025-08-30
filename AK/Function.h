@@ -100,7 +100,7 @@ public:
         clear(false);
     }
 
-    [[nodiscard]] ReadonlyBytes raw_capture_range() const
+    [[nodiscard]] ReadonlyBytes raw_capture_range() const [[clang::lifetimebound]]
     {
         if (!m_size)
             return {};

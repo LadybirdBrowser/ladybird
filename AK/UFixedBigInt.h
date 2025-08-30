@@ -181,12 +181,12 @@ public:
         }
     }
 
-    Bytes bytes()
+    Bytes bytes() [[clang::lifetimebound]]
     {
         return Bytes(reinterpret_cast<u8*>(this), sizeof(Storage));
     }
 
-    ReadonlyBytes bytes() const
+    ReadonlyBytes bytes() const [[clang::lifetimebound]]
     {
         return ReadonlyBytes(reinterpret_cast<u8 const*>(this), sizeof(Storage));
     }

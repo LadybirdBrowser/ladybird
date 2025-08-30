@@ -317,7 +317,7 @@ public:
         m_buffer_stack.empend();
     }
 
-    ReadonlyBytes active_bytes() const { return m_buffer_stack.last().bytes(); }
+    ReadonlyBytes active_bytes() const [[clang::lifetimebound]] { return m_buffer_stack.last().bytes(); }
     ByteBuffer finish()
     {
         VERIFY(m_buffer_stack.size() == 1);

@@ -83,7 +83,7 @@ public:
     }
 
     // NOTE: There is no guarantee about null-termination.
-    ReadonlyBytes bytes() const
+    ReadonlyBytes bytes() const [[clang::lifetimebound]]
     {
         if (m_substring) {
             auto const& data = substring_data();
@@ -92,7 +92,7 @@ public:
         return { &m_bytes_or_substring_data[0], m_byte_count };
     }
 
-    StringView bytes_as_string_view() const { return { bytes() }; }
+    StringView bytes_as_string_view() const [[clang::lifetimebound]] { return { bytes() }; }
 
     bool operator==(StringData const& other) const
     {
