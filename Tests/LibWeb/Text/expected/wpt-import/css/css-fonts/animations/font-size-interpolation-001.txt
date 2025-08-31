@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 140 tests
 
-118 Pass
-22 Fail
+126 Pass
+14 Fail
 Pass	CSS Transitions: property <font-size> from neutral to [20px] at (-2) should be [0px]
 Pass	CSS Transitions: property <font-size> from neutral to [20px] at (-0.3) should be [7px]
 Pass	CSS Transitions: property <font-size> from neutral to [20px] at (0) should be [10px]
@@ -19,19 +19,19 @@ Pass	CSS Transitions with transition: all: property <font-size> from neutral to 
 Pass	CSS Transitions with transition: all: property <font-size> from neutral to [20px] at (1) should be [20px]
 Pass	CSS Transitions with transition: all: property <font-size> from neutral to [20px] at (1.5) should be [25px]
 Pass	CSS Animations: property <font-size> from neutral to [20px] at (-2) should be [0px]
-Fail	CSS Animations: property <font-size> from neutral to [20px] at (-0.3) should be [7px]
+Pass	CSS Animations: property <font-size> from neutral to [20px] at (-0.3) should be [7px]
 Pass	CSS Animations: property <font-size> from neutral to [20px] at (0) should be [10px]
-Fail	CSS Animations: property <font-size> from neutral to [20px] at (0.3) should be [13px]
-Fail	CSS Animations: property <font-size> from neutral to [20px] at (0.6) should be [16px]
+Pass	CSS Animations: property <font-size> from neutral to [20px] at (0.3) should be [13px]
+Pass	CSS Animations: property <font-size> from neutral to [20px] at (0.6) should be [16px]
 Pass	CSS Animations: property <font-size> from neutral to [20px] at (1) should be [20px]
-Fail	CSS Animations: property <font-size> from neutral to [20px] at (1.5) should be [25px]
+Pass	CSS Animations: property <font-size> from neutral to [20px] at (1.5) should be [25px]
 Pass	Web Animations: property <font-size> from neutral to [20px] at (-2) should be [0px]
-Fail	Web Animations: property <font-size> from neutral to [20px] at (-0.3) should be [7px]
+Pass	Web Animations: property <font-size> from neutral to [20px] at (-0.3) should be [7px]
 Pass	Web Animations: property <font-size> from neutral to [20px] at (0) should be [10px]
-Fail	Web Animations: property <font-size> from neutral to [20px] at (0.3) should be [13px]
-Fail	Web Animations: property <font-size> from neutral to [20px] at (0.6) should be [16px]
+Pass	Web Animations: property <font-size> from neutral to [20px] at (0.3) should be [13px]
+Pass	Web Animations: property <font-size> from neutral to [20px] at (0.6) should be [16px]
 Pass	Web Animations: property <font-size> from neutral to [20px] at (1) should be [20px]
-Fail	Web Animations: property <font-size> from neutral to [20px] at (1.5) should be [25px]
+Pass	Web Animations: property <font-size> from neutral to [20px] at (1.5) should be [25px]
 Pass	CSS Transitions: property <font-size> from [initial] to [20px] at (-2) should be [8px]
 Pass	CSS Transitions: property <font-size> from [initial] to [20px] at (-0.3) should be [14.8px]
 Pass	CSS Transitions: property <font-size> from [initial] to [20px] at (0) should be [16px]
