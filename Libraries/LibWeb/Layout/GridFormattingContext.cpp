@@ -942,10 +942,15 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
             spanned_tracks.append(track);
         });
 
-        auto item_spans_tracks_with_flexible_sizing_function = any_of(spanned_tracks, [](auto& track) {
-            return track.max_track_sizing_function.is_flexible_length();
-        });
-        if (item_spans_tracks_with_flexible_sizing_function)
+        bool item_spans_tracks_with_flexible_sizing_function = false;
+        bool item_spans_tracks_with_intrinsic_sizing_function = false;
+        for (auto& track : spanned_tracks) {
+            if (track.max_track_sizing_function.is_flexible_length())
+                item_spans_tracks_with_flexible_sizing_function = true;
+            if (track.min_track_sizing_function.is_intrinsic(available_size) || track.max_track_sizing_function.is_intrinsic(available_size))
+                item_spans_tracks_with_intrinsic_sizing_function = true;
+        }
+        if (!item_spans_tracks_with_intrinsic_sizing_function || item_spans_tracks_with_flexible_sizing_function)
             continue;
 
         // 1. For intrinsic minimums: First increase the base size of tracks with an intrinsic min track sizing
