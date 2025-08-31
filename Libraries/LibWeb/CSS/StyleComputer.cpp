@@ -1938,7 +1938,7 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
     auto inherited_math_depth = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->math_depth() : InitialValues::math_depth();
     auto length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window());
 
-    auto const& font_size_specified_value = style.property(PropertyID::FontSize);
+    auto const& font_size_specified_value = style.property(PropertyID::FontSize, ComputedProperties::WithAnimationsApplied::No);
 
     style.set_property(
         PropertyID::FontSize,
