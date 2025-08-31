@@ -707,6 +707,11 @@ void GridFormattingContext::initialize_track_sizes(GridDimension dimension)
         if (track.max_track_sizing_function.is_fixed(available_size)) {
             track.growth_limit = track.max_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero());
         } else if (track.max_track_sizing_function.is_flexible_length()) {
+            if (dimension == GridDimension::Column) {
+                m_has_flexible_column_tracks = true;
+            } else {
+                m_has_flexible_row_tracks = true;
+            }
             track.growth_limit = {};
         } else if (track.max_track_sizing_function.is_intrinsic(available_size)) {
             track.growth_limit = {};
@@ -749,7 +754,9 @@ void GridFormattingContext::resolve_intrinsic_track_sizes(GridDimension dimensio
     // 4. Increase sizes to accommodate spanning items crossing flexible tracks: Next, repeat the previous
     // step instead considering (together, rather than grouped by span size) all items that do span a
     // track with a flexible sizing function while
-    increase_sizes_to_accommodate_spanning_items_crossing_flexible_tracks(dimension);
+    if (has_flexible_tracks(dimension)) {
+        increase_sizes_to_accommodate_spanning_items_crossing_flexible_tracks(dimension);
+    }
 
     // 5. If any track still has an infinite growth limit (because, for example, it had no items placed in
     // it or it is a flexible track), set its growth limit to its base size.
@@ -1058,12 +1065,6 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
             spanned_tracks.append(track);
         });
 
-        auto item_spans_tracks_with_flexible_sizing_function = any_of(spanned_tracks, [](auto& track) {
-            return track.max_track_sizing_function.is_flexible_length();
-        });
-        if (!item_spans_tracks_with_flexible_sizing_function)
-            continue;
-
         // 1. For intrinsic minimums: First increase the base size of tracks with an intrinsic min track sizing
         //    function by distributing extra space as needed to accommodate these items’ minimum contributions.
         auto item_size_contribution = [&] {
@@ -1343,7 +1344,9 @@ void GridFormattingContext::run_track_sizing(GridDimension dimension)
     maximize_tracks(dimension);
 
     // 4. Expand Flexible Tracks
-    expand_flexible_tracks(dimension);
+    if (has_flexible_tracks(dimension)) {
+        expand_flexible_tracks(dimension);
+    }
 
     // 5. Expand Stretched auto Tracks
     stretch_auto_tracks(dimension);
