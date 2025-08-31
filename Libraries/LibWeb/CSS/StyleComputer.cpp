@@ -1043,6 +1043,28 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             });
         }
 
+        DOM::AbstractElement abstract_element { element, pseudo_element };
+
+        auto const& inheritance_parent = abstract_element.element_to_inherit_style_from();
+        auto inheritance_parent_has_computed_properties = inheritance_parent.has_value() && inheritance_parent->computed_properties();
+        auto parent_length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window());
+
+        if (auto const& font_size_specified_value = specified_values.get(PropertyID::FontSize); font_size_specified_value.has_value()) {
+            // FIXME: We need to respect the math-depth of this computed keyframe if it is present
+            auto computed_math_depth = computed_properties.math_depth();
+            auto inherited_font_size = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_size() : InitialValues::font_size();
+            auto inherited_math_depth = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->math_depth() : InitialValues::math_depth();
+
+            auto const& font_size_in_computed_form = compute_font_size(
+                *font_size_specified_value.value(),
+                computed_math_depth,
+                inherited_font_size,
+                inherited_math_depth,
+                parent_length_resolution_context);
+
+            result.set(PropertyID::FontSize, font_size_in_computed_form);
+        }
+
         PropertyValueComputationContext property_value_computation_context {
             .length_resolution_context = {
                 .viewport_rect = viewport_rect(),
@@ -1062,6 +1084,9 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
         for (auto const& [property_id, style_value] : specified_values) {
             if (!style_value)
+                continue;
+
+            if (first_is_one_of(property_id, PropertyID::FontSize))
                 continue;
 
             auto const& computed_value = compute_value_of_property(property_id, *style_value, get_property_specified_value, property_value_computation_context);

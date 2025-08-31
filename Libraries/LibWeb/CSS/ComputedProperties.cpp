@@ -2065,8 +2065,7 @@ WillChange ComputedProperties::will_change() const
 
 CSSPixels ComputedProperties::font_size() const
 {
-    // FIXME: Respect animated font-size here once we store it in computed form
-    return property(PropertyID::FontSize, WithAnimationsApplied::No).as_length().length().absolute_length_to_px();
+    return property(PropertyID::FontSize).as_length().length().absolute_length_to_px();
 }
 
 }
