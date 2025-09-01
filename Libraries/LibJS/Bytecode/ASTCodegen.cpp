@@ -568,7 +568,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                     lhs_is_super_expression = is<SuperExpression>(expression.object());
 
                     if (!lhs_is_super_expression) {
-                        base = TRY(expression.object().generate_bytecode(generator)).value();
+                        auto generated_base = TRY(expression.object().generate_bytecode(generator)).value();
+                        base = generator.copy_if_needed_to_preserve_evaluation_order(generated_base);
                     } else {
                         // https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
                         // 1. Let env be GetThisEnvironment().
