@@ -6,7 +6,6 @@
 
 #include <AK/String.h>
 #include <LibCore/Resource.h>
-#include <LibGfx/ShareableBitmap.h>
 #include <LibURL/URL.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -283,13 +282,6 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 - (void)onURLChange:(URL::URL const&)url
 {
     [[self tabController] onURLChange:url];
-}
-
-- (void)onBackNavigationEnabled:(BOOL)back_enabled
-       forwardNavigationEnabled:(BOOL)forward_enabled
-{
-    [[self tabController] onBackNavigationEnabled:back_enabled
-                         forwardNavigationEnabled:forward_enabled];
 }
 
 - (void)onTitleChange:(Utf16String const&)title

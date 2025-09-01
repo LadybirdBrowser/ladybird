@@ -19,6 +19,7 @@
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/Menu.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TabBar.h>
@@ -26,13 +27,14 @@
 
 #include <QAction>
 #include <QActionGroup>
-#include <QClipboard>
 #include <QGuiApplication>
 #include <QInputDialog>
 #include <QMessageBox>
-#include <QPlainTextEdit>
+#include <QMouseEvent>
+#include <QScreen>
 #include <QShortcut>
 #include <QStatusBar>
+#include <QWheelEvent>
 #include <QWindow>
 
 namespace Ladybird {
@@ -143,24 +145,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     auto* edit_menu = m_hamburger_menu->addMenu("&Edit");
     menuBar()->addMenu(edit_menu);
 
-    m_copy_selection_action = new QAction("&Copy", this);
-    m_copy_selection_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
-    m_copy_selection_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Copy));
-    edit_menu->addAction(m_copy_selection_action);
-    QObject::connect(m_copy_selection_action, &QAction::triggered, this, &BrowserWindow::copy_selected_text);
-
-    m_paste_action = new QAction("&Paste", this);
-    m_paste_action->setIcon(load_icon_from_uri("resource://icons/16x16/paste.png"sv));
-    m_paste_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Paste));
-    edit_menu->addAction(m_paste_action);
-    QObject::connect(m_paste_action, &QAction::triggered, this, &BrowserWindow::paste);
-
-    m_select_all_action = new QAction("Select &All", this);
-    m_select_all_action->setIcon(load_icon_from_uri("resource://icons/16x16/select-all.png"sv));
-    m_select_all_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::SelectAll));
-    edit_menu->addAction(m_select_all_action);
-    QObject::connect(m_select_all_action, &QAction::triggered, this, &BrowserWindow::select_all);
-
+    edit_menu->addAction(create_application_action(*this, Application::the().copy_selection_action()));
+    edit_menu->addAction(create_application_action(*this, Application::the().paste_action()));
+    edit_menu->addAction(create_application_action(*this, Application::the().select_all_action()));
     edit_menu->addSeparator();
 
     m_find_in_page_action = new QAction("&Find in Page...", this);
@@ -330,15 +317,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     auto* inspect_menu = m_hamburger_menu->addMenu("&Inspect");
     menuBar()->addMenu(inspect_menu);
 
-    m_view_source_action = new QAction("View &Source", this);
-    m_view_source_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-html.png"sv));
-    m_view_source_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_U));
-    inspect_menu->addAction(m_view_source_action);
-    QObject::connect(m_view_source_action, &QAction::triggered, this, [this] {
-        if (m_current_tab) {
-            m_current_tab->view().get_source();
-        }
-    });
+    edit_menu->addAction(create_application_action(*this, Application::the().view_source_action()));
 
     m_enable_devtools_action = new QAction("Enable &DevTools", this);
     m_enable_devtools_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
@@ -641,30 +620,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(m_tabs_container, &QTabWidget::tabCloseRequested, this, &BrowserWindow::close_tab);
     QObject::connect(close_current_tab_action, &QAction::triggered, this, &BrowserWindow::close_current_tab);
 
-    m_go_back_action = new QAction("Go Back", this);
-    connect(m_go_back_action, &QAction::triggered, this, [this] {
-        if (m_current_tab)
-            m_current_tab->back();
-    });
-    m_go_forward_action = new QAction("Go Forward", this);
-    connect(m_go_forward_action, &QAction::triggered, this, [this] {
-        if (m_current_tab)
-            m_current_tab->forward();
-    });
-    m_reload_action = new QAction("&Reload", this);
-    connect(m_reload_action, &QAction::triggered, this, [this] {
-        if (m_current_tab)
-            m_current_tab->reload();
-    });
-
-    m_go_back_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Back));
-    m_go_forward_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Forward));
-    m_reload_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_R), QKeySequence(Qt::Key_F5) });
-
-    m_go_back_action->setEnabled(false);
-    m_go_forward_action->setEnabled(false);
-    m_reload_action->setEnabled(true);
-
     for (int i = 0; i <= 7; ++i) {
         new QShortcut(QKeySequence(Qt::CTRL | static_cast<Qt::Key>(Qt::Key_1 + i)), this, [this, i] {
             if (m_tabs_container->count() <= 1)
@@ -727,10 +682,8 @@ void BrowserWindow::devtools_enabled()
 void BrowserWindow::set_current_tab(Tab* tab)
 {
     m_current_tab = tab;
-    if (tab) {
+    if (tab)
         update_displayed_zoom_level();
-        tab->update_navigation_buttons_state();
-    }
 }
 
 void BrowserWindow::debug_request(ByteString const& request, ByteString const& argument)
@@ -801,7 +754,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
     QObject::connect(tab, &Tab::title_changed, this, &BrowserWindow::tab_title_changed);
     QObject::connect(tab, &Tab::favicon_changed, this, &BrowserWindow::tab_favicon_changed);
     QObject::connect(tab, &Tab::audio_play_state_changed, this, &BrowserWindow::tab_audio_play_state_changed);
-    QObject::connect(tab, &Tab::navigation_buttons_state_changed, this, &BrowserWindow::tab_navigation_buttons_state_changed);
 
     QObject::connect(&tab->view(), &WebContentView::urls_dropped, this, [this](auto& urls) {
         VERIFY(urls.size());
@@ -976,12 +928,6 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
     }
 }
 
-void BrowserWindow::tab_navigation_buttons_state_changed(int index)
-{
-    auto* tab = as<Tab>(m_tabs_container->widget(index));
-    tab->update_navigation_buttons_state();
-}
-
 QIcon BrowserWindow::icon_for_page_mute_state(Tab& tab) const
 {
     switch (tab.view().page_mute_state()) {
@@ -1118,29 +1064,12 @@ void BrowserWindow::update_zoom_menu()
     m_zoom_menu->setTitle(qstring_from_ak_string(zoom_level_text));
 }
 
-void BrowserWindow::select_all()
-{
-    if (!m_current_tab)
-        return;
-
-    m_current_tab->view().select_all();
-}
-
 void BrowserWindow::show_find_in_page()
 {
     if (!m_current_tab)
         return;
 
     m_current_tab->show_find_in_page();
-}
-
-void BrowserWindow::paste()
-{
-    if (!m_current_tab)
-        return;
-
-    if (m_current_tab->view().on_request_clipboard_text)
-        m_current_tab->view().paste(m_current_tab->view().on_request_clipboard_text());
 }
 
 void BrowserWindow::update_displayed_zoom_level()
@@ -1168,17 +1097,6 @@ void BrowserWindow::set_preferred_color_scheme(Web::CSS::PreferredColorScheme co
     for_each_tab([color_scheme](auto& tab) {
         tab.view().set_preferred_color_scheme(color_scheme);
     });
-}
-
-void BrowserWindow::copy_selected_text()
-{
-    if (!m_current_tab)
-        return;
-
-    auto text = m_current_tab->view().selected_text();
-
-    auto* clipboard = QGuiApplication::clipboard();
-    clipboard->setText(qstring_from_ak_string(text));
 }
 
 bool BrowserWindow::event(QEvent* event)

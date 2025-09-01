@@ -6,16 +6,20 @@
 
 #include <AK/Error.h>
 #include <AK/String.h>
+#include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/Menu.h>
 #include <LibWebView/SiteIsolation.h>
+#include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -48,6 +52,8 @@ ViewImplementation::ViewImplementation()
     : m_view_id(s_view_count++)
 {
     s_all_views.set(m_view_id, this);
+
+    initialize_context_menus();
 
     m_repeated_crash_timer = Core::Timer::create_single_shot(1000, [this] {
         // Reset the "crashing a lot" counter after 1 second in case we just
@@ -271,11 +277,6 @@ void ViewImplementation::select_all()
     client().async_select_all(page_id());
 }
 
-void ViewImplementation::paste(String const& text)
-{
-    client().async_paste(page_id(), text);
-}
-
 void ViewImplementation::find_in_page(String const& query, CaseSensitivity case_sensitivity)
 {
     client().async_find_in_page(page_id(), query, case_sensitivity);
@@ -456,29 +457,21 @@ void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_it
     client().async_select_dropdown_closed(page_id(), selected_item_id);
 }
 
+void ViewImplementation::insert_text_into_clipboard(ByteString text) const
+{
+    if (on_insert_clipboard_entry)
+        on_insert_clipboard_entry({ move(text), "text/plain"_string }, {});
+}
+
+void ViewImplementation::paste_text_from_clipboard()
+{
+    if (on_request_clipboard_text)
+        client().async_paste(page_id(), on_request_clipboard_text());
+}
+
 void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem> items)
 {
     client().async_retrieved_clipboard_entries(page_id(), request_id, items);
-}
-
-void ViewImplementation::toggle_media_play_state()
-{
-    client().async_toggle_media_play_state(page_id());
-}
-
-void ViewImplementation::toggle_media_mute_state()
-{
-    client().async_toggle_media_mute_state(page_id());
-}
-
-void ViewImplementation::toggle_media_loop_state()
-{
-    client().async_toggle_media_loop_state(page_id());
-}
-
-void ViewImplementation::toggle_media_controls_state()
-{
-    client().async_toggle_media_controls_state(page_id());
 }
 
 void ViewImplementation::toggle_page_mute_state()
@@ -513,8 +506,8 @@ void ViewImplementation::did_change_audio_play_state(Badge<WebContentClient>, We
 
 void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled) const
 {
-    if (on_navigation_buttons_state_changed)
-        on_navigation_buttons_state_changed(back_enabled, forward_enabled);
+    m_navigate_back_action->set_enabled(back_enabled);
+    m_navigate_forward_action->set_enabled(forward_enabled);
 }
 
 void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::ShareableBitmap const& front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap const& back_bitmap)
@@ -803,6 +796,228 @@ void ViewImplementation::use_native_user_style_sheet()
 {
     extern String native_stylesheet_source;
     set_user_style_sheet(native_stylesheet_source);
+}
+
+void ViewImplementation::initialize_context_menus()
+{
+    auto& application = Application::the();
+
+    m_navigate_back_action = Action::create("Go Back"sv, ActionID::NavigateBack, [this]() {
+        traverse_the_history_by_delta(-1);
+    });
+    m_navigate_forward_action = Action::create("Go Forward"sv, ActionID::NavigateForward, [this]() {
+        traverse_the_history_by_delta(+1);
+    });
+    m_navigate_back_action->set_enabled(false);
+    m_navigate_forward_action->set_enabled(false);
+
+    m_search_selected_text_action = Action::create("Search Selected Text"sv, ActionID::SearchSelectedText, [this]() {
+        auto const& search_engine = Application::settings().search_engine();
+        if (!search_engine.has_value())
+            return;
+
+        auto url_string = search_engine->format_search_query_for_navigation(*m_search_text);
+        auto url = URL::Parser::basic_parse(url_string);
+        VERIFY(url.has_value());
+
+        if (on_link_click)
+            on_link_click(*url, "_blank"sv, 0);
+    });
+    m_search_selected_text_action->set_visible(false);
+
+    auto take_and_save_screenshot = [this](auto type) {
+        take_screenshot(type)
+            ->when_resolved([](auto const& path) {
+                Application::the().display_download_confirmation_dialog("Screenshot"sv, path);
+            })
+            .when_rejected([](auto const& error) {
+                if (error.is_errno() && error.code() == ECANCELED)
+                    return;
+
+                auto error_message = MUST(String::formatted("{}", error));
+                Application::the().display_error_dialog(error_message);
+            });
+    };
+
+    m_take_visible_screenshot_action = Action::create("Take Visible Screenshot"sv, ActionID::TakeVisibleScreenshot, [take_and_save_screenshot]() {
+        take_and_save_screenshot(ScreenshotType::Visible);
+    });
+    m_take_full_screenshot_action = Action::create("Take Full Screenshot"sv, ActionID::TakeFullScreenshot, [take_and_save_screenshot]() {
+        take_and_save_screenshot(ScreenshotType::Full);
+    });
+
+    m_open_in_new_tab_action = Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this]() {
+        if (on_link_click)
+            on_link_click(m_context_menu_url, {}, Web::UIEvents::Mod_PlatformCtrl);
+    });
+    m_copy_url_action = Action::create("Copy URL"sv, ActionID::CopyURL, [this]() {
+        insert_text_into_clipboard(url_text_to_copy(m_context_menu_url));
+    });
+
+    m_open_image_action = Action::create("Open Image"sv, ActionID::OpenImage, [this]() {
+        if (on_link_click)
+            on_link_click(m_context_menu_url, {}, {});
+    });
+    m_copy_image_action = Action::create("Copy Image"sv, ActionID::CopyImage, [this]() {
+        if (!m_image_context_menu_bitmap.has_value())
+            return;
+
+        auto bitmap = m_image_context_menu_bitmap.release_value();
+        if (!bitmap.is_valid())
+            return;
+
+        auto encoded = Gfx::PNGWriter::encode(*bitmap.bitmap());
+        if (encoded.is_error())
+            return;
+
+        if (on_insert_clipboard_entry)
+            on_insert_clipboard_entry({ ByteString { encoded.value().bytes() }, "image/png"_string }, {});
+    });
+
+    m_open_audio_action = Action::create("Open Audio"sv, ActionID::OpenAudio, [this]() {
+        if (on_link_click)
+            on_link_click(m_context_menu_url, {}, {});
+    });
+    m_open_video_action = Action::create("Open Video"sv, ActionID::OpenVideo, [this]() {
+        if (on_link_click)
+            on_link_click(m_context_menu_url, {}, {});
+    });
+    m_media_play_action = Action::create("Play"sv, ActionID::PlayMedia, [this]() {
+        client().async_toggle_media_play_state(page_id());
+    });
+    m_media_pause_action = Action::create("Pause"sv, ActionID::PauseMedia, [this]() {
+        client().async_toggle_media_play_state(page_id());
+    });
+    m_media_mute_action = Action::create("Mute"sv, ActionID::MuteMedia, [this]() {
+        client().async_toggle_media_mute_state(page_id());
+    });
+    m_media_unmute_action = Action::create("Unmute"sv, ActionID::UnmuteMedia, [this]() {
+        client().async_toggle_media_mute_state(page_id());
+    });
+    m_media_controls_action = Action::create_checkable("Show Controls"sv, ActionID::ToggleMediaControlsState, [this]() {
+        client().async_toggle_media_controls_state(page_id());
+    });
+    m_media_loop_action = Action::create_checkable("Loop"sv, ActionID::ToggleMediaLoopState, [this]() {
+        client().async_toggle_media_loop_state(page_id());
+    });
+
+    m_page_context_menu = Menu::create("Page Context Menu"sv);
+    m_page_context_menu->add_action(*m_navigate_back_action);
+    m_page_context_menu->add_action(*m_navigate_forward_action);
+    m_page_context_menu->add_action(application.reload_action());
+    m_page_context_menu->add_separator();
+    m_page_context_menu->add_action(application.copy_selection_action());
+    m_page_context_menu->add_action(application.paste_action());
+    m_page_context_menu->add_action(application.select_all_action());
+    m_page_context_menu->add_separator();
+    m_page_context_menu->add_action(*m_search_selected_text_action);
+    m_page_context_menu->add_separator();
+    m_page_context_menu->add_action(*m_take_visible_screenshot_action);
+    m_page_context_menu->add_action(*m_take_full_screenshot_action);
+    m_page_context_menu->add_separator();
+    m_page_context_menu->add_action(application.view_source_action());
+
+    m_link_context_menu = Menu::create("Link Context Menu"sv);
+    m_link_context_menu->add_action(*m_open_in_new_tab_action);
+    m_link_context_menu->add_action(*m_copy_url_action);
+
+    m_image_context_menu = Menu::create("Image Context Menu"sv);
+    m_image_context_menu->add_action(*m_open_image_action);
+    m_image_context_menu->add_action(*m_open_in_new_tab_action);
+    m_image_context_menu->add_separator();
+    m_image_context_menu->add_action(*m_copy_image_action);
+    m_image_context_menu->add_action(*m_copy_url_action);
+
+    m_media_context_menu = Menu::create("Media Context Menu"sv);
+    m_media_context_menu->add_action(*m_media_play_action);
+    m_media_context_menu->add_action(*m_media_pause_action);
+    m_media_context_menu->add_action(*m_media_mute_action);
+    m_media_context_menu->add_action(*m_media_unmute_action);
+    m_media_context_menu->add_action(*m_media_controls_action);
+    m_media_context_menu->add_action(*m_media_loop_action);
+    m_media_context_menu->add_separator();
+    m_media_context_menu->add_action(*m_open_audio_action);
+    m_media_context_menu->add_action(*m_open_video_action);
+    m_media_context_menu->add_action(*m_open_in_new_tab_action);
+    m_media_context_menu->add_separator();
+    m_media_context_menu->add_action(*m_copy_url_action);
+}
+
+void ViewImplementation::did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position)
+{
+    auto const& search_engine = Application::settings().search_engine();
+
+    auto selected_text = search_engine.has_value() ? selected_text_with_whitespace_collapsed() : OptionalNone {};
+    TemporaryChange change_url { m_search_text, move(selected_text) };
+
+    if (m_search_text.has_value()) {
+        m_search_selected_text_action->set_text(search_engine->format_search_query_for_display(*m_search_text));
+        m_search_selected_text_action->set_visible(true);
+    } else {
+        m_search_selected_text_action->set_visible(false);
+    }
+
+    if (m_page_context_menu->on_activation)
+        m_page_context_menu->on_activation(to_widget_position(content_position));
+}
+
+void ViewImplementation::did_request_link_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url)
+{
+    m_context_menu_url = move(url);
+
+    m_open_in_new_tab_action->set_text("Open in New Tab"sv);
+
+    switch (url_type(m_context_menu_url)) {
+    case URLType::Email:
+        m_copy_url_action->set_text("Copy Email Address"sv);
+        break;
+    case URLType::Telephone:
+        m_copy_url_action->set_text("Copy Phone Number"sv);
+        break;
+    case URLType::Other:
+        m_copy_url_action->set_text("Copy Link Address"sv);
+        break;
+    }
+
+    if (m_link_context_menu->on_activation)
+        m_link_context_menu->on_activation(to_widget_position(content_position));
+}
+
+void ViewImplementation::did_request_image_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap)
+{
+    m_context_menu_url = move(url);
+    m_image_context_menu_bitmap = move(bitmap);
+
+    m_open_in_new_tab_action->set_text("Open Image in New Tab"sv);
+    m_copy_url_action->set_text("Copy Image URL"sv);
+
+    m_copy_image_action->set_enabled(m_image_context_menu_bitmap.has_value());
+
+    if (m_image_context_menu->on_activation)
+        m_image_context_menu->on_activation(to_widget_position(content_position));
+}
+
+void ViewImplementation::did_request_media_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu)
+{
+    m_context_menu_url = move(menu.media_url);
+
+    m_open_in_new_tab_action->set_text(menu.is_video ? "Open Video in New Tab"sv : "Open Audio in new Tab"sv);
+    m_copy_url_action->set_text(menu.is_video ? "Copy Video URL"sv : "Copy Audio URL"sv);
+
+    m_open_audio_action->set_visible(!menu.is_video);
+    m_open_video_action->set_visible(menu.is_video);
+
+    m_media_play_action->set_visible(!menu.is_playing);
+    m_media_pause_action->set_visible(menu.is_playing);
+
+    m_media_mute_action->set_visible(!menu.is_muted);
+    m_media_unmute_action->set_visible(menu.is_muted);
+
+    m_media_controls_action->set_checked(menu.has_user_agent_controls);
+    m_media_loop_action->set_checked(menu.is_looping);
+
+    if (m_media_context_menu->on_activation)
+        m_media_context_menu->on_activation(to_widget_position(content_position));
 }
 
 }
