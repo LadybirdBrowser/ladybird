@@ -6,9 +6,6 @@
  */
 
 #include <AK/Debug.h>
-#include <LibJS/SyntaxHighlighter.h>
-#include <LibJS/Token.h>
-#include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTML/SyntaxHighlighter/SyntaxHighlighter.h>
 
@@ -55,8 +52,6 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
         Javascript,
         CSS,
     } state { State::HTML };
-    StringBuilder substring_builder;
-    Syntax::TextPosition substring_start_position;
 
     for (;;) {
         auto token = tokenizer.next_token();
@@ -68,62 +63,14 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
             if (token->tag_name() == "script"sv) {
                 tokenizer.switch_to(HTMLTokenizer::State::ScriptData);
                 state = State::Javascript;
-                // The end position points to the '>' character, but we need the position after it
-                substring_start_position = { token->end_position().line, token->end_position().column + 1 };
             } else if (token->tag_name() == "style"sv) {
                 tokenizer.switch_to(HTMLTokenizer::State::RAWTEXT);
                 state = State::CSS;
-                // The end position points to the '>' character, but we need the position after it
-                substring_start_position = { token->end_position().line, token->end_position().column + 1 };
             }
-        } else if (token->is_end_tag()) {
-            if (token->tag_name().is_one_of("script"sv, "style"sv)) {
-                if (state == State::Javascript) {
-                    VERIFY(static_cast<u64>(AugmentedTokenKind::__Count) + first_free_token_kind_serial_value() < JS_TOKEN_START_VALUE);
-                    Syntax::ProxyHighlighterClient proxy_client {
-                        *m_client,
-                        substring_start_position,
-                        JS_TOKEN_START_VALUE,
-                        substring_builder.string_view()
-                    };
-                    {
-                        JS::SyntaxHighlighter highlighter;
-                        highlighter.attach(proxy_client);
-                        highlighter.rehighlight(palette);
-                        highlighter.detach();
-                        register_nested_token_pairs(proxy_client.corrected_token_pairs(highlighter.matching_token_pairs()));
-                    }
-
-                    spans.extend(proxy_client.corrected_spans());
-                    folding_regions.extend(proxy_client.corrected_folding_regions());
-                    substring_builder.clear();
-                } else if (state == State::CSS) {
-                    VERIFY(static_cast<u64>(AugmentedTokenKind::__Count) + first_free_token_kind_serial_value() + static_cast<u64>(JS::TokenType::_COUNT_OF_TOKENS) < CSS_TOKEN_START_VALUE);
-                    Syntax::ProxyHighlighterClient proxy_client {
-                        *m_client,
-                        substring_start_position,
-                        CSS_TOKEN_START_VALUE,
-                        substring_builder.string_view()
-                    };
-                    {
-                        CSS::SyntaxHighlighter highlighter;
-                        highlighter.attach(proxy_client);
-                        highlighter.rehighlight(palette);
-                        highlighter.detach();
-                        register_nested_token_pairs(proxy_client.corrected_token_pairs(highlighter.matching_token_pairs()));
-                    }
-
-                    spans.extend(proxy_client.corrected_spans());
-                    folding_regions.extend(proxy_client.corrected_folding_regions());
-                    substring_builder.clear();
-                }
-                state = State::HTML;
-            }
-        } else if (state != State::HTML) {
-            VERIFY(token->is_character());
-            substring_builder.append_code_point(token->code_point());
+        } else if (token->is_end_tag() && token->tag_name().is_one_of("script"sv, "style"sv)) {
+            state = State::HTML;
+        } else if (state != State::HTML)
             continue;
-        }
 
         if (token->is_comment()) {
             highlight(
