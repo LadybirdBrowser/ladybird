@@ -6,9 +6,6 @@
 
 #pragma once
 
-#include <AK/Forward.h>
-#include <AK/StringView.h>
-
 namespace Syntax {
 
 enum class Language {
@@ -25,10 +22,5 @@ enum class Language {
     PlainText,
     Shell,
 };
-
-StringView language_to_string(Language);
-StringView common_language_extension(Language);
-Optional<Language> language_from_name(StringView);
-Optional<Language> language_from_filename(LexicalPath const&);
 
 }
