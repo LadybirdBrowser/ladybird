@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 22 tests
 
-10 Pass
-12 Fail
+15 Pass
+7 Fail
 Pass	Font shorthand: Font size specified as calc()
-Fail	Font shorthand: Font weight specified as number
+Pass	Font shorthand: Font weight specified as number
 Pass	Font shorthand: Font weight specified as number, value less than 1
 Pass	Font shorthand: Font weight specified as number, value greater than 1000
-Fail	Font shorthand: Font weight specified as calc()
-Fail	Font shorthand: Font weight specified as calc(), value smaller than 1
-Fail	Font shorthand: Font weight specified as calc(), value greater than 1000
+Pass	Font shorthand: Font weight specified as calc()
+Pass	Font shorthand: Font weight specified as calc(), value smaller than 1
+Pass	Font shorthand: Font weight specified as calc(), value greater than 1000
 Fail	Font shorthand: 'oblique' with positive angle
 Fail	Font shorthand: 'oblique' with negative angle
 Pass	Font shorthand: 'oblique' without slant angle
@@ -22,7 +22,7 @@ Fail	Font shorthand: 'oblique' with positive angle followed by valid weight
 Fail	Font shorthand: 'oblique' with negative angle followed by valid weight
 Pass	Font shorthand: 'oblique' followed by valid calc() weight
 Fail	Font shorthand: 'oblique' with angle followed by valid calc() weight
-Fail	Font shorthand: 'oblique' followed by a to-be-clamped calc() weight
+Pass	Font shorthand: 'oblique' followed by a to-be-clamped calc() weight
 Pass	Font shorthand: calc() weight folowed by 'oblique'
 Fail	Font shorthand: calc() weight folowed by 'oblique' and slant angle
 Fail	Font shorthand: To-be-clamped calc() weight folowed by 'oblique' and slant angle

@@ -2104,4 +2104,9 @@ CSSPixels ComputedProperties::font_size() const
     return property(PropertyID::FontSize).as_length().length().absolute_length_to_px();
 }
 
+double ComputedProperties::font_weight() const
+{
+    return property(PropertyID::FontWeight).as_number().number();
+}
+
 }

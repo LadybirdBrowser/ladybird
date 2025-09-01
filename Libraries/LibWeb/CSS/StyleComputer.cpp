@@ -1043,8 +1043,6 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             });
         }
 
-        DOM::AbstractElement abstract_element { element, pseudo_element };
-
         auto const& inheritance_parent = abstract_element.element_to_inherit_style_from();
         auto inheritance_parent_has_computed_properties = inheritance_parent.has_value() && inheritance_parent->computed_properties();
         auto parent_length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window());
@@ -1063,6 +1061,17 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                 parent_length_resolution_context);
 
             result.set(PropertyID::FontSize, font_size_in_computed_form);
+        }
+
+        if (auto const& font_weight_specified_value = specified_values.get(PropertyID::FontWeight); font_weight_specified_value.has_value()) {
+            auto inherited_font_weight = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_weight() : InitialValues::font_weight();
+
+            auto const& font_weight_in_computed_form = compute_font_weight(
+                *font_weight_specified_value.value(),
+                inherited_font_weight,
+                parent_length_resolution_context);
+
+            result.set(PropertyID::FontWeight, font_weight_in_computed_form);
         }
 
         PropertyValueComputationContext property_value_computation_context {
@@ -1086,7 +1095,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             if (!style_value)
                 continue;
 
-            if (first_is_one_of(property_id, PropertyID::FontSize))
+            if (first_is_one_of(property_id, PropertyID::FontSize, PropertyID::FontWeight))
                 continue;
 
             auto const& computed_value = compute_value_of_property(property_id, *style_value, get_property_specified_value, property_value_computation_context);
@@ -1836,10 +1845,12 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, StyleValue const& font_style, double font_weight, StyleValue const& font_stretch) const
 {
     auto width = font_stretch.to_font_width();
-    auto weight = font_weight.to_font_weight();
+
+    // FIXME: We round to int here as that is what is expected by our font infrastructure below
+    auto weight = round_to<int>(font_weight);
 
     auto slope = font_style.to_font_slope();
 
@@ -1970,21 +1981,24 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
         compute_font_size(font_size_specified_value, style.math_depth(), inherited_font_size, inherited_math_depth, length_resolution_context),
         style.is_property_inherited(PropertyID::FontSize) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
 
+    auto inherited_font_weight = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_weight() : InitialValues::font_weight();
+
+    auto const& font_weight_specified_value = style.property(PropertyID::FontWeight);
+
+    style.set_property(
+        PropertyID::FontWeight,
+        compute_font_weight(font_weight_specified_value, inherited_font_weight, length_resolution_context),
+        style.is_property_inherited(PropertyID::FontWeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
     auto const& font_style = style.property(CSS::PropertyID::FontStyle);
-    auto const& font_weight = style.property(CSS::PropertyID::FontWeight);
     auto const& font_width = style.property(CSS::PropertyID::FontWidth);
 
-    auto font_list = compute_font_for_style_values(font_family, style.font_size(), font_style, font_weight, font_width);
+    auto font_list = compute_font_for_style_values(font_family, style.font_size(), font_style, style.font_weight(), font_width);
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 
     RefPtr<Gfx::Font const> const found_font = font_list->first();
-
-    style.set_property(
-        CSS::PropertyID::FontWeight,
-        NumberStyleValue::create(font_weight.to_font_weight()),
-        style.is_property_inherited(CSS::PropertyID::FontWeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
 
     style.set_computed_font_list(*font_list);
 
@@ -3231,6 +3245,73 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
         }();
 
         return LengthStyleValue::create(Length::make_px(inherited_font_size.scale_by(math_scaling_factor)));
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr<StyleValue const> const& specified_value, double inherited_font_weight, Length::ResolutionContext const& parent_length_resolution_context)
+{
+    // https://drafts.csswg.org/css-fonts-4/#font-weight-prop
+    // a number, see below
+
+    // <number [1,1000]>
+    if (specified_value->is_number())
+        return specified_value;
+
+    // AD-HOC: Anywhere we support a numbers we should also support calcs
+    if (specified_value->is_calculated())
+        return NumberStyleValue::create(specified_value->as_calculated().resolve_number({ .length_resolution_context = parent_length_resolution_context }).value());
+
+    // normal
+    // Same as 400.
+    if (specified_value->to_keyword() == Keyword::Normal)
+        return NumberStyleValue::create(400);
+
+    // bold
+    // Same as 700.
+    if (specified_value->to_keyword() == Keyword::Bold)
+        return NumberStyleValue::create(700);
+
+    // Specified values of bolder and lighter indicate weights relative to the weight of the parent element. The
+    // computed weight is calculated based on the inherited font-weight value using the chart below.
+    //
+    // Inherited value (w)  bolder     lighter
+    // w < 100              400        No change
+    // 100 ≤ w < 350        400        100
+    // 350 ≤ w < 550        700        100
+    // 550 ≤ w < 750        900        400
+    // 750 ≤ w < 900        900        700
+    // 900 ≤ w              No change  700
+
+    // bolder
+    // Specifies a bolder weight than the inherited value. See § 2.2.1 Relative Weights.
+    if (specified_value->to_keyword() == Keyword::Bolder) {
+        if (inherited_font_weight < 350)
+            return NumberStyleValue::create(400);
+
+        if (inherited_font_weight < 550)
+            return NumberStyleValue::create(700);
+
+        if (inherited_font_weight < 900)
+            return NumberStyleValue::create(900);
+
+        return NumberStyleValue::create(inherited_font_weight);
+    }
+
+    // lighter
+    // Specifies a lighter weight than the inherited value. See § 2.2.1 Relative Weights.
+    if (specified_value->to_keyword() == Keyword::Lighter) {
+        if (inherited_font_weight < 100)
+            return NumberStyleValue::create(inherited_font_weight);
+
+        if (inherited_font_weight < 550)
+            return NumberStyleValue::create(100);
+
+        if (inherited_font_weight < 750)
+            return NumberStyleValue::create(400);
+
+        return NumberStyleValue::create(700);
     }
 
     VERIFY_NOT_REACHED();

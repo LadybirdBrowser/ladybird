@@ -2,27 +2,26 @@ Harness status: OK
 
 Found 22 tests
 
-4 Pass
-18 Fail
-Fail	Test lighter font-weight for base weight 99
-Fail	Test bolder font-weight for base weight 99
-Fail	Test lighter font-weight for base weight 100
-Fail	Test bolder font-weight for base weight 100
-Fail	Test lighter font-weight for base weight 349
-Fail	Test bolder font-weight for base weight 349
-Fail	Test lighter font-weight for base weight 350
+22 Pass
+Pass	Test lighter font-weight for base weight 99
+Pass	Test bolder font-weight for base weight 99
+Pass	Test lighter font-weight for base weight 100
+Pass	Test bolder font-weight for base weight 100
+Pass	Test lighter font-weight for base weight 349
+Pass	Test bolder font-weight for base weight 349
+Pass	Test lighter font-weight for base weight 350
 Pass	Test bolder font-weight for base weight 350
-Fail	Test lighter font-weight for base weight 549
+Pass	Test lighter font-weight for base weight 549
 Pass	Test bolder font-weight for base weight 549
 Pass	Test lighter font-weight for base weight 550
-Fail	Test bolder font-weight for base weight 550
+Pass	Test bolder font-weight for base weight 550
 Pass	Test lighter font-weight for base weight 749
-Fail	Test bolder font-weight for base weight 749
-Fail	Test lighter font-weight for base weight 750
-Fail	Test bolder font-weight for base weight 750
-Fail	Test lighter font-weight for base weight 899
-Fail	Test bolder font-weight for base weight 899
-Fail	Test lighter font-weight for base weight 900
-Fail	Test bolder font-weight for base weight 900
-Fail	Test lighter font-weight for base weight 901
-Fail	Test bolder font-weight for base weight 901
+Pass	Test bolder font-weight for base weight 749
+Pass	Test lighter font-weight for base weight 750
+Pass	Test bolder font-weight for base weight 750
+Pass	Test lighter font-weight for base weight 899
+Pass	Test bolder font-weight for base weight 899
+Pass	Test lighter font-weight for base weight 900
+Pass	Test bolder font-weight for base weight 900
+Pass	Test lighter font-weight for base weight 901
+Pass	Test bolder font-weight for base weight 901
