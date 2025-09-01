@@ -426,6 +426,11 @@ void ViewImplementation::js_console_request_messages(i32 start_index)
     client().async_js_console_request_messages(page_id(), start_index);
 }
 
+void ViewImplementation::exit_fullscreen()
+{
+    client().async_exit_fullscreen(page_id());
+}
+
 void ViewImplementation::alert_closed()
 {
     client().async_alert_closed(page_id());
