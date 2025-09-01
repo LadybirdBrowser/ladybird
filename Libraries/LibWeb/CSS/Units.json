@@ -1,0 +1,182 @@
+{
+  "angle": {
+    "deg": {
+      "is-canonical-unit": true
+    },
+    "grad": {
+      "number-of-canonical-unit": 0.9
+    },
+    "rad": {
+      "number-of-canonical-unit": 57.2957795130823208767981548141051703324054724665643215491602438612028471483
+    },
+    "turn": {
+      "number-of-canonical-unit": 360
+    }
+  },
+  "flex": {
+    "fr": {
+      "is-canonical-unit": true
+    }
+  },
+  "frequency": {
+    "Hz": {
+      "is-canonical-unit": true
+    },
+    "kHz": {
+      "number-of-canonical-unit": 1000
+    }
+  },
+  "length": {
+    "cap": {
+      "relative-to": "font"
+    },
+    "ch": {
+      "relative-to": "font"
+    },
+    "cm": {
+      "number-of-canonical-unit": 37.7952755905511811023622047244094488188976377952755905511811023622047244094
+    },
+    "dvb": {
+      "relative-to": "viewport"
+    },
+    "dvh": {
+      "relative-to": "viewport"
+    },
+    "dvi": {
+      "relative-to": "viewport"
+    },
+    "dvmax": {
+      "relative-to": "viewport"
+    },
+    "dvmin": {
+      "relative-to": "viewport"
+    },
+    "dvw": {
+      "relative-to": "viewport"
+    },
+    "em": {
+      "relative-to": "font"
+    },
+    "ex": {
+      "relative-to": "font"
+    },
+    "ic": {
+      "relative-to": "font"
+    },
+    "in": {
+      "number-of-canonical-unit": 96
+    },
+    "lh": {
+      "relative-to": "font"
+    },
+    "lvb": {
+      "relative-to": "viewport"
+    },
+    "lvh": {
+      "relative-to": "viewport"
+    },
+    "lvi": {
+      "relative-to": "viewport"
+    },
+    "lvmax": {
+      "relative-to": "viewport"
+    },
+    "lvmin": {
+      "relative-to": "viewport"
+    },
+    "lvw": {
+      "relative-to": "viewport"
+    },
+    "mm": {
+      "number-of-canonical-unit": 3.77952755905511811023622047244094488188976377952755905511811023622047244094
+    },
+    "pc": {
+      "number-of-canonical-unit": 16
+    },
+    "pt": {
+      "number-of-canonical-unit": 1.33333333333333333333333333333333333333333333333333333333333333333333333333
+    },
+    "px": {
+      "is-canonical-unit": true
+    },
+    "Q": {
+      "number-of-canonical-unit": 0.94488188976377952755905511811023622047244094488188976377952755905511811023
+    },
+    "rcap": {
+      "relative-to": "font"
+    },
+    "rch": {
+      "relative-to": "font"
+    },
+    "rem": {
+      "relative-to": "font"
+    },
+    "rex": {
+      "relative-to": "font"
+    },
+    "ric": {
+      "relative-to": "font"
+    },
+    "rlh": {
+      "relative-to": "font"
+    },
+    "svb": {
+      "relative-to": "viewport"
+    },
+    "svh": {
+      "relative-to": "viewport"
+    },
+    "svi": {
+      "relative-to": "viewport"
+    },
+    "svmax": {
+      "relative-to": "viewport"
+    },
+    "svmin": {
+      "relative-to": "viewport"
+    },
+    "svw": {
+      "relative-to": "viewport"
+    },
+    "vb": {
+      "relative-to": "viewport"
+    },
+    "vh": {
+      "relative-to": "viewport"
+    },
+    "vi": {
+      "relative-to": "viewport"
+    },
+    "vmax": {
+      "relative-to": "viewport"
+    },
+    "vmin": {
+      "relative-to": "viewport"
+    },
+    "vw": {
+      "relative-to": "viewport"
+    }
+  },
+  "resolution": {
+    "dpcm": {
+      "number-of-canonical-unit": 0.02645833333333333333333333333333333333333333333333333333333333333333333333
+    },
+    "dpi": {
+      "number-of-canonical-unit": 0.01041666666666666666666666666666666666666666666666666666666666666666666666
+    },
+    "dppx": {
+      "is-canonical-unit": true
+    },
+    "x": {
+      "number-of-canonical-unit": 1
+    }
+  },
+  "time": {
+    "ms": {
+      "number-of-canonical-unit": 0.001
+    },
+    "s": {
+      "is-canonical-unit": true
+    }
+  }
+}
