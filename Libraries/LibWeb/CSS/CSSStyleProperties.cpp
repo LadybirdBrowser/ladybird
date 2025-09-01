@@ -330,6 +330,17 @@ static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthP
     return length_percentage.calculated();
 }
 
+static NonnullRefPtr<StyleValue const> style_value_for_length_percentage_or_auto(LengthPercentageOrAuto const& length_percentage)
+{
+    if (length_percentage.is_auto())
+        return KeywordStyleValue::create(Keyword::Auto);
+    if (length_percentage.is_percentage())
+        return PercentageStyleValue::create(length_percentage.percentage());
+    if (length_percentage.is_length())
+        return LengthStyleValue::create(length_percentage.length());
+    return length_percentage.calculated();
+}
+
 static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
 {
     if (size.is_none())
@@ -517,7 +528,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     auto& element = owner_node()->element();
     auto pseudo_element = owner_node()->pseudo_element();
 
-    auto used_value_for_inset = [&layout_node, used_value_for_property](LengthPercentage const& start_side, LengthPercentage const& end_side, Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
+    auto used_value_for_inset = [&layout_node, used_value_for_property](LengthPercentageOrAuto const& start_side, LengthPercentageOrAuto const& end_side, Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
         if (!layout_node.is_positioned())
             return {};
 
@@ -630,35 +641,35 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::MarginBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().margin.bottom; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage(layout_node.computed_values().margin().bottom());
+        return style_value_for_length_percentage_or_auto(layout_node.computed_values().margin().bottom());
     case PropertyID::MarginLeft:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().margin.left; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage(layout_node.computed_values().margin().left());
+        return style_value_for_length_percentage_or_auto(layout_node.computed_values().margin().left());
     case PropertyID::MarginRight:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().margin.right; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage(layout_node.computed_values().margin().right());
+        return style_value_for_length_percentage_or_auto(layout_node.computed_values().margin().right());
     case PropertyID::MarginTop:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().margin.top; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage(layout_node.computed_values().margin().top());
+        return style_value_for_length_percentage_or_auto(layout_node.computed_values().margin().top());
     case PropertyID::PaddingBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().padding.bottom; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage(layout_node.computed_values().padding().bottom());
+        return style_value_for_length_percentage_or_auto(layout_node.computed_values().padding().bottom());
     case PropertyID::PaddingLeft:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().padding.left; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage(layout_node.computed_values().padding().left());
+        return style_value_for_length_percentage_or_auto(layout_node.computed_values().padding().left());
     case PropertyID::PaddingRight:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().padding.right; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage(layout_node.computed_values().padding().right());
+        return style_value_for_length_percentage_or_auto(layout_node.computed_values().padding().right());
     case PropertyID::PaddingTop:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().padding.top; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage(layout_node.computed_values().padding().top());
+        return style_value_for_length_percentage_or_auto(layout_node.computed_values().padding().top());
     case PropertyID::Width: {
         auto maybe_used_width = used_value_for_property([](auto const& paintable_box) { return paintable_box.content_width(); });
         if (maybe_used_width.has_value())
@@ -683,27 +694,27 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         if (auto maybe_used_value = used_value_for_inset(inset.bottom(), inset.top(), [](auto const& paintable_box) { return paintable_box.box_model().inset.bottom; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
 
-        return style_value_for_length_percentage(inset.bottom());
+        return style_value_for_length_percentage_or_auto(inset.bottom());
     }
     case PropertyID::Left: {
         auto& inset = layout_node.computed_values().inset();
         if (auto maybe_used_value = used_value_for_inset(inset.left(), inset.right(), [](auto const& paintable_box) { return paintable_box.box_model().inset.left; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage(inset.left());
+        return style_value_for_length_percentage_or_auto(inset.left());
     }
     case PropertyID::Right: {
         auto& inset = layout_node.computed_values().inset();
         if (auto maybe_used_value = used_value_for_inset(inset.right(), inset.left(), [](auto const& paintable_box) { return paintable_box.box_model().inset.right; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
 
-        return style_value_for_length_percentage(inset.right());
+        return style_value_for_length_percentage_or_auto(inset.right());
     }
     case PropertyID::Top: {
         auto& inset = layout_node.computed_values().inset();
         if (auto maybe_used_value = used_value_for_inset(inset.top(), inset.bottom(), [](auto const& paintable_box) { return paintable_box.box_model().inset.top; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
 
-        return style_value_for_length_percentage(inset.top());
+        return style_value_for_length_percentage_or_auto(inset.top());
     }
 
         // -> A resolved value special case property defined in another specification

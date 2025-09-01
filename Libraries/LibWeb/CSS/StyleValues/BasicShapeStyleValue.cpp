@@ -29,10 +29,10 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) c
     // (such as left and right insets of 75% apiece) use the CSS Backgrounds 3 § 4.5 Overlapping Curves rules
     // to proportionally reduce the inset effect to 100%.
 
-    auto top = inset_box.top().to_px(node, reference_box.height()).to_float();
-    auto right = reference_box.width().to_float() - inset_box.right().to_px(node, reference_box.width()).to_float();
-    auto bottom = reference_box.height().to_float() - inset_box.bottom().to_px(node, reference_box.height()).to_float();
-    auto left = inset_box.left().to_px(node, reference_box.width()).to_float();
+    auto top = inset_box.top().to_px_or_zero(node, reference_box.height()).to_float();
+    auto right = reference_box.width().to_float() - inset_box.right().to_px_or_zero(node, reference_box.width()).to_float();
+    auto bottom = reference_box.height().to_float() - inset_box.bottom().to_px_or_zero(node, reference_box.height()).to_float();
+    auto left = inset_box.left().to_px_or_zero(node, reference_box.width()).to_float();
 
     return path_from_resolved_rect(top, right, bottom, left);
 }
@@ -62,10 +62,10 @@ Gfx::Path Rect::to_path(CSSPixelRect reference_box, Layout::Node const& node) co
     // An auto value makes the edge of the box coincide with the corresponding edge of the reference box:
     // it’s equivalent to 0% as the first (top) or fourth (left) value, and equivalent to 100% as the second (right) or third (bottom) value.
 
-    auto top = box.top().is_auto() ? 0 : box.top().to_px(node, reference_box.height()).to_float();
-    auto right = box.right().is_auto() ? reference_box.width().to_float() : box.right().to_px(node, reference_box.width()).to_float();
-    auto bottom = box.bottom().is_auto() ? reference_box.height().to_float() : box.bottom().to_px(node, reference_box.height()).to_float();
-    auto left = box.left().is_auto() ? 0 : box.left().to_px(node, reference_box.width()).to_float();
+    auto top = box.top().is_auto() ? 0 : box.top().to_px_or_zero(node, reference_box.height()).to_float();
+    auto right = box.right().is_auto() ? reference_box.width().to_float() : box.right().to_px_or_zero(node, reference_box.width()).to_float();
+    auto bottom = box.bottom().is_auto() ? reference_box.height().to_float() : box.bottom().to_px_or_zero(node, reference_box.height()).to_float();
+    auto left = box.left().is_auto() ? 0 : box.left().to_px_or_zero(node, reference_box.width()).to_float();
 
     // The second (right) and third (bottom) values are floored by the fourth (left) and second (top) values, respectively.
     return path_from_resolved_rect(top, max(right, left), max(bottom, top), left);

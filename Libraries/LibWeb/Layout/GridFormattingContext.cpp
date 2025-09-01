@@ -1819,20 +1819,20 @@ void GridFormattingContext::resolve_items_box_metrics(GridDimension dimension)
 
         CSSPixels containing_block_width = containing_block_size_for_item(item, GridDimension::Column);
         if (dimension == GridDimension::Column) {
-            item.used_values.padding_right = computed_values.padding().right().to_px(grid_container(), containing_block_width);
-            item.used_values.padding_left = computed_values.padding().left().to_px(grid_container(), containing_block_width);
+            item.used_values.padding_right = computed_values.padding().right().to_px_or_zero(grid_container(), containing_block_width);
+            item.used_values.padding_left = computed_values.padding().left().to_px_or_zero(grid_container(), containing_block_width);
 
-            item.used_values.margin_right = computed_values.margin().right().to_px(grid_container(), containing_block_width);
-            item.used_values.margin_left = computed_values.margin().left().to_px(grid_container(), containing_block_width);
+            item.used_values.margin_right = computed_values.margin().right().to_px_or_zero(grid_container(), containing_block_width);
+            item.used_values.margin_left = computed_values.margin().left().to_px_or_zero(grid_container(), containing_block_width);
 
             item.used_values.border_right = computed_values.border_right().width;
             item.used_values.border_left = computed_values.border_left().width;
         } else {
-            item.used_values.padding_top = computed_values.padding().top().to_px(grid_container(), containing_block_width);
-            item.used_values.padding_bottom = computed_values.padding().bottom().to_px(grid_container(), containing_block_width);
+            item.used_values.padding_top = computed_values.padding().top().to_px_or_zero(grid_container(), containing_block_width);
+            item.used_values.padding_bottom = computed_values.padding().bottom().to_px_or_zero(grid_container(), containing_block_width);
 
-            item.used_values.margin_top = computed_values.margin().top().to_px(grid_container(), containing_block_width);
-            item.used_values.margin_bottom = computed_values.margin().bottom().to_px(grid_container(), containing_block_width);
+            item.used_values.margin_top = computed_values.margin().top().to_px_or_zero(grid_container(), containing_block_width);
+            item.used_values.margin_bottom = computed_values.margin().bottom().to_px_or_zero(grid_container(), containing_block_width);
 
             item.used_values.border_top = computed_values.border_top().width;
             item.used_values.border_bottom = computed_values.border_bottom().width;
@@ -2179,10 +2179,10 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     box_state.border_right = box.computed_values().border_right().width;
     box_state.border_top = box.computed_values().border_top().width;
     box_state.border_bottom = box.computed_values().border_bottom().width;
-    box_state.padding_left = box.computed_values().padding().left().to_px(grid_container(), grid_area_rect.width());
-    box_state.padding_right = box.computed_values().padding().right().to_px(grid_container(), grid_area_rect.width());
-    box_state.padding_top = box.computed_values().padding().top().to_px(grid_container(), grid_area_rect.width());
-    box_state.padding_bottom = box.computed_values().padding().bottom().to_px(grid_container(), grid_area_rect.width());
+    box_state.padding_left = box.computed_values().padding().left().to_px_or_zero(grid_container(), grid_area_rect.width());
+    box_state.padding_right = box.computed_values().padding().right().to_px_or_zero(grid_container(), grid_area_rect.width());
+    box_state.padding_top = box.computed_values().padding().top().to_px_or_zero(grid_container(), grid_area_rect.width());
+    box_state.padding_bottom = box.computed_values().padding().bottom().to_px_or_zero(grid_container(), grid_area_rect.width());
 
     compute_width_for_absolutely_positioned_element(box, available_space);
 
