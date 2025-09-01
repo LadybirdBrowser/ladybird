@@ -7,8 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <SDL3/SDL_gamepad.h>
-#include <SDL3/SDL_joystick.h>
+#include <LibWeb/Gamepad/SDLGamepadForward.h>
 
 namespace Web::Internals {
 
@@ -21,9 +20,9 @@ public:
 
     virtual ~InternalGamepad() override;
 
-    Array<SDL_GamepadButton, 15> const& buttons();
-    Array<SDL_GamepadAxis, 4> const& axes();
-    Array<SDL_GamepadAxis, 2> const& triggers();
+    Array<i32, 15> const& buttons();
+    Array<i32, 4> const& axes();
+    Array<i32, 2> const& triggers();
 
     void set_button(int button, bool down);
     void set_axis(int axis, short value);

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <SDL3/SDL_gamepad.h>
 
 namespace Web::Gamepad {
 
