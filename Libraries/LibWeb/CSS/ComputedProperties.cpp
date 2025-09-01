@@ -261,9 +261,9 @@ Length ComputedProperties::length(PropertyID property_id) const
     return property(property_id).as_length().length();
 }
 
-LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Layout::NodeWithStyle const& layout_node, ClampNegativeLengths disallow_negative_lengths, Length const& default_value) const
+LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Layout::NodeWithStyle const& layout_node, ClampNegativeLengths disallow_negative_lengths, LengthPercentageOrAuto const& default_value) const
 {
-    auto length_box_side = [&](PropertyID id) -> LengthPercentage {
+    auto length_box_side = [&](PropertyID id) -> LengthPercentageOrAuto {
         auto const& value = property(id);
 
         if (value.is_calculated())
@@ -292,7 +292,7 @@ LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, 
         }
 
         if (value.has_auto())
-            return LengthPercentage { Length::make_auto() };
+            return LengthPercentageOrAuto::make_auto();
 
         return default_value;
     };

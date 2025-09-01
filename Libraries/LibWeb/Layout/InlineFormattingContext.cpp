@@ -103,21 +103,21 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
 
-    box_state.margin_left = computed_values.margin().left().to_px(box, width_of_containing_block);
+    box_state.margin_left = computed_values.margin().left().to_px_or_zero(box, width_of_containing_block);
     box_state.border_left = computed_values.border_left().width;
-    box_state.padding_left = computed_values.padding().left().to_px(box, width_of_containing_block);
+    box_state.padding_left = computed_values.padding().left().to_px_or_zero(box, width_of_containing_block);
 
-    box_state.margin_right = computed_values.margin().right().to_px(box, width_of_containing_block);
+    box_state.margin_right = computed_values.margin().right().to_px_or_zero(box, width_of_containing_block);
     box_state.border_right = computed_values.border_right().width;
-    box_state.padding_right = computed_values.padding().right().to_px(box, width_of_containing_block);
+    box_state.padding_right = computed_values.padding().right().to_px_or_zero(box, width_of_containing_block);
 
-    box_state.margin_top = computed_values.margin().top().to_px(box, width_of_containing_block);
+    box_state.margin_top = computed_values.margin().top().to_px_or_zero(box, width_of_containing_block);
     box_state.border_top = computed_values.border_top().width;
-    box_state.padding_top = computed_values.padding().top().to_px(box, width_of_containing_block);
+    box_state.padding_top = computed_values.padding().top().to_px_or_zero(box, width_of_containing_block);
 
-    box_state.padding_bottom = computed_values.padding().bottom().to_px(box, width_of_containing_block);
+    box_state.padding_bottom = computed_values.padding().bottom().to_px_or_zero(box, width_of_containing_block);
     box_state.border_bottom = computed_values.border_bottom().width;
-    box_state.margin_bottom = computed_values.margin().bottom().to_px(box, width_of_containing_block);
+    box_state.margin_bottom = computed_values.margin().bottom().to_px_or_zero(box, width_of_containing_block);
 
     if (box_is_sized_as_replaced_element(box, *m_available_space)) {
         box_state.set_content_width(compute_width_for_replaced_element(box, *m_available_space));

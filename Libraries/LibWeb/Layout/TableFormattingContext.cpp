@@ -108,10 +108,10 @@ void TableFormattingContext::compute_cell_measures()
 
     for (auto& cell : m_cells) {
         auto const& computed_values = cell.box->computed_values();
-        CSSPixels padding_top = computed_values.padding().top().to_px(cell.box, containing_block.content_height());
-        CSSPixels padding_bottom = computed_values.padding().bottom().to_px(cell.box, containing_block.content_height());
-        CSSPixels padding_left = computed_values.padding().left().to_px(cell.box, containing_block.content_width());
-        CSSPixels padding_right = computed_values.padding().right().to_px(cell.box, containing_block.content_width());
+        CSSPixels padding_top = computed_values.padding().top().to_px_or_zero(cell.box, containing_block.content_height());
+        CSSPixels padding_bottom = computed_values.padding().bottom().to_px_or_zero(cell.box, containing_block.content_height());
+        CSSPixels padding_left = computed_values.padding().left().to_px_or_zero(cell.box, containing_block.content_width());
+        CSSPixels padding_right = computed_values.padding().right().to_px_or_zero(cell.box, containing_block.content_width());
 
         auto const& cell_state = m_state.get(cell.box);
         auto use_collapsing_borders_model = cell_state.override_borders_data().has_value();
@@ -861,10 +861,10 @@ void TableFormattingContext::compute_table_height()
         auto width_of_containing_block = cell_state.containing_block_used_values()->content_width();
         auto height_of_containing_block = cell_state.containing_block_used_values()->content_height();
 
-        cell_state.padding_top = cell.box->computed_values().padding().top().to_px(cell.box, width_of_containing_block);
-        cell_state.padding_bottom = cell.box->computed_values().padding().bottom().to_px(cell.box, width_of_containing_block);
-        cell_state.padding_left = cell.box->computed_values().padding().left().to_px(cell.box, width_of_containing_block);
-        cell_state.padding_right = cell.box->computed_values().padding().right().to_px(cell.box, width_of_containing_block);
+        cell_state.padding_top = cell.box->computed_values().padding().top().to_px_or_zero(cell.box, width_of_containing_block);
+        cell_state.padding_bottom = cell.box->computed_values().padding().bottom().to_px_or_zero(cell.box, width_of_containing_block);
+        cell_state.padding_left = cell.box->computed_values().padding().left().to_px_or_zero(cell.box, width_of_containing_block);
+        cell_state.padding_right = cell.box->computed_values().padding().right().to_px_or_zero(cell.box, width_of_containing_block);
 
         if (table_box().computed_values().border_collapse() == CSS::BorderCollapse::Separate) {
             cell_state.border_top = cell.box->computed_values().border_top().width;

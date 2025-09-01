@@ -94,12 +94,12 @@ struct GridItem {
         return dimension == GridDimension::Column ? computed_values().width() : computed_values().height();
     }
 
-    CSS::LengthPercentage const& margin_start(GridDimension dimension) const
+    CSS::LengthPercentageOrAuto const& margin_start(GridDimension dimension) const
     {
         return dimension == GridDimension::Column ? computed_values().margin().left() : computed_values().margin().top();
     }
 
-    CSS::LengthPercentage const& margin_end(GridDimension dimension) const
+    CSS::LengthPercentageOrAuto const& margin_end(GridDimension dimension) const
     {
         return dimension == GridDimension::Column ? computed_values().margin().right() : computed_values().margin().bottom();
     }

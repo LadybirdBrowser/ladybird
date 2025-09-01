@@ -3310,15 +3310,13 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
         // FIXME: Parse the border-radius.
         auto arguments_tokens = TokenStream { component_value.function().value };
 
-        auto parse_length_percentage_or_auto = [this](TokenStream<ComponentValue>& tokens) -> Optional<LengthPercentage> {
+        auto parse_length_percentage_or_auto = [this](TokenStream<ComponentValue>& tokens) -> Optional<LengthPercentageOrAuto> {
             tokens.discard_whitespace();
-            auto value = parse_length_percentage(tokens);
-            if (!value.has_value()) {
-                if (tokens.consume_a_token().is_ident("auto"sv)) {
-                    value = Length::make_auto();
-                }
-            }
-            return value;
+            if (auto value = parse_length_percentage(tokens); value.has_value())
+                return value.release_value();
+            if (tokens.consume_a_token().is_ident("auto"sv))
+                return LengthPercentageOrAuto::make_auto();
+            return {};
         };
 
         auto top = parse_length_percentage_or_auto(arguments_tokens);

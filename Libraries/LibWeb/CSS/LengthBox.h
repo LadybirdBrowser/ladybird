@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,27 +14,25 @@ namespace Web::CSS {
 class LengthBox {
 public:
     LengthBox();
-    LengthBox(LengthPercentage top, LengthPercentage right, LengthPercentage bottom, LengthPercentage left);
+    LengthBox(LengthPercentageOrAuto top, LengthPercentageOrAuto right, LengthPercentageOrAuto bottom, LengthPercentageOrAuto left);
     ~LengthBox();
 
-    // Length (and thus LengthPercentage) includes a RefPtr<CalculatedStyleValue const> member, but we can't include the header StyleValue.h as it includes
-    // this file already. To break the cyclic dependency, we must initialize these members in the constructor.
-    LengthPercentage& top() { return m_top; }
-    LengthPercentage& right() { return m_right; }
-    LengthPercentage& bottom() { return m_bottom; }
-    LengthPercentage& left() { return m_left; }
-    LengthPercentage const& top() const { return m_top; }
-    LengthPercentage const& right() const { return m_right; }
-    LengthPercentage const& bottom() const { return m_bottom; }
-    LengthPercentage const& left() const { return m_left; }
+    LengthPercentageOrAuto& top() { return m_top; }
+    LengthPercentageOrAuto& right() { return m_right; }
+    LengthPercentageOrAuto& bottom() { return m_bottom; }
+    LengthPercentageOrAuto& left() { return m_left; }
+    LengthPercentageOrAuto const& top() const { return m_top; }
+    LengthPercentageOrAuto const& right() const { return m_right; }
+    LengthPercentageOrAuto const& bottom() const { return m_bottom; }
+    LengthPercentageOrAuto const& left() const { return m_left; }
 
     bool operator==(LengthBox const&) const = default;
 
 private:
-    LengthPercentage m_top;
-    LengthPercentage m_right;
-    LengthPercentage m_bottom;
-    LengthPercentage m_left;
+    LengthPercentageOrAuto m_top;
+    LengthPercentageOrAuto m_right;
+    LengthPercentageOrAuto m_bottom;
+    LengthPercentageOrAuto m_left;
 };
 
 }
