@@ -87,6 +87,15 @@ function (generate_css_implementation)
     )
 
     invoke_cpp_generator(
+        "Units.cpp"
+        Lagom::GenerateCSSUnits
+        "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
+        "CSS/Units.h"
+        "CSS/Units.cpp"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
+    )
+
+    invoke_cpp_generator(
         "Keyword.cpp"
         Lagom::GenerateCSSKeyword
         "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
