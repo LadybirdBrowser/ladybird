@@ -38,6 +38,22 @@
     if (!action)
         return;
 
+    if (![[[NSApp keyWindow] firstResponder] isKindOfClass:[LadybirdWebView class]]) {
+        switch (action->id()) {
+        case WebView::ActionID::CopySelection:
+            [NSApp sendAction:@selector(copy:) to:nil from:sender];
+            return;
+        case WebView::ActionID::Paste:
+            [NSApp sendAction:@selector(paste:) to:nil from:sender];
+            return;
+        case WebView::ActionID::SelectAll:
+            [NSApp sendAction:@selector(selectAll:) to:nil from:sender];
+            return;
+        default:
+            break;
+        }
+    }
+
     if (action->is_checkable())
         action->set_checked(!action->checked());
     action->activate();
@@ -94,6 +110,35 @@ private:
 
 static void initialize_native_control(WebView::Action& action, id control)
 {
+    switch (action.id()) {
+    case WebView::ActionID::NavigateBack:
+        [control setKeyEquivalent:@"["];
+        break;
+    case WebView::ActionID::NavigateForward:
+        [control setKeyEquivalent:@"]"];
+        break;
+    case WebView::ActionID::Reload:
+        [control setKeyEquivalent:@"r"];
+        break;
+
+    case WebView::ActionID::CopySelection:
+        [control setKeyEquivalent:@"c"];
+        break;
+    case WebView::ActionID::Paste:
+        [control setKeyEquivalent:@"v"];
+        break;
+    case WebView::ActionID::SelectAll:
+        [control setKeyEquivalent:@"a"];
+        break;
+
+    case WebView::ActionID::ViewSource:
+        [control setKeyEquivalent:@"u"];
+        break;
+
+    default:
+        break;
+    }
+
     action.add_observer(ActionObserver::create(action, control));
 }
 

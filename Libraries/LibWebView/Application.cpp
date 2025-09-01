@@ -19,6 +19,7 @@
 #include <LibWebView/Database.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/Menu.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
@@ -268,6 +269,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     };
 
     create_platform_options(m_browser_options, m_web_content_options);
+    initialize_actions();
 
     m_event_loop = create_platform_event_loop();
     TRY(launch_services());
@@ -607,6 +609,32 @@ void Application::display_download_confirmation_dialog(StringView download_name,
 void Application::display_error_dialog(StringView error_message) const
 {
     warnln("{}", error_message);
+}
+
+void Application::initialize_actions()
+{
+    m_reload_action = Action::create("Reload"sv, ActionID::Reload, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->reload();
+    });
+
+    m_copy_selection_action = Action::create("Copy"sv, ActionID::CopySelection, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->insert_text_into_clipboard(view->selected_text());
+    });
+    m_paste_action = Action::create("Paste"sv, ActionID::Paste, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->paste_text_from_clipboard();
+    });
+    m_select_all_action = Action::create("Select All"sv, ActionID::SelectAll, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->select_all();
+    });
+
+    m_view_source_action = Action::create("View Source"sv, ActionID::ViewSource, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->get_source();
+    });
 }
 
 ErrorOr<Application::DevtoolsState> Application::toggle_devtools_enabled()
