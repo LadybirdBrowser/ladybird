@@ -319,7 +319,7 @@ This is a single JSON object, describing each [CSS environment variable](https:/
 with the keys being the environment variable names, and the values being objects describing the variable's properties.
 This generates `EnvironmentVariable.h` and `EnvironmentVariable.cpp`.
 
-Each entry has 3 properties, all taken from the 
+Each entry has 3 properties, all taken from the spec:
 
 | Field        | Description                                                         |
 |--------------|---------------------------------------------------------------------|
@@ -333,3 +333,27 @@ The generated code provides:
 - `StringView to_string(EnvironmentVariable)` to convert the `EnvironmentVariable` back to a string
 - `ValueType environment_variable_type(EnvironmentVariable)` to get the variable's value type
 - `u32 environment_variable_dimension_count(EnvironmentVariable)` to get its dimension count
+
+## Units.json
+
+This is a JSON object with the keys being dimension type names, and the values being objects. Those objects' keys are
+unit names, and their values are data about each unit.
+It generates `Units.h` and `Units.cpp`.
+
+Each unit has the following properties:
+
+| Field                      | Description                                                                                                                        |
+|----------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `is-canonical-unit`        | Boolean, default `false`. Each dimension has one canonical unit.                                                                   |
+| `number-of-canonical-unit` | Number. How many of the canonical units 1 of this is equivalent to. Ignore this for relative units, and the canonical unit itself. |
+| `is-relative-to`           | String. Some length units are relative to the font or viewport. Set this to `"font"` or `"viewport"` for those.                    |
+
+The generated code provides:
+- A `DimensionType` enum, listing each type of dimension that has units defined.
+- `Optional<DimensionType> dimension_for_unit(StringView)` for querying which dimension a unit applies to, if any.
+- A `FooUnit` enum for each dimension "foo", which lists all the units of that dimension.
+- For each of those...
+  - `Optional<FooUnit> string_to_foo_unit(StringView)` for parsing a unit from a string.
+  - `StringView to_string(FooUnit)` for serializing those units.
+  - `double ratio_between_units(FooUnit, FooUnit)` to get a multiplier for converting the first unit into the second.
+- `bool is_absolute(LengthUnit)`, `bool is_font_relative(LengthUnit)`, `bool is_viewport_relative(LengthUnit)`, and `bool is_relative(LengthUnit)` for checking the category of length units.

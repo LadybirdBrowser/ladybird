@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <LibWeb/CSS/SerializationMode.h>
+#include <LibWeb/CSS/Units.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
