@@ -27,7 +27,7 @@ public:
     GC::Ref<SVG::SVGAnimatedLength> width();
     GC::Ref<SVG::SVGAnimatedLength> height();
 
-    Gfx::Rect<CSSPixels> bounding_box() const;
+    Gfx::FloatRect bounding_box() const;
 
     RefPtr<Gfx::ImmutableBitmap> default_image_bitmap_sized(Gfx::IntSize) const;
 
