@@ -33,14 +33,9 @@ struct TabSettings {
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)isRedirect;
 
 - (void)onURLChange:(URL::URL const&)url;
-- (void)onBackNavigationEnabled:(BOOL)back_enabled
-       forwardNavigationEnabled:(BOOL)forward_enabled;
 
 - (void)onCreateNewTab;
 
-- (void)navigateBack:(id)sender;
-- (void)navigateForward:(id)sender;
-- (void)reload:(id)sender;
 - (void)clearHistory;
 
 - (void)setPopupBlocking:(BOOL)block_popups;

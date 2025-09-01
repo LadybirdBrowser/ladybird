@@ -5,36 +5,21 @@
  */
 
 #include <AK/Optional.h>
-#include <AK/TemporaryChange.h>
 #include <Interface/LadybirdWebViewBridge.h>
-#include <LibGfx/ImageFormats/PNGWriter.h>
-#include <LibGfx/ShareableBitmap.h>
-#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
-#include <LibWebView/Application.h>
-#include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
-#include <LibWebView/URL.h>
 
-#import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Event.h>
 #import <Interface/LadybirdWebView.h>
+#import <Interface/Menu.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <Utilities/Conversions.h>
 
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
 #endif
-
-static constexpr NSInteger CONTEXT_MENU_PLAY_PAUSE_TAG = 1;
-static constexpr NSInteger CONTEXT_MENU_MUTE_UNMUTE_TAG = 2;
-static constexpr NSInteger CONTEXT_MENU_CONTROLS_TAG = 3;
-static constexpr NSInteger CONTEXT_MENU_LOOP_TAG = 4;
-static constexpr NSInteger CONTEXT_MENU_SEARCH_SELECTED_TEXT_TAG = 5;
-static constexpr NSInteger CONTEXT_MENU_COPY_LINK_TAG = 6;
-static constexpr NSInteger CONTEXT_MENU_COPY_IMAGE_TAG = 7;
 
 // Calls to [NSCursor hide] and [NSCursor unhide] must be balanced. We use this struct to ensure
 // we only call [NSCursor hide] once and to ensure that we do call [NSCursor unhide].
@@ -55,10 +40,6 @@ struct HideCursor {
 {
     OwnPtr<Ladybird::WebViewBridge> m_web_view_bridge;
 
-    URL::URL m_context_menu_url;
-    Optional<Gfx::ShareableBitmap> m_context_menu_bitmap;
-    Optional<String> m_context_menu_search_text;
-
     Optional<HideCursor> m_hidden_cursor;
 
     // We have to send key events for modifer keys, but AppKit does not generate key down/up events when only a modifier
@@ -71,8 +52,7 @@ struct HideCursor {
 @property (nonatomic, strong) NSMenu* page_context_menu;
 @property (nonatomic, strong) NSMenu* link_context_menu;
 @property (nonatomic, strong) NSMenu* image_context_menu;
-@property (nonatomic, strong) NSMenu* audio_context_menu;
-@property (nonatomic, strong) NSMenu* video_context_menu;
+@property (nonatomic, strong) NSMenu* media_context_menu;
 @property (nonatomic, strong) NSMenu* select_dropdown;
 @property (nonatomic, strong) NSTextField* status_label;
 @property (nonatomic, strong) NSAlert* dialog;
@@ -86,11 +66,6 @@ struct HideCursor {
 
 @implementation LadybirdWebView
 
-@synthesize page_context_menu = _page_context_menu;
-@synthesize link_context_menu = _link_context_menu;
-@synthesize image_context_menu = _image_context_menu;
-@synthesize audio_context_menu = _audio_context_menu;
-@synthesize video_context_menu = _video_context_menu;
 @synthesize status_label = _status_label;
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer
@@ -136,6 +111,11 @@ struct HideCursor {
         m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, maximum_frames_per_second, [delegate preferredColorScheme], [delegate preferredContrast], [delegate preferredMotion]));
         [self setWebViewCallbacks];
 
+        self.page_context_menu = Ladybird::create_context_menu(self, [self view].page_context_menu());
+        self.link_context_menu = Ladybird::create_context_menu(self, [self view].link_context_menu());
+        self.image_context_menu = Ladybird::create_context_menu(self, [self view].image_context_menu());
+        self.media_context_menu = Ladybird::create_context_menu(self, [self view].media_context_menu());
+
         auto* area = [[NSTrackingArea alloc] initWithRect:[self bounds]
                                                   options:NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect | NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved
                                                     owner:self
@@ -160,21 +140,6 @@ struct HideCursor {
 - (void)loadHTML:(StringView)html
 {
     m_web_view_bridge->load_html(html);
-}
-
-- (void)navigateBack
-{
-    m_web_view_bridge->traverse_the_history_by_delta(-1);
-}
-
-- (void)navigateForward
-{
-    m_web_view_bridge->traverse_the_history_by_delta(1);
-}
-
-- (void)reload
-{
-    m_web_view_bridge->reload();
 }
 
 - (WebView::ViewImplementation&)view
@@ -281,11 +246,6 @@ struct HideCursor {
     m_web_view_bridge->debug_request(request, argument);
 }
 
-- (void)viewSource
-{
-    m_web_view_bridge->get_source();
-}
-
 #pragma mark - Private methods
 
 static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_type)
@@ -389,15 +349,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             return;
         }
         [self.observer onURLChange:url];
-    };
-
-    m_web_view_bridge->on_navigation_buttons_state_changed = [weak_self](auto back_enabled, auto forward_enabled) {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        [self.observer onBackNavigationEnabled:back_enabled
-                      forwardNavigationEnabled:forward_enabled];
     };
 
     m_web_view_bridge->on_title_change = [weak_self](auto const& title) {
@@ -620,107 +571,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             return;
         }
         [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::No];
-    };
-
-    m_web_view_bridge->on_context_menu_request = [weak_self](auto position) {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        auto* search_selected_text_menu_item = [self.page_context_menu itemWithTag:CONTEXT_MENU_SEARCH_SELECTED_TEXT_TAG];
-
-        auto const& search_engine = WebView::Application::settings().search_engine();
-
-        auto selected_text = self.observer && search_engine.has_value()
-            ? m_web_view_bridge->selected_text_with_whitespace_collapsed()
-            : OptionalNone {};
-        TemporaryChange change_url { m_context_menu_search_text, move(selected_text) };
-
-        if (m_context_menu_search_text.has_value()) {
-            auto action_text = search_engine->format_search_query_for_display(*m_context_menu_search_text);
-            [search_selected_text_menu_item setTitle:Ladybird::string_to_ns_string(action_text)];
-            [search_selected_text_menu_item setHidden:NO];
-        } else {
-            [search_selected_text_menu_item setHidden:YES];
-        }
-
-        auto* event = Ladybird::create_context_menu_mouse_event(self, position);
-        [NSMenu popUpContextMenu:self.page_context_menu withEvent:event forView:self];
-    };
-
-    m_web_view_bridge->on_link_context_menu_request = [weak_self](auto const& url, auto position) {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        TemporaryChange change_url { m_context_menu_url, url };
-
-        auto* copy_link_menu_item = [self.link_context_menu itemWithTag:CONTEXT_MENU_COPY_LINK_TAG];
-
-        switch (WebView::url_type(url)) {
-        case WebView::URLType::Email:
-            [copy_link_menu_item setTitle:@"Copy Email Address"];
-            break;
-        case WebView::URLType::Telephone:
-            [copy_link_menu_item setTitle:@"Copy Phone Number"];
-            break;
-        case WebView::URLType::Other:
-            [copy_link_menu_item setTitle:@"Copy URL"];
-            break;
-        }
-
-        auto* event = Ladybird::create_context_menu_mouse_event(self, position);
-        [NSMenu popUpContextMenu:self.link_context_menu withEvent:event forView:self];
-    };
-
-    m_web_view_bridge->on_image_context_menu_request = [weak_self](auto const& url, auto position, auto const& bitmap) {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        TemporaryChange change_url { m_context_menu_url, url };
-        TemporaryChange change_bitmap { m_context_menu_bitmap, bitmap };
-
-        auto* copy_image_menu_item = [self.image_context_menu itemWithTag:CONTEXT_MENU_COPY_IMAGE_TAG];
-        [copy_image_menu_item setEnabled:bitmap.has_value()];
-
-        auto* event = Ladybird::create_context_menu_mouse_event(self, position);
-        [NSMenu popUpContextMenu:self.image_context_menu withEvent:event forView:self];
-    };
-
-    m_web_view_bridge->on_media_context_menu_request = [weak_self](auto position, auto const& menu) {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        TemporaryChange change_url { m_context_menu_url, menu.media_url };
-
-        auto* context_menu = menu.is_video ? self.video_context_menu : self.audio_context_menu;
-        auto* play_pause_menu_item = [context_menu itemWithTag:CONTEXT_MENU_PLAY_PAUSE_TAG];
-        auto* mute_unmute_menu_item = [context_menu itemWithTag:CONTEXT_MENU_MUTE_UNMUTE_TAG];
-        auto* controls_menu_item = [context_menu itemWithTag:CONTEXT_MENU_CONTROLS_TAG];
-        auto* loop_menu_item = [context_menu itemWithTag:CONTEXT_MENU_LOOP_TAG];
-
-        if (menu.is_playing) {
-            [play_pause_menu_item setTitle:@"Pause"];
-        } else {
-            [play_pause_menu_item setTitle:@"Play"];
-        }
-
-        if (menu.is_muted) {
-            [mute_unmute_menu_item setTitle:@"Unmute"];
-        } else {
-            [mute_unmute_menu_item setTitle:@"Mute"];
-        }
-
-        auto controls_state = menu.has_user_agent_controls ? NSControlStateValueOn : NSControlStateValueOff;
-        [controls_menu_item setState:controls_state];
-
-        auto loop_state = menu.is_looping ? NSControlStateValueOn : NSControlStateValueOff;
-        [loop_menu_item setState:loop_state];
-
-        auto* event = Ladybird::create_context_menu_mouse_event(self, position);
-        [NSMenu popUpContextMenu:context_menu withEvent:event forView:self];
     };
 
     m_web_view_bridge->on_request_alert = [weak_self](auto const& message) {
@@ -1155,313 +1005,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     m_web_view_bridge->color_picker_update(Ladybird::ns_color_to_gfx_color([NSColorPanel sharedColorPanel].color), Web::HTML::ColorPickerUpdateState::Closed);
 }
 
-- (void)copy:(id)sender
-{
-    copy_data_to_clipboard(m_web_view_bridge->selected_text(), NSPasteboardTypeString);
-}
-
-- (void)paste:(id)sender
-{
-    if (m_web_view_bridge->on_request_clipboard_text)
-        m_web_view_bridge->paste(m_web_view_bridge->on_request_clipboard_text());
-}
-
-- (void)selectAll:(id)sender
-{
-    m_web_view_bridge->select_all();
-}
-
-- (void)searchSelectedText:(id)sender
-{
-    auto const& search_engine = WebView::Application::settings().search_engine();
-    if (!search_engine.has_value())
-        return;
-
-    auto url_string = search_engine->format_search_query_for_navigation(*m_context_menu_search_text);
-    auto url = URL::Parser::basic_parse(url_string);
-    VERIFY(url.has_value());
-    [self.observer onCreateNewTab:url.release_value() activateTab:Web::HTML::ActivateTab::Yes];
-}
-
-- (void)takeVisibleScreenshot:(id)sender
-{
-    [self takeScreenshot:WebView::ViewImplementation::ScreenshotType::Visible];
-}
-
-- (void)takeFullScreenshot:(id)sender
-{
-    [self takeScreenshot:WebView::ViewImplementation::ScreenshotType::Full];
-}
-
-- (void)takeScreenshot:(WebView::ViewImplementation::ScreenshotType)type
-{
-    m_web_view_bridge->take_screenshot(type)
-        ->when_resolved([](auto const& path) {
-            WebView::Application::the().display_download_confirmation_dialog("Screenshot"sv, path);
-        })
-        .when_rejected([](auto const& error) {
-            if (error.is_errno() && error.code() == ECANCELED)
-                return;
-
-            auto error_message = MUST(String::formatted("{}", error));
-            WebView::Application::the().display_error_dialog(error_message);
-        });
-}
-
-- (void)openLink:(id)sender
-{
-    m_web_view_bridge->on_link_click(m_context_menu_url, {}, 0);
-}
-
-- (void)openLinkInNewTab:(id)sender
-{
-    m_web_view_bridge->on_link_middle_click(m_context_menu_url, {}, 0);
-}
-
-- (void)copyLink:(id)sender
-{
-    auto link = WebView::url_text_to_copy(m_context_menu_url);
-    copy_data_to_clipboard(link, NSPasteboardTypeString);
-}
-
-- (void)copyImage:(id)sender
-{
-    if (!m_context_menu_bitmap.has_value()) {
-        return;
-    }
-    auto* bitmap = m_context_menu_bitmap.value().bitmap();
-    if (bitmap == nullptr) {
-        return;
-    }
-
-    auto png = Gfx::PNGWriter::encode(*bitmap);
-    if (png.is_error()) {
-        return;
-    }
-
-    auto* data = [NSData dataWithBytes:png.value().data() length:png.value().size()];
-
-    auto* pasteBoard = [NSPasteboard generalPasteboard];
-    [pasteBoard clearContents];
-    [pasteBoard setData:data forType:NSPasteboardTypePNG];
-}
-
-- (void)toggleMediaPlayState:(id)sender
-{
-    m_web_view_bridge->toggle_media_play_state();
-}
-
-- (void)toggleMediaMuteState:(id)sender
-{
-    m_web_view_bridge->toggle_media_mute_state();
-}
-
-- (void)toggleMediaControlsState:(id)sender
-{
-    m_web_view_bridge->toggle_media_controls_state();
-}
-
-- (void)toggleMediaLoopState:(id)sender
-{
-    m_web_view_bridge->toggle_media_loop_state();
-}
-
 #pragma mark - Properties
-
-- (NSMenu*)page_context_menu
-{
-    if (!_page_context_menu) {
-        _page_context_menu = [[NSMenu alloc] initWithTitle:@"Page Context Menu"];
-
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Go Back"
-                                                               action:@selector(navigateBack:)
-                                                        keyEquivalent:@""]];
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Go Forward"
-                                                               action:@selector(navigateForward:)
-                                                        keyEquivalent:@""]];
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Reload"
-                                                               action:@selector(reload:)
-                                                        keyEquivalent:@""]];
-        [_page_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy"
-                                                               action:@selector(copy:)
-                                                        keyEquivalent:@""]];
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Paste"
-                                                               action:@selector(paste:)
-                                                        keyEquivalent:@""]];
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Select All"
-                                                               action:@selector(selectAll:)
-                                                        keyEquivalent:@""]];
-        [_page_context_menu addItem:[NSMenuItem separatorItem]];
-
-        auto* search_selected_text_menu_item = [[NSMenuItem alloc] initWithTitle:@"Search for <query>"
-                                                                          action:@selector(searchSelectedText:)
-                                                                   keyEquivalent:@""];
-        [search_selected_text_menu_item setTag:CONTEXT_MENU_SEARCH_SELECTED_TEXT_TAG];
-        [_page_context_menu addItem:search_selected_text_menu_item];
-        [_page_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Take Visible Screenshot"
-                                                               action:@selector(takeVisibleScreenshot:)
-                                                        keyEquivalent:@""]];
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Take Full Screenshot"
-                                                               action:@selector(takeFullScreenshot:)
-                                                        keyEquivalent:@""]];
-        [_page_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"View Source"
-                                                               action:@selector(viewSource:)
-                                                        keyEquivalent:@""]];
-    }
-
-    return _page_context_menu;
-}
-
-- (NSMenu*)link_context_menu
-{
-    if (!_link_context_menu) {
-        _link_context_menu = [[NSMenu alloc] initWithTitle:@"Link Context Menu"];
-
-        [_link_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Open"
-                                                               action:@selector(openLink:)
-                                                        keyEquivalent:@""]];
-        [_link_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Open in New Tab"
-                                                               action:@selector(openLinkInNewTab:)
-                                                        keyEquivalent:@""]];
-        [_link_context_menu addItem:[NSMenuItem separatorItem]];
-
-        auto* copy_link_menu_item = [[NSMenuItem alloc] initWithTitle:@"Copy URL"
-                                                               action:@selector(copyLink:)
-                                                        keyEquivalent:@""];
-        [copy_link_menu_item setTag:CONTEXT_MENU_COPY_LINK_TAG];
-        [_link_context_menu addItem:copy_link_menu_item];
-    }
-
-    return _link_context_menu;
-}
-
-- (NSMenu*)image_context_menu
-{
-    if (!_image_context_menu) {
-        _image_context_menu = [[NSMenu alloc] initWithTitle:@"Image Context Menu"];
-        [_image_context_menu setAutoenablesItems:NO];
-
-        [_image_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Image"
-                                                                action:@selector(openLink:)
-                                                         keyEquivalent:@""]];
-        [_image_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Image in New Tab"
-                                                                action:@selector(openLinkInNewTab:)
-                                                         keyEquivalent:@""]];
-        [_image_context_menu addItem:[NSMenuItem separatorItem]];
-
-        auto* copy_image_menu_item = [[NSMenuItem alloc] initWithTitle:@"Copy Image"
-                                                                action:@selector(copyImage:)
-                                                         keyEquivalent:@""];
-        [copy_image_menu_item setTag:CONTEXT_MENU_COPY_IMAGE_TAG];
-        [_image_context_menu addItem:copy_image_menu_item];
-
-        [_image_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy Image URL"
-                                                                action:@selector(copyLink:)
-                                                         keyEquivalent:@""]];
-    }
-
-    return _image_context_menu;
-}
-
-- (NSMenu*)audio_context_menu
-{
-    if (!_audio_context_menu) {
-        _audio_context_menu = [[NSMenu alloc] initWithTitle:@"Audio Context Menu"];
-
-        auto* play_pause_menu_item = [[NSMenuItem alloc] initWithTitle:@"Play"
-                                                                action:@selector(toggleMediaPlayState:)
-                                                         keyEquivalent:@""];
-        [play_pause_menu_item setTag:CONTEXT_MENU_PLAY_PAUSE_TAG];
-
-        auto* mute_unmute_menu_item = [[NSMenuItem alloc] initWithTitle:@"Mute"
-                                                                 action:@selector(toggleMediaMuteState:)
-                                                          keyEquivalent:@""];
-        [mute_unmute_menu_item setTag:CONTEXT_MENU_MUTE_UNMUTE_TAG];
-
-        auto* controls_menu_item = [[NSMenuItem alloc] initWithTitle:@"Controls"
-                                                              action:@selector(toggleMediaControlsState:)
-                                                       keyEquivalent:@""];
-        [controls_menu_item setTag:CONTEXT_MENU_CONTROLS_TAG];
-
-        auto* loop_menu_item = [[NSMenuItem alloc] initWithTitle:@"Loop"
-                                                          action:@selector(toggleMediaLoopState:)
-                                                   keyEquivalent:@""];
-        [loop_menu_item setTag:CONTEXT_MENU_LOOP_TAG];
-
-        [_audio_context_menu addItem:play_pause_menu_item];
-        [_audio_context_menu addItem:mute_unmute_menu_item];
-        [_audio_context_menu addItem:controls_menu_item];
-        [_audio_context_menu addItem:loop_menu_item];
-        [_audio_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_audio_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Audio"
-                                                                action:@selector(openLink:)
-                                                         keyEquivalent:@""]];
-        [_audio_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Audio in New Tab"
-                                                                action:@selector(openLinkInNewTab:)
-                                                         keyEquivalent:@""]];
-        [_audio_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_audio_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy Audio URL"
-                                                                action:@selector(copyLink:)
-                                                         keyEquivalent:@""]];
-    }
-
-    return _audio_context_menu;
-}
-
-- (NSMenu*)video_context_menu
-{
-    if (!_video_context_menu) {
-        _video_context_menu = [[NSMenu alloc] initWithTitle:@"Video Context Menu"];
-
-        auto* play_pause_menu_item = [[NSMenuItem alloc] initWithTitle:@"Play"
-                                                                action:@selector(toggleMediaPlayState:)
-                                                         keyEquivalent:@""];
-        [play_pause_menu_item setTag:CONTEXT_MENU_PLAY_PAUSE_TAG];
-
-        auto* mute_unmute_menu_item = [[NSMenuItem alloc] initWithTitle:@"Mute"
-                                                                 action:@selector(toggleMediaMuteState:)
-                                                          keyEquivalent:@""];
-        [mute_unmute_menu_item setTag:CONTEXT_MENU_MUTE_UNMUTE_TAG];
-
-        auto* controls_menu_item = [[NSMenuItem alloc] initWithTitle:@"Controls"
-                                                              action:@selector(toggleMediaControlsState:)
-                                                       keyEquivalent:@""];
-        [controls_menu_item setTag:CONTEXT_MENU_CONTROLS_TAG];
-
-        auto* loop_menu_item = [[NSMenuItem alloc] initWithTitle:@"Loop"
-                                                          action:@selector(toggleMediaLoopState:)
-                                                   keyEquivalent:@""];
-        [loop_menu_item setTag:CONTEXT_MENU_LOOP_TAG];
-
-        [_video_context_menu addItem:play_pause_menu_item];
-        [_video_context_menu addItem:mute_unmute_menu_item];
-        [_video_context_menu addItem:controls_menu_item];
-        [_video_context_menu addItem:loop_menu_item];
-        [_video_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_video_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Video"
-                                                                action:@selector(openLink:)
-                                                         keyEquivalent:@""]];
-        [_video_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Video in New Tab"
-                                                                action:@selector(openLinkInNewTab:)
-                                                         keyEquivalent:@""]];
-        [_video_context_menu addItem:[NSMenuItem separatorItem]];
-
-        [_video_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy Video URL"
-                                                                action:@selector(copyLink:)
-                                                         keyEquivalent:@""]];
-    }
-
-    return _video_context_menu;
-}
 
 - (NSTextField*)status_label
 {

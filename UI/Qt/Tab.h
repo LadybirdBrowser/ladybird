@@ -14,7 +14,6 @@
 
 #include <QBoxLayout>
 #include <QLabel>
-#include <QLineEdit>
 #include <QMenu>
 #include <QPointer>
 #include <QToolBar>
@@ -56,10 +55,6 @@ public:
     void navigate(URL::URL const&);
     void load_html(StringView);
 
-    void back();
-    void forward();
-    void reload();
-
     void debug_request(ByteString const& request, ByteString const& argument = "");
 
     void open_file();
@@ -73,8 +68,6 @@ public:
     QString const& title() const { return m_title; }
 
     QMenu* context_menu() const { return m_context_menu; }
-
-    void update_navigation_buttons_state();
 
     QToolButton* hamburger_button() const { return m_hamburger_button; }
 
@@ -98,17 +91,13 @@ signals:
     void title_changed(int id, QString const&);
     void favicon_changed(int id, QIcon const&);
     void audio_play_state_changed(int id, Web::HTML::AudioPlayState);
-    void navigation_buttons_state_changed(int id);
 
 private:
     virtual void resizeEvent(QResizeEvent*) override;
     virtual bool event(QEvent*) override;
 
     void recreate_toolbar_icons();
-
-    void open_link(URL::URL const&);
-    void open_link_in_new_tab(URL::URL const&);
-    void copy_link_url(URL::URL const&);
+    int tab_index();
 
     QBoxLayout* m_layout { nullptr };
     QToolBar* m_toolbar { nullptr };
@@ -125,39 +114,17 @@ private:
     QIcon m_favicon;
 
     QMenu* m_context_menu { nullptr };
-
     QMenu* m_page_context_menu { nullptr };
-    Optional<String> m_page_context_menu_search_text;
-
     QMenu* m_link_context_menu { nullptr };
-    QAction* m_link_context_menu_copy_url_action { nullptr };
-    URL::URL m_link_context_menu_url;
-
     QMenu* m_image_context_menu { nullptr };
-    QAction* m_image_context_menu_copy_image_action { nullptr };
-    Optional<Gfx::ShareableBitmap> m_image_context_menu_bitmap;
-    URL::URL m_image_context_menu_url;
-
-    QMenu* m_audio_context_menu { nullptr };
-    QMenu* m_video_context_menu { nullptr };
-    QIcon m_media_context_menu_play_icon;
-    QIcon m_media_context_menu_pause_icon;
-    QIcon m_media_context_menu_mute_icon;
-    QIcon m_media_context_menu_unmute_icon;
-    QAction* m_media_context_menu_play_pause_action { nullptr };
-    QAction* m_media_context_menu_mute_unmute_action { nullptr };
-    QAction* m_media_context_menu_controls_action { nullptr };
-    QAction* m_media_context_menu_loop_action { nullptr };
-    URL::URL m_media_context_menu_url;
-
+    QMenu* m_media_context_menu { nullptr };
     QMenu* m_select_dropdown { nullptr };
 
-    int tab_index();
+    QAction* m_navigate_back_action { nullptr };
+    QAction* m_navigate_forward_action { nullptr };
+    QAction* m_reload_action { nullptr };
 
     QPointer<QDialog> m_dialog;
-
-    bool m_can_navigate_back { false };
-    bool m_can_navigate_forward { false };
 };
 
 }

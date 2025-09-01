@@ -7,15 +7,12 @@
 
 #pragma once
 
-#include <LibCore/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
-#include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/Tab.h>
 
 #include <QIcon>
-#include <QLineEdit>
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QTabBar>
@@ -42,64 +39,15 @@ public:
 
     int tab_count() { return m_tabs_container->count(); }
     int tab_index(Tab*);
+
     Tab& create_new_tab(Web::HTML::ActivateTab activate_tab);
-
-    QMenu& hamburger_menu()
-    {
-        return *m_hamburger_menu;
-    }
-
-    QAction& go_back_action()
-    {
-        return *m_go_back_action;
-    }
-
-    QAction& go_forward_action()
-    {
-        return *m_go_forward_action;
-    }
-
-    QAction& reload_action()
-    {
-        return *m_reload_action;
-    }
-
-    QAction& new_tab_action()
-    {
-        return *m_new_tab_action;
-    }
-
-    QAction& new_window_action()
-    {
-        return *m_new_window_action;
-    }
-
-    QAction& copy_selection_action()
-    {
-        return *m_copy_selection_action;
-    }
-
-    QAction& select_all_action()
-    {
-        return *m_select_all_action;
-    }
-
-    QAction& find_action()
-    {
-        return *m_find_in_page_action;
-    }
-
-    QAction& paste_action()
-    {
-        return *m_paste_action;
-    }
-
-    QAction& view_source_action()
-    {
-        return *m_view_source_action;
-    }
-
     Tab* current_tab() const { return m_current_tab; }
+
+    QMenu& hamburger_menu() const { return *m_hamburger_menu; }
+
+    QAction& new_tab_action() const { return *m_new_tab_action; }
+    QAction& new_window_action() const { return *m_new_window_action; }
+    QAction& find_action() const { return *m_find_in_page_action; }
 
     double refresh_rate() const { return m_refresh_rate; }
 
@@ -109,7 +57,6 @@ public slots:
     void tab_title_changed(int index, QString const&);
     void tab_favicon_changed(int index, QIcon const& icon);
     void tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState);
-    void tab_navigation_buttons_state_changed(int index);
     Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab);
     Tab& new_tab_from_content(StringView html, Web::HTML::ActivateTab);
     Tab& new_child_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
@@ -132,10 +79,7 @@ public slots:
     void reset_zoom();
     void update_zoom_menu();
     void update_displayed_zoom_level();
-    void select_all();
     void show_find_in_page();
-    void paste();
-    void copy_selected_text();
 
 protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
@@ -194,16 +138,9 @@ private:
 
     QMenu* m_hamburger_menu { nullptr };
 
-    QAction* m_go_back_action { nullptr };
-    QAction* m_go_forward_action { nullptr };
-    QAction* m_reload_action { nullptr };
     QAction* m_new_tab_action { nullptr };
     QAction* m_new_window_action { nullptr };
-    QAction* m_copy_selection_action { nullptr };
-    QAction* m_paste_action { nullptr };
-    QAction* m_select_all_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
-    QAction* m_view_source_action { nullptr };
     QAction* m_enable_devtools_action { nullptr };
     QAction* m_show_line_box_borders_action { nullptr };
     QAction* m_enable_scripting_action { nullptr };

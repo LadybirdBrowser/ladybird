@@ -73,8 +73,86 @@ private:
     QPointer<QAction> m_action;
 };
 
-static void initialize_native_control(WebView::Action& action, QAction& qaction)
+static void initialize_native_control(WebView::Action& action, QAction& qaction, QPalette const& palette)
 {
+    switch (action.id()) {
+    case WebView::ActionID::NavigateBack:
+        qaction.setIcon(create_tvg_icon_with_theme_colors("back", palette));
+        qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Back));
+        break;
+    case WebView::ActionID::NavigateForward:
+        qaction.setIcon(create_tvg_icon_with_theme_colors("forward", palette));
+        qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Forward));
+        break;
+    case WebView::ActionID::Reload:
+        qaction.setIcon(create_tvg_icon_with_theme_colors("reload", palette));
+        qaction.setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_R), QKeySequence(Qt::Key_F5) });
+        break;
+
+    case WebView::ActionID::CopySelection:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+        qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Copy));
+        break;
+    case WebView::ActionID::Paste:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/paste.png"sv));
+        qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Paste));
+        break;
+    case WebView::ActionID::SelectAll:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/select-all.png"sv));
+        qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::SelectAll));
+        break;
+
+    case WebView::ActionID::SearchSelectedText:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/find.png"sv));
+        break;
+
+    case WebView::ActionID::ViewSource:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/filetype-html.png"sv));
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_U));
+        break;
+
+    case WebView::ActionID::TakeVisibleScreenshot:
+    case WebView::ActionID::TakeFullScreenshot:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
+        break;
+
+    case WebView::ActionID::OpenInNewTab:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
+        break;
+    case WebView::ActionID::CopyURL:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+        break;
+
+    case WebView::ActionID::OpenImage:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
+        break;
+    case WebView::ActionID::CopyImage:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+        break;
+
+    case WebView::ActionID::OpenAudio:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/filetype-sound.png"sv));
+        break;
+    case WebView::ActionID::OpenVideo:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/filetype-video.png"sv));
+        break;
+    case WebView::ActionID::PlayMedia:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/play.png"sv));
+        break;
+    case WebView::ActionID::PauseMedia:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/pause.png"sv));
+        break;
+    case WebView::ActionID::MuteMedia:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/audio-volume-muted.png"sv));
+        break;
+    case WebView::ActionID::UnmuteMedia:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/audio-volume-high.png"sv));
+        break;
+
+    default:
+        break;
+    }
+
     if (action.is_checkable())
         qaction.setCheckable(true);
 
@@ -123,7 +201,7 @@ QMenu* create_context_menu(QWidget& parent, WebContentView& view, WebView::Menu&
 QAction* create_application_action(QWidget& parent, WebView::Action& action)
 {
     auto* qaction = new QAction(&parent);
-    initialize_native_control(action, *qaction);
+    initialize_native_control(action, *qaction, parent.palette());
     return qaction;
 }
 
