@@ -241,8 +241,8 @@ public:
     static LengthPercentage cx() { return CSS::Length::make_px(0); }
     static LengthPercentage cy() { return CSS::Length::make_px(0); }
     static LengthPercentage r() { return CSS::Length::make_px(0); }
-    static LengthPercentage rx() { return CSS::Length::make_auto(); }
-    static LengthPercentage ry() { return CSS::Length::make_auto(); }
+    static LengthPercentageOrAuto rx() { return CSS::LengthPercentageOrAuto::make_auto(); }
+    static LengthPercentageOrAuto ry() { return CSS::LengthPercentageOrAuto::make_auto(); }
     static LengthPercentage x() { return CSS::Length::make_px(0); }
     static LengthPercentage y() { return CSS::Length::make_px(0); }
 
@@ -603,8 +603,8 @@ public:
     LengthPercentage const& cx() const { return m_noninherited.cx; }
     LengthPercentage const& cy() const { return m_noninherited.cy; }
     LengthPercentage const& r() const { return m_noninherited.r; }
-    LengthPercentage const& rx() const { return m_noninherited.ry; }
-    LengthPercentage const& ry() const { return m_noninherited.ry; }
+    LengthPercentageOrAuto const& rx() const { return m_noninherited.ry; }
+    LengthPercentageOrAuto const& ry() const { return m_noninherited.ry; }
     LengthPercentage const& x() const { return m_noninherited.x; }
     LengthPercentage const& y() const { return m_noninherited.y; }
 
@@ -836,8 +836,8 @@ protected:
         LengthPercentage cx { InitialValues::cx() };
         LengthPercentage cy { InitialValues::cy() };
         LengthPercentage r { InitialValues::r() };
-        LengthPercentage rx { InitialValues::rx() };
-        LengthPercentage ry { InitialValues::ry() };
+        LengthPercentageOrAuto rx { InitialValues::rx() };
+        LengthPercentageOrAuto ry { InitialValues::ry() };
         LengthPercentage x { InitialValues::x() };
         LengthPercentage y { InitialValues::x() };
 
