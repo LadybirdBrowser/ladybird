@@ -9,8 +9,8 @@
 
 #include <LibWeb/Bindings/GamepadPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
-#include <SDL3/SDL_gamepad.h>
 
 namespace Web::Gamepad {
 

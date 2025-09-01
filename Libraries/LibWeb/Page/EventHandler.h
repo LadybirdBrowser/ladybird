@@ -15,12 +15,11 @@
 #include <LibUnicode/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
-
-#include <SDL3/SDL_joystick.h>
 
 namespace Web {
 

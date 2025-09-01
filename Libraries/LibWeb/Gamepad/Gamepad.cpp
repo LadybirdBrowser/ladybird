@@ -16,6 +16,8 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
+#include <SDL3/SDL_gamepad.h>
+
 namespace Web::Gamepad {
 
 GC_DEFINE_ALLOCATOR(Gamepad);
