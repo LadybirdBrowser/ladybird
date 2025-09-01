@@ -194,7 +194,7 @@ public:
     static CSS::TextAnchor text_anchor() { return CSS::TextAnchor::Start; }
     static CSS::Length border_radius() { return Length::make_px(0); }
     static Variant<CSS::VerticalAlign, CSS::LengthPercentage> vertical_align() { return CSS::VerticalAlign::Baseline; }
-    static CSS::LengthBox inset() { return { CSS::Length::make_auto(), CSS::Length::make_auto(), CSS::Length::make_auto(), CSS::Length::make_auto() }; }
+    static CSS::LengthBox inset() { return {}; }
     static CSS::LengthBox margin() { return { CSS::Length::make_px(0), CSS::Length::make_px(0), CSS::Length::make_px(0), CSS::Length::make_px(0) }; }
     static CSS::LengthBox padding() { return { CSS::Length::make_px(0), CSS::Length::make_px(0), CSS::Length::make_px(0), CSS::Length::make_px(0) }; }
     static CSS::Size width() { return CSS::Size::make_auto(); }
