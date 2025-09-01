@@ -462,7 +462,11 @@ void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphic
 void SVGFormattingContext::layout_image_element(SVGImageBox const& image_box)
 {
     auto& box_state = m_state.get_mutable(image_box);
-    auto bounding_box = image_box.dom_node().bounding_box();
+    // FIXME: Support transforms on SVG image elements.
+    auto to_css_pixels_transform = Gfx::AffineTransform {}
+                                       .multiply(m_current_viewbox_transform);
+    auto bounding_box = to_css_pixels_transform.map(image_box.dom_node().bounding_box()).to_type<CSSPixels>();
+
     box_state.set_content_x(bounding_box.x());
     box_state.set_content_y(bounding_box.y());
     box_state.set_content_width(bounding_box.width());

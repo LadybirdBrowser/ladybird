@@ -124,33 +124,33 @@ GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::height()
     return *m_height;
 }
 
-Gfx::Rect<CSSPixels> SVGImageElement::bounding_box() const
+Gfx::FloatRect SVGImageElement::bounding_box() const
 {
-    Optional<CSSPixels> width;
+    Optional<float> width;
     if (attribute(HTML::AttributeNames::width).has_value())
-        width = CSSPixels { m_width->base_val()->value() };
+        width = m_width->base_val()->value();
 
-    Optional<CSSPixels> height;
+    Optional<float> height;
     if (attribute(HTML::AttributeNames::height).has_value())
-        height = CSSPixels { m_height->base_val()->value() };
+        height = m_height->base_val()->value();
 
     if (!height.has_value() && width.has_value() && intrinsic_aspect_ratio().has_value())
-        height = width.value() / intrinsic_aspect_ratio().value();
+        height = width.value() / intrinsic_aspect_ratio().value().to_float();
 
     if (!width.has_value() && height.has_value() && intrinsic_aspect_ratio().has_value())
-        width = height.value() * intrinsic_aspect_ratio().value();
+        width = height.value() * intrinsic_aspect_ratio().value().to_float();
 
     if (!width.has_value() && intrinsic_width().has_value())
-        width = intrinsic_width();
+        width = intrinsic_width()->to_float();
 
     if (!height.has_value() && intrinsic_height().has_value())
-        height = intrinsic_height();
+        height = intrinsic_height()->to_float();
 
     return {
-        CSSPixels { m_x ? m_x->base_val()->value() : 0 },
-        CSSPixels { m_y ? m_y->base_val()->value() : 0 },
-        width.value_or(0),
-        height.value_or(0),
+        m_x ? m_x->base_val()->value() : 0.0f,
+        m_y ? m_y->base_val()->value() : 0.0f,
+        width.value_or(0.0f),
+        height.value_or(0.0f),
     };
 }
 
