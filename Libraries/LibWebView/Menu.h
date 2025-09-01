@@ -23,6 +23,35 @@
 namespace WebView {
 
 enum class ActionID {
+    NavigateBack,
+    NavigateForward,
+    Reload,
+
+    CopySelection,
+    Paste,
+    SelectAll,
+
+    SearchSelectedText,
+
+    TakeVisibleScreenshot,
+    TakeFullScreenshot,
+
+    ViewSource,
+
+    OpenInNewTab,
+    CopyURL,
+
+    OpenImage,
+    CopyImage,
+
+    OpenAudio,
+    OpenVideo,
+    PlayMedia,
+    PauseMedia,
+    MuteMedia,
+    UnmuteMedia,
+    ToggleMediaControlsState,
+    ToggleMediaLoopState,
 };
 
 class WEBVIEW_API Action

@@ -88,7 +88,6 @@ public:
     void find_in_page(String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
     void find_in_page_next_match();
     void find_in_page_previous_match();
-    void paste(String const&);
 
     void get_source();
 
@@ -132,12 +131,9 @@ public:
     void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
+    void insert_text_into_clipboard(ByteString) const;
+    void paste_text_from_clipboard();
     void retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem>);
-
-    void toggle_media_play_state();
-    void toggle_media_mute_state();
-    void toggle_media_loop_state();
-    void toggle_media_controls_state();
 
     Web::HTML::MuteState page_mute_state() const { return m_mute_state; }
     void toggle_page_mute_state();
@@ -174,10 +170,6 @@ public:
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64>)> on_new_web_view;
     Function<void()> on_activate_tab;
     Function<void()> on_close;
-    Function<void(Gfx::IntPoint screen_position)> on_context_menu_request;
-    Function<void(URL::URL const&, Gfx::IntPoint screen_position)> on_link_context_menu_request;
-    Function<void(URL::URL const&, Gfx::IntPoint screen_position, Optional<Gfx::ShareableBitmap> const&)> on_image_context_menu_request;
-    Function<void(Gfx::IntPoint screen_position, Web::Page::MediaContextMenu const&)> on_media_context_menu_request;
     Function<void(URL::URL const&)> on_link_hover;
     Function<void()> on_link_unhover;
     Function<void(URL::URL const&, ByteString const& target, unsigned modifiers)> on_link_click;
@@ -234,8 +226,20 @@ public:
     Function<String()> on_request_clipboard_text;
     Function<void(u64 request_id)> on_request_clipboard_entries;
     Function<void(Web::HTML::AudioPlayState)> on_audio_play_state_changed;
-    Function<void(bool, bool)> on_navigation_buttons_state_changed;
     Function<void()> on_web_content_crashed;
+
+    Menu& page_context_menu() { return *m_page_context_menu; }
+    Menu& link_context_menu() { return *m_link_context_menu; }
+    Menu& image_context_menu() { return *m_image_context_menu; }
+    Menu& media_context_menu() { return *m_media_context_menu; }
+
+    void did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position);
+    void did_request_link_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url);
+    void did_request_image_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap);
+    void did_request_media_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu);
+
+    Action& navigate_back_action() { return *m_navigate_back_action; }
+    Action& navigate_forward_action() { return *m_navigate_forward_action; }
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;
@@ -272,6 +276,8 @@ protected:
     virtual void autoplay_settings_changed() override;
     virtual void do_not_track_changed() override;
 
+    void initialize_context_menus();
+
     struct SharedBitmap {
         i32 id { -1 };
         Web::DevicePixelSize last_painted_size;
@@ -293,6 +299,37 @@ protected:
     float m_zoom_level { 1.0 };
     float m_device_pixel_ratio { 1.0 };
     double m_maximum_frames_per_second { 60.0 };
+
+    RefPtr<Menu> m_page_context_menu;
+    RefPtr<Menu> m_link_context_menu;
+    RefPtr<Menu> m_image_context_menu;
+    RefPtr<Menu> m_media_context_menu;
+
+    RefPtr<Action> m_navigate_back_action;
+    RefPtr<Action> m_navigate_forward_action;
+
+    RefPtr<Action> m_search_selected_text_action;
+    Optional<String> m_search_text;
+
+    RefPtr<Action> m_take_visible_screenshot_action;
+    RefPtr<Action> m_take_full_screenshot_action;
+
+    RefPtr<Action> m_open_in_new_tab_action;
+    RefPtr<Action> m_copy_url_action;
+    URL::URL m_context_menu_url;
+
+    RefPtr<Action> m_open_image_action;
+    RefPtr<Action> m_copy_image_action;
+    Optional<Gfx::ShareableBitmap> m_image_context_menu_bitmap;
+
+    RefPtr<Action> m_open_audio_action;
+    RefPtr<Action> m_open_video_action;
+    RefPtr<Action> m_media_play_action;
+    RefPtr<Action> m_media_pause_action;
+    RefPtr<Action> m_media_mute_action;
+    RefPtr<Action> m_media_unmute_action;
+    RefPtr<Action> m_media_controls_action;
+    RefPtr<Action> m_media_loop_action;
 
     Queue<Web::InputEvent> m_pending_input_events;
 

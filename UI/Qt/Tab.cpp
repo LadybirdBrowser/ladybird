@@ -6,24 +6,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/TemporaryChange.h>
-#include <LibGfx/ImageFormats/BMPWriter.h>
-#include <LibURL/Parser.h>
+#include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
-#include <LibWebView/URL.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/Menu.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
 #include <QClipboard>
 #include <QColorDialog>
-#include <QCoreApplication>
-#include <QCursor>
-#include <QDesktopServices>
 #include <QFileDialog>
 #include <QFont>
 #include <QFontMetrics>
@@ -35,9 +29,6 @@
 #include <QMimeData>
 #include <QMimeDatabase>
 #include <QMimeType>
-#include <QPainter>
-#include <QPoint>
-#include <QPushButton>
 #include <QResizeEvent>
 
 namespace Ladybird {
@@ -91,13 +82,22 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_hamburger_button->setMenu(&m_window->hamburger_menu());
     m_hamburger_button->setStyleSheet(":menu-indicator {image: none}");
 
+    m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
+    m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
+    m_reload_action = create_application_action(*this, WebView::Application::the().reload_action());
+
     recreate_toolbar_icons();
 
     m_favicon = default_favicon();
 
-    m_toolbar->addAction(&m_window->go_back_action());
-    m_toolbar->addAction(&m_window->go_forward_action());
-    m_toolbar->addAction(&m_window->reload_action());
+    m_page_context_menu = create_context_menu(*this, view(), view().page_context_menu());
+    m_link_context_menu = create_context_menu(*this, view(), view().link_context_menu());
+    m_image_context_menu = create_context_menu(*this, view(), view().image_context_menu());
+    m_media_context_menu = create_context_menu(*this, view(), view().media_context_menu());
+
+    m_toolbar->addAction(m_navigate_back_action);
+    m_toolbar->addAction(m_navigate_forward_action);
+    m_toolbar->addAction(m_reload_action);
     m_toolbar->addWidget(m_location_edit);
     m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
     m_hamburger_button_action = m_toolbar->addWidget(m_hamburger_button);
@@ -414,17 +414,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         emit audio_play_state_changed(tab_index(), play_state);
     };
 
-    view().on_navigation_buttons_state_changed = [this](auto back_enabled, auto forward_enabled) {
-        m_can_navigate_back = back_enabled;
-        m_can_navigate_forward = forward_enabled;
-        emit navigation_buttons_state_changed(tab_index());
-    };
-
-    auto* reload_tab_action = new QAction("&Reload Tab", this);
-    QObject::connect(reload_tab_action, &QAction::triggered, this, [this]() {
-        reload();
-    });
-
     auto* duplicate_tab_action = new QAction("&Duplicate Tab", this);
     QObject::connect(duplicate_tab_action, &QAction::triggered, this, [this]() {
         m_window->new_tab_from_url(view().url(), Web::HTML::ActivateTab::Yes);
@@ -470,7 +459,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     });
 
     m_context_menu = new QMenu("Context menu", this);
-    m_context_menu->addAction(reload_tab_action);
+    m_context_menu->addAction(create_application_action(*this, WebView::Application::the().reload_action()));
     m_context_menu->addAction(duplicate_tab_action);
     m_context_menu->addSeparator();
     auto* move_tab_menu = m_context_menu->addMenu("Mo&ve Tab");
@@ -482,288 +471,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     close_multiple_tabs_menu->addAction(close_tabs_to_left_action);
     close_multiple_tabs_menu->addAction(close_tabs_to_right_action);
     close_multiple_tabs_menu->addAction(close_other_tabs_action);
-
-    auto* search_selected_text_action = new QAction("&Search for <query>", this);
-    search_selected_text_action->setIcon(load_icon_from_uri("resource://icons/16x16/find.png"sv));
-    QObject::connect(search_selected_text_action, &QAction::triggered, this, [this]() {
-        auto const& search_engine = WebView::Application::settings().search_engine();
-        if (!search_engine.has_value())
-            return;
-
-        auto url_string = search_engine->format_search_query_for_navigation(*m_page_context_menu_search_text);
-        auto url = URL::Parser::basic_parse(url_string);
-        VERIFY(url.has_value());
-
-        m_window->new_tab_from_url(url.release_value(), Web::HTML::ActivateTab::Yes);
-    });
-
-    auto take_screenshot = [this](auto type) {
-        auto& view = this->view();
-
-        view.take_screenshot(type)
-            ->when_resolved([](auto const& path) {
-                WebView::Application::the().display_download_confirmation_dialog("Screenshot"sv, path);
-            })
-            .when_rejected([](auto const& error) {
-                if (error.is_errno() && error.code() == ECANCELED)
-                    return;
-
-                auto error_message = MUST(String::formatted("{}", error));
-                WebView::Application::the().display_error_dialog(error_message);
-            });
-    };
-
-    auto* take_visible_screenshot_action = new QAction("Take &Visible Screenshot", this);
-    take_visible_screenshot_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
-    QObject::connect(take_visible_screenshot_action, &QAction::triggered, this, [take_screenshot]() {
-        take_screenshot(WebView::ViewImplementation::ScreenshotType::Visible);
-    });
-
-    auto* take_full_screenshot_action = new QAction("Take &Full Screenshot", this);
-    take_full_screenshot_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
-    QObject::connect(take_full_screenshot_action, &QAction::triggered, this, [take_screenshot]() {
-        take_screenshot(WebView::ViewImplementation::ScreenshotType::Full);
-    });
-
-    m_page_context_menu = new QMenu("Context menu", this);
-    m_page_context_menu->addAction(&m_window->go_back_action());
-    m_page_context_menu->addAction(&m_window->go_forward_action());
-    m_page_context_menu->addAction(&m_window->reload_action());
-    m_page_context_menu->addSeparator();
-    m_page_context_menu->addAction(&m_window->copy_selection_action());
-    m_page_context_menu->addAction(&m_window->paste_action());
-    m_page_context_menu->addAction(&m_window->select_all_action());
-    m_page_context_menu->addSeparator();
-    m_page_context_menu->addAction(search_selected_text_action);
-    m_page_context_menu->addSeparator();
-    m_page_context_menu->addAction(take_visible_screenshot_action);
-    m_page_context_menu->addAction(take_full_screenshot_action);
-    m_page_context_menu->addSeparator();
-    m_page_context_menu->addAction(&m_window->view_source_action());
-
-    view().on_context_menu_request = [this, search_selected_text_action](Gfx::IntPoint content_position) {
-        auto const& search_engine = WebView::Application::settings().search_engine();
-
-        auto selected_text = search_engine.has_value()
-            ? view().selected_text_with_whitespace_collapsed()
-            : OptionalNone {};
-        TemporaryChange change_url { m_page_context_menu_search_text, AK::move(selected_text) };
-
-        if (m_page_context_menu_search_text.has_value()) {
-            auto action_text = search_engine->format_search_query_for_display(*m_page_context_menu_search_text);
-            search_selected_text_action->setText(qstring_from_ak_string(action_text));
-            search_selected_text_action->setVisible(true);
-        } else {
-            search_selected_text_action->setVisible(false);
-        }
-
-        m_page_context_menu->exec(view().map_point_to_global_position(content_position));
-    };
-
-    auto* open_link_in_new_tab_action = new QAction("Open Link in New &Tab", this);
-    open_link_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
-    QObject::connect(open_link_in_new_tab_action, &QAction::triggered, this, [this]() {
-        open_link_in_new_tab(m_link_context_menu_url);
-    });
-
-    m_link_context_menu_copy_url_action = new QAction("Copy &Link Address", this);
-    m_link_context_menu_copy_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
-    QObject::connect(m_link_context_menu_copy_url_action, &QAction::triggered, this, [this]() {
-        copy_link_url(m_link_context_menu_url);
-    });
-
-    m_link_context_menu = new QMenu("Link context menu", this);
-    m_link_context_menu->addAction(open_link_in_new_tab_action);
-    m_link_context_menu->addAction(m_link_context_menu_copy_url_action);
-
-    view().on_link_context_menu_request = [this](auto const& url, Gfx::IntPoint content_position) {
-        m_link_context_menu_url = url;
-
-        switch (WebView::url_type(url)) {
-        case WebView::URLType::Email:
-            m_link_context_menu_copy_url_action->setText("Copy &Email Address");
-            break;
-        case WebView::URLType::Telephone:
-            m_link_context_menu_copy_url_action->setText("Copy &Phone Number");
-            break;
-        case WebView::URLType::Other:
-            m_link_context_menu_copy_url_action->setText("Copy &Link Address");
-            break;
-        }
-
-        m_link_context_menu->exec(view().map_point_to_global_position(content_position));
-    };
-
-    auto* open_image_action = new QAction("&Open Image", this);
-    open_image_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
-    QObject::connect(open_image_action, &QAction::triggered, this, [this]() {
-        open_link(m_image_context_menu_url);
-    });
-
-    auto* open_image_in_new_tab_action = new QAction("&Open Image in New &Tab", this);
-    open_image_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
-    QObject::connect(open_image_in_new_tab_action, &QAction::triggered, this, [this]() {
-        open_link_in_new_tab(m_image_context_menu_url);
-    });
-
-    m_image_context_menu_copy_image_action = new QAction("&Copy Image", this);
-    m_image_context_menu_copy_image_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
-    QObject::connect(m_image_context_menu_copy_image_action, &QAction::triggered, this, [this]() {
-        if (!m_image_context_menu_bitmap.has_value())
-            return;
-
-        auto* bitmap = m_image_context_menu_bitmap.value().bitmap();
-        if (bitmap == nullptr)
-            return;
-
-        auto data = Gfx::BMPWriter::encode(*bitmap);
-        if (data.is_error())
-            return;
-
-        auto image = QImage::fromData(data.value().data(), data.value().size(), "BMP");
-        if (image.isNull())
-            return;
-
-        auto* clipboard = QGuiApplication::clipboard();
-        clipboard->setImage(image);
-    });
-
-    auto* copy_image_url_action = new QAction("Copy Image &URL", this);
-    copy_image_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
-    QObject::connect(copy_image_url_action, &QAction::triggered, this, [this]() {
-        copy_link_url(m_image_context_menu_url);
-    });
-
-    m_image_context_menu = new QMenu("Image context menu", this);
-    m_image_context_menu->addAction(open_image_action);
-    m_image_context_menu->addAction(open_image_in_new_tab_action);
-    m_image_context_menu->addSeparator();
-    m_image_context_menu->addAction(m_image_context_menu_copy_image_action);
-    m_image_context_menu->addAction(copy_image_url_action);
-
-    view().on_image_context_menu_request = [this](auto& image_url, Gfx::IntPoint content_position, Optional<Gfx::ShareableBitmap> const& shareable_bitmap) {
-        m_image_context_menu_url = image_url;
-        m_image_context_menu_bitmap = shareable_bitmap;
-        m_image_context_menu_copy_image_action->setEnabled(shareable_bitmap.has_value());
-
-        m_image_context_menu->exec(view().map_point_to_global_position(content_position));
-    };
-
-    m_media_context_menu_play_icon = load_icon_from_uri("resource://icons/16x16/play.png"sv);
-    m_media_context_menu_pause_icon = load_icon_from_uri("resource://icons/16x16/pause.png"sv);
-    m_media_context_menu_mute_icon = load_icon_from_uri("resource://icons/16x16/audio-volume-muted.png"sv);
-    m_media_context_menu_unmute_icon = load_icon_from_uri("resource://icons/16x16/audio-volume-high.png"sv);
-
-    m_media_context_menu_play_pause_action = new QAction("&Play", this);
-    m_media_context_menu_play_pause_action->setIcon(m_media_context_menu_play_icon);
-    QObject::connect(m_media_context_menu_play_pause_action, &QAction::triggered, this, [this]() {
-        view().toggle_media_play_state();
-    });
-
-    m_media_context_menu_mute_unmute_action = new QAction("&Mute", this);
-    m_media_context_menu_mute_unmute_action->setIcon(m_media_context_menu_mute_icon);
-    QObject::connect(m_media_context_menu_mute_unmute_action, &QAction::triggered, this, [this]() {
-        view().toggle_media_mute_state();
-    });
-
-    m_media_context_menu_controls_action = new QAction("Show &Controls", this);
-    m_media_context_menu_controls_action->setCheckable(true);
-    QObject::connect(m_media_context_menu_controls_action, &QAction::triggered, this, [this]() {
-        view().toggle_media_controls_state();
-    });
-
-    m_media_context_menu_loop_action = new QAction("&Loop", this);
-    m_media_context_menu_loop_action->setCheckable(true);
-    QObject::connect(m_media_context_menu_loop_action, &QAction::triggered, this, [this]() {
-        view().toggle_media_loop_state();
-    });
-
-    auto* open_audio_action = new QAction("&Open Audio", this);
-    open_audio_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-sound.png"sv));
-    QObject::connect(open_audio_action, &QAction::triggered, this, [this]() {
-        open_link(m_media_context_menu_url);
-    });
-
-    auto* open_audio_in_new_tab_action = new QAction("Open Audio in New &Tab", this);
-    open_audio_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
-    QObject::connect(open_audio_in_new_tab_action, &QAction::triggered, this, [this]() {
-        open_link_in_new_tab(m_media_context_menu_url);
-    });
-
-    auto* copy_audio_url_action = new QAction("Copy Audio &URL", this);
-    copy_audio_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
-    QObject::connect(copy_audio_url_action, &QAction::triggered, this, [this]() {
-        copy_link_url(m_media_context_menu_url);
-    });
-
-    m_audio_context_menu = new QMenu("Audio context menu", this);
-    m_audio_context_menu->addAction(m_media_context_menu_play_pause_action);
-    m_audio_context_menu->addAction(m_media_context_menu_mute_unmute_action);
-    m_audio_context_menu->addAction(m_media_context_menu_controls_action);
-    m_audio_context_menu->addAction(m_media_context_menu_loop_action);
-    m_audio_context_menu->addSeparator();
-    m_audio_context_menu->addAction(open_audio_action);
-    m_audio_context_menu->addAction(open_audio_in_new_tab_action);
-    m_audio_context_menu->addSeparator();
-    m_audio_context_menu->addAction(copy_audio_url_action);
-
-    auto* open_video_action = new QAction("&Open Video", this);
-    open_video_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-video.png"sv));
-    QObject::connect(open_video_action, &QAction::triggered, this, [this]() {
-        open_link(m_media_context_menu_url);
-    });
-
-    auto* open_video_in_new_tab_action = new QAction("Open Video in New &Tab", this);
-    open_video_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
-    QObject::connect(open_video_in_new_tab_action, &QAction::triggered, this, [this]() {
-        open_link_in_new_tab(m_media_context_menu_url);
-    });
-
-    auto* copy_video_url_action = new QAction("Copy Video &URL", this);
-    copy_video_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
-    QObject::connect(copy_video_url_action, &QAction::triggered, this, [this]() {
-        copy_link_url(m_media_context_menu_url);
-    });
-
-    m_video_context_menu = new QMenu("Video context menu", this);
-    m_video_context_menu->addAction(m_media_context_menu_play_pause_action);
-    m_video_context_menu->addAction(m_media_context_menu_mute_unmute_action);
-    m_video_context_menu->addAction(m_media_context_menu_controls_action);
-    m_video_context_menu->addAction(m_media_context_menu_loop_action);
-    m_video_context_menu->addSeparator();
-    m_video_context_menu->addAction(open_video_action);
-    m_video_context_menu->addAction(open_video_in_new_tab_action);
-    m_video_context_menu->addSeparator();
-    m_video_context_menu->addAction(copy_video_url_action);
-
-    view().on_media_context_menu_request = [this](Gfx::IntPoint content_position, Web::Page::MediaContextMenu const& menu) {
-        m_media_context_menu_url = menu.media_url;
-
-        if (menu.is_playing) {
-            m_media_context_menu_play_pause_action->setIcon(m_media_context_menu_pause_icon);
-            m_media_context_menu_play_pause_action->setText("&Pause");
-        } else {
-            m_media_context_menu_play_pause_action->setIcon(m_media_context_menu_play_icon);
-            m_media_context_menu_play_pause_action->setText("&Play");
-        }
-
-        if (menu.is_muted) {
-            m_media_context_menu_mute_unmute_action->setIcon(m_media_context_menu_unmute_icon);
-            m_media_context_menu_mute_unmute_action->setText("Un&mute");
-        } else {
-            m_media_context_menu_mute_unmute_action->setIcon(m_media_context_menu_mute_icon);
-            m_media_context_menu_mute_unmute_action->setText("&Mute");
-        }
-
-        m_media_context_menu_controls_action->setChecked(menu.has_user_agent_controls);
-        m_media_context_menu_loop_action->setChecked(menu.is_looping);
-
-        auto screen_position = view().map_point_to_global_position(content_position);
-        if (menu.is_video)
-            m_video_context_menu->exec(screen_position);
-        else
-            m_audio_context_menu->exec(screen_position);
-    };
 }
 
 Tab::~Tab() = default;
@@ -794,37 +501,6 @@ void Tab::navigate(URL::URL const& url)
 void Tab::load_html(StringView html)
 {
     view().load_html(html);
-}
-
-void Tab::back()
-{
-    view().traverse_the_history_by_delta(-1);
-}
-
-void Tab::forward()
-{
-    view().traverse_the_history_by_delta(1);
-}
-
-void Tab::reload()
-{
-    view().reload();
-}
-
-void Tab::open_link(URL::URL const& url)
-{
-    view().on_link_click(url, "", 0);
-}
-
-void Tab::open_link_in_new_tab(URL::URL const& url)
-{
-    view().on_link_click(url, "_blank", Web::UIEvents::Mod_Ctrl);
-}
-
-void Tab::copy_link_url(URL::URL const& url)
-{
-    auto* clipboard = QGuiApplication::clipboard();
-    clipboard->setText(qstring_from_ak_string(WebView::url_text_to_copy(url)));
 }
 
 void Tab::location_edit_return_pressed()
@@ -876,15 +552,6 @@ void Tab::update_hover_label()
     m_hover_label->raise();
 }
 
-void Tab::update_navigation_buttons_state()
-{
-    if (m_window->current_tab() != this)
-        return;
-
-    m_window->go_back_action().setEnabled(m_can_navigate_back);
-    m_window->go_forward_action().setEnabled(m_can_navigate_forward);
-}
-
 bool Tab::event(QEvent* event)
 {
     if (event->type() == QEvent::PaletteChange) {
@@ -897,9 +564,9 @@ bool Tab::event(QEvent* event)
 
 void Tab::recreate_toolbar_icons()
 {
-    m_window->go_back_action().setIcon(create_tvg_icon_with_theme_colors("back", palette()));
-    m_window->go_forward_action().setIcon(create_tvg_icon_with_theme_colors("forward", palette()));
-    m_window->reload_action().setIcon(create_tvg_icon_with_theme_colors("reload", palette()));
+    m_navigate_back_action->setIcon(create_tvg_icon_with_theme_colors("back", palette()));
+    m_navigate_forward_action->setIcon(create_tvg_icon_with_theme_colors("forward", palette()));
+    m_reload_action->setIcon(create_tvg_icon_with_theme_colors("reload", palette()));
     m_window->new_tab_action().setIcon(create_tvg_icon_with_theme_colors("new_tab", palette()));
     m_hamburger_button->setIcon(create_tvg_icon_with_theme_colors("hamburger", palette()));
 }

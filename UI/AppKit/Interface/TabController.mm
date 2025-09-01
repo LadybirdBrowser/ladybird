@@ -7,15 +7,14 @@
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
-#include <LibWebView/SearchEngine.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Autocomplete.h>
-#import <Interface/Event.h>
 #import <Interface/LadybirdWebView.h>
+#import <Interface/Menu.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
 #import <Utilities/Conversions.h>
@@ -58,9 +57,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     TabSettings m_settings;
 
     OwnPtr<WebView::Autocomplete> m_autocomplete;
-
-    bool m_can_navigate_back;
-    bool m_can_navigate_forward;
 }
 
 @property (nonatomic, strong) Tab* parent;
@@ -128,9 +124,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
             [self.autocomplete showWithSuggestions:move(suggestions)];
         };
-
-        m_can_navigate_back = false;
-        m_can_navigate_forward = false;
     }
 
     return self;
@@ -170,14 +163,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self.window makeFirstResponder:[self tab].web_view];
 }
 
-- (void)onBackNavigationEnabled:(BOOL)back_enabled
-       forwardNavigationEnabled:(BOOL)forward_enabled
-{
-    m_can_navigate_back = back_enabled;
-    m_can_navigate_forward = forward_enabled;
-    [self updateNavigationButtonStates];
-}
-
 - (void)onCreateNewTab
 {
     [self setPopupBlocking:m_settings.block_popups];
@@ -202,21 +187,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self updateZoomButton];
 }
 
-- (void)navigateBack:(id)sender
-{
-    [[[self tab] web_view] navigateBack];
-}
-
-- (void)navigateForward:(id)sender
-{
-    [[[self tab] web_view] navigateForward];
-}
-
-- (void)reload:(id)sender
-{
-    [[[self tab] web_view] reload];
-}
-
 - (void)clearHistory
 {
     // FIXME: Reimplement clearing history using WebContent's history.
@@ -225,11 +195,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument
 {
     [[[self tab] web_view] debugRequest:request argument:argument];
-}
-
-- (void)viewSource:(id)sender
-{
-    [[[self tab] web_view] viewSource];
 }
 
 - (void)focusLocationToolbarItem
@@ -306,15 +271,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self.autocomplete close];
 
     return YES;
-}
-
-- (void)updateNavigationButtonStates
-{
-    auto* navigate_back_button = (NSButton*)[[self navigate_back_toolbar_item] view];
-    [navigate_back_button setEnabled:m_can_navigate_back];
-
-    auto* navigate_forward_button = (NSButton*)[[self navigate_forward_toolbar_item] view];
-    [navigate_forward_button setEnabled:m_can_navigate_forward];
 }
 
 - (void)showTabOverview:(id)sender
@@ -474,10 +430,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)navigate_back_toolbar_item
 {
     if (!_navigate_back_toolbar_item) {
-        auto* button = [self create_button:NSImageNameGoBackTemplate
-                               with_action:@selector(navigateBack:)
-                              with_tooltip:@"Navigate back"];
-        [button setEnabled:NO];
+        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].navigate_back_action(), NSImageNameGoBackTemplate);
 
         _navigate_back_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_NAVIGATE_BACK_IDENTIFIER];
         [_navigate_back_toolbar_item setView:button];
@@ -489,10 +442,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)navigate_forward_toolbar_item
 {
     if (!_navigate_forward_toolbar_item) {
-        auto* button = [self create_button:NSImageNameGoForwardTemplate
-                               with_action:@selector(navigateForward:)
-                              with_tooltip:@"Navigate forward"];
-        [button setEnabled:NO];
+        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].navigate_forward_action(), NSImageNameGoForwardTemplate);
 
         _navigate_forward_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER];
         [_navigate_forward_toolbar_item setView:button];
@@ -504,10 +454,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)reload_toolbar_item
 {
     if (!_reload_toolbar_item) {
-        auto* button = [self create_button:NSImageNameRefreshTemplate
-                               with_action:@selector(reload:)
-                              with_tooltip:@"Reload page"];
-        [button setEnabled:YES];
+        auto* button = Ladybird::create_application_button(WebView::Application::the().reload_action(), NSImageNameRefreshTemplate);
 
         _reload_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_RELOAD_IDENTIFIER];
         [_reload_toolbar_item setView:button];

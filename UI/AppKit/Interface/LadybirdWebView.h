@@ -36,9 +36,6 @@
 - (void)onLoadFinish:(URL::URL const&)url;
 
 - (void)onURLChange:(URL::URL const&)url;
-- (void)onBackNavigationEnabled:(BOOL)back_enabled
-       forwardNavigationEnabled:(BOOL)forward_enabled;
-
 - (void)onTitleChange:(Utf16String const&)title;
 - (void)onFaviconChange:(Gfx::Bitmap const&)bitmap;
 - (void)onAudioPlayStateChange:(Web::HTML::AudioPlayState)play_state;
@@ -57,10 +54,6 @@
 
 - (void)loadURL:(URL::URL const&)url;
 - (void)loadHTML:(StringView)html;
-
-- (void)navigateBack;
-- (void)navigateForward;
-- (void)reload;
 
 - (WebView::ViewImplementation&)view;
 - (String const&)handle;
@@ -88,7 +81,5 @@
 - (float)zoomLevel;
 
 - (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument;
-
-- (void)viewSource;
 
 @end

@@ -10,10 +10,10 @@
 #import <Application/ApplicationDelegate.h>
 #import <Interface/InfoBar.h>
 #import <Interface/LadybirdWebView.h>
+#import <Interface/Menu.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
 #import <LibWebView/UserAgent.h>
-
 #import <Utilities/Conversions.h>
 
 #if !__has_feature(objc_arc)
@@ -471,17 +471,12 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Cut"
                                                 action:@selector(cut:)
                                          keyEquivalent:@"x"]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy"
-                                                action:@selector(copy:)
-                                         keyEquivalent:@"c"]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Paste"
-                                                action:@selector(paste:)
-                                         keyEquivalent:@"v"]];
+
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().copy_selection_action())];
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().paste_action())];
     [submenu addItem:[NSMenuItem separatorItem]];
 
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Select All"
-                                                action:@selector(selectAll:)
-                                         keyEquivalent:@"a"]];
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().select_all_action())];
     [submenu addItem:[NSMenuItem separatorItem]];
 
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Find..."
@@ -586,19 +581,11 @@
 - (NSMenuItem*)createHistoryMenu
 {
     auto* menu = [[NSMenuItem alloc] init];
+
     auto* submenu = [[NSMenu alloc] initWithTitle:@"History"];
+    [submenu setAutoenablesItems:NO];
 
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Reload Page"
-                                                action:@selector(reload:)
-                                         keyEquivalent:@"r"]];
-    [submenu addItem:[NSMenuItem separatorItem]];
-
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Navigate Back"
-                                                action:@selector(navigateBack:)
-                                         keyEquivalent:@"["]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Navigate Forward"
-                                                action:@selector(navigateForward:)
-                                         keyEquivalent:@"]"]];
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().reload_action())];
     [submenu addItem:[NSMenuItem separatorItem]];
 
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Clear History"
@@ -614,9 +601,7 @@
     auto* menu = [[NSMenuItem alloc] init];
     auto* submenu = [[NSMenu alloc] initWithTitle:@"Inspect"];
 
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"View Source"
-                                                action:@selector(viewSource:)
-                                         keyEquivalent:@"u"]];
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().view_source_action())];
 
     self.toggle_devtools_menu_item = [[NSMenuItem alloc] initWithTitle:@"Enable DevTools"
                                                                 action:@selector(toggleDevToolsEnabled:)
