@@ -2807,9 +2807,6 @@ CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult:
         [](Frequency const& frequency) { return frequency.to_hertz(); },
         [&context](Length const& length) {
             // Handle some common cases first, so we can resolve more without a context
-            if (length.is_auto())
-                return 0.0;
-
             if (length.is_absolute())
                 return length.absolute_length_to_px_without_rounding();
 

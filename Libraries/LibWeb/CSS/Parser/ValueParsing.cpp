@@ -3173,7 +3173,6 @@ RefPtr<FitContentStyleValue const> Parser::parse_fit_content_value(TokenStream<C
     if (component_value.is_ident("fit-content"sv)) {
         transaction.commit();
         return FitContentStyleValue::create();
-        return nullptr;
     }
 
     if (!component_value.is_function())
@@ -3192,8 +3191,6 @@ RefPtr<FitContentStyleValue const> Parser::parse_fit_content_value(TokenStream<C
         return nullptr;
 
     transaction.commit();
-    if (maybe_length->is_auto())
-        return FitContentStyleValue::create();
     return FitContentStyleValue::create(maybe_length.release_value());
 }
 

@@ -208,8 +208,6 @@ class LengthPercentage : public PercentageOr<Length, LengthPercentage> {
 public:
     using PercentageOr<Length, LengthPercentage>::PercentageOr;
 
-    bool is_auto() const { return is_length() && length().is_auto(); }
-
     bool is_length() const { return is_t(); }
     Length const& length() const { return get_t(); }
 };
@@ -217,19 +215,13 @@ public:
 class LengthPercentageOrAuto {
 public:
     LengthPercentageOrAuto(LengthPercentage length_percentage)
+        : m_length_percentage(move(length_percentage))
     {
-        if (length_percentage.is_auto())
-            m_length_percentage = {};
-        else
-            m_length_percentage = move(length_percentage);
     }
 
     LengthPercentageOrAuto(Length length)
+        : m_length_percentage(move(length))
     {
-        if (length.is_auto())
-            m_length_percentage = {};
-        else
-            m_length_percentage = move(length);
     }
 
     LengthPercentageOrAuto(Percentage percentage)

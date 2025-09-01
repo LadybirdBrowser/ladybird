@@ -38,11 +38,6 @@ Length::Length(double value, Type type)
 }
 Length::~Length() = default;
 
-Length Length::make_auto()
-{
-    return Length(0, Type::Auto);
-}
-
 Length Length::make_px(double value)
 {
     return Length(value, Type::Px);
@@ -55,11 +50,6 @@ Length Length::make_px(CSSPixels value)
 
 Length Length::percentage_of(Percentage const& percentage) const
 {
-    if (is_auto()) {
-        dbgln("Attempting to get percentage of an auto length, this seems wrong? But for now we just return the original length.");
-        return *this;
-    }
-
     return Length { percentage.as_fraction() * raw_value(), m_type };
 }
 
@@ -191,11 +181,6 @@ CSSPixels Length::to_px(ResolutionContext const& context) const
 
 CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
 {
-    if (is_auto()) {
-        // FIXME: We really, really shouldn't end up here, but we do, and so frequently that
-        //        adding a dbgln() here outputs a couple hundred lines loading `welcome.html`.
-        return 0;
-    }
     if (!layout_node.document().browsing_context())
         return 0;
 
@@ -223,9 +208,6 @@ CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
 
 String Length::to_string(SerializationMode serialization_mode) const
 {
-    if (is_auto())
-        return "auto"_string;
-
     // https://drafts.csswg.org/cssom/#serialize-a-css-value
     // -> <length>
     // The <number> component serialized as per <number> followed by the unit in its canonical form as defined in its
@@ -334,8 +316,6 @@ StringView Length::unit_name() const
         return "pc"sv;
     case Type::Px:
         return "px"sv;
-    case Type::Auto:
-        return "auto"sv;
     }
     VERIFY_NOT_REACHED();
 }

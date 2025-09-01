@@ -48,8 +48,6 @@ Size Size::make_calculated(NonnullRefPtr<CalculatedStyleValue const> calculated)
 
 Size Size::make_length_percentage(LengthPercentage const& length_percentage)
 {
-    if (length_percentage.is_auto())
-        return make_auto();
     if (length_percentage.is_length())
         return make_length(length_percentage.length());
     if (length_percentage.is_percentage())

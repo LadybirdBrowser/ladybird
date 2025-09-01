@@ -209,12 +209,8 @@ Size ComputedProperties::size_value(PropertyID id) const
     if (value.is_percentage())
         return Size::make_percentage(value.as_percentage().percentage());
 
-    if (value.is_length()) {
-        auto length = value.as_length().length();
-        if (length.is_auto())
-            return Size::make_auto();
-        return Size::make_length(length);
-    }
+    if (value.is_length())
+        return Size::make_length(value.as_length().length());
 
     // FIXME: Support `anchor-size(..)`
     if (value.is_anchor_size())
@@ -378,11 +374,8 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
     if (line_height.is_keyword() && line_height.to_keyword() == Keyword::Normal)
         return CSSPixels { round_to<i32>(font_metrics.font_size * normal_line_height_scale) };
 
-    if (line_height.is_length()) {
-        auto line_height_length = line_height.as_length().length();
-        if (!line_height_length.is_auto())
-            return line_height_length.to_px(viewport_rect, font_metrics, root_font_metrics);
-    }
+    if (line_height.is_length())
+        return line_height.as_length().length().to_px(viewport_rect, font_metrics, root_font_metrics);
 
     if (line_height.is_number())
         return Length(line_height.as_number().number(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
