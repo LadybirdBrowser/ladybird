@@ -68,9 +68,6 @@ public:
         Pt,
         Pc,
         Px,
-
-        // FIXME: Remove auto somehow
-        Auto,
     };
 
     struct FontMetrics {
@@ -90,12 +87,10 @@ public:
     Length(double value, Type type);
     ~Length();
 
-    static Length make_auto();
     static Length make_px(double value);
     static Length make_px(CSSPixels value);
     Length percentage_of(Percentage const&) const;
 
-    bool is_auto() const { return m_type == Type::Auto; }
     bool is_px() const { return m_type == Type::Px; }
 
     bool is_absolute() const
@@ -185,8 +180,6 @@ public:
 
     ALWAYS_INLINE CSSPixels to_px(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
     {
-        if (is_auto())
-            return 0;
         if (is_absolute())
             return absolute_length_to_px();
         if (is_font_relative())
@@ -254,11 +247,8 @@ private:
 class LengthOrAuto {
 public:
     LengthOrAuto(Length length)
+        : m_length(move(length))
     {
-        if (length.is_auto())
-            m_length = {};
-        else
-            m_length = move(length);
     }
 
     static LengthOrAuto make_auto() { return LengthOrAuto { OptionalNone {} }; }

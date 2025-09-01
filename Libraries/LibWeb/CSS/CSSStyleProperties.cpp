@@ -321,8 +321,6 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_i
 
 static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
-    if (length_percentage.is_auto())
-        return KeywordStyleValue::create(Keyword::Auto);
     if (length_percentage.is_percentage())
         return PercentageStyleValue::create(length_percentage.percentage());
     if (length_percentage.is_length())

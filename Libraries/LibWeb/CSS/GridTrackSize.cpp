@@ -96,9 +96,7 @@ bool GridSize::is_intrinsic(Layout::AvailableSize const& available_size) const
 bool GridSize::is_definite() const
 {
     return m_value.visit(
-        [](Size const& size) {
-            return (size.is_length() && !size.length().is_auto()) || size.is_percentage() || size.is_calculated();
-        },
+        [](Size const& size) { return size.is_length_percentage(); },
         [](Flex const&) { return false; });
 }
 
