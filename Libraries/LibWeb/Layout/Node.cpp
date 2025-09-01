@@ -380,7 +380,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     //       That's why it has to be set before everything else.
     computed_values.set_font_list(computed_style.computed_font_list());
     computed_values.set_font_size(computed_style.font_size());
-    computed_values.set_font_weight(computed_style.property(CSS::PropertyID::FontWeight).to_font_weight());
+    computed_values.set_font_weight(computed_style.font_weight());
     computed_values.set_font_kerning(computed_style.font_kerning());
     computed_values.set_line_height(computed_style.line_height());
 

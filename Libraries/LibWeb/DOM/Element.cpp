@@ -814,6 +814,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
             computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
             old_values_with_relative_units.set(i, old_value);
         }
+
+        // FIXME: We should also consider properties which depend on their inherited values for computation (e.g.
+        //        relative font-sizes or font-weights)
         if (!computed_properties->is_property_inherited(property_id))
             continue;
 

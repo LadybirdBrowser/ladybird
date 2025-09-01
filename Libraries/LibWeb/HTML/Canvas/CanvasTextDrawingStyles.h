@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
@@ -108,6 +109,7 @@ public:
 
                 // NOTE: The initial value here is non-standard as the default font is "10px sans-serif"
                 auto inherited_font_size = CSSPixels { 10 };
+                auto inherited_font_weight = CSS::InitialValues::font_weight();
                 auto length_resolution_context = CSS::Length::ResolutionContext::for_window(*document->window());
 
                 if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
@@ -117,13 +119,20 @@ public:
                         computed_math_depth = canvas_element.computed_properties()->math_depth();
                         inherited_math_depth = canvas_element.computed_properties()->math_depth();
                         inherited_font_size = canvas_element.computed_properties()->font_size();
+                        inherited_font_weight = canvas_element.computed_properties()->font_weight();
                         length_resolution_context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { canvas_element });
                     }
                 }
 
                 auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, length_resolution_context);
+                auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight, inherited_font_weight, length_resolution_context);
 
-                return document->style_computer().compute_font_for_style_values(font_family, computed_font_size->as_length().length().absolute_length_to_px(), font_style, font_weight, font_width);
+                return document->style_computer().compute_font_for_style_values(
+                    font_family,
+                    computed_font_size->as_length().length().absolute_length_to_px(),
+                    font_style,
+                    computed_font_weight->as_number().number(),
+                    font_width);
             },
             [](HTML::WorkerGlobalScope*) -> RefPtr<Gfx::FontCascadeList const> {
                 // FIXME: implement computing the font for HTML::WorkerGlobalScope

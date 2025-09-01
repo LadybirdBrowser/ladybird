@@ -234,6 +234,7 @@ public:
     [[nodiscard]] CSSPixels line_height() const { return *m_line_height; }
     void set_line_height(Badge<StyleComputer> const&, CSSPixels line_height) { m_line_height = line_height; }
     [[nodiscard]] CSSPixels font_size() const;
+    double font_weight() const;
 
     bool operator==(ComputedProperties const&) const;
 

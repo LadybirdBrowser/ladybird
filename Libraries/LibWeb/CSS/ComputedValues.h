@@ -130,7 +130,7 @@ public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
     static CSSPixels font_size() { return 16; }
     static FontKerning font_kerning() { return FontKerning::Auto; }
-    static int font_weight() { return 400; }
+    static double font_weight() { return 400; }
     static CSSPixels line_height() { return 0; }
     static CSS::Float float_() { return CSS::Float::None; }
     static CSS::Length border_spacing() { return CSS::Length::make_px(0); }
@@ -628,7 +628,7 @@ public:
 
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
-    int font_weight() const { return m_inherited.font_weight; }
+    double font_weight() const { return m_inherited.font_weight; }
     Optional<Gfx::FontVariantAlternates> font_variant_alternates() const { return m_inherited.font_variant_alternates; }
     FontVariantCaps font_variant_caps() const { return m_inherited.font_variant_caps; }
     Optional<Gfx::FontVariantEastAsian> font_variant_east_asian() const { return m_inherited.font_variant_east_asian; }
@@ -673,7 +673,7 @@ protected:
         Color caret_color { InitialValues::caret_color() };
         RefPtr<Gfx::FontCascadeList const> font_list {};
         CSSPixels font_size { InitialValues::font_size() };
-        int font_weight { InitialValues::font_weight() };
+        double font_weight { InitialValues::font_weight() };
         Optional<Gfx::FontVariantAlternates> font_variant_alternates;
         FontVariantCaps font_variant_caps { FontVariantCaps::Normal };
         Optional<Gfx::FontVariantEastAsian> font_variant_east_asian;
@@ -883,7 +883,7 @@ public:
     void set_caret_color(Color caret_color) { m_inherited.caret_color = caret_color; }
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list) { m_inherited.font_list = move(font_list); }
     void set_font_size(CSSPixels font_size) { m_inherited.font_size = font_size; }
-    void set_font_weight(int font_weight) { m_inherited.font_weight = font_weight; }
+    void set_font_weight(double font_weight) { m_inherited.font_weight = font_weight; }
     void set_font_variant_alternates(Optional<Gfx::FontVariantAlternates> font_variant_alternates) { m_inherited.font_variant_alternates = font_variant_alternates; }
     void set_font_variant_caps(FontVariantCaps font_variant_caps) { m_inherited.font_variant_caps = font_variant_caps; }
     void set_font_variant_east_asian(Optional<Gfx::FontVariantEastAsian> font_variant_east_asian) { m_inherited.font_variant_east_asian = font_variant_east_asian; }
