@@ -1,12 +1,12 @@
 diff --git a/gn/toolchain/BUILD.gn b/gn/toolchain/BUILD.gn
-index ba85c3d..901ba99 100644
+index 4d4abc952f..5800f30bd9 100644
 --- a/gn/toolchain/BUILD.gn
 +++ b/gn/toolchain/BUILD.gn
-@@ -94,6 +94,7 @@ toolchain("msvc") {
-     # ARM64 compiler is incomplete - it relies on DLLs located in the host toolchain directory.
-     env_setup = "$shell set \"PATH=%PATH%;$win_vc\\Tools\\MSVC\\$win_toolchain_version\\bin\\HostX64\\x64\" && "
-   }
-+  env_setup = "" # overwrite
- 
-   cl_m32_flag = ""
- 
+@@ -96,6 +96,7 @@ template("msvc_toolchain") {
+       # ARM64 compiler is incomplete - it relies on DLLs located in the host toolchain directory.
+       env_setup = "$shell set \"PATH=%PATH%;$win_vc\\Tools\\MSVC\\$win_toolchain_version\\bin\\HostX64\\x64\" && "
+     }
++    env_setup = "" # overwrite
+
+     cl_m32_flag = ""
+
