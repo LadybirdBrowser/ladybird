@@ -34,7 +34,7 @@ public:
     static NonnullOwnPtr<EventLoopImplementationWindows> create() { return make<EventLoopImplementationWindows>(); }
 
     EventLoopImplementationWindows();
-    virtual ~EventLoopImplementationWindows() override = default;
+    virtual ~EventLoopImplementationWindows() override;
 
     virtual int exec() override;
     virtual size_t pump(PumpMode) override;
@@ -49,7 +49,7 @@ private:
     int m_exit_code { 0 };
 
     // The wake event handle of this event loop needs to be accessible from other threads.
-    void*& m_wake_event;
+    void const* m_wake_completion_key;
 };
 
 using EventLoopManagerPlatform = EventLoopManagerWindows;
