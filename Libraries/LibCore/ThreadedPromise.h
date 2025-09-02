@@ -61,7 +61,6 @@ public:
 
     bool has_completed()
     {
-        Threading::MutexLocker locker { m_mutex };
         return m_has_completed;
     }
 
@@ -183,7 +182,7 @@ private:
     Function<ErrorOr<void>(ResultType&&)> m_resolution_handler;
     Function<void(ErrorType&&)> m_rejection_handler;
     Threading::Mutex m_mutex;
-    bool m_has_completed;
+    Atomic<bool> m_has_completed;
 };
 
 }
