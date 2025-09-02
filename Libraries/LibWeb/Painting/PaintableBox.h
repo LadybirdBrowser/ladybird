@@ -413,5 +413,6 @@ private:
 void paint_text_decoration(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
 void paint_cursor_if_needed(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
 void paint_text_fragment(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&, PaintPhase);
+void paint_text_fragment_debug_highlight(DisplayListRecordingContext&, PaintableFragment const&);
 
 }
