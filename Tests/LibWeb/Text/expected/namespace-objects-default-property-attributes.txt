@@ -24,6 +24,41 @@ percent configurable: true
 percent enumerable: true
 percent value before: function percent() { [native code] }
 percent value after: replaced
+deg writable: true
+deg configurable: true
+deg enumerable: true
+deg value before: function deg() { [native code] }
+deg value after: replaced
+grad writable: true
+grad configurable: true
+grad enumerable: true
+grad value before: function grad() { [native code] }
+grad value after: replaced
+rad writable: true
+rad configurable: true
+rad enumerable: true
+rad value before: function rad() { [native code] }
+rad value after: replaced
+turn writable: true
+turn configurable: true
+turn enumerable: true
+turn value before: function turn() { [native code] }
+turn value after: replaced
+fr writable: true
+fr configurable: true
+fr enumerable: true
+fr value before: function fr() { [native code] }
+fr value after: replaced
+Hz writable: true
+Hz configurable: true
+Hz enumerable: true
+Hz value before: function Hz() { [native code] }
+Hz value after: replaced
+kHz writable: true
+kHz configurable: true
+kHz enumerable: true
+kHz value before: function kHz() { [native code] }
+kHz value after: replaced
 cap writable: true
 cap configurable: true
 cap enumerable: true
@@ -34,6 +69,41 @@ ch configurable: true
 ch enumerable: true
 ch value before: function ch() { [native code] }
 ch value after: replaced
+cm writable: true
+cm configurable: true
+cm enumerable: true
+cm value before: function cm() { [native code] }
+cm value after: replaced
+dvb writable: true
+dvb configurable: true
+dvb enumerable: true
+dvb value before: function dvb() { [native code] }
+dvb value after: replaced
+dvh writable: true
+dvh configurable: true
+dvh enumerable: true
+dvh value before: function dvh() { [native code] }
+dvh value after: replaced
+dvi writable: true
+dvi configurable: true
+dvi enumerable: true
+dvi value before: function dvi() { [native code] }
+dvi value after: replaced
+dvmax writable: true
+dvmax configurable: true
+dvmax enumerable: true
+dvmax value before: function dvmax() { [native code] }
+dvmax value after: replaced
+dvmin writable: true
+dvmin configurable: true
+dvmin enumerable: true
+dvmin value before: function dvmin() { [native code] }
+dvmin value after: replaced
+dvw writable: true
+dvw configurable: true
+dvw enumerable: true
+dvw value before: function dvw() { [native code] }
+dvw value after: replaced
 em writable: true
 em configurable: true
 em enumerable: true
@@ -49,11 +119,71 @@ ic configurable: true
 ic enumerable: true
 ic value before: function ic() { [native code] }
 ic value after: replaced
+in writable: true
+in configurable: true
+in enumerable: true
+in value before: function in() { [native code] }
+in value after: replaced
 lh writable: true
 lh configurable: true
 lh enumerable: true
 lh value before: function lh() { [native code] }
 lh value after: replaced
+lvb writable: true
+lvb configurable: true
+lvb enumerable: true
+lvb value before: function lvb() { [native code] }
+lvb value after: replaced
+lvh writable: true
+lvh configurable: true
+lvh enumerable: true
+lvh value before: function lvh() { [native code] }
+lvh value after: replaced
+lvi writable: true
+lvi configurable: true
+lvi enumerable: true
+lvi value before: function lvi() { [native code] }
+lvi value after: replaced
+lvmax writable: true
+lvmax configurable: true
+lvmax enumerable: true
+lvmax value before: function lvmax() { [native code] }
+lvmax value after: replaced
+lvmin writable: true
+lvmin configurable: true
+lvmin enumerable: true
+lvmin value before: function lvmin() { [native code] }
+lvmin value after: replaced
+lvw writable: true
+lvw configurable: true
+lvw enumerable: true
+lvw value before: function lvw() { [native code] }
+lvw value after: replaced
+mm writable: true
+mm configurable: true
+mm enumerable: true
+mm value before: function mm() { [native code] }
+mm value after: replaced
+pc writable: true
+pc configurable: true
+pc enumerable: true
+pc value before: function pc() { [native code] }
+pc value after: replaced
+pt writable: true
+pt configurable: true
+pt enumerable: true
+pt value before: function pt() { [native code] }
+pt value after: replaced
+px writable: true
+px configurable: true
+px enumerable: true
+px value before: function px() { [native code] }
+px value after: replaced
+Q writable: true
+Q configurable: true
+Q enumerable: true
+Q value before: function Q() { [native code] }
+Q value after: replaced
 rcap writable: true
 rcap configurable: true
 rcap enumerable: true
@@ -84,41 +214,11 @@ rlh configurable: true
 rlh enumerable: true
 rlh value before: function rlh() { [native code] }
 rlh value after: replaced
-vw writable: true
-vw configurable: true
-vw enumerable: true
-vw value before: function vw() { [native code] }
-vw value after: replaced
-vh writable: true
-vh configurable: true
-vh enumerable: true
-vh value before: function vh() { [native code] }
-vh value after: replaced
-vi writable: true
-vi configurable: true
-vi enumerable: true
-vi value before: function vi() { [native code] }
-vi value after: replaced
-vb writable: true
-vb configurable: true
-vb enumerable: true
-vb value before: function vb() { [native code] }
-vb value after: replaced
-vmin writable: true
-vmin configurable: true
-vmin enumerable: true
-vmin value before: function vmin() { [native code] }
-vmin value after: replaced
-vmax writable: true
-vmax configurable: true
-vmax enumerable: true
-vmax value before: function vmax() { [native code] }
-vmax value after: replaced
-svw writable: true
-svw configurable: true
-svw enumerable: true
-svw value before: function svw() { [native code] }
-svw value after: replaced
+svb writable: true
+svb configurable: true
+svb enumerable: true
+svb value before: function svb() { [native code] }
+svb value after: replaced
 svh writable: true
 svh configurable: true
 svh enumerable: true
@@ -129,206 +229,81 @@ svi configurable: true
 svi enumerable: true
 svi value before: function svi() { [native code] }
 svi value after: replaced
-svb writable: true
-svb configurable: true
-svb enumerable: true
-svb value before: function svb() { [native code] }
-svb value after: replaced
-svmin writable: true
-svmin configurable: true
-svmin enumerable: true
-svmin value before: function svmin() { [native code] }
-svmin value after: replaced
 svmax writable: true
 svmax configurable: true
 svmax enumerable: true
 svmax value before: function svmax() { [native code] }
 svmax value after: replaced
-lvw writable: true
-lvw configurable: true
-lvw enumerable: true
-lvw value before: function lvw() { [native code] }
-lvw value after: replaced
-lvh writable: true
-lvh configurable: true
-lvh enumerable: true
-lvh value before: function lvh() { [native code] }
-lvh value after: replaced
-lvi writable: true
-lvi configurable: true
-lvi enumerable: true
-lvi value before: function lvi() { [native code] }
-lvi value after: replaced
-lvb writable: true
-lvb configurable: true
-lvb enumerable: true
-lvb value before: function lvb() { [native code] }
-lvb value after: replaced
-lvmin writable: true
-lvmin configurable: true
-lvmin enumerable: true
-lvmin value before: function lvmin() { [native code] }
-lvmin value after: replaced
-lvmax writable: true
-lvmax configurable: true
-lvmax enumerable: true
-lvmax value before: function lvmax() { [native code] }
-lvmax value after: replaced
-dvw writable: true
-dvw configurable: true
-dvw enumerable: true
-dvw value before: function dvw() { [native code] }
-dvw value after: replaced
-dvh writable: true
-dvh configurable: true
-dvh enumerable: true
-dvh value before: function dvh() { [native code] }
-dvh value after: replaced
-dvi writable: true
-dvi configurable: true
-dvi enumerable: true
-dvi value before: function dvi() { [native code] }
-dvi value after: replaced
-dvb writable: true
-dvb configurable: true
-dvb enumerable: true
-dvb value before: function dvb() { [native code] }
-dvb value after: replaced
-dvmin writable: true
-dvmin configurable: true
-dvmin enumerable: true
-dvmin value before: function dvmin() { [native code] }
-dvmin value after: replaced
-dvmax writable: true
-dvmax configurable: true
-dvmax enumerable: true
-dvmax value before: function dvmax() { [native code] }
-dvmax value after: replaced
-cqw writable: true
-cqw configurable: true
-cqw enumerable: true
-cqw value before: function cqw() { [native code] }
-cqw value after: replaced
-cqh writable: true
-cqh configurable: true
-cqh enumerable: true
-cqh value before: function cqh() { [native code] }
-cqh value after: replaced
-cqi writable: true
-cqi configurable: true
-cqi enumerable: true
-cqi value before: function cqi() { [native code] }
-cqi value after: replaced
-cqb writable: true
-cqb configurable: true
-cqb enumerable: true
-cqb value before: function cqb() { [native code] }
-cqb value after: replaced
-cqmin writable: true
-cqmin configurable: true
-cqmin enumerable: true
-cqmin value before: function cqmin() { [native code] }
-cqmin value after: replaced
-cqmax writable: true
-cqmax configurable: true
-cqmax enumerable: true
-cqmax value before: function cqmax() { [native code] }
-cqmax value after: replaced
-cm writable: true
-cm configurable: true
-cm enumerable: true
-cm value before: function cm() { [native code] }
-cm value after: replaced
-mm writable: true
-mm configurable: true
-mm enumerable: true
-mm value before: function mm() { [native code] }
-mm value after: replaced
-Q writable: true
-Q configurable: true
-Q enumerable: true
-Q value before: function Q() { [native code] }
-Q value after: replaced
-in writable: true
-in configurable: true
-in enumerable: true
-in value before: function in() { [native code] }
-in value after: replaced
-pt writable: true
-pt configurable: true
-pt enumerable: true
-pt value before: function pt() { [native code] }
-pt value after: replaced
-pc writable: true
-pc configurable: true
-pc enumerable: true
-pc value before: function pc() { [native code] }
-pc value after: replaced
-px writable: true
-px configurable: true
-px enumerable: true
-px value before: function px() { [native code] }
-px value after: replaced
-deg writable: true
-deg configurable: true
-deg enumerable: true
-deg value before: function deg() { [native code] }
-deg value after: replaced
-grad writable: true
-grad configurable: true
-grad enumerable: true
-grad value before: function grad() { [native code] }
-grad value after: replaced
-rad writable: true
-rad configurable: true
-rad enumerable: true
-rad value before: function rad() { [native code] }
-rad value after: replaced
-turn writable: true
-turn configurable: true
-turn enumerable: true
-turn value before: function turn() { [native code] }
-turn value after: replaced
-s writable: true
-s configurable: true
-s enumerable: true
-s value before: function s() { [native code] }
-s value after: replaced
-ms writable: true
-ms configurable: true
-ms enumerable: true
-ms value before: function ms() { [native code] }
-ms value after: replaced
-Hz writable: true
-Hz configurable: true
-Hz enumerable: true
-Hz value before: function Hz() { [native code] }
-Hz value after: replaced
-kHz writable: true
-kHz configurable: true
-kHz enumerable: true
-kHz value before: function kHz() { [native code] }
-kHz value after: replaced
-dpi writable: true
-dpi configurable: true
-dpi enumerable: true
-dpi value before: function dpi() { [native code] }
-dpi value after: replaced
+svmin writable: true
+svmin configurable: true
+svmin enumerable: true
+svmin value before: function svmin() { [native code] }
+svmin value after: replaced
+svw writable: true
+svw configurable: true
+svw enumerable: true
+svw value before: function svw() { [native code] }
+svw value after: replaced
+vb writable: true
+vb configurable: true
+vb enumerable: true
+vb value before: function vb() { [native code] }
+vb value after: replaced
+vh writable: true
+vh configurable: true
+vh enumerable: true
+vh value before: function vh() { [native code] }
+vh value after: replaced
+vi writable: true
+vi configurable: true
+vi enumerable: true
+vi value before: function vi() { [native code] }
+vi value after: replaced
+vmax writable: true
+vmax configurable: true
+vmax enumerable: true
+vmax value before: function vmax() { [native code] }
+vmax value after: replaced
+vmin writable: true
+vmin configurable: true
+vmin enumerable: true
+vmin value before: function vmin() { [native code] }
+vmin value after: replaced
+vw writable: true
+vw configurable: true
+vw enumerable: true
+vw value before: function vw() { [native code] }
+vw value after: replaced
 dpcm writable: true
 dpcm configurable: true
 dpcm enumerable: true
 dpcm value before: function dpcm() { [native code] }
 dpcm value after: replaced
+dpi writable: true
+dpi configurable: true
+dpi enumerable: true
+dpi value before: function dpi() { [native code] }
+dpi value after: replaced
 dppx writable: true
 dppx configurable: true
 dppx enumerable: true
 dppx value before: function dppx() { [native code] }
 dppx value after: replaced
-fr writable: true
-fr configurable: true
-fr enumerable: true
-fr value before: function fr() { [native code] }
-fr value after: replaced
+x writable: true
+x configurable: true
+x enumerable: true
+x value before: function x() { [native code] }
+x value after: replaced
+ms writable: true
+ms configurable: true
+ms enumerable: true
+ms value before: function ms() { [native code] }
+ms value after: replaced
+s writable: true
+s configurable: true
+s enumerable: true
+s value before: function s() { [native code] }
+s value after: replaced
 == WebAssembly property descriptors
 validate writable: true
 validate configurable: true
