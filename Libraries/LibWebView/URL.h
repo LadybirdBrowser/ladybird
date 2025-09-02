@@ -35,6 +35,6 @@ enum class URLType {
     Other,
 };
 WEBVIEW_API URLType url_type(URL::URL const&);
-WEBVIEW_API String url_text_to_copy(URL::URL const&);
+WEBVIEW_API ByteString url_text_to_copy(URL::URL const&);
 
 }

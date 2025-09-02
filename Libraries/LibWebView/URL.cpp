@@ -176,16 +176,14 @@ URLType url_type(URL::URL const& url)
     return URLType::Other;
 }
 
-String url_text_to_copy(URL::URL const& url)
+ByteString url_text_to_copy(URL::URL const& url)
 {
-    auto url_text = url.to_string();
+    auto url_text = url.to_byte_string();
 
     if (url.scheme() == "mailto"sv)
-        return MUST(url_text.substring_from_byte_offset("mailto:"sv.length()));
-
+        return url_text.substring("mailto:"sv.length());
     if (url.scheme() == "tel"sv)
-        return MUST(url_text.substring_from_byte_offset("tel:"sv.length()));
-
+        return url_text.substring("tel:"sv.length());
     return url_text;
 }
 
