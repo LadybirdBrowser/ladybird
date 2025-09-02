@@ -518,18 +518,14 @@ void Parser::parse_iterable(Interface& interface)
     assert_specific('<');
     auto first_type = parse_type();
     if (lexer.next_is(',')) {
-        if (interface.supports_indexed_properties())
-            report_parsing_error("Interfaces with a pair iterator must not support indexed properties."sv, filename, input, lexer.tell());
-
         assert_specific(',');
         consume_whitespace();
         auto second_type = parse_type();
         interface.pair_iterator_types = Tuple { move(first_type), move(second_type) };
+        interface.pair_iterator_offset = lexer.tell();
     } else {
-        if (!interface.supports_indexed_properties())
-            report_parsing_error("Interfaces with a value iterator must support indexed properties."sv, filename, input, lexer.tell());
-
         interface.value_iterator_type = move(first_type);
+        interface.value_iterator_offset = lexer.tell();
     }
 
     if (interface.async_value_iterator_type.has_value())
@@ -805,6 +801,16 @@ void Parser::parse_interface(Interface& interface)
         interface.implemented_name = maybe_implemented_as.release_value();
     else
         interface.implemented_name = interface.name;
+
+    if (interface.pair_iterator_types.has_value() && interface.indexed_property_getter.has_value()) {
+        VERIFY(interface.pair_iterator_offset.has_value());
+        report_parsing_error("Interfaces with a pair iterator must not support indexed properties."sv, filename, input, *interface.pair_iterator_offset);
+    }
+
+    if (interface.value_iterator_type.has_value() && !interface.supports_indexed_properties()) {
+        VERIFY(interface.value_iterator_offset.has_value());
+        report_parsing_error("Interfaces with a value iterator must support indexed properties."sv, filename, input, *interface.value_iterator_offset);
+    }
 
     interface.constructor_class = ByteString::formatted("{}Constructor", interface.implemented_name);
     interface.prototype_class = ByteString::formatted("{}Prototype", interface.implemented_name);
