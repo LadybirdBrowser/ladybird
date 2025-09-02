@@ -75,6 +75,7 @@ public:
     virtual void after_paint(DisplayListRecordingContext&, PaintPhase) const { }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const { }
+    void paint_inspector_overlay(DisplayListRecordingContext&) const;
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const;
 
@@ -154,6 +155,7 @@ public:
 protected:
     explicit Paintable(Layout::Node const&);
 
+    virtual void paint_inspector_overlay_internal(DisplayListRecordingContext&) const { }
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

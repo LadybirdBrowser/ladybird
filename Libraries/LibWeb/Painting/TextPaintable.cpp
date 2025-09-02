@@ -59,4 +59,15 @@ TextPaintable::DispatchEventOfSameName TextPaintable::handle_mousemove(Badge<Eve
     return DispatchEventOfSameName::Yes;
 }
 
+void TextPaintable::paint_inspector_overlay_internal(DisplayListRecordingContext& context) const
+{
+    if (auto const* parent_paintable = as_if<PaintableWithLines>(parent())) {
+        for (auto const& fragment : parent_paintable->fragments()) {
+            if (&fragment.paintable() == this) {
+                paint_text_fragment_debug_highlight(context, fragment);
+            }
+        }
+    }
+}
+
 }

@@ -25,6 +25,9 @@ public:
     virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
 
+protected:
+    virtual void paint_inspector_overlay_internal(DisplayListRecordingContext&) const override;
+
 private:
     virtual bool is_text_paintable() const override { return true; }
 
