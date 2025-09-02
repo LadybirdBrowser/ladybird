@@ -30,6 +30,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, JS::Realm&, URL::URL base_url, RustParsedProgram* parsed);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_javascript_module_script(ByteString const& filename, StringView source, JS::Realm&, URL::URL base_url);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_css_module_script(ByteString const& filename, StringView source, JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_json_module_script(ByteString const& filename, StringView source, JS::Realm&);
 
     enum class PreventErrorReporting {
         Yes,
