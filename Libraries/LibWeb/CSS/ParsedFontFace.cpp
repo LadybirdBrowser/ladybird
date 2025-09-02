@@ -93,8 +93,16 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         slope = value->to_font_slope();
 
     Optional<int> width;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWidth))
-        width = value->to_font_width();
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWidth)) {
+        // https://drafts.csswg.org/css-fonts-4/#font-prop-desc
+        // The auto values for these three descriptors have the following effects:
+        //  - For font selection purposes, the font is selected as if the appropriate normal value (normal, normal or normal) is chosen
+        //  - FIXME: For variation axis clamping, clamping does not occur
+        if (value->to_keyword() == Keyword::Auto)
+            width = 100;
+        else
+            width = StyleComputer::compute_font_width(*value, Length::ResolutionContext::for_window(*descriptors.parent_rule()->parent_style_sheet()->owning_document()->window()))->as_percentage().raw_value();
+    }
 
     Vector<Source> sources;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::Src))
