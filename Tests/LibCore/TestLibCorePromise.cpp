@@ -158,7 +158,7 @@ TEST_CASE(threaded_promise_resolved_later)
 {
     Core::EventLoop loop;
 
-    IGNORE_USE_IN_ESCAPING_LAMBDA bool unblock_thread = false;
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> unblock_thread = false;
     bool resolved = false;
     bool rejected = true;
     Optional<pthread_t> thread_id;
