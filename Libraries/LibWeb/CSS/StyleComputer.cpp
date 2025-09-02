@@ -1983,7 +1983,7 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto inherited_font_weight = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_weight() : InitialValues::font_weight();
 
-    auto const& font_weight_specified_value = style.property(PropertyID::FontWeight);
+    auto const& font_weight_specified_value = style.property(PropertyID::FontWeight, ComputedProperties::WithAnimationsApplied::No);
 
     style.set_property(
         PropertyID::FontWeight,
