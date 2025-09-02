@@ -1017,7 +1017,7 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
 
     for (auto const& fragment : m_fragments) {
         auto fragment_absolute_rect = fragment.absolute_rect();
-        if (context.should_show_line_box_borders()) {
+        if (phase == PaintPhase::Foreground && context.should_show_line_box_borders()) {
             auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
             context.display_list_recorder().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Green);
             context.display_list_recorder().draw_line(
