@@ -5,11 +5,10 @@
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface CSSUnparsedValue : CSSStyleValue {
     constructor(sequence<CSSUnparsedSegment> members);
+    iterable<CSSUnparsedSegment>;
     readonly attribute unsigned long length;
     getter CSSUnparsedSegment (unsigned long index);
     setter undefined (unsigned long index, CSSUnparsedSegment val);
-    // FIXME: Different order from the spec, because our IDL parser needs the indexed getter to be defined already.
-    iterable<CSSUnparsedSegment>;
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssunparsedsegment
