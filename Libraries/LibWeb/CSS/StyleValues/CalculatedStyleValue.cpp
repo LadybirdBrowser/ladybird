@@ -2955,19 +2955,19 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
 
     if (value->type()->matches_number(m_context.percentages_resolve_as))
         accepted_range = m_context.resolve_numbers_as_integers ? m_context.accepted_type_ranges.get(ValueType::Integer) : m_context.accepted_type_ranges.get(ValueType::Number);
-    else if (value->type()->matches_angle_percentage(m_context.percentages_resolve_as))
+    else if (value->type()->matches_angle(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Angle);
     else if (value->type()->matches_flex(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Flex);
-    else if (value->type()->matches_frequency_percentage(m_context.percentages_resolve_as))
+    else if (value->type()->matches_frequency(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Frequency);
-    else if (value->type()->matches_length_percentage(m_context.percentages_resolve_as))
+    else if (value->type()->matches_length(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Length);
     else if (value->type()->matches_percentage())
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Percentage);
     else if (value->type()->matches_resolution(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Resolution);
-    else if (value->type()->matches_time_percentage(m_context.percentages_resolve_as))
+    else if (value->type()->matches_time(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Time);
 
     if (!accepted_range.has_value()) {
