@@ -341,9 +341,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     if (has_css_transform) {
         paintable_box().apply_clip_overflow_rect(context, PaintPhase::Foreground);
     }
-    if (paintable_box().scroll_frame_id().has_value()) {
-        context.display_list_recorder().push_scroll_frame_id(*paintable_box().scroll_frame_id());
-    }
+    paintable_box().apply_scroll_offset(context);
     context.display_list_recorder().push_stacking_context(push_stacking_context_params);
 
     auto const& filter = computed_values.filter();
@@ -379,9 +377,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     }
 
     context.display_list_recorder().pop_stacking_context();
-    if (paintable_box().scroll_frame_id().has_value()) {
-        context.display_list_recorder().pop_scroll_frame_id();
-    }
+    paintable_box().reset_scroll_offset(context);
     if (has_css_transform)
         paintable_box().clear_clip_overflow_rect(context, PaintPhase::Foreground);
 }
