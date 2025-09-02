@@ -1589,7 +1589,7 @@ void PaintableWithLines::resolve_paint_properties()
                     return max(glyph_height.scaled(0.1), 1);
                 },
                 [&](CSS::LengthPercentage const& length_percentage) {
-                    auto resolved_length = length_percentage.resolved(text_node, CSS::Length(1, CSS::Length::Type::Em).to_px(text_node)).to_px(*fragment.m_layout_node);
+                    auto resolved_length = length_percentage.resolved(text_node, CSS::Length(1, CSS::LengthUnit::Em).to_px(text_node)).to_px(*fragment.m_layout_node);
                     return max(resolved_length, 1);
                 });
         }();

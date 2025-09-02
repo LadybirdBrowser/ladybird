@@ -10,20 +10,20 @@
 
 namespace Web::CSS {
 
-Flex::Flex(double value, Type type)
-    : m_type(type)
+Flex::Flex(double value, FlexUnit unit)
+    : m_unit(unit)
     , m_value(value)
 {
 }
 
 Flex Flex::make_fr(double value)
 {
-    return { value, Type::Fr };
+    return { value, FlexUnit::Fr };
 }
 
 Flex Flex::percentage_of(Percentage const& percentage) const
 {
-    return Flex { percentage.as_fraction() * m_value, m_type };
+    return Flex { percentage.as_fraction() * m_value, m_unit };
 }
 
 String Flex::to_string(SerializationMode serialization_mode) const
@@ -44,28 +44,11 @@ String Flex::to_string(SerializationMode serialization_mode) const
 
 double Flex::to_fr() const
 {
-    switch (m_type) {
-    case Type::Fr:
+    switch (m_unit) {
+    case FlexUnit::Fr:
         return m_value;
     }
     VERIFY_NOT_REACHED();
-}
-
-StringView Flex::unit_name() const
-{
-    switch (m_type) {
-    case Type::Fr:
-        return "fr"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Optional<Flex::Type> Flex::unit_from_name(StringView name)
-{
-    if (name.equals_ignoring_ascii_case("fr"sv))
-        return Type::Fr;
-
-    return {};
 }
 
 }

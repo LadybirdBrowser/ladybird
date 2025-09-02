@@ -131,12 +131,12 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
             first_argument_tokens.discard_a_token(); // raw-string
             syntax = RawString {};
         } else if (syntax_ident == "%"sv
-            || Angle::unit_from_name(syntax_ident).has_value()
-            || Flex::unit_from_name(syntax_ident).has_value()
-            || Frequency::unit_from_name(syntax_ident).has_value()
-            || Length::unit_from_name(syntax_ident).has_value()
-            || Resolution::unit_from_name(syntax_ident).has_value()
-            || Time::unit_from_name(syntax_ident).has_value()) {
+            || string_to_angle_unit(syntax_ident).has_value()
+            || string_to_flex_unit(syntax_ident).has_value()
+            || string_to_frequency_unit(syntax_ident).has_value()
+            || string_to_length_unit(syntax_ident).has_value()
+            || string_to_resolution_unit(syntax_ident).has_value()
+            || string_to_time_unit(syntax_ident).has_value()) {
             syntax = TypeSyntaxNode::create("number"_fly_string).release_nonnull<SyntaxNode>();
             unit_name = first_argument_tokens.consume_a_token().token().ident();
         } else {

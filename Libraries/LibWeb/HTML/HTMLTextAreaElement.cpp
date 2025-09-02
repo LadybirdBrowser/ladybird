@@ -53,9 +53,9 @@ void HTMLTextAreaElement::adjust_computed_style(CSS::ComputedProperties& style)
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
 
     if (style.property(CSS::PropertyID::Width).has_auto())
-        style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(cols(), CSS::Length::Type::Ch)));
+        style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(cols(), CSS::LengthUnit::Ch)));
     if (style.property(CSS::PropertyID::Height).has_auto())
-        style.set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length(rows(), CSS::Length::Type::Lh)));
+        style.set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length(rows(), CSS::LengthUnit::Lh)));
 }
 
 void HTMLTextAreaElement::initialize(JS::Realm& realm)
