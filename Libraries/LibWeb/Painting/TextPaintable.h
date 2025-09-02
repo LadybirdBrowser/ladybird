@@ -27,6 +27,9 @@ public:
 
     Utf16String const& text_for_rendering() const { return m_text_for_rendering; }
 
+protected:
+    virtual void paint_inspector_overlay_internal(DisplayListRecordingContext&) const override;
+
 private:
     virtual bool is_text_paintable() const override { return true; }
 
