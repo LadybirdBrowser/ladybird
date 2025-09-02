@@ -1074,6 +1074,9 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             result.set(PropertyID::FontWeight, font_weight_in_computed_form);
         }
 
+        if (auto const& font_width_specified_value = specified_values.get(PropertyID::FontWidth); font_width_specified_value.has_value())
+            result.set(PropertyID::FontWidth, compute_font_width(*font_width_specified_value.value(), parent_length_resolution_context));
+
         PropertyValueComputationContext property_value_computation_context {
             .length_resolution_context = {
                 .viewport_rect = viewport_rect(),
@@ -1095,7 +1098,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             if (!style_value)
                 continue;
 
-            if (first_is_one_of(property_id, PropertyID::FontSize, PropertyID::FontWeight))
+            if (first_is_one_of(property_id, PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth))
                 continue;
 
             auto const& computed_value = compute_value_of_property(property_id, *style_value, get_property_specified_value, property_value_computation_context);
@@ -1845,9 +1848,10 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, StyleValue const& font_style, double font_weight, StyleValue const& font_stretch) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, StyleValue const& font_style, double font_weight, Percentage const& font_width) const
 {
-    auto width = font_stretch.to_font_width();
+    // FIXME: We round to int here as that is what is expected by our font infrastructure below
+    auto width = round_to<int>(font_width.value());
 
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto weight = round_to<int>(font_weight);
@@ -1990,11 +1994,17 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
         compute_font_weight(font_weight_specified_value, inherited_font_weight, length_resolution_context),
         style.is_property_inherited(PropertyID::FontWeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
 
+    auto const& font_width_specified_value = style.property(PropertyID::FontWidth, ComputedProperties::WithAnimationsApplied::No);
+
+    style.set_property(
+        PropertyID::FontWidth,
+        compute_font_width(font_width_specified_value, length_resolution_context),
+        style.is_property_inherited(PropertyID::FontWidth) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
     auto const& font_style = style.property(CSS::PropertyID::FontStyle);
-    auto const& font_width = style.property(CSS::PropertyID::FontWidth);
 
-    auto font_list = compute_font_for_style_values(font_family, style.font_size(), font_style, style.font_weight(), font_width);
+    auto font_list = compute_font_for_style_values(font_family, style.font_size(), font_style, style.font_weight(), style.font_width());
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 
@@ -3315,6 +3325,52 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
     }
 
     VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<StyleValue const> const& specified_value, Length::ResolutionContext const& parent_length_resolution_context)
+{
+    // https://drafts.csswg.org/css-fonts-4/#font-width-prop
+    // a percentage, see below
+
+    // <percentage [0,∞]>
+    if (specified_value->is_percentage())
+        return specified_value;
+
+    // AD-HOC: We support calculated percentages as well
+    if (specified_value->is_calculated())
+        return PercentageStyleValue::create(specified_value->as_calculated().resolve_percentage({ .length_resolution_context = parent_length_resolution_context }).value());
+
+    switch (specified_value->to_keyword()) {
+    // ultra-condensed 50%
+    case Keyword::UltraCondensed:
+        return PercentageStyleValue::create(Percentage(50));
+    // extra-condensed 62.5%
+    case Keyword::ExtraCondensed:
+        return PercentageStyleValue::create(Percentage(62.5));
+    // condensed 75%
+    case Keyword::Condensed:
+        return PercentageStyleValue::create(Percentage(75));
+    // semi-condensed 87.5%
+    case Keyword::SemiCondensed:
+        return PercentageStyleValue::create(Percentage(87.5));
+    // normal 100%
+    case Keyword::Normal:
+        return PercentageStyleValue::create(Percentage(100));
+    // semi-expanded 112.5%
+    case Keyword::SemiExpanded:
+        return PercentageStyleValue::create(Percentage(112.5));
+    // expanded 125%
+    case Keyword::Expanded:
+        return PercentageStyleValue::create(Percentage(125));
+    // extra-expanded 150%
+    case Keyword::ExtraExpanded:
+        return PercentageStyleValue::create(Percentage(150));
+    // ultra-expanded 200%
+    case Keyword::UltraExpanded:
+        return PercentageStyleValue::create(Percentage(200));
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const& computation_context)
