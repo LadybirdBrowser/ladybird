@@ -320,8 +320,8 @@ bool is_scripting_disabled(JS::Realm const& realm)
 // https://whatpr.org/html/9893/webappapis.html#module-type-allowed
 bool module_type_allowed(JS::Realm const&, StringView module_type)
 {
-    // 1. If moduleType is not "javascript", "css", or "json", then return false.
-    if (module_type != "javascript"sv && module_type != "css"sv && module_type != "json"sv)
+    // 1. If moduleType is not "javascript-or-wasm", "css", or "json", then return false.
+    if (module_type != "javascript-or-wasm"sv && module_type != "css"sv && module_type != "json"sv)
         return false;
 
     // FIXME: 2. If moduleType is "css" and the CSSStyleSheet interface is not exposed in realm, then return false.
