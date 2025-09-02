@@ -94,6 +94,37 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_scr
     // 8. Return script.
     return script;
 }
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-json-module-script
+// https://whatpr.org/html/9893/webappapis.html#creating-a-json-module-script
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_json_module_script(ByteString const& filename, StringView source, JS::Realm& realm)
+{
+    // 1. Let script be a new module script that this algorithm will subsequently initialize.
+    // 2. Set script's realm to realm.
+    // 3. Set script's base URL and fetch options to null.
+    //    FIXME: Set options.
+    auto script = realm.create<ModuleScript>(Optional<URL::URL> {}, filename, realm);
+
+    // 4. Set script's parse error and error to rethrow to null.
+    script->set_parse_error(JS::js_null());
+    script->set_error_to_rethrow(JS::js_null());
+
+    // 5. Let result be ParseJSONModule(source).
+    //    If this throws an exception, catch it, and set script's parse error to that exception, and return script.
+    TemporaryExecutionContext execution_context { realm };
+    auto result = JS::parse_json_module(realm, source, filename);
+    if (result.is_error()) {
+        script->set_parse_error(result.error().value());
+        return script;
+    }
+
+    // 6. Set script's record to result.
+    script->m_record = result.value();
+
+    // 7. Return script.
+    return script;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-module-script
 // https://whatpr.org/html/9893/webappapis.html#run-a-module-script
 JS::Promise* ModuleScript::run(PreventErrorReporting)
