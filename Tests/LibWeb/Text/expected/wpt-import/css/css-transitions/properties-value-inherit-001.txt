@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 560 tests
 
-291 Pass
-269 Fail
+289 Pass
+271 Fail
 Pass	background-color color(rgba) / values
 Fail	background-color color(rgba) / events
 Pass	background-position-x length(pt) / values
@@ -425,9 +425,9 @@ Fail	font-size length(in) / events
 Pass	font-size percentage(%) / values
 Fail	font-size percentage(%) / events
 Pass	font-weight font-weight(keyword) / values
-Pass	font-weight font-weight(keyword) / events
+Fail	font-weight font-weight(keyword) / events
 Pass	font-weight font-weight(numeric) / values
-Pass	font-weight font-weight(numeric) / events
+Fail	font-weight font-weight(numeric) / events
 Pass	line-height number(integer) / values
 Fail	line-height number(integer) / events
 Pass	line-height number(decimal) / values
