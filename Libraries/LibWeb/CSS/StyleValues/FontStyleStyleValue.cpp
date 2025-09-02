@@ -5,6 +5,7 @@
  */
 
 #include "FontStyleStyleValue.h"
+#include <LibGfx/Font/FontStyleMapping.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -19,6 +20,23 @@ FontStyleStyleValue::FontStyleStyleValue(FontStyle font_style, ValueComparingRef
 }
 
 FontStyleStyleValue::~FontStyleStyleValue() = default;
+
+int FontStyleStyleValue::to_font_slope() const
+{
+    // FIXME: Implement oblique <angle>
+    switch (as_font_style().font_style()) {
+    case FontStyle::Italic:
+        static int italic_slope = Gfx::name_to_slope("Italic"sv);
+        return italic_slope;
+    case FontStyle::Oblique:
+        static int oblique_slope = Gfx::name_to_slope("Oblique"sv);
+        return oblique_slope;
+    case FontStyle::Normal:
+    default:
+        static int normal_slope = Gfx::name_to_slope("Normal"sv);
+        return normal_slope;
+    }
+}
 
 String FontStyleStyleValue::to_string(SerializationMode mode) const
 {
