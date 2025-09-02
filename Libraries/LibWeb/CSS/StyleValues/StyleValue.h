@@ -211,8 +211,6 @@ public:
     virtual Vector<Parser::ComponentValue> tokenize() const;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, String const& associated_property) const;
 
-    [[nodiscard]] int to_font_slope() const;
-
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) { }
     virtual void visit_edges(JS::Cell::Visitor&) const { }
 

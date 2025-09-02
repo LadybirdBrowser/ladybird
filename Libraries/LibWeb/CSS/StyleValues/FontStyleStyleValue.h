@@ -23,6 +23,8 @@ public:
     FontStyle font_style() const { return m_font_style; }
     ValueComparingRefPtr<StyleValue const> angle() const { return m_angle_value; }
 
+    int to_font_slope() const;
+
     virtual String to_string(SerializationMode) const override;
 
     bool equals(StyleValue const& other) const override
