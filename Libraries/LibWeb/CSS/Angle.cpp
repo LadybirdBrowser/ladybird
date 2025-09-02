@@ -12,20 +12,20 @@
 
 namespace Web::CSS {
 
-Angle::Angle(double value, Type type)
-    : m_type(type)
+Angle::Angle(double value, AngleUnit unit)
+    : m_unit(unit)
     , m_value(value)
 {
 }
 
 Angle Angle::make_degrees(double value)
 {
-    return { value, Type::Deg };
+    return { value, AngleUnit::Deg };
 }
 
 Angle Angle::percentage_of(Percentage const& percentage) const
 {
-    return Angle { percentage.as_fraction() * m_value, m_type };
+    return Angle { percentage.as_fraction() * m_value, m_unit };
 }
 
 String Angle::to_string(SerializationMode serialization_mode) const
@@ -48,14 +48,14 @@ String Angle::to_string(SerializationMode serialization_mode) const
 
 double Angle::to_degrees() const
 {
-    switch (m_type) {
-    case Type::Deg:
+    switch (m_unit) {
+    case AngleUnit::Deg:
         return m_value;
-    case Type::Grad:
+    case AngleUnit::Grad:
         return m_value * (360.0 / 400.0);
-    case Type::Rad:
+    case AngleUnit::Rad:
         return AK::to_degrees(m_value);
-    case Type::Turn:
+    case AngleUnit::Turn:
         return m_value * 360.0;
     }
     VERIFY_NOT_REACHED();
@@ -64,38 +64,6 @@ double Angle::to_degrees() const
 double Angle::to_radians() const
 {
     return AK::to_radians(to_degrees());
-}
-
-StringView Angle::unit_name() const
-{
-    switch (m_type) {
-    case Type::Deg:
-        return "deg"sv;
-    case Type::Grad:
-        return "grad"sv;
-    case Type::Rad:
-        return "rad"sv;
-    case Type::Turn:
-        return "turn"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Optional<Angle::Type> Angle::unit_from_name(StringView name)
-{
-    if (name.equals_ignoring_ascii_case("deg"sv)) {
-        return Type::Deg;
-    }
-    if (name.equals_ignoring_ascii_case("grad"sv)) {
-        return Type::Grad;
-    }
-    if (name.equals_ignoring_ascii_case("rad"sv)) {
-        return Type::Rad;
-    }
-    if (name.equals_ignoring_ascii_case("turn"sv)) {
-        return Type::Turn;
-    }
-    return {};
 }
 
 Angle Angle::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Angle const& reference_value)

@@ -10,20 +10,20 @@
 
 namespace Web::CSS {
 
-Time::Time(double value, Type type)
-    : m_type(type)
+Time::Time(double value, TimeUnit unit)
+    : m_unit(unit)
     , m_value(value)
 {
 }
 
 Time Time::make_seconds(double value)
 {
-    return { value, Type::S };
+    return { value, TimeUnit::S };
 }
 
 Time Time::percentage_of(Percentage const& percentage) const
 {
-    return Time { percentage.as_fraction() * m_value, m_type };
+    return Time { percentage.as_fraction() * m_value, m_unit };
 }
 
 String Time::to_string(SerializationMode serialization_mode) const
@@ -47,10 +47,10 @@ String Time::to_string(SerializationMode serialization_mode) const
 
 double Time::to_seconds() const
 {
-    switch (m_type) {
-    case Type::S:
+    switch (m_unit) {
+    case TimeUnit::S:
         return m_value;
-    case Type::Ms:
+    case TimeUnit::Ms:
         return m_value / 1000.0;
     }
     VERIFY_NOT_REACHED();
@@ -58,34 +58,13 @@ double Time::to_seconds() const
 
 double Time::to_milliseconds() const
 {
-    switch (m_type) {
-    case Type::S:
+    switch (m_unit) {
+    case TimeUnit::S:
         return m_value * 1000.0;
-    case Type::Ms:
+    case TimeUnit::Ms:
         return m_value;
     }
     VERIFY_NOT_REACHED();
-}
-
-StringView Time::unit_name() const
-{
-    switch (m_type) {
-    case Type::S:
-        return "s"sv;
-    case Type::Ms:
-        return "ms"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Optional<Time::Type> Time::unit_from_name(StringView name)
-{
-    if (name.equals_ignoring_ascii_case("s"sv)) {
-        return Type::S;
-    } else if (name.equals_ignoring_ascii_case("ms"sv)) {
-        return Type::Ms;
-    }
-    return {};
 }
 
 Time Time::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Time const& reference_value)

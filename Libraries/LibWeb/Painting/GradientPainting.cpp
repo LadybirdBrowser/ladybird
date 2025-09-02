@@ -126,7 +126,7 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
 
 ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node, CSS::ConicGradientStyleValue const& conic_gradient)
 {
-    CSS::Angle one_turn(360.0f, CSS::Angle::Type::Deg);
+    CSS::Angle one_turn(360.0f, CSS::AngleUnit::Deg);
     auto resolved_color_stops = resolve_color_stop_positions(
         node, conic_gradient.color_stop_list(), [&](auto const& angle_percentage) {
             return angle_percentage.resolved(node, one_turn).to_degrees() / one_turn.to_degrees();

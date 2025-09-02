@@ -15,16 +15,7 @@ namespace Web::CSS {
 
 class Angle {
 public:
-    enum class Type : u8 {
-        Deg,
-        Grad,
-        Rad,
-        Turn,
-    };
-
-    static Optional<Type> unit_from_name(StringView);
-
-    Angle(double value, Type type);
+    Angle(double value, AngleUnit unit);
     static Angle make_degrees(double);
     Angle percentage_of(Percentage const&) const;
 
@@ -33,13 +24,13 @@ public:
     double to_degrees() const;
     double to_radians() const;
 
-    Type type() const { return m_type; }
     double raw_value() const { return m_value; }
-    StringView unit_name() const;
+    AngleUnit unit() const { return m_unit; }
+    StringView unit_name() const { return CSS::to_string(m_unit); }
 
     bool operator==(Angle const& other) const
     {
-        return m_type == other.m_type && m_value == other.m_value;
+        return m_unit == other.m_unit && m_value == other.m_value;
     }
 
     int operator<=>(Angle const& other) const
@@ -57,7 +48,7 @@ public:
     static Angle resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, Layout::Node const&, Angle const& reference_value);
 
 private:
-    Type m_type;
+    AngleUnit m_unit;
     double m_value { 0 };
 };
 

@@ -10,15 +10,15 @@
 
 namespace Web::CSS {
 
-Resolution::Resolution(double value, Type type)
-    : m_type(type)
+Resolution::Resolution(double value, ResolutionUnit unit)
+    : m_unit(unit)
     , m_value(value)
 {
 }
 
 Resolution Resolution::make_dots_per_pixel(double value)
 {
-    return { value, Type::Dppx };
+    return { value, ResolutionUnit::Dppx };
 }
 
 String Resolution::to_string(SerializationMode serialization_mode) const
@@ -42,44 +42,16 @@ String Resolution::to_string(SerializationMode serialization_mode) const
 
 double Resolution::to_dots_per_pixel() const
 {
-    switch (m_type) {
-    case Type::Dpi:
+    switch (m_unit) {
+    case ResolutionUnit::Dpi:
         return m_value / 96; // 1in = 2.54cm = 96px
-    case Type::Dpcm:
+    case ResolutionUnit::Dpcm:
         return m_value / (96.0 / 2.54); // 1cm = 96px/2.54
-    case Type::Dppx:
-    case Type::X:
+    case ResolutionUnit::Dppx:
+    case ResolutionUnit::X:
         return m_value;
     }
     VERIFY_NOT_REACHED();
-}
-
-StringView Resolution::unit_name() const
-{
-    switch (m_type) {
-    case Type::Dpi:
-        return "dpi"sv;
-    case Type::Dpcm:
-        return "dpcm"sv;
-    case Type::Dppx:
-        return "dppx"sv;
-    case Type::X:
-        return "x"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Optional<Resolution::Type> Resolution::unit_from_name(StringView name)
-{
-    if (name.equals_ignoring_ascii_case("dpi"sv))
-        return Type::Dpi;
-    if (name.equals_ignoring_ascii_case("dpcm"sv))
-        return Type::Dpcm;
-    if (name.equals_ignoring_ascii_case("dppx"sv))
-        return Type::Dppx;
-    if (name.equals_ignoring_ascii_case("x"sv))
-        return Type::X;
-    return {};
 }
 
 }
