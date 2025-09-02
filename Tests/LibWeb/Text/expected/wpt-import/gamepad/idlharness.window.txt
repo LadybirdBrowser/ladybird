@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 85 tests
 
-81 Pass
-4 Fail
+83 Pass
+2 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Navigator: original interface defined
@@ -72,15 +72,15 @@ Pass	GamepadHapticActuator interface: attribute effects
 Pass	GamepadHapticActuator interface: operation playEffect(GamepadHapticEffectType, optional GamepadEffectParameters)
 Pass	GamepadHapticActuator interface: operation reset()
 Pass	GamepadEvent interface: existence and properties of interface object
-Pass	GamepadEvent interface object length
+Fail	GamepadEvent interface object length
 Pass	GamepadEvent interface object name
 Pass	GamepadEvent interface: existence and properties of interface prototype object
 Pass	GamepadEvent interface: existence and properties of interface prototype object's "constructor" property
 Pass	GamepadEvent interface: existence and properties of interface prototype object's @@unscopables property
 Pass	GamepadEvent interface: attribute gamepad
-Fail	GamepadEvent must be primary interface of new GamepadEvent("gamepad")
-Fail	Stringification of new GamepadEvent("gamepad")
-Fail	GamepadEvent interface: new GamepadEvent("gamepad") must inherit property "gamepad" with the proper type
+Pass	GamepadEvent must be primary interface of new GamepadEvent("gamepad")
+Pass	Stringification of new GamepadEvent("gamepad")
+Pass	GamepadEvent interface: new GamepadEvent("gamepad") must inherit property "gamepad" with the proper type
 Pass	HTMLBodyElement interface: attribute ongamepadconnected
 Pass	HTMLBodyElement interface: attribute ongamepaddisconnected
 Pass	Window interface: attribute ongamepadconnected

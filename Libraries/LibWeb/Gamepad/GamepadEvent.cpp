@@ -20,7 +20,7 @@ WebIDL::ExceptionOr<GC::Ref<GamepadEvent>> GamepadEvent::construct_impl(JS::Real
 
 GamepadEvent::GamepadEvent(JS::Realm& realm, FlyString const& event_name, GamepadEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
-    , m_gamepad(*event_init.gamepad)
+    , m_gamepad(event_init.gamepad.has_value() ? event_init.gamepad->ptr() : nullptr)
 {
 }
 
