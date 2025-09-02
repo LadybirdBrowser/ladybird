@@ -292,7 +292,7 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
         tokens.discard_a_token(); // <angle>
         auto angle_value = first_param.token().dimension_value();
         auto unit_string = first_param.token().dimension_unit();
-        auto angle_type = Angle::unit_from_name(unit_string);
+        auto angle_type = string_to_angle_unit(unit_string);
 
         if (!angle_type.has_value())
             return nullptr;
@@ -395,7 +395,7 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
     if (!tokens.has_next_token())
         return nullptr;
 
-    Angle from_angle(0, Angle::Type::Deg);
+    auto from_angle = Angle::make_degrees(0);
     RefPtr<PositionStyleValue const> at_position;
     Optional<InterpolationMethod> maybe_interpolation_method;
 
@@ -426,7 +426,7 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
             if (angle_token.is(Token::Type::Dimension)) {
                 auto angle = angle_token.token().dimension_value();
                 auto angle_unit = angle_token.token().dimension_unit();
-                auto angle_type = Angle::unit_from_name(angle_unit);
+                auto angle_type = string_to_angle_unit(angle_unit);
                 if (!angle_type.has_value())
                     return nullptr;
 

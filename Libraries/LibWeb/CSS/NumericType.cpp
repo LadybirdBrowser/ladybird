@@ -56,37 +56,37 @@ Optional<NumericType> NumericType::create_from_unit(StringView unit)
     }
 
     // unit is a <length> unit
-    if (Length::unit_from_name(unit).has_value()) {
+    if (string_to_length_unit(unit).has_value()) {
         // Return «[ "length" → 1 ]»
         return NumericType { BaseType::Length, 1 };
     }
 
     // unit is an <angle> unit
-    if (Angle::unit_from_name(unit).has_value()) {
+    if (string_to_angle_unit(unit).has_value()) {
         // Return «[ "angle" → 1 ]»
         return NumericType { BaseType::Angle, 1 };
     }
 
     // unit is a <time> unit
-    if (Time::unit_from_name(unit).has_value()) {
+    if (string_to_time_unit(unit).has_value()) {
         // Return «[ "time" → 1 ]»
         return NumericType { BaseType::Time, 1 };
     }
 
     // unit is a <frequency> unit
-    if (Frequency::unit_from_name(unit).has_value()) {
+    if (string_to_frequency_unit(unit).has_value()) {
         // Return «[ "frequency" → 1 ]»
         return NumericType { BaseType::Frequency, 1 };
     }
 
     // unit is a <resolution> unit
-    if (Resolution::unit_from_name(unit).has_value()) {
+    if (string_to_resolution_unit(unit).has_value()) {
         // Return «[ "resolution" → 1 ]»
         return NumericType { BaseType::Resolution, 1 };
     }
 
     // unit is a <flex> unit
-    if (Flex::unit_from_name(unit).has_value()) {
+    if (string_to_flex_unit(unit).has_value()) {
         // Return «[ "flex" → 1 ]»
         return NumericType { BaseType::Flex, 1 };
     }

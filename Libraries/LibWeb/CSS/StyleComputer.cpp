@@ -1132,7 +1132,7 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
         }
     }
 
-    CSS::Time delay { 0, CSS::Time::Type::S };
+    auto delay = Time::make_seconds(0);
     if (auto delay_value = cascaded_properties.property(PropertyID::AnimationDelay); delay_value) {
         if (delay_value->is_time()) {
             delay = delay_value->as_time().time();

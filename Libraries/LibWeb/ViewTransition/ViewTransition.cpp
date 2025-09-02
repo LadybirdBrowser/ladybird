@@ -300,7 +300,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
         // 6. Set capture’s old transform to a <transform-function> that would map element’s border box from the
         //    snapshot containing block origin to its current visual position.
         // FIXME: Actually compute the right transform here.
-        capture->old_transform = CSS::Transformation(CSS::TransformFunction::Translate, Vector<CSS::TransformValue>({ CSS::TransformValue(CSS::Length(0, CSS::Length::Type::Px)), CSS::TransformValue(CSS::Length(0, CSS::Length::Type::Px)) }));
+        capture->old_transform = CSS::Transformation(CSS::TransformFunction::Translate, Vector<CSS::TransformValue>({ CSS::TransformValue(CSS::Length(0, CSS::LengthUnit::Px)), CSS::TransformValue(CSS::Length(0, CSS::LengthUnit::Px)) }));
 
         // 7. Set capture’s old writing-mode to the computed value of writing-mode on element.
         capture->old_writing_mode = element.layout_node()->computed_values().writing_mode();

@@ -407,7 +407,7 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
         // FIXME: Make this a preference
         return CSS::MediaFeatureValue(CSS::Keyword::NoPreference);
     case CSS::MediaFeatureID::Resolution:
-        return CSS::MediaFeatureValue(CSS::Resolution(device_pixel_ratio(), CSS::Resolution::Type::Dppx));
+        return CSS::MediaFeatureValue(CSS::Resolution::make_dots_per_pixel(device_pixel_ratio()));
     case CSS::MediaFeatureID::Scan:
         // FIXME: Detect this from the display, if we can. Most displays aren't scanning and should return None.
         return CSS::MediaFeatureValue(CSS::Keyword::None);
