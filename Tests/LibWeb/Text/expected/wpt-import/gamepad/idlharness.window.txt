@@ -1,0 +1,91 @@
+Harness status: OK
+
+Found 85 tests
+
+81 Pass
+4 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Navigator: original interface defined
+Pass	Partial interface Navigator: valid exposure set
+Pass	Partial interface Navigator: member names are unique
+Pass	Partial interface mixin WindowEventHandlers: original interface mixin defined
+Pass	Partial interface mixin WindowEventHandlers: member names are unique
+Pass	Partial interface Navigator[2]: member names are unique
+Pass	Partial interface Element: member names are unique
+Pass	Partial interface mixin NavigatorID: member names are unique
+Pass	Partial interface HTMLBodyElement: member names are unique
+Pass	Partial interface Window: member names are unique
+Pass	HTMLElement includes GlobalEventHandlers: member names are unique
+Pass	HTMLElement includes ElementContentEditable: member names are unique
+Pass	HTMLElement includes HTMLOrSVGElement: member names are unique
+Pass	HTMLBodyElement includes WindowEventHandlers: member names are unique
+Pass	Window includes GlobalEventHandlers: member names are unique
+Pass	Window includes WindowEventHandlers: member names are unique
+Pass	Window includes WindowOrWorkerGlobalScope: member names are unique
+Pass	Navigator includes NavigatorID: member names are unique
+Pass	Navigator includes NavigatorLanguage: member names are unique
+Pass	Navigator includes NavigatorOnLine: member names are unique
+Pass	Navigator includes NavigatorContentUtils: member names are unique
+Pass	Navigator includes NavigatorCookies: member names are unique
+Pass	Navigator includes NavigatorPlugins: member names are unique
+Pass	Navigator includes NavigatorConcurrentHardware: member names are unique
+Pass	Window includes AnimationFrameProvider: member names are unique
+Pass	Window includes WindowSessionStorage: member names are unique
+Pass	Window includes WindowLocalStorage: member names are unique
+Pass	HTMLFrameSetElement includes WindowEventHandlers: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	Gamepad interface: existence and properties of interface object
+Pass	Gamepad interface object length
+Pass	Gamepad interface object name
+Pass	Gamepad interface: existence and properties of interface prototype object
+Pass	Gamepad interface: existence and properties of interface prototype object's "constructor" property
+Pass	Gamepad interface: existence and properties of interface prototype object's @@unscopables property
+Pass	Gamepad interface: attribute id
+Pass	Gamepad interface: attribute index
+Pass	Gamepad interface: attribute connected
+Pass	Gamepad interface: attribute timestamp
+Pass	Gamepad interface: attribute mapping
+Pass	Gamepad interface: attribute axes
+Pass	Gamepad interface: attribute buttons
+Fail	Gamepad interface: attribute touches
+Pass	Gamepad interface: attribute vibrationActuator
+Pass	GamepadButton interface: existence and properties of interface object
+Pass	GamepadButton interface object length
+Pass	GamepadButton interface object name
+Pass	GamepadButton interface: existence and properties of interface prototype object
+Pass	GamepadButton interface: existence and properties of interface prototype object's "constructor" property
+Pass	GamepadButton interface: existence and properties of interface prototype object's @@unscopables property
+Pass	GamepadButton interface: attribute pressed
+Pass	GamepadButton interface: attribute touched
+Pass	GamepadButton interface: attribute value
+Pass	GamepadHapticActuator interface: existence and properties of interface object
+Pass	GamepadHapticActuator interface object length
+Pass	GamepadHapticActuator interface object name
+Pass	GamepadHapticActuator interface: existence and properties of interface prototype object
+Pass	GamepadHapticActuator interface: existence and properties of interface prototype object's "constructor" property
+Pass	GamepadHapticActuator interface: existence and properties of interface prototype object's @@unscopables property
+Pass	GamepadHapticActuator interface: attribute effects
+Pass	GamepadHapticActuator interface: operation playEffect(GamepadHapticEffectType, optional GamepadEffectParameters)
+Pass	GamepadHapticActuator interface: operation reset()
+Pass	GamepadEvent interface: existence and properties of interface object
+Pass	GamepadEvent interface object length
+Pass	GamepadEvent interface object name
+Pass	GamepadEvent interface: existence and properties of interface prototype object
+Pass	GamepadEvent interface: existence and properties of interface prototype object's "constructor" property
+Pass	GamepadEvent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	GamepadEvent interface: attribute gamepad
+Fail	GamepadEvent must be primary interface of new GamepadEvent("gamepad")
+Fail	Stringification of new GamepadEvent("gamepad")
+Fail	GamepadEvent interface: new GamepadEvent("gamepad") must inherit property "gamepad" with the proper type
+Pass	HTMLBodyElement interface: attribute ongamepadconnected
+Pass	HTMLBodyElement interface: attribute ongamepaddisconnected
+Pass	Window interface: attribute ongamepadconnected
+Pass	Window interface: attribute ongamepaddisconnected
+Pass	Navigator interface: operation getGamepads()
+Pass	Navigator interface: navigator must inherit property "getGamepads()" with the proper type
+Pass	HTMLFrameSetElement interface: attribute ongamepadconnected
+Pass	HTMLFrameSetElement interface: attribute ongamepaddisconnected

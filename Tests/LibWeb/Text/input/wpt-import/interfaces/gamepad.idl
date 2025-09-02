@@ -1,0 +1,87 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Gamepad (https://w3c.github.io/gamepad/)
+
+[Exposed=Window]
+interface Gamepad {
+  readonly attribute DOMString id;
+  readonly attribute long index;
+  readonly attribute boolean connected;
+  readonly attribute DOMHighResTimeStamp timestamp;
+  readonly attribute GamepadMappingType mapping;
+  readonly attribute FrozenArray<double> axes;
+  readonly attribute FrozenArray<GamepadButton> buttons;
+  readonly attribute FrozenArray<GamepadTouch> touches;
+  [SameObject] readonly attribute GamepadHapticActuator vibrationActuator;
+};
+
+[Exposed=Window]
+interface GamepadButton {
+  readonly attribute boolean pressed;
+  readonly attribute boolean touched;
+  readonly attribute double value;
+};
+
+dictionary GamepadTouch {
+  unsigned long touchId;
+  octet surfaceId;
+  DOMPointReadOnly position;
+  DOMRectReadOnly? surfaceDimensions;
+};
+
+enum GamepadMappingType {
+  "",
+  "standard",
+  "xr-standard",
+};
+
+[Exposed=Window]
+interface GamepadHapticActuator {
+  [SameObject] readonly attribute FrozenArray<GamepadHapticEffectType> effects;
+  Promise<GamepadHapticsResult> playEffect(
+      GamepadHapticEffectType type,
+      optional GamepadEffectParameters params = {}
+  );
+  Promise<GamepadHapticsResult> reset();
+};
+
+enum GamepadHapticsResult {
+  "complete",
+  "preempted"
+};
+
+enum GamepadHapticEffectType {
+  "dual-rumble",
+  "trigger-rumble"
+};
+
+dictionary GamepadEffectParameters {
+    unsigned long long duration = 0;
+    unsigned long long startDelay = 0;
+    double strongMagnitude = 0.0;
+    double weakMagnitude = 0.0;
+    double leftTrigger = 0.0;
+    double rightTrigger = 0.0;
+};
+
+[Exposed=Window]
+partial interface Navigator {
+  sequence<Gamepad?> getGamepads();
+};
+
+[Exposed=Window]
+
+interface GamepadEvent: Event {
+  constructor(DOMString type, GamepadEventInit eventInitDict);
+  [SameObject] readonly attribute Gamepad gamepad;
+};
+
+dictionary GamepadEventInit : EventInit {
+  required Gamepad gamepad;
+};
+
+partial interface mixin WindowEventHandlers {
+  attribute EventHandler ongamepadconnected;
+  attribute EventHandler ongamepaddisconnected;
+};
