@@ -11,10 +11,10 @@
 
 #include <AK/String.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
-#include <LibWeb/Layout/Node.h>
 
 namespace Web::HTML {
 
