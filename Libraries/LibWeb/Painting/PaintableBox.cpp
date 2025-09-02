@@ -976,8 +976,8 @@ void paint_text_fragment(DisplayListRecordingContext& context, TextPaintable con
         auto fragment_absolute_rect = fragment.absolute_rect();
         auto fragment_enclosing_device_rect = context.enclosing_device_rect(fragment_absolute_rect).to_type<int>();
 
-        if (paintable.document().highlighted_layout_node() == &paintable.layout_node())
-            context.display_list_recorder().draw_rect(fragment_enclosing_device_rect, Color::Magenta);
+        if (paintable.document().highlighted_layout_node() == &paintable.layout_node() || context.should_show_line_box_borders())
+            paint_text_fragment_debug_highlight(context, fragment);
 
         auto glyph_run = fragment.glyph_run();
         if (!glyph_run)
@@ -999,6 +999,17 @@ void paint_text_fragment(DisplayListRecordingContext& context, TextPaintable con
     }
 }
 
+void paint_text_fragment_debug_highlight(DisplayListRecordingContext& context, PaintableFragment const& fragment)
+{
+    auto fragment_absolute_rect = fragment.absolute_rect();
+    auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
+    context.display_list_recorder().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Green);
+
+    auto baseline_start = context.rounded_device_point(fragment_absolute_rect.top_left().translated(0, fragment.baseline())).to_type<int>();
+    auto baseline_end = context.rounded_device_point(fragment_absolute_rect.top_right().translated(-1, fragment.baseline())).to_type<int>();
+    context.display_list_recorder().draw_line(baseline_start, baseline_end, Color::Red);
+}
+
 void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
@@ -1016,14 +1027,6 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
     }
 
     for (auto const& fragment : m_fragments) {
-        auto fragment_absolute_rect = fragment.absolute_rect();
-        if (phase == PaintPhase::Foreground && context.should_show_line_box_borders()) {
-            auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
-            context.display_list_recorder().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Green);
-            context.display_list_recorder().draw_line(
-                context.rounded_device_point(fragment_absolute_rect.top_left().translated(0, fragment.baseline())).to_type<int>(),
-                context.rounded_device_point(fragment_absolute_rect.top_right().translated(-1, fragment.baseline())).to_type<int>(), Color::Red);
-        }
         if (is<TextPaintable>(fragment.paintable()))
             paint_text_fragment(context, static_cast<TextPaintable const&>(fragment.paintable()), fragment, phase);
     }
