@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	A CSS Module should load
+Pass	A large CSS Module should load
+Pass	An @import CSS Module should not load, but should not throw an exception
+Pass	A parse error should not prevent subsequent rules from being included in a CSS module
+Pass	CSS module without type attribute should result in a fetch error
