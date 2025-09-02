@@ -502,51 +502,52 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
             context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, scrollbar_colors.thumb_color, scrollbar_colors.track_color, false);
         }
     }
+}
 
-    if (phase == PaintPhase::Overlay && layout_node().document().highlighted_layout_node() == &layout_node_with_style_and_box_metrics()) {
-        auto content_rect = absolute_united_content_rect();
-        auto margin_rect = united_rect_for_continuation_chain(*this, [](PaintableBox const& box) {
-            auto margin_box = box.box_model().margin_box();
-            return CSSPixelRect {
-                box.absolute_x() - margin_box.left,
-                box.absolute_y() - margin_box.top,
-                box.content_width() + margin_box.left + margin_box.right,
-                box.content_height() + margin_box.top + margin_box.bottom,
-            };
-        });
-        auto border_rect = absolute_united_border_box_rect();
-        auto padding_rect = absolute_united_padding_box_rect();
-
-        auto paint_inspector_rect = [&](CSSPixelRect const& rect, Color color) {
-            auto device_rect = context.enclosing_device_rect(rect).to_type<int>();
-            context.display_list_recorder().fill_rect(device_rect, color.with_alpha(100));
-            context.display_list_recorder().draw_rect(device_rect, color);
+void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext& context) const
+{
+    auto content_rect = absolute_united_content_rect();
+    auto margin_rect = united_rect_for_continuation_chain(*this, [](PaintableBox const& box) {
+        auto margin_box = box.box_model().margin_box();
+        return CSSPixelRect {
+            box.absolute_x() - margin_box.left,
+            box.absolute_y() - margin_box.top,
+            box.content_width() + margin_box.left + margin_box.right,
+            box.content_height() + margin_box.top + margin_box.bottom,
         };
+    });
+    auto border_rect = absolute_united_border_box_rect();
+    auto padding_rect = absolute_united_padding_box_rect();
 
-        paint_inspector_rect(margin_rect, Color::Yellow);
-        paint_inspector_rect(padding_rect, Color::Cyan);
-        paint_inspector_rect(border_rect, Color::Green);
-        paint_inspector_rect(content_rect, Color::Magenta);
+    auto paint_inspector_rect = [&](CSSPixelRect const& rect, Color color) {
+        auto device_rect = context.enclosing_device_rect(rect).to_type<int>();
+        context.display_list_recorder().fill_rect(device_rect, color.with_alpha(100));
+        context.display_list_recorder().draw_rect(device_rect, color);
+    };
 
-        auto font = Platform::FontPlugin::the().default_font(12);
+    paint_inspector_rect(margin_rect, Color::Yellow);
+    paint_inspector_rect(padding_rect, Color::Cyan);
+    paint_inspector_rect(border_rect, Color::Green);
+    paint_inspector_rect(content_rect, Color::Magenta);
 
-        StringBuilder builder;
-        if (layout_node_with_style_and_box_metrics().dom_node())
-            builder.append(layout_node_with_style_and_box_metrics().dom_node()->debug_description());
-        else
-            builder.append(layout_node_with_style_and_box_metrics().debug_description());
-        builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
-        auto size_text = MUST(builder.to_string());
-        auto size_text_rect = border_rect;
-        size_text_rect.set_y(border_rect.y() + border_rect.height());
-        size_text_rect.set_top(size_text_rect.top());
-        size_text_rect.set_width(CSSPixels::nearest_value_for(font->width(size_text)) + 4);
-        size_text_rect.set_height(CSSPixels::nearest_value_for(font->pixel_size()) + 4);
-        auto size_text_device_rect = context.enclosing_device_rect(size_text_rect).to_type<int>();
-        context.display_list_recorder().fill_rect(size_text_device_rect, context.palette().color(Gfx::ColorRole::Tooltip));
-        context.display_list_recorder().draw_rect(size_text_device_rect, context.palette().threed_shadow1());
-        context.display_list_recorder().draw_text(size_text_device_rect, size_text, font->with_size(font->point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
-    }
+    auto font = Platform::FontPlugin::the().default_font(12);
+
+    StringBuilder builder;
+    if (layout_node_with_style_and_box_metrics().dom_node())
+        builder.append(layout_node_with_style_and_box_metrics().dom_node()->debug_description());
+    else
+        builder.append(layout_node_with_style_and_box_metrics().debug_description());
+    builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
+    auto size_text = MUST(builder.to_string());
+    auto size_text_rect = border_rect;
+    size_text_rect.set_y(border_rect.y() + border_rect.height());
+    size_text_rect.set_top(size_text_rect.top());
+    size_text_rect.set_width(CSSPixels::nearest_value_for(font->width(size_text)) + 4);
+    size_text_rect.set_height(CSSPixels::nearest_value_for(font->pixel_size()) + 4);
+    auto size_text_device_rect = context.enclosing_device_rect(size_text_rect).to_type<int>();
+    context.display_list_recorder().fill_rect(size_text_device_rect, context.palette().color(Gfx::ColorRole::Tooltip));
+    context.display_list_recorder().draw_rect(size_text_device_rect, context.palette().threed_shadow1());
+    context.display_list_recorder().draw_text(size_text_device_rect, size_text, font->with_size(font->point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
 }
 
 void PaintableBox::set_stacking_context(NonnullOwnPtr<StackingContext> stacking_context)
@@ -946,7 +947,7 @@ void paint_text_fragment(DisplayListRecordingContext& context, TextPaintable con
         auto fragment_absolute_rect = fragment.absolute_rect();
         auto fragment_enclosing_device_rect = context.enclosing_device_rect(fragment_absolute_rect).to_type<int>();
 
-        if (paintable.document().highlighted_layout_node() == &paintable.layout_node() || context.should_show_line_box_borders())
+        if (context.should_show_line_box_borders())
             paint_text_fragment_debug_highlight(context, fragment);
 
         auto glyph_run = fragment.glyph_run();
