@@ -1,0 +1,231 @@
+diff --git a/modules/skparagraph/BUILD.gn b/modules/skparagraph/BUILD.gn
+index 283eeacebd..742fe4552f 100644
+--- a/modules/skparagraph/BUILD.gn
++++ b/modules/skparagraph/BUILD.gn
+@@ -20,6 +20,9 @@ if (skia_enable_skparagraph && skia_enable_skshaper && skia_enable_skunicode &&
+       "include",
+       "utils",
+     ]
++    if (is_component_build) {
++      defines += [ "SKPARAGRAPH_DLL" ]
++    }
+   }
+ 
+   skia_component("skparagraph") {
+@@ -27,6 +30,7 @@ if (skia_enable_skparagraph && skia_enable_skshaper && skia_enable_skunicode &&
+     public_configs = [ ":public_config" ]
+     public = skparagraph_core_public
+     sources = skparagraph_core_sources
++    defines = [ "SKPARAGRAPH_IMPLEMENTATION=1" ]
+     public_deps = [
+       "../..:skia",
+       "../skunicode",
+diff --git a/modules/skparagraph/include/FontCollection.h b/modules/skparagraph/include/FontCollection.h
+index ae2f9922d0..5b77e997bc 100644
+--- a/modules/skparagraph/include/FontCollection.h
++++ b/modules/skparagraph/include/FontCollection.h
+@@ -16,9 +16,29 @@
+ namespace skia {
+ namespace textlayout {
+ 
++#if !defined(SKPARAGRAPH_IMPLEMENTATION)
++    #define SKPARAGRAPH_IMPLEMENTATION 0
++#endif
++
++#if !defined(SKPARAGRAPH_API)
++    #if defined(SKPARAGRAPH_DLL)
++        #if defined(_MSC_VER)
++            #if SKPARAGRAPH_IMPLEMENTATION
++                #define SKPARAGRAPH_API __declspec(dllexport)
++            #else
++                #define SKPARAGRAPH_API __declspec(dllimport)
++            #endif
++        #else
++            #define SKPARAGRAPH_API __attribute__((visibility("default")))
++        #endif
++    #else
++        #define SKPARAGRAPH_API
++    #endif
++#endif
++
+ class TextStyle;
+ class Paragraph;
+-class FontCollection : public SkRefCnt {
++class SKPARAGRAPH_API FontCollection : public SkRefCnt {
+ public:
+     FontCollection();
+ 
+diff --git a/modules/skparagraph/include/ParagraphBuilder.h b/modules/skparagraph/include/ParagraphBuilder.h
+index feac5622bb..72712e121d 100644
+--- a/modules/skparagraph/include/ParagraphBuilder.h
++++ b/modules/skparagraph/include/ParagraphBuilder.h
+@@ -16,7 +16,27 @@
+ namespace skia {
+ namespace textlayout {
+ 
+-class ParagraphBuilder {
++#if !defined(SKPARAGRAPH_IMPLEMENTATION)
++    #define SKPARAGRAPH_IMPLEMENTATION 0
++#endif
++
++#if !defined(SKPARAGRAPH_API)
++    #if defined(SKPARAGRAPH_DLL)
++        #if defined(_MSC_VER)
++            #if SKPARAGRAPH_IMPLEMENTATION
++                #define SKPARAGRAPH_API __declspec(dllexport)
++            #else
++                #define SKPARAGRAPH_API __declspec(dllimport)
++            #endif
++        #else
++            #define SKPARAGRAPH_API __attribute__((visibility("default")))
++        #endif
++    #else
++        #define SKPARAGRAPH_API
++    #endif
++#endif
++
++class SKPARAGRAPH_API ParagraphBuilder {
+ protected:
+     ParagraphBuilder() {}
+ 
+diff --git a/modules/skparagraph/include/ParagraphStyle.h b/modules/skparagraph/include/ParagraphStyle.h
+index 98ec228ffb..63e973c7db 100644
+--- a/modules/skparagraph/include/ParagraphStyle.h
++++ b/modules/skparagraph/include/ParagraphStyle.h
+@@ -18,6 +18,26 @@
+ namespace skia {
+ namespace textlayout {
+ 
++#if !defined(SKPARAGRAPH_IMPLEMENTATION)
++    #define SKPARAGRAPH_IMPLEMENTATION 0
++#endif
++
++#if !defined(SKPARAGRAPH_API)
++    #if defined(SKPARAGRAPH_DLL)
++        #if defined(_MSC_VER)
++            #if SKPARAGRAPH_IMPLEMENTATION
++                #define SKPARAGRAPH_API __declspec(dllexport)
++            #else
++                #define SKPARAGRAPH_API __declspec(dllimport)
++            #endif
++        #else
++            #define SKPARAGRAPH_API __attribute__((visibility("default")))
++        #endif
++    #else
++        #define SKPARAGRAPH_API
++    #endif
++#endif
++
+ struct StrutStyle {
+     StrutStyle();
+ 
+@@ -75,7 +95,7 @@ private:
+     bool fHalfLeading;
+ };
+ 
+-struct ParagraphStyle {
++struct SKPARAGRAPH_API ParagraphStyle {
+     ParagraphStyle();
+ 
+     bool operator==(const ParagraphStyle& rhs) const {
+diff --git a/modules/skparagraph/include/TextStyle.h b/modules/skparagraph/include/TextStyle.h
+index 4bc2fb9dbc..4bee210fb7 100644
+--- a/modules/skparagraph/include/TextStyle.h
++++ b/modules/skparagraph/include/TextStyle.h
+@@ -21,6 +21,26 @@
+ namespace skia {
+ namespace textlayout {
+ 
++#if !defined(SKPARAGRAPH_IMPLEMENTATION)
++    #define SKPARAGRAPH_IMPLEMENTATION 0
++#endif
++
++#if !defined(SKPARAGRAPH_API)
++    #if defined(SKPARAGRAPH_DLL)
++        #if defined(_MSC_VER)
++            #if SKPARAGRAPH_IMPLEMENTATION
++                #define SKPARAGRAPH_API __declspec(dllexport)
++            #else
++                #define SKPARAGRAPH_API __declspec(dllimport)
++            #endif
++        #else
++            #define SKPARAGRAPH_API __attribute__((visibility("default")))
++        #endif
++    #else
++        #define SKPARAGRAPH_API
++    #endif
++#endif
++
+ static inline bool nearlyZero(SkScalar x, SkScalar tolerance = SK_ScalarNearlyZero) {
+     if (SkIsFinite(x)) {
+         return SkScalarNearlyZero(x, tolerance);
+@@ -148,9 +168,9 @@ struct PlaceholderStyle {
+     SkScalar fBaselineOffset = 0;
+ };
+ 
+-class TextStyle {
++class SKPARAGRAPH_API TextStyle {
+ public:
+-    TextStyle() = default;
++    TextStyle();
+     TextStyle(const TextStyle& other) = default;
+     TextStyle& operator=(const TextStyle& other) = default;
+ 
+@@ -288,8 +308,6 @@ public:
+     void setPlaceholder() { fIsPlaceholder = true; }
+ 
+ private:
+-    static const std::vector<SkString>* kDefaultFontFamilies;
+-
+     Decoration fDecoration = {
+             TextDecoration::kNoDecoration,
+             // TODO: switch back to kGaps when (if) switching flutter to skparagraph
+@@ -302,7 +320,7 @@ private:
+ 
+     SkFontStyle fFontStyle;
+ 
+-    std::vector<SkString> fFontFamilies = *kDefaultFontFamilies;
++    std::vector<SkString> fFontFamilies;
+ 
+     SkScalar fFontSize = 14.0;
+     SkScalar fHeight = 1.0;
+diff --git a/modules/skparagraph/src/TextStyle.cpp b/modules/skparagraph/src/TextStyle.cpp
+index 492f94fe10..9889cc90aa 100644
+--- a/modules/skparagraph/src/TextStyle.cpp
++++ b/modules/skparagraph/src/TextStyle.cpp
+@@ -6,9 +6,13 @@
+ namespace skia {
+ namespace textlayout {
+ 
+-const std::vector<SkString>* TextStyle::kDefaultFontFamilies =
++static const std::vector<SkString>* kDefaultFontFamilies =
+         new std::vector<SkString>{SkString(DEFAULT_FONT_FAMILY)};
+ 
++TextStyle::TextStyle() : fFontFamilies(*kDefaultFontFamilies)
++{
++}
++
+ TextStyle TextStyle::cloneForPlaceholder() {
+     TextStyle result;
+     result.fColor = fColor;
+diff --git a/modules/skparagraph/utils/TestFontCollection.cpp b/modules/skparagraph/utils/TestFontCollection.cpp
+index b74a3b99cf..3fe2b129da 100644
+--- a/modules/skparagraph/utils/TestFontCollection.cpp
++++ b/modules/skparagraph/utils/TestFontCollection.cpp
+@@ -57,6 +57,8 @@ bool TestFontCollection::addFontFromFile(const std::string& path, const std::str
+     if (!file) {
+         return false;
+     }
++
++#if 0
+ #if defined(SK_TYPEFACE_FACTORY_FREETYPE)
+     sk_sp<SkTypeface> face =
+             SkTypeface_FreeType::MakeFromStream(std::move(file), SkFontArguments());
+@@ -72,6 +74,7 @@ bool TestFontCollection::addFontFromFile(const std::string& path, const std::str
+     } else {
+         fFontProvider->registerTypeface(std::move(face), SkString(familyName.c_str()));
+     }
++#endif
+ 
+     return true;
+ }

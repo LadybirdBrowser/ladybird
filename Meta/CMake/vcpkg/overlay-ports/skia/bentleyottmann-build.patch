@@ -1,5 +1,5 @@
 diff --git a/modules/bentleyottmann/BUILD.gn b/modules/bentleyottmann/BUILD.gn
-index 8a6725592f..fa0d03334c 100644
+index 8a6725592f..40e4ac7bec 100644
 --- a/modules/bentleyottmann/BUILD.gn
 +++ b/modules/bentleyottmann/BUILD.gn
 @@ -31,4 +31,9 @@ if (skia_enable_bentleyottmann) {
