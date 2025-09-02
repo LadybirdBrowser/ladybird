@@ -29,22 +29,22 @@ GC::Ref<SVGLength> SVGLength::from_length_percentage(JS::Realm& realm, CSS::Leng
     if (length_percentage.is_length())
         return create(
             realm, [&] {
-                switch (length_percentage.length().type()) {
-                case CSS::Length::Type::Em:
+                switch (length_percentage.length().unit()) {
+                case CSS::LengthUnit::Em:
                     return SVG_LENGTHTYPE_EMS;
-                case CSS::Length::Type::Ex:
+                case CSS::LengthUnit::Ex:
                     return SVG_LENGTHTYPE_EXS;
-                case CSS::Length::Type::Px:
+                case CSS::LengthUnit::Px:
                     return SVG_LENGTHTYPE_PX;
-                case CSS::Length::Type::Cm:
+                case CSS::LengthUnit::Cm:
                     return SVG_LENGTHTYPE_CM;
-                case CSS::Length::Type::Mm:
+                case CSS::LengthUnit::Mm:
                     return SVG_LENGTHTYPE_MM;
-                case CSS::Length::Type::In:
+                case CSS::LengthUnit::In:
                     return SVG_LENGTHTYPE_IN;
-                case CSS::Length::Type::Pt:
+                case CSS::LengthUnit::Pt:
                     return SVG_LENGTHTYPE_PT;
-                case CSS::Length::Type::Pc:
+                case CSS::LengthUnit::Pc:
                     return SVG_LENGTHTYPE_PC;
                 default:
                     return SVG_LENGTHTYPE_UNKNOWN;

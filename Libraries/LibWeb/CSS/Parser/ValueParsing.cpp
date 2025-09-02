@@ -158,22 +158,22 @@ Optional<Dimension> Parser::parse_dimension(ComponentValue const& component_valu
         auto numeric_value = component_value.token().dimension_value();
         auto unit_string = component_value.token().dimension_unit();
 
-        if (auto length_type = Length::unit_from_name(unit_string); length_type.has_value())
+        if (auto length_type = string_to_length_unit(unit_string); length_type.has_value())
             return Length { numeric_value, length_type.release_value() };
 
-        if (auto angle_type = Angle::unit_from_name(unit_string); angle_type.has_value())
+        if (auto angle_type = string_to_angle_unit(unit_string); angle_type.has_value())
             return Angle { numeric_value, angle_type.release_value() };
 
-        if (auto flex_type = Flex::unit_from_name(unit_string); flex_type.has_value())
+        if (auto flex_type = string_to_flex_unit(unit_string); flex_type.has_value())
             return Flex { numeric_value, flex_type.release_value() };
 
-        if (auto frequency_type = Frequency::unit_from_name(unit_string); frequency_type.has_value())
+        if (auto frequency_type = string_to_frequency_unit(unit_string); frequency_type.has_value())
             return Frequency { numeric_value, frequency_type.release_value() };
 
-        if (auto resolution_type = Resolution::unit_from_name(unit_string); resolution_type.has_value())
+        if (auto resolution_type = string_to_resolution_unit(unit_string); resolution_type.has_value())
             return Resolution { numeric_value, resolution_type.release_value() };
 
-        if (auto time_type = Time::unit_from_name(unit_string); time_type.has_value())
+        if (auto time_type = string_to_time_unit(unit_string); time_type.has_value())
             return Time { numeric_value, time_type.release_value() };
     }
 
@@ -1027,7 +1027,7 @@ RefPtr<StyleValue const> Parser::parse_angle_value(TokenStream<ComponentValue>& 
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
-        if (auto angle_type = Angle::unit_from_name(dimension_token.dimension_unit()); angle_type.has_value()) {
+        if (auto angle_type = string_to_angle_unit(dimension_token.dimension_unit()); angle_type.has_value()) {
             transaction.commit();
             return AngleStyleValue::create(Angle { (dimension_token.dimension_value()), angle_type.release_value() });
         }
@@ -1058,7 +1058,7 @@ RefPtr<StyleValue const> Parser::parse_angle_percentage_value(TokenStream<Compon
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
-        if (auto angle_type = Angle::unit_from_name(dimension_token.dimension_unit()); angle_type.has_value()) {
+        if (auto angle_type = string_to_angle_unit(dimension_token.dimension_unit()); angle_type.has_value()) {
             transaction.commit();
             return AngleStyleValue::create(Angle { (dimension_token.dimension_value()), angle_type.release_value() });
         }
@@ -1092,7 +1092,7 @@ RefPtr<StyleValue const> Parser::parse_flex_value(TokenStream<ComponentValue>& t
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
-        if (auto flex_type = Flex::unit_from_name(dimension_token.dimension_unit()); flex_type.has_value()) {
+        if (auto flex_type = string_to_flex_unit(dimension_token.dimension_unit()); flex_type.has_value()) {
             transaction.commit();
             return FlexStyleValue::create(Flex { (dimension_token.dimension_value()), flex_type.release_value() });
         }
@@ -1114,7 +1114,7 @@ RefPtr<StyleValue const> Parser::parse_frequency_value(TokenStream<ComponentValu
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
-        if (auto frequency_type = Frequency::unit_from_name(dimension_token.dimension_unit()); frequency_type.has_value()) {
+        if (auto frequency_type = string_to_frequency_unit(dimension_token.dimension_unit()); frequency_type.has_value()) {
             transaction.commit();
             return FrequencyStyleValue::create(Frequency { (dimension_token.dimension_value()), frequency_type.release_value() });
         }
@@ -1136,7 +1136,7 @@ RefPtr<StyleValue const> Parser::parse_frequency_percentage_value(TokenStream<Co
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
-        if (auto frequency_type = Frequency::unit_from_name(dimension_token.dimension_unit()); frequency_type.has_value()) {
+        if (auto frequency_type = string_to_frequency_unit(dimension_token.dimension_unit()); frequency_type.has_value()) {
             transaction.commit();
             return FrequencyStyleValue::create(Frequency { (dimension_token.dimension_value()), frequency_type.release_value() });
         }
@@ -1161,7 +1161,7 @@ RefPtr<StyleValue const> Parser::parse_length_value(TokenStream<ComponentValue>&
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
-        if (auto length_type = Length::unit_from_name(dimension_token.dimension_unit()); length_type.has_value()) {
+        if (auto length_type = string_to_length_unit(dimension_token.dimension_unit()); length_type.has_value()) {
             transaction.commit();
             return LengthStyleValue::create(Length { (dimension_token.dimension_value()), length_type.release_value() });
         }
@@ -1208,7 +1208,7 @@ RefPtr<StyleValue const> Parser::parse_length_percentage_value(TokenStream<Compo
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
-        if (auto length_type = Length::unit_from_name(dimension_token.dimension_unit()); length_type.has_value()) {
+        if (auto length_type = string_to_length_unit(dimension_token.dimension_unit()); length_type.has_value()) {
             transaction.commit();
             return LengthStyleValue::create(Length { (dimension_token.dimension_value()), length_type.release_value() });
         }
@@ -1263,7 +1263,7 @@ RefPtr<StyleValue const> Parser::parse_resolution_value(TokenStream<ComponentVal
         // https://drafts.csswg.org/css-values-4/#resolution
         if (dimension_token.dimension_value() < 0)
             return nullptr;
-        if (auto resolution_type = Resolution::unit_from_name(dimension_token.dimension_unit()); resolution_type.has_value()) {
+        if (auto resolution_type = string_to_resolution_unit(dimension_token.dimension_unit()); resolution_type.has_value()) {
             transaction.commit();
             return ResolutionStyleValue::create(Resolution { (dimension_token.dimension_value()), resolution_type.release_value() });
         }
@@ -1285,7 +1285,7 @@ RefPtr<StyleValue const> Parser::parse_time_value(TokenStream<ComponentValue>& t
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
-        if (auto time_type = Time::unit_from_name(dimension_token.dimension_unit()); time_type.has_value()) {
+        if (auto time_type = string_to_time_unit(dimension_token.dimension_unit()); time_type.has_value()) {
             transaction.commit();
             return TimeStyleValue::create(Time { (dimension_token.dimension_value()), time_type.release_value() });
         }
@@ -1307,7 +1307,7 @@ RefPtr<StyleValue const> Parser::parse_time_percentage_value(TokenStream<Compone
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
-        if (auto time_type = Time::unit_from_name(dimension_token.dimension_unit()); time_type.has_value()) {
+        if (auto time_type = string_to_time_unit(dimension_token.dimension_unit()); time_type.has_value()) {
             transaction.commit();
             return TimeStyleValue::create(Time { (dimension_token.dimension_value()), time_type.release_value() });
         }
@@ -4228,13 +4228,13 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
                 auto numeric_value = component_value->token().dimension_value();
                 auto unit_string = component_value->token().dimension_unit();
 
-                if (auto length_type = Length::unit_from_name(unit_string); length_type.has_value())
+                if (auto length_type = string_to_length_unit(unit_string); length_type.has_value())
                     return NumericCalculationNode::create(Length { numeric_value, length_type.release_value() }, context);
 
-                if (auto angle_type = Angle::unit_from_name(unit_string); angle_type.has_value())
+                if (auto angle_type = string_to_angle_unit(unit_string); angle_type.has_value())
                     return NumericCalculationNode::create(Angle { numeric_value, angle_type.release_value() }, context);
 
-                if (auto flex_type = Flex::unit_from_name(unit_string); flex_type.has_value()) {
+                if (auto flex_type = string_to_flex_unit(unit_string); flex_type.has_value()) {
                     // https://www.w3.org/TR/css3-grid-layout/#fr-unit
                     // NOTE: <flex> values are not <length>s (nor are they compatible with <length>s, like some <percentage> values),
                     //       so they cannot be represented in or combined with other unit types in calc() expressions.
@@ -4247,13 +4247,13 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
                     return nullptr;
                 }
 
-                if (auto frequency_type = Frequency::unit_from_name(unit_string); frequency_type.has_value())
+                if (auto frequency_type = string_to_frequency_unit(unit_string); frequency_type.has_value())
                     return NumericCalculationNode::create(Frequency { numeric_value, frequency_type.release_value() }, context);
 
-                if (auto resolution_type = Resolution::unit_from_name(unit_string); resolution_type.has_value())
+                if (auto resolution_type = string_to_resolution_unit(unit_string); resolution_type.has_value())
                     return NumericCalculationNode::create(Resolution { numeric_value, resolution_type.release_value() }, context);
 
-                if (auto time_type = Time::unit_from_name(unit_string); time_type.has_value())
+                if (auto time_type = string_to_time_unit(unit_string); time_type.has_value())
                     return NumericCalculationNode::create(Time { numeric_value, time_type.release_value() }, context);
 
                 ErrorReporter::the().report(InvalidValueError {

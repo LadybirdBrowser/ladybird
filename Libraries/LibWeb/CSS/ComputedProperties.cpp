@@ -378,17 +378,17 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
         return line_height.as_length().length().to_px(viewport_rect, font_metrics, root_font_metrics);
 
     if (line_height.is_number())
-        return Length(line_height.as_number().number(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
+        return Length(line_height.as_number().number(), LengthUnit::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
 
     if (line_height.is_percentage()) {
         // Percentages are relative to 1em. https://www.w3.org/TR/css-inline-3/#valdef-line-height-percentage
         auto const& percentage = line_height.as_percentage().percentage();
-        return Length(percentage.as_fraction(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
+        return Length(percentage.as_fraction(), LengthUnit::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
     }
 
     if (line_height.is_calculated()) {
         CalculationResolutionContext context {
-            .percentage_basis = Length(1, Length::Type::Em),
+            .percentage_basis = Length(1, LengthUnit::Em),
             .length_resolution_context = Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics },
         };
         if (line_height.as_calculated().resolves_to_number()) {
@@ -397,7 +397,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
                 dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_calculated().to_string(SerializationMode::Normal));
                 return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
             }
-            return Length(resolved.value(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
+            return Length(resolved.value(), LengthUnit::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
         }
 
         auto resolved = line_height.as_calculated().resolve_length_deprecated(context);
@@ -565,7 +565,7 @@ Length ComputedProperties::border_spacing_horizontal(Layout::Node const& layout_
         if (style_value.is_length())
             return style_value.as_length().length();
         if (style_value.is_calculated())
-            return style_value.as_calculated().resolve_length_deprecated({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
+            return style_value.as_calculated().resolve_length_deprecated({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length::make_px(0));
         return {};
     };
 
@@ -587,7 +587,7 @@ Length ComputedProperties::border_spacing_vertical(Layout::Node const& layout_no
         if (style_value.is_length())
             return style_value.as_length().length();
         if (style_value.is_calculated())
-            return style_value.as_calculated().resolve_length_deprecated({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
+            return style_value.as_calculated().resolve_length_deprecated({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length::make_px(0));
         return {};
     };
 

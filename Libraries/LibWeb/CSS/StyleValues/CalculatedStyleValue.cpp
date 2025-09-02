@@ -178,25 +178,25 @@ static CalculationNode::NumericValue clamp_and_censor_numeric_value(NumericCalcu
             return Number { value.type(), clamp_and_censor(context.resolve_numbers_as_integers ? value.integer_value() : value.value(), accepted_range->min, accepted_range->max) };
         },
         [&](Angle const& value) -> CalculationNode::NumericValue {
-            return Angle { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+            return Angle { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.unit() };
         },
         [&](Flex const& value) -> CalculationNode::NumericValue {
-            return Flex { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+            return Flex { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.unit() };
         },
         [&](Frequency const& value) -> CalculationNode::NumericValue {
-            return Frequency { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+            return Frequency { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.unit() };
         },
         [&](Length const& value) -> CalculationNode::NumericValue {
-            return Length { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+            return Length { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.unit() };
         },
         [&](Percentage const& value) -> CalculationNode::NumericValue {
             return Percentage { clamp_and_censor(value.value(), accepted_range->min, accepted_range->max) };
         },
         [&](Resolution const& value) -> CalculationNode::NumericValue {
-            return Resolution { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+            return Resolution { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.unit() };
         },
         [&](Time const& value) -> CalculationNode::NumericValue {
-            return Time { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.type() };
+            return Time { clamp_and_censor(value.raw_value(), accepted_range->min, accepted_range->max), value.unit() };
         });
 }
 
@@ -689,14 +689,14 @@ bool NumericCalculationNode::contains_percentage() const
 bool NumericCalculationNode::is_in_canonical_unit() const
 {
     return m_value.visit(
-        [](Angle const& angle) { return angle.type() == Angle::Type::Deg; },
-        [](Flex const& flex) { return flex.type() == Flex::Type::Fr; },
-        [](Frequency const& frequency) { return frequency.type() == Frequency::Type::Hz; },
-        [](Length const& length) { return length.type() == Length::Type::Px; },
+        [](Angle const& angle) { return angle.unit() == AngleUnit::Deg; },
+        [](Flex const& flex) { return flex.unit() == FlexUnit::Fr; },
+        [](Frequency const& frequency) { return frequency.unit() == FrequencyUnit::Hz; },
+        [](Length const& length) { return length.unit() == LengthUnit::Px; },
         [](Number const&) { return true; },
         [](Percentage const&) { return true; },
-        [](Resolution const& resolution) { return resolution.type() == Resolution::Type::Dppx; },
-        [](Time const& time) { return time.type() == Time::Type::S; });
+        [](Resolution const& resolution) { return resolution.unit() == ResolutionUnit::Dppx; },
+        [](Time const& time) { return time.unit() == TimeUnit::S; });
 }
 
 static Optional<CalculatedStyleValue::CalculationResult> try_get_value_with_canonical_unit(CalculationNode const& child, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
@@ -807,7 +807,7 @@ NonnullRefPtr<NumericCalculationNode const> NumericCalculationNode::negated(Calc
             return create(Number(number.type(), -number.value()), context);
         },
         [&]<typename T>(T const& value) {
-            return create(T(-value.raw_value(), value.type()), context);
+            return create(T(-value.raw_value(), value.unit()), context);
         });
 }
 
@@ -3157,7 +3157,7 @@ static Optional<NumericChildAndIndex> find_numeric_child_with_same_unit(Vector<N
                 return target.value().has<Number>();
             },
             [&]<typename T>(T const& value) {
-                if (auto const* other = target.value().get_pointer<T>(); other && other->type() == value.type()) {
+                if (auto const* other = target.value().get_pointer<T>(); other && other->unit() == value.unit()) {
                     return true;
                 }
                 return false;
@@ -3213,19 +3213,19 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
                 [](Empty const&) -> RefPtr<NumericCalculationNode const> { return nullptr; },
                 [&](Angle const& angle) -> RefPtr<NumericCalculationNode const> {
                     VERIFY(context.percentages_resolve_as == ValueType::Angle);
-                    if (angle.type() == Angle::Type::Deg)
+                    if (angle.unit() == AngleUnit::Deg)
                         return NumericCalculationNode::create(angle.percentage_of(*percentage), context);
                     return NumericCalculationNode::create(Angle::make_degrees(angle.to_degrees()).percentage_of(*percentage), context);
                 },
                 [&](Frequency const& frequency) -> RefPtr<NumericCalculationNode const> {
                     VERIFY(context.percentages_resolve_as == ValueType::Frequency);
-                    if (frequency.type() == Frequency::Type::Hz)
+                    if (frequency.unit() == FrequencyUnit::Hz)
                         return NumericCalculationNode::create(frequency.percentage_of(*percentage), context);
                     return NumericCalculationNode::create(Frequency::make_hertz(frequency.to_hertz()).percentage_of(*percentage), context);
                 },
                 [&](Length const& length) -> RefPtr<NumericCalculationNode const> {
                     VERIFY(context.percentages_resolve_as == ValueType::Length);
-                    if (length.type() == Length::Type::Px)
+                    if (length.unit() == LengthUnit::Px)
                         return NumericCalculationNode::create(length.percentage_of(*percentage), context);
                     if (length.is_absolute())
                         return NumericCalculationNode::create(Length::make_px(length.absolute_length_to_px()).percentage_of(*percentage), context);
@@ -3235,7 +3235,7 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
                 },
                 [&](Time const& time) -> RefPtr<NumericCalculationNode const> {
                     VERIFY(context.percentages_resolve_as == ValueType::Time);
-                    if (time.type() == Time::Type::S)
+                    if (time.unit() == TimeUnit::S)
                         return NumericCalculationNode::create(time.percentage_of(*percentage), context);
                     return NumericCalculationNode::create(Time::make_seconds(time.to_seconds()).percentage_of(*percentage), context);
                 });
@@ -3250,22 +3250,22 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
             // NOTE: We use nullptr here to signify "use the original".
             RefPtr<CalculationNode const> resolved = root_numeric.value().visit(
                 [&](Angle const& angle) -> RefPtr<CalculationNode const> {
-                    if (angle.type() == Angle::Type::Deg)
+                    if (angle.unit() == AngleUnit::Deg)
                         return nullptr;
                     return NumericCalculationNode::create(Angle::make_degrees(angle.to_degrees()), context);
                 },
                 [&](Flex const& flex) -> RefPtr<CalculationNode const> {
-                    if (flex.type() == Flex::Type::Fr)
+                    if (flex.unit() == FlexUnit::Fr)
                         return nullptr;
                     return NumericCalculationNode::create(Flex::make_fr(flex.to_fr()), context);
                 },
                 [&](Frequency const& frequency) -> RefPtr<CalculationNode const> {
-                    if (frequency.type() == Frequency::Type::Hz)
+                    if (frequency.unit() == FrequencyUnit::Hz)
                         return nullptr;
                     return NumericCalculationNode::create(Frequency::make_hertz(frequency.to_hertz()), context);
                 },
                 [&](Length const& length) -> RefPtr<CalculationNode const> {
-                    if (length.type() == Length::Type::Px)
+                    if (length.unit() == LengthUnit::Px)
                         return nullptr;
                     if (length.is_absolute())
                         return NumericCalculationNode::create(Length::make_px(length.absolute_length_to_px()), context);
@@ -3280,12 +3280,12 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
                     return nullptr;
                 },
                 [&](Resolution const& resolution) -> RefPtr<CalculationNode const> {
-                    if (resolution.type() == Resolution::Type::Dppx)
+                    if (resolution.unit() == ResolutionUnit::Dppx)
                         return nullptr;
                     return NumericCalculationNode::create(Resolution::make_dots_per_pixel(resolution.to_dots_per_pixel()), context);
                 },
                 [&](Time const& time) -> RefPtr<CalculationNode const> {
-                    if (time.type() == Time::Type::S)
+                    if (time.unit() == TimeUnit::S)
                         return nullptr;
                     return NumericCalculationNode::create(Time::make_seconds(time.to_seconds()), context);
                 });
@@ -3461,7 +3461,7 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
                         return NumericCalculationNode::create(Number(Number::Type::Number, number.value() + child_numeric.value().get<Number>().value()), context);
                     },
                     [&]<typename T>(T const& value) {
-                        return NumericCalculationNode::create(T(value.raw_value() + child_numeric.value().get<T>().raw_value(), value.type()), context);
+                        return NumericCalculationNode::create(T(value.raw_value() + child_numeric.value().get<T>().raw_value(), value.unit()), context);
                     });
                 summed_children[existing_child_and_index->index] = move(new_value);
             } else {
@@ -3543,7 +3543,17 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
                         all_numeric = false;
                         break;
                     }
-                    multiplied_children.append(as<NumericCalculationNode>(*sum_child).value().visit([&](Percentage const& percentage) { return NumericCalculationNode::create(Percentage(percentage.value() * multiplier->value()), context); }, [&](Number const& number) { return NumericCalculationNode::create(Number(Number::Type::Number, number.value() * multiplier->value()), context); }, [&]<typename T>(T const& value) { return NumericCalculationNode::create(T(value.raw_value() * multiplier->value(), value.type()), context); }));
+                    auto& child_value = as<NumericCalculationNode>(*sum_child).value();
+                    multiplied_children.append(child_value.visit(
+                        [&](Percentage const& percentage) {
+                            return NumericCalculationNode::create(Percentage(percentage.value() * multiplier->value()), context);
+                        },
+                        [&](Number const& number) {
+                            return NumericCalculationNode::create(Number(Number::Type::Number, number.value() * multiplier->value()), context);
+                        },
+                        [&]<typename T>(T const& value) {
+                            return NumericCalculationNode::create(T(value.raw_value() * multiplier->value(), value.unit()), context);
+                        }));
                 }
 
                 if (all_numeric)

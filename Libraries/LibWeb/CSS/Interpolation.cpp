@@ -1218,7 +1218,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto const& from_length = from.as_length().length();
         auto const& to_length = to.as_length().length();
         auto interpolated_value = interpolate_raw(from_length.raw_value(), to_length.raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length));
-        return LengthStyleValue::create(Length(interpolated_value, from_length.type()));
+        return LengthStyleValue::create(Length(interpolated_value, from_length.unit()));
     }
     case StyleValue::Type::Number: {
         auto interpolated_value = interpolate_raw(from.as_number().number(), to.as_number().number(), delta, calculation_context.accepted_type_ranges.get(ValueType::Number));
@@ -1270,7 +1270,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                 return LengthOrAuto::make_auto();
             // FIXME: Actually handle the units not matching.
             auto interpolated_value = interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Rect));
-            return LengthOrAuto { Length { interpolated_value, from.length().type() } };
+            return LengthOrAuto { Length { interpolated_value, from.length().unit() } };
         };
 
         return RectStyleValue::create({
