@@ -1072,6 +1072,8 @@ set(GENERATED_SOURCES
     CSS/DescriptorID.cpp
     CSS/Enums.cpp
     CSS/EnvironmentVariable.cpp
+    CSS/GeneratedCSSNumericFactoryMethods.cpp
+    CSS/GeneratedCSSNumericFactoryMethods.idl
     CSS/GeneratedCSSStyleProperties.cpp
     CSS/GeneratedCSSStyleProperties.idl
     CSS/Keyword.cpp
