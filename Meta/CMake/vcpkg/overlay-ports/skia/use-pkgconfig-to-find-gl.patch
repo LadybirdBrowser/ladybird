@@ -1,0 +1,15 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index ce41442..9a90d00 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -1007,7 +1007,9 @@ optional("gpu") {
+         "src/gpu/ganesh/gl/glx/GrGLMakeGLXInterface.cpp",
+         "src/gpu/ganesh/gl/glx/GrGLMakeNativeInterface_glx.cpp",
+       ]
+-      libs += [ "GL" ]
++      deps += [
++        "//third_party/gl"
++      ]
+     } else if (is_mac) {
+       sources += [ "src/gpu/ganesh/gl/mac/GrGLMakeNativeInterface_mac.cpp" ]
+     } else if (is_ios) {
