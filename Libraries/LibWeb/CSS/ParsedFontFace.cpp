@@ -7,7 +7,9 @@
 
 #include <LibWeb/CSS/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
@@ -19,6 +21,7 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
+#include <LibWeb/DOM/Document.h>
 
 namespace Web::CSS {
 
@@ -73,8 +76,17 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         font_family = extract_font_name(*value);
 
     Optional<int> weight;
-    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWeight))
-        weight = value->to_font_weight();
+    if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWeight)) {
+        // https://drafts.csswg.org/css-fonts-4/#font-prop-desc
+        // The auto values for these three descriptors have the following effects:
+        //  - For font selection purposes, the font is selected as if the appropriate normal value (normal, normal or normal) is chosen
+        //  - FIXME: For variation axis clamping, clamping does not occur
+        if (value->to_keyword() == Keyword::Auto)
+            weight = 400;
+        else
+            // NOTE: The value we pass here for inherited_font_weight is irrelevant as relative keywords (lighter, bolder) should be disallowed at parse time
+            weight = StyleComputer::compute_font_weight(*value, 0, Length::ResolutionContext::for_window(*descriptors.parent_rule()->parent_style_sheet()->owning_document()->window()))->as_number().number();
+    }
 
     Optional<int> slope;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontStyle))
