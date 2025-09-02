@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 
 namespace Web::CSS {
@@ -379,23 +380,68 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         if (!first_is_one_of(font_variant_string, "normal"sv, "small-caps"sv) && !CSS::is_css_wide_keyword(font_variant_string)) {
             return {};
         }
+
         // <font-width-css3> = normal | ultra-condensed | extra-condensed | condensed | semi-condensed | semi-expanded | expanded | extra-expanded | ultra-expanded
-        switch (font_width->to_keyword()) {
-        case Keyword::Initial:
-        case Keyword::Normal:
-        case Keyword::UltraCondensed:
-        case Keyword::ExtraCondensed:
-        case Keyword::Condensed:
-        case Keyword::SemiCondensed:
-        case Keyword::SemiExpanded:
-        case Keyword::Expanded:
-        case Keyword::ExtraExpanded:
-        case Keyword::UltraExpanded:
-            break;
-        default:
-            if (!font_width->is_css_wide_keyword())
+        auto font_width_as_keyword = [&]() -> Optional<Keyword> {
+            if (first_is_one_of(font_width->to_keyword(), Keyword::Initial, Keyword::Normal, Keyword::UltraCondensed, Keyword::ExtraCondensed, Keyword::Condensed, Keyword::SemiCondensed, Keyword::SemiExpanded, Keyword::Expanded, Keyword::ExtraExpanded, Keyword::UltraExpanded))
+                return font_width->to_keyword();
+
+            Optional<double> font_width_as_percentage;
+
+            if (font_width->is_percentage())
+                font_width_as_percentage = font_width->as_percentage().raw_value();
+            else if (font_width->is_calculated())
+                // NOTE: We don't pass a length resolution context but that's fine because either:
+                //  - We are working with declarations in which case relative units can't be mapped so their mere
+                //    presence means we can't serialize this font shorthand
+                //  - We are working with computed values in which case we would have already converted any
+                //    CalculatedStyleValues values to normal PercentageStyleValues
+                font_width_as_percentage = font_width->as_calculated().resolve_percentage({}).map([](auto percentage) { return percentage.value(); });
+
+            if (!font_width_as_percentage.has_value())
                 return {};
-        }
+
+            // ultra-condensed 50%
+            if (font_width_as_percentage == 50)
+                return Keyword::UltraCondensed;
+
+            // extra-condensed 62.5%
+            if (font_width_as_percentage == 62.5)
+                return Keyword::ExtraCondensed;
+
+            // condensed 75%
+            if (font_width_as_percentage == 75)
+                return Keyword::Condensed;
+
+            // semi-condensed 87.5%
+            if (font_width_as_percentage == 87.5)
+                return Keyword::SemiCondensed;
+
+            // normal 100%
+            if (font_width_as_percentage == 100)
+                return Keyword::Normal;
+
+            // semi-expanded 112.5%
+            if (font_width_as_percentage == 112.5)
+                return Keyword::SemiExpanded;
+
+            // expanded 125%
+            if (font_width_as_percentage == 125)
+                return Keyword::Expanded;
+
+            // extra-expanded 150%
+            if (font_width_as_percentage == 150)
+                return Keyword::ExtraExpanded;
+
+            // ultra-expanded 200%
+            if (font_width_as_percentage == 200)
+                return Keyword::UltraExpanded;
+
+            return {};
+        }();
+
+        if (!font_width_as_keyword.has_value())
+            return {};
 
         StringBuilder builder;
         auto append = [&](auto const& string) {
@@ -411,8 +457,8 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto font_weight_string = font_weight->to_string(mode);
         if (font_weight_string != "normal"sv && font_weight_string != "initial"sv && font_weight_string != "400"sv)
             append(font_weight_string);
-        if (font_width->to_keyword() != Keyword::Normal && font_width->to_keyword() != Keyword::Initial)
-            append(font_width->to_string(mode));
+        if (font_width_as_keyword != Keyword::Normal && font_width_as_keyword != Keyword::Initial)
+            append(string_from_keyword(font_width_as_keyword.value()));
         append(font_size->to_string(mode));
         if (line_height->to_keyword() != Keyword::Normal && line_height->to_keyword() != Keyword::Initial)
             append(MUST(String::formatted("/ {}", line_height->to_string(mode))));
