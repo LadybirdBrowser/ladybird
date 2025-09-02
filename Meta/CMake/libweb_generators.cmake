@@ -105,6 +105,17 @@ function (generate_css_implementation)
     )
 
     invoke_idl_generator(
+        "GeneratedCSSNumericFactoryMethods.cpp"
+        "GeneratedCSSNumericFactoryMethods.idl"
+        Lagom::GenerateCSSNumericFactoryMethods
+        "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
+        "CSS/GeneratedCSSNumericFactoryMethods.h"
+        "CSS/GeneratedCSSNumericFactoryMethods.cpp"
+        "CSS/GeneratedCSSNumericFactoryMethods.idl"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
+    )
+
+    invoke_idl_generator(
         "GeneratedCSSStyleProperties.cpp"
         "GeneratedCSSStyleProperties.idl"
         Lagom::GenerateCSSStyleProperties
@@ -151,6 +162,7 @@ function (generate_css_implementation)
        "CSS/Enums.h"
        "CSS/EnvironmentVariable.h"
        "CSS/GeneratedCSSStyleProperties.h"
+       "CSS/GeneratedCSSNumericFactoryMethods.h"
        "CSS/Keyword.h"
        "CSS/MathFunctions.h"
        "CSS/MediaFeatureID.h"
@@ -168,6 +180,7 @@ function (generate_css_implementation)
 
     set(CSS_GENERATED_IDL
         "GeneratedCSSStyleProperties.idl"
+        "GeneratedCSSNumericFactoryMethods.idl"
     )
     list(APPEND LIBWEB_ALL_GENERATED_IDL ${CSS_GENERATED_IDL})
     set(LIBWEB_ALL_GENERATED_IDL ${LIBWEB_ALL_GENERATED_IDL} PARENT_SCOPE)
