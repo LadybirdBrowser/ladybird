@@ -131,6 +131,10 @@ if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework IOSurface")
 endif()
 
+if (WIN32)
+    target_link_libraries(LibCore PRIVATE ntdll.dll)
+endif()
+
 if (ANDROID)
     target_link_libraries(LibCore PRIVATE log)
 endif()
