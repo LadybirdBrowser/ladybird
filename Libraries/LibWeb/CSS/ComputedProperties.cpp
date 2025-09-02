@@ -2103,4 +2103,9 @@ double ComputedProperties::font_weight() const
     return property(PropertyID::FontWeight).as_number().number();
 }
 
+Percentage ComputedProperties::font_width() const
+{
+    return property(PropertyID::FontWidth).as_percentage().percentage();
+}
+
 }

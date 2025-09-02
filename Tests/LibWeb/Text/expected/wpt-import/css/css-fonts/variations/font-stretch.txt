@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 51 tests
 
-39 Pass
-12 Fail
+50 Pass
+1 Fail
 Pass	@supports: 100 - only percentages, not numbers allowed
 Pass	@supports: -1% - negative values are illegal
 Pass	@supports: 0% - zero is legal
@@ -19,23 +19,23 @@ Pass	@getComputedStyle: 1000% - legal percentage
 Pass	@supports: 1e9% - huge legal percentage
 Fail	@getComputedStyle: 1e9% - huge legal percentage
 Pass	@supports: ultra-condensed - legal enum
-Fail	@getComputedStyle: ultra-condensed - legal enum
+Pass	@getComputedStyle: ultra-condensed - legal enum
 Pass	@supports: extra-condensed - legal enum
-Fail	@getComputedStyle: extra-condensed - legal enum
+Pass	@getComputedStyle: extra-condensed - legal enum
 Pass	@supports: condensed - legal enum
-Fail	@getComputedStyle: condensed - legal enum
+Pass	@getComputedStyle: condensed - legal enum
 Pass	@supports: semi-condensed - legal enum
-Fail	@getComputedStyle: semi-condensed - legal enum
+Pass	@getComputedStyle: semi-condensed - legal enum
 Pass	@supports: normal - legal enum
-Fail	@getComputedStyle: normal - legal enum
+Pass	@getComputedStyle: normal - legal enum
 Pass	@supports: semi-expanded - legal enum
-Fail	@getComputedStyle: semi-expanded - legal enum
+Pass	@getComputedStyle: semi-expanded - legal enum
 Pass	@supports: expanded - legal enum
-Fail	@getComputedStyle: expanded - legal enum
+Pass	@getComputedStyle: expanded - legal enum
 Pass	@supports: extra-expanded - legal enum
-Fail	@getComputedStyle: extra-expanded - legal enum
+Pass	@getComputedStyle: extra-expanded - legal enum
 Pass	@supports: ultra-expanded - legal enum
-Fail	@getComputedStyle: ultra-expanded - legal enum
+Pass	@getComputedStyle: ultra-expanded - legal enum
 Pass	@supports: narrower - deprecated
 Pass	@supports: wider - deprecated
 Pass	@supports: calc(200.5%) - Simple calc value
@@ -53,5 +53,5 @@ Pass	@supports: 100% 100 - Extra content after numeric value
 Pass	@supports: condensed expanded - Extra content after keyword value
 Pass	@supports: calc(100%) 100% - Extra content after calc value
 Pass	Test font-stretch for overridden number condensed
-Fail	Test font-stretch for overridden enum name resolved to number condensed
-Fail	Test font-stretch for inherited named enum resolved to number condensed
+Pass	Test font-stretch for overridden enum name resolved to number condensed
+Pass	Test font-stretch for inherited named enum resolved to number condensed
