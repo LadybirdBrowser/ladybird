@@ -16,5 +16,5 @@ gn gen out --args='
     skia_use_icu=true
     skia_use_system_icu=true
     extra_cflags=["-DSK_USE_EXTERNAL_VULKAN_HEADERS","-Wno-psabi"]
-    extra_cflags_cc=["-DSKCMS_API=__attribute__((visibility(\"default\")))"]
+    extra_cflags_cc=["-DSKCMS_DLL"]
 '
