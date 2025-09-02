@@ -51,7 +51,7 @@ GC::Ref<SyntheticModule> SyntheticModule::create_default_export_synthetic_module
 }
 
 // 16.2.1.8.2 ParseJSONModule ( source ), https://tc39.es/ecma262/#sec-create-default-export-synthetic-module
-ThrowCompletionOr<GC::Ref<Module>> parse_json_module(Realm& realm, StringView source_text, ByteString filename)
+ThrowCompletionOr<GC::Ref<SyntheticModule>> parse_json_module(Realm& realm, StringView source_text, ByteString filename)
 {
     auto& vm = realm.vm();
 
