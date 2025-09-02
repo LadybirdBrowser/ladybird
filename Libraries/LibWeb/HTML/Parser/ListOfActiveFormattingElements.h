@@ -46,6 +46,7 @@ public:
 
 private:
     Vector<Entry> m_entries;
+    void ensure_noahs_ark_clause(DOM::Element& element);
 };
 
 }

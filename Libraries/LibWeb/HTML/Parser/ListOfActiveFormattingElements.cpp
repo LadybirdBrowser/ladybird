@@ -9,6 +9,7 @@
 
 namespace Web::HTML {
 
+static constexpr size_t NoahsArkCapacity = 3;
 ListOfActiveFormattingElements::~ListOfActiveFormattingElements() = default;
 
 void ListOfActiveFormattingElements::visit_edges(JS::Cell::Visitor& visitor)
@@ -17,9 +18,46 @@ void ListOfActiveFormattingElements::visit_edges(JS::Cell::Visitor& visitor)
         visitor.visit(entry.element);
 }
 
+void ListOfActiveFormattingElements::ensure_noahs_ark_clause(DOM::Element& element)
+{
+    Vector<Entry> possible_matches;
+    for (size_t i = m_entries.size(); i > 0;) {
+        i--;
+        auto& entry = m_entries[i];
+        if (entry.is_marker())
+            break;
+        if (entry.element->local_name() == element.local_name()
+            && entry.element->namespace_uri() == element.namespace_uri()
+            && entry.element->attribute_list_size() == element.attribute_list_size())
+            possible_matches.append(entry);
+    }
+
+    if (possible_matches.size() < NoahsArkCapacity)
+        return;
+
+    // FIXME: the attributes should be compared as they where created by the parser
+    element.for_each_attribute([&](auto& name, auto& value) {
+        possible_matches.remove_all_matching([&](auto& entry) {
+            auto attr = entry.element->get_attribute(name);
+            return !attr.has_value() || attr != value;
+        });
+    });
+
+    if (possible_matches.size() < NoahsArkCapacity)
+        return;
+
+    remove(*possible_matches.last().element);
+}
+
+// https://html.spec.whatwg.org/multipage/parsing.html#push-onto-the-list-of-active-formatting-elements
 void ListOfActiveFormattingElements::add(DOM::Element& element)
 {
-    // FIXME: Implement the Noah's Ark clause https://html.spec.whatwg.org/multipage/parsing.html#push-onto-the-list-of-active-formatting-elements
+    // 1. If there are already three elements in the list of active formatting elements after the last marker, if any, or anywhere in the list if there are no markers,
+    //    that have the same tag name, namespace, and attributes as element, then remove the earliest such element from the list of active formatting elements.
+    //    For these purposes, the attributes must be compared as they were when the elements were created by the parser; two elements have the same attributes if all their parsed attributes
+    //    can be paired such that the two attributes in each pair have identical names, namespaces, and values (the order of the attributes does not matter).
+    ensure_noahs_ark_clause(element);
+    // 2. Add element to the list of active formatting elements.
     m_entries.append({ element });
 }
 
