@@ -204,7 +204,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         if (is<Web::HTML::ClassicScript>(*script))
             (void)static_cast<Web::HTML::ClassicScript&>(*script).run();
         else
-            (void)as<Web::HTML::JavaScriptModuleScript>(*script).run();
+            (void)as<Web::HTML::ModuleScript>(*script).run();
 
         // FIXME: 11. Enable outside port's port message queue.
 
