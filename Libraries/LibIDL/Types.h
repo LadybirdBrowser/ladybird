@@ -323,6 +323,7 @@ public:
 
     ByteString module_own_path;
     Vector<NonnullOwnPtr<Interface>> partial_interfaces;
+    Vector<NonnullOwnPtr<Interface>> partial_namespaces;
     Vector<Interface&> imported_modules;
 
     OrderedHashMap<ByteString, Vector<Function&>> overload_sets;
