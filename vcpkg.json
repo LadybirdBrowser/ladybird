@@ -169,6 +169,7 @@
       "name": "skia",
       "platform": "osx",
       "features": [
+        "dawn",
         "metal",
         "fontconfig",
         "harfbuzz",
@@ -179,6 +180,7 @@
       "name": "skia",
       "platform": "linux | freebsd | openbsd | windows",
       "features": [
+        "dawn",
         "freetype",
         "fontconfig",
         "harfbuzz",
@@ -190,6 +192,7 @@
       "name": "skia",
       "platform": "android",
       "features": [
+        "dawn",
         "vulkan"
       ]
     },
@@ -296,7 +299,7 @@
     },
     {
       "name": "skia",
-      "version": "129#0"
+      "version": "140#0"
     },
     {
       "name": "sqlite3",

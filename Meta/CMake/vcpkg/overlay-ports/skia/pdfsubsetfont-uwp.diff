@@ -1,11 +1,11 @@
 diff --git a/src/pdf/SkPDFSubsetFont.cpp b/src/pdf/SkPDFSubsetFont.cpp
-index 09d4aed799..009c2762a3 100644
+index 307c4304a2..db723bcd42 100644
 --- a/src/pdf/SkPDFSubsetFont.cpp
 +++ b/src/pdf/SkPDFSubsetFont.cpp
 @@ -111,6 +111,7 @@ sk_sp<SkData> SkPDFSubsetFont(const SkTypeface& typeface, const SkPDFGlyphUse& g
- 
+
  #else
- 
+
 +#include "include/core/SkData.h"
  sk_sp<SkData> SkPDFSubsetFont(const SkTypeface&, const SkPDFGlyphUse&) {
      return nullptr;
