@@ -18,7 +18,7 @@ namespace Core {
 
 class Event {
 public:
-    enum Type {
+    enum Type : u8 {
         Invalid = 0,
         Quit,
         Timer,
@@ -71,7 +71,7 @@ public:
     ~TimerEvent() = default;
 };
 
-enum class NotificationType {
+enum class NotificationType : u8 {
     None = 0,
     Read = 1,
     Write = 2,
