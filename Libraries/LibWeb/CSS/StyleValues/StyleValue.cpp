@@ -151,35 +151,6 @@ GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm& realm, String const& associa
     return CSSStyleValue::create(realm, associated_property, to_string(SerializationMode::Normal));
 }
 
-int StyleValue::to_font_weight() const
-{
-    if (is_keyword()) {
-        switch (as_keyword().keyword()) {
-        case Keyword::Normal:
-            return Gfx::FontWeight::Regular;
-        case Keyword::Bold:
-            return Gfx::FontWeight::Bold;
-        case Keyword::Lighter:
-            // FIXME: This should be relative to the parent.
-            return Gfx::FontWeight::Regular;
-        case Keyword::Bolder:
-            // FIXME: This should be relative to the parent.
-            return Gfx::FontWeight::Bold;
-        default:
-            return Gfx::FontWeight::Regular;
-        }
-    }
-    if (is_number()) {
-        return round_to<int>(as_number().number());
-    }
-    if (is_calculated()) {
-        auto maybe_weight = as_calculated().resolve_integer_deprecated({});
-        if (maybe_weight.has_value())
-            return maybe_weight.value();
-    }
-    return Gfx::FontWeight::Regular;
-}
-
 int StyleValue::to_font_slope() const
 {
     // FIXME: Implement oblique <angle>
