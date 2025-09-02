@@ -16,6 +16,9 @@ namespace TestWeb {
 bool fuzzy_screenshot_match(URL::URL const& test_url, URL::URL const& reference, Gfx::Bitmap const& bitmap_a, Gfx::Bitmap const& bitmap_b,
     Vector<FuzzyMatch> const& fuzzy_matches)
 {
+    if (bitmap_a.width() != bitmap_b.width() || bitmap_a.height() != bitmap_b.height())
+        return false;
+
     // If the bitmaps are identical, we don't perform fuzzy matching.
     auto diff = bitmap_a.diff(bitmap_b);
     if (diff.identical)
