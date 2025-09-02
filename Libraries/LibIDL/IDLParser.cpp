@@ -842,6 +842,8 @@ void Parser::parse_namespace(Interface& interface)
     assert_specific('{');
 
     for (;;) {
+        HashMap<ByteString, ByteString> extended_attributes;
+
         consume_whitespace();
 
         if (lexer.consume_specific('}')) {
@@ -850,7 +852,12 @@ void Parser::parse_namespace(Interface& interface)
             break;
         }
 
-        HashMap<ByteString, ByteString> extended_attributes;
+        if (lexer.consume_specific('[')) {
+            extended_attributes = parse_extended_attributes();
+            if (!interface.has_unscopable_member && extended_attributes.contains("Unscopable"))
+                interface.has_unscopable_member = true;
+        }
+
         parse_function(extended_attributes, interface);
     }
 
