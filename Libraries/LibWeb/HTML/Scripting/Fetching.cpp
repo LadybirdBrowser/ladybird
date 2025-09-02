@@ -728,8 +728,10 @@ void fetch_single_module_script(JS::Realm& realm,
             if (mime_type.has_value() && mime_type->essence() == "text/css"sv && module_type == "css")
                 module_script = ModuleScript::create_a_css_module_script(url.to_byte_string(), source_text, module_map_realm).release_value_but_fixme_should_propagate_errors();
 
-            // FIXME: 4. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of
-            //           creating a JSON module script given sourceText and moduleMapRealm.
+            // 4. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of
+            //    creating a JSON module script given sourceText and moduleMapRealm.
+            if (mime_type.has_value() && mime_type->is_json() && module_type == "json")
+                module_script = ModuleScript::create_a_json_module_script(url.to_byte_string(), source_text, module_map_realm).release_value_but_fixme_should_propagate_errors();
         }
 
         // 8. Set moduleMap[(url, moduleType)] to moduleScript, and run onComplete given moduleScript.
