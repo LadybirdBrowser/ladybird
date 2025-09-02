@@ -27,7 +27,7 @@ cat > "$FLATPAK_DEST/lib/pkgconfig/skia.pc" <<EOF
     Name: skia
     Description: 2D graphic library for drawing text, geometries and images.
     URL: https://skia.org/
-    Version: 129
+    Version: 144
     Libs: -L\${libdir} -lskia -lskcms
     Cflags: -I\${includedir}
 EOF

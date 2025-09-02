@@ -10,7 +10,7 @@
 #include <LibGfx/SkiaBackendContext.h>
 
 #include <core/SkSurface.h>
-#include <gpu/GrDirectContext.h>
+#include <gpu/ganesh/GrDirectContext.h>
 
 #ifdef USE_VULKAN
 #    include <gpu/ganesh/vk/GrVkDirectContext.h>
@@ -19,7 +19,7 @@
 #endif
 
 #ifdef AK_OS_MACOS
-#    include <gpu/GrBackendSurface.h>
+#    include <gpu/ganesh/GrBackendSurface.h>
 #    include <gpu/ganesh/mtl/GrMtlBackendContext.h>
 #    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
 #    include <gpu/ganesh/mtl/GrMtlDirectContext.h>
