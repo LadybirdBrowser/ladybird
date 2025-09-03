@@ -1,1 +1,1 @@
-oblique calc(57.29578deg * sign(1em - 1px))
+oblique 57.29578deg
