@@ -300,8 +300,6 @@ private:
     using FontLoaderList = Vector<GC::Ref<FontLoader>>;
     HashMap<OwnFontFaceKey, FontLoaderList> m_loaded_fonts;
 
-    [[nodiscard]] Length::FontMetrics const& root_element_font_metrics_for_element(GC::Ptr<DOM::Element const>) const;
-
     Length::FontMetrics m_default_font_metrics;
     Length::FontMetrics m_root_element_font_metrics;
 
