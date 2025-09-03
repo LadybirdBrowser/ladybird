@@ -523,11 +523,6 @@ int Tab::tab_index()
     return m_window->tab_index(this);
 }
 
-void Tab::debug_request(ByteString const& request, ByteString const& argument)
-{
-    m_view->debug_request(request, argument);
-}
-
 void Tab::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
@@ -585,38 +580,6 @@ void Tab::find_previous()
 void Tab::find_next()
 {
     m_find_in_page->find_next();
-}
-
-void Tab::set_block_popups(bool enabled)
-{
-    debug_request("block-pop-ups", enabled ? "on" : "off");
-}
-
-void Tab::set_line_box_borders(bool enabled)
-{
-    debug_request("set-line-box-borders", enabled ? "on" : "off");
-}
-
-void Tab::set_scripting(bool enabled)
-{
-    debug_request("scripting", enabled ? "on" : "off");
-}
-
-void Tab::set_content_filtering(bool const enabled)
-{
-    debug_request("content-filtering", enabled ? "on" : "off");
-}
-
-void Tab::set_user_agent_string(ByteString const& user_agent)
-{
-    debug_request("spoof-user-agent", user_agent);
-    // Clear the cache to ensure requests are re-done with the new user agent.
-    debug_request("clear-cache");
-}
-
-void Tab::set_navigator_compatibility_mode(ByteString const& compatibility_mode)
-{
-    debug_request("navigator-compatibility-mode", compatibility_mode);
 }
 
 }

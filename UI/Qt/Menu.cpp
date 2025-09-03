@@ -149,6 +149,44 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/audio-volume-high.png"sv));
         break;
 
+    case WebView::ActionID::DumpSessionHistoryTree:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/history.png"sv));
+        break;
+    case WebView::ActionID::DumpDOMTree:
+        qaction.setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
+        break;
+    case WebView::ActionID::DumpLayoutTree:
+    case WebView::ActionID::DumpPaintTree:
+    case WebView::ActionID::DumpDisplayList:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"sv));
+        break;
+    case WebView::ActionID::DumpStackingContextTree:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/layers.png"sv));
+        break;
+    case WebView::ActionID::DumpStyleSheets:
+    case WebView::ActionID::DumpStyles:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/filetype-css.png"sv));
+        break;
+    case WebView::ActionID::DumpCSSErrors:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/error.png"sv));
+        break;
+    case WebView::ActionID::DumpCookies:
+        qaction.setIcon(load_icon_from_uri("resource://icons/browser/cookie.png"sv));
+        break;
+    case WebView::ActionID::DumpLocalStorage:
+        qaction.setIcon(load_icon_from_uri("resource://icons/browser/local-storage.png"sv));
+        break;
+    case WebView::ActionID::ShowLineBoxBorders:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/box.png"sv));
+        break;
+    case WebView::ActionID::CollectGarbage:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/trash-can.png"sv));
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
+        break;
+    case WebView::ActionID::ClearCache:
+        qaction.setIcon(load_icon_from_uri("resource://icons/browser/clear-cache.png"sv));
+        break;
+
     default:
         break;
     }
@@ -166,6 +204,11 @@ static void add_items_to_menu(QMenu& menu, QWidget& parent, Span<WebView::Menu::
             [&](NonnullRefPtr<WebView::Action>& action) {
                 auto* qaction = create_application_action(parent, action);
                 menu.addAction(qaction);
+
+                if (action->id() == WebView::ActionID::SpoofUserAgent || action->id() == WebView::ActionID::NavigatorCompatibilityMode) {
+                    if (menu.icon().isNull())
+                        menu.setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"sv));
+                }
             },
             [&](NonnullRefPtr<WebView::Menu> const& submenu) {
                 auto* qsubmenu = new QMenu(qstring_from_ak_string(submenu->title()), &menu);

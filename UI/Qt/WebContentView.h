@@ -112,8 +112,6 @@ private:
     Optional<ByteString> m_tooltip_text;
     QTimer m_tooltip_hover_timer;
 
-    bool m_should_show_line_box_borders { false };
-
     Gfx::IntSize m_viewport_size;
 
     QMenu* m_select_dropdown { nullptr };
