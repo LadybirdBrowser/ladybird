@@ -228,6 +228,8 @@ public:
 
     size_t sibling_invalidation_distance() const;
 
+    bool is_slotted() const { return m_pseudo_element.has_value() && m_pseudo_element->type() == PseudoElement::Slotted; }
+
 private:
     explicit Selector(Vector<CompoundSelector>&&);
 

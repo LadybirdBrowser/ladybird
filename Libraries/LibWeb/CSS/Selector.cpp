@@ -137,6 +137,13 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
 
 void Selector::collect_ancestor_hashes()
 {
+    if (is_slotted()) {
+        // Ancestor filtering is not supported for slotted selectors, because those
+        // are supposed to be collected for element inside a slot, while being
+        // matched against slot element.
+        return;
+    }
+
     size_t next_hash_index = 0;
     auto append_unique_hash = [&](u32 hash) -> bool {
         if (next_hash_index >= m_ancestor_hashes.size())

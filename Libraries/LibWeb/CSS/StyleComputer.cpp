@@ -526,14 +526,17 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         auto from_user_agent_or_user_stylesheet = rule_to_run.cascade_origin == CascadeOrigin::UserAgent || rule_to_run.cascade_origin == CascadeOrigin::User;
 
         // NOTE: Inside shadow trees, we only match rules that are defined in the shadow tree's style sheets.
-        //       The key exception is the shadow tree's *shadow host*, which needs to match :host rules from inside the shadow root.
-        //       Also note that UA or User style sheets don't have a scope, so they are always relevant.
+        //       Exceptions are:
+        //       - the shadow tree's *shadow host*, which needs to match :host rules from inside the shadow root.
+        //       - ::slotted() rules, which need to match elements assigned to slots from inside the shadow root.
+        //       - UA or User style sheets don't have a scope, so they are always relevant.
         // FIXME: We should reorganize the data so that the document-level StyleComputer doesn't cache *all* rules,
         //        but instead we'd have some kind of "style scope" at the document level, and also one for each shadow root.
         //        Then we could only evaluate rules from the current style scope.
         bool rule_is_relevant_for_current_scope = rule_root == shadow_root
             || (element_shadow_root && rule_root == element_shadow_root)
-            || from_user_agent_or_user_stylesheet;
+            || from_user_agent_or_user_stylesheet
+            || rule_to_run.slotted;
 
         if (!rule_is_relevant_for_current_scope)
             return;
@@ -554,7 +557,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
             }
         } else {
             for (auto const& rule : rules) {
-                if (!rule.contains_pseudo_element && filter_namespace_rule(element_namespace_uri, rule))
+                if ((rule.slotted || !rule.contains_pseudo_element) && filter_namespace_rule(element_namespace_uri, rule))
                     add_rule_to_run(rule);
             }
         }
@@ -580,6 +583,14 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
             add_rules_from_cache(*rule_cache);
     }
 
+    if (auto assigned_slot = element.assigned_slot_internal()) {
+        if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(assigned_slot->root())) {
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, slot_shadow_root)) {
+                add_rules_to_run(rule_cache->slotted_rules);
+            }
+        }
+    }
+
     Vector<MatchingRule const*> matching_rules;
     matching_rules.ensure_capacity(rules_to_run.size());
 
@@ -602,7 +613,19 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         ScopeGuard guard = [&] {
             attempted_pseudo_class_matches |= context.attempted_pseudo_class_matches;
         };
-        if (!SelectorEngine::matches(selector, element, shadow_host_to_use, context, pseudo_element))
+        if (selector.is_slotted()) {
+            if (!element.assigned_slot_internal())
+                continue;
+            // We're collecting rules for element, which is assigned to a slot.
+            // For ::slotted() matching, slot should be used as a subject instead of element,
+            // while element itself is saved in matching context, so selector engine could
+            // switch back to it when matching inside ::slotted() argument.
+            auto const& slot = *element.assigned_slot_internal();
+            context.slotted_element = &element;
+            context.subject = &slot;
+            if (!SelectorEngine::matches(selector, slot, shadow_host_to_use, context, PseudoElement::Slotted))
+                continue;
+        } else if (!SelectorEngine::matches(selector, element, shadow_host_to_use, context, pseudo_element))
             continue;
         matching_rules.append(&rule_to_run);
     }
@@ -2901,6 +2924,7 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
                             matching_rule.contains_pseudo_element = true;
                             pseudo_element = simple_selector.pseudo_element().type();
+                            matching_rule.slotted = pseudo_element == PseudoElement::Slotted;
                         }
                     }
                     if (!contains_root_pseudo_class) {
@@ -3404,6 +3428,10 @@ bool StyleComputer::have_has_selectors() const
 
 void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoElement> pseudo_element, bool contains_root_pseudo_class)
 {
+    if (matching_rule.slotted) {
+        slotted_rules.append(matching_rule);
+        return;
+    }
     // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
     //       in the common case of div.foo or div#foo selectors.
     auto add_to_id_bucket = [&](FlyString const& name) {

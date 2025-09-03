@@ -1136,6 +1136,10 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, DOM::
     case CSS::Selector::SimpleSelector::Type::PseudoClass:
         return matches_pseudo_class(component.pseudo_class(), element, shadow_host, context, scope, selector_kind);
     case CSS::Selector::SimpleSelector::Type::PseudoElement:
+        if (component.pseudo_element().type() == CSS::PseudoElement::Slotted) {
+            VERIFY(context.slotted_element);
+            return matches(component.pseudo_element().compound_selector(), *context.slotted_element, shadow_host, context);
+        }
         // Pseudo-element matching/not-matching is handled in the top level matches().
         return true;
     case CSS::Selector::SimpleSelector::Type::Nesting:
