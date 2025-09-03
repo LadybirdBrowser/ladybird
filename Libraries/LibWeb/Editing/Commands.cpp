@@ -1499,7 +1499,13 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
     }
 
     // 11. If container is not editable or not in the same editing host as node or is not a single-line container:
-    if (!container->is_editable() || !is_in_same_editing_host(*container, *node) || !is_single_line_container(*container)) {
+    // AD-HOC: If the container is not editable, but it is an editing host whose parent is editable or an editing host,
+    //         we don't need to create a new container - we can simply duplicate the existing container. This reflects
+    //         how Chrome and Firefox deal with nested editables.
+    //         See: https://github.com/w3c/editing/issues/490
+    auto container_parent_is_editable_or_editing_host = container->parent() && container->parent()->is_editable_or_editing_host();
+    if ((!container->is_editable() && (!container->is_editing_host() || !container_parent_is_editable_or_editing_host))
+        || !is_in_same_editing_host(*container, *node) || !is_single_line_container(*container)) {
         // 1. Let tag be the default single-line container name.
         auto tag = document.default_single_line_container_name();
 
