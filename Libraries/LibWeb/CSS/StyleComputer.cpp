@@ -3544,11 +3544,4 @@ void RuleCache::for_each_matching_rules(DOM::Element const& element, Optional<Ps
     (void)callback(other_rules);
 }
 
-Length::FontMetrics const& StyleComputer::root_element_font_metrics_for_element(GC::Ptr<DOM::Element const> element) const
-{
-    if (element && element->document().document_element() == element)
-        return m_default_font_metrics;
-    return m_root_element_font_metrics;
-}
-
 }
