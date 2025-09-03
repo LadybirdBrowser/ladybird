@@ -9,9 +9,6 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
-#include <LibWeb/CSS/PreferredContrast.h>
-#include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWebView/Application.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
@@ -220,88 +217,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     view_menu->addSeparator();
 
-    auto* color_scheme_menu = view_menu->addMenu("&Color Scheme");
-
-    auto* color_scheme_group = new QActionGroup(this);
-
-    auto* auto_color_scheme = new QAction("&Auto", this);
-    auto_color_scheme->setCheckable(true);
-    color_scheme_group->addAction(auto_color_scheme);
-    color_scheme_menu->addAction(auto_color_scheme);
-    QObject::connect(auto_color_scheme, &QAction::triggered, this, [this] {
-        set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Auto);
-    });
-    auto* light_color_scheme = new QAction("&Light", this);
-    light_color_scheme->setCheckable(true);
-    color_scheme_group->addAction(light_color_scheme);
-    color_scheme_menu->addAction(light_color_scheme);
-    QObject::connect(light_color_scheme, &QAction::triggered, this, [this] {
-        set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Light);
-    });
-
-    auto* dark_color_scheme = new QAction("&Dark", this);
-    dark_color_scheme->setCheckable(true);
-    color_scheme_group->addAction(dark_color_scheme);
-    color_scheme_menu->addAction(dark_color_scheme);
-    QObject::connect(dark_color_scheme, &QAction::triggered, this, [this] {
-        set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Dark);
-    });
-
-    auto_color_scheme->setChecked(true);
-
-    auto* contrast_menu = view_menu->addMenu("&Contrast");
-
-    auto* contrast_group = new QActionGroup(this);
-
-    auto* auto_contrast = new QAction("&Auto", this);
-    auto_contrast->setCheckable(true);
-    contrast_group->addAction(auto_contrast);
-    contrast_menu->addAction(auto_contrast);
-    QObject::connect(auto_contrast, &QAction::triggered, this, &BrowserWindow::enable_auto_contrast);
-
-    auto* less_contrast = new QAction("&Less", this);
-    less_contrast->setCheckable(true);
-    contrast_group->addAction(less_contrast);
-    contrast_menu->addAction(less_contrast);
-    QObject::connect(less_contrast, &QAction::triggered, this, &BrowserWindow::enable_less_contrast);
-
-    auto* more_contrast = new QAction("&More", this);
-    more_contrast->setCheckable(true);
-    contrast_group->addAction(more_contrast);
-    contrast_menu->addAction(more_contrast);
-    QObject::connect(more_contrast, &QAction::triggered, this, &BrowserWindow::enable_more_contrast);
-
-    auto* no_preference_contrast = new QAction("&No Preference", this);
-    no_preference_contrast->setCheckable(true);
-    contrast_group->addAction(no_preference_contrast);
-    contrast_menu->addAction(no_preference_contrast);
-    QObject::connect(no_preference_contrast, &QAction::triggered, this, &BrowserWindow::enable_no_preference_contrast);
-
-    auto_contrast->setChecked(true);
-
-    auto* motion_menu = view_menu->addMenu("&Motion");
-
-    auto* motion_group = new QActionGroup(this);
-
-    auto* auto_motion = new QAction("&Auto", this);
-    auto_motion->setCheckable(true);
-    motion_group->addAction(auto_motion);
-    motion_menu->addAction(auto_motion);
-    QObject::connect(auto_motion, &QAction::triggered, this, &BrowserWindow::enable_auto_motion);
-
-    auto* reduce_motion = new QAction("&Reduce", this);
-    reduce_motion->setCheckable(true);
-    motion_group->addAction(reduce_motion);
-    motion_menu->addAction(reduce_motion);
-    QObject::connect(reduce_motion, &QAction::triggered, this, &BrowserWindow::enable_reduce_motion);
-
-    auto* no_preference_motion = new QAction("&No Preference", this);
-    no_preference_motion->setCheckable(true);
-    motion_group->addAction(no_preference_motion);
-    motion_menu->addAction(no_preference_motion);
-    QObject::connect(no_preference_motion, &QAction::triggered, this, &BrowserWindow::enable_no_preference_motion);
-
-    auto_motion->setChecked(true);
+    view_menu->addMenu(create_application_menu(*view_menu, Application::the().color_scheme_menu()));
+    view_menu->addMenu(create_application_menu(*view_menu, Application::the().contrast_menu()));
+    view_menu->addMenu(create_application_menu(*view_menu, Application::the().motion_menu()));
+    view_menu->addSeparator();
 
     auto* show_menubar = new QAction("Show &Menubar", this);
     show_menubar->setCheckable(true);
@@ -558,8 +477,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());
     create_close_button_for_tab(tab);
-
-    tab->view().set_preferred_color_scheme(m_preferred_color_scheme);
 }
 
 void BrowserWindow::activate_tab(int index)
@@ -740,55 +657,6 @@ void BrowserWindow::open_previous_tab()
     m_tabs_container->setCurrentIndex(next_index);
 }
 
-void BrowserWindow::enable_auto_contrast()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_contrast(Web::CSS::PreferredContrast::Auto);
-    });
-}
-
-void BrowserWindow::enable_less_contrast()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_contrast(Web::CSS::PreferredContrast::Less);
-    });
-}
-
-void BrowserWindow::enable_more_contrast()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_contrast(Web::CSS::PreferredContrast::More);
-    });
-}
-
-void BrowserWindow::enable_no_preference_contrast()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_contrast(Web::CSS::PreferredContrast::NoPreference);
-    });
-}
-
-void BrowserWindow::enable_auto_motion()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_motion(Web::CSS::PreferredMotion::Auto);
-    });
-}
-
-void BrowserWindow::enable_no_preference_motion()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_motion(Web::CSS::PreferredMotion::NoPreference);
-    });
-}
-
-void BrowserWindow::enable_reduce_motion()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_motion(Web::CSS::PreferredMotion::Reduce);
-    });
-}
-
 void BrowserWindow::zoom_in()
 {
     if (!m_current_tab)
@@ -845,14 +713,6 @@ void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web:
         height = 600;
 
     setGeometry(x.value().value(), y.value().value(), width.value().value(), height.value().value());
-}
-
-void BrowserWindow::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)
-{
-    m_preferred_color_scheme = color_scheme;
-    for_each_tab([color_scheme](auto& tab) {
-        tab.view().set_preferred_color_scheme(color_scheme);
-    });
 }
 
 bool BrowserWindow::event(QEvent* event)

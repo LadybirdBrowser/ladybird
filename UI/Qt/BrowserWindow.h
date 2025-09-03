@@ -67,13 +67,6 @@ public slots:
     void open_next_tab();
     void open_previous_tab();
     void open_file();
-    void enable_auto_contrast();
-    void enable_less_contrast();
-    void enable_more_contrast();
-    void enable_no_preference_contrast();
-    void enable_auto_motion();
-    void enable_no_preference_motion();
-    void enable_reduce_motion();
     void zoom_in();
     void zoom_out();
     void reset_zoom();
@@ -116,9 +109,6 @@ private:
     QScreen* m_current_screen { nullptr };
     double m_device_pixel_ratio { 0 };
     double m_refresh_rate { 60.0 };
-
-    Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
-    void set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme);
 
     void devtools_disabled();
     void devtools_enabled();
