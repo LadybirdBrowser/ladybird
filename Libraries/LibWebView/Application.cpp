@@ -14,6 +14,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/Database.h>
@@ -613,6 +614,37 @@ void Application::display_error_dialog(StringView error_message) const
 
 void Application::initialize_actions()
 {
+    auto debug_request = [this](auto request) {
+        return [this, request]() {
+            if (auto view = active_web_view(); view.has_value())
+                view->debug_request(request);
+        };
+    };
+
+    auto check = [](auto& action, auto request) {
+        return [&action, request]() {
+            ViewImplementation::for_each_view([checked = action->checked(), request](ViewImplementation& view) {
+                view.debug_request(request, checked ? "on"sv : "off"sv);
+                return IterationDecision::Continue;
+            });
+        };
+    };
+
+    auto add_spoofed_value = [](auto& menu, auto name, auto value, auto& cached_value, auto request) {
+        auto action = Action::create_checkable(name, ActionID::SpoofUserAgent, [value, &cached_value, request]() {
+            cached_value = value;
+
+            ViewImplementation::for_each_view([&](ViewImplementation& view) {
+                view.debug_request(request, cached_value);
+                view.debug_request("clear-cache"sv); // Clear the cache to ensure requests are re-done with the new value.
+                return IterationDecision::Continue;
+            });
+        });
+
+        action->set_checked(value == cached_value);
+        menu->add_action(move(action));
+    };
+
     m_reload_action = Action::create("Reload"sv, ActionID::Reload, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->reload();
@@ -635,6 +667,78 @@ void Application::initialize_actions()
         if (auto view = active_web_view(); view.has_value())
             view->get_source();
     });
+
+    m_debug_menu = Menu::create("Debug"sv);
+
+    m_debug_menu->add_action(Action::create("Dump Session History Tree"sv, ActionID::DumpSessionHistoryTree, debug_request("dump-session-history"sv)));
+    m_debug_menu->add_action(Action::create("Dump DOM Tree"sv, ActionID::DumpDOMTree, debug_request("dump-dom-tree"sv)));
+    m_debug_menu->add_action(Action::create("Dump Layout Tree"sv, ActionID::DumpLayoutTree, debug_request("dump-layout-tree"sv)));
+    m_debug_menu->add_action(Action::create("Dump Paint Tree"sv, ActionID::DumpPaintTree, debug_request("dump-paint-tree"sv)));
+    m_debug_menu->add_action(Action::create("Dump Stacking Context Tree"sv, ActionID::DumpStackingContextTree, debug_request("dump-stacking-context-tree"sv)));
+    m_debug_menu->add_action(Action::create("Dump Display List"sv, ActionID::DumpDisplayList, debug_request("dump-display-list"sv)));
+    m_debug_menu->add_action(Action::create("Dump Style Sheets"sv, ActionID::DumpStyleSheets, debug_request("dump-style-sheets"sv)));
+    m_debug_menu->add_action(Action::create("Dump All Resolved Styles"sv, ActionID::DumpStyles, debug_request("dump-all-resolved-styles"sv)));
+    m_debug_menu->add_action(Action::create("Dump CSS Errors"sv, ActionID::DumpCSSErrors, debug_request("dump-all-css-errors"sv)));
+    m_debug_menu->add_action(Action::create("Dump Cookies"sv, ActionID::DumpCookies, [this]() { m_cookie_jar->dump_cookies(); }));
+    m_debug_menu->add_action(Action::create("Dump Local Storage"sv, ActionID::DumpLocalStorage, debug_request("dump-local-storage"sv)));
+    m_debug_menu->add_action(Action::create("Dump GC graph"sv, ActionID::DumpGCGraph, [this]() {
+        if (auto view = active_web_view(); view.has_value()) {
+            auto gc_graph_path = view->dump_gc_graph();
+            warnln("\033[33;1mDumped GC-graph into {}\033[0m", gc_graph_path);
+        }
+    }));
+    m_debug_menu->add_separator();
+
+    m_show_line_box_borders_action = Action::create_checkable("Show Line Box Borders"sv, ActionID::ShowLineBoxBorders, check(m_show_line_box_borders_action, "set-line-box-borders"sv));
+    m_debug_menu->add_action(*m_show_line_box_borders_action);
+    m_debug_menu->add_separator();
+
+    m_debug_menu->add_action(Action::create("Collect Garbage"sv, ActionID::CollectGarbage, debug_request("collect-garbage"sv)));
+    m_debug_menu->add_action(Action::create("Clear Cache"sv, ActionID::ClearCache, debug_request("clear-cache"sv)));
+    m_debug_menu->add_action(Action::create("Clear All Cookies"sv, ActionID::ClearCookies, [this]() { m_cookie_jar->clear_all_cookies(); }));
+    m_debug_menu->add_separator();
+
+    auto spoof_user_agent_menu = Menu::create_group("Spoof User Agent"sv);
+    m_user_agent_string = m_web_content_options.user_agent_preset.has_value()
+        ? *WebView::user_agents.get(*m_web_content_options.user_agent_preset)
+        : Web::default_user_agent;
+
+    add_spoofed_value(spoof_user_agent_menu, "Disabled"sv, Web::default_user_agent, m_user_agent_string, "spoof-user-agent"sv);
+    for (auto const& user_agent : WebView::user_agents)
+        add_spoofed_value(spoof_user_agent_menu, user_agent.key, user_agent.value, m_user_agent_string, "spoof-user-agent"sv);
+
+    auto navigator_compatibility_mode_menu = Menu::create_group("Navigator Compatibility Mode"sv);
+    m_navigator_compatibility_mode = "chrome"sv;
+
+    add_spoofed_value(navigator_compatibility_mode_menu, "Chrome"sv, "chrome"sv, m_navigator_compatibility_mode, "navigator-compatibility-mode"sv);
+    add_spoofed_value(navigator_compatibility_mode_menu, "Gecko"sv, "gecko"sv, m_navigator_compatibility_mode, "navigator-compatibility-mode"sv);
+    add_spoofed_value(navigator_compatibility_mode_menu, "WebKit"sv, "webkit"sv, m_navigator_compatibility_mode, "navigator-compatibility-mode"sv);
+
+    m_debug_menu->add_submenu(move(spoof_user_agent_menu));
+    m_debug_menu->add_submenu(move(navigator_compatibility_mode_menu));
+    m_debug_menu->add_separator();
+
+    m_enable_scripting_action = Action::create_checkable("Enable Scripting"sv, ActionID::EnableScripting, check(m_enable_scripting_action, "scripting"sv));
+    m_enable_scripting_action->set_checked(m_browser_options.disable_scripting == WebView::DisableScripting::No);
+    m_debug_menu->add_action(*m_enable_scripting_action);
+
+    m_enable_content_filtering_action = Action::create_checkable("Enable Content Filtering"sv, ActionID::EnableContentFiltering, check(m_enable_content_filtering_action, "content-filtering"sv));
+    m_enable_content_filtering_action->set_checked(true);
+    m_debug_menu->add_action(*m_enable_content_filtering_action);
+
+    m_block_pop_ups_action = Action::create_checkable("Block Pop-ups"sv, ActionID::BlockPopUps, check(m_block_pop_ups_action, "block-pop-ups"sv));
+    m_block_pop_ups_action->set_checked(m_browser_options.allow_popups == AllowPopups::No);
+    m_debug_menu->add_action(*m_block_pop_ups_action);
+}
+
+void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementation& view)
+{
+    view.debug_request("set-line-box-borders"sv, m_show_line_box_borders_action->checked() ? "on"sv : "off"sv);
+    view.debug_request("scripting"sv, m_enable_scripting_action->checked() ? "on"sv : "off"sv);
+    view.debug_request("content-filtering"sv, m_enable_content_filtering_action->checked() ? "on"sv : "off"sv);
+    view.debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
+    view.debug_request("spoof-user-agent"sv, m_user_agent_string);
+    view.debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
 }
 
 ErrorOr<Application::DevtoolsState> Application::toggle_devtools_enabled()

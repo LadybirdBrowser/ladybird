@@ -12,10 +12,7 @@
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
-#include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/CookieJar.h>
-#include <LibWebView/UserAgent.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
@@ -351,237 +348,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         new_tab_from_url(URL::URL::about("processes"_string), Web::HTML::ActivateTab::Yes);
     });
 
-    auto* debug_menu = m_hamburger_menu->addMenu("&Debug");
+    auto* debug_menu = create_application_menu(*m_hamburger_menu, Application::the().debug_menu());
+    m_hamburger_menu->addMenu(debug_menu);
     menuBar()->addMenu(debug_menu);
-
-    auto* dump_session_history_tree_action = new QAction("Dump Session History Tree", this);
-    dump_session_history_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/history.png"sv));
-    debug_menu->addAction(dump_session_history_tree_action);
-    QObject::connect(dump_session_history_tree_action, &QAction::triggered, this, [this] {
-        debug_request("dump-session-history");
-    });
-
-    auto* dump_dom_tree_action = new QAction("Dump &DOM Tree", this);
-    dump_dom_tree_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
-    debug_menu->addAction(dump_dom_tree_action);
-    QObject::connect(dump_dom_tree_action, &QAction::triggered, this, [this] {
-        debug_request("dump-dom-tree");
-    });
-
-    auto* dump_layout_tree_action = new QAction("Dump &Layout Tree", this);
-    dump_layout_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"sv));
-    debug_menu->addAction(dump_layout_tree_action);
-    QObject::connect(dump_layout_tree_action, &QAction::triggered, this, [this] {
-        debug_request("dump-layout-tree");
-    });
-
-    auto* dump_paint_tree_action = new QAction("Dump &Paint Tree", this);
-    dump_paint_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"sv));
-    debug_menu->addAction(dump_paint_tree_action);
-    QObject::connect(dump_paint_tree_action, &QAction::triggered, this, [this] {
-        debug_request("dump-paint-tree");
-    });
-
-    auto* dump_stacking_context_tree_action = new QAction("Dump S&tacking Context Tree", this);
-    dump_stacking_context_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layers.png"sv));
-    debug_menu->addAction(dump_stacking_context_tree_action);
-    QObject::connect(dump_stacking_context_tree_action, &QAction::triggered, this, [this] {
-        debug_request("dump-stacking-context-tree");
-    });
-
-    auto* dump_display_list = new QAction("Dump Display List", this);
-    dump_display_list->setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"sv));
-    debug_menu->addAction(dump_display_list);
-    QObject::connect(dump_display_list, &QAction::triggered, this, [this] {
-        debug_request("dump-display-list");
-    });
-
-    auto* dump_style_sheets_action = new QAction("Dump &Style Sheets", this);
-    dump_style_sheets_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-css.png"sv));
-    debug_menu->addAction(dump_style_sheets_action);
-    QObject::connect(dump_style_sheets_action, &QAction::triggered, this, [this] {
-        debug_request("dump-style-sheets");
-    });
-
-    auto* dump_styles_action = new QAction("Dump &All Resolved Styles", this);
-    dump_styles_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-css.png"sv));
-    debug_menu->addAction(dump_styles_action);
-    QObject::connect(dump_styles_action, &QAction::triggered, this, [this] {
-        debug_request("dump-all-resolved-styles");
-    });
-
-    auto* dump_css_errors_action = new QAction("Dump CSS &Errors", this);
-    dump_css_errors_action->setIcon(load_icon_from_uri("resource://icons/16x16/error.png"sv));
-    debug_menu->addAction(dump_css_errors_action);
-    QObject::connect(dump_css_errors_action, &QAction::triggered, this, [this] {
-        debug_request("dump-all-css-errors");
-    });
-
-    auto* dump_cookies_action = new QAction("Dump C&ookies", this);
-    dump_cookies_action->setIcon(load_icon_from_uri("resource://icons/browser/cookie.png"sv));
-    debug_menu->addAction(dump_cookies_action);
-    QObject::connect(dump_cookies_action, &QAction::triggered, this, [] {
-        WebView::Application::cookie_jar().dump_cookies();
-    });
-
-    auto* dump_local_storage_action = new QAction("Dump Loc&al Storage", this);
-    dump_local_storage_action->setIcon(load_icon_from_uri("resource://icons/browser/local-storage.png"sv));
-    debug_menu->addAction(dump_local_storage_action);
-    QObject::connect(dump_local_storage_action, &QAction::triggered, this, [this] {
-        debug_request("dump-local-storage");
-    });
-
-    debug_menu->addSeparator();
-
-    m_show_line_box_borders_action = new QAction("Show Line Box Borders", this);
-    m_show_line_box_borders_action->setCheckable(true);
-    m_show_line_box_borders_action->setIcon(load_icon_from_uri("resource://icons/16x16/box.png"sv));
-    debug_menu->addAction(m_show_line_box_borders_action);
-    QObject::connect(m_show_line_box_borders_action, &QAction::triggered, this, [this] {
-        bool state = m_show_line_box_borders_action->isChecked();
-        for_each_tab([state](auto& tab) {
-            tab.set_line_box_borders(state);
-        });
-    });
-
-    debug_menu->addSeparator();
-
-    auto* collect_garbage_action = new QAction("Collect &Garbage", this);
-    collect_garbage_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
-    collect_garbage_action->setIcon(load_icon_from_uri("resource://icons/16x16/trash-can.png"sv));
-    debug_menu->addAction(collect_garbage_action);
-    QObject::connect(collect_garbage_action, &QAction::triggered, this, [this] {
-        debug_request("collect-garbage");
-    });
-
-    auto* dump_gc_graph_action = new QAction("Dump GC graph", this);
-    debug_menu->addAction(dump_gc_graph_action);
-    QObject::connect(dump_gc_graph_action, &QAction::triggered, this, [this] {
-        if (m_current_tab) {
-            auto gc_graph_path = m_current_tab->view().dump_gc_graph();
-            warnln("\033[33;1mDumped GC-graph into {}"
-                   "\033[0m",
-                gc_graph_path);
-        }
-    });
-
-    auto* clear_cache_action = new QAction("Clear &Cache", this);
-    clear_cache_action->setIcon(load_icon_from_uri("resource://icons/browser/clear-cache.png"sv));
-    debug_menu->addAction(clear_cache_action);
-    QObject::connect(clear_cache_action, &QAction::triggered, this, [this] {
-        debug_request("clear-cache");
-    });
-
-    auto* clear_all_cookies_action = new QAction("Clear All Cookies", this);
-    debug_menu->addAction(clear_all_cookies_action);
-    QObject::connect(clear_all_cookies_action, &QAction::triggered, this, [] {
-        WebView::Application::cookie_jar().clear_all_cookies();
-    });
-
-    auto* spoof_user_agent_menu = debug_menu->addMenu("Spoof &User Agent");
-    spoof_user_agent_menu->setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"sv));
-
-    auto* user_agent_group = new QActionGroup(this);
-
-    auto add_user_agent = [this, &user_agent_group, &spoof_user_agent_menu](auto name, auto const& user_agent) {
-        auto* action = new QAction(qstring_from_ak_string(name), this);
-        action->setCheckable(true);
-        user_agent_group->addAction(action);
-        spoof_user_agent_menu->addAction(action);
-        QObject::connect(action, &QAction::triggered, this, [this, user_agent] {
-            for_each_tab([user_agent](auto& tab) {
-                tab.set_user_agent_string(user_agent);
-            });
-            set_user_agent_string(user_agent);
-        });
-        return action;
-    };
-
-    auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset;
-    set_user_agent_string(user_agent_preset.has_value() ? *WebView::user_agents.get(*user_agent_preset) : Web::default_user_agent);
-
-    auto* disable_spoofing = add_user_agent("Disabled"sv, Web::default_user_agent);
-    disable_spoofing->setChecked(!user_agent_preset.has_value());
-    for (auto const& user_agent : WebView::user_agents) {
-        auto* spoofed_user_agent = add_user_agent(user_agent.key, user_agent.value.to_byte_string());
-        spoofed_user_agent->setChecked(user_agent.key == user_agent_preset);
-    }
-
-    auto* custom_user_agent_action = new QAction("Custom...", this);
-    custom_user_agent_action->setCheckable(true);
-    user_agent_group->addAction(custom_user_agent_action);
-    spoof_user_agent_menu->addAction(custom_user_agent_action);
-    QObject::connect(custom_user_agent_action, &QAction::triggered, this, [this, disable_spoofing] {
-        auto user_agent = QInputDialog::getText(this, "Custom User Agent", "Enter User Agent:");
-        if (!user_agent.isEmpty()) {
-            auto user_agent_byte_string = ak_byte_string_from_qstring(user_agent);
-            for_each_tab([&](auto& tab) {
-                tab.set_user_agent_string(user_agent_byte_string);
-            });
-            set_user_agent_string(user_agent_byte_string);
-        } else {
-            disable_spoofing->activate(QAction::Trigger);
-        }
-    });
-
-    auto* navigator_compatibility_mode_menu = debug_menu->addMenu("Navigator Compatibility Mode");
-    navigator_compatibility_mode_menu->setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"sv));
-
-    auto* navigator_compatibility_mode_group = new QActionGroup(this);
-
-    auto add_navigator_compatibility_mode = [this, &navigator_compatibility_mode_group, &navigator_compatibility_mode_menu](auto name, auto const& compatibility_mode) {
-        auto* action = new QAction(qstring_from_ak_string(name), this);
-        action->setCheckable(true);
-        navigator_compatibility_mode_group->addAction(action);
-        navigator_compatibility_mode_menu->addAction(action);
-        QObject::connect(action, &QAction::triggered, this, [this, compatibility_mode] {
-            for_each_tab([compatibility_mode](auto& tab) {
-                tab.set_navigator_compatibility_mode(compatibility_mode);
-            });
-            set_navigator_compatibility_mode(compatibility_mode);
-        });
-        return action;
-    };
-    auto* chrome_compatibility_mode = add_navigator_compatibility_mode("Chrome"_string, "chrome"sv.to_byte_string());
-    chrome_compatibility_mode->setChecked(true);
-    add_navigator_compatibility_mode("Gecko"_string, "gecko"sv.to_byte_string());
-    add_navigator_compatibility_mode("WebKit"_string, "webkit"sv.to_byte_string());
-    set_navigator_compatibility_mode("chrome");
-
-    debug_menu->addSeparator();
-
-    m_enable_scripting_action = new QAction("Enable Scripting", this);
-    m_enable_scripting_action->setCheckable(true);
-    m_enable_scripting_action->setChecked(browser_options.disable_scripting == WebView::DisableScripting::No);
-    debug_menu->addAction(m_enable_scripting_action);
-    QObject::connect(m_enable_scripting_action, &QAction::triggered, this, [this] {
-        bool state = m_enable_scripting_action->isChecked();
-        for_each_tab([state](auto& tab) {
-            tab.set_scripting(state);
-        });
-    });
-
-    m_enable_content_filtering_action = new QAction("Enable Content Filtering", this);
-    m_enable_content_filtering_action->setCheckable(true);
-    m_enable_content_filtering_action->setChecked(true);
-    debug_menu->addAction(m_enable_content_filtering_action);
-    QObject::connect(m_enable_content_filtering_action, &QAction::triggered, this, [this] {
-        bool const state = m_enable_content_filtering_action->isChecked();
-        for_each_tab([state](auto& tab) {
-            tab.set_content_filtering(state);
-        });
-    });
-
-    m_block_pop_ups_action = new QAction("Block Pop-ups", this);
-    m_block_pop_ups_action->setCheckable(true);
-    m_block_pop_ups_action->setChecked(browser_options.allow_popups == WebView::AllowPopups::No);
-    debug_menu->addAction(m_block_pop_ups_action);
-    QObject::connect(m_block_pop_ups_action, &QAction::triggered, this, [this] {
-        bool state = m_block_pop_ups_action->isChecked();
-        for_each_tab([state](auto& tab) {
-            tab.set_block_popups(state);
-        });
-    });
 
     auto* help_menu = m_hamburger_menu->addMenu("&Help");
     menuBar()->addMenu(help_menu);
@@ -684,13 +453,6 @@ void BrowserWindow::set_current_tab(Tab* tab)
     m_current_tab = tab;
     if (tab)
         update_displayed_zoom_level();
-}
-
-void BrowserWindow::debug_request(ByteString const& request, ByteString const& argument)
-{
-    if (!m_current_tab)
-        return;
-    m_current_tab->debug_request(request, argument);
 }
 
 Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
@@ -797,12 +559,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
     m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());
     create_close_button_for_tab(tab);
 
-    tab->set_line_box_borders(m_show_line_box_borders_action->isChecked());
-    tab->set_scripting(m_enable_scripting_action->isChecked());
-    tab->set_content_filtering(m_enable_content_filtering_action->isChecked());
-    tab->set_block_popups(m_block_pop_ups_action->isChecked());
-    tab->set_user_agent_string(user_agent_string());
-    tab->set_navigator_compatibility_mode(navigator_compatibility_mode());
     tab->view().set_preferred_color_scheme(m_preferred_color_scheme);
 }
 

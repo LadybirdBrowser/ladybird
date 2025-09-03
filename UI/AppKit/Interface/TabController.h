@@ -13,14 +13,6 @@
 
 @class Tab;
 
-struct TabSettings {
-    BOOL should_show_line_box_borders { NO };
-    BOOL scripting_enabled { YES };
-    BOOL block_popups { YES };
-    ByteString user_agent_name { "Disabled"sv };
-    ByteString navigator_compatibility_mode { "chrome"sv };
-};
-
 @interface TabController : NSWindowController <NSWindowDelegate>
 
 - (instancetype)init;
@@ -34,13 +26,7 @@ struct TabSettings {
 
 - (void)onURLChange:(URL::URL const&)url;
 
-- (void)onCreateNewTab;
-
 - (void)clearHistory;
-
-- (void)setPopupBlocking:(BOOL)block_popups;
-- (void)setScripting:(BOOL)enabled;
-- (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument;
 
 - (void)focusLocationToolbarItem;
 

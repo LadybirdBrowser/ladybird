@@ -241,11 +241,6 @@ struct HideCursor {
     m_web_view_bridge->set_preferred_motion(motion);
 }
 
-- (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument
-{
-    m_web_view_bridge->debug_request(request, argument);
-}
-
 #pragma mark - Private methods
 
 static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_type)
