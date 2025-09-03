@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
@@ -2112,6 +2113,11 @@ double ComputedProperties::font_weight() const
 Percentage ComputedProperties::font_width() const
 {
     return property(PropertyID::FontWidth).as_percentage().percentage();
+}
+
+int ComputedProperties::font_slope() const
+{
+    return property(PropertyID::FontStyle).as_font_style().to_font_slope();
 }
 
 }

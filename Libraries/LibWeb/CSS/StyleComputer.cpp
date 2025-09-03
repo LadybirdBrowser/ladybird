@@ -1078,6 +1078,9 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         if (auto const& font_width_specified_value = specified_values.get(PropertyID::FontWidth); font_width_specified_value.has_value())
             result.set(PropertyID::FontWidth, compute_font_width(*font_width_specified_value.value(), parent_length_resolution_context));
 
+        if (auto const& font_style_specified_value = specified_values.get(PropertyID::FontStyle); font_style_specified_value.has_value())
+            result.set(PropertyID::FontStyle, compute_font_style(*font_style_specified_value.value(), parent_length_resolution_context));
+
         PropertyValueComputationContext property_value_computation_context {
             .length_resolution_context = {
                 .viewport_rect = viewport_rect(),
@@ -1849,15 +1852,13 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, StyleValue const& font_style, double font_weight, Percentage const& font_width) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto width = round_to<int>(font_width.value());
 
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto weight = round_to<int>(font_weight);
-
-    auto slope = font_style.as_font_style().to_font_slope();
 
     // FIXME: Implement the full font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 
@@ -2002,10 +2003,16 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
         compute_font_width(font_width_specified_value, length_resolution_context),
         style.is_property_inherited(PropertyID::FontWidth) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
 
-    auto const& font_family = style.property(CSS::PropertyID::FontFamily);
-    auto const& font_style = style.property(CSS::PropertyID::FontStyle);
+    auto const& font_style_specified_value = style.property(PropertyID::FontStyle, ComputedProperties::WithAnimationsApplied::No);
 
-    auto font_list = compute_font_for_style_values(font_family, style.font_size(), font_style, style.font_weight(), style.font_width());
+    style.set_property(
+        PropertyID::FontStyle,
+        compute_font_style(font_style_specified_value, length_resolution_context),
+        style.is_property_inherited(PropertyID::FontStyle) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+
+    auto const& font_family = style.property(CSS::PropertyID::FontFamily);
+
+    auto font_list = compute_font_for_style_values(font_family, style.font_size(), style.font_slope(), style.font_weight(), style.font_width());
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 
@@ -3257,6 +3264,25 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
 
         return LengthStyleValue::create(Length::make_px(inherited_font_size.scale_by(math_scaling_factor)));
     }
+
+    VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<StyleValue const> const& specified_value, Length::ResolutionContext const& parent_length_resolution_context)
+{
+    // https://drafts.csswg.org/css-fonts-4/#font-style-prop
+    // the keyword specified, plus angle in degrees if specified
+
+    auto const& angle_value = specified_value->as_font_style().angle();
+
+    if (!angle_value)
+        return specified_value;
+
+    if (angle_value->is_angle())
+        return FontStyleStyleValue::create(specified_value->as_font_style().font_style(), AngleStyleValue::create(Angle::make_degrees(angle_value->as_angle().angle().to_degrees())));
+
+    if (angle_value->is_calculated())
+        return FontStyleStyleValue::create(specified_value->as_font_style().font_style(), AngleStyleValue::create(angle_value->as_calculated().resolve_angle({ .length_resolution_context = parent_length_resolution_context }).value()));
 
     VERIFY_NOT_REACHED();
 }
