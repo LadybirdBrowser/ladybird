@@ -1,19 +1,41 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<div contenteditable="true"><ul><li>foobar</li></ul></div>
+<div id="a" contenteditable><ul><li>foobar</li></ul></div>
+<div id="b">foo <div contenteditable>bar</div></div>
+<div id="c" contenteditable>foo <div contenteditable>bar</div></div>
+<div id="d" contenteditable>foo <span><div contenteditable>bar</div></span></div>
 <script>
     test(() => {
-        var divElm = document.querySelector('div');
-        println(`Before: ${divElm.innerHTML}`);
-
-        // Put cursor after 'foo'
-        var range = document.createRange();
-        range.setStart(divElm.firstChild.firstChild.firstChild, 3);
-        getSelection().addRange(range);
-
-        // Press return
+        // a: Cursor after 'foo', should create a new <li>
+        const aElm = document.querySelector('#a');
+        println(`Before: ${aElm.innerHTML}`);
+        const aAnchor = aElm.firstChild.firstChild.firstChild;
+        document.getSelection().setBaseAndExtent(aAnchor, 3, aAnchor, 3);
         document.execCommand('insertParagraph');
+        println(`After: ${aElm.innerHTML}`);
 
-        println(`After: ${divElm.innerHTML}`);
+        // b: Cursor after 'bar', should create two new containers inside the inner <div contenteditable>
+        const bElm = document.querySelector('#b');
+        println(`Before: ${bElm.innerHTML}`);
+        const bAnchor = bElm.childNodes[1].firstChild;
+        document.getSelection().setBaseAndExtent(bAnchor, 3, bAnchor, 3);
+        document.execCommand('insertParagraph');
+        println(`After: ${bElm.innerHTML}`);
+
+        // c: Cursor after 'bar', should replicate the inner <div contenteditable> as a container
+        const cElm = document.querySelector('#c');
+        println(`Before: ${cElm.innerHTML}`);
+        const cAnchor = cElm.childNodes[1].firstChild;
+        document.getSelection().setBaseAndExtent(cAnchor, 3, cAnchor, 3);
+        document.execCommand('insertParagraph');
+        println(`After: ${cElm.innerHTML}`);
+
+        // d: Cursor after 'bar', should replicate the inner <div contenteditable> as a container
+        const dElm = document.querySelector('#d');
+        println(`Before: ${dElm.innerHTML}`);
+        const dAnchor = dElm.childNodes[1].firstChild.firstChild;
+        document.getSelection().setBaseAndExtent(dAnchor, 3, dAnchor, 3);
+        document.execCommand('insertParagraph');
+        println(`After: ${dElm.innerHTML}`);
     });
 </script>

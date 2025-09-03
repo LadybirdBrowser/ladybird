@@ -1,25 +1,27 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<div id="a" contenteditable="true">foobar</div>
-<div id="b" contenteditable="true">foo👩🏼‍❤️‍👨🏻bar</div>
+<div id="a" contenteditable>foobar</div>
+<div id="b" contenteditable>foo👩🏼‍❤️‍👨🏻bar</div>
+<div id="c" contenteditable>foo<div contenteditable>bar</div></div>
 <script>
     test(() => {
-        const testDelete = function (divId, position) {
+        const testDelete = function (divId, anchorExpression, position) {
             println(`--- ${divId} ---`);
             const divElm = document.querySelector(`div#${divId}`);
-            println(`Before: ${divElm.textContent}`);
+            println(`Before: ${divElm.innerHTML}`);
 
             // Place cursor
-            const node = divElm.childNodes[0];
-            getSelection().setBaseAndExtent(node, position, node, position);
+            const anchor = anchorExpression(divElm);
+            getSelection().setBaseAndExtent(anchor, position, anchor, position);
 
             // Press backspace
             document.execCommand("delete");
 
-            println(`After: ${divElm.textContent}`);
+            println(`After: ${divElm.innerHTML}`);
         };
 
-        testDelete("a", 3);
-        testDelete("b", 15);
+        testDelete("a", (node) => node.firstChild, 3);
+        testDelete("b", (node) => node.firstChild, 15);
+        testDelete("c", (node) => node.childNodes[1].firstChild, 0);
     });
 </script>

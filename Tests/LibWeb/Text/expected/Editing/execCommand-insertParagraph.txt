@@ -1,2 +1,8 @@
 Before: <ul><li>foobar</li></ul>
 After: <ul><li>foo</li><li>bar</li></ul>
+Before: foo <div contenteditable="">bar</div>
+After: foo <div contenteditable=""><div>bar</div><div><br></div></div>
+Before: foo <div contenteditable="">bar</div>
+After: foo <div contenteditable="">bar</div><div contenteditable=""><br></div>
+Before: foo <span><div contenteditable="">bar</div></span>
+After: foo <span><div contenteditable="">bar</div><div contenteditable=""><br></div></span>
