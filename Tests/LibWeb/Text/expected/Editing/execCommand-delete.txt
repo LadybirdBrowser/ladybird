@@ -4,3 +4,6 @@ After: fobar
 --- b ---
 Before: foo👩🏼‍❤️‍👨🏻bar
 After: foobar
+--- c ---
+Before: foo<div contenteditable="">bar</div>
+After: foobar

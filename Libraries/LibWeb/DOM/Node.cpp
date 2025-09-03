@@ -1573,9 +1573,14 @@ bool Node::is_editing_host() const
 
     // An editing host is either an HTML element with its contenteditable attribute in the true state or
     // plaintext-only state,
+    // AD-HOC: Only return true here if this node is not the child of another editable node or an editing host,
+    //         effectively merging this potential editing host with its editing host ancestor. This causes a call to
+    //         `::editing_host()` to automatically traverse to the top-most editing host.
     auto state = html_element->content_editable_state();
-    if (state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
+    if ((state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
+        && (!parent() || !parent()->is_editable_or_editing_host())) {
         return true;
+    }
 
     // or a child HTML element of a Document whose design mode enabled is true.
     return is<Document>(parent()) && as<Document>(*parent()).design_mode_enabled_state();
