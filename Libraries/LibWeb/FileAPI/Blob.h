@@ -21,9 +21,15 @@ using BlobPart = Variant<GC::Root<WebIDL::BufferSource>, GC::Root<Blob>, String>
 using BlobParts = Vector<BlobPart>;
 using BlobPartsOrByteBuffer = Variant<BlobParts, ByteBuffer>;
 
+enum class TypeNormalization {
+    Standard,
+    None
+};
+
 struct BlobPropertyBag {
     String type = String {};
     Bindings::EndingType endings;
+    TypeNormalization typeNormalization = TypeNormalization::Standard;
 };
 
 [[nodiscard]] ErrorOr<String> convert_line_endings_to_native(StringView string);
@@ -40,6 +46,7 @@ public:
     virtual ~Blob() override;
 
     [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, ByteBuffer, String type);
+    [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, ByteBuffer, String type, TypeNormalization typeNormalization);
     [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer = {}, Optional<BlobPropertyBag> const& options = {});
     static WebIDL::ExceptionOr<GC::Ref<Blob>> construct_impl(JS::Realm&, Optional<BlobParts> const& blob_parts = {}, Optional<BlobPropertyBag> const& options = {});
 

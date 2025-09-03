@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 40 tests
 
-33 Pass
-7 Fail
+34 Pass
+6 Fail
 Pass	Consume response's body: from text to text
 Pass	Consume response's body: from text to blob
 Pass	Consume response's body: from text to arrayBuffer
@@ -28,7 +28,7 @@ Pass	Consume response's body: from FormData to text
 Pass	Consume response's body: from FormData to arrayBuffer
 Pass	Consume response's body: from URLSearchParams to formData
 Pass	Consume response's body: from URLSearchParams without correct type to formData (error case)
-Fail	Consume response's body: from URLSearchParams to blob
+Pass	Consume response's body: from URLSearchParams to blob
 Pass	Consume response's body: from URLSearchParams to text
 Pass	Consume response's body: from URLSearchParams to arrayBuffer
 Pass	Consume response's body: from stream to blob
