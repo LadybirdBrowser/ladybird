@@ -52,6 +52,28 @@ enum class ActionID {
     UnmuteMedia,
     ToggleMediaControlsState,
     ToggleMediaLoopState,
+
+    DumpSessionHistoryTree,
+    DumpDOMTree,
+    DumpLayoutTree,
+    DumpPaintTree,
+    DumpStackingContextTree,
+    DumpDisplayList,
+    DumpStyleSheets,
+    DumpStyles,
+    DumpCSSErrors,
+    DumpCookies,
+    DumpLocalStorage,
+    DumpGCGraph,
+    ShowLineBoxBorders,
+    CollectGarbage,
+    ClearCache,
+    ClearCookies,
+    SpoofUserAgent,
+    NavigatorCompatibilityMode,
+    EnableScripting,
+    EnableContentFiltering,
+    BlockPopUps,
 };
 
 class WEBVIEW_API Action

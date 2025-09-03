@@ -80,6 +80,4 @@
 - (void)resetZoom;
 - (float)zoomLevel;
 
-- (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument;
-
 @end
