@@ -236,6 +236,7 @@ public:
     [[nodiscard]] CSSPixels font_size() const;
     double font_weight() const;
     Percentage font_width() const;
+    int font_slope() const;
 
     bool operator==(ComputedProperties const&) const;
 
