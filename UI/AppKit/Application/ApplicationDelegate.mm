@@ -5,7 +5,6 @@
  */
 
 #include <LibWebView/Application.h>
-#include <LibWebView/CookieJar.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/InfoBar.h>
@@ -13,7 +12,6 @@
 #import <Interface/Menu.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
-#import <LibWebView/UserAgent.h>
 #import <Utilities/Conversions.h>
 
 #if !__has_feature(objc_arc)
@@ -25,7 +23,6 @@
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
     Web::CSS::PreferredContrast m_preferred_contrast;
     Web::CSS::PreferredMotion m_preferred_motion;
-    ByteString m_navigator_compatibility_mode;
 }
 
 @property (nonatomic, strong) NSMutableArray<TabController*>* managed_tabs;
@@ -69,7 +66,6 @@
         m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Auto;
         m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
         m_preferred_motion = Web::CSS::PreferredMotion::Auto;
-        m_navigator_compatibility_mode = "chrome";
 
         // Reduce the tooltip delay, as the default delay feels quite long.
         [[NSUserDefaults standardUserDefaults] setObject:@100 forKey:@"NSInitialToolTipDelay"];
@@ -166,6 +162,32 @@
            activateTab:Web::HTML::ActivateTab::Yes];
 }
 
+- (void)openSettings:(id)sender
+{
+    [self createNewTab:URL::URL::about("settings"_string)
+               fromTab:self.active_tab
+           activateTab:Web::HTML::ActivateTab::Yes];
+}
+
+- (void)openTaskManager:(id)sender
+{
+    [self createNewTab:URL::URL::about("processes"_string)
+               fromTab:self.active_tab
+           activateTab:Web::HTML::ActivateTab::Yes];
+}
+
+- (void)openLocation:(id)sender
+{
+    auto* current_tab = [NSApp keyWindow];
+
+    if (![current_tab isKindOfClass:[Tab class]]) {
+        return;
+    }
+
+    auto* controller = (TabController*)[current_tab windowController];
+    [controller focusLocationToolbarItem];
+}
+
 - (nonnull TabController*)createNewTab:(Web::HTML::ActivateTab)activate_tab
                                fromTab:(nullable Tab*)tab
 {
@@ -209,14 +231,6 @@
     }
 
     [self.managed_tabs addObject:controller];
-    [controller onCreateNewTab];
-}
-
-- (void)openSettings:(id)sender
-{
-    [self createNewTab:URL::URL::about("settings"_string)
-               fromTab:self.active_tab
-           activateTab:Web::HTML::ActivateTab::Yes];
 }
 
 - (void)closeCurrentTab:(id)sender
@@ -274,25 +288,6 @@
                   [self devtoolsDisabled];
               }
                          activeTab:self.active_tab];
-}
-
-- (void)openTaskManager:(id)sender
-{
-    [self createNewTab:URL::URL::about("processes"_string)
-               fromTab:self.active_tab
-           activateTab:Web::HTML::ActivateTab::Yes];
-}
-
-- (void)openLocation:(id)sender
-{
-    auto* current_tab = [NSApp keyWindow];
-
-    if (![current_tab isKindOfClass:[Tab class]]) {
-        return;
-    }
-
-    auto* controller = (TabController*)[current_tab windowController];
-    [controller focusLocationToolbarItem];
 }
 
 - (void)setAutoPreferredColorScheme:(id)sender
@@ -392,16 +387,6 @@
     for (TabController* controller in self.managed_tabs) {
         [controller clearHistory];
     }
-}
-
-- (void)dumpCookies:(id)sender
-{
-    WebView::Application::cookie_jar().dump_cookies();
-}
-
-- (void)clearAllCookies:(id)sender
-{
-    WebView::Application::cookie_jar().clear_all_cookies();
 }
 
 - (NSMenuItem*)createApplicationMenu
@@ -619,107 +604,10 @@
 - (NSMenuItem*)createDebugMenu
 {
     auto* menu = [[NSMenuItem alloc] init];
-    auto* submenu = [[NSMenu alloc] initWithTitle:@"Debug"];
 
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump DOM Tree"
-                                                action:@selector(dumpDOMTree:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Layout Tree"
-                                                action:@selector(dumpLayoutTree:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Paint Tree"
-                                                action:@selector(dumpPaintTree:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Stacking Context Tree"
-                                                action:@selector(dumpStackingContextTree:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Display List"
-                                                action:@selector(dumpDisplayList:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Style Sheets"
-                                                action:@selector(dumpStyleSheets:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump All Resolved Styles"
-                                                action:@selector(dumpAllResolvedStyles:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump CSS Errors"
-                                                action:@selector(dumpCSSErrors:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump History"
-                                                action:@selector(dumpHistory:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Cookies"
-                                                action:@selector(dumpCookies:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Local Storage"
-                                                action:@selector(dumpLocalStorage:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[NSMenuItem separatorItem]];
-
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Show Line Box Borders"
-                                                action:@selector(toggleLineBoxBorders:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[NSMenuItem separatorItem]];
-
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Collect Garbage"
-                                                action:@selector(collectGarbage:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump GC Graph"
-                                                action:@selector(dumpGCGraph:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Clear Cache"
-                                                action:@selector(clearCache:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Clear All Cookies"
-                                                action:@selector(clearAllCookies:)
-                                         keyEquivalent:@""]];
-
-    [submenu addItem:[NSMenuItem separatorItem]];
-
-    auto* spoof_user_agent_menu = [[NSMenu alloc] init];
-    auto add_user_agent = [spoof_user_agent_menu](ByteString name) {
-        [spoof_user_agent_menu addItem:[[NSMenuItem alloc] initWithTitle:Ladybird::string_to_ns_string(name)
-                                                                  action:@selector(setUserAgentSpoof:)
-                                                           keyEquivalent:@""]];
-    };
-
-    add_user_agent("Disabled");
-    for (auto const& userAgent : WebView::user_agents)
-        add_user_agent(userAgent.key);
-
-    auto* spoof_user_agent_menu_item = [[NSMenuItem alloc] initWithTitle:@"Spoof User Agent"
-                                                                  action:nil
-                                                           keyEquivalent:@""];
-    [spoof_user_agent_menu_item setSubmenu:spoof_user_agent_menu];
-
-    [submenu addItem:spoof_user_agent_menu_item];
-
-    auto* navigator_compatibility_mode_menu = [[NSMenu alloc] init];
-    auto add_navigator_compatibility_mode = [navigator_compatibility_mode_menu](ByteString name) {
-        [navigator_compatibility_mode_menu addItem:[[NSMenuItem alloc] initWithTitle:Ladybird::string_to_ns_string(name)
-                                                                              action:@selector(setNavigatorCompatibilityMode:)
-                                                                       keyEquivalent:@""]];
-    };
-    add_navigator_compatibility_mode("Chrome");
-    add_navigator_compatibility_mode("Gecko");
-    add_navigator_compatibility_mode("WebKit");
-
-    auto* navigator_compatibility_mode_menu_item = [[NSMenuItem alloc] initWithTitle:@"Navigator Compatibility Mode"
-                                                                              action:nil
-                                                                       keyEquivalent:@""];
-    [navigator_compatibility_mode_menu_item setSubmenu:navigator_compatibility_mode_menu];
-
-    [submenu addItem:navigator_compatibility_mode_menu_item];
-    [submenu addItem:[NSMenuItem separatorItem]];
-
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Enable Scripting"
-                                                action:@selector(toggleScripting:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Block Pop-ups"
-                                                action:@selector(togglePopupBlocking:)
-                                         keyEquivalent:@""]];
-
+    auto* submenu = Ladybird::create_application_menu(WebView::Application::the().debug_menu());
     [menu setSubmenu:submenu];
+
     return menu;
 }
 

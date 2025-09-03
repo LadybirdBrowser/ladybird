@@ -74,6 +74,10 @@ public:
     Action& select_all_action() { return *m_select_all_action; }
     Action& view_source_action() { return *m_view_source_action; }
 
+    Menu& debug_menu() { return *m_debug_menu; }
+
+    void apply_view_options(Badge<ViewImplementation>, ViewImplementation&);
+
     enum class DevtoolsState {
         Disabled,
         Enabled,
@@ -165,6 +169,14 @@ private:
     RefPtr<Action> m_paste_action;
     RefPtr<Action> m_select_all_action;
     RefPtr<Action> m_view_source_action;
+
+    RefPtr<Menu> m_debug_menu;
+    RefPtr<Action> m_show_line_box_borders_action;
+    RefPtr<Action> m_enable_scripting_action;
+    RefPtr<Action> m_enable_content_filtering_action;
+    RefPtr<Action> m_block_pop_ups_action;
+    StringView m_user_agent_string;
+    StringView m_navigator_compatibility_mode;
 
 #if defined(AK_OS_MACOS)
     OwnPtr<MachPortServer> m_mach_port_server;

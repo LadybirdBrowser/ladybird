@@ -588,11 +588,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     if (auto webdriver_content_ipc_path = Application::browser_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())
         client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
 
-    if (Application::browser_options().allow_popups == AllowPopups::Yes)
-        client().async_debug_request(m_client_state.page_index, "block-pop-ups"sv, "off"sv);
-
-    if (auto const& user_agent_preset = Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
-        client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, *user_agents.get(*user_agent_preset));
+    Application::the().apply_view_options({}, *this);
 
     default_zoom_level_factor_changed();
     languages_changed();
