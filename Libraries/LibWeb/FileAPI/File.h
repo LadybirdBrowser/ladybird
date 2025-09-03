@@ -20,8 +20,8 @@ class File : public Blob {
 
 public:
     static GC::Ref<File> create(JS::Realm& realm);
-    static WebIDL::ExceptionOr<GC::Ref<File>> create(JS::Realm&, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options = {});
-    static WebIDL::ExceptionOr<GC::Ref<File>> construct_impl(JS::Realm&, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<File>> create(JS::Realm&, BlobParts const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<File>> construct_impl(JS::Realm&, BlobParts const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options = {});
 
     virtual ~File() override;
 

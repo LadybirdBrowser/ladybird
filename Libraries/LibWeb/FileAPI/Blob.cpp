@@ -30,7 +30,11 @@ GC_DEFINE_ALLOCATOR(Blob);
 
 GC::Ref<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, String type)
 {
-    return realm.create<Blob>(realm, move(byte_buffer), move(type));
+    BlobPropertyBag options = {
+        .type = move(type),
+        .endings = Bindings::EndingType::Transparent
+    };
+    return create(realm, move(byte_buffer), move(options));
 }
 
 // https://w3c.github.io/FileAPI/#convert-line-endings-to-native
@@ -81,7 +85,7 @@ ErrorOr<String> convert_line_endings_to_native(StringView string)
 }
 
 // https://w3c.github.io/FileAPI/#process-blob-parts
-ErrorOr<ByteBuffer> process_blob_parts(Vector<BlobPart> const& blob_parts, Optional<BlobPropertyBag> const& options)
+ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<BlobPropertyBag> const& options)
 {
     // 1. Let bytes be an empty sequence of bytes.
     ByteBuffer bytes {};
@@ -182,16 +186,22 @@ WebIDL::ExceptionOr<void> Blob::deserialization_steps(HTML::TransferDataDecoder&
 }
 
 // https://w3c.github.io/FileAPI/#ref-for-dom-blob-blob
-GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<Vector<BlobPart>> const& blob_parts, Optional<BlobPropertyBag> const& options)
+GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer, Optional<BlobPropertyBag> const& options)
 {
     // 1. If invoked with zero parameters, return a new Blob object consisting of 0 bytes, with size set to 0, and with type set to the empty string.
-    if (!blob_parts.has_value() && !options.has_value())
+    if (!blob_parts_or_byte_buffer.has_value() && !options.has_value())
         return realm.create<Blob>(realm);
 
     ByteBuffer byte_buffer {};
     // 2. Let bytes be the result of processing blob parts given blobParts and options.
-    if (blob_parts.has_value()) {
-        byte_buffer = MUST(process_blob_parts(blob_parts.value(), options));
+    if (blob_parts_or_byte_buffer.has_value()) {
+        byte_buffer = blob_parts_or_byte_buffer->visit(
+            [&](BlobParts const& blob_parts) {
+                return MUST(process_blob_parts(blob_parts, options));
+            },
+            [](ByteBuffer const& byte_buffer) {
+                return byte_buffer;
+            });
     }
 
     auto type = String {};
@@ -214,9 +224,9 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<Vector<BlobPart>> const& b
     return realm.create<Blob>(realm, move(byte_buffer), move(type));
 }
 
-WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::construct_impl(JS::Realm& realm, Optional<Vector<BlobPart>> const& blob_parts, Optional<BlobPropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::construct_impl(JS::Realm& realm, Optional<BlobParts> const& blob_parts, Optional<BlobPropertyBag> const& options)
 {
-    return Blob::create(realm, blob_parts, options);
+    return create(realm, blob_parts.has_value() ? blob_parts.value() : Optional<BlobPartsOrByteBuffer> {}, options);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-slice
