@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 17 tests
 
-14 Pass
-3 Fail
+16 Pass
+1 Fail
 Pass	Property font-style value 'normal'
 Pass	Property font-style value 'italic'
 Pass	Property font-style value 'oblique'
@@ -17,7 +17,7 @@ Pass	Property font-style value 'oblique -90deg'
 Pass	Property font-style value 'oblique 90deg'
 Pass	Property font-style value 'oblique 10grad'
 Pass	Property font-style value 'oblique calc(90deg)'
-Fail	Property font-style value 'oblique calc(100deg)'
-Fail	Property font-style value 'oblique calc(-100deg)'
+Pass	Property font-style value 'oblique calc(100deg)'
+Pass	Property font-style value 'oblique calc(-100deg)'
 Pass	Property font-style value 'oblique calc(30deg * 2)'
 Fail	Property font-style value 'oblique calc(30deg + (sign(20cqw - 10px) * 5deg))'

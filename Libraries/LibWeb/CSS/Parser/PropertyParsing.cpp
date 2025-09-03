@@ -2979,6 +2979,7 @@ RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentVal
     auto font_style = keyword_to_font_style(keyword_value->to_keyword());
     VERIFY(font_style.has_value());
     if (tokens.has_next_token() && keyword_value->to_keyword() == Keyword::Oblique) {
+        auto context_guard = push_temporary_value_parsing_context(SpecialContext::FontStyleObliqueAngle);
         if (auto angle_value = parse_angle_value(tokens)) {
             if (angle_value->is_angle()) {
                 auto angle = angle_value->as_angle().angle();

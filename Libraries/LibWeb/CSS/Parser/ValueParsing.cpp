@@ -4107,6 +4107,10 @@ RefPtr<StyleValue const> Parser::parse_calculated_value(ComponentValue const& co
             },
             [](SpecialContext special_context) -> Optional<CalculationContext> {
                 switch (special_context) {
+                case SpecialContext::FontStyleObliqueAngle:
+                    return CalculationContext {
+                        .accepted_type_ranges = { { ValueType::Angle, { -90, 90 } } }
+                    };
                 case SpecialContext::ShadowBlurRadius:
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::TranslateZArgument:
