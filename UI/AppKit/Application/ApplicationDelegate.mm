@@ -19,11 +19,6 @@
 #endif
 
 @interface ApplicationDelegate ()
-{
-    Web::CSS::PreferredColorScheme m_preferred_color_scheme;
-    Web::CSS::PreferredContrast m_preferred_contrast;
-    Web::CSS::PreferredMotion m_preferred_motion;
-}
 
 @property (nonatomic, strong) NSMutableArray<TabController*>* managed_tabs;
 @property (nonatomic, weak) Tab* active_tab;
@@ -62,10 +57,6 @@
         [[NSApp mainMenu] addItem:[self createHelpMenu]];
 
         self.managed_tabs = [[NSMutableArray alloc] init];
-
-        m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Auto;
-        m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
-        m_preferred_motion = Web::CSS::PreferredMotion::Auto;
 
         // Reduce the tooltip delay, as the default delay feels quite long.
         [[NSUserDefaults standardUserDefaults] setObject:@100 forKey:@"NSInitialToolTipDelay"];
@@ -131,21 +122,6 @@
 - (void)removeTab:(TabController*)controller
 {
     [self.managed_tabs removeObject:controller];
-}
-
-- (Web::CSS::PreferredColorScheme)preferredColorScheme
-{
-    return m_preferred_color_scheme;
-}
-
-- (Web::CSS::PreferredContrast)preferredContrast
-{
-    return m_preferred_contrast;
-}
-
-- (Web::CSS::PreferredMotion)preferredMotion
-{
-    return m_preferred_motion;
 }
 
 #pragma mark - Private methods
@@ -290,98 +266,6 @@
                          activeTab:self.active_tab];
 }
 
-- (void)setAutoPreferredColorScheme:(id)sender
-{
-    m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Auto;
-    [self broadcastPreferredColorSchemeUpdate];
-}
-
-- (void)setDarkPreferredColorScheme:(id)sender
-{
-    m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Dark;
-    [self broadcastPreferredColorSchemeUpdate];
-}
-
-- (void)setLightPreferredColorScheme:(id)sender
-{
-    m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Light;
-    [self broadcastPreferredColorSchemeUpdate];
-}
-
-- (void)broadcastPreferredColorSchemeUpdate
-{
-    for (TabController* controller in self.managed_tabs) {
-        auto* tab = (Tab*)[controller window];
-        [[tab web_view] setPreferredColorScheme:m_preferred_color_scheme];
-    }
-}
-
-- (void)setAutoPreferredContrast:(id)sender
-{
-    m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
-    [self broadcastPreferredContrastUpdate];
-}
-
-- (void)setLessPreferredContrast:(id)sender
-{
-    m_preferred_contrast = Web::CSS::PreferredContrast::Less;
-    [self broadcastPreferredContrastUpdate];
-}
-
-- (void)setMorePreferredContrast:(id)sender
-{
-    m_preferred_contrast = Web::CSS::PreferredContrast::More;
-    [self broadcastPreferredContrastUpdate];
-}
-
-- (void)setNoPreferencePreferredContrast:(id)sender
-{
-    m_preferred_contrast = Web::CSS::PreferredContrast::NoPreference;
-    [self broadcastPreferredContrastUpdate];
-}
-
-- (void)broadcastPreferredContrastUpdate
-{
-    for (TabController* controller in self.managed_tabs) {
-        auto* tab = (Tab*)[controller window];
-        [[tab web_view] setPreferredContrast:m_preferred_contrast];
-    }
-}
-
-- (void)setAutoPreferredMotion:(id)sender
-{
-    m_preferred_motion = Web::CSS::PreferredMotion::Auto;
-    [self broadcastPreferredMotionUpdate];
-}
-
-- (void)setNoPreferencePreferredMotion:(id)sender
-{
-    m_preferred_motion = Web::CSS::PreferredMotion::NoPreference;
-    [self broadcastPreferredMotionUpdate];
-}
-
-- (void)setReducePreferredMotion:(id)sender
-{
-    m_preferred_motion = Web::CSS::PreferredMotion::Reduce;
-    [self broadcastPreferredMotionUpdate];
-}
-
-- (void)broadcastPreferredMotionUpdate
-{
-    for (TabController* controller in self.managed_tabs) {
-        auto* tab = (Tab*)[controller window];
-        [[tab web_view] setPreferredMotion:m_preferred_motion];
-    }
-}
-
-- (void)broadcastDisplayRefreshRateChange
-{
-    for (TabController* controller in self.managed_tabs) {
-        auto* tab = (Tab*)[controller window];
-        [[tab web_view] handleDisplayRefreshRateChange];
-    }
-}
-
 - (void)clearHistory:(id)sender
 {
     for (TabController* controller in self.managed_tabs) {
@@ -486,53 +370,20 @@
     auto* menu = [[NSMenuItem alloc] init];
     auto* submenu = [[NSMenu alloc] initWithTitle:@"View"];
 
-    auto* color_scheme_menu = [[NSMenu alloc] init];
-    [color_scheme_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Auto"
-                                                          action:@selector(setAutoPreferredColorScheme:)
-                                                   keyEquivalent:@""]];
-    [color_scheme_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Dark"
-                                                          action:@selector(setDarkPreferredColorScheme:)
-                                                   keyEquivalent:@""]];
-    [color_scheme_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Light"
-                                                          action:@selector(setLightPreferredColorScheme:)
-                                                   keyEquivalent:@""]];
-
-    auto* color_scheme_menu_item = [[NSMenuItem alloc] initWithTitle:@"Color Scheme"
+    auto* color_scheme_menu = Ladybird::create_application_menu(WebView::Application::the().color_scheme_menu());
+    auto* color_scheme_menu_item = [[NSMenuItem alloc] initWithTitle:[color_scheme_menu title]
                                                               action:nil
                                                        keyEquivalent:@""];
     [color_scheme_menu_item setSubmenu:color_scheme_menu];
 
-    auto* contrast_menu = [[NSMenu alloc] init];
-    [contrast_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Auto"
-                                                      action:@selector(setAutoPreferredContrast:)
-                                               keyEquivalent:@""]];
-    [contrast_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Less"
-                                                      action:@selector(setLessPreferredContrast:)
-                                               keyEquivalent:@""]];
-    [contrast_menu addItem:[[NSMenuItem alloc] initWithTitle:@"More"
-                                                      action:@selector(setMorePreferredContrast:)
-                                               keyEquivalent:@""]];
-    [contrast_menu addItem:[[NSMenuItem alloc] initWithTitle:@"No Preference"
-                                                      action:@selector(setNoPreferencePreferredContrast:)
-                                               keyEquivalent:@""]];
-
-    auto* contrast_menu_item = [[NSMenuItem alloc] initWithTitle:@"Contrast"
+    auto* contrast_menu = Ladybird::create_application_menu(WebView::Application::the().contrast_menu());
+    auto* contrast_menu_item = [[NSMenuItem alloc] initWithTitle:[contrast_menu title]
                                                           action:nil
                                                    keyEquivalent:@""];
     [contrast_menu_item setSubmenu:contrast_menu];
 
-    auto* motion_menu = [[NSMenu alloc] init];
-    [motion_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Auto"
-                                                    action:@selector(setAutoPreferredMotion:)
-                                             keyEquivalent:@""]];
-    [motion_menu addItem:[[NSMenuItem alloc] initWithTitle:@"No Preference"
-                                                    action:@selector(setNoPreferencePreferredMotion:)
-                                             keyEquivalent:@""]];
-    [motion_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Reduce"
-                                                    action:@selector(setReducePreferredMotion:)
-                                             keyEquivalent:@""]];
-
-    auto* motion_menu_item = [[NSMenuItem alloc] initWithTitle:@"Motion"
+    auto* motion_menu = Ladybird::create_application_menu(WebView::Application::the().motion_menu());
+    auto* motion_menu_item = [[NSMenuItem alloc] initWithTitle:[motion_menu title]
                                                         action:nil
                                                  keyEquivalent:@""];
     [motion_menu_item setSubmenu:motion_menu];
@@ -666,34 +517,10 @@
 
 - (void)applicationDidChangeScreenParameters:(NSNotification*)notification
 {
-    [self broadcastDisplayRefreshRateChange];
-}
-
-- (BOOL)validateMenuItem:(NSMenuItem*)item
-{
-    if ([item action] == @selector(setAutoPreferredColorScheme:)) {
-        [item setState:(m_preferred_color_scheme == Web::CSS::PreferredColorScheme::Auto) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setDarkPreferredColorScheme:)) {
-        [item setState:(m_preferred_color_scheme == Web::CSS::PreferredColorScheme::Dark) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setLightPreferredColorScheme:)) {
-        [item setState:(m_preferred_color_scheme == Web::CSS::PreferredColorScheme::Light) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setAutoPreferredContrast:)) {
-        [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::Auto) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setLessPreferredContrast:)) {
-        [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::Less) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setMorePreferredContrast:)) {
-        [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::More) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setNoPreferencePreferredContrast:)) {
-        [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::NoPreference) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setAutoPreferredMotion:)) {
-        [item setState:(m_preferred_motion == Web::CSS::PreferredMotion::Auto) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setNoPreferencePreferredMotion:)) {
-        [item setState:(m_preferred_motion == Web::CSS::PreferredMotion::NoPreference) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setReducePreferredMotion:)) {
-        [item setState:(m_preferred_motion == Web::CSS::PreferredMotion::Reduce) ? NSControlStateValueOn : NSControlStateValueOff];
+    for (TabController* controller in self.managed_tabs) {
+        auto* tab = (Tab*)[controller window];
+        [[tab web_view] handleDisplayRefreshRateChange];
     }
-
-    return YES;
 }
 
 @end

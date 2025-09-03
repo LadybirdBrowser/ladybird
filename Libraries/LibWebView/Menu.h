@@ -53,6 +53,10 @@ enum class ActionID {
     ToggleMediaControlsState,
     ToggleMediaLoopState,
 
+    PreferredColorScheme,
+    PreferredContrast,
+    PreferredMotion,
+
     DumpSessionHistoryTree,
     DumpDOMTree,
     DumpLayoutTree,

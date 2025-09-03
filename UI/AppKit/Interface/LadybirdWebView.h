@@ -7,11 +7,9 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/StringUtils.h>
 #include <LibGfx/Forward.h>
 #include <LibURL/Forward.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
-#include <LibWeb/CSS/PreferredContrast.h>
-#include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
@@ -65,10 +63,6 @@
 - (void)handleDevicePixelRatioChange;
 - (void)handleDisplayRefreshRateChange;
 - (void)handleVisibility:(BOOL)is_visible;
-
-- (void)setPreferredColorScheme:(Web::CSS::PreferredColorScheme)color_scheme;
-- (void)setPreferredContrast:(Web::CSS::PreferredContrast)contrast;
-- (void)setPreferredMotion:(Web::CSS::PreferredMotion)motion;
 
 - (void)findInPage:(NSString*)query
     caseSensitivity:(CaseSensitivity)case_sensitivity;
