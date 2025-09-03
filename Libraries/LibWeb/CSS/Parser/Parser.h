@@ -553,6 +553,7 @@ private:
         DescriptorID descriptor;
     };
     enum SpecialContext : u8 {
+        FontStyleObliqueAngle,
         TranslateZArgument
     };
     using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
