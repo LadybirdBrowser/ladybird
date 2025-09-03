@@ -212,12 +212,9 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> con
         // FIXME: 2. Convert every character in t to ASCII lowercase.
 
         // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
-        if (!options->type.is_empty()) {
-            auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type);
-
-            if (maybe_parsed_type.has_value())
-                type = maybe_parsed_type->serialized();
-        }
+        auto maybe_parsed_type = MimeSniff::MimeType::parse(options->type);
+        if (maybe_parsed_type.has_value())
+            type = maybe_parsed_type->serialized();
     }
 
     // 4. Return a Blob object referring to bytes as its associated byte sequence, with its size set to the length of bytes, and its type set to the value of t from the substeps above.
