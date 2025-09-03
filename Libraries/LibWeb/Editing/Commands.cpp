@@ -383,7 +383,7 @@ bool command_delete_action(DOM::Document& document, Utf16String const&)
     //     is an hr, or the child is a br whose previousSibling is either a br or not an inline
     //     node:
     if (offset == 0 && is<DOM::Element>(offset_minus_one_child.ptr())) {
-        auto& child_element = static_cast<DOM::Element&>(*offset_minus_one_child);
+        auto& child_element = as<DOM::Element>(*offset_minus_one_child);
         auto* previous_sibling = child_element.previous_sibling();
         if (is<HTML::HTMLHRElement>(child_element)
             || (is<HTML::HTMLBRElement>(child_element) && previous_sibling && (is<HTML::HTMLBRElement>(*previous_sibling) || !is_inline_node(*previous_sibling)))) {
@@ -1477,7 +1477,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
     //     or "div":
     if (container->is_editable() && is_single_line_container(*container) && is_in_same_editing_host(*container, *node)
         && is<DOM::Element>(*container)
-        && static_cast<DOM::Element&>(*container).local_name().is_one_of(HTML::TagNames::p, HTML::TagNames::div)) {
+        && as<DOM::Element>(*container).local_name().is_one_of(HTML::TagNames::p, HTML::TagNames::div)) {
         // 1. Let outer container equal container.
         auto outer_container = container;
 
@@ -1486,7 +1486,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
         auto is_li_dt_or_dd = [](DOM::Element const& node) {
             return node.local_name().is_one_of(HTML::TagNames::li, HTML::TagNames::dt, HTML::TagNames::dd);
         };
-        while (!is<DOM::Element>(*outer_container) || !is_li_dt_or_dd(static_cast<DOM::Element&>(*outer_container))) {
+        while (!is<DOM::Element>(*outer_container) || !is_li_dt_or_dd(as<DOM::Element>(*outer_container))) {
             auto outer_container_parent = outer_container->parent();
             if (!outer_container_parent->is_editable())
                 break;
@@ -1494,7 +1494,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
         }
 
         // 3. If outer container is a dd or dt or li, set container to outer container.
-        if (is<DOM::Element>(*outer_container) && is_li_dt_or_dd(static_cast<DOM::Element&>(*outer_container)))
+        if (is<DOM::Element>(*outer_container) && is_li_dt_or_dd(as<DOM::Element>(*outer_container)))
             container = outer_container;
     }
 
