@@ -98,7 +98,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         if (value->to_keyword() == Keyword::Auto)
             slope = 0;
         else
-            slope = value->as_font_style().to_font_slope();
+            slope = StyleComputer::compute_font_style(*value, Length::ResolutionContext::for_window(*descriptors.parent_rule()->parent_style_sheet()->owning_document()->window()))->as_font_style().to_font_slope();
     }
 
     Optional<int> width;
