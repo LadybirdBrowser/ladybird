@@ -1537,7 +1537,8 @@ bool Node::is_editable() const
         return false;
 
     // it does not have a contenteditable attribute set to the false state;
-    if (is<HTML::HTMLElement>(this) && static_cast<HTML::HTMLElement const&>(*this).content_editable_state() == HTML::ContentEditableState::False)
+    auto const* html_element = as_if<HTML::HTMLElement>(*this);
+    if (html_element && html_element->content_editable_state() == HTML::ContentEditableState::False)
         return false;
 
     // its parent is an editing host or editable;
@@ -1551,7 +1552,7 @@ bool Node::is_editable() const
         return false;
 
     // and either it is an HTML element,
-    if (is<HTML::HTMLElement>(this))
+    if (html_element)
         return true;
 
     // or it is an svg or math element,
@@ -1566,17 +1567,18 @@ bool Node::is_editable() const
 bool Node::is_editing_host() const
 {
     // NOTE: Both conditions below require this to be an HTML element.
-    if (!is<HTML::HTMLElement>(this))
+    auto const* html_element = as_if<HTML::HTMLElement>(*this);
+    if (!html_element)
         return false;
 
     // An editing host is either an HTML element with its contenteditable attribute in the true state or
     // plaintext-only state,
-    auto state = static_cast<HTML::HTMLElement const&>(*this).content_editable_state();
+    auto state = html_element->content_editable_state();
     if (state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
         return true;
 
     // or a child HTML element of a Document whose design mode enabled is true.
-    return is<Document>(parent()) && static_cast<Document const&>(*parent()).design_mode_enabled_state();
+    return is<Document>(parent()) && as<Document>(*parent()).design_mode_enabled_state();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editing-host-of
