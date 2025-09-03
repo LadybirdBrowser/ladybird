@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Scoping Module Level 1 - :slotted pseudo element must allow selecting elements assigned to a slot element</title>
+    <link rel="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org"/>
+    <link rel="help" href="http://www.w3.org/TR/css-scoping-1/#slotted-pseudo">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-scoping/reference/green-box.html"/>
+</head>
+<body>
+    <style>
+        my-host {
+            display: block;
+            width: 100px;
+            height: 100px;
+            color: red;
+            background: green;
+        }
+        my-host > div, nested-host {
+            display: block;
+            width: 100px;
+            height: 25px;
+        }
+    </style>
+    <p>Test passes if you see a single 100px by 100px green box below.</p>
+    <my-host>
+        <div class="green">FAIL1</div>
+        <myelem><span>FAIL2</span></myelem>
+        <nested-host>
+            <span>FAIL3</span>
+        </nested-host>
+        <another-host>
+            <b>FAIL4</b>
+        </another-host>
+    </my-host>
+    <script>
+
+        try {
+            var shadowHost = document.querySelector('my-host');
+            shadowRoot = shadowHost.attachShadow({mode: 'open'});
+            shadowRoot.innerHTML = '<slot></slot><style> ::slotted(.green), ::slotted(myelem) { color:green; } </style>';
+
+            shadowHost = document.querySelector('nested-host');
+            shadowRoot = shadowHost.attachShadow({mode: 'open'});
+            shadowRoot.innerHTML = '<style> .mydiv ::slotted(*) { color:green; } </style><div class=mydiv><slot></slot></div>';
+
+            shadowHost = document.querySelector('another-host');
+            shadowRoot = shadowHost.attachShadow({mode: 'open'});
+            shadowRoot.innerHTML = '<style> ::slotted(*) { color:green; } </style><slot></slot>';
+        } catch (exception) {
+            document.body.appendChild(document.createTextNode(exception));
+        }
+
+    </script>
+</body>
+</html>

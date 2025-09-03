@@ -87,6 +87,7 @@ struct MatchingRule {
     u32 specificity { 0 };
     CascadeOrigin cascade_origin;
     bool contains_pseudo_element { false };
+    bool slotted { false };
 
     // Helpers to deal with the fact that `rule` might be a CSSStyleRule or a CSSNestedDeclarations
     CSSStyleProperties const& declaration() const;
@@ -117,6 +118,7 @@ struct RuleCache {
     HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
     Array<Vector<MatchingRule>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)> rules_by_pseudo_element;
     Vector<MatchingRule> root_rules;
+    Vector<MatchingRule> slotted_rules;
     Vector<MatchingRule> other_rules;
 
     HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
