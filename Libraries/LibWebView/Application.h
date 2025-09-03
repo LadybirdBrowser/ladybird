@@ -18,6 +18,9 @@
 #include <LibMain/Main.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/URL.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
+#include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/Process.h>
@@ -74,6 +77,9 @@ public:
     Action& select_all_action() { return *m_select_all_action; }
     Action& view_source_action() { return *m_view_source_action; }
 
+    Menu& color_scheme_menu() { return *m_color_scheme_menu; }
+    Menu& contrast_menu() { return *m_contrast_menu; }
+    Menu& motion_menu() { return *m_motion_menu; }
     Menu& debug_menu() { return *m_debug_menu; }
 
     void apply_view_options(Badge<ViewImplementation>, ViewImplementation&);
@@ -169,6 +175,15 @@ private:
     RefPtr<Action> m_paste_action;
     RefPtr<Action> m_select_all_action;
     RefPtr<Action> m_view_source_action;
+
+    RefPtr<Menu> m_color_scheme_menu;
+    Web::CSS::PreferredColorScheme m_color_scheme { Web::CSS::PreferredColorScheme::Auto };
+
+    RefPtr<Menu> m_contrast_menu;
+    Web::CSS::PreferredContrast m_contrast { Web::CSS::PreferredContrast::Auto };
+
+    RefPtr<Menu> m_motion_menu;
+    Web::CSS::PreferredMotion m_motion { Web::CSS::PreferredMotion::Auto };
 
     RefPtr<Menu> m_debug_menu;
     RefPtr<Action> m_show_line_box_borders_action;
