@@ -27,21 +27,9 @@
 #include <QWidget>
 
 class QKeyEvent;
-class QLineEdit;
 class QSinglePointEvent;
-class QTextEdit;
-
-namespace WebView {
-
-class WebContentClient;
-
-}
-
-using WebView::WebContentClient;
 
 namespace Ladybird {
-
-class Tab;
 
 struct WebContentViewInitialState {
     double maximum_frames_per_second { 60.0 };

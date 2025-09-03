@@ -17,6 +17,7 @@
 
 namespace Ladybird {
 
+class Tab;
 class WebContentView;
 
 class FindInPageWidget final : public QWidget {

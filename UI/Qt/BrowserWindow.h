@@ -24,6 +24,7 @@
 
 namespace Ladybird {
 
+class Tab;
 class WebContentView;
 
 class BrowserWindow : public QMainWindow {
