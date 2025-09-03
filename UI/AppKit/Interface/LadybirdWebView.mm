@@ -93,7 +93,6 @@ struct HideCursor {
     if (self = [super init]) {
         self.observer = observer;
 
-        auto* delegate = (ApplicationDelegate*)[NSApp delegate];
         auto* screens = [NSScreen screens];
 
         Vector<Web::DevicePixelRect> screen_rects;
@@ -108,7 +107,7 @@ struct HideCursor {
         auto device_pixel_ratio = [[NSScreen mainScreen] backingScaleFactor];
         auto maximum_frames_per_second = [[NSScreen mainScreen] maximumFramesPerSecond];
 
-        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, maximum_frames_per_second, [delegate preferredColorScheme], [delegate preferredContrast], [delegate preferredMotion]));
+        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, maximum_frames_per_second));
         [self setWebViewCallbacks];
 
         self.page_context_menu = Ladybird::create_context_menu(self, [self view].page_context_menu());
@@ -224,21 +223,6 @@ struct HideCursor {
 - (float)zoomLevel
 {
     return m_web_view_bridge->zoom_level();
-}
-
-- (void)setPreferredColorScheme:(Web::CSS::PreferredColorScheme)color_scheme
-{
-    m_web_view_bridge->set_preferred_color_scheme(color_scheme);
-}
-
-- (void)setPreferredContrast:(Web::CSS::PreferredContrast)contrast
-{
-    m_web_view_bridge->set_preferred_contrast(contrast);
-}
-
-- (void)setPreferredMotion:(Web::CSS::PreferredMotion)motion
-{
-    m_web_view_bridge->set_preferred_motion(motion);
 }
 
 #pragma mark - Private methods

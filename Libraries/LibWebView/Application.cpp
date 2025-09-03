@@ -668,6 +668,58 @@ void Application::initialize_actions()
             view->get_source();
     });
 
+    auto set_color_scheme = [this](auto color_scheme) {
+        return [this, color_scheme]() {
+            m_color_scheme = color_scheme;
+
+            ViewImplementation::for_each_view([&](ViewImplementation& view) {
+                view.set_preferred_color_scheme(m_color_scheme);
+                return IterationDecision::Continue;
+            });
+        };
+    };
+
+    m_color_scheme_menu = Menu::create_group("Color Scheme"sv);
+    m_color_scheme_menu->add_action(Action::create_checkable("Auto"sv, ActionID::PreferredColorScheme, set_color_scheme(Web::CSS::PreferredColorScheme::Auto)));
+    m_color_scheme_menu->add_action(Action::create_checkable("Dark"sv, ActionID::PreferredColorScheme, set_color_scheme(Web::CSS::PreferredColorScheme::Dark)));
+    m_color_scheme_menu->add_action(Action::create_checkable("Light"sv, ActionID::PreferredColorScheme, set_color_scheme(Web::CSS::PreferredColorScheme::Light)));
+    m_color_scheme_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
+
+    auto set_contrast = [this](auto contrast) {
+        return [this, contrast]() {
+            m_contrast = contrast;
+
+            ViewImplementation::for_each_view([&](ViewImplementation& view) {
+                view.set_preferred_contrast(m_contrast);
+                return IterationDecision::Continue;
+            });
+        };
+    };
+
+    m_contrast_menu = Menu::create_group("Contrast"sv);
+    m_contrast_menu->add_action(Action::create_checkable("Auto"sv, ActionID::PreferredContrast, set_contrast(Web::CSS::PreferredContrast::Auto)));
+    m_contrast_menu->add_action(Action::create_checkable("Less"sv, ActionID::PreferredContrast, set_contrast(Web::CSS::PreferredContrast::Less)));
+    m_contrast_menu->add_action(Action::create_checkable("More"sv, ActionID::PreferredContrast, set_contrast(Web::CSS::PreferredContrast::More)));
+    m_contrast_menu->add_action(Action::create_checkable("No Preference"sv, ActionID::PreferredContrast, set_contrast(Web::CSS::PreferredContrast::NoPreference)));
+    m_contrast_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
+
+    auto set_motion = [this](auto motion) {
+        return [this, motion]() {
+            m_motion = motion;
+
+            ViewImplementation::for_each_view([&](ViewImplementation& view) {
+                view.set_preferred_motion(m_motion);
+                return IterationDecision::Continue;
+            });
+        };
+    };
+
+    m_motion_menu = Menu::create_group("Motion"sv);
+    m_motion_menu->add_action(Action::create_checkable("Auto"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::Auto)));
+    m_motion_menu->add_action(Action::create_checkable("Reduce"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::Reduce)));
+    m_motion_menu->add_action(Action::create_checkable("No Preference"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::NoPreference)));
+    m_motion_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
+
     m_debug_menu = Menu::create("Debug"sv);
 
     m_debug_menu->add_action(Action::create("Dump Session History Tree"sv, ActionID::DumpSessionHistoryTree, debug_request("dump-session-history"sv)));
@@ -733,6 +785,10 @@ void Application::initialize_actions()
 
 void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementation& view)
 {
+    view.set_preferred_color_scheme(m_color_scheme);
+    view.set_preferred_contrast(m_contrast);
+    view.set_preferred_motion(m_motion);
+
     view.debug_request("set-line-box-borders"sv, m_show_line_box_borders_action->checked() ? "on"sv : "off"sv);
     view.debug_request("scripting"sv, m_enable_scripting_action->checked() ? "on"sv : "off"sv);
     view.debug_request("content-filtering"sv, m_enable_content_filtering_action->checked() ? "on"sv : "off"sv);

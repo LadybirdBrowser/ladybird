@@ -20,16 +20,13 @@ static T scale_for_device(T size, float device_pixel_ratio)
     return size.template to_type<float>().scaled(device_pixel_ratio).template to_type<int>();
 }
 
-ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, u64 maximum_frames_per_second, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast, Web::CSS::PreferredMotion preferred_motion)
+ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, u64 maximum_frames_per_second)
 {
-    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, maximum_frames_per_second, preferred_color_scheme, preferred_contrast, preferred_motion));
+    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, maximum_frames_per_second));
 }
 
-WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, u64 maximum_frames_per_second, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast, Web::CSS::PreferredMotion preferred_motion)
+WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, u64 maximum_frames_per_second)
     : m_screen_rects(move(screen_rects))
-    , m_preferred_color_scheme(preferred_color_scheme)
-    , m_preferred_contrast(preferred_contrast)
-    , m_preferred_motion(preferred_motion)
 {
     m_device_pixel_ratio = device_pixel_ratio;
     m_maximum_frames_per_second = static_cast<double>(maximum_frames_per_second);
@@ -61,24 +58,6 @@ void WebViewBridge::update_palette()
 {
     auto theme = create_system_palette();
     client().async_update_system_theme(m_client_state.page_index, move(theme));
-}
-
-void WebViewBridge::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)
-{
-    m_preferred_color_scheme = color_scheme;
-    client().async_set_preferred_color_scheme(m_client_state.page_index, color_scheme);
-}
-
-void WebViewBridge::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
-{
-    m_preferred_contrast = contrast;
-    client().async_set_preferred_contrast(m_client_state.page_index, contrast);
-}
-
-void WebViewBridge::set_preferred_motion(Web::CSS::PreferredMotion motion)
-{
-    m_preferred_motion = motion;
-    client().async_set_preferred_motion(m_client_state.page_index, motion);
 }
 
 void WebViewBridge::enqueue_input_event(Web::MouseEvent event)
@@ -144,8 +123,6 @@ Gfx::IntPoint WebViewBridge::to_widget_position(Gfx::IntPoint content_position) 
 void WebViewBridge::initialize_client(CreateNewClient create_new_client)
 {
     ViewImplementation::initialize_client(create_new_client);
-
-    client().async_set_preferred_color_scheme(m_client_state.page_index, m_preferred_color_scheme);
     update_palette();
 
     if (!m_screen_rects.is_empty()) {
