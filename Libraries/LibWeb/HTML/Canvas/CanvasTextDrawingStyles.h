@@ -8,6 +8,7 @@
 
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -128,11 +129,12 @@ public:
                 auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, length_resolution_context);
                 auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight, inherited_font_weight, length_resolution_context);
                 auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width, length_resolution_context);
+                auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style, length_resolution_context);
 
                 return document->style_computer().compute_font_for_style_values(
                     font_family,
                     computed_font_size->as_length().length().absolute_length_to_px(),
-                    font_style,
+                    computed_font_style->as_font_style().to_font_slope(),
                     computed_font_weight->as_number().number(),
                     computed_font_width->as_percentage().percentage());
             },
