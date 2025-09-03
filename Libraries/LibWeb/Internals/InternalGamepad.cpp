@@ -8,11 +8,14 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 
+#include <SDL3/SDL_gamepad.h>
+#include <SDL3/SDL_joystick.h>
+
 namespace Web::Internals {
 
 GC_DEFINE_ALLOCATOR(InternalGamepad);
 
-static constexpr Array<SDL_GamepadButton, 15> BUTTONS = {
+static constexpr Array<i32, 15> BUTTONS = {
     SDL_GAMEPAD_BUTTON_SOUTH,
     SDL_GAMEPAD_BUTTON_EAST,
     SDL_GAMEPAD_BUTTON_WEST,
@@ -30,14 +33,14 @@ static constexpr Array<SDL_GamepadButton, 15> BUTTONS = {
     SDL_GAMEPAD_BUTTON_GUIDE,
 };
 
-static constexpr Array<SDL_GamepadAxis, 4> AXES {
+static constexpr Array<i32, 4> AXES {
     SDL_GAMEPAD_AXIS_LEFTX,
     SDL_GAMEPAD_AXIS_LEFTY,
     SDL_GAMEPAD_AXIS_RIGHTX,
     SDL_GAMEPAD_AXIS_RIGHTY,
 };
 
-static constexpr Array<SDL_GamepadAxis, 2> TRIGGERS {
+static constexpr Array<i32, 2> TRIGGERS {
     SDL_GAMEPAD_AXIS_LEFT_TRIGGER,
     SDL_GAMEPAD_AXIS_RIGHT_TRIGGER,
 };
@@ -112,17 +115,17 @@ void InternalGamepad::finalize()
     disconnect();
 }
 
-Array<SDL_GamepadButton, 15> const& InternalGamepad::buttons()
+Array<i32, 15> const& InternalGamepad::buttons()
 {
     return BUTTONS;
 }
 
-Array<SDL_GamepadAxis, 4> const& InternalGamepad::axes()
+Array<i32, 4> const& InternalGamepad::axes()
 {
     return AXES;
 }
 
-Array<SDL_GamepadAxis, 2> const& InternalGamepad::triggers()
+Array<i32, 2> const& InternalGamepad::triggers()
 {
     return TRIGGERS;
 }

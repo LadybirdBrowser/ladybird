@@ -14,6 +14,8 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
+#include <SDL3/SDL_gamepad.h>
+
 namespace Web::Gamepad {
 
 // https://w3c.github.io/gamepad/#dom-navigator-getgamepads

@@ -9,9 +9,8 @@
 #include <LibGC/Ptr.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-
-#include <SDL3/SDL_gamepad.h>
 
 namespace Web::Gamepad {
 

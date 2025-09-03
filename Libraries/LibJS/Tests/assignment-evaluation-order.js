@@ -19,3 +19,15 @@ test("Binary assignment should always evaluate LHS first", () => {
     go(a);
     expect(a).toEqual([3, 2]);
 });
+
+test("Base object of lhs of assignment is copied to preserve evaluation order", () => {
+    let topLevel = {};
+    function go() {
+        let temp = topLevel;
+        temp.test = temp = temp.test || {};
+    }
+
+    go();
+    expect(topLevel.test).not.toBeUndefined();
+    expect(topLevel.test).toEqual({});
+});

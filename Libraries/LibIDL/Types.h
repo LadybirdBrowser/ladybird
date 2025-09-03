@@ -287,7 +287,9 @@ public:
     bool has_unscopable_member { false };
 
     Optional<NonnullRefPtr<Type const>> value_iterator_type;
+    Optional<size_t> value_iterator_offset;
     Optional<Tuple<NonnullRefPtr<Type const>, NonnullRefPtr<Type const>>> pair_iterator_types;
+    Optional<size_t> pair_iterator_offset;
 
     Optional<NonnullRefPtr<Type const>> async_value_iterator_type;
     Vector<Parameter> async_value_iterator_parameters;
