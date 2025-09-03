@@ -31,14 +31,6 @@ class QLineEdit;
 class QSinglePointEvent;
 class QTextEdit;
 
-namespace WebView {
-
-class WebContentClient;
-
-}
-
-using WebView::WebContentClient;
-
 namespace Ladybird {
 
 class Tab;
