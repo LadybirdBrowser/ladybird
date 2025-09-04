@@ -3582,7 +3582,7 @@ Optional<GridSize> Parser::parse_grid_inflexible_breadth(TokenStream<ComponentVa
     // <inflexible-breadth>  = <length-percentage [0,∞]> | min-content | max-content | auto
 
     if (auto fixed_breadth = parse_grid_fixed_breadth(tokens); fixed_breadth.has_value())
-        return fixed_breadth;
+        return GridSize { Size::make_length_percentage(fixed_breadth.value()) };
 
     auto transaction = tokens.begin_transaction();
     if (!tokens.has_next_token())
@@ -3591,11 +3591,11 @@ Optional<GridSize> Parser::parse_grid_inflexible_breadth(TokenStream<ComponentVa
     auto const& token = tokens.consume_a_token();
     if (token.is_ident("max-content"sv)) {
         transaction.commit();
-        return GridSize(GridSize::Type::MaxContent);
+        return GridSize(Size::make_max_content());
     }
     if (token.is_ident("min-content"sv)) {
         transaction.commit();
-        return GridSize(GridSize::Type::MinContent);
+        return GridSize(Size::make_min_content());
     }
     if (token.is_ident("auto"sv)) {
         transaction.commit();
@@ -3606,7 +3606,7 @@ Optional<GridSize> Parser::parse_grid_inflexible_breadth(TokenStream<ComponentVa
 }
 
 // https://www.w3.org/TR/css-grid-2/#typedef-fixed-breadth
-Optional<GridSize> Parser::parse_grid_fixed_breadth(TokenStream<ComponentValue>& tokens)
+Optional<LengthPercentage> Parser::parse_grid_fixed_breadth(TokenStream<ComponentValue>& tokens)
 {
     // <fixed-breadth> = <length-percentage [0,∞]>
 
@@ -3619,7 +3619,7 @@ Optional<GridSize> Parser::parse_grid_fixed_breadth(TokenStream<ComponentValue>&
     if (length_percentage->is_percentage() && length_percentage->percentage().value() < 0)
         return {};
     transaction.commit();
-    return GridSize(length_percentage.release_value());
+    return length_percentage.release_value();
 }
 
 // https://www.w3.org/TR/css-grid-2/#typedef-line-names
@@ -3871,7 +3871,7 @@ Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentV
             if (function_tokens.has_next_token())
                 return {};
             transaction.commit();
-            return ExplicitGridTrack(GridSize(GridSize::Type::FitContent, maybe_length_percentage->length_percentage()));
+            return ExplicitGridTrack(GridSize(Size::make_fit_content(maybe_length_percentage.release_value())));
         }
     }
 
@@ -3895,14 +3895,14 @@ Optional<ExplicitGridTrack> Parser::parse_grid_fixed_size(TokenStream<ComponentV
         auto const& function_token = token.function();
         if (function_token.name.equals_ignoring_ascii_case("minmax"sv)) {
             {
-                GridMinMaxParamParser parse_min = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens); };
+                GridMinMaxParamParser parse_min = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens).map([](auto& it) { return GridSize(Size::make_length_percentage(it)); }); };
                 GridMinMaxParamParser parse_max = [this](auto& tokens) { return parse_grid_track_breadth(tokens); };
                 if (auto result = parse_grid_minmax(tokens, parse_min, parse_max); result.has_value())
                     return result;
             }
             {
                 GridMinMaxParamParser parse_min = [this](auto& tokens) { return parse_grid_inflexible_breadth(tokens); };
-                GridMinMaxParamParser parse_max = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens); };
+                GridMinMaxParamParser parse_max = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens).map([](auto& it) { return GridSize(Size::make_length_percentage(it)); }); };
                 if (auto result = parse_grid_minmax(tokens, parse_min, parse_max); result.has_value())
                     return result;
             }
@@ -3912,7 +3912,7 @@ Optional<ExplicitGridTrack> Parser::parse_grid_fixed_size(TokenStream<ComponentV
     }
 
     if (auto fixed_breadth = parse_grid_fixed_breadth(tokens); fixed_breadth.has_value()) {
-        return ExplicitGridTrack(fixed_breadth.value());
+        return ExplicitGridTrack(GridSize { Size::make_length_percentage(fixed_breadth.release_value()) });
     }
 
     return {};

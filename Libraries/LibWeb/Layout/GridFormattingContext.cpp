@@ -189,8 +189,8 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_auto()
 GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_gap(CSSPixels size)
 {
     return GridTrack {
-        .min_track_sizing_function = CSS::GridSize(CSS::Length::make_px(size)),
-        .max_track_sizing_function = CSS::GridSize(CSS::Length::make_px(size)),
+        .min_track_sizing_function = CSS::GridSize(CSS::Size::make_px(size)),
+        .max_track_sizing_function = CSS::GridSize(CSS::Size::make_px(size)),
         .base_size = size,
         .is_gap = true,
     };
@@ -207,9 +207,7 @@ GridFormattingContext::~GridFormattingContext() = default;
 CSSPixels GridFormattingContext::resolve_definite_track_size(CSS::GridSize const& grid_size, AvailableSpace const& available_space) const
 {
     VERIFY(grid_size.is_definite());
-    if (grid_size.type() == CSS::GridSize::Type::LengthPercentage)
-        return grid_size.css_size().to_px(grid_container(), available_space.width.to_px_or_zero());
-    VERIFY_NOT_REACHED();
+    return grid_size.css_size().to_px(grid_container(), available_space.width.to_px_or_zero());
 }
 
 int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimension dimension, CSS::ExplicitGridTrack const& repeated_track)
@@ -1856,8 +1854,8 @@ void GridFormattingContext::collapse_auto_fit_tracks_if_needed(GridDimension dim
             continue;
 
         // NOTE: A collapsed track is treated as having a fixed track sizing function of 0px
-        tracks[track_index].min_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
-        tracks[track_index].max_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
+        tracks[track_index].min_track_sizing_function = CSS::GridSize(CSS::Size::make_px(0));
+        tracks[track_index].max_track_sizing_function = CSS::GridSize(CSS::Size::make_px(0));
     }
 }
 
@@ -2114,7 +2112,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
             if (i < tracks.size()) {
                 auto const& track = tracks[i];
-                result.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthPercentage(CSS::Length::make_px(track.base_size)) } });
+                result.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::Size::make_px(track.base_size) } });
             }
         }
         return result;
@@ -2646,7 +2644,7 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
             spans_only_tracks_with_limited_max_track_sizing_function = false;
             break;
         }
-        sum_of_max_sizing_functions += track.max_track_sizing_function.length_percentage().to_px(item.box, m_available_space->width.to_px_or_zero());
+        sum_of_max_sizing_functions += track.max_track_sizing_function.css_size().to_px(item.box, m_available_space->width.to_px_or_zero());
     }
     if (spans_only_tracks_with_limited_max_track_sizing_function) {
         result = min(result, sum_of_max_sizing_functions);
