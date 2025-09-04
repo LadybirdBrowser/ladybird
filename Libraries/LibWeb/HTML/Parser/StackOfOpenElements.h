@@ -63,7 +63,12 @@ public:
     void visit_edges(JS::Cell::Visitor&);
 
 private:
-    bool has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const&) const;
+    enum class CheckMathAndSVG : u8 {
+        No,
+        Yes,
+    };
+
+    bool has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const&, CheckMathAndSVG) const;
     bool has_in_scope_impl(DOM::Element const& target_node, Vector<FlyString> const&) const;
 
     Vector<GC::Ref<DOM::Element>> m_elements;
