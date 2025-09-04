@@ -47,24 +47,12 @@ String Time::to_string(SerializationMode serialization_mode) const
 
 double Time::to_seconds() const
 {
-    switch (m_unit) {
-    case TimeUnit::S:
-        return m_value;
-    case TimeUnit::Ms:
-        return m_value / 1000.0;
-    }
-    VERIFY_NOT_REACHED();
+    return ratio_between_units(m_unit, TimeUnit::S) * m_value;
 }
 
 double Time::to_milliseconds() const
 {
-    switch (m_unit) {
-    case TimeUnit::S:
-        return m_value * 1000.0;
-    case TimeUnit::Ms:
-        return m_value;
-    }
-    VERIFY_NOT_REACHED();
+    return ratio_between_units(m_unit, TimeUnit::Ms) * m_value;
 }
 
 Time Time::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Time const& reference_value)
