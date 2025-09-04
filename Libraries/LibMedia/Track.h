@@ -68,8 +68,8 @@ public:
     }
 
 private:
-    TrackType m_type;
-    size_t m_identifier;
+    TrackType m_type { 0 };
+    size_t m_identifier { 0 };
 
     Variant<Empty, VideoData> m_track_data;
 };
