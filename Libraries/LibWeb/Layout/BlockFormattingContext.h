@@ -114,6 +114,12 @@ private:
 
     void measure_scrollable_overflow(Box const&, CSSPixels& bottom_edge, CSSPixels& right_edge) const;
 
+    // https://drafts.csswg.org/css-multicol/#pseudo-algorithm
+    Optional<int> determine_used_value_for_column_count(CSSPixels const& U) const;
+    CSSPixels determine_used_value_for_column_width(CSSPixels const& U, int N) const;
+
+    CSSPixels get_column_gap_used_value_for_multicol(CSSPixels const& U) const;
+
     enum class FloatSide {
         Left,
         Right,
