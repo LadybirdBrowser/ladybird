@@ -25,7 +25,7 @@ public:
 
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
-    BrowserWindow& active_window() { return *m_active_window; }
+    BrowserWindow& active_window() const { return *m_active_window; }
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
 
 private:
@@ -34,7 +34,11 @@ private:
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions&) override;
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop() override;
 
+    virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
+
     virtual Optional<ByteString> ask_user_for_download_folder() const override;
+    virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
+    virtual void display_error_dialog(StringView error_message) const override;
 
     OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };

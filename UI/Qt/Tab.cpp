@@ -380,6 +380,11 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         clipboard->setMimeData(mime_data);
     };
 
+    view().on_request_clipboard_text = []() {
+        auto const* clipboard = QGuiApplication::clipboard();
+        return ak_string_from_qstring(clipboard->text());
+    };
+
     view().on_request_clipboard_entries = [this](auto request_id) {
         auto const* clipboard = QGuiApplication::clipboard();
 
@@ -496,27 +501,15 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         auto& view = this->view();
 
         view.take_screenshot(type)
-            ->when_resolved([this](auto const& path) {
-                auto message = MUST(String::formatted("Screenshot saved to: {}", path));
-
-                QMessageBox dialog(this);
-                dialog.setWindowTitle("Ladybird");
-                dialog.setIcon(QMessageBox::Information);
-                dialog.setText(qstring_from_ak_string(message));
-                dialog.addButton(QMessageBox::Ok);
-                dialog.addButton(QMessageBox::Open)->setText("Open folder");
-
-                if (dialog.exec() == QMessageBox::Open) {
-                    auto path_url = QUrl::fromLocalFile(qstring_from_ak_string(path.dirname()));
-                    QDesktopServices::openUrl(path_url);
-                }
+            ->when_resolved([](auto const& path) {
+                WebView::Application::the().display_download_confirmation_dialog("Screenshot"sv, path);
             })
-            .when_rejected([this](auto const& error) {
+            .when_rejected([](auto const& error) {
                 if (error.is_errno() && error.code() == ECANCELED)
                     return;
 
                 auto error_message = MUST(String::formatted("{}", error));
-                QMessageBox::warning(this, "Ladybird", qstring_from_ak_string(error_message));
+                WebView::Application::the().display_error_dialog(error_message);
             });
     };
 

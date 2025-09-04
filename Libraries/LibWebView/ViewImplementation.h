@@ -231,6 +231,7 @@ public:
     Function<void(size_t current_match_index, Optional<size_t> const& total_match_count)> on_find_in_page;
     Function<void(Gfx::Color)> on_theme_color_change;
     Function<void(Web::Clipboard::SystemClipboardRepresentation, String const&)> on_insert_clipboard_entry;
+    Function<String()> on_request_clipboard_text;
     Function<void(u64 request_id)> on_request_clipboard_entries;
     Function<void(Web::HTML::AudioPlayState)> on_audio_play_state_changed;
     Function<void(bool, bool)> on_navigation_buttons_state_changed;

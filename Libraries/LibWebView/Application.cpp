@@ -599,6 +599,16 @@ ErrorOr<LexicalPath> Application::path_for_downloaded_file(StringView file) cons
     return LexicalPath::join(downloads_directory, file);
 }
 
+void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const
+{
+    outln("{} saved to: {}", download_name, path);
+}
+
+void Application::display_error_dialog(StringView error_message) const
+{
+    warnln("{}", error_message);
+}
+
 ErrorOr<Application::DevtoolsState> Application::toggle_devtools_enabled()
 {
     if (m_devtools) {
