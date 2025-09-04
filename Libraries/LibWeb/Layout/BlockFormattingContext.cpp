@@ -74,6 +74,15 @@ static bool margins_collapse_through(Box const& box, LayoutState& state)
 
 void BlockFormattingContext::run(AvailableSpace const& available_space)
 {
+    // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
+    auto root_state = m_state.get(root());
+    auto column_count = determine_used_value_for_column_count(root_state.content_width());
+    if (column_count.has_value()) {
+        auto column_width = determine_used_value_for_column_width(root_state.content_width(), column_count.value());
+        // FIXME: Do multi-column layout.
+        (void)column_width;
+    }
+
     if (is<Viewport>(root())) {
         layout_viewport(available_space);
         return;
@@ -1408,6 +1417,40 @@ CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
         });
     }
     return max_width;
+}
+
+// https://drafts.csswg.org/css-multicol/#pseudo-algorithm
+// The pseudo-algorithm below determines the used values for column-count (N) and column-width (W). There is
+// one other variable in the pseudo-algorithm: U is the used width of the multi-column container.
+Optional<int> BlockFormattingContext::determine_used_value_for_column_count(CSSPixels const& U) const
+{
+    auto const& computed_values = root().computed_values();
+    if (computed_values.column_width().is_auto() && computed_values.column_count().is_auto()) {
+        return {};
+    }
+    if (computed_values.column_width().is_auto()) {
+        return computed_values.column_count().value();
+    }
+    auto column_gap = get_column_gap_used_value_for_multicol(U);
+    auto column_width = computed_values.column_width().to_px(root(), U);
+    if (computed_values.column_count().is_auto()) {
+        return max(1, ((U + column_gap) / (column_width + column_gap)).to_int());
+    }
+    return min(computed_values.column_count().value(), max(1, ((U + column_gap) / (column_width + column_gap)).to_int()));
+}
+CSSPixels BlockFormattingContext::determine_used_value_for_column_width(CSSPixels const& U, int N) const
+{
+    auto column_gap = get_column_gap_used_value_for_multicol(U);
+    return max(CSSPixels(0), (U + column_gap) / N - column_gap);
+}
+
+// https://www.w3.org/TR/css-align-3/#column-row-gap
+CSSPixels BlockFormattingContext::get_column_gap_used_value_for_multicol(CSSPixels const& U) const
+{
+    // The 'normal' represents a used value of '1em' on multi-column containers
+    return root().computed_values().column_gap().visit(
+        [&](CSS::NormalGap) { return CSS::Length(1, CSS::LengthUnit::Em).to_px(root()); },
+        [&](auto const& gap) { return gap.to_px(root(), U); });
 }
 
 }
