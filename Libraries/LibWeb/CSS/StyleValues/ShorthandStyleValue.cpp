@@ -321,15 +321,26 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     case PropertyID::Columns: {
         auto column_width = longhand(PropertyID::ColumnWidth)->to_string(mode);
         auto column_count = longhand(PropertyID::ColumnCount)->to_string(mode);
+        auto column_height = longhand(PropertyID::ColumnHeight)->to_string(mode);
 
-        if (column_width == column_count)
-            return column_width;
-        if (column_width.equals_ignoring_ascii_case("auto"sv))
-            return column_count;
-        if (column_count.equals_ignoring_ascii_case("auto"sv))
-            return column_width;
+        StringBuilder builder;
 
-        return MUST(String::formatted("{} {}", column_width, column_count));
+        if (column_width == column_count) {
+            builder.append(column_width);
+        } else if (column_width.equals_ignoring_ascii_case("auto"sv)) {
+            builder.append(column_count);
+        } else if (column_count.equals_ignoring_ascii_case("auto"sv)) {
+            builder.append(column_width);
+        } else {
+            builder.append(MUST(String::formatted("{} {}", column_width, column_count)));
+        }
+
+        if (!column_height.equals_ignoring_ascii_case("auto"sv)) {
+            builder.append(" / "sv);
+            builder.append(column_height);
+        }
+
+        return builder.to_string_without_validation();
     }
     case PropertyID::Flex:
         return MUST(String::formatted("{} {} {}", longhand(PropertyID::FlexGrow)->to_string(mode), longhand(PropertyID::FlexShrink)->to_string(mode), longhand(PropertyID::FlexBasis)->to_string(mode)));
