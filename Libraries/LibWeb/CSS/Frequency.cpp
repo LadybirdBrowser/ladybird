@@ -47,13 +47,7 @@ String Frequency::to_string(SerializationMode serialization_mode) const
 
 double Frequency::to_hertz() const
 {
-    switch (m_unit) {
-    case FrequencyUnit::Hz:
-        return m_value;
-    case FrequencyUnit::KHz:
-        return m_value * 1000;
-    }
-    VERIFY_NOT_REACHED();
+    return ratio_between_units(m_unit, FrequencyUnit::Hz) * m_value;
 }
 
 Frequency Frequency::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Frequency const& reference_value)

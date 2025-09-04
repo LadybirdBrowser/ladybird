@@ -44,11 +44,7 @@ String Flex::to_string(SerializationMode serialization_mode) const
 
 double Flex::to_fr() const
 {
-    switch (m_unit) {
-    case FlexUnit::Fr:
-        return m_value;
-    }
-    VERIFY_NOT_REACHED();
+    return ratio_between_units(m_unit, FlexUnit::Fr) * m_value;
 }
 
 }
