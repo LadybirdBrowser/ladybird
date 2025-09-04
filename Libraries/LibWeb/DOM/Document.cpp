@@ -4168,6 +4168,50 @@ void Document::make_unsalvageable([[maybe_unused]] String reason)
     set_salvageable(false);
 }
 
+struct DocumentDestructionState : public GC::Cell {
+    GC_CELL(DocumentDestructionState, GC::Cell);
+
+    static constexpr int TIMEOUT_MS = 15000;
+
+    DocumentDestructionState(GC::Ref<Document> document, size_t remaining, GC::Ptr<GC::Function<void()>> after)
+        : remaining_children(remaining)
+        , document(document)
+        , after_all(after)
+        , timeout(Platform::Timer::create_single_shot(heap(), TIMEOUT_MS, GC::create_function(heap(), [this] {
+            if (remaining_children > 0)
+                dbgln("FIXME: Document destruction timed out with {} remaining children", remaining_children);
+        })))
+    {
+        timeout->start();
+    }
+
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(document);
+        visitor.visit(after_all);
+        visitor.visit(timeout);
+    }
+
+    void increment_destroyed()
+    {
+        --remaining_children;
+        if (remaining_children > 0)
+            return;
+        timeout->stop();
+        queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(document), GC::create_function(heap(), [document = move(document), after_all = move(after_all)] {
+            document->destroy();
+            if (after_all)
+                after_all->function()();
+        }));
+    }
+
+    size_t remaining_children { 0 };
+    GC::Ref<Document> document;
+    GC::Ptr<GC::Function<void()>> after_all;
+    GC::Ref<Platform::Timer> timeout;
+};
+
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
 void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void()>> after_all_destruction)
 {
@@ -4183,35 +4227,37 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
     // 2. Let childNavigables be document's child navigables.
     IGNORE_USE_IN_ESCAPING_LAMBDA auto child_navigables = document_tree_child_navigables();
 
+    // NOTE: Not in the spec but we could avoid allocating destruction state in case there's no child navigables.
+    if (child_navigables.is_empty()) {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [document = this, after_all_destruction] {
+            // 1. Destroy document.
+            document->destroy();
+
+            // 2. If afterAllDestruction was given, then run it.
+            if (after_all_destruction)
+                after_all_destruction->function()();
+        }));
+        return;
+    }
+
     // 3. Let numberDestroyed be 0.
-    IGNORE_USE_IN_ESCAPING_LAMBDA size_t number_destroyed = 0;
+    auto destruction_state = heap().allocate<DocumentDestructionState>(*this, child_navigables.size(), after_all_destruction);
 
     // 4. For each childNavigable of childNavigables, queue a global task on the navigation and traversal task source
     //    given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(), GC::create_function(heap(), [&heap = heap(), &number_destroyed, child_navigable = child_navigable.ptr()] {
+        queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(), GC::create_function(heap(), [&heap = heap(), destruction_state, child_navigable] {
             // 1. Let incrementDestroyed be an algorithm step which increments numberDestroyed.
-            auto increment_destroyed = GC::create_function(heap, [&number_destroyed] { ++number_destroyed; });
+            auto increment_destroyed = GC::create_function(heap, [destruction_state] { destruction_state->increment_destroyed(); });
 
             // 2. Destroy a document and its descendants given childNavigable's active document and incrementDestroyed.
-            child_navigable->active_document()->destroy_a_document_and_its_descendants(move(increment_destroyed));
+            child_navigable->active_document()->destroy_a_document_and_its_descendants(increment_destroyed);
         }));
     }
 
+    // NOTE: Both of subsequent steps are handled by DocumentDestructionState.
     // 5. Wait until numberDestroyed equals childNavigable's size.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] {
-        return number_destroyed == child_navigables.size();
-    }));
-
     // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to perform the following steps:
-    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [after_all_destruction = move(after_all_destruction), this] {
-        // 1. Destroy document.
-        destroy();
-
-        // 2. If afterAllDestruction was given, then run it.
-        if (after_all_destruction)
-            after_all_destruction->function()();
-    }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#abort-a-document
