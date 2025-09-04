@@ -10,57 +10,40 @@
 #include <AK/FlyString.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/Size.h>
 #include <LibWeb/Layout/AvailableSpace.h>
 
 namespace Web::CSS {
 
 class GridSize {
 public:
-    enum class Type {
-        LengthPercentage,
-        FlexibleLength,
-        FitContent,
-        MaxContent,
-        MinContent,
-    };
-
-    GridSize(Type, LengthPercentage);
-    GridSize(LengthPercentage);
+    GridSize(Size);
     GridSize(Flex);
-    GridSize(Type);
     ~GridSize();
 
     static GridSize make_auto();
 
-    Type type() const { return m_type; }
-
     bool is_auto(Layout::AvailableSize const&) const;
     bool is_fixed(Layout::AvailableSize const&) const;
-    bool is_flexible_length() const { return m_type == Type::FlexibleLength; }
-    bool is_fit_content() const { return m_type == Type::FitContent; }
-    bool is_max_content() const { return m_type == Type::MaxContent; }
-    bool is_min_content() const { return m_type == Type::MinContent; }
+    bool is_flexible_length() const;
+    bool is_fit_content() const;
+    bool is_max_content() const;
+    bool is_min_content() const;
 
-    LengthPercentage const& length_percentage() const { return m_value.get<LengthPercentage>(); }
+    Size css_size() const { return m_value.get<Size>(); }
     double flex_factor() const { return m_value.get<Flex>().to_fr(); }
 
     // https://www.w3.org/TR/css-grid-2/#layout-algorithm
     // An intrinsic sizing function (min-content, max-content, auto, fit-content()).
     bool is_intrinsic(Layout::AvailableSize const&) const;
 
-    bool is_definite() const
-    {
-        return type() == Type::LengthPercentage && !length_percentage().is_auto();
-    }
-
-    Size css_size() const;
+    bool is_definite() const;
 
     String to_string(SerializationMode) const;
     bool operator==(GridSize const& other) const = default;
 
 private:
-    Type m_type;
-    Variant<Empty, LengthPercentage, Flex> m_value;
+    Variant<Size, Flex> m_value;
 };
 
 class GridMinMax {

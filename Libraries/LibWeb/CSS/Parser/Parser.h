@@ -298,7 +298,7 @@ private:
 
     Optional<GridSize> parse_grid_track_breadth(TokenStream<ComponentValue>&);
     Optional<GridSize> parse_grid_inflexible_breadth(TokenStream<ComponentValue>&);
-    Optional<GridSize> parse_grid_fixed_breadth(TokenStream<ComponentValue>&);
+    Optional<LengthPercentage> parse_grid_fixed_breadth(TokenStream<ComponentValue>&);
 
     Optional<GridLineNames> parse_grid_line_names(TokenStream<ComponentValue>&);
 
