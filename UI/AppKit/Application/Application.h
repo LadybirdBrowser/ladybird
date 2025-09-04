@@ -18,8 +18,13 @@ class Application final : public WebView::Application {
 private:
     explicit Application();
 
-    virtual Optional<ByteString> ask_user_for_download_folder() const override;
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop() override;
+
+    virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
+
+    virtual Optional<ByteString> ask_user_for_download_folder() const override;
+    virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
+    virtual void display_error_dialog(StringView error_message) const override;
 };
 
 }

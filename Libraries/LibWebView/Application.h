@@ -53,6 +53,7 @@ public:
     static ProcessManager& process_manager() { return *the().m_process_manager; }
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
+    virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
 
     void add_child_process(Process&&);
 
@@ -63,6 +64,9 @@ public:
     Optional<Process&> find_process(pid_t);
 
     ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
+
+    virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
+    virtual void display_error_dialog(StringView error_message) const;
 
     enum class DevtoolsState {
         Disabled,
