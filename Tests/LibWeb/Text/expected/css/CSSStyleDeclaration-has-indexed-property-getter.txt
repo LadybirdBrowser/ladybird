@@ -140,6 +140,7 @@ All properties associated with getComputedStyle(document.body):
     "clip-path",
     "column-count",
     "column-gap",
+    "column-height",
     "column-span",
     "column-width",
     "contain",

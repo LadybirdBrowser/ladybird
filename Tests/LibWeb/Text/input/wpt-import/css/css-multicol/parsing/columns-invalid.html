@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <title>CSS Multi-column Layout: parsing columns with invalid values</title>
 <link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-columns">
-<meta name="assert" content="columns supports only the grammar '<column-width> || <column-count>'.">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-2/#propdef-columns">
+<meta name="assert" content="columns supports only the grammar '[ <'column-width'> || <'column-count'> ] [ / <'column-height'> ]?'.">
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
 <script src="../../../css/support/parsing-testcommon.js"></script>
@@ -27,6 +28,17 @@ test_invalid_value("columns", "auto auto auto");
 test_invalid_value("columns", "10em auto auto");
 test_invalid_value("columns", "initial initial");
 test_invalid_value("columns", "inherit inherit");
+
+// With "/ <'column-height'>"
+test_invalid_value("columns", "/ 100px");
+test_invalid_value("columns", "/ auto");
+test_invalid_value("columns", "/");
+test_invalid_value("columns", "auto /");
+test_invalid_value("columns", "100px /");
+test_invalid_value("columns", "2 /");
+test_invalid_value("columns", "2 100px /");
+test_invalid_value("columns", "100px 2 /");
+
 </script>
 </body>
 </html>

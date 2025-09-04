@@ -214,6 +214,7 @@ public:
     static Variant<LengthPercentage, NormalGap> column_gap() { return NormalGap {}; }
     static CSS::ColumnSpan column_span() { return CSS::ColumnSpan::None; }
     static CSS::Size column_width() { return CSS::Size::make_auto(); }
+    static CSS::Size column_height() { return CSS::Size::make_auto(); }
     static Variant<LengthPercentage, NormalGap> row_gap() { return NormalGap {}; }
     static CSS::BorderCollapse border_collapse() { return CSS::BorderCollapse::Separate; }
     static CSS::EmptyCells empty_cells() { return CSS::EmptyCells::Show; }
@@ -533,6 +534,7 @@ public:
     Variant<LengthPercentage, NormalGap> const& column_gap() const { return m_noninherited.column_gap; }
     CSS::ColumnSpan const& column_span() const { return m_noninherited.column_span; }
     CSS::Size const& column_width() const { return m_noninherited.column_width; }
+    CSS::Size const& column_height() const { return m_noninherited.column_height; }
     Variant<LengthPercentage, NormalGap> const& row_gap() const { return m_noninherited.row_gap; }
     CSS::BorderCollapse border_collapse() const { return m_inherited.border_collapse; }
     CSS::EmptyCells empty_cells() const { return m_inherited.empty_cells; }
@@ -803,6 +805,7 @@ protected:
         Variant<LengthPercentage, NormalGap> column_gap { InitialValues::column_gap() };
         CSS::ColumnSpan column_span { InitialValues::column_span() };
         CSS::Size column_width { InitialValues::column_width() };
+        CSS::Size column_height { InitialValues::column_height() };
         Variant<LengthPercentage, NormalGap> row_gap { InitialValues::row_gap() };
         Vector<Vector<String>> grid_template_areas { InitialValues::grid_template_areas() };
         Gfx::Color stop_color { InitialValues::stop_color() };
@@ -996,6 +999,7 @@ public:
     void set_column_gap(Variant<LengthPercentage, NormalGap> const& column_gap) { m_noninherited.column_gap = column_gap; }
     void set_column_span(CSS::ColumnSpan const column_span) { m_noninherited.column_span = column_span; }
     void set_column_width(CSS::Size const& column_width) { m_noninherited.column_width = column_width; }
+    void set_column_height(CSS::Size const& column_height) { m_noninherited.column_height = column_height; }
     void set_row_gap(Variant<LengthPercentage, NormalGap> const& row_gap) { m_noninherited.row_gap = row_gap; }
     void set_border_collapse(CSS::BorderCollapse const border_collapse) { m_inherited.border_collapse = border_collapse; }
     void set_empty_cells(CSS::EmptyCells const empty_cells) { m_inherited.empty_cells = empty_cells; }

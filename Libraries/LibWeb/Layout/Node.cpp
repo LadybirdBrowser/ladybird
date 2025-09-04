@@ -840,6 +840,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_column_span(computed_style.column_span());
 
     computed_values.set_column_width(computed_style.size_value(CSS::PropertyID::ColumnWidth));
+    computed_values.set_column_height(computed_style.size_value(CSS::PropertyID::ColumnHeight));
 
     computed_values.set_column_gap(computed_style.gap_value(CSS::PropertyID::ColumnGap));
     computed_values.set_row_gap(computed_style.gap_value(CSS::PropertyID::RowGap));

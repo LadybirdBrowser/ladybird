@@ -1913,17 +1913,33 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
 
 RefPtr<StyleValue const> Parser::parse_columns_value(TokenStream<ComponentValue>& tokens)
 {
-    if (tokens.remaining_token_count() > 2)
-        return nullptr;
-
     RefPtr<StyleValue const> column_count;
     RefPtr<StyleValue const> column_width;
+    RefPtr<StyleValue const> column_height;
 
     Vector<PropertyID> remaining_longhands { PropertyID::ColumnCount, PropertyID::ColumnWidth };
     int found_autos = 0;
+    int tokens_read = 0;
 
     auto transaction = tokens.begin_transaction();
     while (tokens.has_next_token()) {
+        if (tokens.next_token().is_delim('/')) {
+            if (tokens_read == 0)
+                return nullptr;
+            tokens.discard_a_token();
+            auto value = parse_css_value_for_property(PropertyID::ColumnHeight, tokens);
+            if (!value)
+                return nullptr;
+            column_height = value.release_nonnull();
+
+            if (tokens.has_next_token())
+                return nullptr;
+            break;
+        }
+        if (tokens_read == 2)
+            return nullptr;
+        tokens_read++;
+
         auto property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
         if (!property_and_value.has_value())
             return nullptr;
@@ -1953,9 +1969,6 @@ RefPtr<StyleValue const> Parser::parse_columns_value(TokenStream<ComponentValue>
         }
     }
 
-    if (found_autos > 2)
-        return nullptr;
-
     if (found_autos == 2) {
         column_count = KeywordStyleValue::create(Keyword::Auto);
         column_width = KeywordStyleValue::create(Keyword::Auto);
@@ -1972,11 +1985,13 @@ RefPtr<StyleValue const> Parser::parse_columns_value(TokenStream<ComponentValue>
         column_count = property_initial_value(PropertyID::ColumnCount);
     if (!column_width)
         column_width = property_initial_value(PropertyID::ColumnWidth);
+    if (!column_height)
+        column_height = property_initial_value(PropertyID::ColumnHeight);
 
     transaction.commit();
     return ShorthandStyleValue::create(PropertyID::Columns,
-        { PropertyID::ColumnCount, PropertyID::ColumnWidth },
-        { column_count.release_nonnull(), column_width.release_nonnull() });
+        { PropertyID::ColumnCount, PropertyID::ColumnWidth, PropertyID::ColumnHeight },
+        { column_count.release_nonnull(), column_width.release_nonnull(), column_height.release_nonnull() });
 }
 
 RefPtr<StyleValue const> Parser::parse_shadow_value(TokenStream<ComponentValue>& tokens, AllowInsetKeyword allow_inset_keyword)

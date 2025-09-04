@@ -1276,6 +1276,17 @@
     ],
     "percentages-resolve-to": "length"
   },
+  "column-height": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
   "column-span": {
     "animation-type": "discrete",
     "inherited": false,
@@ -1297,10 +1308,11 @@
   },
   "columns": {
     "inherited": false,
-    "initial": "auto auto",
+    "initial": "auto auto / auto",
     "longhands": [
       "column-width",
-      "column-count"
+      "column-count",
+      "column-height"
     ]
   },
   "contain": {
