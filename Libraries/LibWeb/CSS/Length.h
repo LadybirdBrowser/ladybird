@@ -90,27 +90,7 @@ public:
 
     ALWAYS_INLINE double absolute_length_to_px_without_rounding() const
     {
-        constexpr double inch_pixels = 96.0;
-        constexpr double centimeter_pixels = (inch_pixels / 2.54);
-
-        switch (m_unit) {
-        case LengthUnit::Cm:
-            return m_value * centimeter_pixels; // 1cm = 96px/2.54
-        case LengthUnit::In:
-            return m_value * inch_pixels; // 1in = 2.54 cm = 96px
-        case LengthUnit::Px:
-            return m_value; // 1px = 1/96th of 1in
-        case LengthUnit::Pt:
-            return m_value * ((1.0 / 72.0) * inch_pixels); // 1pt = 1/72th of 1in
-        case LengthUnit::Pc:
-            return m_value * ((1.0 / 6.0) * inch_pixels); // 1pc = 1/6th of 1in
-        case LengthUnit::Mm:
-            return m_value * ((1.0 / 10.0) * centimeter_pixels); // 1mm = 1/10th of 1cm
-        case LengthUnit::Q:
-            return m_value * ((1.0 / 40.0) * centimeter_pixels); // 1Q = 1/40th of 1cm
-        default:
-            VERIFY_NOT_REACHED();
-        }
+        return ratio_between_units(m_unit, LengthUnit::Px) * m_value;
     }
 
     String to_string(SerializationMode = SerializationMode::Normal) const;

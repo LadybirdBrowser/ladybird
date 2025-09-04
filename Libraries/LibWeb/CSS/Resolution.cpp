@@ -42,16 +42,7 @@ String Resolution::to_string(SerializationMode serialization_mode) const
 
 double Resolution::to_dots_per_pixel() const
 {
-    switch (m_unit) {
-    case ResolutionUnit::Dpi:
-        return m_value / 96; // 1in = 2.54cm = 96px
-    case ResolutionUnit::Dpcm:
-        return m_value / (96.0 / 2.54); // 1cm = 96px/2.54
-    case ResolutionUnit::Dppx:
-    case ResolutionUnit::X:
-        return m_value;
-    }
-    VERIFY_NOT_REACHED();
+    return ratio_between_units(m_unit, ResolutionUnit::Dppx) * m_value;
 }
 
 }

@@ -48,22 +48,12 @@ String Angle::to_string(SerializationMode serialization_mode) const
 
 double Angle::to_degrees() const
 {
-    switch (m_unit) {
-    case AngleUnit::Deg:
-        return m_value;
-    case AngleUnit::Grad:
-        return m_value * (360.0 / 400.0);
-    case AngleUnit::Rad:
-        return AK::to_degrees(m_value);
-    case AngleUnit::Turn:
-        return m_value * 360.0;
-    }
-    VERIFY_NOT_REACHED();
+    return ratio_between_units(m_unit, AngleUnit::Deg) * m_value;
 }
 
 double Angle::to_radians() const
 {
-    return AK::to_radians(to_degrees());
+    return ratio_between_units(m_unit, AngleUnit::Rad) * m_value;
 }
 
 Angle Angle::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Angle const& reference_value)
