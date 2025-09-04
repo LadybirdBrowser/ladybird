@@ -48,8 +48,8 @@ public:
     virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const { return {}; }
     virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
 
-    Layout::NodeWithStyleAndBoxModelMetrics& layout_node_with_style_and_box_metrics() { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics&>(Paintable::layout_node()); }
-    Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(Paintable::layout_node()); }
+    Layout::NodeWithStyleAndBoxModelMetrics& layout_node_with_style_and_box_metrics() { return as<Layout::NodeWithStyleAndBoxModelMetrics>(layout_node()); }
+    Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const { return as<Layout::NodeWithStyleAndBoxModelMetrics const>(layout_node()); }
 
     auto& box_model() { return m_box_model; }
     auto const& box_model() const { return m_box_model; }
@@ -360,9 +360,6 @@ public:
     static GC::Ref<PaintableWithLines> create(Layout::BlockContainer const&);
     static GC::Ref<PaintableWithLines> create(Layout::InlineNode const&, size_t line_index);
     virtual ~PaintableWithLines() override;
-
-    Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const;
-    Layout::NodeWithStyleAndBoxModelMetrics& layout_node_with_style_and_box_metrics();
 
     Vector<PaintableFragment> const& fragments() const { return m_fragments; }
     Vector<PaintableFragment>& fragments() { return m_fragments; }

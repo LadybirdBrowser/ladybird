@@ -1143,16 +1143,6 @@ bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigne
     return true;
 }
 
-Layout::NodeWithStyleAndBoxModelMetrics const& PaintableWithLines::layout_node_with_style_and_box_metrics() const
-{
-    return static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(PaintableBox::layout_node_with_style_and_box_metrics());
-}
-
-Layout::NodeWithStyleAndBoxModelMetrics& PaintableWithLines::layout_node_with_style_and_box_metrics()
-{
-    return static_cast<Layout::NodeWithStyleAndBoxModelMetrics&>(PaintableBox::layout_node_with_style_and_box_metrics());
-}
-
 TraversalDecision PaintableBox::hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     // FIXME: This const_cast is not great, but this method is invoked from overrides of virtual const methods.
