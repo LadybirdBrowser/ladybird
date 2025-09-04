@@ -1139,8 +1139,8 @@ void BrowserWindow::paste()
     if (!m_current_tab)
         return;
 
-    auto* clipboard = QGuiApplication::clipboard();
-    m_current_tab->view().paste(ak_string_from_qstring(clipboard->text()));
+    if (m_current_tab->view().on_request_clipboard_text)
+        m_current_tab->view().paste(m_current_tab->view().on_request_clipboard_text());
 }
 
 void BrowserWindow::update_displayed_zoom_level()

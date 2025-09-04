@@ -11,8 +11,10 @@
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
+#include <QDesktopServices>
 #include <QFileDialog>
 #include <QFileOpenEvent>
+#include <QMessageBox>
 
 namespace Ladybird {
 
@@ -88,6 +90,13 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Bro
     return *window;
 }
 
+Optional<WebView::ViewImplementation&> Application::active_web_view() const
+{
+    if (auto* active_tab = this->active_tab())
+        return active_tab->view();
+    return {};
+}
+
 Optional<ByteString> Application::ask_user_for_download_folder() const
 {
     auto path = QFileDialog::getExistingDirectory(nullptr, "Select download directory", QDir::homePath());
@@ -95,6 +104,28 @@ Optional<ByteString> Application::ask_user_for_download_folder() const
         return {};
 
     return ak_byte_string_from_qstring(path);
+}
+
+void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const
+{
+    auto message = MUST(String::formatted("{} saved to: {}", download_name, path));
+
+    QMessageBox dialog(active_tab());
+    dialog.setWindowTitle("Ladybird");
+    dialog.setIcon(QMessageBox::Information);
+    dialog.setText(qstring_from_ak_string(message));
+    dialog.addButton(QMessageBox::Ok);
+    dialog.addButton(QMessageBox::Open)->setText("Open folder");
+
+    if (dialog.exec() == QMessageBox::Open) {
+        auto path_url = QUrl::fromLocalFile(qstring_from_ak_string(path.dirname()));
+        QDesktopServices::openUrl(path_url);
+    }
+}
+
+void Application::display_error_dialog(StringView error_message) const
+{
+    QMessageBox::warning(active_tab(), "Ladybird", qstring_from_ak_string(error_message));
 }
 
 }

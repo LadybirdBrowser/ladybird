@@ -1085,6 +1085,14 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             copy_data_to_clipboard(entry.data, pasteboard_type);
     };
 
+    m_web_view_bridge->on_request_clipboard_text = []() {
+        auto* paste_board = [NSPasteboard generalPasteboard];
+
+        if (auto* contents = [paste_board stringForType:NSPasteboardTypeString])
+            return Ladybird::ns_string_to_string(contents);
+        return String {};
+    };
+
     m_web_view_bridge->on_request_clipboard_entries = [weak_self](auto request_id) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
@@ -1154,11 +1162,8 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
 - (void)paste:(id)sender
 {
-    auto* paste_board = [NSPasteboard generalPasteboard];
-
-    if (auto* contents = [paste_board stringForType:NSPasteboardTypeString]) {
-        m_web_view_bridge->paste(Ladybird::ns_string_to_string(contents));
-    }
+    if (m_web_view_bridge->on_request_clipboard_text)
+        m_web_view_bridge->paste(m_web_view_bridge->on_request_clipboard_text());
 }
 
 - (void)selectAll:(id)sender
@@ -1191,34 +1196,15 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 - (void)takeScreenshot:(WebView::ViewImplementation::ScreenshotType)type
 {
     m_web_view_bridge->take_screenshot(type)
-        ->when_resolved([self](auto const& path) {
-            auto message = MUST(String::formatted("Screenshot saved to: {}", path));
-
-            auto* dialog = [[NSAlert alloc] init];
-            [dialog setMessageText:Ladybird::string_to_ns_string(message)];
-            [[dialog addButtonWithTitle:@"OK"] setTag:NSModalResponseOK];
-            [[dialog addButtonWithTitle:@"Open folder"] setTag:NSModalResponseContinue];
-
-            __block auto* ns_path = Ladybird::string_to_ns_string(path.string());
-
-            [dialog beginSheetModalForWindow:[self window]
-                           completionHandler:^(NSModalResponse response) {
-                               if (response == NSModalResponseContinue) {
-                                   [[NSWorkspace sharedWorkspace] selectFile:ns_path inFileViewerRootedAtPath:@""];
-                               }
-                           }];
+        ->when_resolved([](auto const& path) {
+            WebView::Application::the().display_download_confirmation_dialog("Screenshot"sv, path);
         })
-        .when_rejected([self](auto const& error) {
+        .when_rejected([](auto const& error) {
             if (error.is_errno() && error.code() == ECANCELED)
                 return;
 
             auto error_message = MUST(String::formatted("{}", error));
-
-            auto* dialog = [[NSAlert alloc] init];
-            [dialog setMessageText:Ladybird::string_to_ns_string(error_message)];
-
-            [dialog beginSheetModalForWindow:[self window]
-                           completionHandler:nil];
+            WebView::Application::the().display_error_dialog(error_message);
         });
 }
 

@@ -10,6 +10,9 @@
 #include <Utilities/Conversions.h>
 
 #import <Application/Application.h>
+#import <Application/ApplicationDelegate.h>
+#import <Interface/LadybirdWebView.h>
+#import <Interface/Tab.h>
 
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
@@ -18,6 +21,25 @@
 namespace Ladybird {
 
 Application::Application() = default;
+
+NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
+{
+    if (!browser_options().headless_mode.has_value()) {
+        Core::EventLoopManager::install(*new WebView::EventLoopManagerMacOS);
+        [::Application sharedApplication];
+    }
+
+    return WebView::Application::create_platform_event_loop();
+}
+
+Optional<WebView::ViewImplementation&> Application::active_web_view() const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+
+    if (auto* tab = [delegate activeTab])
+        return [[tab web_view] view];
+    return {};
+}
 
 Optional<ByteString> Application::ask_user_for_download_folder() const
 {
@@ -33,14 +55,36 @@ Optional<ByteString> Application::ask_user_for_download_folder() const
     return Ladybird::ns_string_to_byte_string([[panel URL] path]);
 }
 
-NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
+void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const
 {
-    if (!browser_options().headless_mode.has_value()) {
-        Core::EventLoopManager::install(*new WebView::EventLoopManagerMacOS);
-        [::Application sharedApplication];
-    }
+    ApplicationDelegate* delegate = [NSApp delegate];
 
-    return WebView::Application::create_platform_event_loop();
+    auto message = MUST(String::formatted("{} saved to: {}", download_name, path));
+
+    auto* dialog = [[NSAlert alloc] init];
+    [dialog setMessageText:Ladybird::string_to_ns_string(message)];
+    [[dialog addButtonWithTitle:@"OK"] setTag:NSModalResponseOK];
+    [[dialog addButtonWithTitle:@"Open folder"] setTag:NSModalResponseContinue];
+
+    __block auto* ns_path = Ladybird::string_to_ns_string(path.string());
+
+    [dialog beginSheetModalForWindow:[delegate activeTab]
+                   completionHandler:^(NSModalResponse response) {
+                       if (response == NSModalResponseContinue) {
+                           [[NSWorkspace sharedWorkspace] selectFile:ns_path inFileViewerRootedAtPath:@""];
+                       }
+                   }];
+}
+
+void Application::display_error_dialog(StringView error_message) const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+
+    auto* dialog = [[NSAlert alloc] init];
+    [dialog setMessageText:Ladybird::string_to_ns_string(error_message)];
+
+    [dialog beginSheetModalForWindow:[delegate activeTab]
+                   completionHandler:nil];
 }
 
 }
