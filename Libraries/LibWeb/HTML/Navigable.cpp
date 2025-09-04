@@ -297,7 +297,7 @@ void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
-GC::Ptr<DOM::Document> Navigable::active_document()
+GC::Ptr<DOM::Document> Navigable::active_document() const
 {
     // A navigable's active document is its active session history entry's document.
     return m_active_session_history_entry->document();
@@ -2549,10 +2549,10 @@ static String visible_text_in_range(DOM::Range const& range)
 
 String Navigable::selected_text() const
 {
-    auto document = const_cast<Navigable*>(this)->active_document();
+    auto document = active_document();
     if (!document)
         return String {};
-    auto selection = const_cast<DOM::Document&>(*document).get_selection();
+    auto selection = document->get_selection();
     auto range = selection->range();
     if (!range)
         return String {};
