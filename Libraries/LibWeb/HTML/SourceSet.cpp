@@ -389,27 +389,17 @@ SourceSet SourceSet::create(DOM::Element const& element, String const& default_s
 void SourceSet::normalize_source_densities(DOM::Element const& element)
 {
     // 1. Let source size be source set's source size.
-    auto source_size = [&] {
-        if (!m_source_size.is_calculated()) {
-            // If the source size is viewport-relative, resolve it against the viewport right now.
-            if (m_source_size.value().is_viewport_relative()) {
-                return CSS::Length::make_px(m_source_size.value().viewport_relative_length_to_px(element.document().viewport_rect()));
-            }
 
-            // FIXME: Resolve font-relative lengths against the relevant font size.
-            return m_source_size.value();
-        }
+    // https://html.spec.whatwg.org/multipage/images.html#source-size-2
+    // When a source size has a unit relative to the viewport, it must be interpreted relative to the img element's
+    // node document's viewport. Other units must be interpreted the same as in Media Queries.
 
-        // HACK: Flush any pending layouts here so we get an up-to-date length resolution context.
-        // FIXME: We should have a way to build a LengthResolutionContext for any DOM node without going through the layout tree.
-        const_cast<DOM::Document&>(element.document()).update_layout(DOM::UpdateLayoutReason::SourceSetNormalizeSourceDensities);
-        if (element.layout_node()) {
-            CSS::CalculationResolutionContext context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*element.layout_node()) };
-            return m_source_size.resolved(context).value_or(CSS::Length::make_auto());
-        }
-        // FIXME: This is wrong, but we don't have a better way to resolve lengths without a layout node yet.
-        return CSS::Length::make_auto();
-    }();
+    // https://drafts.csswg.org/mediaqueries/#units
+    // Relative length units in media queries are based on the initial value, which means that units are never based on
+    // results of declarations.
+    auto const& length_resolution_context = CSS::Length::ResolutionContext::for_window(*element.document().window());
+
+    auto source_size = m_source_size.resolved({ .length_resolution_context = length_resolution_context })->to_px(length_resolution_context);
 
     // 2. For each image source in source set:
     for (auto& image_source : m_sources) {
@@ -423,16 +413,11 @@ void SourceSet::normalize_source_densities(DOM::Element const& element)
         auto descriptor_value_set = false;
         if (image_source.descriptor.has<ImageSource::WidthDescriptorValue>()) {
             auto& width_descriptor = image_source.descriptor.get<ImageSource::WidthDescriptorValue>();
-            if (source_size.is_absolute()) {
-                auto source_size_in_pixels = source_size.absolute_length_to_px();
-                if (source_size_in_pixels != 0) {
-                    image_source.descriptor = ImageSource::PixelDensityDescriptorValue {
-                        .value = (width_descriptor.value / source_size_in_pixels).to_double()
-                    };
-                    descriptor_value_set = true;
-                }
-            } else {
-                dbgln("FIXME: Image element has unresolved relative length '{}' in sizes attribute", source_size);
+            if (source_size != 0) {
+                image_source.descriptor = ImageSource::PixelDensityDescriptorValue {
+                    .value = (width_descriptor.value / source_size).to_double()
+                };
+                descriptor_value_set = true;
             }
         }
 
