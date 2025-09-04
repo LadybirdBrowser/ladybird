@@ -7,7 +7,9 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/StackOfOpenElements.h>
+#include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/SVG/TagNames.h>
 
 namespace Web::HTML {
 
@@ -20,12 +22,16 @@ void StackOfOpenElements::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_elements);
 }
 
-bool StackOfOpenElements::has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const& list) const
+bool StackOfOpenElements::has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const& list, CheckMathAndSVG check_math_and_svg) const
 {
     for (auto const& element : m_elements.in_reverse()) {
         if (element->local_name() == tag_name)
             return true;
         if (list.contains_slow(element->local_name()))
+            return false;
+        if (check_math_and_svg == CheckMathAndSVG::Yes && element->namespace_uri() == Namespace::SVG && element->local_name().is_one_of(SVG::TagNames::foreignObject, SVG::TagNames::desc, SVG::TagNames::title))
+            return false;
+        if (check_math_and_svg == CheckMathAndSVG::Yes && element->namespace_uri() == Namespace::MathML && element->local_name().is_one_of(MathML::TagNames::mi, MathML::TagNames::mo, MathML::TagNames::mn, MathML::TagNames::ms, MathML::TagNames::mtext, MathML::TagNames::annotation_xml))
             return false;
     }
     VERIFY_NOT_REACHED();
@@ -33,7 +39,7 @@ bool StackOfOpenElements::has_in_scope_impl(FlyString const& tag_name, Vector<Fl
 
 bool StackOfOpenElements::has_in_scope(FlyString const& tag_name) const
 {
-    return has_in_scope_impl(tag_name, s_base_list);
+    return has_in_scope_impl(tag_name, s_base_list, CheckMathAndSVG::Yes);
 }
 
 bool StackOfOpenElements::has_in_scope_impl(DOM::Element const& target_node, Vector<FlyString> const& list) const
@@ -42,6 +48,10 @@ bool StackOfOpenElements::has_in_scope_impl(DOM::Element const& target_node, Vec
         if (element.ptr() == &target_node)
             return true;
         if (list.contains_slow(element->local_name()))
+            return false;
+        if (element->namespace_uri() == Namespace::SVG && element->local_name().is_one_of(SVG::TagNames::foreignObject, SVG::TagNames::desc, SVG::TagNames::title))
+            return false;
+        if (element->namespace_uri() == Namespace::MathML && element->local_name().is_one_of(MathML::TagNames::mi, MathML::TagNames::mo, MathML::TagNames::mn, MathML::TagNames::ms, MathML::TagNames::mtext, MathML::TagNames::annotation_xml))
             return false;
     }
     VERIFY_NOT_REACHED();
@@ -56,12 +66,12 @@ bool StackOfOpenElements::has_in_button_scope(FlyString const& tag_name) const
 {
     auto list = s_base_list;
     list.append("button"_fly_string);
-    return has_in_scope_impl(tag_name, list);
+    return has_in_scope_impl(tag_name, list, CheckMathAndSVG::Yes);
 }
 
 bool StackOfOpenElements::has_in_table_scope(FlyString const& tag_name) const
 {
-    return has_in_scope_impl(tag_name, { "html"_fly_string, "table"_fly_string, "template"_fly_string });
+    return has_in_scope_impl(tag_name, { "html"_fly_string, "table"_fly_string, "template"_fly_string }, CheckMathAndSVG::No);
 }
 
 bool StackOfOpenElements::has_in_list_item_scope(FlyString const& tag_name) const
@@ -69,7 +79,7 @@ bool StackOfOpenElements::has_in_list_item_scope(FlyString const& tag_name) cons
     auto list = s_base_list;
     list.append("ol"_fly_string);
     list.append("ul"_fly_string);
-    return has_in_scope_impl(tag_name, list);
+    return has_in_scope_impl(tag_name, list, CheckMathAndSVG::Yes);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-select-scope
