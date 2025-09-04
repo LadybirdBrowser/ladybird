@@ -23,10 +23,13 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::instance()
     static Threading::Mutex instantiation_mutex;
     // Lock and unlock the mutex to ensure that the mutex is fully unlocked at application
     // exit.
-    atexit([]() {
+    auto atexit_result = atexit([]() {
         instantiation_mutex.lock();
         instantiation_mutex.unlock();
     });
+    if (atexit_result) {
+        return Error::from_string_literal("Unable to set PulseAudioContext atexit action");
+    }
 
     auto instantiation_locker = Threading::MutexLocker(instantiation_mutex);
 
