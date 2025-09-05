@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Types.h>
+
 namespace Web::CSS {
 
 enum class SerializationMode : u8 {
