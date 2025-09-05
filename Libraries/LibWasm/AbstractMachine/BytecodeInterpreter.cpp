@@ -469,13 +469,16 @@ void BytecodeInterpreter::interpret_impl(Configuration& configuration, Expressio
             u8 value = static_cast<u8>(configuration.take_source(1, addresses.sources).to<u32>());
             auto destination_offset = configuration.take_source(2, addresses.sources).to<u32>();
 
-            TRAP_IN_LOOP_IF_NOT(static_cast<size_t>(destination_offset + count) <= instance->data().size());
+            Checked<u32> checked_end = destination_offset;
+            checked_end += count;
+            TRAP_IN_LOOP_IF_NOT(!checked_end.has_overflow() && static_cast<size_t>(checked_end.value()) <= instance->data().size());
 
             if (count == 0)
                 RUN_NEXT_INSTRUCTION();
 
+            Instruction::MemoryArgument memarg { 0, 0, args.memory_index };
             for (u32 i = 0; i < count; ++i) {
-                if (store_to_memory(configuration, Instruction::MemoryArgument { 0, 0 }, { &value, sizeof(value) }, destination_offset + i))
+                if (store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i))
                     return;
             }
 
