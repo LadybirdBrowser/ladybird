@@ -3977,11 +3977,16 @@ static void for_each_element_hash(DOM::Element const& element, auto callback)
 
 void StyleComputer::reset_ancestor_filter()
 {
+    m_ancestor_filter_enabled = true;
     m_ancestor_filter->clear();
 }
 
 void StyleComputer::push_ancestor(DOM::Element const& element)
 {
+    if (!ancestor_filter_enabled()) {
+        return;
+    }
+
     for_each_element_hash(element, [&](u32 hash) {
         m_ancestor_filter->increment(hash);
     });
@@ -3989,9 +3994,23 @@ void StyleComputer::push_ancestor(DOM::Element const& element)
 
 void StyleComputer::pop_ancestor(DOM::Element const& element)
 {
+    if (!ancestor_filter_enabled()) {
+        return;
+    }
+
     for_each_element_hash(element, [&](u32 hash) {
         m_ancestor_filter->decrement(hash);
     });
+}
+
+void StyleComputer::enable_ancestor_filter()
+{
+    m_ancestor_filter_enabled = true;
+}
+
+void StyleComputer::disable_ancestor_filter()
+{
+    m_ancestor_filter_enabled = false;
 }
 
 size_t StyleComputer::number_of_css_font_faces_with_loading_in_progress() const
