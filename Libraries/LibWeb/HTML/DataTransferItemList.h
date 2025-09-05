@@ -27,6 +27,7 @@ public:
     WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(String const& data, String const& type);
     GC::Ptr<DataTransferItem> add(GC::Ref<FileAPI::File>);
     WebIDL::ExceptionOr<void> remove(WebIDL::UnsignedLong index);
+    void clear();
 
 private:
     DataTransferItemList(JS::Realm&, GC::Ref<DataTransfer>);

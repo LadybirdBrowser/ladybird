@@ -125,6 +125,15 @@ WebIDL::ExceptionOr<void> DataTransferItemList::remove(WebIDL::UnsignedLong inde
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-clear
+void DataTransferItemList::clear()
+{
+    // The clear() method, if the DataTransferItemList object is in the read/write mode, must remove all the items from
+    // the drag data store. Otherwise, it must do nothing.
+    if (m_data_transfer->mode() == DragDataStore::Mode::ReadWrite)
+        m_data_transfer->clear_data();
+}
+
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-item
 Optional<JS::Value> DataTransferItemList::item_value(size_t index) const
 {
