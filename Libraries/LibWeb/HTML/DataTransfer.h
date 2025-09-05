@@ -9,6 +9,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/DragDataStore.h>
+#include <LibWeb/WebIDL/CachedAttribute.h>
 
 namespace Web::HTML {
 
@@ -53,6 +54,7 @@ public:
     GC::Ref<DataTransferItemList> items();
 
     ReadonlySpan<String> types() const;
+    DEFINE_CACHED_ATTRIBUTE(types);
     String get_data(String const& format) const;
     void clear_data(Optional<String> maybe_format = {});
     GC::Ref<FileAPI::FileList> files() const;

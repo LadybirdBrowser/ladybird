@@ -74,6 +74,8 @@ void DataTransfer::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_items);
     visitor.visit(m_item_list);
+
+    VISIT_CACHED_ATTRIBUTE(types);
 }
 
 void DataTransfer::set_drop_effect(String const& drop_effect)
@@ -374,6 +376,7 @@ void DataTransfer::update_data_transfer_types_list()
     }
 
     // 3. Set the DataTransfer object's types array to the result of creating a frozen array from L.
+    set_cached_types(nullptr);
     m_types = move(types);
 }
 
