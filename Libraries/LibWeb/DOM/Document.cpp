@@ -1737,79 +1737,6 @@ void Document::invalidate_style_of_elements_affected_by_has()
     }
 }
 
-void Document::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass pseudo_class, auto& element_slot, Node& old_new_common_ancestor, auto node)
-{
-    auto const& rules = style_computer().get_pseudo_class_rule_cache(pseudo_class);
-
-    auto& root = old_new_common_ancestor.root();
-    auto shadow_root = is<ShadowRoot>(root) ? static_cast<ShadowRoot const*>(&root) : nullptr;
-
-    auto& style_computer = this->style_computer();
-    auto does_rule_match_on_element = [&](Element const& element, CSS::MatchingRule const& rule) {
-        auto rule_root = rule.shadow_root;
-        auto from_user_agent_or_user_stylesheet = rule.cascade_origin == CSS::CascadeOrigin::UserAgent || rule.cascade_origin == CSS::CascadeOrigin::User;
-        bool rule_is_relevant_for_current_scope = rule_root == shadow_root
-            || (element.is_shadow_host() && rule_root == element.shadow_root())
-            || from_user_agent_or_user_stylesheet;
-        if (!rule_is_relevant_for_current_scope)
-            return false;
-
-        auto const& selector = rule.selector;
-        if (selector.can_use_ancestor_filter() && style_computer.should_reject_with_ancestor_filter(selector))
-            return false;
-
-        SelectorEngine::MatchContext context;
-        if (SelectorEngine::matches(selector, element, {}, context, {}))
-            return true;
-        if (element.has_pseudo_element(CSS::PseudoElement::Before)) {
-            if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::Before))
-                return true;
-        }
-        if (element.has_pseudo_element(CSS::PseudoElement::After)) {
-            if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::After))
-                return true;
-        }
-        return false;
-    };
-
-    auto matches_different_set_of_rules_after_state_change = [&](Element& element) {
-        bool result = false;
-        rules.for_each_matching_rules({ element }, [&](auto& rules) {
-            for (auto& rule : rules) {
-                bool before = does_rule_match_on_element(element, rule);
-                TemporaryChange change { element_slot, node };
-                bool after = does_rule_match_on_element(element, rule);
-                if (before != after) {
-                    result = true;
-                    return IterationDecision::Break;
-                }
-            }
-            return IterationDecision::Continue;
-        });
-        return result;
-    };
-
-    Function<void(Node&)> invalidate_affected_elements_recursively = [&](Node& node) -> void {
-        if (node.is_element()) {
-            auto& element = static_cast<Element&>(node);
-            style_computer.push_ancestor(element);
-            if (element.affected_by_pseudo_class(pseudo_class) && matches_different_set_of_rules_after_state_change(element)) {
-                element.set_needs_style_update(true);
-            }
-        }
-
-        node.for_each_child([&](auto& child) {
-            invalidate_affected_elements_recursively(child);
-            return IterationDecision::Continue;
-        });
-
-        if (node.is_element())
-            style_computer.pop_ancestor(static_cast<Element&>(node));
-    };
-
-    invalidate_affected_elements_recursively(root);
-}
-
 void Document::set_hovered_node(GC::Ptr<Node> node)
 {
     if (m_hovered_node == node)
@@ -1826,11 +1753,11 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
         new_hovered_node_root = node->root();
     if (old_hovered_node_root != new_hovered_node_root) {
         if (old_hovered_node_root)
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Hover, m_hovered_node, *old_hovered_node_root, node);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Hover, m_hovered_node, *old_hovered_node_root, node);
         if (new_hovered_node_root)
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Hover, m_hovered_node, *new_hovered_node_root, node);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Hover, m_hovered_node, *new_hovered_node_root, node);
     } else {
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Hover, m_hovered_node, *common_ancestor, node);
+        style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Hover, m_hovered_node, *common_ancestor, node);
     }
 
     m_hovered_node = node;
@@ -2399,19 +2326,19 @@ void Document::set_focused_area(GC::Ptr<Node> node)
         new_focused_node_root = node->root();
     if (old_focused_node_root != new_focused_node_root) {
         if (old_focused_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_area, *old_focused_node_root, node);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_area, *old_focused_node_root, node);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_area, *old_focused_node_root, node);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_area, *old_focused_node_root, node);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_area, *old_focused_node_root, node);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_area, *old_focused_node_root, node);
         }
         if (new_focused_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_area, *new_focused_node_root, node);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_area, *new_focused_node_root, node);
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_area, *new_focused_node_root, node);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_area, *new_focused_node_root, node);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_area, *new_focused_node_root, node);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_area, *new_focused_node_root, node);
         }
     } else {
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_area, *common_ancestor, node);
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_area, *common_ancestor, node);
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_area, *common_ancestor, node);
+        style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Focus, m_focused_area, *common_ancestor, node);
+        style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusWithin, m_focused_area, *common_ancestor, node);
+        style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::FocusVisible, m_focused_area, *common_ancestor, node);
     }
 
     m_focused_area = node;
@@ -2446,19 +2373,23 @@ void Document::set_active_element(GC::Ptr<Element> element)
 
     GC::Ptr<Node> old_active_node_root = nullptr;
     GC::Ptr<Node> new_active_node_root = nullptr;
+
+    GC::Ptr<Node> active_node = m_active_element;
+    GC::Ptr<Node> node = element;
+
     if (old_active_element)
         old_active_node_root = old_active_element->root();
     if (element)
         new_active_node_root = element->root();
     if (old_active_node_root != new_active_node_root) {
         if (old_active_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Active, m_active_element, *old_active_node_root, element);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Active, active_node, *old_active_node_root, node);
         }
         if (new_active_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Active, m_active_element, *new_active_node_root, element);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Active, active_node, *new_active_node_root, node);
         }
     } else {
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Active, m_active_element, *common_ancestor, element);
+        style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Active, active_node, *common_ancestor, node);
     }
 
     m_active_element = element;
@@ -2476,6 +2407,9 @@ void Document::set_target_element(GC::Ptr<Element> element)
 
     auto* common_ancestor = find_common_ancestor(old_target_element, element);
 
+    GC::Ptr<Node> target_node = m_target_element;
+    GC::Ptr<Node> node = element;
+
     GC::Ptr<Node> old_target_node_root = nullptr;
     GC::Ptr<Node> new_target_node_root = nullptr;
     if (old_target_element)
@@ -2484,13 +2418,13 @@ void Document::set_target_element(GC::Ptr<Element> element)
         new_target_node_root = element->root();
     if (old_target_node_root != new_target_node_root) {
         if (old_target_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, m_target_element, *old_target_node_root, element);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, target_node, *old_target_node_root, node);
         }
         if (new_target_node_root) {
-            invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, m_target_element, *new_target_node_root, element);
+            style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, target_node, *new_target_node_root, node);
         }
     } else {
-        invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, m_target_element, *common_ancestor, element);
+        style_computer().invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass::Target, target_node, *common_ancestor, node);
     }
 
     m_target_element = element;
