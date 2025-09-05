@@ -9,5 +9,5 @@ interface DataTransferItemList {
     DataTransferItem? add(DOMString data, DOMString type);
     DataTransferItem? add(File data);
     undefined remove(unsigned long index);
-    [FIXME] undefined clear();
+    undefined clear();
 };
