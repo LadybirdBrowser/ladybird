@@ -146,10 +146,6 @@ public:
     DOM::Document& document() { return m_document; }
     DOM::Document const& document() const { return m_document; }
 
-    void reset_ancestor_filter();
-    void push_ancestor(DOM::Element const&);
-    void pop_ancestor(DOM::Element const&);
-
     [[nodiscard]] GC::Ref<ComputedProperties> create_document_style() const;
 
     [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}) const;
@@ -316,6 +312,9 @@ private:
     CSSPixelRect m_viewport_rect;
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
+    void reset_ancestor_filter();
+    void push_ancestor(DOM::Element const&);
+    void pop_ancestor(DOM::Element const&);
 };
 
 class FontLoader final : public GC::Cell {
