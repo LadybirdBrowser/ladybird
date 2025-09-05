@@ -65,7 +65,8 @@ void CascadedProperties::resolve_unresolved_properties(GC::Ref<DOM::Element> ele
         for (auto& entry : entries) {
             if (!entry.property.value->is_unresolved())
                 continue;
-            entry.property.value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element->document() }, element, pseudo_element, property_id, entry.property.value->as_unresolved());
+            DOM::AbstractElement abstract_element { element, pseudo_element };
+            entry.property.value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element->document() }, abstract_element, property_id, entry.property.value->as_unresolved());
         }
     }
 }
