@@ -100,12 +100,11 @@ Optional<Angle::Type> Angle::unit_from_name(StringView name)
 
 Angle Angle::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Angle const& reference_value)
 {
-    return calculated->resolve_angle_deprecated(
-                         {
-                             .percentage_basis = reference_value,
-                             .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),
-                         })
-        .value();
+    CalculationResolutionContext context {
+        .percentage_basis = reference_value,
+        .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),
+    };
+    return calculated->resolve_angle(context).value();
 }
 
 }
