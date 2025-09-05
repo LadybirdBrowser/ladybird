@@ -17,6 +17,7 @@
 #include <AK/Math.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
+#include <AK/TemporaryChange.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
@@ -2546,6 +2547,78 @@ CSS::RequiredInvalidationAfterStyleChange StyleComputer::update_document_compute
     auto invalidation = update_computed_style_recursively(m_document, false, false);
 
     return invalidation;
+}
+
+void StyleComputer::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass pseudo_class, GC::Ptr<Web::DOM::Node>& element_slot, Web::DOM::Node& old_new_common_ancestor, GC::Ptr<Web::DOM::Node>& node)
+{
+    auto const& rules = get_pseudo_class_rule_cache(pseudo_class);
+
+    auto& root = old_new_common_ancestor.root();
+    auto const* shadow_root = is<Web::DOM::ShadowRoot>(root) ? static_cast<Web::DOM::ShadowRoot const*>(&root) : nullptr;
+
+    auto does_rule_match_on_element = [&](DOM::Element const& element, CSS::MatchingRule const& rule) {
+        auto rule_root = rule.shadow_root;
+        auto from_user_agent_or_user_stylesheet = rule.cascade_origin == CSS::CascadeOrigin::UserAgent || rule.cascade_origin == CSS::CascadeOrigin::User;
+        bool rule_is_relevant_for_current_scope = rule_root == shadow_root
+            || (element.is_shadow_host() && rule_root == element.shadow_root())
+            || from_user_agent_or_user_stylesheet;
+        if (!rule_is_relevant_for_current_scope)
+            return false;
+
+        auto const& selector = rule.selector;
+        if (selector.can_use_ancestor_filter() && should_reject_with_ancestor_filter(selector))
+            return false;
+
+        SelectorEngine::MatchContext context;
+        if (SelectorEngine::matches(selector, element, {}, context, {}))
+            return true;
+        if (element.has_pseudo_element(CSS::PseudoElement::Before)) {
+            if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::Before))
+                return true;
+        }
+        if (element.has_pseudo_element(CSS::PseudoElement::After)) {
+            if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::After))
+                return true;
+        }
+        return false;
+    };
+
+    auto matches_different_set_of_rules_after_state_change = [&](DOM::Element& element) {
+        bool result = false;
+        rules.for_each_matching_rules({ element }, [&](auto& rules) {
+            for (auto& rule : rules) {
+                bool before = does_rule_match_on_element(element, rule);
+                TemporaryChange change { element_slot, node };
+                bool after = does_rule_match_on_element(element, rule);
+                if (before != after) {
+                    result = true;
+                    return IterationDecision::Break;
+                }
+            }
+            return IterationDecision::Continue;
+        });
+        return result;
+    };
+
+    Function<void(DOM::Node&)> invalidate_affected_elements_recursively = [&](DOM::Node& node) -> void {
+        if (node.is_element()) {
+            auto& element = static_cast<DOM::Element&>(node);
+            push_ancestor(element);
+            if (element.affected_by_pseudo_class(pseudo_class) && matches_different_set_of_rules_after_state_change(element)) {
+                element.set_needs_style_update(true);
+            }
+        }
+
+        node.for_each_child([&](auto& child) {
+            invalidate_affected_elements_recursively(child);
+            return IterationDecision::Continue;
+        });
+
+        if (node.is_element())
+            pop_ancestor(static_cast<DOM::Element&>(node));
+    };
+
+    invalidate_affected_elements_recursively(root);
 }
 
 static bool is_monospace(StyleValue const& value)

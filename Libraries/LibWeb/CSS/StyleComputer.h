@@ -216,6 +216,7 @@ public:
     CSS::RequiredInvalidationAfterStyleChange update_element_computed_style(Web::DOM::Element& element, bool& did_change_custom_properties);
     CSS::RequiredInvalidationAfterStyleChange update_element_inherited_computed_style(Web::DOM::Element& element);
     CSS::RequiredInvalidationAfterStyleChange update_document_computed_style();
+    void invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass pseudo_class, GC::Ptr<Web::DOM::Node>& element_slot, Web::DOM::Node& old_new_common_ancestor, GC::Ptr<Web::DOM::Node>& node);
 
 private:
     virtual void visit_edges(Visitor&) override;
