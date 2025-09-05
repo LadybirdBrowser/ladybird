@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+  test(() => {
+      const sheet = new CSSStyleSheet();
+      const css = `
+        @property --test {
+          syntax: '<color>';
+          inherits: false;
+          initial-value: black;
+        }
+      `;
+      sheet.replaceSync(css);
+      document.adoptedStyleSheets = [sheet];
+      println("PASS (Didn't crash)");
+  });
+</script>
