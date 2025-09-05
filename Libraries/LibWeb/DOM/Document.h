@@ -414,6 +414,9 @@ public:
     bool in_limited_quirks_mode() const { return m_quirks_mode == QuirksMode::Limited; }
     void set_quirks_mode(QuirksMode mode) { m_quirks_mode = mode; }
 
+    bool parser_cannot_change_the_mode() const { return m_parser_cannot_change_the_mode; }
+    void set_parser_cannot_change_the_mode(bool parser_cannot_change_the_mode) { m_parser_cannot_change_the_mode = parser_cannot_change_the_mode; }
+
     Type document_type() const { return m_type; }
     void set_document_type(Type type) { m_type = type; }
 
@@ -1012,6 +1015,8 @@ private:
     Vector<GC::Ref<HTML::HTMLScriptElement>> m_scripts_to_execute_as_soon_as_possible;
 
     QuirksMode m_quirks_mode { QuirksMode::No };
+
+    bool m_parser_cannot_change_the_mode { false };
 
     // https://dom.spec.whatwg.org/#concept-document-type
     Type m_type { Type::XML };
