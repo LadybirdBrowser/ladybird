@@ -699,7 +699,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     m_sibling_invalidation_distance = 0;
 
     auto& style_computer = document().style_computer();
-    auto new_computed_properties = style_computer.compute_style(*this, {}, did_change_custom_properties);
+    auto new_computed_properties = style_computer.compute_style({ *this }, did_change_custom_properties);
 
     // Tables must not inherit -libweb-* values for text-align.
     // FIXME: Find the spec for this.
