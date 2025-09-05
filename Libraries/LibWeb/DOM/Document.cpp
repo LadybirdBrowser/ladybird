@@ -1491,8 +1491,6 @@ void Document::update_style()
 
     evaluate_media_rules();
 
-    style_computer().reset_ancestor_filter();
-
     auto invalidation = style_computer().update_document_computed_style();
     if (!invalidation.is_none())
         invalidate_display_list();
