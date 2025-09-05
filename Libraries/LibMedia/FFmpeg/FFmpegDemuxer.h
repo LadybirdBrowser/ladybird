@@ -38,7 +38,7 @@ public:
     virtual DecoderErrorOr<Sample> get_next_sample_for_track(Track track) override;
 
 private:
-    DecoderErrorOr<AK::Duration> duration_of_track_in_milliseconds(Track const& track);
+    DecoderErrorOr<AK::Duration> duration_of_track(Track const& track);
 
     NonnullOwnPtr<SeekableStream> m_stream;
     AVCodecContext* m_codec_context { nullptr };
