@@ -1567,9 +1567,8 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
         }
 
         // SVG presentation attributes are parsed as CSS values, so we need to handle potential custom properties here.
-        if (element.is_svg_element()) {
-            cascaded_properties->resolve_unresolved_properties(element, pseudo_element);
-        }
+        if (element.is_svg_element())
+            cascaded_properties->resolve_unresolved_properties({ element, pseudo_element });
     }
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
