@@ -59,14 +59,13 @@ void CascadedProperties::revert_layer_property(PropertyID property_id, Important
         m_properties.remove(it);
 }
 
-void CascadedProperties::resolve_unresolved_properties(GC::Ref<DOM::Element> element, Optional<PseudoElement> pseudo_element)
+void CascadedProperties::resolve_unresolved_properties(DOM::AbstractElement abstract_element)
 {
     for (auto& [property_id, entries] : m_properties) {
         for (auto& entry : entries) {
             if (!entry.property.value->is_unresolved())
                 continue;
-            DOM::AbstractElement abstract_element { element, pseudo_element };
-            entry.property.value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element->document() }, abstract_element, property_id, entry.property.value->as_unresolved());
+            entry.property.value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, property_id, entry.property.value->as_unresolved());
         }
     }
 }
