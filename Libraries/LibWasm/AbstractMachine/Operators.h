@@ -545,7 +545,7 @@ struct Negate {
         return -lhs;
     }
 
-    static StringView name() { return "== 0"sv; }
+    static StringView name() { return "neg"sv; }
 };
 
 struct Ceil {
