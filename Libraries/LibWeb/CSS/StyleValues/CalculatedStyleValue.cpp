@@ -3214,19 +3214,19 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
                 [&](Angle const& angle) -> RefPtr<NumericCalculationNode const> {
                     VERIFY(context.percentages_resolve_as == ValueType::Angle);
                     if (angle.type() == Angle::Type::Deg)
-                        return nullptr;
+                        return NumericCalculationNode::create(angle.percentage_of(*percentage), context);
                     return NumericCalculationNode::create(Angle::make_degrees(angle.to_degrees()).percentage_of(*percentage), context);
                 },
                 [&](Frequency const& frequency) -> RefPtr<NumericCalculationNode const> {
                     VERIFY(context.percentages_resolve_as == ValueType::Frequency);
                     if (frequency.type() == Frequency::Type::Hz)
-                        return nullptr;
+                        return NumericCalculationNode::create(frequency.percentage_of(*percentage), context);
                     return NumericCalculationNode::create(Frequency::make_hertz(frequency.to_hertz()).percentage_of(*percentage), context);
                 },
                 [&](Length const& length) -> RefPtr<NumericCalculationNode const> {
                     VERIFY(context.percentages_resolve_as == ValueType::Length);
                     if (length.type() == Length::Type::Px)
-                        return nullptr;
+                        return NumericCalculationNode::create(length.percentage_of(*percentage), context);
                     if (length.is_absolute())
                         return NumericCalculationNode::create(Length::make_px(length.absolute_length_to_px()).percentage_of(*percentage), context);
                     if (resolution_context.length_resolution_context.has_value())
@@ -3236,7 +3236,7 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
                 [&](Time const& time) -> RefPtr<NumericCalculationNode const> {
                     VERIFY(context.percentages_resolve_as == ValueType::Time);
                     if (time.type() == Time::Type::S)
-                        return nullptr;
+                        return NumericCalculationNode::create(time.percentage_of(*percentage), context);
                     return NumericCalculationNode::create(Time::make_seconds(time.to_seconds()).percentage_of(*percentage), context);
                 });
 
