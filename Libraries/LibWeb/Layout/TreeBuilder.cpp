@@ -285,7 +285,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker
     if (is<ListItemBox>(*pseudo_element_node)) {
-        auto marker_style = style_computer.compute_style(element, CSS::PseudoElement::Marker);
+        auto marker_style = style_computer.compute_style({ element, CSS::PseudoElement::Marker });
         auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(
             document,
             pseudo_element_node->computed_values().list_style_type(),
@@ -788,14 +788,14 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
 
     if (is<ListItemBox>(*layout_node)) {
         auto& element = static_cast<DOM::Element&>(dom_node);
-        auto marker_style = style_computer.compute_style(element, CSS::PseudoElement::Marker);
+        DOM::AbstractElement list_marker_pseudo { element, CSS::PseudoElement::Marker };
+        auto marker_style = style_computer.compute_style(list_marker_pseudo);
         auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), element, marker_style);
         static_cast<ListItemBox&>(*layout_node).set_marker(list_item_marker);
         element.set_computed_properties(CSS::PseudoElement::Marker, marker_style);
         element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
         layout_node->prepend_child(*list_item_marker);
-        DOM::AbstractElement marker_reference { element, CSS::PseudoElement::Marker };
-        CSS::resolve_counters(marker_reference);
+        CSS::resolve_counters(list_marker_pseudo);
     }
 
     if (is<SVG::SVGGraphicsElement>(dom_node)) {
