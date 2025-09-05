@@ -38,7 +38,7 @@ def build_vcpkg():
 
     print(f"Building vcpkg@{git_rev}")
 
-    subprocess.check_call(args=["git", "fetch", "origin"], cwd=vcpkg_checkout, env=git_env)
+    subprocess.check_call(args=["git", "fetch", git_repo], cwd=vcpkg_checkout, env=git_env)
     subprocess.check_call(args=["git", "checkout", git_rev], cwd=vcpkg_checkout, env=git_env)
 
     bootstrap_script = "bootstrap-vcpkg.bat" if os.name == "nt" else "bootstrap-vcpkg.sh"
