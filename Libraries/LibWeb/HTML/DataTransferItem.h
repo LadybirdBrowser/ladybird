@@ -25,6 +25,7 @@ public:
 
     String kind() const;
     String type() const;
+    void set_item_index(Badge<DataTransfer>, Optional<size_t> index) { m_item_index = move(index); }
 
     void get_as_string(GC::Ptr<WebIDL::CallbackType>) const;
     GC::Ptr<FileAPI::File> get_as_file() const;
