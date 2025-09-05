@@ -157,35 +157,28 @@ Optional<StyleProperty> CSSStyleProperties::property(PropertyID property_id) con
         if (!owner_node().has_value())
             return {};
 
-        auto& element = owner_node()->element();
-        auto pseudo_element = owner_node()->pseudo_element();
+        auto abstract_element = *owner_node();
 
         // https://www.w3.org/TR/cssom-1/#dom-window-getcomputedstyle
         // NB: This is a partial enforcement of step 5 ("If elt is connected, ...")
-        if (!element.is_connected())
+        if (!abstract_element.element().is_connected())
             return {};
 
-        auto get_layout_node = [&]() {
-            if (pseudo_element.has_value())
-                return element.get_pseudo_element_node(pseudo_element.value());
-            return element.layout_node();
-        };
-
-        Layout::NodeWithStyle* layout_node = get_layout_node();
+        Layout::NodeWithStyle* layout_node = abstract_element.layout_node();
 
         // FIXME: Be smarter about updating layout if there's no layout node.
         //        We may legitimately have no layout node if we're not visible, but this protects against situations
         //        where we're requesting the computed style before layout has happened.
         if (!layout_node || property_affects_layout(property_id)) {
-            element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
-            layout_node = get_layout_node();
+            abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+            layout_node = abstract_element.layout_node();
         } else {
             // FIXME: If we had a way to update style for a single element, this would be a good place to use it.
-            element.document().update_style();
+            abstract_element.document().update_style();
         }
 
         if (!layout_node) {
-            auto style = element.document().style_computer().compute_style(element, pseudo_element);
+            auto style = abstract_element.document().style_computer().compute_style(abstract_element.element(), abstract_element.pseudo_element());
 
             return StyleProperty {
                 .property_id = property_id,
