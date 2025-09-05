@@ -4623,13 +4623,12 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     return FontSourceStyleValue::create(url.release_value(), move(format), move(tech));
 }
 
-NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
+NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::AbstractElement abstract_element, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
 {
     // Unresolved always contains a var() or attr(), unless it is a custom property's value, in which case we shouldn't be trying
     // to produce a different StyleValue from it.
     VERIFY(unresolved.contains_arbitrary_substitution_function());
 
-    DOM::AbstractElement abstract_element { element, pseudo_element };
     auto parser = Parser::create(context, ""sv);
     if (existing_guarded_contexts.has_value())
         return parser.resolve_unresolved_style_value(abstract_element, existing_guarded_contexts.value(), property, unresolved);
@@ -4638,7 +4637,7 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingPa
 }
 
 // https://drafts.csswg.org/css-values-5/#property-replacement
-NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved)
+NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::AbstractElement element, GuardedSubstitutionContexts& guarded_contexts, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved)
 {
     // AD-HOC: Report that we might rely on custom properties.
     if (unresolved.includes_attr_function())
