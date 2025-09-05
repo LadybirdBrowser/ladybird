@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	remove()ing an out-of-bounds index does nothing
+Pass	remove()ing an item will put the associated DataTransferItem object in the disabled mode

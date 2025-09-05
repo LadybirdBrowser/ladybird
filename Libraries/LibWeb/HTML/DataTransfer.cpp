@@ -248,6 +248,22 @@ GC::Ref<DataTransferItem> DataTransfer::add_item(DragDataStoreItem item)
     return data_transfer_item;
 }
 
+void DataTransfer::remove_item(size_t index)
+{
+    VERIFY(m_associated_drag_data_store);
+    VERIFY(index < m_item_list.size());
+
+    m_associated_drag_data_store->remove_item_at(index);
+    auto& item = m_item_list.at(index);
+    item->set_item_index({}, OptionalNone {});
+    m_item_list.remove(index);
+    for (size_t i = index; i < m_item_list.size(); ++i) {
+        m_item_list.at(i)->set_item_index({}, i);
+    }
+
+    update_data_transfer_types_list();
+}
+
 bool DataTransfer::contains_item_with_type(DragDataStoreItem::Kind kind, String const& type) const
 {
     VERIFY(m_associated_drag_data_store);
