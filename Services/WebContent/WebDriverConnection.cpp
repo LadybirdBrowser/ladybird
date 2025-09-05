@@ -122,6 +122,9 @@ static void scroll_element_into_view(Web::DOM::Element& element)
 {
     // 1. Let options be the following ScrollIntoViewOptions:
     Web::DOM::ScrollIntoViewOptions options {};
+    // "behavior"
+    //     "instant"
+    options.behavior = Web::Bindings::ScrollBehavior::Instant;
     // Logical scroll position "block"
     //     "end"
     options.block = Web::Bindings::ScrollLogicalPosition::End;
