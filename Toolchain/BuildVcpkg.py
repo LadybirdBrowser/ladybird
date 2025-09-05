@@ -24,11 +24,13 @@ def build_vcpkg():
     build_dir.mkdir(parents=True, exist_ok=True)
     vcpkg_checkout = build_dir / "vcpkg"
 
+    git_env = os.environ | {"GIT_CONFIG_GLOBAL": "/dev/null"} # Ignore ~/.gitconfig for reproducibility
+
     if not vcpkg_checkout.is_dir():
-        subprocess.check_call(args=["git", "clone", git_repo], cwd=build_dir)
+        subprocess.check_call(args=["git", "clone", git_repo], cwd=build_dir, env=git_env)
     else:
         bootstrapped_vcpkg_version = (
-            subprocess.check_output(["git", "-C", vcpkg_checkout, "rev-parse", "HEAD"]).strip().decode()
+            subprocess.check_output(["git", "-C", vcpkg_checkout, "rev-parse", "HEAD"], env=git_env).strip().decode()
         )
 
         if bootstrapped_vcpkg_version == git_rev:
@@ -36,8 +38,8 @@ def build_vcpkg():
 
     print(f"Building vcpkg@{git_rev}")
 
-    subprocess.check_call(args=["git", "fetch", "origin"], cwd=vcpkg_checkout)
-    subprocess.check_call(args=["git", "checkout", git_rev], cwd=vcpkg_checkout)
+    subprocess.check_call(args=["git", "fetch", "origin"], cwd=vcpkg_checkout, env=git_env)
+    subprocess.check_call(args=["git", "checkout", git_rev], cwd=vcpkg_checkout, env=git_env)
 
     bootstrap_script = "bootstrap-vcpkg.bat" if os.name == "nt" else "bootstrap-vcpkg.sh"
     subprocess.check_call(args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
