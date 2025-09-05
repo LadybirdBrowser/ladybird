@@ -144,7 +144,7 @@ void Printer::print(Wasm::DataSection::Data const& data)
                 print_indent();
                 print("(active init {}xu8 (", value.init.size());
                 print("{}", ByteString::join(' ', value.init, "{:x}"sv));
-                print("\n");
+                print(")\n");
                 {
                     TemporaryChange change { m_indent, m_indent + 1 };
                     print_indent();
@@ -161,6 +161,8 @@ void Printer::print(Wasm::DataSection::Data const& data)
                     print_indent();
                     print("(index {})\n", value.index.value());
                 }
+                print_indent();
+                print(")\n");
             });
     }
     print_indent();
