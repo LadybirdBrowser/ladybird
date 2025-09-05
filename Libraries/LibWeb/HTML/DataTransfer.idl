@@ -17,6 +17,6 @@ interface DataTransfer {
     readonly attribute FrozenArray<DOMString> types;
     DOMString getData(DOMString format);
     [FIXME] undefined setData(DOMString format, DOMString data);
-    [FIXME] undefined clearData(optional DOMString format);
+    undefined clearData(optional DOMString format);
     [SameObject] readonly attribute FileList files;
 };
