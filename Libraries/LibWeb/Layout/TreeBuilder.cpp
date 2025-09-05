@@ -526,13 +526,6 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         if (element.rendered_in_top_layer() && !context.layout_top_layer)
             return;
     }
-    if (dom_node.is_element())
-        dom_node.document().style_computer().push_ancestor(static_cast<DOM::Element const&>(dom_node));
-
-    ScopeGuard pop_ancestor_guard = [&] {
-        if (dom_node.is_element())
-            dom_node.document().style_computer().pop_ancestor(static_cast<DOM::Element const&>(dom_node));
-    };
 
     GC::Ptr<Layout::Node> old_layout_node = dom_node.layout_node();
     GC::Ptr<Layout::Node> layout_node;
@@ -828,8 +821,6 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
 GC::Ptr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
 {
     VERIFY(dom_node.is_document());
-
-    dom_node.document().style_computer().reset_ancestor_filter();
 
     Context context;
     m_quote_nesting_level = 0;
