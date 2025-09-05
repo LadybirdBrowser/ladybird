@@ -344,7 +344,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
                 for (auto& child : node->children_as_vector())
                     nodes_to_visit.enqueue(child.ptr());
                 if (auto* element = as_if<Web::DOM::Element>(node)) {
-                    auto styles = doc->style_computer().compute_style(*element);
+                    auto styles = doc->style_computer().compute_style({ *element });
                     dump_style(MUST(String::formatted("Element {}", node->debug_description())), styles, element->custom_properties({}));
 
                     for (auto pseudo_element_index = 0; pseudo_element_index < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount); ++pseudo_element_index) {

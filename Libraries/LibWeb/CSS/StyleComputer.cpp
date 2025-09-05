@@ -2331,9 +2331,9 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     return style;
 }
 
-GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Optional<bool&> did_change_custom_properties) const
+GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
-    return *compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal, did_change_custom_properties);
+    return *compute_style_impl(abstract_element.element(), abstract_element.pseudo_element(), ComputeStyleMode::Normal, did_change_custom_properties);
 }
 
 GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Optional<bool&> did_change_custom_properties) const
@@ -2348,7 +2348,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
     // Special path for elements that use pseudo element as style selector
     if (element.use_pseudo_element().has_value()) {
         auto& parent_element = as<HTML::HTMLElement>(*element.root().parent_or_shadow_host());
-        auto style = compute_style(parent_element, *element.use_pseudo_element());
+        auto style = compute_style({ parent_element, element.use_pseudo_element() });
 
         // Merge back inline styles
         if (auto inline_style = element.inline_style()) {
