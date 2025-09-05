@@ -2377,6 +2377,15 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     return style;
 }
 
+GC::Ref<ComputedProperties> StyleComputer::compute_element_style(DOM::AbstractElement abstract_element)
+{
+    disable_ancestor_filter();
+    auto style = compute_style(abstract_element);
+    enable_ancestor_filter();
+
+    return style;
+}
+
 GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
     return *compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties);
