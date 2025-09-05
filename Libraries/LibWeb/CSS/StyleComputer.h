@@ -309,6 +309,11 @@ private:
     CSSPixelRect m_viewport_rect;
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
+    bool m_ancestor_filter_enabled = true;
+
+    bool ancestor_filter_enabled() { return m_ancestor_filter; }
+    void enable_ancestor_filter();
+    void disable_ancestor_filter();
     void reset_ancestor_filter();
     void push_ancestor(DOM::Element const&);
     void pop_ancestor(DOM::Element const&);
@@ -350,6 +355,10 @@ private:
 
 inline bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const
 {
+    if (!m_ancestor_filter_enabled) {
+        return false;
+    }
+
     for (u32 hash : selector.ancestor_hashes()) {
         if (hash == 0)
             break;
