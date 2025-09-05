@@ -6,6 +6,7 @@
 
 #include <AK/Math.h>
 #include <AK/Stream.h>
+#include <AK/Time.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
 
@@ -51,15 +52,29 @@ ErrorOr<NonnullOwnPtr<FFmpegDemuxer>> FFmpegDemuxer::create(NonnullOwnPtr<Seekab
     return demuxer;
 }
 
-DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track_in_milliseconds(Track const& track)
+static inline AK::Duration time_units_to_duration(i64 time_units, int numerator, int denominator)
+{
+    VERIFY(numerator != 0);
+    VERIFY(denominator != 0);
+    auto seconds = time_units * numerator / denominator;
+    auto seconds_in_time_units = seconds * denominator / numerator;
+    auto remainder_in_time_units = time_units - seconds_in_time_units;
+    auto nanoseconds = ((remainder_in_time_units * 1'000'000'000 * numerator) + (denominator / 2)) / denominator;
+    return AK::Duration::from_seconds(seconds) + AK::Duration::from_nanoseconds(nanoseconds);
+}
+
+static inline AK::Duration time_units_to_duration(i64 time_units, AVRational const& time_base)
+{
+    return time_units_to_duration(time_units, time_base.num, time_base.den);
+}
+
+DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)
 {
     VERIFY(track.identifier() < m_format_context->nb_streams);
     auto* stream = m_format_context->streams[track.identifier()];
 
     if (stream->duration >= 0) {
-        auto time_base = av_q2d(stream->time_base);
-        double duration_in_milliseconds = static_cast<double>(stream->duration) * time_base * 1000.0;
-        return AK::Duration::from_milliseconds(AK::round_to<int64_t>(duration_in_milliseconds));
+        return time_units_to_duration(stream->duration, stream->time_base);
     }
 
     // If the stream doesn't specify the duration, fallback to what the container says the duration is.
@@ -67,8 +82,7 @@ DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track_in_milliseconds(Tr
     if (m_format_context->duration < 0)
         return DecoderError::format(DecoderErrorCategory::Unknown, "Negative stream duration");
 
-    double duration_in_milliseconds = (static_cast<double>(m_format_context->duration) / AV_TIME_BASE) * 1000.0;
-    return AK::Duration::from_milliseconds(AK::round_to<int64_t>(duration_in_milliseconds));
+    return time_units_to_duration(m_format_context->duration, 1, AV_TIME_BASE);
 }
 
 DecoderErrorOr<Vector<Track>> FFmpegDemuxer::get_tracks_for_type(TrackType type)
@@ -102,7 +116,7 @@ DecoderErrorOr<Vector<Track>> FFmpegDemuxer::get_tracks_for_type(TrackType type)
 
     if (type == TrackType::Video) {
         track.set_video_data({
-            .duration = TRY(duration_of_track_in_milliseconds(track)),
+            .duration = TRY(duration_of_track(track)),
             .pixel_width = static_cast<u64>(stream->codecpar->width),
             .pixel_height = static_cast<u64>(stream->codecpar->height),
         });
@@ -132,7 +146,7 @@ DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyfra
 
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration(Track track)
 {
-    return duration_of_track_in_milliseconds(track);
+    return duration_of_track(track);
 }
 
 DecoderErrorOr<CodecID> FFmpegDemuxer::get_codec_id_for_track(Track track)
@@ -181,15 +195,12 @@ DecoderErrorOr<Sample> FFmpegDemuxer::get_next_sample_for_track(Track track)
             }
         }();
 
-        auto time_base = av_q2d(stream->time_base);
-        double timestamp_in_milliseconds = static_cast<double>(m_packet->pts) * time_base * 1000.0;
-
         // Copy the packet data so that we have a permanent reference to it whilst the Sample is alive, which allows us
         // to wipe the packet afterwards.
         auto packet_data = DECODER_TRY_ALLOC(ByteBuffer::copy(m_packet->data, m_packet->size));
 
         auto sample = Sample(
-            AK::Duration::from_milliseconds(AK::round_to<int64_t>(timestamp_in_milliseconds)),
+            time_units_to_duration(m_packet->pts, stream->time_base),
             move(packet_data),
             VideoSampleData(CodingIndependentCodePoints(color_primaries, transfer_characteristics, matrix_coefficients, color_range)));
 
