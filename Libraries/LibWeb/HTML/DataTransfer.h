@@ -60,6 +60,7 @@ public:
     void disassociate_with_drag_data_store();
 
     GC::Ref<DataTransferItem> add_item(DragDataStoreItem item);
+    void remove_item(size_t index);
     bool contains_item_with_type(DragDataStoreItem::Kind, String const& type) const;
     GC::Ref<DataTransferItem> item(size_t index) const;
     DragDataStoreItem const& drag_data(size_t index) const;

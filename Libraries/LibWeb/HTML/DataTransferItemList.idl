@@ -8,6 +8,6 @@ interface DataTransferItemList {
     getter DataTransferItem (unsigned long index);
     DataTransferItem? add(DOMString data, DOMString type);
     DataTransferItem? add(File data);
-    [FIXME] undefined remove(unsigned long index);
+    undefined remove(unsigned long index);
     [FIXME] undefined clear();
 };
