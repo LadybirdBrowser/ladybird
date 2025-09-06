@@ -507,6 +507,9 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                     // FIXME: AppKit does not have a corresponding cursor, so we should make one.
                     [[NSCursor arrowCursor] set];
                     break;
+                case Gfx::StandardCursor::OpenHand:
+                    [[NSCursor openHandCursor] set];
+                    break;
                 case Gfx::StandardCursor::Drag:
                     [[NSCursor closedHandCursor] set];
                     break;

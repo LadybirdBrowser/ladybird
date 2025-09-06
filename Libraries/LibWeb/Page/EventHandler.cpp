@@ -108,6 +108,7 @@ static Gfx::Cursor resolve_cursor(Layout::NodeWithStyle const& layout_node, Vect
                 case CSS::CursorPredefined::Cell:
                     return Gfx::StandardCursor::Crosshair;
                 case CSS::CursorPredefined::Grab:
+                    return Gfx::StandardCursor::OpenHand;
                 case CSS::CursorPredefined::Grabbing:
                     return Gfx::StandardCursor::Drag;
                 case CSS::CursorPredefined::Pointer:
