@@ -4107,6 +4107,10 @@ RefPtr<StyleValue const> Parser::parse_calculated_value(ComponentValue const& co
             },
             [](SpecialContext special_context) -> Optional<CalculationContext> {
                 switch (special_context) {
+                case FontStyleObliqueAngle:
+                    return CalculationContext {
+                        .accepted_type_ranges = { { ValueType::Angle, { -90, 90 } } }
+                    };
                 case SpecialContext::TranslateZArgument:
                     // Percentages are disallowed for the Z axis
                     return CalculationContext {};

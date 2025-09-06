@@ -135,7 +135,7 @@ class WEB_API StyleComputer final : public GC::Cell {
 
 public:
     static void for_each_property_expanding_shorthands(PropertyID, StyleValue const&, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property);
-    static NonnullRefPtr<StyleValue const> get_inherit_value(CSS::PropertyID, DOM::Element const*, Optional<CSS::PseudoElement> = {});
+    static NonnullRefPtr<StyleValue const> get_non_animated_inherit_value(CSS::PropertyID, DOM::Element const*, Optional<CSS::PseudoElement> = {});
     static Optional<NonnullRefPtr<StyleValue const>> get_animated_inherit_value(CSS::PropertyID, DOM::Element const*, Optional<CSS::PseudoElement> = {});
 
     static Optional<String> user_agent_style_sheet_source(StringView name);
@@ -175,9 +175,9 @@ public:
     void unload_fonts_from_sheet(CSSStyleSheet&);
 
     static CSSPixels default_user_font_size();
-    static CSSPixelFraction absolute_size_mapping(Keyword);
-    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth = 0) const;
-
+    static CSSPixels absolute_size_mapping(AbsoluteSize, CSSPixels default_font_size);
+    static CSSPixels relative_size_mapping(RelativeSize, CSSPixels inherited_font_size);
+    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width) const;
     [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::Element&, Optional<CSS::PseudoElement> pseudo_element, CascadedProperties&) const;
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
@@ -192,7 +192,7 @@ public:
     [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::Element&, Optional<PseudoElement>, CascadedProperties&) const;
 
     void compute_property_values(ComputedProperties&) const;
-    void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::PseudoElement>) const;
+    void compute_font(ComputedProperties&, Optional<DOM::AbstractElement>) const;
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
 
@@ -204,6 +204,10 @@ public:
     };
     static NonnullRefPtr<StyleValue const> compute_value_of_property(PropertyID, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, PropertyValueComputationContext const&);
     static NonnullRefPtr<StyleValue const> compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& specified_value, NonnullRefPtr<StyleValue const> const& style_specified_value, PropertyValueComputationContext const&);
+    static NonnullRefPtr<StyleValue const> compute_font_size(NonnullRefPtr<StyleValue const> const& specified_value, int computed_math_depth, CSSPixels inherited_font_size, int inherited_math_depth, Length::ResolutionContext const& parent_length_resolution_context);
+    static NonnullRefPtr<StyleValue const> compute_font_style(NonnullRefPtr<StyleValue const> const& specified_value, Length::ResolutionContext const& parent_length_resolution_context);
+    static NonnullRefPtr<StyleValue const> compute_font_weight(NonnullRefPtr<StyleValue const> const& specified_value, double inherited_font_weight, Length::ResolutionContext const& parent_length_resolution_context);
+    static NonnullRefPtr<StyleValue const> compute_font_width(NonnullRefPtr<StyleValue const> const& specified_value, Length::ResolutionContext const& parent_length_resolution_context);
 
 private:
     virtual void visit_edges(Visitor&) override;
@@ -296,8 +300,6 @@ private:
 
     using FontLoaderList = Vector<GC::Ref<FontLoader>>;
     HashMap<OwnFontFaceKey, FontLoaderList> m_loaded_fonts;
-
-    [[nodiscard]] Length::FontMetrics const& root_element_font_metrics_for_element(GC::Ptr<DOM::Element const>) const;
 
     Length::FontMetrics m_default_font_metrics;
     Length::FontMetrics m_root_element_font_metrics;

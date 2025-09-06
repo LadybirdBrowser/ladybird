@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
@@ -2095,8 +2096,22 @@ WillChange ComputedProperties::will_change() const
 
 CSSPixels ComputedProperties::font_size() const
 {
-    // FIXME: Respect animated font-size here once we store it in computed form
-    return property(PropertyID::FontSize, WithAnimationsApplied::No).as_length().length().absolute_length_to_px();
+    return property(PropertyID::FontSize).as_length().length().absolute_length_to_px();
+}
+
+double ComputedProperties::font_weight() const
+{
+    return property(PropertyID::FontWeight).as_number().number();
+}
+
+Percentage ComputedProperties::font_width() const
+{
+    return property(PropertyID::FontWidth).as_percentage().percentage();
+}
+
+int ComputedProperties::font_slope() const
+{
+    return property(PropertyID::FontStyle).as_font_style().to_font_slope();
 }
 
 }
