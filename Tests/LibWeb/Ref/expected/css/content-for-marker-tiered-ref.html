@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html id="html">
+<!doctype html>
+<head id="head">
+<style id="style">
+
+.bullet::marker { content: '• '; }
+.n1::marker { content: '1: '; }
+.n1_2_1_1::marker { content: '1.2.1.1: '; }
+.n1_2_1_2::marker { content: '1.2.1.2: '; }
+.n2::marker { content: '2: '; }
+
+</style>
+</head>
+<body id="body">
+<ol>
+    <li class="n1">One</li>
+    <ul>
+        <li class="bullet">One-One (bullet)</li>
+        <li class="bullet">One-Two (bullet)</li>
+            <ul>
+                <li class="bullet">One-Two-One(bullet)</li>
+                    <ol>
+                        <li class="n1_2_1_1">One-Two-One-One</li>
+                        <li class="n1_2_1_2">One-Two-One-Two</li>
+                    </ol>
+                <li class="bullet">One-Two-Two(bullet)</li>
+            </ul>
+        <li class="bullet">One-Three(bullet)</li>
+    </ul>
+    <li class="n2">Two</li>
+</ol>
+</body>
+</html>
