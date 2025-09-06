@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<style>
+.flex {
+    display: flex;
+    justify-content: space-between;
+    width: 500px;
+    background: #eee;
+    margin-bottom: 30px;
+}
+
+.left {
+    display: flex;
+}
+
+input {
+    width: 100%;
+    border-radius: 9999px;
+    background: red;
+    border: 2px solid darkred;
+    height: 40px;
+    box-sizing: border-box;
+}
+
+textarea {
+    width: 100%;
+    background: blue;
+    border: 2px solid darkblue;
+    height: 60px;
+    border-radius: 4px;
+    box-sizing: border-box;
+    resize: none;
+}
+
+.spacer {
+    width: 50px;
+    background: #333;
+}
+</style>
+
+<div class="flex">
+    <div class="left">
+        <div class="spacer"></div>
+        <input type="text">
+    </div>
+    <div class="spacer"></div>
+</div>
+
+<div class="flex">
+    <div class="left">
+        <div class="spacer"></div>
+        <textarea></textarea>
+    </div>
+    <div class="spacer"></div>
+</div>
