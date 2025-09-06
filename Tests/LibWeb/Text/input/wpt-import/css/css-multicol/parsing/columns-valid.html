@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <title>CSS Multi-column Layout: parsing columns with valid values</title>
 <link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-columns">
-<meta name="assert" content="columns supports the full grammar '<column-width> || <column-count>'.">
+<link rel="help" href="https://drafts.csswg.org/css-multicol-2/#propdef-columns">
+<meta name="assert" content="columns supports the full grammar '[ <'column-width'> || <'column-count'> ] [ / <'column-height'> ]?'.">
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
 <script src="../../../css/support/parsing-testcommon.js"></script>
@@ -26,6 +27,17 @@ test_valid_value("columns", "7em");
 test_valid_value("columns", "0 1", "0px 1");
 test_valid_value("columns", "1 0", "0px 1");
 test_valid_value("columns", "0px 1");
+
+// With "/ <'column-height'>"
+test_valid_value("columns", "10px 2 / 100px");
+test_valid_value("columns", "2 10px / 100px", "10px 2 / 100px");
+test_valid_value("columns", "10px / 100px");
+test_valid_value("columns", "auto / 100px");
+test_valid_value("columns", "10px 2 / auto", "10px 2");
+test_valid_value("columns", "2 10px / auto", "10px 2");
+test_valid_value("columns", "10px / auto", "10px");
+test_valid_value("columns", "2 / auto", "2");
+test_valid_value("columns", "auto / auto", "auto");
 
 // CSS-wide keywords.
 test_valid_value("columns", "initial");

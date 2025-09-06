@@ -348,6 +348,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'column-count': 'auto'
 'columnGap': 'normal'
 'column-gap': 'normal'
+'columnHeight': 'auto'
+'column-height': 'auto'
 'columnSpan': 'none'
 'column-span': 'none'
 'columnWidth': 'auto'

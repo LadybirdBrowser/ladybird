@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 27 tests
+
+27 Pass
+Pass	Property columns value 'auto'
+Pass	Property columns value '0.25em'
+Pass	Property columns value '2'
+Pass	Property columns value '0.25em 2'
+Pass	Property columns value '2 0.25em'
+Pass	Property columns value '0.25em auto'
+Pass	Property columns value 'auto 0.25em'
+Pass	Property columns value '2 auto'
+Pass	Property columns value 'auto 2'
+Pass	Property columns value 'auto / 2.5em'
+Pass	Property columns value '0.25em / 2.5em'
+Pass	Property columns value '2 / 2.5em'
+Pass	Property columns value '0.25em 2 / 2.5em'
+Pass	Property columns value '2 0.25em / 2.5em'
+Pass	Property columns value '0.25em auto / 2.5em'
+Pass	Property columns value 'auto 0.25em / 2.5em'
+Pass	Property columns value '2 auto / 2.5em'
+Pass	Property columns value 'auto 2 / 2.5em'
+Pass	Property columns value 'auto / auto'
+Pass	Property columns value '0.25em / auto'
+Pass	Property columns value '2 / auto'
+Pass	Property columns value '0.25em 2 / auto'
+Pass	Property columns value '2 0.25em / auto'
+Pass	Property columns value '0.25em auto / auto'
+Pass	Property columns value 'auto 0.25em / auto'
+Pass	Property columns value '2 auto / auto'
+Pass	Property columns value 'auto 2 / auto'

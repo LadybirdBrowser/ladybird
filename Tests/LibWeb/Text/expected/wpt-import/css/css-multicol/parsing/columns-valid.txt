@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 15 tests
+Found 24 tests
 
-15 Pass
+24 Pass
 Pass	e.style['columns'] = "auto 3" should set the property value
 Pass	e.style['columns'] = "auto 10em" should set the property value
 Pass	e.style['columns'] = "3 auto" should set the property value
@@ -16,5 +16,14 @@ Pass	e.style['columns'] = "7em" should set the property value
 Pass	e.style['columns'] = "0 1" should set the property value
 Pass	e.style['columns'] = "1 0" should set the property value
 Pass	e.style['columns'] = "0px 1" should set the property value
+Pass	e.style['columns'] = "10px 2 / 100px" should set the property value
+Pass	e.style['columns'] = "2 10px / 100px" should set the property value
+Pass	e.style['columns'] = "10px / 100px" should set the property value
+Pass	e.style['columns'] = "auto / 100px" should set the property value
+Pass	e.style['columns'] = "10px 2 / auto" should set the property value
+Pass	e.style['columns'] = "2 10px / auto" should set the property value
+Pass	e.style['columns'] = "10px / auto" should set the property value
+Pass	e.style['columns'] = "2 / auto" should set the property value
+Pass	e.style['columns'] = "auto / auto" should set the property value
 Pass	e.style['columns'] = "initial" should set the property value
 Pass	e.style['columns'] = "inherit" should set the property value

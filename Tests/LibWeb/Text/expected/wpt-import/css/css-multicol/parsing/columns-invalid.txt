@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 9 tests
+Found 17 tests
 
-9 Pass
+17 Pass
 Pass	e.style['columns'] = "none" should not set the property value
 Pass	e.style['columns'] = "10px 20px" should not set the property value
 Pass	e.style['columns'] = "10 20" should not set the property value
@@ -12,3 +12,11 @@ Pass	e.style['columns'] = "auto auto auto" should not set the property value
 Pass	e.style['columns'] = "10em auto auto" should not set the property value
 Pass	e.style['columns'] = "initial initial" should not set the property value
 Pass	e.style['columns'] = "inherit inherit" should not set the property value
+Pass	e.style['columns'] = "/ 100px" should not set the property value
+Pass	e.style['columns'] = "/ auto" should not set the property value
+Pass	e.style['columns'] = "/" should not set the property value
+Pass	e.style['columns'] = "auto /" should not set the property value
+Pass	e.style['columns'] = "100px /" should not set the property value
+Pass	e.style['columns'] = "2 /" should not set the property value
+Pass	e.style['columns'] = "2 100px /" should not set the property value
+Pass	e.style['columns'] = "100px 2 /" should not set the property value
