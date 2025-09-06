@@ -100,7 +100,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::WebDriver::set_default_interface_mode(headless ? Web::WebDriver::InterfaceMode::Headless : Web::WebDriver::InterfaceMode::Graphical);
 
-    auto webdriver_socket_path = ByteString::formatted("{}/webdriver", TRY(Core::StandardPaths::runtime_directory()));
+    auto webdriver_socket_path = ByteString::formatted("{}/webdriver", Core::StandardPaths::tempfile_directory());
     TRY(Core::Directory::create(webdriver_socket_path, Core::Directory::CreateDirectories::Yes));
 
     Core::EventLoop loop;
