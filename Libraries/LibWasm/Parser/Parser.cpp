@@ -588,8 +588,8 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
 
             // Proposal "multi-memory", if bit 6 of alignment is set, then a memory index follows the alignment.
             auto memory_index = 0;
-            if ((align & 0x20) != 0) {
-                align &= ~0x20;
+            if ((align & 0x40) != 0) {
+                align &= ~0x40;
                 memory_index = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
             }
 
@@ -610,8 +610,8 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
 
             // Proposal "multi-memory", if bit 6 of alignment is set, then a memory index follows the alignment.
             auto memory_index = 0;
-            if ((align & 0x20) != 0) {
-                align &= ~0x20;
+            if ((align & 0x40) != 0) {
+                align &= ~0x40;
                 memory_index = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
             }
 
