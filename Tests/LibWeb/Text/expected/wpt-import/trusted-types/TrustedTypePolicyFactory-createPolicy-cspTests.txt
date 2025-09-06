@@ -1,0 +1,9 @@
+Harness status: Error
+
+Found 4 tests
+
+4 Pass
+Pass	Allowed-name policy creation works.
+Pass	Another allowed-name policy creation works.
+Pass	Non-allowed name policy creation throws.
+Pass	Duplicate name policy creation throws.

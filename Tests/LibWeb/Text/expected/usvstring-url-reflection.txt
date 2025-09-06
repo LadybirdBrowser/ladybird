@@ -11,7 +11,6 @@ input.src final URL path segment: %EF%BF%BDa%EF%BF%BDb%EF%BF%BD
 link.href final URL path segment: %EF%BF%BDa%EF%BF%BDb%EF%BF%BD
 object.codeBase final URL path segment: %EF%BF%BDa%EF%BF%BDb%EF%BF%BD
 object.data final URL path segment: %EF%BF%BDa%EF%BF%BDb%EF%BF%BD
-script.src final URL path segment: %EF%BF%BDa%EF%BF%BDb%EF%BF%BD
 source.src final URL path segment: %EF%BF%BDa%EF%BF%BDb%EF%BF%BD
 track.src final URL path segment: %EF%BF%BDa%EF%BF%BDb%EF%BF%BD
 video.poster final URL path segment: %EF%BF%BDa%EF%BF%BDb%EF%BF%BD

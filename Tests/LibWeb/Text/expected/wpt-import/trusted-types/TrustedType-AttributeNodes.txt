@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 33 tests
+
+33 Pass
+Pass	Set attribute via attribute node on div.src.
+Pass	Set attribute via attributenode.value on div.src.
+Pass	Set attribute via NamedNodeMap.setNamedItem on div.src.
+Pass	Set attribute via attribute node on div.srcdoc.
+Pass	Set attribute via attributenode.value on div.srcdoc.
+Pass	Set attribute via NamedNodeMap.setNamedItem on div.srcdoc.
+Pass	Set attribute via attributenode.value on div.onclick.
+Pass	Set attribute via NamedNodeMap.setNamedItem on div.onclick.
+Pass	Set attribute via attribute node on div.bla.
+Pass	Set attribute via attributenode.value on div.bla.
+Pass	Set attribute via NamedNodeMap.setNamedItem on div.bla.
+Pass	Set attribute via attribute node on script.src.
+Pass	Set attribute via attributenode.value on script.src.
+Pass	Set attribute via NamedNodeMap.setNamedItem on script.src.
+Pass	Set attribute via attribute node on script.srcdoc.
+Pass	Set attribute via attributenode.value on script.srcdoc.
+Pass	Set attribute via NamedNodeMap.setNamedItem on script.srcdoc.
+Pass	Set attribute via attributenode.value on script.onclick.
+Pass	Set attribute via NamedNodeMap.setNamedItem on script.onclick.
+Pass	Set attribute via attribute node on script.bla.
+Pass	Set attribute via attributenode.value on script.bla.
+Pass	Set attribute via NamedNodeMap.setNamedItem on script.bla.
+Pass	Set attribute via attribute node on iframe.src.
+Pass	Set attribute via attributenode.value on iframe.src.
+Pass	Set attribute via NamedNodeMap.setNamedItem on iframe.src.
+Pass	Set attribute via attribute node on iframe.srcdoc.
+Pass	Set attribute via attributenode.value on iframe.srcdoc.
+Pass	Set attribute via NamedNodeMap.setNamedItem on iframe.srcdoc.
+Pass	Set attribute via attributenode.value on iframe.onclick.
+Pass	Set attribute via NamedNodeMap.setNamedItem on iframe.onclick.
+Pass	Set attribute via attribute node on iframe.bla.
+Pass	Set attribute via attributenode.value on iframe.bla.
+Pass	Set attribute via NamedNodeMap.setNamedItem on iframe.bla.

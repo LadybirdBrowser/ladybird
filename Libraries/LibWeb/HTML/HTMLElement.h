@@ -219,6 +219,8 @@ protected:
     void set_inert(bool inert) { m_inert = inert; }
     void set_subtree_inertness(bool is_inert);
 
+    [[nodiscard]] Utf16String get_the_text_steps();
+
 private:
     virtual bool is_html_element() const final { return true; }
 
@@ -229,7 +231,6 @@ private:
     virtual void did_receive_focus() override;
     virtual void did_lose_focus() override;
 
-    [[nodiscard]] Utf16String get_the_text_steps();
     GC::Ref<DOM::DocumentFragment> rendered_text_fragment(Utf16View const& input);
 
     GC::Ptr<DOM::NodeList> m_labels;
