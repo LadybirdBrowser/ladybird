@@ -28,9 +28,7 @@ namespace Web {
 #    error Unknown architecture
 #endif
 
-#if defined(AK_OS_SERENITY)
-#    define OS_STRING "SerenityOS"
-#elif defined(AK_OS_ANDROID)
+#if defined(AK_OS_ANDROID)
 #    define OS_STRING "Android 10"
 #elif defined(AK_OS_LINUX)
 #    define OS_STRING "Linux"
