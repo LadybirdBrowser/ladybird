@@ -7,7 +7,9 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/StackOfOpenElements.h>
+#include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/SVG/TagNames.h>
 
 namespace Web::HTML {
 
@@ -20,12 +22,16 @@ void StackOfOpenElements::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_elements);
 }
 
-bool StackOfOpenElements::has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const& list) const
+bool StackOfOpenElements::has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const& list, bool checkMathAndSvg) const
 {
     for (auto const& element : m_elements.in_reverse()) {
         if (element->local_name() == tag_name)
             return true;
         if (list.contains_slow(element->local_name()))
+            return false;
+        if (checkMathAndSvg && element->namespace_uri() == Namespace::SVG && element->local_name().is_one_of(SVG::TagNames::foreignObject, SVG::TagNames::desc, SVG::TagNames::title))
+            return false;
+        if (checkMathAndSvg && element->namespace_uri() == Namespace::MathML && element->local_name().is_one_of(MathML::TagNames::mi, MathML::TagNames::mo, MathML::TagNames::mn, MathML::TagNames::ms, MathML::TagNames::mtext))
             return false;
     }
     VERIFY_NOT_REACHED();
@@ -56,7 +62,7 @@ bool StackOfOpenElements::has_in_button_scope(FlyString const& tag_name) const
 {
     auto list = s_base_list;
     list.append("button"_fly_string);
-    return has_in_scope_impl(tag_name, list);
+    return has_in_scope_impl(tag_name, list, true);
 }
 
 bool StackOfOpenElements::has_in_table_scope(FlyString const& tag_name) const
@@ -69,7 +75,7 @@ bool StackOfOpenElements::has_in_list_item_scope(FlyString const& tag_name) cons
     auto list = s_base_list;
     list.append("ol"_fly_string);
     list.append("ul"_fly_string);
-    return has_in_scope_impl(tag_name, list);
+    return has_in_scope_impl(tag_name, list, true);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-select-scope
