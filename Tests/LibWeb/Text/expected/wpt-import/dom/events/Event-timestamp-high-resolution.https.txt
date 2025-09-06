@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Constructed GamepadEvent timestamp should be high resolution and have the same time origin as performance.now()
+1 Pass
+Pass	Constructed GamepadEvent timestamp should be high resolution and have the same time origin as performance.now()
