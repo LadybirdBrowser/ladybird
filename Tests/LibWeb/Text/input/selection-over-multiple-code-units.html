@@ -2,18 +2,28 @@
 <script src="include.js"></script>
 😭foobar😭
 <script>
-asyncTest(done => {
-    window.addEventListener('load', () => {
-        internals.mouseDown(55, 20);
-        internals.movePointerTo(110, 20);
+test(() => {
+    internals.mouseDown(55, 20);
 
-        const activeRange = window.getSelection().getRangeAt(0);
-        printElement(activeRange.startContainer);
-        println(activeRange.startOffset);
-        printElement(activeRange.endContainer);
-        println(activeRange.endOffset);
+    println('--- hit test ---');
+    let hit = internals.hitTest(55, 20);
+    printElement(hit.node);
+    println(`index: ${hit.indexInNode}`);
+    printElement(hit.node.parentNode);
 
-        done();
-    });
+    internals.movePointerTo(110, 20);
+
+    println('--- hit test ---');
+    hit = internals.hitTest(110, 20);
+    printElement(hit.node);
+    println(`index: ${hit.indexInNode}`);
+    printElement(hit.node.parentNode);
+
+    const activeRange = window.getSelection().getRangeAt(0);
+    println('');
+    printElement(activeRange.startContainer);
+    println(activeRange.startOffset);
+    printElement(activeRange.endContainer);
+    println(activeRange.endOffset);
 });
 </script>
