@@ -137,6 +137,7 @@ static bool is_platform_object(Type const& type)
         "VTTRegion"sv,
         "VideoTrack"sv,
         "VideoTrackList"sv,
+        "ViewTransition"sv,
         "WebGL2RenderingContext"sv,
         "WebGLActiveInfo"sv,
         "WebGLBuffer"sv,

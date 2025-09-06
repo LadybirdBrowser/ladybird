@@ -476,6 +476,7 @@ VTTRegion
 ValidityState
 VideoTrack
 VideoTrackList
+ViewTransition
 VisualViewport
 WeakMap
 WeakRef

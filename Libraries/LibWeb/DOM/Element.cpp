@@ -85,6 +85,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/Selection/Selection.h>
@@ -3973,6 +3974,44 @@ Optional<String> Element::lang() const
     if (!maybe_lang.has_value() || maybe_lang->is_empty())
         return {};
     return maybe_lang.release_value();
+}
+
+// https://drafts.csswg.org/css-images-4/#element-not-rendered
+bool Element::not_rendered() const
+{
+    // An element is not rendered if it does not have an associated box.
+    if (!layout_node() || !paintable_box())
+        return true;
+
+    return false;
+}
+
+// https://drafts.csswg.org/css-view-transitions-1/#document-scoped-view-transition-name
+Optional<FlyString> Element::document_scoped_view_transition_name()
+{
+    // To get the document-scoped view transition name for an Element element:
+
+    // 1. Let scopedViewTransitionName be the computed value of view-transition-name for element.
+    auto scoped_view_transition_name = computed_properties()->view_transition_name();
+
+    // 2. If scopedViewTransitionName is associated with element’s node document, then return
+    //    scopedViewTransitionName.
+    // FIXME: Properly handle tree-scoping of the name here.
+    //        (see https://drafts.csswg.org/css-view-transitions-1/#propdef-view-transition-name , "Each view transition name is a tree-scoped name.")
+    if (true) {
+        return scoped_view_transition_name;
+    }
+
+    // 3. Otherwise, return none.
+    return {};
+}
+
+// https://drafts.csswg.org/css-view-transitions-1/#capture-the-image
+// To capture the image given an element element, perform the following steps. They return an image.
+RefPtr<Gfx::ImmutableBitmap> Element::capture_the_image()
+{
+    // FIXME: Actually implement this.
+    return Gfx::ImmutableBitmap::create(MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize(1, 1))));
 }
 
 void Element::set_pointer_capture(WebIDL::Long pointer_id)
