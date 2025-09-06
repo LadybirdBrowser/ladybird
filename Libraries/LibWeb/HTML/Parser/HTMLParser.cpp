@@ -4739,6 +4739,13 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         // Insert a foreign element for the token, with the adjusted current node's namespace and false.
         (void)insert_foreign_element(token, adjusted_current_node()->namespace_uri(), OnlyAddToElementStack::No);
 
+        // If we just inserted an SVG script element, mark it as parser-inserted immediately
+        if (token.tag_name() == SVG::TagNames::script && current_node()->namespace_uri() == Namespace::SVG) {
+            auto& script_element = as<SVG::SVGScriptElement>(*current_node());
+            script_element.set_parser_inserted({});
+            script_element.set_source_line_number({}, token.start_position().line + 1);
+        }
+
         // If the token has its self-closing flag set, then run the appropriate steps from the following list:
         if (token.is_self_closing()) {
 
@@ -4746,6 +4753,9 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
             if (token.tag_name() == SVG::TagNames::script && current_node()->namespace_uri() == Namespace::SVG) {
                 auto& script_element = as<SVG::SVGScriptElement>(*current_node());
                 script_element.set_source_line_number({}, token.start_position().line + 1); // FIXME: This +1 is incorrect for script tags whose script does not start on a new line
+
+                // Self-closing script elements are considered properly closed.
+                script_element.set_properly_closed({});
 
                 // Acknowledge the token's self-closing flag, and then act as described in the steps for a "script" end tag below.
                 token.acknowledge_self_closing_flag_if_set();
@@ -4763,10 +4773,14 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
     }
 
     // -> An end tag whose tag name is "script", if the current node is an SVG script element
-    if (token.is_end_tag() && current_node()->namespace_uri() == Namespace::SVG && current_node()->local_name() == SVG::TagNames::script) {
+    if (token.is_end_tag() && token.tag_name() == SVG::TagNames::script && current_node()->namespace_uri() == Namespace::SVG) {
     ScriptEndTag:
         // Pop the current node off the stack of open elements.
         auto& script_element = as<SVG::SVGScriptElement>(*m_stack_of_open_elements.pop());
+
+        // End tags for script elements are considered properly closed.
+        script_element.set_properly_closed({});
+
         // Let the old insertion point have the same value as the current insertion point.
         m_tokenizer.store_insertion_point();
         // Let the insertion point be just before the next input character.
