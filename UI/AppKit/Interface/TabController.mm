@@ -4,18 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
-#include <LibWebView/SearchEngine.h>
 #include <LibWebView/URL.h>
-#include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Autocomplete.h>
-#import <Interface/Event.h>
 #import <Interface/LadybirdWebView.h>
+#import <Interface/Menu.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
 #import <Utilities/Conversions.h>
@@ -55,12 +52,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 {
     u64 m_page_index;
 
-    TabSettings m_settings;
-
     OwnPtr<WebView::Autocomplete> m_autocomplete;
-
-    bool m_can_navigate_back;
-    bool m_can_navigate_forward;
 }
 
 @property (nonatomic, strong) Tab* parent;
@@ -109,14 +101,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
         m_page_index = 0;
 
-        m_settings = {
-            .scripting_enabled = WebView::Application::browser_options().disable_scripting == WebView::DisableScripting::Yes ? NO : YES,
-            .block_popups = WebView::Application::browser_options().allow_popups == WebView::AllowPopups::Yes ? NO : YES,
-        };
-
-        if (auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
-            m_settings.user_agent_name = *user_agent_preset;
-
         self.autocomplete = [[Autocomplete alloc] init:self withToolbarItem:self.location_toolbar_item];
         m_autocomplete = make<WebView::Autocomplete>();
 
@@ -128,9 +112,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
             [self.autocomplete showWithSuggestions:move(suggestions)];
         };
-
-        m_can_navigate_back = false;
-        m_can_navigate_forward = false;
     }
 
     return self;
@@ -170,20 +151,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self.window makeFirstResponder:[self tab].web_view];
 }
 
-- (void)onBackNavigationEnabled:(BOOL)back_enabled
-       forwardNavigationEnabled:(BOOL)forward_enabled
-{
-    m_can_navigate_back = back_enabled;
-    m_can_navigate_forward = forward_enabled;
-    [self updateNavigationButtonStates];
-}
-
-- (void)onCreateNewTab
-{
-    [self setPopupBlocking:m_settings.block_popups];
-    [self setScripting:m_settings.scripting_enabled];
-}
-
 - (void)zoomIn:(id)sender
 {
     [[[self tab] web_view] zoomIn];
@@ -202,34 +169,9 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self updateZoomButton];
 }
 
-- (void)navigateBack:(id)sender
-{
-    [[[self tab] web_view] navigateBack];
-}
-
-- (void)navigateForward:(id)sender
-{
-    [[[self tab] web_view] navigateForward];
-}
-
-- (void)reload:(id)sender
-{
-    [[[self tab] web_view] reload];
-}
-
 - (void)clearHistory
 {
     // FIXME: Reimplement clearing history using WebContent's history.
-}
-
-- (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument
-{
-    [[[self tab] web_view] debugRequest:request argument:argument];
-}
-
-- (void)viewSource:(id)sender
-{
-    [[[self tab] web_view] viewSource];
 }
 
 - (void)focusLocationToolbarItem
@@ -308,15 +250,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     return YES;
 }
 
-- (void)updateNavigationButtonStates
-{
-    auto* navigate_back_button = (NSButton*)[[self navigate_back_toolbar_item] view];
-    [navigate_back_button setEnabled:m_can_navigate_back];
-
-    auto* navigate_forward_button = (NSButton*)[[self navigate_forward_toolbar_item] view];
-    [navigate_forward_button setEnabled:m_can_navigate_forward];
-}
-
 - (void)showTabOverview:(id)sender
 {
     self.tab.titlebarAppearsTransparent = NO;
@@ -333,124 +266,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
     auto zoom_button_hidden = zoom_level == 1.0 ? YES : NO;
     [[self.zoom_toolbar_item view] setHidden:zoom_button_hidden];
-}
-
-- (void)dumpDOMTree:(id)sender
-{
-    [self debugRequest:"dump-dom-tree" argument:""];
-}
-
-- (void)dumpDisplayList:(id)sender
-{
-    [self debugRequest:"dump-display-list" argument:""];
-}
-
-- (void)dumpLayoutTree:(id)sender
-{
-    [self debugRequest:"dump-layout-tree" argument:""];
-}
-
-- (void)dumpPaintTree:(id)sender
-{
-    [self debugRequest:"dump-paint-tree" argument:""];
-}
-
-- (void)dumpStackingContextTree:(id)sender
-{
-    [self debugRequest:"dump-stacking-context-tree" argument:""];
-}
-
-- (void)dumpStyleSheets:(id)sender
-{
-    [self debugRequest:"dump-style-sheets" argument:""];
-}
-
-- (void)dumpAllResolvedStyles:(id)sender
-{
-    [self debugRequest:"dump-all-resolved-styles" argument:""];
-}
-
-- (void)dumpCSSErrors:(id)sender
-{
-    [self debugRequest:"dump-all-css-errors" argument:""];
-}
-
-- (void)dumpHistory:(id)sender
-{
-    [self debugRequest:"dump-session-history" argument:""];
-}
-
-- (void)dumpLocalStorage:(id)sender
-{
-    [self debugRequest:"dump-local-storage" argument:""];
-}
-
-- (void)toggleLineBoxBorders:(id)sender
-{
-    m_settings.should_show_line_box_borders = !m_settings.should_show_line_box_borders;
-    [self debugRequest:"set-line-box-borders" argument:m_settings.should_show_line_box_borders ? "on" : "off"];
-}
-
-- (void)collectGarbage:(id)sender
-{
-    [self debugRequest:"collect-garbage" argument:""];
-}
-
-- (void)dumpGCGraph:(id)sender
-{
-    auto& view_impl = [[[self tab] web_view] view];
-    auto gc_graph_path = view_impl.dump_gc_graph();
-    warnln("\033[33;1mDumped GC-graph into {}\033[0m", gc_graph_path);
-}
-
-- (void)clearCache:(id)sender
-{
-    [self debugRequest:"clear-cache" argument:""];
-}
-
-- (void)toggleScripting:(id)sender
-{
-    m_settings.scripting_enabled = !m_settings.scripting_enabled;
-    [self setScripting:m_settings.scripting_enabled];
-}
-
-- (void)setScripting:(BOOL)enabled
-{
-    [self debugRequest:"scripting" argument:enabled ? "on" : "off"];
-}
-
-- (void)togglePopupBlocking:(id)sender
-{
-    m_settings.block_popups = !m_settings.block_popups;
-    [self setPopupBlocking:m_settings.block_popups];
-}
-
-- (void)setPopupBlocking:(BOOL)block_popups
-{
-    [self debugRequest:"block-pop-ups" argument:block_popups ? "on" : "off"];
-}
-
-- (void)setUserAgentSpoof:(NSMenuItem*)sender
-{
-    ByteString const user_agent_name = [[sender title] UTF8String];
-    ByteString user_agent = "";
-    if (user_agent_name == "Disabled"sv) {
-        user_agent = Web::default_user_agent;
-    } else {
-        user_agent = WebView::user_agents.get(user_agent_name).value();
-    }
-    m_settings.user_agent_name = user_agent_name;
-
-    [self debugRequest:"spoof-user-agent" argument:user_agent];
-    [self debugRequest:"clear-cache" argument:""]; // clear the cache to ensure requests are re-done with the new user agent
-}
-
-- (void)setNavigatorCompatibilityMode:(NSMenuItem*)sender
-{
-    ByteString const compatibility_mode = [[[sender title] lowercaseString] UTF8String];
-    m_settings.navigator_compatibility_mode = compatibility_mode;
-
-    [self debugRequest:"navigator-compatibility-mode" argument:compatibility_mode];
 }
 
 #pragma mark - Properties
@@ -474,10 +289,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)navigate_back_toolbar_item
 {
     if (!_navigate_back_toolbar_item) {
-        auto* button = [self create_button:NSImageNameGoBackTemplate
-                               with_action:@selector(navigateBack:)
-                              with_tooltip:@"Navigate back"];
-        [button setEnabled:NO];
+        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].navigate_back_action(), NSImageNameGoBackTemplate);
 
         _navigate_back_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_NAVIGATE_BACK_IDENTIFIER];
         [_navigate_back_toolbar_item setView:button];
@@ -489,10 +301,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)navigate_forward_toolbar_item
 {
     if (!_navigate_forward_toolbar_item) {
-        auto* button = [self create_button:NSImageNameGoForwardTemplate
-                               with_action:@selector(navigateForward:)
-                              with_tooltip:@"Navigate forward"];
-        [button setEnabled:NO];
+        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].navigate_forward_action(), NSImageNameGoForwardTemplate);
 
         _navigate_forward_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER];
         [_navigate_forward_toolbar_item setView:button];
@@ -504,10 +313,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)reload_toolbar_item
 {
     if (!_reload_toolbar_item) {
-        auto* button = [self create_button:NSImageNameRefreshTemplate
-                               with_action:@selector(reload:)
-                              with_tooltip:@"Reload page"];
-        [button setEnabled:YES];
+        auto* button = Ladybird::create_application_button(WebView::Application::the().reload_action(), NSImageNameRefreshTemplate);
 
         _reload_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_RELOAD_IDENTIFIER];
         [_reload_toolbar_item setView:button];
@@ -656,23 +462,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)windowDidChangeScreen:(NSNotification*)notification
 {
     [[[self tab] web_view] handleDisplayRefreshRateChange];
-}
-
-- (BOOL)validateMenuItem:(NSMenuItem*)item
-{
-    if ([item action] == @selector(toggleLineBoxBorders:)) {
-        [item setState:m_settings.should_show_line_box_borders ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(toggleScripting:)) {
-        [item setState:m_settings.scripting_enabled ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(togglePopupBlocking:)) {
-        [item setState:m_settings.block_popups ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setUserAgentSpoof:)) {
-        [item setState:(m_settings.user_agent_name == [[item title] UTF8String]) ? NSControlStateValueOn : NSControlStateValueOff];
-    } else if ([item action] == @selector(setNavigatorCompatibilityMode:)) {
-        [item setState:(m_settings.navigator_compatibility_mode == [[[item title] lowercaseString] UTF8String]) ? NSControlStateValueOn : NSControlStateValueOff];
-    }
-
-    return YES;
 }
 
 #pragma mark - NSToolbarDelegate

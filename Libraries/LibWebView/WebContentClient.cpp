@@ -262,34 +262,26 @@ void WebContentClient::did_middle_click_link(u64 page_id, URL::URL url, ByteStri
 
 void WebContentClient::did_request_context_menu(u64 page_id, Gfx::IntPoint content_position)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_context_menu_request)
-            view->on_context_menu_request(view->to_widget_position(content_position));
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_request_page_context_menu({}, content_position);
 }
 
 void WebContentClient::did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_link_context_menu_request)
-            view->on_link_context_menu_request(url, view->to_widget_position(content_position));
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_request_link_context_menu({}, content_position, move(url));
 }
 
 void WebContentClient::did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_image_context_menu_request)
-            view->on_image_context_menu_request(url, view->to_widget_position(content_position), bitmap);
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_request_image_context_menu({}, content_position, move(url), move(bitmap));
 }
 
 void WebContentClient::did_request_media_context_menu(u64 page_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::Page::MediaContextMenu menu)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_media_context_menu_request)
-            view->on_media_context_menu_request(view->to_widget_position(content_position), menu);
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_request_media_context_menu({}, content_position, move(menu));
 }
 
 void WebContentClient::did_get_source(u64 page_id, URL::URL url, URL::URL base_url, String source)

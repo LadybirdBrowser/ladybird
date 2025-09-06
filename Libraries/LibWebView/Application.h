@@ -18,6 +18,9 @@
 #include <LibMain/Main.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/URL.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
+#include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/Process.h>
@@ -53,6 +56,7 @@ public:
     static ProcessManager& process_manager() { return *the().m_process_manager; }
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
+    virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
 
     void add_child_process(Process&&);
 
@@ -63,6 +67,22 @@ public:
     Optional<Process&> find_process(pid_t);
 
     ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
+
+    virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
+    virtual void display_error_dialog(StringView error_message) const;
+
+    Action& reload_action() { return *m_reload_action; }
+    Action& copy_selection_action() { return *m_copy_selection_action; }
+    Action& paste_action() { return *m_paste_action; }
+    Action& select_all_action() { return *m_select_all_action; }
+    Action& view_source_action() { return *m_view_source_action; }
+
+    Menu& color_scheme_menu() { return *m_color_scheme_menu; }
+    Menu& contrast_menu() { return *m_contrast_menu; }
+    Menu& motion_menu() { return *m_motion_menu; }
+    Menu& debug_menu() { return *m_debug_menu; }
+
+    void apply_view_options(Badge<ViewImplementation>, ViewImplementation&);
 
     enum class DevtoolsState {
         Disabled,
@@ -92,6 +112,8 @@ private:
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
     ErrorOr<void> launch_devtools_server();
+
+    void initialize_actions();
 
     virtual Vector<DevTools::TabDescription> tab_list() const override;
     virtual Vector<DevTools::CSSProperty> css_property_list() const override;
@@ -147,6 +169,29 @@ private:
 
     OwnPtr<Core::EventLoop> m_event_loop;
     OwnPtr<ProcessManager> m_process_manager;
+
+    RefPtr<Action> m_reload_action;
+    RefPtr<Action> m_copy_selection_action;
+    RefPtr<Action> m_paste_action;
+    RefPtr<Action> m_select_all_action;
+    RefPtr<Action> m_view_source_action;
+
+    RefPtr<Menu> m_color_scheme_menu;
+    Web::CSS::PreferredColorScheme m_color_scheme { Web::CSS::PreferredColorScheme::Auto };
+
+    RefPtr<Menu> m_contrast_menu;
+    Web::CSS::PreferredContrast m_contrast { Web::CSS::PreferredContrast::Auto };
+
+    RefPtr<Menu> m_motion_menu;
+    Web::CSS::PreferredMotion m_motion { Web::CSS::PreferredMotion::Auto };
+
+    RefPtr<Menu> m_debug_menu;
+    RefPtr<Action> m_show_line_box_borders_action;
+    RefPtr<Action> m_enable_scripting_action;
+    RefPtr<Action> m_enable_content_filtering_action;
+    RefPtr<Action> m_block_pop_ups_action;
+    StringView m_user_agent_string;
+    StringView m_navigator_compatibility_mode;
 
 #if defined(AK_OS_MACOS)
     OwnPtr<MachPortServer> m_mach_port_server;

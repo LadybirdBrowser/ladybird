@@ -7,11 +7,9 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/StringUtils.h>
 #include <LibGfx/Forward.h>
 #include <LibURL/Forward.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
-#include <LibWeb/CSS/PreferredContrast.h>
-#include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
@@ -36,9 +34,6 @@
 - (void)onLoadFinish:(URL::URL const&)url;
 
 - (void)onURLChange:(URL::URL const&)url;
-- (void)onBackNavigationEnabled:(BOOL)back_enabled
-       forwardNavigationEnabled:(BOOL)forward_enabled;
-
 - (void)onTitleChange:(Utf16String const&)title;
 - (void)onFaviconChange:(Gfx::Bitmap const&)bitmap;
 - (void)onAudioPlayStateChange:(Web::HTML::AudioPlayState)play_state;
@@ -58,10 +53,6 @@
 - (void)loadURL:(URL::URL const&)url;
 - (void)loadHTML:(StringView)html;
 
-- (void)navigateBack;
-- (void)navigateForward;
-- (void)reload;
-
 - (WebView::ViewImplementation&)view;
 - (String const&)handle;
 
@@ -73,10 +64,6 @@
 - (void)handleDisplayRefreshRateChange;
 - (void)handleVisibility:(BOOL)is_visible;
 
-- (void)setPreferredColorScheme:(Web::CSS::PreferredColorScheme)color_scheme;
-- (void)setPreferredContrast:(Web::CSS::PreferredContrast)contrast;
-- (void)setPreferredMotion:(Web::CSS::PreferredMotion)motion;
-
 - (void)findInPage:(NSString*)query
     caseSensitivity:(CaseSensitivity)case_sensitivity;
 - (void)findInPageNextMatch;
@@ -86,9 +73,5 @@
 - (void)zoomOut;
 - (void)resetZoom;
 - (float)zoomLevel;
-
-- (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument;
-
-- (void)viewSource;
 
 @end

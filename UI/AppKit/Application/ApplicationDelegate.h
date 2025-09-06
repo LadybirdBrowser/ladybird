@@ -9,9 +9,6 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <LibURL/URL.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
-#include <LibWeb/CSS/PreferredContrast.h>
-#include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/HTML/ActivateTab.h>
 
 #import <Cocoa/Cocoa.h>
@@ -41,9 +38,5 @@
 - (nullable Tab*)activeTab;
 
 - (void)removeTab:(nonnull TabController*)controller;
-
-- (Web::CSS::PreferredColorScheme)preferredColorScheme;
-- (Web::CSS::PreferredContrast)preferredContrast;
-- (Web::CSS::PreferredMotion)preferredMotion;
 
 @end

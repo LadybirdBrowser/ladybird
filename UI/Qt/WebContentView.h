@@ -14,9 +14,6 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
-#include <LibWeb/CSS/PreferredContrast.h>
-#include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/ViewImplementation.h>
@@ -30,14 +27,6 @@ class QKeyEvent;
 class QLineEdit;
 class QSinglePointEvent;
 class QTextEdit;
-
-namespace WebView {
-
-class WebContentClient;
-
-}
-
-using WebView::WebContentClient;
 
 namespace Ladybird {
 
@@ -123,8 +112,6 @@ private:
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;
     QTimer m_tooltip_hover_timer;
-
-    bool m_should_show_line_box_borders { false };
 
     Gfx::IntSize m_viewport_size;
 
