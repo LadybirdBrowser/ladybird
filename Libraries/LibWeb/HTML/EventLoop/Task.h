@@ -99,6 +99,7 @@ public:
     void execute();
 
     DOM::Document const* document() const;
+    void set_document(GC::Ptr<DOM::Document const> document);
 
     bool is_runnable() const;
 
