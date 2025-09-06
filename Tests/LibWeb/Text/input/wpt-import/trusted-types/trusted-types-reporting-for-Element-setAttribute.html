@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/csp-violations.js"></script>
+<script src="support/namespaces.js"></script>
+<meta http-equiv="Content-Security-Policy"
+      content="require-trusted-types-for 'script'; connect-src 'none';">
+<body>
+  <script>
+    const policy = trustedTypes.createPolicy("dummy", {
+      createHTML: x => x, createScript: x => x, createScriptURL: x => x });
+    const input = 'A'.repeat(100);
+    const trustedHTML = policy.createHTML(input);
+    const trustedScript = policy.createScript(input);
+    const trustedScriptURL = policy.createScriptURL(input);
+    function createIFrame() { return document.createElement("iframe"); }
+    function createScript() { return document.createElement("script"); }
+    function createSVGScript() { return document.createElementNS(NSURI_SVG, "script"); }
+
+    promise_test(async t => {
+      await no_trusted_type_violation_for(_ => {
+        createIFrame().setAttribute("srcdoc", trustedHTML);
+        createIFrame().setAttributeNS(null, "srcdoc", trustedHTML);
+        createIFrame().setAttribute("onclick", trustedScript);
+        createIFrame().setAttributeNS(null, "onclick", trustedScript);
+        createScript().setAttribute("src", trustedScriptURL);
+        createScript().setAttributeNS(null, "src", trustedScriptURL);
+        createSVGScript().setAttribute("href", trustedScriptURL);
+        createSVGScript().setAttributeNS(null, "href", trustedScriptURL);
+        createSVGScript().setAttributeNS(NSURI_XLINK, "href", trustedScriptURL);
+      });
+    }, "No violation reported for trusted types.");
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ => {
+        createIFrame().setAttribute("srcdoc", input);
+      });
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `HTMLIFrameElement srcdoc|${clipSampleIfNeeded(input)}`);
+    }, "Violation report for HTMLIFrameElement.setAttribute('srcdoc', plain_string)");
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ => {
+        createIFrame().setAttributeNS(null, "srcdoc", input);
+      });
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `HTMLIFrameElement srcdoc|${clipSampleIfNeeded(input)}`);
+    }, "Violation report for HTMLIFrameElement.setAttributeNS(null, 'srcdoc', plain_string)");
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ => {
+        createIFrame().setAttribute("onclick", input);
+      });
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `Element onclick|${clipSampleIfNeeded(input)}`);
+    }, "Violation report for Element.setAttribute('onclick', plain_string)");
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ => {
+        createIFrame().setAttributeNS(null, "onclick", input);
+      });
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `Element onclick|${clipSampleIfNeeded(input)}`);
+    }, "Violation report for Element.setAttributeNS(null, 'onclick', plain_string)");
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ => {
+        createScript().setAttribute("src", input);
+      });
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `HTMLScriptElement src|${clipSampleIfNeeded(input)}`);
+    }, "Violation report for HTMLScriptElement.setAttribute('src', plain_string)");
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ => {
+        createScript().setAttributeNS(null, "src", input);
+      });
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `HTMLScriptElement src|${clipSampleIfNeeded(input)}`);
+    }, "Violation report for HTMLScriptElement.setAttributeNS(null, 'src', plain_string)");
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ => {
+        createSVGScript().setAttribute("href", input);
+      });
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `SVGScriptElement href|${clipSampleIfNeeded(input)}`);
+    }, "Violation report for SVGScriptElement.setAttribute('href', plain_string)");
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ => {
+        createSVGScript().setAttributeNS(null, "href", input);
+      });
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `SVGScriptElement href|${clipSampleIfNeeded(input)}`);
+    }, `Violation report for SVGScriptElement.setAttributeNS(null, 'href', plain_string)`);
+
+    promise_test(async t => {
+      let violation = await trusted_type_violation_for(TypeError, _ => {
+        createSVGScript().setAttributeNS(NSURI_XLINK, "href", input);
+      });
+      assert_equals(violation.blockedURI, "trusted-types-sink");
+      assert_equals(violation.sample, `SVGScriptElement href|${clipSampleIfNeeded(input)}`);
+    }, `Violation report for SVGScriptElement.setAttributeNS(${NSURI_XLINK}, 'href', plain_string)`);
+
+  </script>
+</body>

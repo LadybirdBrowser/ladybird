@@ -9,6 +9,7 @@
 
 #include <LibWeb/HTML/LazyLoadingElement.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/TrustedTypes/TrustedHTML.h>
 
 namespace Web::HTML {
 
@@ -37,6 +38,9 @@ public:
     GC::Ref<DOM::DOMTokenList> sandbox();
 
     SandboxingFlagSet iframe_sandboxing_flag_set() const { return m_iframe_sandboxing_flag_set; }
+
+    WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> srcdoc() const;
+    WebIDL::ExceptionOr<void> set_srcdoc(TrustedTypes::TrustedHTMLOrString);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

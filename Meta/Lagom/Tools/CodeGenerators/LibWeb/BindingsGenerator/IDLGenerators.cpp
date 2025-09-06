@@ -1701,9 +1701,22 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
                     } else if (optional_default_value == "\"\"") {
-                        union_generator.append(R"~~~(
+                        auto is_utf16 = false;
+                        for (auto const& type : union_type.member_types()) {
+                            if (type->name().is_one_of("Utf16DOMString", "Utf16USVString")) {
+                                is_utf16 = true;
+                                break;
+                            }
+                        }
+                        if (is_utf16) {
+                            union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? Utf16String {} : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                        } else {
+                            union_generator.append(R"~~~(
     @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? String {} : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
+                        }
                     } else if (optional_default_value->starts_with("\""sv) && optional_default_value->ends_with("\""sv)) {
                         union_generator.set("default_string_value", optional_default_value.value());
                         union_generator.append(R"~~~(

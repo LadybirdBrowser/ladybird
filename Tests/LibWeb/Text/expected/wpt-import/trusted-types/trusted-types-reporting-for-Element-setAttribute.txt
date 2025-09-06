@@ -1,0 +1,16 @@
+Harness status: Error
+
+Found 10 tests
+
+3 Pass
+7 Fail
+Pass	No violation reported for trusted types.
+Fail	Violation report for HTMLIFrameElement.setAttribute('srcdoc', plain_string)
+Fail	Violation report for HTMLIFrameElement.setAttributeNS(null, 'srcdoc', plain_string)
+Pass	Violation report for Element.setAttribute('onclick', plain_string)
+Pass	Violation report for Element.setAttributeNS(null, 'onclick', plain_string)
+Fail	Violation report for HTMLScriptElement.setAttribute('src', plain_string)
+Fail	Violation report for HTMLScriptElement.setAttributeNS(null, 'src', plain_string)
+Fail	Violation report for SVGScriptElement.setAttribute('href', plain_string)
+Fail	Violation report for SVGScriptElement.setAttributeNS(null, 'href', plain_string)
+Fail	Violation report for SVGScriptElement.setAttributeNS(http://www.w3.org/1999/xlink, 'href', plain_string)

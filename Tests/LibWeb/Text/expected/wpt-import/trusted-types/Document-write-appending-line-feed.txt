@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	document.write() with TrustedHTML arguments only.
+Pass	document.write() with String arguments only.
+Pass	document.write() with TrustedHTML for all but one argument.
+Pass	document.writeln() with TrustedHTML arguments only.
+Pass	document.writeln() with String arguments only.
+Pass	document.writeln() with TrustedHTML for all but one argument.

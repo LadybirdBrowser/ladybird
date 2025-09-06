@@ -19,6 +19,8 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::HTML {
 
@@ -287,6 +289,38 @@ GC::Ref<DOM::DOMTokenList> HTMLIFrameElement::sandbox()
     if (!m_sandbox)
         m_sandbox = DOM::DOMTokenList::create(*this, HTML::AttributeNames::sandbox);
     return *m_sandbox;
+}
+
+// https://html.spec.whatwg.org/multipage/iframe-embed-object.html#dom-iframe-srcdoc
+WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> HTMLIFrameElement::srcdoc() const
+{
+    // 1. Let attribute be the result of running get an attribute by namespace and local name given null, srcdoc's local name, and this.
+    auto const attribute = get_attribute_ns({}, local_name());
+
+    // 2. If attribute is null, then return the empty string.
+    if (!attribute.has_value())
+        return ""_utf16;
+
+    // 3. Return attribute's value.
+    return Utf16String::from_utf8(attribute.value());
+}
+
+// https://html.spec.whatwg.org/multipage/iframe-embed-object.html#dom-iframe-srcdoc
+WebIDL::ExceptionOr<void> HTMLIFrameElement::set_srcdoc(TrustedTypes::TrustedHTMLOrString value)
+{
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, the given value, "HTMLIFrameElement srcdoc", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        relevant_global_object(*this),
+        move(value),
+        TrustedTypes::InjectionSink::HTMLIFrameElementsrcdoc,
+        TrustedTypes::Script.to_string()));
+
+    // 2. Set an attribute value given this, srcdoc's local name, and compliantString.
+    TRY(set_attribute(local_name(), compliant_string));
+
+    return {};
 }
 
 void HTMLIFrameElement::visit_edges(Cell::Visitor& visitor)

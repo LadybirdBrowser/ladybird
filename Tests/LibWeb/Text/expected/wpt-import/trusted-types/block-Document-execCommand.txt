@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Document.execCommand("insertHTML") throws.
+Pass	Document.execCommand("insertHTML") works with a TrustedHTML argument.
+Pass	Document.execCommand("paste") works as usual."
+Pass	Document.execCommand("paste") works with a TrustedHTML argument.
+Pass	Document.execCommand("insertHTML") works as usual with a default policy.
+Pass	Document.execCommand("paste") works as usual with a default policy.
