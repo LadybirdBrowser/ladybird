@@ -291,14 +291,6 @@ Gfx::AffineTransform StackingContext::affine_transform_matrix() const
     return Gfx::extract_2d_affine_transform(paintable_box().transform());
 }
 
-static Gfx::FloatMatrix4x4 matrix_with_scaled_translation(Gfx::FloatMatrix4x4 matrix, float scale)
-{
-    matrix[0, 3] *= scale;
-    matrix[1, 3] *= scale;
-    matrix[2, 3] *= scale;
-    return matrix;
-}
-
 void StackingContext::paint(DisplayListRecordingContext& context) const
 {
     auto opacity = paintable_box().computed_values().opacity();
@@ -322,10 +314,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         .opacity = opacity,
         .compositing_and_blending_operator = compositing_and_blending_operator,
         .isolate = paintable_box().computed_values().isolation() == CSS::Isolation::Isolate,
-        .transform = {
-            .origin = transform_origin.scaled(to_device_pixels_scale),
-            .matrix = matrix_with_scaled_translation(transform_matrix, to_device_pixels_scale),
-        },
+        .transform = StackingContextTransform(transform_origin, transform_matrix, to_device_pixels_scale),
     };
 
     auto const& computed_values = paintable_box().computed_values();
@@ -341,9 +330,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     if (has_css_transform) {
         paintable_box().apply_clip_overflow_rect(context, PaintPhase::Foreground);
     }
-    if (paintable_box().scroll_frame_id().has_value()) {
-        context.display_list_recorder().push_scroll_frame_id(*paintable_box().scroll_frame_id());
-    }
+    paintable_box().apply_scroll_offset(context);
     context.display_list_recorder().push_stacking_context(push_stacking_context_params);
 
     auto const& filter = computed_values.filter();
@@ -379,9 +366,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     }
 
     context.display_list_recorder().pop_stacking_context();
-    if (paintable_box().scroll_frame_id().has_value()) {
-        context.display_list_recorder().pop_scroll_frame_id();
-    }
+    paintable_box().reset_scroll_offset(context);
     if (has_css_transform)
         paintable_box().clear_clip_overflow_rect(context, PaintPhase::Foreground);
 }

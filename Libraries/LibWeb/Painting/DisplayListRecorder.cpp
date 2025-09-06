@@ -12,6 +12,15 @@
 
 namespace Web::Painting {
 
+StackingContextTransform::StackingContextTransform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix, float scale)
+{
+    this->origin = origin.scaled(scale);
+    matrix[0, 3] *= scale;
+    matrix[1, 3] *= scale;
+    matrix[2, 3] *= scale;
+    this->matrix = matrix;
+}
+
 DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
     : m_display_list(command_list)
 {
@@ -300,10 +309,7 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
         .opacity = params.opacity,
         .compositing_and_blending_operator = params.compositing_and_blending_operator,
         .isolate = params.isolate,
-        .transform = {
-            .origin = params.transform.origin,
-            .matrix = params.transform.matrix,
-        },
+        .transform = params.transform,
         .clip_path = params.clip_path });
     m_clip_frame_stack.append({});
 }
