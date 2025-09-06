@@ -754,7 +754,13 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         return {};
     }
 
-    auto parsing_params = CSS::Parser::ParsingParams { *document() };
+    CSS::Parser::ParsingParams parsing_params;
+
+    if (auto const* document_ptr = document())
+        parsing_params = CSS::Parser::ParsingParams { *document_ptr };
+    else
+        parsing_params = CSS::Parser::ParsingParams { realm() };
+
     auto syntax_component_values = parse_component_values_list(parsing_params, syntax_maybe.value());
     auto maybe_syntax = parse_as_syntax(syntax_component_values);
 
