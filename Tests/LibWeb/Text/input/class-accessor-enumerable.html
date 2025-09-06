@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        class C {
+            get x() { return 1; }
+            set x(v) {}
+        }
+
+        const desc = Object.getOwnPropertyDescriptor(C.prototype, "x");
+        const keys = Object.keys(C.prototype);
+
+        println(`descriptor.enumerable=${String(desc && desc.enumerable)}`);
+        println(`keys=${JSON.stringify(keys)}`);
+
+        done();
+    });
+</script>

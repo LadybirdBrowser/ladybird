@@ -191,11 +191,11 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
             break;
         case ClassMethod::Kind::Getter:
             set_function_name("get"sv);
-            TRY(target.define_property_or_throw(property_key, { .get = &method_function, .enumerable = true, .configurable = true }));
+            TRY(target.define_property_or_throw(property_key, { .get = &method_function, .enumerable = false, .configurable = true }));
             break;
         case ClassMethod::Kind::Setter:
             set_function_name("set"sv);
-            TRY(target.define_property_or_throw(property_key, { .set = &method_function, .enumerable = true, .configurable = true }));
+            TRY(target.define_property_or_throw(property_key, { .set = &method_function, .enumerable = false, .configurable = true }));
             break;
         default:
             VERIFY_NOT_REACHED();
