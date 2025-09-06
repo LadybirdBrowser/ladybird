@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+#one { padding-left: calc(-100px); }
+#two { padding-left: calc(0% - 100px); }
+#three { padding-left: calc(0% - 12.5vw); }
+</style>
+<div id="one">This should not have padding.</div>
+<div id="two">Neither should this.</div>
+<div id="three">Or this.</div>
+<script>
+test(() => {
+  function assert_padding_clamped(element_id) {
+    const element = document.getElementById(element_id);
+    const computed_style = getComputedStyle(element);
+    const padding_left = computed_style["padding-left"];
+    if (padding_left === "0px") {
+      println(`PASS  Negative padding on element #${element_id} is clamped to zero.`);
+    } else {
+      println(`FAIL  Negative padding on element #${element_id} was not clamped. Expected 0px, but got ${padding_left}.`);
+    }
+  }
+  assert_padding_clamped("one");
+  assert_padding_clamped("two");
+  assert_padding_clamped("three");
+});
+</script>

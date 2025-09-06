@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 229 tests
 
-215 Pass
-14 Fail
+217 Pass
+12 Fail
 Pass	round(10,10) should be used-value-equivalent to 10
 Pass	mod(1,1) should be used-value-equivalent to 0
 Pass	rem(1,1) should be used-value-equivalent to 0
@@ -121,8 +121,8 @@ Pass	rem(10deg,6deg) should be used-value-equivalent to 4deg
 Pass	rem(10grad,6grad) should be used-value-equivalent to 4grad
 Pass	rem(10rad,6rad) should be used-value-equivalent to 4rad
 Pass	rem(10turn,6turn) should be used-value-equivalent to 4turn
-Fail	round(10%,1px) should be used-value-equivalent to 8px
-Fail	round(10%,5px) should be used-value-equivalent to 10px
+Pass	round(10%,1px) should be used-value-equivalent to 8px
+Pass	round(10%,5px) should be used-value-equivalent to 10px
 Pass	round(2rem,5px) should be used-value-equivalent to 30px
 Pass	round(100px,1rem) should be used-value-equivalent to 96px
 Pass	round(10s,6000ms) should be used-value-equivalent to 12s
