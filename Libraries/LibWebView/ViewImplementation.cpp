@@ -634,7 +634,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         builder.append("<!DOCTYPE html>"sv);
         builder.append("<html lang=\"en\"><head><meta charset=\"UTF-8\"><title>Error!</title><style>"
                        ":root { color-scheme: light dark; font-family: system-ui, sans-serif; }"
-                       "body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1rem; text-align: center; }"
+                       "body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; box-sizing: border-box; margin: 0; padding: 1rem; text-align: center; }"
                        "header { display: flex; flex-direction: column; align-items: center; gap: 2rem; margin-bottom: 1rem; }"
                        "svg { height: 64px; width: auto; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }"
                        "h1 { margin: 0; font-size: 1.5rem; }"
