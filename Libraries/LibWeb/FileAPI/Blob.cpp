@@ -37,6 +37,16 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, String type
     return create(realm, move(byte_buffer), move(options));
 }
 
+GC::Ref<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, String type, TypeNormalization typeNormalization)
+{
+    BlobPropertyBag options = {
+        .type = move(type),
+        .endings = Bindings::EndingType::Transparent,
+        .typeNormalization = typeNormalization
+    };
+    return create(realm, move(byte_buffer), move(options));
+}
+
 // https://w3c.github.io/FileAPI/#convert-line-endings-to-native
 ErrorOr<String> convert_line_endings_to_native(StringView string)
 {
@@ -207,14 +217,25 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> con
     auto type = String {};
     // 3. If the type member of the options argument is not the empty string, run the following sub-steps:
     if (options.has_value() && !options->type.is_empty()) {
-        // FIXME: 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
-        //    If t contains any characters outside the range U+0020 to U+007E, then set t to the empty string and return from these substeps.
-        // FIXME: 2. Convert every character in t to ASCII lowercase.
 
-        // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
-        auto maybe_parsed_type = MimeSniff::MimeType::parse(options->type);
-        if (maybe_parsed_type.has_value())
-            type = maybe_parsed_type->serialized();
+        // ADD HOC
+        if (options->typeNormalization == TypeNormalization::Standard) {
+            // 1. Let t be the type dictionary member. If t contains any characters outside the range U+0020 to U+007E,
+            // then set t to the empty string and return from these substeps.
+            if (is_basic_latin(options->type)) {
+
+                // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
+                auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type);
+
+                if (maybe_parsed_type.has_value())
+                    type = maybe_parsed_type->serialized();
+
+                // 2. Convert every character in t to ASCII lowercase.
+                type = type.to_lowercase().release_value();
+            }
+        } else {
+            type = options->type;
+        }
     }
 
     // 4. Return a Blob object referring to bytes as its associated byte sequence, with its size set to the length of bytes, and its type set to the value of t from the substeps above.
