@@ -53,9 +53,48 @@ static RefPtr<DisplayList> compute_text_clip_paths(DisplayListRecordingContext& 
     return text_clip_paths;
 }
 
+// https://www.w3.org/TR/css-backgrounds-3/#background-origin
+static BackgroundBox get_origin_box(CSS::BackgroundAttachment attachment, CSS::BackgroundBox box_clip, BackgroundBox border_box, PaintableBox const& paintable_box)
+{
+    auto box = border_box;
+
+    // If the background-attachment value for this layer is fixed, then this property has no effect
+    if (attachment == CSS::BackgroundAttachment::Fixed) {
+        return box;
+    }
+
+    CSSPixelRect origin_box;
+
+    switch (box_clip) {
+    case CSS::BackgroundBox::BorderBox: {
+        origin_box = paintable_box.absolute_border_box_rect();
+        break;
+    }
+    case CSS::BackgroundBox::ContentBox: {
+        origin_box = paintable_box.absolute_rect();
+        break;
+    }
+    // there is no background-origin: text, this should never happen.
+    case CSS::BackgroundBox::Text:
+        VERIFY_NOT_REACHED();
+    case CSS::BackgroundBox::PaddingBox: {
+        // there is a wpt test to make this account for border radius, however it seems no browser implements this, https://wpt.fyi/results/css/css-backgrounds/background-origin/origin-padding-box_with_radius.html
+        origin_box = paintable_box.absolute_padding_box_rect();
+        break;
+    }
+    }
+    // top and left must be set first because right and bottom are based on the x, and y
+    box.rect.set_top(origin_box.top());
+    box.rect.set_left(origin_box.left());
+    box.rect.set_right(origin_box.right());
+    box.rect.set_bottom(origin_box.bottom());
+    return box;
+}
+
 static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_box, auto const& paintable_box)
 {
     auto box = border_box;
+
     switch (box_clip) {
     case CSS::BackgroundBox::ContentBox: {
         auto& padding = paintable_box.box_model().padding;
@@ -362,7 +401,7 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         if (!layer_is_paintable(layer))
             continue;
 
-        auto background_positioning_area = get_box(layer.origin, border_box, paintable_box).rect;
+        auto background_positioning_area = get_origin_box(layer.attachment, layer.origin, border_box, paintable_box).rect;
         auto const& image = *layer.background_image;
 
         Optional<CSSPixels> specified_width {};
