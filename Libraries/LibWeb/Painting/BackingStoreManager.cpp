@@ -122,7 +122,7 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     auto front_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
     auto back_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
 
-#ifdef USE_VULKAN
+#if defined(USE_VULKAN) || defined(AK_OS_WINDOWS)
     if (skia_backend_context) {
         m_front_store = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
         m_front_store->on_flush = [front_bitmap](auto& surface) {
