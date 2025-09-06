@@ -69,6 +69,8 @@ set(SWIFT_EXCLUDE_HEADERS
 
 if (APPLE)
     list(APPEND SOURCES MetalContext.mm)
+elseif(WIN32)
+    list(APPEND SOURCES Direct3DContext.cpp)
 endif()
 
 if (HAS_VULKAN)
@@ -149,6 +151,7 @@ if (NOT ANDROID)
             #  alone causes transitive issues in other TUs that depend on it
             target_compile_options(LibGfx PRIVATE -fno-sanitize=address)
         endif()
+        target_link_libraries(LibGfx PUBLIC d3d11 d3d12 dxgi)
     endif()
     target_link_libraries(LibGfx PRIVATE PkgConfig::Jxl)
 else()
