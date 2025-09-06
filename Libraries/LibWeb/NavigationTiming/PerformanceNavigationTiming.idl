@@ -1,0 +1,48 @@
+#import <PerformanceTimeline/PerformanceEntry.idl>
+
+// https://w3c.github.io/navigation-timing/#navigationtimingtype-enum
+enum NavigationTimingType {
+    "navigate",
+    "reload",
+    "back_forward",
+    "prerender"
+};
+
+// https://w3c.github.io/navigation-timing/#performancenavigationtiming-interface
+[Exposed=Window]
+interface PerformanceNavigationTiming : PerformanceEntry {
+    // Resource timing attributes (inherited concept from PerformanceResourceTiming)
+    readonly attribute DOMString initiatorType;
+    readonly attribute DOMString deliveryType;
+    readonly attribute ByteString nextHopProtocol;
+    readonly attribute DOMHighResTimeStamp workerStart;
+    readonly attribute DOMHighResTimeStamp redirectStart;
+    readonly attribute DOMHighResTimeStamp redirectEnd;
+    readonly attribute DOMHighResTimeStamp fetchStart;
+    readonly attribute DOMHighResTimeStamp domainLookupStart;
+    readonly attribute DOMHighResTimeStamp domainLookupEnd;
+    readonly attribute DOMHighResTimeStamp connectStart;
+    readonly attribute DOMHighResTimeStamp connectEnd;
+    readonly attribute DOMHighResTimeStamp secureConnectionStart;
+    readonly attribute DOMHighResTimeStamp requestStart;
+    readonly attribute DOMHighResTimeStamp responseStart;
+    readonly attribute DOMHighResTimeStamp responseEnd;
+    readonly attribute unsigned long long transferSize;
+    readonly attribute unsigned long long encodedBodySize;
+    readonly attribute unsigned long long decodedBodySize;
+    
+    // Navigation timing specific attributes
+    readonly attribute DOMHighResTimeStamp unloadEventStart;
+    readonly attribute DOMHighResTimeStamp unloadEventEnd;
+    readonly attribute DOMHighResTimeStamp domInteractive;
+    readonly attribute DOMHighResTimeStamp domContentLoadedEventStart;
+    readonly attribute DOMHighResTimeStamp domContentLoadedEventEnd;
+    readonly attribute DOMHighResTimeStamp domComplete;
+    readonly attribute DOMHighResTimeStamp loadEventStart;
+    readonly attribute DOMHighResTimeStamp loadEventEnd;
+    readonly attribute NavigationTimingType type;
+    readonly attribute unsigned short redirectCount;
+    readonly attribute DOMHighResTimeStamp criticalCHRestart;
+    // readonly attribute NotRestoredReasons? notRestoredReasons; // TODO: Implement NotRestoredReasons
+    [Default] object toJSON();
+}; 
