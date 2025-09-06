@@ -161,14 +161,14 @@ void EditingHostManager::decrement_cursor_position_to_previous_word(CollapseSele
 
 void EditingHostManager::increment_cursor_position_to_next_line(CollapseSelection collapse)
 {
-    (void)collapse;
-    // FIXME: Implement this method
+    if (auto selection = m_document->get_selection())
+        selection->move_offset_to_next_line(collapse == CollapseSelection::Yes);
 }
 
 void EditingHostManager::decrement_cursor_position_to_previous_line(CollapseSelection collapse)
 {
-    (void)collapse;
-    // FIXME: Implement this method
+    if (auto selection = m_document->get_selection())
+        selection->move_offset_to_previous_line(collapse == CollapseSelection::Yes);
 }
 
 void EditingHostManager::handle_delete(DeleteDirection direction)
