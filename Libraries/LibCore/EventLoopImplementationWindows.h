@@ -34,7 +34,7 @@ public:
     static NonnullOwnPtr<EventLoopImplementationWindows> create() { return make<EventLoopImplementationWindows>(); }
 
     EventLoopImplementationWindows();
-    virtual ~EventLoopImplementationWindows() override = default;
+    virtual ~EventLoopImplementationWindows() override;
 
     virtual int exec() override;
     virtual size_t pump(PumpMode) override;
@@ -45,6 +45,8 @@ public:
     virtual void post_event(EventReceiver& receiver, NonnullOwnPtr<Event>&&) override;
 
 private:
+    static void arm_wake_event();
+
     bool m_exit_requested { false };
     int m_exit_code { 0 };
 
