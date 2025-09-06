@@ -246,7 +246,7 @@ namespace Instructions {
     M(i8x16_replace_lane, 0xfd00000000000017ull, 2, 1)            \
     M(i16x8_extract_lane_s, 0xfd00000000000018ull, 1, 1)          \
     M(i16x8_extract_lane_u, 0xfd00000000000019ull, 1, 1)          \
-    M(i16x8_replace_lane, 0xfd0000000000001aull, 2, -1)           \
+    M(i16x8_replace_lane, 0xfd0000000000001aull, 2, 1)            \
     M(i32x4_extract_lane, 0xfd0000000000001bull, 1, 1)            \
     M(i32x4_replace_lane, 0xfd0000000000001cull, 2, 1)            \
     M(i64x2_extract_lane, 0xfd0000000000001dull, 1, 1)            \
