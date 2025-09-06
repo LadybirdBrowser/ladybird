@@ -606,16 +606,26 @@ void HTMLParser::handle_initial(HTMLToken& token)
         // Otherwise, if the document is not an iframe srcdoc document, and the parser cannot change the mode flag is false,
         // and the DOCTYPE token matches one of the conditions in the following list, then set the Document to limited-quirks mode:
         // [...]
-        document().set_quirks_mode(which_quirks_mode(token));
+        if (!document().parser_cannot_change_the_mode())
+            document().set_quirks_mode(which_quirks_mode(token));
 
         // Then, switch the insertion mode to "before html".
         m_insertion_mode = InsertionMode::BeforeHTML;
         return;
     }
+    // -> Anything else
+
+    // FIXME: If the document is not an iframe srcdoc document, then this is a parse error
 
     log_parse_error();
-    document().set_quirks_mode(DOM::QuirksMode::Yes);
+
+    // if the parser cannot change the mode flag is false, set the Document to quirks mode.
+    if (!document().parser_cannot_change_the_mode())
+        document().set_quirks_mode(DOM::QuirksMode::Yes);
+
+    // In any case, switch the insertion mode to "before html"
     m_insertion_mode = InsertionMode::BeforeHTML;
+    // then reprocess the token.
     process_using_the_rules_for(InsertionMode::BeforeHTML, token);
 }
 

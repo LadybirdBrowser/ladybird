@@ -208,7 +208,8 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
     // 1. Let document be the result of creating and initializing a Document object given "html", type, and navigationParams.
     auto document = TRY(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, type.essence(), navigation_params));
 
-    // FIXME: 2. Set document's parser cannot change the mode flag to true.
+    // 2. Set document's parser cannot change the mode flag to true.
+    document->set_parser_cannot_change_the_mode(true);
 
     // 3. Set document's mode to "no-quirks".
     document->set_quirks_mode(DOM::QuirksMode::No);
