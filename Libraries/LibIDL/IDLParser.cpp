@@ -842,6 +842,8 @@ void Parser::parse_namespace(Interface& interface)
     assert_specific('{');
 
     for (;;) {
+        HashMap<ByteString, ByteString> extended_attributes;
+
         consume_whitespace();
 
         if (lexer.consume_specific('}')) {
@@ -850,12 +852,28 @@ void Parser::parse_namespace(Interface& interface)
             break;
         }
 
-        HashMap<ByteString, ByteString> extended_attributes;
+        if (lexer.consume_specific('[')) {
+            extended_attributes = parse_extended_attributes();
+            if (!interface.has_unscopable_member && extended_attributes.contains("Unscopable"))
+                interface.has_unscopable_member = true;
+        }
+
         parse_function(extended_attributes, interface);
     }
 
     interface.namespace_class = ByteString::formatted("{}Namespace", interface.name);
     consume_whitespace();
+}
+
+void Parser::parse_partial_namespace(Interface& parent)
+{
+    assert_string("partial"sv);
+    consume_whitespace();
+    assert_string("namespace"sv);
+
+    auto partial_namespace = make<Interface>();
+    parse_namespace(*partial_namespace);
+    parent.partial_namespaces.append(move(partial_namespace));
 }
 
 // https://webidl.spec.whatwg.org/#prod-Enum
@@ -1077,6 +1095,8 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
             parse_partial_interface(extended_attributes, interface);
         } else if (lexer.next_is("interface mixin"sv)) {
             parse_interface_mixin(interface);
+        } else if (lexer.next_is("partial namespace"sv)) {
+            parse_partial_namespace(interface);
         } else if (lexer.next_is("callback"sv)) {
             parse_callback_function(extended_attributes, interface);
         } else if ((allow_interface && !lexer.next_is("interface"sv) && !lexer.next_is("namespace"sv)) || !allow_interface) {
@@ -1227,6 +1247,11 @@ Interface& Parser::parse()
             auto enumeration_copy = enumeration.value;
             enumeration_copy.is_original_definition = false;
             interface.enumerations.set(enumeration.key, move(enumeration_copy));
+        }
+
+        for (auto& partial_namespace : import.partial_namespaces) {
+            if (partial_namespace->namespace_class == interface.namespace_class)
+                interface.extend_with_partial_interface(*partial_namespace);
         }
 
         interface.typedefs.update(import.typedefs);

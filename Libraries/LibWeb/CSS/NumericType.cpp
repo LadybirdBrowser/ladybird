@@ -55,40 +55,38 @@ Optional<NumericType> NumericType::create_from_unit(StringView unit)
         return NumericType { BaseType::Percent, 1 };
     }
 
-    // unit is a <length> unit
-    if (Length::unit_from_name(unit).has_value()) {
-        // Return «[ "length" → 1 ]»
-        return NumericType { BaseType::Length, 1 };
-    }
+    if (auto dimension = dimension_for_unit(unit); dimension.has_value()) {
+        switch (*dimension) {
+        // unit is a <length> unit
+        case DimensionType::Length:
+            // Return «[ "length" → 1 ]»
+            return NumericType { BaseType::Length, 1 };
 
-    // unit is an <angle> unit
-    if (Angle::unit_from_name(unit).has_value()) {
-        // Return «[ "angle" → 1 ]»
-        return NumericType { BaseType::Angle, 1 };
-    }
+        // unit is an <angle> unit
+        case DimensionType::Angle:
+            // Return «[ "angle" → 1 ]»
+            return NumericType { BaseType::Angle, 1 };
 
-    // unit is a <time> unit
-    if (Time::unit_from_name(unit).has_value()) {
-        // Return «[ "time" → 1 ]»
-        return NumericType { BaseType::Time, 1 };
-    }
+        // unit is a <time> unit
+        case DimensionType::Time:
+            // Return «[ "time" → 1 ]»
+            return NumericType { BaseType::Time, 1 };
 
-    // unit is a <frequency> unit
-    if (Frequency::unit_from_name(unit).has_value()) {
-        // Return «[ "frequency" → 1 ]»
-        return NumericType { BaseType::Frequency, 1 };
-    }
+        // unit is a <frequency> unit
+        case DimensionType::Frequency:
+            // Return «[ "frequency" → 1 ]»
+            return NumericType { BaseType::Frequency, 1 };
 
-    // unit is a <resolution> unit
-    if (Resolution::unit_from_name(unit).has_value()) {
-        // Return «[ "resolution" → 1 ]»
-        return NumericType { BaseType::Resolution, 1 };
-    }
+        // unit is a <resolution> unit
+        case DimensionType::Resolution:
+            // Return «[ "resolution" → 1 ]»
+            return NumericType { BaseType::Resolution, 1 };
 
-    // unit is a <flex> unit
-    if (Flex::unit_from_name(unit).has_value()) {
-        // Return «[ "flex" → 1 ]»
-        return NumericType { BaseType::Flex, 1 };
+        // unit is a <flex> unit
+        case DimensionType::Flex:
+            // Return «[ "flex" → 1 ]»
+            return NumericType { BaseType::Flex, 1 };
+        }
     }
 
     // anything else

@@ -8,33 +8,25 @@
 
 #include <AK/String.h>
 #include <LibWeb/CSS/SerializationMode.h>
+#include <LibWeb/CSS/Units.h>
 
 namespace Web::CSS {
 
 class Resolution {
 public:
-    enum class Type : u8 {
-        Dpi,
-        Dpcm,
-        Dppx,
-        X,
-    };
-
-    static Optional<Type> unit_from_name(StringView);
-
-    Resolution(double value, Type type);
+    Resolution(double value, ResolutionUnit unit);
     static Resolution make_dots_per_pixel(double);
 
     String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_dots_per_pixel() const;
 
-    Type type() const { return m_type; }
     double raw_value() const { return m_value; }
-    StringView unit_name() const;
+    ResolutionUnit unit() const { return m_unit; }
+    StringView unit_name() const { return CSS::to_string(m_unit); }
 
     bool operator==(Resolution const& other) const
     {
-        return m_type == other.m_type && m_value == other.m_value;
+        return m_unit == other.m_unit && m_value == other.m_value;
     }
 
     int operator<=>(Resolution const& other) const
@@ -50,7 +42,7 @@ public:
     }
 
 private:
-    Type m_type;
+    ResolutionUnit m_unit;
     double m_value { 0 };
 };
 

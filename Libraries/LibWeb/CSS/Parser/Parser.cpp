@@ -1729,7 +1729,7 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
     // AD-HOC: If element has no sizes attribute, this algorithm always logs a parse error and then returns 100vw.
     //         The attribute is optional, so avoid spamming the debug log with false positives by just returning early.
     if (!element.has_attribute(HTML::AttributeNames::sizes))
-        return Length(100, Length::Type::Vw);
+        return Length(100, LengthUnit::Vw);
 
     // 1. Let unparsed sizes list be the result of parsing a comma-separated list of component values
     //    from the value of element's sizes attribute (or the empty string, if the attribute is absent).
@@ -1828,7 +1828,7 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
     }
 
     // 4. Return 100vw.
-    return Length(100, Length::Type::Vw);
+    return Length(100, LengthUnit::Vw);
 }
 
 bool Parser::has_ignored_vendor_prefix(StringView string)

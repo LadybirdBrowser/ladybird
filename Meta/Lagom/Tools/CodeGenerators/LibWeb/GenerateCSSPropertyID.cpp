@@ -18,7 +18,7 @@ void replace_logical_aliases(JsonObject& properties, JsonObject& logical_propert
 void populate_all_property_longhands(JsonObject& properties);
 ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_property_groups, Core::File& file);
 ErrorOr<void> generate_implementation_file(JsonObject& properties, JsonObject& logical_property_groups, ReadonlySpan<StringView> enum_names, Core::File& file);
-void generate_bounds_checking_function(JsonObject& properties, SourceGenerator& parent_generator, StringView css_type_name, StringView type_name, Optional<StringView> default_unit_name = {}, Optional<StringView> value_getter = {});
+void generate_bounds_checking_function(JsonObject& properties, SourceGenerator& parent_generator, StringView css_type_name, StringView type_name, StringView value_getter = {});
 bool is_animatable_property(JsonObject& properties, StringView property_name);
 
 static bool is_legacy_alias(JsonObject const& property)
@@ -355,7 +355,7 @@ struct Formatter<Web::CSS::PropertyID> : Formatter<StringView> {
     return {};
 }
 
-void generate_bounds_checking_function(JsonObject& properties, SourceGenerator& parent_generator, StringView css_type_name, StringView type_name, Optional<StringView> default_unit_name, Optional<StringView> value_getter)
+void generate_bounds_checking_function(JsonObject& properties, SourceGenerator& parent_generator, StringView css_type_name, StringView type_name, StringView value_getter)
 {
     auto generator = parent_generator.fork();
     generator.set("css_type_name", css_type_name);
@@ -403,24 +403,10 @@ bool property_accepts_@css_type_name@(PropertyID property_id, [[maybe_unused]] @
                     }
 
                     auto output_check = [&](auto& value_string, StringView comparator) {
-                        if (value_getter.has_value()) {
-                            property_generator.set("value_number", value_string);
-                            property_generator.set("value_getter", value_getter.value());
-                            property_generator.set("comparator", comparator);
-                            property_generator.append("@value_getter@ @comparator@ @value_number@");
-                            return;
-                        }
-
-                        GenericLexer lexer { value_string };
-                        auto value_number = lexer.consume_until(is_ascii_alpha);
-                        auto value_unit = lexer.consume_while(is_ascii_alpha);
-                        if (value_unit.is_empty())
-                            value_unit = default_unit_name.value();
-                        VERIFY(lexer.is_eof());
-                        property_generator.set("value_number", value_number);
-                        property_generator.set("value_unit", title_casify(value_unit));
+                        property_generator.set("value_number", value_string);
+                        property_generator.set("value_getter", value_getter);
                         property_generator.set("comparator", comparator);
-                        property_generator.append("value @comparator@ @type_name@(@value_number@, @type_name@::Type::@value_unit@)");
+                        property_generator.append("@value_getter@ @comparator@ @value_number@");
                     };
 
                     if (!min_value_string.is_empty())
@@ -1146,15 +1132,15 @@ size_t property_maximum_value_count(PropertyID property_id)
     }
 })~~~");
 
-    generate_bounds_checking_function(properties, generator, "angle"sv, "Angle"sv, "Deg"sv);
-    generate_bounds_checking_function(properties, generator, "flex"sv, "Flex"sv, "Fr"sv);
-    generate_bounds_checking_function(properties, generator, "frequency"sv, "Frequency"sv, "Hertz"sv);
-    generate_bounds_checking_function(properties, generator, "integer"sv, "i64"sv, {}, "value"sv);
-    generate_bounds_checking_function(properties, generator, "length"sv, "Length"sv, {}, "value.raw_value()"sv);
-    generate_bounds_checking_function(properties, generator, "number"sv, "double"sv, {}, "value"sv);
-    generate_bounds_checking_function(properties, generator, "percentage"sv, "Percentage"sv, {}, "value.value()"sv);
-    generate_bounds_checking_function(properties, generator, "resolution"sv, "Resolution"sv, "Dpi"sv);
-    generate_bounds_checking_function(properties, generator, "time"sv, "Time"sv, "S"sv);
+    generate_bounds_checking_function(properties, generator, "angle"sv, "Angle"sv, "value.raw_value()"sv);
+    generate_bounds_checking_function(properties, generator, "flex"sv, "Flex"sv, "value.raw_value()"sv);
+    generate_bounds_checking_function(properties, generator, "frequency"sv, "Frequency"sv, "value.raw_value()"sv);
+    generate_bounds_checking_function(properties, generator, "integer"sv, "i64"sv, "value"sv);
+    generate_bounds_checking_function(properties, generator, "length"sv, "Length"sv, "value.raw_value()"sv);
+    generate_bounds_checking_function(properties, generator, "number"sv, "double"sv, "value"sv);
+    generate_bounds_checking_function(properties, generator, "percentage"sv, "Percentage"sv, "value.value()"sv);
+    generate_bounds_checking_function(properties, generator, "resolution"sv, "Resolution"sv, "value.raw_value()"sv);
+    generate_bounds_checking_function(properties, generator, "time"sv, "Time"sv, "value.raw_value()"sv);
 
     generator.append(R"~~~(
 bool property_is_shorthand(PropertyID property_id)

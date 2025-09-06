@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <AK/Optional.h>
 #include <AK/String.h>
 #include <LibWeb/CSS/SerializationMode.h>
+#include <LibWeb/CSS/Units.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -16,26 +16,20 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-grid-2/#typedef-flex
 class Flex {
 public:
-    enum class Type : u8 {
-        Fr,
-    };
-
-    static Optional<Type> unit_from_name(StringView);
-
-    Flex(double value, Type type);
+    Flex(double value, FlexUnit unit);
     static Flex make_fr(double);
     Flex percentage_of(Percentage const&) const;
 
     String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_fr() const;
 
-    Type type() const { return m_type; }
     double raw_value() const { return m_value; }
-    StringView unit_name() const;
+    FlexUnit unit() const { return m_unit; }
+    StringView unit_name() const { return CSS::to_string(m_unit); }
 
     bool operator==(Flex const& other) const
     {
-        return m_type == other.m_type && m_value == other.m_value;
+        return m_unit == other.m_unit && m_value == other.m_value;
     }
 
     int operator<=>(Flex const& other) const
@@ -51,7 +45,7 @@ public:
     }
 
 private:
-    Type m_type;
+    FlexUnit m_unit;
     double m_value { 0 };
 };
 

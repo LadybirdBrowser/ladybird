@@ -1071,6 +1071,8 @@ set(GENERATED_SOURCES
     CSS/DescriptorID.cpp
     CSS/Enums.cpp
     CSS/EnvironmentVariable.cpp
+    CSS/GeneratedCSSNumericFactoryMethods.cpp
+    CSS/GeneratedCSSNumericFactoryMethods.idl
     CSS/GeneratedCSSStyleProperties.cpp
     CSS/GeneratedCSSStyleProperties.idl
     CSS/Keyword.cpp
@@ -1081,6 +1083,7 @@ set(GENERATED_SOURCES
     CSS/PseudoElement.cpp
     CSS/QuirksModeStyleSheetSource.cpp
     CSS/TransformFunctions.cpp
+    CSS/Units.cpp
     MathML/MathMLStyleSheetSource.cpp
     SVG/SVGStyleSheetSource.cpp
     Worker/WebWorkerClientEndpoint.h
