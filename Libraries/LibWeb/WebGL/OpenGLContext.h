@@ -55,6 +55,8 @@ private:
     void free_surface_resources();
 #if defined(AK_OS_MACOS)
     void allocate_iosurface_painting_surface();
+#elif defined(AK_OS_WINDOWS)
+    void allocate_d3d11texture_painting_surface();
 #elif defined(USE_VULKAN_IMAGES)
     void allocate_vkimage_painting_surface();
 #endif
