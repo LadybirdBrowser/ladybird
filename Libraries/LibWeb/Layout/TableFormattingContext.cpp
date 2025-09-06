@@ -889,10 +889,8 @@ void TableFormattingContext::compute_table_height()
         // - the horizontal/vertical border-spacing times the amount of spanned visible columns/rows minus one
         // FIXME: Account for visibility.
         cell_state.set_content_width(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
-        if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, cell_state.available_inner_space_or_constraints_from(*m_available_space))) {
+        if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, cell_state.available_inner_space_or_constraints_from(*m_available_space)))
             cell_state.set_content_height(independent_formatting_context->automatic_content_height());
-            independent_formatting_context->parent_context_did_dimension_child_root_box();
-        }
 
         cell.baseline = box_baseline(cell.box);
 
@@ -1174,6 +1172,9 @@ void TableFormattingContext::position_cell_boxes()
         cell_state.offset = row_state.offset.translated(
             cell_state.border_box_left() + m_columns[cell.column_index].left_offset + cell.column_index * border_spacing_horizontal(),
             cell_state.border_box_top());
+
+        if (auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, cell.box))
+            independent_formatting_context->parent_context_did_dimension_child_root_box();
     }
 }
 
