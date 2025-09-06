@@ -28,6 +28,7 @@ enum class StandardCursor {
     ResizeRow,
     Hand,
     Help,
+    OpenHand,
     Drag,
     DragCopy,
     Move,
