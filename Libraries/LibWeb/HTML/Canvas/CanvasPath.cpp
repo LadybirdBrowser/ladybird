@@ -23,8 +23,14 @@ void CanvasPath::ensure_subpath(float x, float y)
         m_path.move_to(Gfx::FloatPoint { x, y });
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-closepath
 void CanvasPath::close_path()
 {
+    // The closePath() method, when invoked, must do nothing if the object's path has no subpaths. Otherwise, it must
+    // mark the last subpath as closed, create a new subpath whose first point is the same as the previous subpath's
+    // first point, and finally add this new subpath to the path.
+    if (m_path.is_empty())
+        return;
     m_path.close();
 }
 
