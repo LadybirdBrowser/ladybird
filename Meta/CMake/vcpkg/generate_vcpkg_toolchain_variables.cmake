@@ -50,6 +50,8 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
 
     if(os_platform MATCHES "^(x86_64|AMD64|amd64)$")
       set(arch x64)
+    elseif(os_platform STREQUAL "riscv64")
+      set(arch riscv64)
     elseif(os_platform MATCHES "^(aarch64|arm64|ARM64)$")
         set(arch arm64)
     else()
