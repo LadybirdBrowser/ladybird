@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        try {
+            const httpServer = httpTestServer();
+            const url = await httpServer.createEcho("GET", "/XMLHttpRequest-response-header-nonprintable-characters", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Expose-Headers": "Heya",
+                    // Test case adapted from
+                    // https://github.com/web-platform-tests/wpt/blob/ba5fce6d64fcb0812ae23306b29721bb961c8d96/xhr/getresponseheader.any.js
+                    // https://github.com/web-platform-tests/wpt/blob/ba5fce6d64fcb0812ae23306b29721bb961c8d96/xhr/getallresponseheaders.htm
+                    "Heya": ["	 ", "\u000B\u000C", "1	", "", "	", " 	2"],
+                },
+                body: "",
+            });
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", url);
+
+            xhr.addEventListener("load", () => {
+                println(`JSON.stringify(getAllResponseHeaders()) => ${JSON.stringify(xhr.getAllResponseHeaders())}`);
+                println(`JSON.stringify(getResponseHeader("Heya")) => ${JSON.stringify(xhr.getResponseHeader("Heya"))}`);
+                done();
+            });
+            xhr.send();
+        } catch (err) {
+            console.log("FAIL - " + err);
+        }
+    });
+</script>
