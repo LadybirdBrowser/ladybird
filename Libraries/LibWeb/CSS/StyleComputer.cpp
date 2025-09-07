@@ -3286,6 +3286,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
     case PropertyID::FillOpacity:
     case PropertyID::Opacity:
     case PropertyID::StopOpacity:
+    case PropertyID::StrokeOpacity:
         return compute_opacity(specified_value, computation_context);
     default:
         // FIXME: We should replace this with a VERIFY_NOT_REACHED() once all properties have their own handling.
