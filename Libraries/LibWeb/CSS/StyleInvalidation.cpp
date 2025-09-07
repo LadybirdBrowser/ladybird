@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
 
@@ -61,8 +61,8 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         // OPTIMIZATION: An element creates a stacking context when its opacity changes from 1 to less than 1
         //               and stops to create one when opacity returns to 1. So stacking context tree rebuild is
         //               not required for opacity changes within the range below 1.
-        auto old_value_opacity = CSS::ComputedProperties::resolve_opacity_value(*old_value);
-        auto new_value_opacity = CSS::ComputedProperties::resolve_opacity_value(*new_value);
+        auto old_value_opacity = old_value->as_number().number();
+        auto new_value_opacity = new_value->as_number().number();
         if (old_value_opacity != new_value_opacity && (old_value_opacity == 1 || new_value_opacity == 1)) {
             invalidation.rebuild_stacking_context_tree = true;
         }

@@ -3283,6 +3283,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderTopStyle), computation_context);
     case PropertyID::OutlineWidth:
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::OutlineStyle), computation_context);
+    case PropertyID::Opacity:
+        return compute_opacity(specified_value, computation_context);
     default:
         // FIXME: We should replace this with a VERIFY_NOT_REACHED() once all properties have their own handling.
         return specified_value;
@@ -3312,6 +3314,30 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(N
     }();
 
     return LengthStyleValue::create(Length::make_px(snap_a_length_as_a_border_width(computation_context.device_pixels_per_css_pixel, absolute_length)));
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const& computation_context)
+{
+    // https://drafts.csswg.org/css-color-4/#transparency
+    // specified number, clamped to the range [0,1]
+
+    // <number>
+    if (specified_value->is_number())
+        return NumberStyleValue::create(clamp(specified_value->as_number().number(), 0, 1));
+
+    // NOTE: We also support calc()'d numbers
+    if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_number())
+        return NumberStyleValue::create(clamp(specified_value->as_calculated().resolve_number({ .length_resolution_context = computation_context.length_resolution_context }).value(), 0, 1));
+
+    // <percentage>
+    if (specified_value->is_percentage())
+        return NumberStyleValue::create(clamp(specified_value->as_percentage().percentage().as_fraction(), 0, 1));
+
+    // NOTE: We also support calc()'d percentages
+    if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_percentage())
+        return NumberStyleValue::create(clamp(specified_value->as_calculated().resolve_percentage({ .length_resolution_context = computation_context.length_resolution_context })->as_fraction(), 0, 1));
+
+    VERIFY_NOT_REACHED();
 }
 
 void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::AbstractElement> element) const
