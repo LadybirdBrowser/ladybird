@@ -533,7 +533,8 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     // 11. If inherited ns is equal to ns, then:
     if (inherited_ns == ns) {
         // 1. If local default namespace is not null, then set ignore namespace definition attribute to true.
-        if (local_default_namespace.has_value())
+        // AD HOC: only ignore default namespace if there are no prefixed namespace attributes on this element
+        if (local_default_namespace.has_value() && local_prefixes_map.is_empty())
             ignore_namespace_definition_attribute = true;
 
         // 2. If ns is the XML namespace, then append to qualified name the concatenation of the string "xml:" and the value of node's localName.
