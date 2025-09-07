@@ -200,13 +200,8 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     HTTP::HeaderMap additional_headers;
 
     auto cookies = ([&] {
-        // FIXME: Getting to the page client reliably is way too complicated, and going via the document won't work in workers.
-        auto document = client.responsible_document();
-        if (!document)
-            return String {};
-
-        // NOTE: The WebSocket handshake is sent as an HTTP request, so the source should be Http.
-        return document->page().client().page_did_request_cookie(url_record, Cookie::Source::Http);
+        auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm()));
+        return page.client().page_did_request_cookie(url_record, Cookie::Source::Http);
     })();
 
     if (!cookies.is_empty()) {
