@@ -3285,6 +3285,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::OutlineStyle), computation_context);
     case PropertyID::FillOpacity:
     case PropertyID::Opacity:
+    case PropertyID::StopOpacity:
         return compute_opacity(specified_value, computation_context);
     default:
         // FIXME: We should replace this with a VERIFY_NOT_REACHED() once all properties have their own handling.
