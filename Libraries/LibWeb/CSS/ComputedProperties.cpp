@@ -509,8 +509,7 @@ NumberOrCalculated ComputedProperties::stroke_miterlimit() const
 
 float ComputedProperties::stroke_opacity() const
 {
-    auto const& value = property(PropertyID::StrokeOpacity);
-    return resolve_opacity_value(value);
+    return property(PropertyID::StrokeOpacity).as_number().number();
 }
 
 float ComputedProperties::stop_opacity() const
