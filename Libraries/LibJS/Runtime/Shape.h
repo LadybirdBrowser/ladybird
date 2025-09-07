@@ -84,6 +84,8 @@ public:
     [[nodiscard]] bool is_cacheable_dictionary() const { return m_dictionary && m_cacheable; }
     [[nodiscard]] bool is_uncacheable_dictionary() const { return m_dictionary && !m_cacheable; }
 
+    [[nodiscard]] u32 dictionary_generation() const { return m_dictionary_generation; }
+
     [[nodiscard]] bool is_prototype_shape() const { return m_is_prototype_shape; }
     void set_prototype_shape();
 
@@ -137,6 +139,7 @@ private:
     GC::Ptr<PrototypeChainValidity> m_prototype_chain_validity;
 
     u32 m_property_count { 0 };
+    u32 m_dictionary_generation { 0 };
 
     PropertyAttributes m_attributes { 0 };
     TransitionType m_transition_type { TransitionType::Invalid };
