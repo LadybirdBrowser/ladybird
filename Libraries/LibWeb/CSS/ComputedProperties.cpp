@@ -479,8 +479,7 @@ float ComputedProperties::opacity() const
 
 float ComputedProperties::fill_opacity() const
 {
-    auto const& value = property(PropertyID::FillOpacity);
-    return resolve_opacity_value(value);
+    return property(PropertyID::FillOpacity).as_number().number();
 }
 
 StrokeLinecap ComputedProperties::stroke_linecap() const
