@@ -3284,6 +3284,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
     case PropertyID::OutlineWidth:
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::OutlineStyle), computation_context);
     case PropertyID::FillOpacity:
+    case PropertyID::FloodOpacity:
     case PropertyID::Opacity:
     case PropertyID::StopOpacity:
     case PropertyID::StrokeOpacity:

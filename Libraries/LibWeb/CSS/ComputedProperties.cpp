@@ -531,8 +531,7 @@ ClipRule ComputedProperties::clip_rule() const
 
 float ComputedProperties::flood_opacity() const
 {
-    auto const& value = property(PropertyID::FloodOpacity);
-    return resolve_opacity_value(value);
+    return property(PropertyID::FloodOpacity).as_number().number();
 }
 
 FlexDirection ComputedProperties::flex_direction() const
