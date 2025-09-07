@@ -1001,10 +1001,19 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
             bool can_use_cache = [&]() -> bool {
                 if (&shape != cache_entry.shape)
                     return false;
+
+                if (shape.is_dictionary()) {
+                    VERIFY(cache_entry.shape_dictionary_generation.has_value());
+                    if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation.value()) {
+                        return false;
+                    }
+                }
+
                 if (!cache_entry.prototype_chain_validity)
                     return false;
                 if (!cache_entry.prototype_chain_validity->is_valid())
                     return false;
+
                 return true;
             }();
             if (can_use_cache) {
@@ -1014,11 +1023,21 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
                 return value;
             }
         } else if (&shape == cache_entry.shape) {
+            bool can_use_cache = true;
+            if (shape.is_dictionary()) {
+                VERIFY(cache_entry.shape_dictionary_generation.has_value());
+                if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation.value()) {
+                    can_use_cache = false;
+                }
+            }
+
             // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
-            auto value = base_obj->get_direct(cache_entry.property_offset.value());
-            if (value.is_accessor())
-                return TRY(call(vm, value.as_accessor().getter(), this_value));
-            return value;
+            if (can_use_cache) {
+                auto value = base_obj->get_direct(cache_entry.property_offset.value());
+                if (value.is_accessor())
+                    return TRY(call(vm, value.as_accessor().getter(), this_value));
+                return value;
+            }
         }
     }
 
@@ -1040,12 +1059,18 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
             auto& entry = get_cache_slot();
             entry.shape = shape;
             entry.property_offset = cacheable_metadata.property_offset.value();
+            if (shape.is_dictionary()) {
+                entry.shape_dictionary_generation = shape.dictionary_generation();
+            }
         } else if (cacheable_metadata.type == CacheablePropertyMetadata::Type::InPrototypeChain) {
             auto& entry = get_cache_slot();
             entry.shape = &base_obj->shape();
             entry.property_offset = cacheable_metadata.property_offset.value();
             entry.prototype = *cacheable_metadata.prototype;
             entry.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+            if (shape.is_dictionary()) {
+                entry.shape_dictionary_generation = shape.dictionary_generation();
+            }
         }
     }
 
@@ -1144,7 +1169,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.entries[0].shape) {
+        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation.value())) {
             auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
             if (value.is_accessor())
                 return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
@@ -1196,6 +1221,10 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
             cache.entries[0].shape = shape;
             cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
+
+            if (shape.is_dictionary()) {
+                cache.entries[0].shape_dictionary_generation = shape.dictionary_generation();
+            }
         }
         return value;
     }
@@ -1243,6 +1272,14 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     bool can_use_cache = [&]() -> bool {
                         if (&object->shape() != cache.shape)
                             return false;
+
+                        if (shape.is_dictionary()) {
+                            VERIFY(cache.shape_dictionary_generation.has_value());
+                            if (shape.dictionary_generation() != cache.shape_dictionary_generation.value()) {
+                                return false;
+                            }
+                        }
+
                         if (!cache.prototype_chain_validity)
                             return false;
                         if (!cache.prototype_chain_validity->is_valid())
@@ -1257,13 +1294,23 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                         }
                     }
                 } else if (cache.shape == &object->shape()) {
-                    auto value_in_object = object->get_direct(cache.property_offset.value());
-                    if (value_in_object.is_accessor()) {
-                        TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
-                    } else {
-                        object->put_direct(*cache.property_offset, value);
+                    bool can_use_cache = true;
+                    if (shape.is_dictionary()) {
+                        VERIFY(cache.shape_dictionary_generation.has_value());
+                        if (shape.dictionary_generation() != cache.shape_dictionary_generation.value()) {
+                            can_use_cache = false;
+                        }
                     }
-                    return {};
+
+                    if (can_use_cache) {
+                        auto value_in_object = object->get_direct(cache.property_offset.value());
+                        if (value_in_object.is_accessor()) {
+                            TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
+                        } else {
+                            object->put_direct(*cache.property_offset, value);
+                        }
+                        return {};
+                    }
                 }
             }
         }
@@ -1286,11 +1333,19 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
             if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
                 cache.shape = object->shape();
                 cache.property_offset = cacheable_metadata.property_offset.value();
+
+                if (shape.is_dictionary()) {
+                    cache.shape_dictionary_generation = shape.dictionary_generation();
+                }
             } else if (cacheable_metadata.type == CacheablePropertyMetadata::Type::InPrototypeChain) {
                 cache.shape = object->shape();
                 cache.property_offset = cacheable_metadata.property_offset.value();
                 cache.prototype = *cacheable_metadata.prototype;
                 cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+
+                if (shape.is_dictionary()) {
+                    cache.shape_dictionary_generation = shape.dictionary_generation();
+                }
             }
         }
 
@@ -2313,7 +2368,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
     if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.entries[0].shape) {
+        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation.value())) {
             auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
             if (value.is_accessor())
                 TRY(call(vm, value.as_accessor().setter(), &binding_object, src));
@@ -2382,6 +2437,10 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
         if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
             cache.entries[0].shape = shape;
             cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
+
+            if (shape.is_dictionary()) {
+                cache.entries[0].shape_dictionary_generation = shape.dictionary_generation();
+            }
         }
         return {};
     }
