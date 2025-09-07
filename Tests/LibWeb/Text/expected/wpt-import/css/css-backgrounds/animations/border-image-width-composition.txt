@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 56 tests
 
-15 Pass
-41 Fail
-Fail	Compositing: property <border-image-width> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (-0.25) should be [0]
+17 Pass
+39 Fail
+Pass	Compositing: property <border-image-width> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (-0.25) should be [0]
 Fail	Compositing: property <border-image-width> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (0) should be [2 4 6 8]
 Fail	Compositing: property <border-image-width> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (0.25) should be [27 29 31 33]
 Fail	Compositing: property <border-image-width> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (0.5) should be [52 54 56 58]
@@ -18,7 +18,7 @@ Fail	Compositing: property <border-image-width> underlying [100 200 300 400] fro
 Fail	Compositing: property <border-image-width> underlying [100 200 300 400] from add [100] to add [200 300 500] at (0.75) should be [275 450 700 650]
 Fail	Compositing: property <border-image-width> underlying [100 200 300 400] from add [100] to add [200 300 500] at (1) should be [300 500 800 700]
 Fail	Compositing: property <border-image-width> underlying [100 200 300 400] from add [100] to add [200 300 500] at (1.25) should be [325 550 900 750]
-Fail	Compositing: property <border-image-width> underlying [1 2 3px 4%] from add [1 2 3px 4%] to add [101 102 103px 104%] at (-0.25) should be [0 0 0px 0%]
+Pass	Compositing: property <border-image-width> underlying [1 2 3px 4%] from add [1 2 3px 4%] to add [101 102 103px 104%] at (-0.25) should be [0 0 0px 0%]
 Fail	Compositing: property <border-image-width> underlying [1 2 3px 4%] from add [1 2 3px 4%] to add [101 102 103px 104%] at (0) should be [2 4 6px 8%]
 Fail	Compositing: property <border-image-width> underlying [1 2 3px 4%] from add [1 2 3px 4%] to add [101 102 103px 104%] at (0.25) should be [27 29 31px 33%]
 Fail	Compositing: property <border-image-width> underlying [1 2 3px 4%] from add [1 2 3px 4%] to add [101 102 103px 104%] at (0.5) should be [52 54 56px 58%]
