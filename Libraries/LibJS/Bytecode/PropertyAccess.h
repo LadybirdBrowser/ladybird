@@ -98,6 +98,14 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             bool can_use_cache = [&]() -> bool {
                 if (&shape != cache_entry.shape) [[unlikely]]
                     return false;
+
+                if (shape.is_dictionary()) {
+                    VERIFY(cache_entry.shape_dictionary_generation.has_value());
+                    if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation.value()) [[unlikely]] {
+                        return false;
+                    }
+                }
+
                 auto cached_prototype_chain_validity = cache_entry.prototype_chain_validity.ptr();
                 if (!cached_prototype_chain_validity) [[unlikely]]
                     return false;
@@ -113,11 +121,21 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             }
         } else if (&shape == cache_entry.shape) {
             // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
-            auto value = base_obj->get_direct(cache_entry.property_offset.value());
-            if (value.is_accessor()) {
-                return TRY(call(vm, value.as_accessor().getter(), this_value));
+            bool can_use_cache = true;
+            if (shape.is_dictionary()) {
+                VERIFY(cache_entry.shape_dictionary_generation.has_value());
+                if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation.value()) [[unlikely]] {
+                    can_use_cache = false;
+                }
             }
-            return value;
+
+            if (can_use_cache) [[likely]] {
+                auto value = base_obj->get_direct(cache_entry.property_offset.value());
+                if (value.is_accessor()) {
+                    return TRY(call(vm, value.as_accessor().getter(), this_value));
+                }
+                return value;
+            }
         }
     }
 
@@ -139,12 +157,20 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             auto& entry = get_cache_slot();
             entry.shape = shape;
             entry.property_offset = cacheable_metadata.property_offset.value();
+
+            if (shape.is_dictionary()) {
+                entry.shape_dictionary_generation = shape.dictionary_generation();
+            }
         } else if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain) {
             auto& entry = get_cache_slot();
             entry.shape = &base_obj->shape();
             entry.property_offset = cacheable_metadata.property_offset.value();
             entry.prototype = *cacheable_metadata.prototype;
             entry.prototype_chain_validity = *prototype_chain_validity;
+
+            if (shape.is_dictionary()) {
+                entry.shape_dictionary_generation = shape.dictionary_generation();
+            }
         }
     }
 

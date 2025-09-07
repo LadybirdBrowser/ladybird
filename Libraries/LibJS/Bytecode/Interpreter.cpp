@@ -1033,7 +1033,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.entries[0].shape) {
+        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation.value())) {
             auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
             if (value.is_accessor())
                 return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
@@ -1085,6 +1085,10 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
             cache.entries[0].shape = shape;
             cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
+
+            if (shape.is_dictionary()) {
+                cache.entries[0].shape_dictionary_generation = shape.dictionary_generation();
+            }
         }
         return value;
     }
@@ -1140,6 +1144,13 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     bool can_use_cache = [&]() -> bool {
                         if (&object->shape() != cache.shape) [[unlikely]]
                             return false;
+
+                        if (cache.shape->is_dictionary()) {
+                            VERIFY(cache.shape_dictionary_generation.has_value());
+                            if (object->shape().dictionary_generation() != cache.shape_dictionary_generation.value()) [[unlikely]]
+                                return false;
+                        }
+
                         auto cached_prototype_chain_validity = cache.prototype_chain_validity.ptr();
                         if (!cached_prototype_chain_validity) [[unlikely]]
                             return false;
@@ -1159,6 +1170,13 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                 case PropertyLookupCache::Entry::Type::ChangeOwnProperty: {
                     if (cache.shape != &object->shape()) [[unlikely]]
                         break;
+
+                    if (cache.shape->is_dictionary()) {
+                        VERIFY(cache.shape_dictionary_generation.has_value());
+                        if (cache.shape->dictionary_generation() != cache.shape_dictionary_generation.value())
+                            break;
+                    }
+
                     auto value_in_object = object->get_direct(cache.property_offset.value());
                     if (value_in_object.is_accessor()) [[unlikely]] {
                         (void)TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
@@ -1175,6 +1193,13 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     auto cached_shape = cache.shape.ptr();
                     if (!cached_shape) [[unlikely]]
                         break;
+
+                    if (cache.shape->is_dictionary()) {
+                        VERIFY(cache.shape_dictionary_generation.has_value());
+                        if (object->shape().dictionary_generation() != cache.shape_dictionary_generation.value())
+                            break;
+                    }
+
                     // The cache is invalid if the prototype chain has been mutated, since such a mutation could have added a setter for the property.
                     auto cached_prototype_chain_validity = cache.prototype_chain_validity.ptr();
                     if (cached_prototype_chain_validity && !cached_prototype_chain_validity->is_valid()) [[unlikely]]
@@ -1209,6 +1234,9 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
             if (cacheable_metadata.prototype) {
                 cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
             }
+            if (cache.shape->is_dictionary()) {
+                cache.shape_dictionary_generation = cache.shape->dictionary_generation();
+            }
         }
 
         // If internal_set() caused object's shape change, we can no longer be sure
@@ -1225,6 +1253,10 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                 cache.type = PropertyLookupCache::Entry::Type::ChangeOwnProperty;
                 cache.shape = object->shape();
                 cache.property_offset = cacheable_metadata.property_offset.value();
+
+                if (cache.shape->is_dictionary()) {
+                    cache.shape_dictionary_generation = cache.shape->dictionary_generation();
+                }
                 break;
             case CacheableSetPropertyMetadata::Type::ChangePropertyInPrototypeChain:
                 cache.type = PropertyLookupCache::Entry::Type::ChangePropertyInPrototypeChain;
@@ -1232,6 +1264,10 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                 cache.property_offset = cacheable_metadata.property_offset.value();
                 cache.prototype = *cacheable_metadata.prototype;
                 cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+
+                if (cache.shape->is_dictionary()) {
+                    cache.shape_dictionary_generation = cache.shape->dictionary_generation();
+                }
                 break;
             case CacheableSetPropertyMetadata::Type::NotCacheable:
                 break;
@@ -2294,7 +2330,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
     if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.entries[0].shape) {
+        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation.value())) {
             auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
             if (value.is_accessor())
                 TRY(call(vm, value.as_accessor().setter(), &binding_object, src));
@@ -2363,6 +2399,10 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
         if (cacheable_metadata.type == CacheableSetPropertyMetadata::Type::ChangeOwnProperty) {
             cache.entries[0].shape = shape;
             cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
+
+            if (shape.is_dictionary()) {
+                cache.entries[0].shape_dictionary_generation = shape.dictionary_generation();
+            }
         }
         return {};
     }
