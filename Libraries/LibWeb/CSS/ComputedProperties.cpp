@@ -474,8 +474,7 @@ float ComputedProperties::resolve_opacity_value(StyleValue const& value)
 
 float ComputedProperties::opacity() const
 {
-    auto const& value = property(PropertyID::Opacity);
-    return resolve_opacity_value(value);
+    return property(PropertyID::Opacity).as_number().number();
 }
 
 float ComputedProperties::fill_opacity() const
