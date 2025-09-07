@@ -3829,15 +3829,6 @@ RefPtr<StyleValue const> Parser::parse_opacity_value(PropertyID property_id, Tok
     // Percentages map to the range [0,1] for opacity values
     if (value->is_percentage())
         value = NumberStyleValue::create(value->as_percentage().percentage().as_fraction());
-    if (value->is_calculated() && value->as_calculated().resolves_to_percentage()) {
-        auto maybe_percentage = value->as_calculated().resolve_percentage_deprecated({});
-        if (maybe_percentage.has_value()) {
-            auto resolved_percentage = maybe_percentage->as_fraction();
-            CalculationContext context {};
-            auto calc_node = NumericCalculationNode::create(Number { Number::Type::Number, resolved_percentage }, context);
-            value = CalculatedStyleValue::create(move(calc_node), NumericType { NumericType::BaseType::Length, 1 }, context);
-        }
-    }
 
     return value;
 }

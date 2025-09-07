@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 30 tests
 
-19 Pass
-11 Fail
+30 Pass
 Pass	e.style['opacity'] = "1" should set the property value
 Pass	e.style['opacity'] = "0.5" should set the property value
 Pass	e.style['opacity'] = "0" should set the property value
@@ -12,20 +11,20 @@ Pass	e.style['opacity'] = "3" should set the property value
 Pass	e.style['opacity'] = "-100%" should set the property value
 Pass	e.style['opacity'] = "50%" should set the property value
 Pass	e.style['opacity'] = "300%" should set the property value
-Fail	e.style['opacity'] = "calc(-50% - 50%)" should set the property value
-Fail	e.style['opacity'] = "calc(25% * 2)" should set the property value
-Fail	e.style['opacity'] = "calc(100% + 100%)" should set the property value
+Pass	e.style['opacity'] = "calc(-50% - 50%)" should set the property value
+Pass	e.style['opacity'] = "calc(25% * 2)" should set the property value
+Pass	e.style['opacity'] = "calc(100% + 100%)" should set the property value
 Pass	e.style['opacity'] = "calc(-0.5 - 0.5)" should set the property value
 Pass	e.style['opacity'] = "calc(0.25 * 2)" should set the property value
 Pass	e.style['opacity'] = "calc(1 + 1)" should set the property value
-Fail	e.style['opacity'] = "clamp(50%, 0%, 70%)" should set the property value
-Fail	e.style['opacity'] = "clamp(50%, 80%, 70%)" should set the property value
-Fail	e.style['opacity'] = "clamp(50%, 60%, 70%)" should set the property value
-Fail	e.style['opacity'] = "min(50%, 0%)" should set the property value
-Fail	e.style['opacity'] = "min(0%, 50%)" should set the property value
-Fail	e.style['opacity'] = "max(50%, 0%)" should set the property value
-Fail	e.style['opacity'] = "max(0%, 50%)" should set the property value
-Fail	e.style['opacity'] = "min(-40%, 50%)" should set the property value
+Pass	e.style['opacity'] = "clamp(50%, 0%, 70%)" should set the property value
+Pass	e.style['opacity'] = "clamp(50%, 80%, 70%)" should set the property value
+Pass	e.style['opacity'] = "clamp(50%, 60%, 70%)" should set the property value
+Pass	e.style['opacity'] = "min(50%, 0%)" should set the property value
+Pass	e.style['opacity'] = "min(0%, 50%)" should set the property value
+Pass	e.style['opacity'] = "max(50%, 0%)" should set the property value
+Pass	e.style['opacity'] = "max(0%, 50%)" should set the property value
+Pass	e.style['opacity'] = "min(-40%, 50%)" should set the property value
 Pass	e.style['opacity'] = "clamp(0.5, 0, 0.7)" should set the property value
 Pass	e.style['opacity'] = "clamp(0.5, 0.8, 0.7)" should set the property value
 Pass	e.style['opacity'] = "clamp(0.5, 0.6, 0.7)" should set the property value
