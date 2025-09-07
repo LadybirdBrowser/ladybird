@@ -49,8 +49,18 @@ void WorkerAgentParent::initialize(JS::Realm& realm)
     auto transport = make<IPC::Transport>(move(worker_socket));
 
     m_worker_ipc = make_ref_counted<WebWorkerClient>(move(transport));
+    setup_worker_ipc_callbacks(realm);
 
     m_worker_ipc->async_start_worker(m_url, m_worker_options.type, m_worker_options.credentials, m_worker_options.name, move(data_holder), m_outside_settings->serialize(), m_agent_type);
+}
+
+void WorkerAgentParent::setup_worker_ipc_callbacks(JS::Realm& realm)
+{
+    // NOTE: As long as WorkerAgentParent is alive, realm and m_worker_ipc will be alive.
+    m_worker_ipc->on_request_cookie = [realm = GC::RawRef { realm }](URL::URL const& url, Cookie::Source source) {
+        auto& client = Bindings::principal_host_defined_page(realm).client();
+        return client.page_did_request_cookie(url, source);
+    };
 }
 
 void WorkerAgentParent::visit_edges(Cell::Visitor& visitor)
