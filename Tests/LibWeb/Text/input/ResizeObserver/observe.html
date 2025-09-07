@@ -23,9 +23,12 @@
             });
         }
 
-        const resizeObserver = new ResizeObserver(function (entries) {
+        const resizeObserver = new ResizeObserver(function (entries, ro) {
             if (this !== resizeObserver) {
                 println("this is not the ResizeObserver instance inside callback");
+            }
+            if (ro !== resizeObserver) {
+                println("observer argument is not the ResizeObserver instance inside callback");
             }
 
             for (let entry of entries) {
