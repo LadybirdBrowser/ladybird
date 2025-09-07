@@ -1944,11 +1944,8 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
                 // 1. Let cookies be the result of running the "cookie-string" algorithm (see section 5.4 of [COOKIES])
                 //    with the user agent’s cookie store and httpRequest’s current URL.
                 auto cookies = ([&] {
-                    // FIXME: Getting to the page client reliably is way too complicated, and going via the document won't work in workers.
-                    auto document = Bindings::principal_host_defined_environment_settings_object(HTML::principal_realm(realm)).responsible_document();
-                    if (!document)
-                        return String {};
-                    return document->page().client().page_did_request_cookie(http_request->current_url(), Cookie::Source::Http);
+                    auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm));
+                    return page.client().page_did_request_cookie(http_request->current_url(), Cookie::Source::Http);
                 })();
 
                 // 2. If cookies is not the empty string, then append (`Cookie`, cookies) to httpRequest’s header list.
