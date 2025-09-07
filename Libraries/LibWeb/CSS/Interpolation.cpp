@@ -36,16 +36,21 @@
 namespace Web::CSS {
 
 template<typename T>
-static T interpolate_raw(T from, T to, float delta)
+static T interpolate_raw(T from, T to, float delta, Optional<AcceptedTypeRange> accepted_type_range = {})
 {
     if constexpr (AK::Detail::IsSame<T, double>) {
+        if (accepted_type_range.has_value())
+            return clamp(from + (to - from) * static_cast<double>(delta), accepted_type_range->min, accepted_type_range->max);
         return from + (to - from) * static_cast<double>(delta);
     } else if constexpr (AK::Detail::IsIntegral<T>) {
         auto from_float = static_cast<float>(from);
         auto to_float = static_cast<float>(to);
+        auto min = accepted_type_range.has_value() ? accepted_type_range->min : NumericLimits<T>::min();
+        auto max = accepted_type_range.has_value() ? accepted_type_range->max : NumericLimits<T>::max();
         auto unclamped_result = roundf(from_float + (to_float - from_float) * delta);
-        return static_cast<AK::Detail::RemoveCVReference<T>>(clamp(unclamped_result, NumericLimits<T>::min(), NumericLimits<T>::max()));
+        return static_cast<AK::Detail::RemoveCVReference<T>>(clamp(unclamped_result, min, max));
     }
+    VERIFY(!accepted_type_range.has_value());
     return static_cast<AK::Detail::RemoveCVReference<T>>(from + (to - from) * delta);
 }
 
@@ -461,6 +466,7 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
 
     CalculationContext calculation_context {
         .percentages_resolve_as = property_resolves_percentages_relative_to(property_id),
+        .accepted_type_ranges = property_accepted_type_ranges(property_id),
     };
 
     auto animation_type = animation_type_from_longhand_property(property_id);
@@ -1095,32 +1101,34 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return {};
     }
 
-    static auto interpolate_length_percentage = [](LengthPercentage const& from, LengthPercentage const& to, float delta) -> Optional<LengthPercentage> {
+    static auto interpolate_length_percentage = [](CalculationContext const& calculation_context, LengthPercentage const& from, LengthPercentage const& to, float delta) -> Optional<LengthPercentage> {
         if (from.is_length() && to.is_length())
-            return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta));
+            return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
         if (from.is_percentage() && to.is_percentage())
-            return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta));
+            return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
         // FIXME: Interpolate calculations
         return {};
     };
 
-    static auto interpolate_length_percentage_or_auto = [](LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta) -> Optional<LengthPercentageOrAuto> {
+    static auto interpolate_length_percentage_or_auto = [](CalculationContext const& calculation_context, LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta) -> Optional<LengthPercentageOrAuto> {
         if (from.is_auto() && to.is_auto())
             return LengthPercentageOrAuto::make_auto();
         if (from.is_length() && to.is_length())
-            return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta));
+            return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
         if (from.is_percentage() && to.is_percentage())
-            return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta));
+            return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
         // FIXME: Interpolate calculations
         return {};
     };
 
     switch (from.type()) {
-    case StyleValue::Type::Angle:
-        return AngleStyleValue::create(Angle::make_degrees(interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta)));
+    case StyleValue::Type::Angle: {
+        auto interpolated_value = interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta, calculation_context.accepted_type_ranges.get(ValueType::Angle));
+        return AngleStyleValue::create(Angle::make_degrees(interpolated_value));
+    }
     case StyleValue::Type::BackgroundSize: {
-        auto interpolated_x = interpolate_length_percentage_or_auto(from.as_background_size().size_x(), to.as_background_size().size_x(), delta);
-        auto interpolated_y = interpolate_length_percentage_or_auto(from.as_background_size().size_y(), to.as_background_size().size_y(), delta);
+        auto interpolated_x = interpolate_length_percentage_or_auto(calculation_context, from.as_background_size().size_x(), to.as_background_size().size_x(), delta);
+        auto interpolated_y = interpolate_length_percentage_or_auto(calculation_context, from.as_background_size().size_y(), to.as_background_size().size_y(), delta);
         if (!interpolated_x.has_value() || !interpolated_y.has_value())
             return {};
 
@@ -1156,7 +1164,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto const& edge = delta >= 0.5f ? resolved_to->edge() : resolved_from->edge();
         auto const& from_offset = resolved_from->offset();
         auto const& to_offset = resolved_to->offset();
-        if (auto interpolated_value = interpolate_length_percentage(from_offset, to_offset, delta); interpolated_value.has_value())
+        if (auto interpolated_value = interpolate_length_percentage(calculation_context, from_offset, to_offset, delta); interpolated_value.has_value())
             return EdgeStyleValue::create(edge, *interpolated_value);
 
         return {};
@@ -1180,18 +1188,23 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         // https://drafts.csswg.org/css-values/#combine-integers
         // Interpolation of <integer> is defined as Vresult = round((1 - p) × VA + p × VB);
         // that is, interpolation happens in the real number space as for <number>s, and the result is converted to an <integer> by rounding to the nearest integer.
-        auto interpolated_value = interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta);
+        auto interpolated_value = interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta, calculation_context.accepted_type_ranges.get(ValueType::Integer));
         return IntegerStyleValue::create(interpolated_value);
     }
     case StyleValue::Type::Length: {
         auto const& from_length = from.as_length().length();
         auto const& to_length = to.as_length().length();
-        return LengthStyleValue::create(Length(interpolate_raw(from_length.raw_value(), to_length.raw_value(), delta), from_length.type()));
+        auto interpolated_value = interpolate_raw(from_length.raw_value(), to_length.raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length));
+        return LengthStyleValue::create(Length(interpolated_value, from_length.type()));
     }
-    case StyleValue::Type::Number:
-        return NumberStyleValue::create(interpolate_raw(from.as_number().number(), to.as_number().number(), delta));
-    case StyleValue::Type::Percentage:
-        return PercentageStyleValue::create(Percentage(interpolate_raw(from.as_percentage().percentage().value(), to.as_percentage().percentage().value(), delta)));
+    case StyleValue::Type::Number: {
+        auto interpolated_value = interpolate_raw(from.as_number().number(), to.as_number().number(), delta, calculation_context.accepted_type_ranges.get(ValueType::Number));
+        return NumberStyleValue::create(interpolated_value);
+    }
+    case StyleValue::Type::Percentage: {
+        auto interpolated_value = interpolate_raw(from.as_percentage().percentage().value(), to.as_percentage().percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage));
+        return PercentageStyleValue::create(Percentage(interpolated_value));
+    }
     case StyleValue::Type::Position: {
         // https://www.w3.org/TR/css-values-4/#combine-positions
         // FIXME: Interpolation of <position> is defined as the independent interpolation of each component (x, y) normalized as an offset from the top left corner as a <length-percentage>.
@@ -1219,8 +1232,8 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         // result as the first value and 1 as the second value.
         auto from_number = log(from_ratio.value());
         auto to_number = log(to_ratio.value());
-        auto interp_number = interpolate_raw(from_number, to_number, delta);
-        return RatioStyleValue::create(Ratio(pow(M_E, interp_number)));
+        auto interpolated_value = interpolate_raw(from_number, to_number, delta, calculation_context.accepted_type_ranges.get(ValueType::Ratio));
+        return RatioStyleValue::create(Ratio(pow(M_E, interpolated_value)));
     }
     case StyleValue::Type::Rect: {
         auto from_rect = from.as_rect().rect();
@@ -1229,18 +1242,19 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         if (from_rect.top_edge.is_auto() != to_rect.top_edge.is_auto() || from_rect.right_edge.is_auto() != to_rect.right_edge.is_auto() || from_rect.bottom_edge.is_auto() != to_rect.bottom_edge.is_auto() || from_rect.left_edge.is_auto() != to_rect.left_edge.is_auto())
             return {};
 
-        auto interpolate_length_or_auto = [](LengthOrAuto const& from, LengthOrAuto const& to, float delta) {
+        auto interpolate_length_or_auto = [](LengthOrAuto const& from, LengthOrAuto const& to, CalculationContext const& calculation_context, float delta) {
             if (from.is_auto() && to.is_auto())
                 return LengthOrAuto::make_auto();
             // FIXME: Actually handle the units not matching.
-            return LengthOrAuto { Length { interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta), from.length().type() } };
+            auto interpolated_value = interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Rect));
+            return LengthOrAuto { Length { interpolated_value, from.length().type() } };
         };
 
         return RectStyleValue::create({
-            interpolate_length_or_auto(from_rect.top_edge, to_rect.top_edge, delta),
-            interpolate_length_or_auto(from_rect.right_edge, to_rect.right_edge, delta),
-            interpolate_length_or_auto(from_rect.bottom_edge, to_rect.bottom_edge, delta),
-            interpolate_length_or_auto(from_rect.left_edge, to_rect.left_edge, delta),
+            interpolate_length_or_auto(from_rect.top_edge, to_rect.top_edge, calculation_context, delta),
+            interpolate_length_or_auto(from_rect.right_edge, to_rect.right_edge, calculation_context, delta),
+            interpolate_length_or_auto(from_rect.bottom_edge, to_rect.bottom_edge, calculation_context, delta),
+            interpolate_length_or_auto(from_rect.left_edge, to_rect.left_edge, calculation_context, delta),
         });
     }
     case StyleValue::Type::Transformation:
