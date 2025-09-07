@@ -662,7 +662,7 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
 
             auto margin_bottom = m_margin_state.current_collapsed_margin();
             if (box_state.padding_bottom == 0 && box_state.border_bottom == 0) {
-                m_margin_state.box_last_in_flow_child_margin_bottom_collapsed = true;
+                m_margin_state.set_box_last_in_flow_child_margin_bottom_collapsed(true);
                 margin_bottom = 0;
             }
 
@@ -855,12 +855,12 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     }
 
     if (independent_formatting_context || !margins_collapse_through(box, m_state)) {
-        if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed) {
+        if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed()) {
             m_margin_state.reset();
         }
         m_y_offset_of_current_block_container = box_state.offset.y() + box_state.content_height() + box_state.border_box_bottom();
     }
-    m_margin_state.box_last_in_flow_child_margin_bottom_collapsed = false;
+    m_margin_state.set_box_last_in_flow_child_margin_bottom_collapsed(false);
 
     m_margin_state.add_margin(box_state.margin_bottom);
     m_margin_state.update_block_waiting_for_final_y_position();
@@ -889,8 +889,6 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
         layout_block_level_box(box, block_container, bottom_of_lowest_margin_box, available_space);
         return IterationDecision::Continue;
     });
-
-    m_margin_state.block_container_y_position_update_callback = {};
 
     if (m_layout_mode == LayoutMode::IntrinsicSizing) {
         auto& block_container_state = m_state.get_mutable(block_container);
@@ -931,11 +929,6 @@ void BlockFormattingContext::resolve_vertical_box_model_metrics(Box const& box, 
     box_state.border_bottom = computed_values.border_bottom().width;
     box_state.padding_top = computed_values.padding().top().to_px_or_zero(box, width_of_containing_block);
     box_state.padding_bottom = computed_values.padding().bottom().to_px_or_zero(box, width_of_containing_block);
-}
-
-CSSPixels BlockFormattingContext::BlockMarginState::current_collapsed_margin() const
-{
-    return current_positive_collapsible_margin + current_negative_collapsible_margin;
 }
 
 BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floating_boxes(Node const& child_box, Optional<InlineFormattingContext&> inline_formatting_context)

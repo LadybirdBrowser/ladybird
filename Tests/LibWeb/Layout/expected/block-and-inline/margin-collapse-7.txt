@@ -1,0 +1,14 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 300 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,200] [0+0+0 800 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <div.bump> at [0,200] [0+0+0 800 0+0+0] [100+0+0 0 0+0+0] children: not-inline
+      BlockContainer <div.content> at [0,200] [0+0+0 100 0+0+700] [200+0+0 100 0+0+0] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x300]
+    PaintableWithLines (BlockContainer<BODY>) [0,200 800x100]
+      PaintableWithLines (BlockContainer<DIV>.bump) [0,200 800x0]
+      PaintableWithLines (BlockContainer<DIV>.content) [0,200 100x100]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x300] [children: 0] (z-index: auto)

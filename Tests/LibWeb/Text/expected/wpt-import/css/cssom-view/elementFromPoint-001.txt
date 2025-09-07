@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	CSSOM View - 5 - extensions to the Document interface
+1 Pass
+Pass	CSSOM View - 5 - extensions to the Document interface

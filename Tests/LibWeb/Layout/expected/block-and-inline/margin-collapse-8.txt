@@ -1,0 +1,25 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 82 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,64] [0+0+0 800 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+      BlockContainer <div.fixed> at [0,0] positioned [0+0+0 90.234375 0+0+0] [0+0+0 64 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [0,0 90.234375x18] baseline: 13.796875
+            "Fixed stuff"
+        TextNode <#text> (not painted)
+      BlockContainer <div.bump> at [0,64] [0+0+0 800 0+0+0] [64+0+0 0 0+0+0] children: not-inline
+      BlockContainer <div.content> at [0,64] [0+0+0 800 0+0+0] [0+0+0 18 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 12, rect: [0,64 94.140625x18] baseline: 13.796875
+            "Hello world!"
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x82]
+    PaintableWithLines (BlockContainer<BODY>) [0,64 800x18]
+      PaintableWithLines (BlockContainer<DIV>.fixed) [0,0 90.234375x64]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.bump) [0,64 800x0]
+      PaintableWithLines (BlockContainer<DIV>.content) [0,64 800x18]
+        TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x82] [children: 1] (z-index: auto)
+  SC for BlockContainer<DIV>.fixed [0,0 90.234375x64] [children: 0] (z-index: auto)
