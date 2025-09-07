@@ -77,6 +77,11 @@ Web::CSS::PreferredMotion PageHost::preferred_motion() const
     return Web::CSS::PreferredMotion::Auto;
 }
 
+String PageHost::page_did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
+{
+    return m_client.did_request_cookie(url, source);
+}
+
 void PageHost::request_file(Web::FileRequest request)
 {
     m_client.request_file(move(request));

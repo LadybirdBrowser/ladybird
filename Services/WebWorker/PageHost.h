@@ -32,6 +32,7 @@ public:
     virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override;
     virtual Web::CSS::PreferredContrast preferred_contrast() const override;
     virtual Web::CSS::PreferredMotion preferred_motion() const override;
+    virtual String page_did_request_cookie(URL::URL const&, Web::Cookie::Source) override;
     virtual void request_file(Web::FileRequest) override;
     virtual Web::DisplayListPlayerType display_list_player_type() const override { VERIFY_NOT_REACHED(); }
     virtual bool is_headless() const override { VERIFY_NOT_REACHED(); }

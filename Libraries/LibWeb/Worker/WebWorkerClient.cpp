@@ -20,6 +20,13 @@ void WebWorkerClient::did_close_worker()
         on_worker_close();
 }
 
+Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request_cookie(URL::URL url, Cookie::Source source)
+{
+    if (on_request_cookie)
+        return on_request_cookie(url, source);
+    return String {};
+}
+
 WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport))
 {

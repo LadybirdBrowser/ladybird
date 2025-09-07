@@ -31,6 +31,8 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    void setup_worker_ipc_callbacks(JS::Realm&);
+
     WorkerOptions m_worker_options;
     Bindings::AgentType m_agent_type { Bindings::AgentType::DedicatedWorker };
     URL::URL m_url;
