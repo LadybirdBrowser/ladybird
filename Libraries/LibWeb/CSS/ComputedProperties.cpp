@@ -515,8 +515,7 @@ float ComputedProperties::stroke_opacity() const
 
 float ComputedProperties::stop_opacity() const
 {
-    auto const& value = property(PropertyID::StopOpacity);
-    return resolve_opacity_value(value);
+    return property(PropertyID::StopOpacity).as_number().number();
 }
 
 FillRule ComputedProperties::fill_rule() const
