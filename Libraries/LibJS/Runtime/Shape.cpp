@@ -40,7 +40,7 @@ GC::Ref<Shape> Shape::create_uncacheable_dictionary_transition()
 {
     auto new_shape = heap().allocate<Shape>(m_realm);
     new_shape->m_dictionary = true;
-    new_shape->m_cacheable = true;
+    new_shape->m_cacheable = false;
     new_shape->m_prototype = m_prototype;
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     ensure_property_table();
