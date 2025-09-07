@@ -249,8 +249,6 @@ public:
 
     static NonnullRefPtr<Gfx::Font const> font_fallback(bool monospace, bool bold, float point_size);
 
-    static float resolve_opacity_value(StyleValue const& value);
-
     bool has_attempted_match_against_pseudo_class(PseudoClass pseudo_class) const
     {
         return m_attempted_pseudo_class_matches.get(pseudo_class);
