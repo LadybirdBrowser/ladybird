@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 8 tests
+Found 30 tests
 
-8 Pass
+20 Pass
+10 Fail
 Pass	Property opacity value '1'
 Pass	Property opacity value '0.5'
 Pass	Property opacity value '0'
@@ -11,3 +12,25 @@ Pass	Property opacity value '3'
 Pass	Property opacity value '-100%'
 Pass	Property opacity value '50%'
 Pass	Property opacity value '300%'
+Fail	Property opacity value 'calc(-50% - 50%)'
+Fail	Property opacity value 'calc(25% * 2)'
+Pass	Property opacity value 'calc(100% + 100%)'
+Pass	Property opacity value 'calc(-0.5 - 0.5)'
+Pass	Property opacity value 'calc(0.25 * 2)'
+Pass	Property opacity value 'calc(1 + 1)'
+Fail	Property opacity value 'clamp(50%, 0%, 70%)'
+Fail	Property opacity value 'clamp(50%, 80%, 70%)'
+Fail	Property opacity value 'clamp(50%, 60%, 70%)'
+Fail	Property opacity value 'min(50%, 0%)'
+Fail	Property opacity value 'min(0%, 50%)'
+Fail	Property opacity value 'max(50%, 0%)'
+Fail	Property opacity value 'max(0%, 50%)'
+Fail	Property opacity value 'min(-40%, 50%)'
+Pass	Property opacity value 'clamp(0.5, 0, 0.7)'
+Pass	Property opacity value 'clamp(0.5, 0.8, 0.7)'
+Pass	Property opacity value 'clamp(0.5, 0.6, 0.7)'
+Pass	Property opacity value 'min(0.5, 0)'
+Pass	Property opacity value 'min(0, 0.5)'
+Pass	Property opacity value 'max(0.5, 0)'
+Pass	Property opacity value 'max(0, 0.5)'
+Pass	Property opacity value 'min(-0.4, 0.5)'

@@ -20,14 +20,28 @@ test_valid_value("opacity", "3");
 test_valid_value("opacity", "-100%", "-1");
 test_valid_value("opacity", "50%", "0.5");
 test_valid_value("opacity", "300%", "3");
-test_valid_value("opacity", "clamp(50%, 0%, 70%)", "calc(0.5)");
-test_valid_value("opacity", "clamp(50%, 80%, 70%)", "calc(0.7)");
-test_valid_value("opacity", "clamp(50%, 60%, 70%)", "calc(0.6)");
-test_valid_value("opacity", "min(50%, 0%)", "calc(0)");
-test_valid_value("opacity", "min(0%, 50%)", "calc(0)");
-test_valid_value("opacity", "max(50%, 0%)", "calc(0.5)");
-test_valid_value("opacity", "max(0%, 50%)", "calc(0.5)");
-test_valid_value("opacity", "min(-40%, 50%)", "calc(-0.4)");
+test_valid_value("opacity", "calc(-50% - 50%)", "calc(-100%)");
+test_valid_value("opacity", "calc(25% * 2)", "calc(50%)");
+test_valid_value("opacity", "calc(100% + 100%)", "calc(200%)");
+test_valid_value("opacity", "calc(-0.5 - 0.5)", "calc(-1)");
+test_valid_value("opacity", "calc(0.25 * 2)", "calc(0.5)");
+test_valid_value("opacity", "calc(1 + 1)", "calc(2)");
+test_valid_value("opacity", "clamp(50%, 0%, 70%)", "calc(50%)");
+test_valid_value("opacity", "clamp(50%, 80%, 70%)", "calc(70%)");
+test_valid_value("opacity", "clamp(50%, 60%, 70%)", "calc(60%)");
+test_valid_value("opacity", "min(50%, 0%)", "calc(0%)");
+test_valid_value("opacity", "min(0%, 50%)", "calc(0%)");
+test_valid_value("opacity", "max(50%, 0%)", "calc(50%)");
+test_valid_value("opacity", "max(0%, 50%)", "calc(50%)");
+test_valid_value("opacity", "min(-40%, 50%)", "calc(-40%)");
+test_valid_value("opacity", "clamp(0.5, 0, 0.7)", "calc(0.5)");
+test_valid_value("opacity", "clamp(0.5, 0.8, 0.7)", "calc(0.7)");
+test_valid_value("opacity", "clamp(0.5, 0.6, 0.7)", "calc(0.6)");
+test_valid_value("opacity", "min(0.5, 0)", "calc(0)");
+test_valid_value("opacity", "min(0, 0.5)", "calc(0)");
+test_valid_value("opacity", "max(0.5, 0)", "calc(0.5)");
+test_valid_value("opacity", "max(0, 0.5)", "calc(0.5)");
+test_valid_value("opacity", "min(-0.4, 0.5)", "calc(-0.4)");
 
 </script>
 </body>
