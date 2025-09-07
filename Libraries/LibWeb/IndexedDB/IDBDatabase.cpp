@@ -186,6 +186,8 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
     // 7. Destroy store.
     database->remove_object_store(*store);
 
+    store->mark_deleted();
+
     return {};
 }
 

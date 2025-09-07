@@ -45,6 +45,9 @@ public:
 
     HTML::SerializationRecord referenced_value(IndexRecord const& index_record) const;
 
+    [[nodiscard]] bool is_deleted() const { return m_deleted; }
+    void mark_deleted() { m_deleted = true; }
+
 protected:
     virtual void visit_edges(Visitor&) override;
 
@@ -68,6 +71,8 @@ private:
 
     // The keys are derived from the referenced object store’s values using a key path.
     KeyPath m_key_path;
+
+    bool m_deleted { false };
 };
 
 }

@@ -54,6 +54,9 @@ public:
     GC::ConservativeVector<ObjectStoreRecord> first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
     GC::ConservativeVector<ObjectStoreRecord> last_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
 
+    [[nodiscard]] bool is_deleted() const { return m_deleted; }
+    void mark_deleted() { m_deleted = true; }
+
 protected:
     virtual void visit_edges(Visitor&) override;
 
@@ -77,6 +80,8 @@ private:
 
     // An object store has a list of records
     Vector<ObjectStoreRecord> m_records;
+
+    bool m_deleted { false };
 };
 
 }
