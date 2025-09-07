@@ -23,7 +23,11 @@
             });
         }
 
-        const resizeObserver = new ResizeObserver(entries => {
+        const resizeObserver = new ResizeObserver(function (entries) {
+            if (this !== resizeObserver) {
+                println("this is not the ResizeObserver instance inside callback");
+            }
+
             for (let entry of entries) {
                 const { width, height } = entry.contentRect;
                 println(`Size changed: ${width}px x ${height}px`);
