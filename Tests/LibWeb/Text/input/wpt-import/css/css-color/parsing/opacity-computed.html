@@ -19,6 +19,28 @@ test_computed_value("opacity", "3", "1");
 test_computed_value("opacity", "-100%", "0");
 test_computed_value("opacity", "50%", "0.5");
 test_computed_value("opacity", "300%", "1");
+test_computed_value("opacity", "calc(-50% - 50%)", "0");
+test_computed_value("opacity", "calc(25% * 2)", "0.5");
+test_computed_value("opacity", "calc(100% + 100%)", "1");
+test_computed_value("opacity", "calc(-0.5 - 0.5)", "0");
+test_computed_value("opacity", "calc(0.25 * 2)", "0.5");
+test_computed_value("opacity", "calc(1 + 1)", "1");
+test_computed_value("opacity", "clamp(50%, 0%, 70%)", "0.5");
+test_computed_value("opacity", "clamp(50%, 80%, 70%)", "0.7");
+test_computed_value("opacity", "clamp(50%, 60%, 70%)", "0.6");
+test_computed_value("opacity", "min(50%, 0%)", "0");
+test_computed_value("opacity", "min(0%, 50%)", "0");
+test_computed_value("opacity", "max(50%, 0%)", "0.5");
+test_computed_value("opacity", "max(0%, 50%)", "0.5");
+test_computed_value("opacity", "min(-40%, 50%)", "0");
+test_computed_value("opacity", "clamp(0.5, 0, 0.7)", "0.5");
+test_computed_value("opacity", "clamp(0.5, 0.8, 0.7)", "0.7");
+test_computed_value("opacity", "clamp(0.5, 0.6, 0.7)", "0.6");
+test_computed_value("opacity", "min(0.5, 0)", "0");
+test_computed_value("opacity", "min(0, 0.5)", "0");
+test_computed_value("opacity", "max(0.5, 0)", "0.5");
+test_computed_value("opacity", "max(0, 0.5)", "0.5");
+test_computed_value("opacity", "min(-0.4, 0.5)", "0");
 
 </script>
 </body>
