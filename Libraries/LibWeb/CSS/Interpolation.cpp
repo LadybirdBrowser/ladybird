@@ -85,7 +85,7 @@ static RefPtr<StyleValue const> interpolate_discrete(StyleValue const& from, Sty
     return delta >= 0.5f ? to : from;
 }
 
-static RefPtr<StyleValue const> interpolate_scale(DOM::Element& element, CalculationContext calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
+static RefPtr<StyleValue const> interpolate_scale(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
 {
     if (a_from.to_keyword() == Keyword::None && a_to.to_keyword() == Keyword::None)
         return a_from;
@@ -126,7 +126,7 @@ static RefPtr<StyleValue const> interpolate_scale(DOM::Element& element, Calcula
 }
 
 // https://drafts.fxtf.org/filter-effects/#interpolation-of-filter-functions
-static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, CalculationContext calculation_context, FilterValue const& from, FilterValue const& to, float delta, AllowDiscrete allow_discrete)
+static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, CalculationContext const& calculation_context, FilterValue const& from, FilterValue const& to, float delta, AllowDiscrete allow_discrete)
 {
     VERIFY(!from.has<URL>());
     VERIFY(!to.has<URL>());
@@ -201,7 +201,7 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
 }
 
 // https://drafts.fxtf.org/filter-effects/#interpolation-of-filters
-static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& element, CalculationContext calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
+static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
 {
     auto is_filter_value_list_without_url = [](StyleValue const& value) {
         if (!value.is_filter_value_list())
@@ -313,7 +313,7 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
     return {};
 }
 
-static RefPtr<StyleValue const> interpolate_translate(DOM::Element& element, CalculationContext calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
+static RefPtr<StyleValue const> interpolate_translate(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
 {
     if (a_from.to_keyword() == Keyword::None && a_to.to_keyword() == Keyword::None)
         return a_from;
@@ -376,7 +376,7 @@ static FloatVector4 slerp(FloatVector4 const& from, FloatVector4 const& to, floa
     return from * from_multiplier + to * w;
 }
 
-static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, CalculationContext calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
+static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
 {
     if (a_from.to_keyword() == Keyword::None && a_to.to_keyword() == Keyword::None)
         return a_from;
