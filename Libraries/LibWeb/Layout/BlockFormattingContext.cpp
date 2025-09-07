@@ -836,7 +836,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                 m_margin_state.reset();
             } else if (!m_margin_state.has_block_container_waiting_for_final_y_position()) {
                 // margin-top of block container can be updated during children layout hence it's final y position yet to be determined
-                m_margin_state.register_block_container_y_position_update_callback([&, introduce_clearance](CSSPixels margin_top) {
+                m_margin_state.register_block_container_y_position_update_callback([this, &box, y, introduce_clearance](CSSPixels margin_top) {
                     if (introduce_clearance == DidIntroduceClearance::No) {
                         place_block_level_element_in_normal_flow_vertically(box, margin_top + y);
                     }
