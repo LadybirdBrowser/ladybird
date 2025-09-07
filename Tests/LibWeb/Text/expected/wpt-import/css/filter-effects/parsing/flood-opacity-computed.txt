@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 8 tests
 
-7 Pass
-1 Fail
+8 Pass
 Pass	Property flood-opacity value '-1'
 Pass	Property flood-opacity value '0.5'
 Pass	Property flood-opacity value '3'
@@ -11,4 +10,4 @@ Pass	Property flood-opacity value '-100%'
 Pass	Property flood-opacity value '50%'
 Pass	Property flood-opacity value '300%'
 Pass	Property flood-opacity value 'calc(0.5 * sign(10em - 1px))'
-Fail	Property flood-opacity value 'calc(50% * sign(10em - 1px))'
+Pass	Property flood-opacity value 'calc(50% * sign(10em - 1px))'
