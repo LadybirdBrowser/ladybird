@@ -197,6 +197,9 @@ HTML::WindowProxy* NavigableContainer::content_window()
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#shared-attribute-processing-steps-for-iframe-and-frame-elements
 Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_iframe_and_frame(InitialInsertion initial_insertion)
 {
+    if (!navigable())
+        return OptionalNone {};
+
     // AD-HOC: If the element was added and immediately removed, the content navigable will be null. Don't process the
     //         src attribute any further.
     if (!m_content_navigable)
