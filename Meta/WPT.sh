@@ -240,11 +240,6 @@ ensure_wpt_repository() {
         if [ ! -d .git ]; then
             git clone --depth 1 "${WPT_REPOSITORY_URL}" "${WPT_SOURCE_DIR}"
         fi
-
-        # Update hosts file if needed
-        if [ "$(comm -13 <(sort -u /etc/hosts) <(./wpt make-hosts-file | sort -u) | wc -l)" -gt 0 ]; then
-            ./wpt make-hosts-file | sudo_and_ask "Appending wpt hosts to /etc/hosts" tee -a /etc/hosts
-        fi
     popd > /dev/null
 }
 
@@ -533,6 +528,14 @@ absolutize_log_args() {
     done
 }
 
+update_hosts_file_if_needed() {
+    pushd "${WPT_SOURCE_DIR}" > /dev/null
+        if [ "$(comm -13 <(sort -u /etc/hosts) <(./wpt make-hosts-file | sort -u) | wc -l)" -gt 0 ]; then
+            ./wpt make-hosts-file | sudo_and_ask "Appending wpt hosts to /etc/hosts" tee -a /etc/hosts
+        fi
+    popd > /dev/null
+}
+
 execute_wpt() {
     local procs
 
@@ -557,12 +560,14 @@ execute_wpt() {
 run_wpt() {
     ensure_wpt_repository
     build_ladybird_and_webdriver
+    update_hosts_file_if_needed
     execute_wpt "${@}"
 }
 
 serve_wpt()
 {
     ensure_wpt_repository
+    update_hosts_file_if_needed
 
     pushd "${WPT_SOURCE_DIR}" > /dev/null
         ./wpt serve
@@ -735,6 +740,7 @@ compare_wpt() {
     popd > /dev/null
     WPT_ARGS+=( "--metadata=${METADATA_DIR}" )
     build_ladybird_and_webdriver
+    update_hosts_file_if_needed
     execute_wpt "${@}"
     rm -rf "${METADATA_DIR}"
 }
