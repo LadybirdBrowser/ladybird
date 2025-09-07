@@ -813,10 +813,6 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 
         return get_computed_value(property_id);
     }
-    case PropertyID::FillOpacity: {
-        auto opacity = layout_node.computed_values().fill_opacity();
-        return NumberStyleValue::create(opacity);
-    }
     case PropertyID::StopOpacity: {
         auto opacity = layout_node.computed_values().stop_opacity();
         return NumberStyleValue::create(opacity);
