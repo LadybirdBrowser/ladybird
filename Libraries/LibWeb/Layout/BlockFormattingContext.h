@@ -143,47 +143,55 @@ private:
         }
     };
 
-    struct BlockMarginState {
-        CSSPixels current_positive_collapsible_margin;
-        CSSPixels current_negative_collapsible_margin;
-        Function<void(CSSPixels)> block_container_y_position_update_callback;
-        bool box_last_in_flow_child_margin_bottom_collapsed { false };
-
+    class BlockMarginState {
+    public:
         void add_margin(CSSPixels margin)
         {
             if (margin < 0) {
-                current_negative_collapsible_margin = min(margin, current_negative_collapsible_margin);
+                m_current_negative_collapsible_margin = min(margin, m_current_negative_collapsible_margin);
             } else {
-                current_positive_collapsible_margin = max(margin, current_positive_collapsible_margin);
+                m_current_positive_collapsible_margin = max(margin, m_current_positive_collapsible_margin);
             }
         }
 
         void register_block_container_y_position_update_callback(ESCAPING Function<void(CSSPixels)> callback)
         {
-            block_container_y_position_update_callback = move(callback);
+            m_block_container_y_position_update_callback = move(callback);
         }
 
-        CSSPixels current_collapsed_margin() const;
+        CSSPixels current_collapsed_margin() const
+        {
+            return m_current_positive_collapsible_margin + m_current_negative_collapsible_margin;
+        }
 
         bool has_block_container_waiting_for_final_y_position() const
         {
-            return static_cast<bool>(block_container_y_position_update_callback);
+            return static_cast<bool>(m_block_container_y_position_update_callback);
         }
 
         void update_block_waiting_for_final_y_position() const
         {
-            if (block_container_y_position_update_callback) {
+            if (m_block_container_y_position_update_callback) {
                 CSSPixels collapsed_margin = current_collapsed_margin();
-                block_container_y_position_update_callback(collapsed_margin);
+                m_block_container_y_position_update_callback(collapsed_margin);
             }
         }
 
         void reset()
         {
-            block_container_y_position_update_callback = {};
-            current_negative_collapsible_margin = 0;
-            current_positive_collapsible_margin = 0;
+            m_block_container_y_position_update_callback = {};
+            m_current_negative_collapsible_margin = 0;
+            m_current_positive_collapsible_margin = 0;
         }
+
+        bool box_last_in_flow_child_margin_bottom_collapsed() const { return m_box_last_in_flow_child_margin_bottom_collapsed; }
+        void set_box_last_in_flow_child_margin_bottom_collapsed(bool v) { m_box_last_in_flow_child_margin_bottom_collapsed = v; }
+
+    private:
+        CSSPixels m_current_positive_collapsible_margin;
+        CSSPixels m_current_negative_collapsible_margin;
+        Function<void(CSSPixels)> m_block_container_y_position_update_callback;
+        bool m_box_last_in_flow_child_margin_bottom_collapsed { false };
     };
 
     Optional<CSSPixels> m_y_offset_of_current_block_container;
