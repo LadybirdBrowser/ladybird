@@ -3282,20 +3282,24 @@ bool Element::is_relevant_to_the_user()
     if (document().get_selection()->contains_node(*this, true))
         return true;
 
-    // Either the element or its contents are placed in the top layer.
-    bool is_in_top_layer = false;
+    bool has_relevant_contents = false;
     for_each_in_inclusive_subtree_of_type<Element>([&](auto& element) {
+        // Either the element or its contents are placed in the top layer.
         if (element.in_top_layer()) {
-            is_in_top_layer = true;
+            has_relevant_contents = true;
+            return TraversalDecision::Break;
+        }
+
+        // The element has a flat tree descendant that is captured in a view transition.
+        if (&element != this && element.captured_in_a_view_transition()) {
+            has_relevant_contents = true;
             return TraversalDecision::Break;
         }
 
         return TraversalDecision::Continue;
     });
-    if (is_in_top_layer)
+    if (has_relevant_contents)
         return true;
-
-    // FIXME: The element has a flat tree descendant that is captured in a view transition.
 
     // NOTE: none of the above conditions are true, so the element is not relevant to the user.
     return false;
