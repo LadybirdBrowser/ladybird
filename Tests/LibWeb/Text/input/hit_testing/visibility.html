@@ -10,7 +10,7 @@
 </div>
 
 <!-- Hidden text shouldn't get hit -->
-<!-- <span id="c2" style="visibility: visible">hello</span> -->
+<span id="c2" style="visibility: hidden">hello</span>
 
 <script src="../include.js"></script>
 <script>
@@ -23,6 +23,6 @@ test(() => {
     };
     printHit(1, 1);
     printHit(1, 11);
-    <!-- printHit(1, 51); -->
+    printHit(1, 21);
 });
 </script>
