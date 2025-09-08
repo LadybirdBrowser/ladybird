@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 21 tests
+
+10 Pass
+11 Fail
+Pass	ResizeObserver implemented
+Pass	guard
+Pass	test0: simple observation
+Pass	test1: multiple observation on same element trigger only one
+Pass	test2: throw exception when observing non-element
+Pass	test3: disconnect stops all notifications
+Pass	test4: unobserve target stops notifications, unobserve non-observed does nothing
+Fail	test5: observe img
+Pass	test6: iframe notifications
+Pass	test7: callback.this
+Fail	test8: simple content-box observation
+Fail	test9: simple content-box observation but keep border-box size unchanged
+Fail	test10: simple border-box observation
+Fail	test11: simple observation with vertical writing mode
+Fail	test12: no observation is fired after the change of writing mode when box's specified size comes from logical size properties.
+Fail	test13: an observation is fired after the change of writing mode when box's specified size comes from physical size properties.
+Fail	test14: observe the same target but using a different box should override the previous one
+Fail	test15: an observation is fired with box dimensions 0 when element's display property is set to inline
+Fail	test16: observations fire once with 0x0 size for non-replaced inline elements
+Fail	test17: Box sizing snd Resize Observer notifications
+Pass	test18: an observation is fired when device-pixel-content-box is being observed

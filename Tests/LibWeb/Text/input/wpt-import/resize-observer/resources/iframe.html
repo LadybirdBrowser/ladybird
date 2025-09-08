@@ -1,0 +1,38 @@
+<!doctype html>
+<head>
+  <script src="./resizeTestHelper.js"></script>
+</head>
+<p>iframe test</p>
+<div id="itarget1" style="width:100px;height:100px;">t1</div>
+<script>
+'use strict';
+let t1 = document.querySelector('#itarget1');
+function test0() {
+  let timeoutId = window.setTimeout( () => {
+    window.parent.postMessage('fail', '*');
+  }, ResizeTestHelper.TIMEOUT);
+  let ro = new ResizeObserver(function(entries) {
+    window.clearTimeout(timeoutId);
+    window.parent.postMessage('success', '*');
+  });
+  ro.observe(t1);
+}
+let testStarted = false;
+window.addEventListener('message', function(ev) {
+    switch(ev.data) {
+        case 'startTest':
+          testStarted = true;
+          test0();
+        break;
+    }
+});
+// How does parent know we've loaded problem is solved by
+// broadcasting readyToTest message repeatedly until test starts.
+function broadcastReady() {
+  if (!testStarted) {
+    window.parent.postMessage('readyToTest', '*');
+    window.requestAnimationFrame(broadcastReady);
+  }
+}
+window.onload = broadcastReady;
+</script>
