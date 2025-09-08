@@ -1,0 +1,1007 @@
+<!doctype html>
+<title>ResizeObserver tests</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./resources/resizeTestHelper.js"></script>
+<body>
+<div id="log"></div>
+
+<script>
+'use strict';
+
+function test0() {
+  let t = createAndAppendElement("div");
+  t.style.width = "100px";
+
+  let helper = new ResizeTestHelper(
+    "test0: simple observation",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+        t.style.width = "5px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 5, "target width");
+      }
+    }
+  ]);
+  return helper.start(() => t.remove());
+}
+
+function test1() {
+  let t = createAndAppendElement("div");
+  t.style.width = "100px";
+
+  let helper = new ResizeTestHelper(
+    "test1: multiple observation on same element trigger only one",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+        observer.observe(t);
+        t.style.width = "10px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+      }
+    }
+  ]);
+  return helper.start(() => t.remove());
+}
+
+function test2() {
+  test(() => {
+      assert_throws_js(TypeError, _=> {
+        let ro = new ResizeObserver(() => {});
+        ro.observe({});
+      });
+    },
+    "test2: throw exception when observing non-element"
+  );
+  return Promise.resolve();
+}
+
+function test3() {
+  let t1 = createAndAppendElement("div");
+  let t2 = createAndAppendElement("div");
+  t1.style.width = "100px";
+  t2.style.width = "100px";
+
+  let helper = new ResizeTestHelper(
+    "test3: disconnect stops all notifications", [
+    {
+      setup: observer => {
+        observer.observe(t1);
+        observer.observe(t2);
+        observer.disconnect();
+        t1.style.width = "30px";
+      },
+      notify: entries => {
+         assert_unreached("no entries should be observed");
+      },
+      timeout: () => {
+        // expected
+      }
+    }
+  ]);
+  return helper.start(() => {
+    t1.remove();
+    t2.remove();
+  });
+}
+
+function test4() {
+  let t1 = createAndAppendElement("div");
+  let t2 = createAndAppendElement("div");
+  t1.style.width = "100px";
+  t2.style.width = "100px";
+
+  let helper = new ResizeTestHelper(
+    "test4: unobserve target stops notifications, unobserve non-observed does nothing", [
+    {
+      setup: observer => {
+        observer.observe(t1);
+        observer.observe(t2);
+        observer.unobserve(t1);
+        observer.unobserve(document.body);
+        t1.style.width = "40px";
+        t2.style.width = "40px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "only t2");
+        assert_equals(entries[0].target, t2, "t2 was observed");
+      }
+    }
+  ]);
+  return helper.start(() => {
+    t1.remove();
+    t2.remove();
+  });
+}
+
+function test5() {
+  const img = new Image();
+  img.style.width = "15px";
+  img.style.height = "15px";
+  img.src = "resources/image.png";
+
+  return img.decode().then(() => {
+    return new Promise(resolve => {
+      requestAnimationFrame(() => {
+        document.body.appendChild(img);
+        resolve();
+      });
+    });
+  }).then(() => {
+    let helper = new ResizeTestHelper("test5: observe img",[
+      {
+        setup: observer => {
+          observer.observe(img);
+        },
+        notify: entries => {
+          return true;
+        }
+      },
+      {
+        setup: observer => {
+          img.style.width = "15.5px";
+        },
+        notify: entries => {
+          assert_equals(entries.length, 1);
+          assert_equals(entries[0].contentRect.width, 15.5);
+        }
+      }
+    ]);
+    return helper.start(() => img.remove());
+  }, () => {
+    // dummy test for dumping the error message.
+    test(_ => {
+      assert_unreached("decode image failed");
+    }, "test5: observe img");
+  });
+}
+
+function test6() {
+  let iframe = createAndAppendElement("iframe");
+  iframe.width = "300px";
+  iframe.height = "100px";
+  iframe.style.display = "block";
+
+  let resolvePromise;
+  let promise = new Promise((resolve) => {
+    resolvePromise = resolve;
+  });
+  let test = async_test('test6: iframe notifications');
+  let testRequested = false;
+  test.add_cleanup(() => iframe.remove());
+
+  window.addEventListener('message', event => {
+    switch(event.data) {
+    case 'readyToTest':
+      if (!testRequested) {
+        iframe.contentWindow.postMessage('startTest', '*');
+        testRequested = true;
+      }
+    break;
+    case 'success':
+    case 'fail':
+      window.requestAnimationFrame(() => {
+        resolvePromise();
+        test.step(() => {
+          assert_equals(event.data, 'success');
+          test.done();
+        });
+      });
+    break;
+    }
+  }, false);
+
+  iframe.src = "./resources/iframe.html";
+  return new Promise(function(resolve, reject) {
+    iframe.onload = () => resolve();
+    iframe.onerror = () => reject();
+  }).then(() => {
+    return promise;
+  }).catch(error => {
+    test.step(() => {
+      assert_unreached("loading iframe is error");
+    });
+  });
+}
+
+function test7() {
+  let harnessTest = async_test("test7: callback.this");
+  let resolvePromise;
+  let ro = new ResizeObserver( function(entries, obs)  {
+    let callbackThis = this;
+    harnessTest.step(() => {
+      assert_equals(callbackThis, ro, "callback.this is ResizeObserver");
+      assert_equals(obs, ro, "2nd argument is ResizeObserver");
+      ro.disconnect();
+      // every reference to RO must be null before test completes
+      // to avoid triggering test leak-detection
+      ro = null;
+      callbackThis = null;
+      obs = null;
+      harnessTest.step_timeout( _ => {
+        harnessTest.done();
+        resolvePromise();
+      }, 0);
+     });
+    }
+  );
+
+  let t = createAndAppendElement("div");
+  t.style.width = "100px";
+  harnessTest.add_cleanup(() => t.remove());
+
+  ro.observe(t);
+
+  return new Promise( (resolve, reject) => {
+    resolvePromise = resolve;
+  });
+}
+
+function test8() {
+  let t = createAndAppendElement("div");
+  t.style.width = "100px";
+  t.style.height = "100px";
+
+  let helper = new ResizeTestHelper(
+    "test8: simple content-box observation",
+  [
+    {
+      setup: observer => {
+
+        observer.observe(t, { box: "content-box" });
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 100, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentRect.top, 0, "target top padding");
+        assert_equals(entries[0].contentRect.left, 0, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 100,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.width = "90px";
+        t.style.height = "90px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 90, "target width");
+        assert_equals(entries[0].contentRect.height, 90, "target height");
+        assert_equals(entries[0].contentRect.top, 0, "target top padding");
+        assert_equals(entries[0].contentRect.left, 0, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 90,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 90,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 90,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 90,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.padding = "5px";
+      },
+      notify: entries => {
+        assert_unreached("the 'content-box' ResizeObserver shouldn't fire " +
+                         "for restyles that don't affect the content-box size");
+      },
+      timeout: () => {
+        // expected
+        // Note: the border-box size is 100px x 100px right now.
+      }
+    }
+  ]);
+  return helper.start(() => t.remove());
+}
+
+function test9() {
+  let t = createAndAppendElement("div");
+  t.style.width = "100px";
+  t.style.height = "100px";
+
+  let helper = new ResizeTestHelper(
+    "test9: simple content-box observation but keep border-box size unchanged",
+  [
+    {
+      setup: observer => {
+        observer.observe(t, { box: "content-box" });
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 100, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentRect.top, 0, "target top padding");
+        assert_equals(entries[0].contentRect.left, 0, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 100,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        // Keep the border-box size the same, and change the content-box size.
+        t.style.width = "92px";
+        t.style.height = "92px";
+        t.style.padding = "4px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 92, "target width");
+        assert_equals(entries[0].contentRect.height, 92, "target height");
+        assert_equals(entries[0].contentRect.top, 4, "target top padding");
+        assert_equals(entries[0].contentRect.left, 4, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 92,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 92,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 100,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+      }
+    }
+  ]);
+  return helper.start(() => t.remove());
+}
+
+function test10() {
+  let t = createAndAppendElement("div");
+  t.style.width = "100px";
+  t.style.height = "100px";
+
+  let helper = new ResizeTestHelper(
+    "test10: simple border-box observation",
+  [
+    {
+      setup: observer => {
+        observer.observe(t, { box: "border-box" });
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 100, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentRect.top, 0, "target top padding");
+        assert_equals(entries[0].contentRect.left, 0, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 100,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.padding = "4px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 100, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentRect.top, 4, "target top padding");
+        assert_equals(entries[0].contentRect.left, 4, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 108,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 108,
+                      "target border-box block size");
+      }
+    },
+    {
+      setup: observer => {
+        t.style.width = "104px";
+        t.style.height = "104px";
+        t.style.padding = "2px";
+      },
+      notify: entries => {
+        assert_unreached("the 'border-box' ResizeObserver shouldn't fire " +
+                         "for restyles that don't affect the border-box size");
+      },
+      timeout: () => {
+        // expected: 104 + 2 * 2 = 108. The border-box size is the same.
+      }
+    }
+  ]);
+  return helper.start(() => t.remove());
+}
+
+function test11() {
+  let wrapper = createAndAppendElement("div");
+  wrapper.style.width = "100px";
+  wrapper.style.height = "100px";
+  wrapper.style.writingMode = "vertical-rl";
+  let t = createAndAppendElement("div", wrapper);
+  t.style.inlineSize = "50px";
+  t.style.blockSize = "50px";
+
+  let helper = new ResizeTestHelper(
+    "test11: simple observation with vertical writing mode",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 50, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 50,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 50,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 50,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.blockSize = "75px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 75, "target width");
+        assert_equals(entries[0].contentRect.height, 50, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 75,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 50,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 75,
+                      "target border-box block size");
+      }
+    }
+  ]);
+
+  return helper.start(() => {
+    t.remove();
+    wrapper.remove();
+  });
+}
+
+function test12() {
+  let t = createAndAppendElement("div");
+  t.style.writingMode = "vertical-lr";
+  t.style.inlineSize = "100px";
+  t.style.blockSize = "50px";
+
+  let helper = new ResizeTestHelper(
+    "test12: no observation is fired after the change of writing mode when " +
+    "box's specified size comes from logical size properties.",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 50,
+                      "target content-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.writingMode = "horizontal-tb";
+      },
+      notify: entries => {
+        assert_unreached("the logical size of content-box doesn't change");
+      },
+      timeout: () => {
+        // expected: We don't change the logical size of content-box.
+      }
+    }
+  ]);
+
+  return helper.start(() => t.remove());
+}
+
+function test13() {
+  let t = createAndAppendElement("div");
+  t.style.writingMode = "vertical-lr";
+  t.style.height = "100px";
+  t.style.width = "50px";
+
+  let helper = new ResizeTestHelper(
+    "test13: an observation is fired after the change of writing mode when " +
+    "box's specified size comes from physical size properties.",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 50,
+                      "target content-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.writingMode = "horizontal-tb";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+      },
+    }
+  ]);
+
+  return helper.start(() => t.remove());
+}
+
+function test14() {
+  let t = createAndAppendElement("div");
+  t.style.width = "100px";
+  t.style.height = "100px";
+
+  let helper = new ResizeTestHelper(
+    "test14: observe the same target but using a different box should " +
+    "override the previous one",
+  [
+    {
+      setup: observer => {
+        observer.observe(t, { box: "content-box" });
+        observer.observe(t, { box: "border-box" });
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 100, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentRect.top, 0, "target top padding");
+        assert_equals(entries[0].contentRect.left, 0, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 100,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        // Change border-box size.
+        t.style.padding = "4px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 100, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentRect.top, 4, "target top padding");
+        assert_equals(entries[0].contentRect.left, 4, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 100,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 108,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 108,
+                      "target border-box block size");
+      }
+    },
+    {
+      setup: observer => {
+        // Change only content-box size.
+        t.style.width = "104px";
+        t.style.height = "104px";
+        t.style.padding = "2px";
+      },
+      notify: entries => {
+        assert_unreached("the 'border-box' ResizeObserver shouldn't fire " +
+                         "for restyles that don't affect the border-box size");
+      },
+      timeout: () => {
+        // expected: 104 + 2 * 2 = 108. The border-box size is the same.
+      }
+    }
+  ]);
+  return helper.start(() => t.remove());
+}
+
+function test15() {
+  let t = createAndAppendElement("div");
+  t.style.height = "100px";
+  t.style.width = "50px";
+
+  let helper = new ResizeTestHelper(
+    "test15: an observation is fired with box dimensions 0 when element's " +
+    "display property is set to inline",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        t.style.display = "inline";
+      },
+      notify: entries => {
+        assert_equals(entries[0].contentRect.width, 0, "target width");
+        assert_equals(entries[0].contentRect.height, 0, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 0,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 0,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 0,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 0,
+                      "target border-box block size");
+      }
+    }
+  ]);
+
+  return helper.start(() => t.remove());
+}
+
+function test16() {
+  let t = createAndAppendElement("span");
+
+  let helper = new ResizeTestHelper(
+    // See: https://drafts.csswg.org/resize-observer/#intro.
+    "test16: observations fire once with 0x0 size for non-replaced inline elements",
+  [
+    {
+      setup: observer => {
+        observer.observe(t);
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 0, "target width");
+        assert_equals(entries[0].contentRect.height, 0, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 0,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 0,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 0,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 0,
+                      "target border-box block size");
+      }
+    }
+  ]);
+
+  return helper.start(() => t.remove());
+
+}
+
+function test17() {
+  // <div id="outer">
+  //   <div id="nested">
+  //   </div>
+  // </div>
+
+  let outer = document.createElement('div');
+  outer.style.width = "100px";
+  outer.style.height = "100px";
+  outer.style.padding = "10px";
+  outer.style.border = "1px solid blue"
+  let nested = document.createElement('div');
+  nested.style.width = "60px";
+  nested.style.height = "50px";
+  nested.style.padding = "5%";
+  nested.style.boxSizing = "border-box";
+  nested.style.border = "5px solid black";
+  outer.appendChild(nested);
+  document.body.appendChild(outer);
+
+  let helper = new ResizeTestHelper(
+    "test17: Box sizing snd Resize Observer notifications",
+  [
+    {
+      setup: observer => {
+        observer.observe(nested, { box: "content-box" });
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, nested, "target is nested");
+        assert_equals(entries[0].contentRect.width, 40, "target width");
+        assert_equals(entries[0].contentRect.height, 30, "target height");
+        assert_equals(entries[0].contentRect.top, 5, "target top padding");
+        assert_equals(entries[0].contentRect.left, 5, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 40,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 30,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 60,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 50,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      // Changes to a parent's dimensions with a child's padding set as a percentage
+      // should fire observation if content-box is being observed
+      setup: observer => {
+        outer.style.height = "200px";
+        outer.style.width = "200px";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, nested, "target is nested");
+        assert_equals(entries[0].contentRect.width, 30, "target width");
+        assert_equals(entries[0].contentRect.height, 20, "target height");
+        assert_equals(entries[0].contentRect.top, 10, "target top padding");
+        assert_equals(entries[0].contentRect.left, 10, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 30,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 20,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 60,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 50,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      // Changes to a parent's dimensions with a child's padding set as a percentage
+      // should fire observation if content-box is being observed
+      setup: observer => {
+        nested.style.border = "1px solid black";
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, nested, "target is nested");
+        assert_equals(entries[0].contentRect.width, 38, "target width");
+        assert_equals(entries[0].contentRect.height, 28, "target height");
+        assert_equals(entries[0].contentRect.top, 10, "target top padding");
+        assert_equals(entries[0].contentRect.left, 10, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 38,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 28,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 60,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 50,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        observer.observe(nested, { box: "border-box" });
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, nested, "target is nested");
+        assert_equals(entries[0].contentRect.width, 38, "target width");
+        assert_equals(entries[0].contentRect.height, 28, "target height");
+        assert_equals(entries[0].contentRect.top, 10, "target top padding");
+        assert_equals(entries[0].contentRect.left, 10, "target left padding");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 38,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 28,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 60,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 50,
+                      "target border-box block size");
+        return true;
+      }
+    },
+    {
+      // Changes to a parent's dimensions with a child's padding set as a percentage
+      // should not fire observation if border-box is being observed
+      setup: observer => {
+        outer.style.height = "100px";
+      },
+      notify: entries => {
+        assert_unreached("No observation should be fired when nested border box remains constant");
+      },
+      timeout: () => {
+        // expected
+      }
+    },
+
+  ]);
+  return helper.start(() => nested.remove());
+}
+
+function test18() {
+  let t = createAndAppendElement("div");
+  t.style.height = "100px";
+  t.style.width = "50px";
+
+  let helper = new ResizeTestHelper(
+    "test18: an observation is fired when device-pixel-content-box is being " +
+    "observed",
+  [
+    {
+      setup: observer => {
+        observer.observe(t, {box: "device-pixel-content-box"});
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 50,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+        assert_equals(entries[0].devicePixelContentBoxSize[0].inlineSize, 50,
+                      "target device-pixel-content-box inline size");
+        assert_equals(entries[0].devicePixelContentBoxSize[0].blockSize, 100,
+                      "target device-pixel-content-box block size");
+      }
+    },
+  ]);
+
+  return helper.start(() => t.remove());
+}
+
+function test19() {
+  // zoom is not a standard css property, so we should check it first. If the
+  // browser doesn't support it, we skip this test.
+  if (!CSS.supports("zoom", "3")) {
+    return Promise.resolve();
+  }
+
+  let t = createAndAppendElement("div");
+  t.style.height = "100px";
+  t.style.width = "50px";
+
+  let helper = new ResizeTestHelper(
+    "test19: an observation is fired when device-pixel-content-box is being " +
+    "observed and zoom change",
+  [
+    {
+      setup: observer => {
+        observer.observe(t, {box: "device-pixel-content-box"});
+      },
+      notify: entries => {
+        // No need to test again (see test18), so skip this event loop.
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        document.body.style.zoom = 3;
+      },
+      notify: entries => {
+        assert_equals(entries.length, 1, "1 pending notification");
+        assert_equals(entries[0].target, t, "target is t");
+        assert_equals(entries[0].contentRect.width, 50, "target width");
+        assert_equals(entries[0].contentRect.height, 100, "target height");
+        assert_equals(entries[0].contentBoxSize[0].inlineSize, 50,
+                      "target content-box inline size");
+        assert_equals(entries[0].contentBoxSize[0].blockSize, 100,
+                      "target content-box block size");
+        assert_equals(entries[0].borderBoxSize[0].inlineSize, 50,
+                      "target border-box inline size");
+        assert_equals(entries[0].borderBoxSize[0].blockSize, 100,
+                      "target border-box block size");
+        assert_equals(entries[0].devicePixelContentBoxSize[0].inlineSize, 150,
+                      "target device-pixel-content-box inline size");
+        assert_equals(entries[0].devicePixelContentBoxSize[0].blockSize, 300,
+                      "target device-pixel-content-box block size");
+        return true;
+      }
+    },
+    {
+      setup: observer => {
+        document.body.style.zoom = '';
+      },
+      notify: entries => {}
+    }
+  ]);
+
+  return helper.start(() => t.remove());
+}
+
+let guard;
+test(_ => {
+  assert_own_property(window, "ResizeObserver");
+  guard = async_test('guard');
+}, "ResizeObserver implemented")
+
+test0()
+  .then(() => test1())
+  .then(() => test2())
+  .then(() => test3())
+  .then(() => test4())
+  .then(() => test5())
+  .then(() => test6())
+  .then(() => test7())
+  .then(() => test8())
+  .then(() => test9())
+  .then(() => test10())
+  .then(() => test11())
+  .then(() => test12())
+  .then(() => test13())
+  .then(() => test14())
+  .then(() => test15())
+  .then(() => test16())
+  .then(() => test17())
+  .then(() => test18())
+  .then(() => test19())
+  .then(() => guard.done());
+
+</script>
