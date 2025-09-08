@@ -2154,6 +2154,8 @@ void StyleComputer::compute_property_values(ComputedProperties& style) const
 
         style.set_property(property_id, absolutized_value, is_inherited);
     });
+
+    style.set_display_before_box_type_transformation(style.display());
 }
 
 void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style) const
