@@ -1024,78 +1024,101 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
 
 static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
 {
-    if (from.type() != to.type()) {
-        // Handle mixed percentage and dimension types
+    if (from.type() != to.type() || from.is_calculated() || to.is_calculated()) {
+        // Handle mixed percentage and dimension types, as well as CalculatedStyleValues
         // https://www.w3.org/TR/css-values-4/#mixed-percentages
-
-        struct NumericBaseTypeAndDefault {
-            NumericType::BaseType base_type;
-            ValueComparingNonnullRefPtr<StyleValue const> default_value;
-        };
-        static constexpr auto numeric_base_type_and_default = [](StyleValue const& value) -> Optional<NumericBaseTypeAndDefault> {
-            switch (value.type()) {
-            case StyleValue::Type::Angle: {
-                static auto default_angle_value = AngleStyleValue::create(Angle::make_degrees(0));
-                return NumericBaseTypeAndDefault { NumericType::BaseType::Angle, default_angle_value };
-            }
-            case StyleValue::Type::Frequency: {
-                static auto default_frequency_value = FrequencyStyleValue::create(Frequency::make_hertz(0));
-                return NumericBaseTypeAndDefault { NumericType::BaseType::Frequency, default_frequency_value };
-            }
-            case StyleValue::Type::Length: {
-                static auto default_length_value = LengthStyleValue::create(Length::make_px(0));
-                return NumericBaseTypeAndDefault { NumericType::BaseType::Length, default_length_value };
-            }
-            case StyleValue::Type::Percentage: {
-                static auto default_percentage_value = PercentageStyleValue::create(Percentage { 0.0 });
-                return NumericBaseTypeAndDefault { NumericType::BaseType::Percent, default_percentage_value };
-            }
-            case StyleValue::Type::Time: {
-                static auto default_time_value = TimeStyleValue::create(Time::make_seconds(0));
-                return NumericBaseTypeAndDefault { NumericType::BaseType::Time, default_time_value };
-            }
-            default:
-                return {};
-            }
-        };
-
-        static auto to_calculation_node = [calculation_context](StyleValue const& value) -> NonnullRefPtr<CalculationNode const> {
+        auto get_value_type_of_numeric_style_value = [&calculation_context](StyleValue const& value) -> Optional<ValueType> {
             switch (value.type()) {
             case StyleValue::Type::Angle:
-                return NumericCalculationNode::create(value.as_angle().angle(), calculation_context);
+                return ValueType::Angle;
             case StyleValue::Type::Frequency:
-                return NumericCalculationNode::create(value.as_frequency().frequency(), calculation_context);
+                return ValueType::Frequency;
+            case StyleValue::Type::Integer:
+                return ValueType::Integer;
             case StyleValue::Type::Length:
-                return NumericCalculationNode::create(value.as_length().length(), calculation_context);
+                return ValueType::Length;
+            case StyleValue::Type::Number:
+                return ValueType::Number;
             case StyleValue::Type::Percentage:
-                return NumericCalculationNode::create(value.as_percentage().percentage(), calculation_context);
+                return calculation_context.percentages_resolve_as.value_or(ValueType::Percentage);
+            case StyleValue::Type::Resolution:
+                return ValueType::Resolution;
             case StyleValue::Type::Time:
-                return NumericCalculationNode::create(value.as_time().time(), calculation_context);
+                return ValueType::Time;
+            case StyleValue::Type::Calculated: {
+                auto const& calculated = value.as_calculated();
+                if (calculated.resolves_to_angle_percentage())
+                    return ValueType::Angle;
+                if (calculated.resolves_to_frequency_percentage())
+                    return ValueType::Frequency;
+                if (calculated.resolves_to_length_percentage())
+                    return ValueType::Length;
+                if (calculated.resolves_to_resolution())
+                    return ValueType::Resolution;
+                if (calculated.resolves_to_number())
+                    return calculation_context.resolve_numbers_as_integers ? ValueType::Integer : ValueType::Number;
+                if (calculated.resolves_to_percentage())
+                    return calculation_context.percentages_resolve_as.value_or(ValueType::Percentage);
+                if (calculated.resolves_to_time_percentage())
+                    return ValueType::Time;
+
+                return {};
+            }
             default:
-                VERIFY_NOT_REACHED();
+                return {};
             }
         };
 
-        auto from_base_type_and_default = numeric_base_type_and_default(from);
-        auto to_base_type_and_default = numeric_base_type_and_default(to);
+        auto from_value_type = get_value_type_of_numeric_style_value(from);
+        auto to_value_type = get_value_type_of_numeric_style_value(to);
 
-        if (from_base_type_and_default.has_value() && to_base_type_and_default.has_value() && (from_base_type_and_default->base_type == NumericType::BaseType::Percent || to_base_type_and_default->base_type == NumericType::BaseType::Percent)) {
-            // This is an interpolation from a numeric unit to a percentage, or vice versa. The trick here is to
-            // interpolate two separate values. For example, consider an interpolation from 30px to 80%. It's quite
-            // hard to understand how this interpolation works, but if instead we rewrite the values as "30px + 0%" and
-            // "0px + 80%", then it is very simple to understand; we just interpolate each component separately.
+        if (from_value_type.has_value() && from_value_type == to_value_type) {
+            auto to_calculation_node = [&calculation_context](StyleValue const& value) -> NonnullRefPtr<CalculationNode const> {
+                switch (value.type()) {
+                case StyleValue::Type::Angle:
+                    return NumericCalculationNode::create(value.as_angle().angle(), calculation_context);
+                case StyleValue::Type::Frequency:
+                    return NumericCalculationNode::create(value.as_frequency().frequency(), calculation_context);
+                case StyleValue::Type::Integer:
+                    // https://drafts.csswg.org/css-values-4/#combine-integers
+                    // Interpolation of <integer> is defined as Vresult = round((1 - p) × VA + p × VB); that is,
+                    // interpolation happens in the real number space as for <number>s, and the result is converted to an
+                    // <integer> by rounding to the nearest integer.
+                    return NumericCalculationNode::create(Number { Number::Type::Number, static_cast<double>(value.as_integer().integer()) }, calculation_context);
+                case StyleValue::Type::Length:
+                    return NumericCalculationNode::create(value.as_length().length(), calculation_context);
+                case StyleValue::Type::Number:
+                    return NumericCalculationNode::create(Number { Number::Type::Number, value.as_number().number() }, calculation_context);
+                case StyleValue::Type::Percentage:
+                    return NumericCalculationNode::create(value.as_percentage().percentage(), calculation_context);
+                case StyleValue::Type::Time:
+                    return NumericCalculationNode::create(value.as_time().time(), calculation_context);
+                case StyleValue::Type::Calculated:
+                    return value.as_calculated().calculation();
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            };
 
-            auto interpolated_from = interpolate_value(element, calculation_context, from, from_base_type_and_default->default_value, delta, allow_discrete);
-            auto interpolated_to = interpolate_value(element, calculation_context, to_base_type_and_default->default_value, to, delta, allow_discrete);
-            if (!interpolated_from || !interpolated_to)
-                return {};
+            auto from_node = to_calculation_node(from);
+            auto to_node = to_calculation_node(to);
 
-            Vector<NonnullRefPtr<CalculationNode const>> values;
-            values.ensure_capacity(2);
-            values.unchecked_append(to_calculation_node(*interpolated_from));
-            values.unchecked_append(to_calculation_node(*interpolated_to));
-            auto calc_node = SumCalculationNode::create(move(values));
-            return CalculatedStyleValue::create(move(calc_node), NumericType { to_base_type_and_default->base_type, 1 }, calculation_context);
+            // https://drafts.csswg.org/css-values-4/#combine-math
+            // Interpolation of math functions, with each other or with numeric values and other numeric-valued functions, is defined as Vresult = calc((1 - p) * VA + p * VB).
+            auto from_contribution = ProductCalculationNode::create({
+                from_node,
+                NumericCalculationNode::create(Number { Number::Type::Number, 1.f - delta }, calculation_context),
+            });
+
+            auto to_contribution = ProductCalculationNode::create({
+                to_node,
+                NumericCalculationNode::create(Number { Number::Type::Number, delta }, calculation_context),
+            });
+
+            return CalculatedStyleValue::create(
+                simplify_a_calculation_tree(SumCalculationNode::create({ from_contribution, to_contribution }), calculation_context, {}),
+                *from_node->numeric_type()->added_to(*to_node->numeric_type()),
+                calculation_context);
         }
 
         return {};
