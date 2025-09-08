@@ -388,6 +388,9 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
 TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
+    if (paintable_box().computed_values().visibility() != CSS::Visibility::Visible)
+        return TraversalDecision::Continue;
+
     auto const inverse_transform = affine_transform_matrix().inverse().value_or({});
     auto const transform_origin = paintable_box().transform_origin();
     // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
