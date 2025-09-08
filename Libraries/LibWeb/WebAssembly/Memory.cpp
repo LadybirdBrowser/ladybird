@@ -23,6 +23,11 @@ WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Me
     auto& vm = realm.vm();
 
     // https://webassembly.github.io/threads/js-api/index.html#dom-memory-memory
+    // 3. If maximum is not empty and maximum < initial, throw a RangeError exception.
+    if (descriptor.maximum.has_value() && descriptor.maximum.value() < descriptor.initial) {
+        return vm.throw_completion<JS::RangeError>("Initial is larger than maximum."sv);
+    }
+
     // 4. Let share be shared if descriptor["shared"] is true and unshared otherwise.
     // 5. If share is shared and maximum is empty, throw a TypeError exception.
     auto shared = descriptor.shared.value_or(false);

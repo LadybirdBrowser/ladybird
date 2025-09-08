@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	name
+Pass	length
+Pass	No arguments
+Pass	Calling
+Pass	Invalid descriptor argument
+Pass	Undefined initial value in descriptor
+Pass	Out-of-range initial value in descriptor: NaN
+Pass	Out-of-range maximum value in descriptor: NaN
+Pass	Out-of-range initial value in descriptor: Infinity
+Pass	Out-of-range maximum value in descriptor: Infinity
+Pass	Out-of-range initial value in descriptor: -Infinity
+Pass	Out-of-range maximum value in descriptor: -Infinity
+Pass	Out-of-range initial value in descriptor: -1
+Pass	Out-of-range maximum value in descriptor: -1
+Pass	Out-of-range initial value in descriptor: 4294967296
+Pass	Out-of-range maximum value in descriptor: 4294967296
+Pass	Out-of-range initial value in descriptor: 68719476736
+Pass	Out-of-range maximum value in descriptor: 68719476736
+Pass	Initial value exceeds maximum
+Pass	Proxy descriptor
+Pass	Order of evaluation for descriptor
+Pass	Zero initial
+Pass	Non-zero initial
+Pass	Stray argument
