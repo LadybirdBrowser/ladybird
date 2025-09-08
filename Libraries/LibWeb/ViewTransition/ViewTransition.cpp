@@ -991,10 +991,6 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             new_->m_content = captured_element->new_element->capture_the_image();
         }
     }
-
-    // This algorithm must be executed to update styles in user-agent origin if its effects can be observed by a web API.
-    // FIXME: Find all the places where this is relevant.
-
     return {};
 }
 
