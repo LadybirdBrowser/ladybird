@@ -2251,6 +2251,8 @@ void StyleComputer::compute_property_values(ComputedProperties& style) const
     });
 
     style.set_line_height({}, line_height);
+
+    style.set_display_before_box_type_transformation(style.property(PropertyID::Display).as_display().display());
 }
 
 void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style) const
