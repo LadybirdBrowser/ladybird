@@ -487,6 +487,7 @@ public:
     CSS::ContentData content() const { return m_noninherited.content; }
     CSS::PointerEvents pointer_events() const { return m_inherited.pointer_events; }
     CSS::Display display() const { return m_noninherited.display; }
+    CSS::Display display_before_box_type_transformation() const { return m_noninherited.display_before_box_type_transformation; }
     Optional<int> const& z_index() const { return m_noninherited.z_index; }
     Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const { return m_inherited.tab_size; }
     CSS::TextAlign text_align() const { return m_inherited.text_align; }
@@ -756,6 +757,7 @@ protected:
         CSS::Clear clear { InitialValues::clear() };
         CSS::Clip clip { InitialValues::clip() };
         CSS::Display display { InitialValues::display() };
+        CSS::Display display_before_box_type_transformation { InitialValues::display() };
         Optional<int> z_index;
         // FIXME: Store this as flags in a u8.
         Vector<CSS::TextDecorationLine> text_decoration_line { InitialValues::text_decoration_line() };
@@ -955,6 +957,7 @@ public:
     void set_list_style_type(CSS::ListStyleType value) { m_inherited.list_style_type = move(value); }
     void set_list_style_position(CSS::ListStylePosition value) { m_inherited.list_style_position = move(value); }
     void set_display(CSS::Display value) { m_noninherited.display = value; }
+    void set_display_before_box_type_transformation(CSS::Display value) { m_noninherited.display_before_box_type_transformation = value; }
     void set_backdrop_filter(CSS::Filter const& backdrop_filter) { m_noninherited.backdrop_filter = backdrop_filter; }
     void set_filter(CSS::Filter const& filter) { m_noninherited.filter = filter; }
     void set_border_bottom_left_radius(CSS::BorderRadiusData value)

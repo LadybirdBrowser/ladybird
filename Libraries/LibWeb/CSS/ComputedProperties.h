@@ -186,6 +186,9 @@ public:
     MixBlendMode mix_blend_mode() const;
     Optional<FlyString> view_transition_name() const;
 
+    Display display_before_box_type_transformation() const;
+    void set_display_before_box_type_transformation(Display value);
+
     static Vector<Transformation> transformations_for_style_value(StyleValue const& value);
     Vector<Transformation> transformations() const;
     TransformBox transform_box() const;
@@ -278,6 +281,8 @@ private:
     Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_animated_property_inherited {};
 
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_animated_property_values;
+
+    Display m_display_before_box_type_transformation { InitialValues::display() };
 
     int m_math_depth { InitialValues::math_depth() };
     RefPtr<Gfx::FontCascadeList const> m_font_list;

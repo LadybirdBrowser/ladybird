@@ -571,6 +571,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                 border_top_right_radius.as_border_radius().vertical_radius() });
     }
     computed_values.set_display(computed_style.display());
+    computed_values.set_display_before_box_type_transformation(computed_style.display_before_box_type_transformation());
 
     computed_values.set_flex_direction(computed_style.flex_direction());
     computed_values.set_flex_wrap(computed_style.flex_wrap());
@@ -966,6 +967,15 @@ CSS::Display Node::display() const
     }
 
     return computed_values().display();
+}
+
+CSS::Display Node::display_before_box_type_transformation() const
+{
+    if (!has_style()) {
+        return CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow);
+    }
+
+    return computed_values().display_before_box_type_transformation();
 }
 
 bool Node::is_inline() const
