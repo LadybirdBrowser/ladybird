@@ -1,0 +1,28 @@
+<!doctype html>
+<body style="margin: 0">
+
+<div style="height: 20px">
+<!-- Hidden stacking contexts shouldn't get hit -->
+<div id="a1" style="visibility: hidden; position: fixed; top: 0; width: 10px; height: 10px"></div>
+
+<!-- Children of hidden stacking contexts shouldn't get hit -->
+<div id="b1" style="visibility: hidden; position: fixed; top: 10px"><span id="b2" style="z-index: 1">hello</span></div>
+</div>
+
+<!-- Hidden text shouldn't get hit -->
+<!-- <span id="c2" style="visibility: visible">hello</span> -->
+
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const printHit = (x, y) => {
+        const hit = internals.hitTest(x, y);
+        printElement(hit.node);
+        printElement(hit.node.parentNode);
+        println('---');
+    };
+    printHit(1, 1);
+    printHit(1, 11);
+    <!-- printHit(1, 51); -->
+});
+</script>
