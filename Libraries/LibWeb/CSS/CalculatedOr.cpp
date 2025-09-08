@@ -89,6 +89,8 @@ bool LengthOrAutoOrCalculated::is_auto() const
 LengthOrCalculated LengthOrAutoOrCalculated::without_auto() const
 {
     VERIFY(!is_auto());
+    if (is_calculated())
+        return calculated();
     return value().length();
 }
 
