@@ -849,14 +849,14 @@ void StyleComputer::cascade_declarations(
     }
 }
 
-static void cascade_custom_properties(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Vector<MatchingRule const*> const& matching_rules, HashMap<FlyString, StyleProperty>& custom_properties)
+static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<MatchingRule const*> const& matching_rules, HashMap<FlyString, StyleProperty>& custom_properties)
 {
     size_t needed_capacity = 0;
     for (auto const& matching_rule : matching_rules)
         needed_capacity += matching_rule->declaration().custom_properties().size();
 
-    if (!pseudo_element.has_value()) {
-        if (auto const inline_style = element.inline_style())
+    if (!abstract_element.pseudo_element().has_value()) {
+        if (auto const inline_style = abstract_element.element().inline_style())
             needed_capacity += inline_style->custom_properties().size();
     }
 
@@ -871,8 +871,8 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Pseud
         }
     }
 
-    if (!pseudo_element.has_value()) {
-        if (auto const inline_style = element.inline_style())
+    if (!abstract_element.pseudo_element().has_value()) {
+        if (auto const inline_style = abstract_element.element().inline_style())
             custom_properties.update(inline_style->custom_properties());
     }
 }
@@ -2374,7 +2374,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
         HashMap<FlyString, StyleProperty> custom_properties;
         for (auto& layer : matching_rule_set.author_rules) {
-            cascade_custom_properties(abstract_element.element(), abstract_element.pseudo_element(), layer.rules, custom_properties);
+            cascade_custom_properties(abstract_element, layer.rules, custom_properties);
         }
         abstract_element.set_custom_properties(move(custom_properties));
     }
