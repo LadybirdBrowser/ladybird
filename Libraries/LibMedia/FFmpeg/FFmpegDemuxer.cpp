@@ -28,10 +28,10 @@ FFmpegDemuxer::~FFmpegDemuxer()
         avformat_close_input(&m_format_context);
 }
 
-ErrorOr<NonnullOwnPtr<FFmpegDemuxer>> FFmpegDemuxer::create(NonnullOwnPtr<SeekableStream> stream)
+ErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::create(NonnullOwnPtr<SeekableStream> stream)
 {
     auto io_context = TRY(Media::FFmpeg::FFmpegIOContext::create(*stream));
-    auto demuxer = make<FFmpegDemuxer>(move(stream), move(io_context));
+    auto demuxer = make_ref_counted<FFmpegDemuxer>(move(stream), move(io_context));
 
     // Open the container
     demuxer->m_format_context = avformat_alloc_context();

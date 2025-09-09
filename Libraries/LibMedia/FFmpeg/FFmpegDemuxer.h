@@ -20,7 +20,7 @@ namespace Media::FFmpeg {
 
 class FFmpegDemuxer : public Demuxer {
 public:
-    static ErrorOr<NonnullOwnPtr<FFmpegDemuxer>> create(NonnullOwnPtr<SeekableStream> stream);
+    static ErrorOr<NonnullRefPtr<FFmpegDemuxer>> create(NonnullOwnPtr<SeekableStream> stream);
 
     FFmpegDemuxer(NonnullOwnPtr<SeekableStream> stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>);
     virtual ~FFmpegDemuxer() override;
