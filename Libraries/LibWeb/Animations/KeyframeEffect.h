@@ -93,6 +93,9 @@ public:
     Optional<String> pseudo_element() const;
     WebIDL::ExceptionOr<void> set_pseudo_element(Optional<String>);
 
+    Optional<DOM::AbstractElement> target_abstract_element() const;
+    void set_target(DOM::AbstractElement);
+
     Optional<CSS::PseudoElement> pseudo_element_type() const;
     void set_pseudo_element(Optional<CSS::Selector::PseudoElementSelector> pseudo_element) { m_target_pseudo_selector = pseudo_element; }
 
