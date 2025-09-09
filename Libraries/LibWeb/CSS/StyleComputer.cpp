@@ -2475,20 +2475,21 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
 
 GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
-    return *compute_style_impl(abstract_element.element(), abstract_element.pseudo_element(), ComputeStyleMode::Normal, did_change_custom_properties);
+    return *compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties);
 }
 
 GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Optional<bool&> did_change_custom_properties) const
 {
-    return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties);
+    return compute_style_impl({ element, move(pseudo_element) }, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties);
 }
 
-GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElement abstract_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties) const
 {
     build_rule_cache_if_needed();
 
     // Special path for elements that use pseudo element as style selector
-    if (element.use_pseudo_element().has_value()) {
+    if (abstract_element.element().use_pseudo_element().has_value()) {
+        auto& element = abstract_element.element();
         auto& parent_element = as<HTML::HTMLElement>(*element.root().parent_or_shadow_host());
         auto style = compute_style({ parent_element, element.use_pseudo_element() });
 
@@ -2500,29 +2501,28 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
         return style;
     }
 
-    ScopeGuard guard { [&element]() { element.set_needs_style_update(false); } };
+    ScopeGuard guard { [&abstract_element]() { abstract_element.element().set_needs_style_update(false); } };
 
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
     PseudoClassBitmap attempted_pseudo_class_matches;
-    auto matching_rule_set = build_matching_rule_set(element, pseudo_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
+    auto matching_rule_set = build_matching_rule_set(abstract_element.element(), abstract_element.pseudo_element(), attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
 
-    DOM::AbstractElement abstract_element { element, pseudo_element };
     auto old_custom_properties = abstract_element.custom_properties();
 
     // Resolve all the CSS custom properties ("variables") for this element:
     // FIXME: Also resolve !important custom properties, in a second cascade.
-    if (!pseudo_element.has_value() || pseudo_element_supports_property(*pseudo_element, PropertyID::Custom)) {
-        HashMap<FlyString, CSS::StyleProperty> custom_properties;
+    if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
+        HashMap<FlyString, StyleProperty> custom_properties;
         for (auto& layer : matching_rule_set.author_rules) {
-            cascade_custom_properties(element, pseudo_element, layer.rules, custom_properties);
+            cascade_custom_properties(abstract_element.element(), abstract_element.pseudo_element(), layer.rules, custom_properties);
         }
-        element.set_custom_properties(pseudo_element, move(custom_properties));
+        abstract_element.set_custom_properties(move(custom_properties));
     }
 
-    auto logical_alias_mapping_context = compute_logical_alias_mapping_context(element, pseudo_element, mode, matching_rule_set);
-    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, logical_alias_mapping_context, {});
-    element.set_cascaded_properties(pseudo_element, cascaded_properties);
+    auto logical_alias_mapping_context = compute_logical_alias_mapping_context(abstract_element.element(), abstract_element.pseudo_element(), mode, matching_rule_set);
+    auto cascaded_properties = compute_cascaded_values(abstract_element.element(), abstract_element.pseudo_element(), did_match_any_pseudo_element_rules, mode, matching_rule_set, logical_alias_mapping_context, {});
+    abstract_element.set_cascaded_properties(cascaded_properties);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
@@ -2548,12 +2548,12 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
             // NOTE: `normal` is the initial value, so the absence of a value is treated as `normal`.
             content_is_normal = true;
         }
-        if (content_is_normal && first_is_one_of(*pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)) {
+        if (content_is_normal && first_is_one_of(*abstract_element.pseudo_element(), CSS::PseudoElement::Before, CSS::PseudoElement::After)) {
             return {};
         }
     }
 
-    auto computed_properties = compute_properties(element, pseudo_element, cascaded_properties);
+    auto computed_properties = compute_properties(abstract_element.element(), abstract_element.pseudo_element(), cascaded_properties);
     computed_properties->set_attempted_pseudo_class_matches(attempted_pseudo_class_matches);
 
     if (did_change_custom_properties.has_value() && abstract_element.custom_properties() != old_custom_properties) {
