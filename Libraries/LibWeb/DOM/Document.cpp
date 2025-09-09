@@ -1845,9 +1845,9 @@ void Document::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS
         return false;
     };
 
-    auto matches_different_set_of_rules_after_state_change = [&](Element const& element) {
+    auto matches_different_set_of_rules_after_state_change = [&](Element& element) {
         bool result = false;
-        rules.for_each_matching_rules(element, {}, [&](auto& rules) {
+        rules.for_each_matching_rules({ element }, [&](auto& rules) {
             for (auto& rule : rules) {
                 bool before = does_rule_match_on_element(element, rule);
                 TemporaryChange change { element_slot, node };
