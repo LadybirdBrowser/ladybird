@@ -835,7 +835,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     if (invalidation.is_none() && old_values_with_relative_units.is_empty())
         return invalidation;
 
-    document().style_computer().compute_font(*computed_properties, this, {});
+    document().style_computer().compute_font(*computed_properties, AbstractElement { *this });
     document().style_computer().compute_property_values(*computed_properties);
 
     for (auto [property_id, old_value] : old_values_with_relative_units) {
