@@ -11,6 +11,8 @@ set(SOURCES
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
     PlaybackManager.cpp
+    Providers/VideoDataProvider.cpp
+    Sinks/DisplayingVideoSink.cpp
     VideoFrame.cpp
 )
 
