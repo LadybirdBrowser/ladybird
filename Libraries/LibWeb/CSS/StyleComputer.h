@@ -176,9 +176,9 @@ public:
 
     static CSSPixels default_user_font_size();
     static CSSPixelFraction absolute_size_mapping(Keyword);
-    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth = 0) const;
+    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(Optional<DOM::AbstractElement>, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth = 0) const;
 
-    [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::Element&, Optional<CSS::PseudoElement> pseudo_element, CascadedProperties&) const;
+    [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::AbstractElement, CascadedProperties&) const;
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
 
@@ -192,7 +192,7 @@ public:
     [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::Element&, Optional<PseudoElement>, CascadedProperties&) const;
 
     void compute_property_values(ComputedProperties&) const;
-    void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::PseudoElement>) const;
+    void compute_font(ComputedProperties&, Optional<DOM::AbstractElement>) const;
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
 
