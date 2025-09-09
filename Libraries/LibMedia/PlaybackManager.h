@@ -221,7 +221,7 @@ private:
         template<class T, class... Args>
         ErrorOr<void> replace_handler_and_delete_this(Args... args);
 
-        PlaybackManager& manager() const;
+        PlaybackManager const& manager() const;
 
         PlaybackManager& manager()
         {

@@ -339,7 +339,7 @@ ErrorOr<void> PlaybackManager::PlaybackStateHandler::replace_handler_and_delete_
     return {};
 }
 
-PlaybackManager& PlaybackManager::PlaybackStateHandler::manager() const
+PlaybackManager const& PlaybackManager::PlaybackStateHandler::manager() const
 {
 #if PLAYBACK_MANAGER_DEBUG
     VERIFY(!m_has_exited);
