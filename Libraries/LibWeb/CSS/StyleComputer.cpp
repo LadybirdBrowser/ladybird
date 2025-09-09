@@ -2196,29 +2196,29 @@ enum class BoxTypeTransformation {
     Inlinify,
 };
 
-static BoxTypeTransformation required_box_type_transformation(ComputedProperties const& style, DOM::Element const& element, Optional<CSS::PseudoElement> const& pseudo_element)
+static BoxTypeTransformation required_box_type_transformation(ComputedProperties const& style, DOM::AbstractElement abstract_element)
 {
     // NOTE: We never blockify <br> elements. They are always inline.
     //       There is currently no way to express in CSS how a <br> element really behaves.
     //       Spec issue: https://github.com/whatwg/html/issues/2291
-    if (is<HTML::HTMLBRElement>(element))
+    if (!abstract_element.pseudo_element().has_value() && is<HTML::HTMLBRElement>(abstract_element.element()))
         return BoxTypeTransformation::None;
 
     // Absolute positioning or floating an element blockifies the box’s display type. [CSS2]
-    if (style.position() == CSS::Positioning::Absolute || style.position() == CSS::Positioning::Fixed || style.float_() != CSS::Float::None)
+    if (style.position() == Positioning::Absolute || style.position() == Positioning::Fixed || style.float_() != Float::None)
         return BoxTypeTransformation::Blockify;
 
     // FIXME: Containment in a ruby container inlinifies the box’s display type, as described in [CSS-RUBY-1].
 
     // NOTE: If we're computing style for a pseudo-element, the effective parent will be the originating element itself, not its parent.
-    auto parent = element.element_to_inherit_style_from(pseudo_element);
+    auto parent = abstract_element.element_to_inherit_style_from();
 
     // Climb out of `display: contents` context.
-    while (parent && parent->computed_properties() && parent->computed_properties()->display().is_contents())
-        parent = parent->element_to_inherit_style_from({});
+    while (parent.has_value() && parent->computed_properties() && parent->computed_properties()->display().is_contents())
+        parent = parent->element_to_inherit_style_from();
 
     // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
-    if (parent && parent->computed_properties()) {
+    if (parent.has_value() && parent->computed_properties()) {
         auto const& parent_display = parent->computed_properties()->display();
         if (parent_display.is_grid_inside() || parent_display.is_flex_inside())
             return BoxTypeTransformation::Blockify;
@@ -2228,7 +2228,7 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
 }
 
 // https://drafts.csswg.org/css-display/#transformations
-void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element) const
+void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM::AbstractElement abstract_element) const
 {
     // 2.7. Automatic Box Type Transformations
 
@@ -2238,13 +2238,13 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
 
     auto display = style.display();
 
-    if (display.is_none() || (display.is_contents() && !element.is_document_element()))
+    if (display.is_none() || (display.is_contents() && !abstract_element.element().is_document_element()))
         return;
 
     // https://drafts.csswg.org/css-display/#root
     // The root element’s display type is always blockified, and its principal box always establishes an independent formatting context.
-    if (element.is_document_element() && !display.is_block_outside()) {
-        style.set_property(CSS::PropertyID::Display, DisplayStyleValue::create(Display::from_short(CSS::Display::Short::Block)));
+    if (abstract_element.element().is_document_element() && !display.is_block_outside()) {
+        style.set_property(PropertyID::Display, DisplayStyleValue::create(Display::from_short(Display::Short::Block)));
         return;
     }
 
@@ -2254,20 +2254,20 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
         // https://w3c.github.io/mathml-core/#new-display-math-value
         // For elements that are not MathML elements, if the specified value of display is inline math or block math
         // then the computed value is block flow and inline flow respectively.
-        if (element.namespace_uri() != Namespace::MathML)
-            new_display = CSS::Display { display.outside(), CSS::DisplayInside::Flow };
+        if (abstract_element.element().namespace_uri() != Namespace::MathML)
+            new_display = Display { display.outside(), DisplayInside::Flow };
         // For the mtable element the computed value is block table and inline table respectively.
-        else if (element.tag_name().equals_ignoring_ascii_case("mtable"sv))
-            new_display = CSS::Display { display.outside(), CSS::DisplayInside::Table };
+        else if (abstract_element.element().tag_name().equals_ignoring_ascii_case("mtable"sv))
+            new_display = Display { display.outside(), DisplayInside::Table };
         // For the mtr element, the computed value is table-row.
-        else if (element.tag_name().equals_ignoring_ascii_case("mtr"sv))
-            new_display = CSS::Display { CSS::DisplayInternal::TableRow };
+        else if (abstract_element.element().tag_name().equals_ignoring_ascii_case("mtr"sv))
+            new_display = Display { DisplayInternal::TableRow };
         // For the mtd element, the computed value is table-cell.
-        else if (element.tag_name().equals_ignoring_ascii_case("mtd"sv))
-            new_display = CSS::Display { CSS::DisplayInternal::TableCell };
+        else if (abstract_element.element().tag_name().equals_ignoring_ascii_case("mtd"sv))
+            new_display = Display { DisplayInternal::TableCell };
     }
 
-    switch (required_box_type_transformation(style, element, pseudo_element)) {
+    switch (required_box_type_transformation(style, abstract_element)) {
     case BoxTypeTransformation::None:
         break;
     case BoxTypeTransformation::Blockify:
@@ -2275,16 +2275,16 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
             return;
         // If a layout-internal box is blockified, its inner display type converts to flow so that it becomes a block container.
         if (display.is_internal()) {
-            new_display = CSS::Display::from_short(CSS::Display::Short::Block);
+            new_display = Display::from_short(Display::Short::Block);
         } else {
             VERIFY(display.is_outside_and_inside());
 
             // For legacy reasons, if an inline block box (inline flow-root) is blockified, it becomes a block box (losing its flow-root nature).
             // For consistency, a run-in flow-root box also blockifies to a block box.
             if (display.is_inline_block()) {
-                new_display = CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flow, display.list_item() };
+                new_display = Display { DisplayOutside::Block, DisplayInside::Flow, display.list_item() };
             } else {
-                new_display = CSS::Display { CSS::DisplayOutside::Block, display.inside(), display.list_item() };
+                new_display = Display { DisplayOutside::Block, display.inside(), display.list_item() };
             }
         }
         break;
@@ -2305,16 +2305,16 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
 
             // If a block box (block flow) is inlinified, its inner display type is set to flow-root so that it remains a block container.
             if (display.is_block_outside() && display.is_flow_inside()) {
-                new_display = CSS::Display { CSS::DisplayOutside::Inline, CSS::DisplayInside::FlowRoot, display.list_item() };
+                new_display = Display { DisplayOutside::Inline, DisplayInside::FlowRoot, display.list_item() };
             }
 
-            new_display = CSS::Display { CSS::DisplayOutside::Inline, display.inside(), display.list_item() };
+            new_display = Display { DisplayOutside::Inline, display.inside(), display.list_item() };
         }
         break;
     }
 
     if (new_display != display)
-        style.set_property(CSS::PropertyID::Display, DisplayStyleValue::create(new_display));
+        style.set_property(PropertyID::Display, DisplayStyleValue::create(new_display));
 }
 
 GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
@@ -2638,7 +2638,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     compute_property_values(computed_style);
 
     // 5. Run automatic box type transformations
-    transform_box_type_if_needed(computed_style, abstract_element.element(), abstract_element.pseudo_element());
+    transform_box_type_if_needed(computed_style, abstract_element);
 
     // 6. Apply any property-specific computed value logic
     resolve_effective_overflow_values(computed_style);
