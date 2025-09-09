@@ -7,7 +7,8 @@
 #pragma once
 
 #include <LibGC/Cell.h>
-#include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/PseudoElement.h>
+#include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
