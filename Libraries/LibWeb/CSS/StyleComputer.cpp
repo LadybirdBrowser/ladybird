@@ -564,7 +564,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
     };
 
     auto add_rules_from_cache = [&](RuleCache const& rule_cache) {
-        rule_cache.for_each_matching_rules(abstract_element.element(), abstract_element.pseudo_element(), [&](auto const& matching_rules) {
+        rule_cache.for_each_matching_rules(abstract_element, [&](auto const& matching_rules) {
             add_rules_to_run(matching_rules);
             return IterationDecision::Continue;
         });
@@ -3525,40 +3525,40 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoEleme
     }
 }
 
-void RuleCache::for_each_matching_rules(DOM::Element const& element, Optional<PseudoElement> pseudo_element, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const
+void RuleCache::for_each_matching_rules(DOM::AbstractElement abstract_element, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const
 {
-    for (auto const& class_name : element.class_names()) {
+    for (auto const& class_name : abstract_element.element().class_names()) {
         if (auto it = rules_by_class.find(class_name); it != rules_by_class.end()) {
             if (callback(it->value) == IterationDecision::Break)
                 return;
         }
     }
-    if (auto id = element.id(); id.has_value()) {
+    if (auto id = abstract_element.element().id(); id.has_value()) {
         if (auto it = rules_by_id.find(id.value()); it != rules_by_id.end()) {
             if (callback(it->value) == IterationDecision::Break)
                 return;
         }
     }
-    if (auto it = rules_by_tag_name.find(element.lowercased_local_name()); it != rules_by_tag_name.end()) {
+    if (auto it = rules_by_tag_name.find(abstract_element.element().lowercased_local_name()); it != rules_by_tag_name.end()) {
         if (callback(it->value) == IterationDecision::Break)
             return;
     }
-    if (pseudo_element.has_value()) {
-        if (Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
-            if (callback(rules_by_pseudo_element.at(to_underlying(pseudo_element.value()))) == IterationDecision::Break)
+    if (abstract_element.pseudo_element().has_value()) {
+        if (Selector::PseudoElementSelector::is_known_pseudo_element_type(abstract_element.pseudo_element().value())) {
+            if (callback(rules_by_pseudo_element.at(to_underlying(abstract_element.pseudo_element().value()))) == IterationDecision::Break)
                 return;
         } else {
             // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
         }
     }
 
-    if (element.is_document_element()) {
+    if (abstract_element.element().is_document_element()) {
         if (callback(root_rules) == IterationDecision::Break)
             return;
     }
 
     IterationDecision decision = IterationDecision::Continue;
-    element.for_each_attribute([&](auto& name, auto&) {
+    abstract_element.element().for_each_attribute([&](auto& name, auto&) {
         if (auto it = rules_by_attribute_name.find(name); it != rules_by_attribute_name.end()) {
             decision = callback(it->value);
         }
