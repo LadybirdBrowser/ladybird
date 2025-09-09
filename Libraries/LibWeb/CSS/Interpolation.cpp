@@ -1100,6 +1100,44 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                 }
             };
 
+            auto to_raw_value = [](StyleValue const& value) -> double {
+                switch (value.type()) {
+                case StyleValue::Type::Angle:
+                    return value.as_angle().raw_value();
+                case StyleValue::Type::Frequency:
+                    return value.as_frequency().raw_value();
+                case StyleValue::Type::Integer:
+                    return value.as_integer().integer();
+                case StyleValue::Type::Length:
+                    return value.as_length().raw_value();
+                case StyleValue::Type::Number:
+                    return value.as_number().number();
+                case StyleValue::Type::Percentage:
+                    return value.as_percentage().raw_value();
+                case StyleValue::Type::Time:
+                    return value.as_time().raw_value();
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            };
+
+            // https://drafts.csswg.org/css-values-4/#combine-mixed
+            // The computed value of a percentage-dimension mix is defined as
+            // FIXME: a computed dimension if the percentage component is zero or is defined specifically to compute to a dimension value
+            // a computed percentage if the dimension component is zero
+            // a computed calc() expression otherwise
+            if (from.type() != StyleValue::Type::Calculated && to.type() == StyleValue::Type::Percentage) {
+                auto dimension_component = to_raw_value(from) * (1.f - delta);
+                auto percentage_component = to.as_percentage().raw_value() * delta;
+                if (dimension_component == 0.f)
+                    return PercentageStyleValue::create(Percentage { percentage_component });
+            } else if (from.type() == StyleValue::Type::Percentage && to.type() != StyleValue::Type::Calculated) {
+                auto dimension_component = to_raw_value(to) * delta;
+                auto percentage_component = from.as_percentage().raw_value() * (1.f - delta);
+                if (dimension_component == 0)
+                    return PercentageStyleValue::create(Percentage { percentage_component });
+            }
+
             auto from_node = to_calculation_node(from);
             auto to_node = to_calculation_node(to);
 
