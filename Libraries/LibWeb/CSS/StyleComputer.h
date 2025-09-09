@@ -124,7 +124,7 @@ struct RuleCache {
     HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
 
     void add_rule(MatchingRule const&, Optional<PseudoElement>, bool contains_root_pseudo_class);
-    void for_each_matching_rules(DOM::Element const&, Optional<PseudoElement>, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const;
+    void for_each_matching_rules(DOM::AbstractElement, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const;
 };
 
 class FontLoader;
