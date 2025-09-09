@@ -182,7 +182,7 @@ public:
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
 
-    void collect_animation_into(DOM::Element&, Optional<CSS::PseudoElement>, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&) const;
+    void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&) const;
 
     [[nodiscard]] bool may_have_has_selectors() const;
     [[nodiscard]] bool have_has_selectors() const;
