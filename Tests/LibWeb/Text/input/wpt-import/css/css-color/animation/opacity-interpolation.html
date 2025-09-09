@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>opacity interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-3/#opacity">
+<meta name="assert" content="opacity supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  opacity: 0.8;
+}
+
+.target {
+  width: 100px;
+  height: 100px;
+  background-color: black;
+  display: inline-block;
+  opacity: 0.1;
+}
+
+.expected {
+  background-color: green;
+}
+</style>
+
+<body>
+<script>
+test_interpolation({
+  property: 'opacity',
+  from: neutralKeyframe,
+  to: '0.2',
+}, [
+  {at: -0.3, expect: '0.07'},
+  {at: 0, expect: '0.1'},
+  {at: 0.3, expect: '0.13'},
+  {at: 0.6, expect: '0.16'},
+  {at: 1, expect: '0.2'},
+  {at: 1.5, expect: '0.25'},
+]);
+
+test_interpolation({
+  property: 'opacity',
+  from: 'initial',
+  to: '0.2',
+}, [
+  {at: -0.3, expect: '1'},
+  {at: 0, expect: '1'},
+  {at: 0.3, expect: '0.76'},
+  {at: 0.6, expect: '0.52'},
+  {at: 1, expect: '0.2'},
+  {at: 1.5, expect: '0'},
+]);
+
+test_interpolation({
+  property: 'opacity',
+  from: 'inherit',
+  to: '0.2',
+}, [
+  {at: -0.3, expect: '0.98'},
+  {at: 0, expect: '0.8'},
+  {at: 0.3, expect: '0.62'},
+  {at: 0.6, expect: '0.44'},
+  {at: 1, expect: '0.2'},
+  {at: 1.5, expect: '0'},
+]);
+
+test_interpolation({
+  property: 'opacity',
+  from: 'unset',
+  to: '0.2',
+}, [
+  {at: -0.3, expect: '1'},
+  {at: 0, expect: '1'},
+  {at: 0.3, expect: '0.76'},
+  {at: 0.6, expect: '0.52'},
+  {at: 1, expect: '0.2'},
+  {at: 1.5, expect: '0'},
+]);
+
+test_interpolation({
+  property: 'opacity',
+  from: '0',
+  to: '1'
+}, [
+  {at: -0.3, expect: '0'}, // CSS opacity is [0-1].
+  {at: 0, expect: '0'},
+  {at: 0.3, expect: '0.3'},
+  {at: 0.6, expect: '0.6'},
+  {at: 1, expect: '1'},
+  {at: 1.5, expect: '1'}
+]);
+</script>
+</body>
