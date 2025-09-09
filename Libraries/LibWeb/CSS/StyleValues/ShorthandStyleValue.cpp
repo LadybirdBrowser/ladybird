@@ -240,14 +240,6 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     }
     case PropertyID::Border: {
         auto all_longhands_same_value = [](ValueComparingRefPtr<StyleValue const> const& shorthand) -> bool {
-            VERIFY(shorthand);
-
-            // FIXME: This can be removed once we parse border-width, border-style and border-color directly to ShorthandStyleValue
-            if (!shorthand->is_shorthand())
-                return !shorthand->is_value_list();
-
-            VERIFY(shorthand->is_shorthand());
-
             auto longhands = shorthand->as_shorthand().values();
 
             return all_of(longhands, [&](auto const& longhand) { return longhand == longhands[0]; });
