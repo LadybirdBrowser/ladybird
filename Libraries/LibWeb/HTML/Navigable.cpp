@@ -2456,11 +2456,9 @@ bool Navigable::has_a_rendering_opportunity() const
     // accounting for hardware refresh rate constraints and user agent throttling for performance reasons,
     // but considering content presentable even if it's outside the viewport.
 
-    // A navigable has no rendering opportunities if its active document is render-blocked
-    // or if it is suppressed for view transitions;
-    // otherwise, rendering opportunities are determined based on hardware constraints
+    // A navigable's rendering opportunities are determined based on hardware constraints
     // such as display refresh rates and other factors such as page performance
-    // or whether the document's visibility state is "visible".
+    // or whether its active document's visibility state is "visible".
     // Rendering opportunities typically occur at regular intervals.
 
     // FIXME: Return `false` here if we're an inactive browser tab.

@@ -232,7 +232,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
         return Error::from_string_literal("The snapshot containing block is too large.");
 
     // 6. Set transition’s initial snapshot containing block size to the snapshot containing block size.
-    m_initial_snapshot_containing_block_size = CSSPixelSize { snapshot_containing_block.width().raw_value(), snapshot_containing_block.height().raw_value() };
+    m_initial_snapshot_containing_block_size = snapshot_containing_block.size();
 
     // 7. For each element of every element that is connected, and has a node document equal to document, in paint
     //    order:
@@ -856,8 +856,8 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             // 1. Return failure if any of the following conditions is true:
 
             //    - capturedElement’s new element has a flat tree ancestor that skips its contents.
-            for (auto* ancestor = captured_element->new_element->parent(); ancestor; ancestor = ancestor->parent()) {
-                if (as<DOM::Element>(*ancestor).skips_its_contents())
+            for (auto ancestor = captured_element->new_element->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (ancestor->skips_its_contents())
                     return Error::from_string_literal("capturedElement’s new element has a flat tree ancestor that skips its contents.");
             }
 
