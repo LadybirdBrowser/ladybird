@@ -505,16 +505,16 @@ bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::
     return false;
 }
 
-Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const
+Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const
 {
-    auto const& root_node = element.root();
+    auto const& root_node = abstract_element.element().root();
     auto shadow_root = as_if<DOM::ShadowRoot>(root_node);
-    auto element_shadow_root = element.shadow_root();
-    auto const& element_namespace_uri = element.namespace_uri();
+    auto element_shadow_root = abstract_element.element().shadow_root();
+    auto const& element_namespace_uri = abstract_element.element().namespace_uri();
 
     GC::Ptr<DOM::Element const> shadow_host;
     if (element_shadow_root)
-        shadow_host = element;
+        shadow_host = abstract_element.element();
     else if (shadow_root)
         shadow_host = shadow_root->host();
 
@@ -550,7 +550,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
 
     auto add_rules_to_run = [&](Vector<MatchingRule> const& rules) {
         rules_to_run.grow_capacity(rules_to_run.size() + rules.size());
-        if (pseudo_element.has_value()) {
+        if (abstract_element.pseudo_element().has_value()) {
             for (auto const& rule : rules) {
                 if (rule.contains_pseudo_element && filter_namespace_rule(element_namespace_uri, rule))
                     add_rule_to_run(rule);
@@ -564,7 +564,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
     };
 
     auto add_rules_from_cache = [&](RuleCache const& rule_cache) {
-        rule_cache.for_each_matching_rules(element, pseudo_element, [&](auto const& matching_rules) {
+        rule_cache.for_each_matching_rules(abstract_element.element(), abstract_element.pseudo_element(), [&](auto const& matching_rules) {
             add_rules_to_run(matching_rules);
             return IterationDecision::Continue;
         });
@@ -583,7 +583,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
             add_rules_from_cache(*rule_cache);
     }
 
-    if (auto assigned_slot = element.assigned_slot_internal()) {
+    if (auto assigned_slot = abstract_element.element().assigned_slot_internal()) {
         if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(assigned_slot->root())) {
             if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, slot_shadow_root)) {
                 add_rules_to_run(rule_cache->slotted_rules);
@@ -600,32 +600,32 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         //       be confined to the element itself (since it refuses to cross the shadow boundary).
         auto rule_root = rule_to_run.shadow_root;
         auto shadow_host_to_use = shadow_host;
-        if (element.is_shadow_host() && rule_root != element.shadow_root())
+        if (abstract_element.element().is_shadow_host() && rule_root != abstract_element.element().shadow_root())
             shadow_host_to_use = nullptr;
 
         auto const& selector = rule_to_run.selector;
 
         SelectorEngine::MatchContext context {
             .style_sheet_for_rule = *rule_to_run.sheet,
-            .subject = element,
+            .subject = abstract_element.element(),
             .collect_per_element_selector_involvement_metadata = true,
         };
         ScopeGuard guard = [&] {
             attempted_pseudo_class_matches |= context.attempted_pseudo_class_matches;
         };
         if (selector.is_slotted()) {
-            if (!element.assigned_slot_internal())
+            if (!abstract_element.element().assigned_slot_internal())
                 continue;
             // We're collecting rules for element, which is assigned to a slot.
             // For ::slotted() matching, slot should be used as a subject instead of element,
             // while element itself is saved in matching context, so selector engine could
             // switch back to it when matching inside ::slotted() argument.
-            auto const& slot = *element.assigned_slot_internal();
-            context.slotted_element = &element;
+            auto const& slot = *abstract_element.element().assigned_slot_internal();
+            context.slotted_element = &abstract_element.element();
             context.subject = &slot;
             if (!SelectorEngine::matches(selector, slot, shadow_host_to_use, context, PseudoElement::Slotted))
                 continue;
-        } else if (!SelectorEngine::matches(selector, element, shadow_host_to_use, context, pseudo_element))
+        } else if (!SelectorEngine::matches(selector, abstract_element.element(), shadow_host_to_use, context, abstract_element.pseudo_element()))
             continue;
         matching_rules.append(&rule_to_run);
     }
@@ -1507,28 +1507,28 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
     }
 }
 
-StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Element const& element, Optional<PseudoElement> pseudo_element, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
+StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::AbstractElement abstract_element, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
 {
     // First, we collect all the CSS rules whose selectors match `element`:
     MatchingRuleSet matching_rule_set;
-    matching_rule_set.user_agent_rules = collect_matching_rules(element, CascadeOrigin::UserAgent, pseudo_element, attempted_pseudo_class_matches);
+    matching_rule_set.user_agent_rules = collect_matching_rules(abstract_element, CascadeOrigin::UserAgent, attempted_pseudo_class_matches);
     sort_matching_rules(matching_rule_set.user_agent_rules);
-    matching_rule_set.user_rules = collect_matching_rules(element, CascadeOrigin::User, pseudo_element, attempted_pseudo_class_matches);
+    matching_rule_set.user_rules = collect_matching_rules(abstract_element, CascadeOrigin::User, attempted_pseudo_class_matches);
     sort_matching_rules(matching_rule_set.user_rules);
 
     // @layer-ed author rules
     for (auto const& layer_name : m_qualified_layer_names_in_order) {
-        auto layer_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, attempted_pseudo_class_matches, layer_name);
+        auto layer_rules = collect_matching_rules(abstract_element, CascadeOrigin::Author, attempted_pseudo_class_matches, layer_name);
         sort_matching_rules(layer_rules);
         matching_rule_set.author_rules.append({ layer_name, layer_rules });
     }
     // Un-@layer-ed author rules
-    auto unlayered_author_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, attempted_pseudo_class_matches);
+    auto unlayered_author_rules = collect_matching_rules(abstract_element, CascadeOrigin::Author, attempted_pseudo_class_matches);
     sort_matching_rules(unlayered_author_rules);
     matching_rule_set.author_rules.append({ {}, unlayered_author_rules });
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
-        VERIFY(pseudo_element.has_value());
+        VERIFY(abstract_element.pseudo_element().has_value());
         did_match_any_pseudo_element_rules = !matching_rule_set.author_rules.is_empty()
             || !matching_rule_set.user_rules.is_empty()
             || !matching_rule_set.user_agent_rules.is_empty();
@@ -2364,7 +2364,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
     PseudoClassBitmap attempted_pseudo_class_matches;
-    auto matching_rule_set = build_matching_rule_set(abstract_element.element(), abstract_element.pseudo_element(), attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
+    auto matching_rule_set = build_matching_rule_set(abstract_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
 
     auto old_custom_properties = abstract_element.custom_properties();
 
