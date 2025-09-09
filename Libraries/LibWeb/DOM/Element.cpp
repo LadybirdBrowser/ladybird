@@ -739,7 +739,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
         style_computer.push_ancestor(*this);
 
         auto pseudo_element_style = computed_properties(pseudo_element);
-        auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed(*this, pseudo_element, did_change_custom_properties);
+        auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties);
 
         // TODO: Can we be smarter about invalidation?
         if (pseudo_element_style && new_pseudo_element_style) {
