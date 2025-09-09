@@ -53,9 +53,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                 auto value_for_property = value_or_error.release_value();
                 // Descriptors don't accept the following, which properties do:
                 // - CSS-wide keywords
-                // - Shorthands
                 // - Arbitrary substitution functions (so, UnresolvedStyleValue)
-                if (value_for_property->is_css_wide_keyword() || value_for_property->is_shorthand() || value_for_property->is_unresolved())
+                if (value_for_property->is_css_wide_keyword() || value_for_property->is_unresolved())
                     return nullptr;
                 return value_for_property;
             },

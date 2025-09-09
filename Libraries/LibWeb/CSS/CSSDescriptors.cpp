@@ -7,7 +7,7 @@
 #include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -316,36 +316,12 @@ void for_each_expanded_longhand(AtRuleID at_rule, DescriptorID descriptor, RefPt
             return;
         }
 
-        if (value->is_value_list()) {
-            auto& values = value->as_value_list().values();
-            if (values.size() == 4) {
-                callback(DescriptorID::MarginTop, values[0]);
-                callback(DescriptorID::MarginRight, values[1]);
-                callback(DescriptorID::MarginBottom, values[2]);
-                callback(DescriptorID::MarginLeft, values[3]);
-            } else if (values.size() == 3) {
-                callback(DescriptorID::MarginTop, values[0]);
-                callback(DescriptorID::MarginRight, values[1]);
-                callback(DescriptorID::MarginBottom, values[2]);
-                callback(DescriptorID::MarginLeft, values[1]);
-            } else if (values.size() == 2) {
-                callback(DescriptorID::MarginTop, values[0]);
-                callback(DescriptorID::MarginRight, values[1]);
-                callback(DescriptorID::MarginBottom, values[0]);
-                callback(DescriptorID::MarginLeft, values[1]);
-            } else if (values.size() == 1) {
-                callback(DescriptorID::MarginTop, values[0]);
-                callback(DescriptorID::MarginRight, values[0]);
-                callback(DescriptorID::MarginBottom, values[0]);
-                callback(DescriptorID::MarginLeft, values[0]);
-            }
+        auto const& shorthand_value = value->as_shorthand();
 
-        } else {
-            callback(DescriptorID::MarginTop, *value);
-            callback(DescriptorID::MarginRight, *value);
-            callback(DescriptorID::MarginBottom, *value);
-            callback(DescriptorID::MarginLeft, *value);
-        }
+        callback(DescriptorID::MarginTop, shorthand_value.longhand(PropertyID::MarginTop));
+        callback(DescriptorID::MarginRight, shorthand_value.longhand(PropertyID::MarginRight));
+        callback(DescriptorID::MarginBottom, shorthand_value.longhand(PropertyID::MarginBottom));
+        callback(DescriptorID::MarginLeft, shorthand_value.longhand(PropertyID::MarginLeft));
     }
 }
 

@@ -517,7 +517,6 @@
       "border-block-start-color",
       "border-block-end-color"
     ],
-    "max-values": 2,
     "valid-types": [
       "color"
     ]
@@ -590,7 +589,6 @@
       "border-block-start-style",
       "border-block-end-style"
     ],
-    "max-values": 2,
     "valid-types": [
       "line-style"
     ]
@@ -603,7 +601,6 @@
       "border-block-start-width",
       "border-block-end-width"
     ],
-    "max-values": 2,
     "valid-types": [
       "length [0,∞]",
       "line-width"
@@ -692,7 +689,6 @@
       "border-bottom-color",
       "border-left-color"
     ],
-    "max-values": 4,
     "valid-types": [
       "color"
     ],
@@ -803,7 +799,6 @@
       "border-inline-start-color",
       "border-inline-end-color"
     ],
-    "max-values": 2,
     "valid-types": [
       "color"
     ]
@@ -876,7 +871,6 @@
       "border-inline-start-style",
       "border-inline-end-style"
     ],
-    "max-values": 2,
     "valid-types": [
       "line-style"
     ]
@@ -889,7 +883,6 @@
       "border-inline-start-width",
       "border-inline-end-width"
     ],
-    "max-values": 2,
     "valid-types": [
       "length [0,∞]",
       "line-width"
@@ -1029,7 +1022,6 @@
       "border-bottom-style",
       "border-left-style"
     ],
-    "max-values": 4,
     "valid-types": [
       "line-style"
     ]
@@ -1108,7 +1100,6 @@
       "border-bottom-width",
       "border-left-width"
     ],
-    "max-values": 4,
     "valid-types": [
       "length [0,∞]",
       "line-width"
@@ -1800,7 +1791,6 @@
       "length [0,∞]",
       "percentage [0,∞]"
     ],
-    "max-values": 2,
     "valid-identifiers": [
       "normal"
     ],
@@ -2064,7 +2054,6 @@
       "bottom",
       "left"
     ],
-    "max-values": 4,
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2081,7 +2070,6 @@
       "inset-block-start",
       "inset-block-end"
     ],
-    "max-values": 2,
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2112,7 +2100,6 @@
       "inset-inline-start",
       "inset-inline-end"
     ],
-    "max-values": 2,
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2262,7 +2249,6 @@
       "margin-bottom",
       "margin-left"
     ],
-    "max-values": 4,
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2282,7 +2268,6 @@
       "margin-block-start",
       "margin-block-end"
     ],
-    "max-values": 2,
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2327,7 +2312,6 @@
       "margin-inline-start",
       "margin-inline-end"
     ],
-    "max-values": 2,
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2750,7 +2734,6 @@
     "positional-value-list-shorthand": true,
     "inherited": false,
     "initial": "visible",
-    "max-values": 2,
     "valid-types": [
       "overflow"
     ]
@@ -2787,7 +2770,6 @@
       "padding-bottom",
       "padding-left"
     ],
-    "max-values": 4,
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -2804,7 +2786,6 @@
       "padding-block-start",
       "padding-block-end"
     ],
-    "max-values": 2,
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -2843,7 +2824,6 @@
       "padding-inline-start",
       "padding-inline-end"
     ],
-    "max-values": 2,
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"

@@ -345,6 +345,7 @@ private:
 
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_descriptor_value(AtRuleID, DescriptorID, TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_positional_value_list_shorthand(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
     struct PropertyAndValue {
         PropertyID property;
