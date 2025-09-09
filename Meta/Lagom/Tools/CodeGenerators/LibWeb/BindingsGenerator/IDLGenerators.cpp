@@ -1089,17 +1089,22 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         // 1. If the result of calling IsCallable(V) is false and the conversion to an IDL value is not being performed due to V being assigned to an attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull], then throw a TypeError.
         if (!parameter.type->is_nullable() && !callback_function.is_legacy_treat_non_object_as_null) {
             callback_function_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_function())
+    if (!@js_name@@js_suffix@.is_function()
+)~~~");
+            if (optional)
+                callback_function_generator.append("&& !@js_name@@js_suffix@.is_undefined()");
+            callback_function_generator.append(R"~~~()
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, @js_name@@js_suffix@.to_string_without_side_effects());
 )~~~");
         }
         // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent realm as the callback context.
-        if (parameter.type->is_nullable() || callback_function.is_legacy_treat_non_object_as_null) {
+        if (optional || parameter.type->is_nullable() || callback_function.is_legacy_treat_non_object_as_null) {
             callback_function_generator.append(R"~~~(
     GC::Ptr<WebIDL::CallbackType> @cpp_name@;
     if (@js_name@@js_suffix@.is_object())
         @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(), @operation_returns_promise@);
 )~~~");
+            // FIXME: Handle default value for optional parameter here.
         } else {
             callback_function_generator.append(R"~~~(
     auto @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(), @operation_returns_promise@);

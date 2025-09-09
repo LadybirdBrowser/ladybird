@@ -6679,7 +6679,6 @@ void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
-// FIXME: Calling document.startViewTransition() without arguments throws TypeError instead of calling this.
 GC::Ptr<ViewTransition::ViewTransition> Document::start_view_transition(ViewTransition::ViewTransitionUpdateCallback update_callback)
 {
     // The method steps for startViewTransition(updateCallback) are as follows:
