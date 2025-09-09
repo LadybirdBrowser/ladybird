@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text: getComputedStyle().wordSpacing</title>
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#propdef-word-spacing">
+<meta name="assert" content="word-spacing computed value is an absolute length and/or percentage.">
+<meta name="assert" content="'normal' computes to zero.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("word-spacing", "normal", "0px");
+test_computed_value("word-spacing", "0", "0px");
+
+test_computed_value("word-spacing", "10px");
+test_computed_value("word-spacing", "-20px");
+test_computed_value("word-spacing", "calc(10px - 0.5em)", "-10px");
+test_computed_value("word-spacing", "110%");
+test_computed_value("word-spacing", "-5%");
+test_computed_value("word-spacing", "calc(10% - 20%)", "-10%");
+test_computed_value("word-spacing", "calc(10px - (5% + 10%)", "calc(-15% + 10px)");
+</script>
+</body>
+</html>

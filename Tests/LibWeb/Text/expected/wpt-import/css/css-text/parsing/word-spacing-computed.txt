@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Property word-spacing value 'normal'
+Pass	Property word-spacing value '0'
+Pass	Property word-spacing value '10px'
+Pass	Property word-spacing value '-20px'
+Pass	Property word-spacing value 'calc(10px - 0.5em)'
+Pass	Property word-spacing value '110%'
+Pass	Property word-spacing value '-5%'
+Pass	Property word-spacing value 'calc(10% - 20%)'
+Pass	Property word-spacing value 'calc(10px - (5% + 10%)'
