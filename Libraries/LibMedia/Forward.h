@@ -10,10 +10,16 @@ namespace Media {
 
 class CodedFrame;
 class DecoderError;
+class Demuxer;
+class DisplayingVideoSink;
 class FrameQueueItem;
+class MediaTimeProvider;
+class MutexedDemuxer;
 class PlaybackManager;
 class Track;
+class VideoDataProvider;
 class VideoDecoder;
 class VideoFrame;
+class VideoSink;
 
 }
