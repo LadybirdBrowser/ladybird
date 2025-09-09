@@ -2335,9 +2335,9 @@ GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement ab
     return *compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties);
 }
 
-GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, Optional<bool&> did_change_custom_properties) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
-    return compute_style_impl({ element, move(pseudo_element) }, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties);
+    return compute_style_impl(abstract_element, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties);
 }
 
 GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElement abstract_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties) const

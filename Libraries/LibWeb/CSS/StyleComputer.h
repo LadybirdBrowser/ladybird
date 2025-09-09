@@ -153,7 +153,7 @@ public:
     [[nodiscard]] GC::Ref<ComputedProperties> create_document_style() const;
 
     [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}) const;
-    [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::PseudoElement>, Optional<bool&> did_change_custom_properties) const;
+    [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::AbstractElement, Optional<bool&> did_change_custom_properties) const;
 
     [[nodiscard]] RuleCache const& get_pseudo_class_rule_cache(PseudoClass) const;
 
