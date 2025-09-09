@@ -890,20 +890,20 @@ WordBreak ComputedProperties::word_break() const
     return keyword_to_word_break(value.to_keyword()).release_value();
 }
 
-Optional<LengthPercentage> ComputedProperties::word_spacing() const
+CSSPixels ComputedProperties::word_spacing() const
 {
     auto const& value = property(PropertyID::WordSpacing);
     if (value.is_keyword() && value.to_keyword() == Keyword::Normal)
-        return LengthPercentage { Length::make_px(0) };
+        return 0;
 
     if (value.is_length())
-        return LengthPercentage(value.as_length().length());
+        return value.as_length().length().absolute_length_to_px();
 
     if (value.is_percentage())
-        return LengthPercentage(value.as_percentage().percentage());
+        return font_size().scale_by(value.as_percentage().percentage().as_fraction());
 
     if (value.is_calculated())
-        return LengthPercentage { value.as_calculated() };
+        return value.as_calculated().resolve_length({ .percentage_basis = Length::make_px(font_size()), .length_resolution_context = {} })->absolute_length_to_px();
 
     VERIFY_NOT_REACHED();
 }
