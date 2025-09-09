@@ -13,19 +13,19 @@
 
 namespace Media::Matroska {
 
-DecoderErrorOr<NonnullOwnPtr<MatroskaDemuxer>> MatroskaDemuxer::from_file(StringView filename)
+DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_file(StringView filename)
 {
-    return make<MatroskaDemuxer>(TRY(Reader::from_file(filename)));
+    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_file(filename)));
 }
 
-DecoderErrorOr<NonnullOwnPtr<MatroskaDemuxer>> MatroskaDemuxer::from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file)
+DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file)
 {
-    return make<MatroskaDemuxer>(TRY(Reader::from_mapped_file(move(mapped_file))));
+    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_mapped_file(move(mapped_file))));
 }
 
-DecoderErrorOr<NonnullOwnPtr<MatroskaDemuxer>> MatroskaDemuxer::from_data(ReadonlyBytes data)
+DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_data(ReadonlyBytes data)
 {
-    return make<MatroskaDemuxer>(TRY(Reader::from_data(data)));
+    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_data(data)));
 }
 
 static TrackEntry::TrackType matroska_track_type_from_track_type(TrackType type)
