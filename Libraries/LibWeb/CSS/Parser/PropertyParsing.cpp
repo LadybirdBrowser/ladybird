@@ -1552,6 +1552,13 @@ RefPtr<StyleValue const> Parser::parse_border_value(PropertyID property_id, Toke
         VERIFY_NOT_REACHED();
     }
 
+    auto const make_single_value_shorthand = [&](PropertyID property_id, Vector<PropertyID> const& longhands, ValueComparingNonnullRefPtr<StyleValue const> const& value) {
+        Vector<ValueComparingNonnullRefPtr<StyleValue const>> longhand_values;
+        longhand_values.resize_with_default_value(longhands.size(), value);
+
+        return ShorthandStyleValue::create(property_id, longhands, longhand_values);
+    };
+
     auto remaining_longhands = Vector { width_property, color_property, style_property };
     auto transaction = tokens.begin_transaction();
 
@@ -1564,13 +1571,13 @@ RefPtr<StyleValue const> Parser::parse_border_value(PropertyID property_id, Toke
 
         if (property_and_value->property == width_property) {
             VERIFY(!border_width);
-            border_width = value.release_nonnull();
+            border_width = make_single_value_shorthand(width_property, longhands_for_shorthand(width_property), value.release_nonnull());
         } else if (property_and_value->property == color_property) {
             VERIFY(!border_color);
-            border_color = value.release_nonnull();
+            border_color = make_single_value_shorthand(color_property, longhands_for_shorthand(color_property), value.release_nonnull());
         } else if (property_and_value->property == style_property) {
             VERIFY(!border_style);
-            border_style = value.release_nonnull();
+            border_style = make_single_value_shorthand(style_property, longhands_for_shorthand(style_property), value.release_nonnull());
         } else {
             VERIFY_NOT_REACHED();
         }
