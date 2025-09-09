@@ -239,7 +239,7 @@ private:
     void compute_math_depth(ComputedProperties&, Optional<DOM::AbstractElement>) const;
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::AbstractElement) const;
     void resolve_effective_overflow_values(ComputedProperties&) const;
-    void transform_box_type_if_needed(ComputedProperties&, DOM::Element const&, Optional<CSS::PseudoElement>) const;
+    void transform_box_type_if_needed(ComputedProperties&, DOM::AbstractElement) const;
 
     template<typename Callback>
     void for_each_stylesheet(CascadeOrigin, Callback) const;
