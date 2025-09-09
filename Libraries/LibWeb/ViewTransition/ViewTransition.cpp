@@ -526,7 +526,7 @@ void ViewTransition::setup_transition_pseudo_elements()
                                                               transition_name, "transform", width, height, "backdrop_filter")),
                 stylesheet->rules().length()));
             // FIXME: all the strings above should be the identically named variables, serialized somehow.
-            captured_element->group_keyframes = as<CSS::CSSKeyframesRule>(stylesheet->css_rules()->item(0));
+            captured_element->group_keyframes = as<CSS::CSSKeyframesRule>(stylesheet->css_rules()->item(index));
 
             // 6. Set capturedElement’s group animation name rule to a new CSSStyleRule representing the
             //    following CSS, and append it to document’s dynamic view transition style sheet:

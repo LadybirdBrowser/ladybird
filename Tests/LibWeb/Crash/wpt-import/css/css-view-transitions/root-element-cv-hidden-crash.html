@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>View transitions: content-visibility:hidden on root element crash</title>
+<link rel="help" href="https://crbug.com/1429947">
+<style>
+  html {
+    content-visibility: hidden;
+  }
+</style>
+<script>
+  document.startViewTransition();
+</script>

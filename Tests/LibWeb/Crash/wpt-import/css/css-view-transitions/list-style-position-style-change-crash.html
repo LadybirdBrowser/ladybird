@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<title>View transitions: list-style-position crash</title>
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/">
+<link rel="author" href="mailto:bokan@chromium.org">
+
+<script>
+onload = async () => {
+  let vt = document.startViewTransition();
+  await vt.ready;
+  await new Promise(resolve => requestAnimationFrame(resolve));
+
+  document.documentElement.style.listStylePosition = 'inside';
+  // Force style update.
+  window.scrollX;
+
+  document.documentElement.classList.remove('test-wait');
+}
+</script>
+</html>
