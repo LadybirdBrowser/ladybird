@@ -1119,7 +1119,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             return camel_case_string_from_property_id(a) < camel_case_string_from_property_id(b);
         };
 
-        compute_font(computed_properties, &element, pseudo_element);
+        compute_font(computed_properties, DOM::AbstractElement { element, pseudo_element });
         compute_property_values(computed_properties);
         Length::FontMetrics font_metrics {
             computed_properties.font_size(),
@@ -1902,9 +1902,10 @@ CSSPixelFraction StyleComputer::absolute_size_mapping(Keyword keyword)
     }
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(Optional<DOM::AbstractElement> abstract_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth) const
 {
-    auto parent_element = element ? element->element_to_inherit_style_from(pseudo_element) : nullptr;
+    auto parent_element = abstract_element.has_value() ? abstract_element->element_to_inherit_style_from() : OptionalNone {};
+    GC::Ptr element = abstract_element.has_value() ? &abstract_element->element() : nullptr;
 
     auto width = font_stretch.to_font_width();
     auto weight = font_weight.to_font_weight();
@@ -1912,12 +1913,12 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     auto font_size_in_px = default_user_font_size();
 
     Gfx::FontPixelMetrics font_pixel_metrics;
-    if (parent_element && parent_element->computed_properties())
+    if (parent_element.has_value() && parent_element->computed_properties())
         font_pixel_metrics = parent_element->computed_properties()->first_available_computed_font().pixel_metrics();
     else
         font_pixel_metrics = Platform::FontPlugin::the().default_font(font_size_in_px.to_float())->pixel_metrics();
     auto parent_font_size = [&]() -> CSSPixels {
-        if (!parent_element || !parent_element->computed_properties())
+        if (!parent_element.has_value() || !parent_element->computed_properties())
             return font_size_in_px;
         auto const& value = parent_element->computed_properties()->property(CSS::PropertyID::FontSize);
         if (value.is_length()) {
@@ -1939,7 +1940,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
                 // If the specified value font-size is math then the computed value of font-size is obtained by multiplying
                 // the inherited value of font-size by a nonzero scale factor calculated by the following procedure:
                 // 1. Let A be the inherited math-depth value, B the computed math-depth value, C be 0.71 and S be 1.0
-                int inherited_math_depth = parent_element && parent_element->computed_properties()
+                int inherited_math_depth = parent_element.has_value() && parent_element->computed_properties()
                     ? parent_element->computed_properties()->math_depth()
                     : InitialValues::math_depth();
                 int computed_math_depth = math_depth;
@@ -1979,7 +1980,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             //       larger may compute the font size to the next entry in the table,
             //       and smaller may compute the font size to the previous entry in the table.
             if (keyword == Keyword::Smaller || keyword == Keyword::Larger) {
-                if (parent_element && parent_element->computed_properties()) {
+                if (parent_element.has_value() && parent_element->computed_properties()) {
                     font_size_in_px = CSSPixels::nearest_value_for(parent_element->computed_properties()->first_available_computed_font().pixel_metrics().size);
                 }
             }
@@ -2126,7 +2127,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     return font_list;
 }
 
-void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const
+void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::AbstractElement> abstract_element) const
 {
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
     auto const& font_size = style.property(CSS::PropertyID::FontSize);
@@ -2134,7 +2135,7 @@ void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* 
     auto const& font_weight = style.property(CSS::PropertyID::FontWeight);
     auto const& font_width = style.property(CSS::PropertyID::FontWidth);
 
-    auto font_list = compute_font_for_style_values(element, pseudo_element, font_family, font_size, font_style, font_weight, font_width, style.math_depth());
+    auto font_list = compute_font_for_style_values(abstract_element, font_family, font_size, font_style, font_weight, font_width, style.math_depth());
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 
@@ -2151,7 +2152,7 @@ void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* 
 
     style.set_computed_font_list(*font_list);
 
-    if (element && is<HTML::HTMLHtmlElement>(*element)) {
+    if (abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element())) {
         const_cast<StyleComputer&>(*this).m_root_element_font_metrics = calculate_root_element_font_metrics(style);
     }
 }
@@ -2464,7 +2465,7 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     }
 
     compute_math_depth(style, {});
-    compute_font(style, nullptr, {});
+    compute_font(style, {});
     compute_property_values(style);
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
@@ -2581,10 +2582,7 @@ static bool is_monospace(StyleValue const& value)
 //       instead of the default font size (16px).
 //       See this blog post for a lot more details about this weirdness:
 //       https://manishearth.github.io/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/
-RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(
-    DOM::Element& element,
-    Optional<CSS::PseudoElement> pseudo_element,
-    CascadedProperties& cascaded_properties) const
+RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties) const
 {
     // Check for `font-family: monospace`. Note that `font-family: monospace, AnythingElse` does not trigger this path.
     // Some CSS frameworks use `font-family: monospace, monospace` to work around this behavior.
@@ -2599,17 +2597,15 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(
 
     // Reconstruct the line of ancestor elements we need to inherit style from, and then do the cascade again
     // but only for the font-size property.
-    Vector<DOM::Element const&> ancestors;
-    if (pseudo_element.has_value())
-        ancestors.append(element);
-    for (auto ancestor = element.element_to_inherit_style_from(pseudo_element); ancestor; ancestor = ancestor->element_to_inherit_style_from({}))
+    Vector<DOM::AbstractElement> ancestors;
+    for (auto ancestor = abstract_element.element_to_inherit_style_from(); ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from())
         ancestors.append(*ancestor);
 
     NonnullRefPtr<StyleValue const> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));
     CSSPixels current_size_in_px = default_monospace_font_size_in_px;
 
     for (auto& ancestor : ancestors.in_reverse()) {
-        auto& ancestor_cascaded_properties = *ancestor.cascaded_properties({});
+        auto& ancestor_cascaded_properties = *ancestor.cascaded_properties();
         auto font_size_value = ancestor_cascaded_properties.property(CSS::PropertyID::FontSize);
 
         if (!font_size_value)
@@ -2650,7 +2646,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     DOM::AbstractElement abstract_element { element, pseudo_element };
     auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
 
-    auto new_font_size = recascade_font_size_if_needed(element, pseudo_element, cascaded_properties);
+    auto new_font_size = recascade_font_size_if_needed(abstract_element, cascaded_properties);
     if (new_font_size)
         computed_style->set_property(PropertyID::FontSize, *new_font_size, ComputedProperties::Inherited::No, Important::No);
 
@@ -2772,7 +2768,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     compute_math_depth(computed_style, abstract_element);
 
     // 3. Compute the font, since that may be needed for font-relative CSS units
-    compute_font(computed_style, &element, pseudo_element);
+    compute_font(computed_style, DOM::AbstractElement { element, pseudo_element });
 
     // 4. Convert properties into their computed forms
     compute_property_values(computed_style);

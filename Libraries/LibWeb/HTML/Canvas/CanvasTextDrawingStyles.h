@@ -103,9 +103,9 @@ public:
         auto font_list = font_source.visit(
             [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
                 if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
-                    return document->style_computer().compute_font_for_style_values(&canvas_element, {}, font_family, font_size, font_style, font_weight, font_width);
+                    return document->style_computer().compute_font_for_style_values(DOM::AbstractElement { canvas_element, {} }, font_family, font_size, font_style, font_weight, font_width);
                 } else {
-                    return document->style_computer().compute_font_for_style_values(nullptr, {}, font_family, font_size, font_style, font_weight, font_width);
+                    return document->style_computer().compute_font_for_style_values({}, font_family, font_size, font_style, font_weight, font_width);
                 }
             },
             [](HTML::WorkerGlobalScope*) -> RefPtr<Gfx::FontCascadeList const> {
