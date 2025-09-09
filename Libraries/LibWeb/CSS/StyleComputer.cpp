@@ -2161,11 +2161,11 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
     }
 }
 
-LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(DOM::Element& element, Optional<PseudoElement> pseudo_element, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set) const
+LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(DOM::AbstractElement abstract_element, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set) const
 {
     auto normalize_value = [&](auto property_id, auto value) {
         if (!value || value->is_inherit() || value->is_unset()) {
-            if (auto const inheritance_parent = element.element_to_inherit_style_from(pseudo_element)) {
+            if (auto const inheritance_parent = abstract_element.element_to_inherit_style_from(); inheritance_parent.has_value()) {
                 value = inheritance_parent->computed_properties()->property(property_id);
             } else {
                 value = property_initial_value(property_id);
@@ -2185,7 +2185,7 @@ LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(
         PropertyID::Direction,
     };
     auto cascaded_properties = compute_cascaded_values(
-        { element, pseudo_element },
+        abstract_element,
         did_match_any_pseudo_element_rules,
         mode, matching_rule_set,
         {},
@@ -2523,7 +2523,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
         abstract_element.set_custom_properties(move(custom_properties));
     }
 
-    auto logical_alias_mapping_context = compute_logical_alias_mapping_context(abstract_element.element(), abstract_element.pseudo_element(), mode, matching_rule_set);
+    auto logical_alias_mapping_context = compute_logical_alias_mapping_context(abstract_element, mode, matching_rule_set);
     auto cascaded_properties = compute_cascaded_values(abstract_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, logical_alias_mapping_context, {});
     abstract_element.set_cascaded_properties(cascaded_properties);
 
