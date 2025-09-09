@@ -1341,7 +1341,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         auto start_a_transition = [&](auto delay, auto start_time, auto end_time, auto const& start_value, auto const& end_value, auto const& reversing_adjusted_start_value, auto reversing_shortening_factor) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value->to_string(), end_value->to_string());
 
-            auto transition = CSSTransition::start_a_transition(element, pseudo_element, property_id,
+            auto transition = CSSTransition::start_a_transition(abstract_element, property_id,
                 document().transition_generation(), delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             // Immediately set the property's value to the transition's current value, to prevent single-frame jumps.
             collect_animation_into(abstract_element, as<Animations::KeyframeEffect>(*transition->effect()), new_style);
