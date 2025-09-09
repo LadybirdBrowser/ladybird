@@ -946,20 +946,22 @@ WhiteSpaceTrimData ComputedProperties::white_space_trim() const
     VERIFY_NOT_REACHED();
 }
 
-Optional<LengthOrCalculated> ComputedProperties::letter_spacing() const
+CSSPixels ComputedProperties::letter_spacing() const
 {
     auto const& value = property(PropertyID::LetterSpacing);
-    if (value.is_calculated()) {
-        auto const& math_value = value.as_calculated();
-        if (math_value.resolves_to_length()) {
-            return LengthOrCalculated { math_value };
-        }
-    }
+    if (value.is_keyword() && value.to_keyword() == Keyword::Normal)
+        return 0;
 
     if (value.is_length())
-        return LengthOrCalculated { value.as_length().length() };
+        return value.as_length().length().absolute_length_to_px();
 
-    return {};
+    if (value.is_percentage())
+        return font_size().scale_by(value.as_percentage().percentage().as_fraction());
+
+    if (value.is_calculated())
+        return value.as_calculated().resolve_length({ .percentage_basis = Length::make_px(font_size()), .length_resolution_context = {} })->absolute_length_to_px();
+
+    VERIFY_NOT_REACHED();
 }
 
 LineStyle ComputedProperties::line_style(PropertyID property_id) const
