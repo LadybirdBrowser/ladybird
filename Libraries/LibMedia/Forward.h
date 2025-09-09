@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,10 +11,16 @@ namespace Media {
 
 class CodedFrame;
 class DecoderError;
+class Demuxer;
+class DisplayingVideoSink;
 class FrameQueueItem;
+class MediaTimeProvider;
+class MutexedDemuxer;
 class PlaybackManager;
 class Track;
+class VideoDataProvider;
 class VideoDecoder;
 class VideoFrame;
+class VideoSink;
 
 }
