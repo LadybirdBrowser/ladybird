@@ -2553,7 +2553,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
         }
     }
 
-    auto computed_properties = compute_properties(abstract_element.element(), abstract_element.pseudo_element(), cascaded_properties);
+    auto computed_properties = compute_properties(abstract_element, cascaded_properties);
     computed_properties->set_attempted_pseudo_class_matches(attempted_pseudo_class_matches);
 
     if (did_change_custom_properties.has_value() && abstract_element.custom_properties() != old_custom_properties) {
@@ -2641,9 +2641,8 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
     return CSS::LengthStyleValue::create(CSS::Length::make_px(current_size_in_px));
 }
 
-GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& element, Optional<PseudoElement> pseudo_element, CascadedProperties& cascaded_properties) const
+GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties) const
 {
-    DOM::AbstractElement abstract_element { element, pseudo_element };
     auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
 
     auto new_font_size = recascade_font_size_if_needed(abstract_element, cascaded_properties);
@@ -2705,6 +2704,10 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
             return animation_name.as_string().string_value().to_string();
         return animation_name.to_string(SerializationMode::Normal);
     }();
+
+    // FIXME: Add some animation helpers to AbstractElement once pseudo-elements are animatable.
+    auto& element = abstract_element.element();
+    auto pseudo_element = abstract_element.pseudo_element();
 
     if (animation_name.has_value()) {
         if (auto source_declaration = computed_style->animation_name_source()) {
@@ -2768,13 +2771,13 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     compute_math_depth(computed_style, abstract_element);
 
     // 3. Compute the font, since that may be needed for font-relative CSS units
-    compute_font(computed_style, DOM::AbstractElement { element, pseudo_element });
+    compute_font(computed_style, abstract_element);
 
     // 4. Convert properties into their computed forms
     compute_property_values(computed_style);
 
     // 5. Run automatic box type transformations
-    transform_box_type_if_needed(computed_style, element, pseudo_element);
+    transform_box_type_if_needed(computed_style, abstract_element.element(), abstract_element.pseudo_element());
 
     // 6. Apply any property-specific computed value logic
     resolve_effective_overflow_values(computed_style);
@@ -2785,9 +2788,9 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
 
     // 8. Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
-    compute_transitioned_properties(computed_style, element, pseudo_element);
-    if (auto previous_style = element.computed_properties(pseudo_element)) {
-        start_needed_transitions(*previous_style, computed_style, element, pseudo_element);
+    compute_transitioned_properties(computed_style, abstract_element.element(), abstract_element.pseudo_element());
+    if (auto previous_style = abstract_element.computed_properties()) {
+        start_needed_transitions(*previous_style, computed_style, abstract_element.element(), abstract_element.pseudo_element());
     }
 
     return computed_style;
