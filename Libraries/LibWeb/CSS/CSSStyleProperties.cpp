@@ -815,6 +815,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     }
     case PropertyID::WebkitTextFillColor:
         return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().webkit_text_fill_color());
+    case PropertyID::LetterSpacing: {
+        // https://drafts.csswg.org/css-text-4/#letter-spacing-property
+        // For legacy reasons, a computed letter-spacing of zero yields a resolved value (getComputedStyle() return value) of normal.
+        if (layout_node.computed_values().letter_spacing() == 0)
+            return KeywordStyleValue::create(Keyword::Normal);
+        return get_computed_value(property_id);
+    }
     case PropertyID::Invalid:
         return KeywordStyleValue::create(Keyword::Invalid);
     case PropertyID::Custom:

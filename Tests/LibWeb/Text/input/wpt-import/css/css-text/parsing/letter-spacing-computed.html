@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text: getComputedStyle().letterSpacing</title>
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#propdef-letter-spacing">
+<meta name="assert" content="letter-spacing computed value is an absolute length and/or percentage.">
+<meta name="assert" content="'normal' computes to zero, but the resolved value of 0px is 'normal', so that's the value that is observed.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("letter-spacing", "normal");
+test_computed_value("letter-spacing", "0px", "normal");
+
+test_computed_value("letter-spacing", "10px");
+test_computed_value("letter-spacing", "-20px");
+test_computed_value("letter-spacing", "calc(10px - 0.5em)", "-10px");
+test_computed_value("letter-spacing", "110%");
+test_computed_value("letter-spacing", "-5%");
+test_computed_value("letter-spacing", "calc(10% - 20%)", "-10%");
+test_computed_value("letter-spacing", "calc(10px - (5% + 10%)", "calc(-15% + 10px)");
+</script>
+</body>
+</html>

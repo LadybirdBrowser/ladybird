@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Property letter-spacing value 'normal'
+Pass	Property letter-spacing value '0px'
+Pass	Property letter-spacing value '10px'
+Pass	Property letter-spacing value '-20px'
+Pass	Property letter-spacing value 'calc(10px - 0.5em)'
+Pass	Property letter-spacing value '110%'
+Pass	Property letter-spacing value '-5%'
+Pass	Property letter-spacing value 'calc(10% - 20%)'
+Pass	Property letter-spacing value 'calc(10px - (5% + 10%)'
