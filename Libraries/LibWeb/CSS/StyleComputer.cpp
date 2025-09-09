@@ -2276,7 +2276,7 @@ void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style)
     }
 }
 
-static void compute_text_align(ComputedProperties& style, DOM::Element const& element, Optional<PseudoElement> pseudo_element)
+static void compute_text_align(ComputedProperties& style, DOM::AbstractElement abstract_element)
 {
     auto text_align_keyword = style.property(PropertyID::TextAlign).to_keyword();
 
@@ -2285,8 +2285,7 @@ static void compute_text_align(ComputedProperties& style, DOM::Element const& el
     // value of start or end is interpreted against the parent’s direction value and results in a computed value of
     // either left or right. Computes to start when specified on the root element.
     if (text_align_keyword == Keyword::MatchParent) {
-        auto const parent = element.element_to_inherit_style_from(pseudo_element);
-        if (parent) {
+        if (auto const parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
             auto const& parent_text_align = parent->computed_properties()->property(PropertyID::TextAlign);
             auto const& parent_direction = parent->computed_properties()->direction();
             switch (parent_text_align.to_keyword()) {
@@ -2316,11 +2315,10 @@ static void compute_text_align(ComputedProperties& style, DOM::Element const& el
 
     // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless a style value usually would have been
     //         inherited. This is used to support the ad-hoc default <th> text-align behavior.
-    if (text_align_keyword == Keyword::LibwebInheritOrCenter && element.local_name() == HTML::TagNames::th) {
-        auto const* parent_element = &element;
-        while ((parent_element = parent_element->element_to_inherit_style_from({}))) {
+    if (text_align_keyword == Keyword::LibwebInheritOrCenter && abstract_element.element().local_name() == HTML::TagNames::th) {
+        for (auto parent_element = abstract_element.element_to_inherit_style_from(); parent_element.has_value(); parent_element = parent_element->element_to_inherit_style_from()) {
             auto parent_computed = parent_element->computed_properties();
-            auto parent_cascaded = parent_element->cascaded_properties({});
+            auto parent_cascaded = parent_element->cascaded_properties();
             if (!parent_computed || !parent_cascaded)
                 break;
             if (parent_cascaded->property(PropertyID::TextAlign)) {
@@ -2784,7 +2782,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 
     // 6. Apply any property-specific computed value logic
     resolve_effective_overflow_values(computed_style);
-    compute_text_align(computed_style, element, pseudo_element);
+    compute_text_align(computed_style, abstract_element);
 
     // 7. Let the element adjust computed style
     element.adjust_computed_style(computed_style);
