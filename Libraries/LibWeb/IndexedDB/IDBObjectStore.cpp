@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/IDBObjectStorePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>
 #include <LibWeb/IndexedDB/IDBCursorWithValue.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
@@ -331,6 +332,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
 
     // 12. Let operation be an algorithm to run store a record into an object store with store, clone, key, and no-overwrite flag.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, &store, clone, key_value, no_overwrite] -> WebIDL::ExceptionOr<JS::Value> {
+        HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         auto optional_key = TRY(store_a_record_into_an_object_store(realm, store, clone, key_value, no_overwrite));
 
         if (!optional_key || optional_key->is_invalid())

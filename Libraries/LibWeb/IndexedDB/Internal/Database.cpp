@@ -60,7 +60,7 @@ Vector<GC::Root<Database>> Database::for_key(StorageAPI::StorageKey const& key)
     return databases;
 }
 
-RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey& key, String& name)
+RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
     return ConnectionQueueHandler::the().m_open_requests.ensure(key, [] {
                                                             return HashMap<String, RequestList>();
@@ -70,7 +70,7 @@ RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey& ke
         });
 }
 
-Optional<GC::Root<Database> const&> Database::for_key_and_name(StorageAPI::StorageKey& key, String& name)
+Optional<GC::Root<Database> const&> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
     return m_databases.ensure(key, [] {
                           return HashMap<String, GC::Root<Database>>();
@@ -78,7 +78,7 @@ Optional<GC::Root<Database> const&> Database::for_key_and_name(StorageAPI::Stora
         .get(name);
 }
 
-ErrorOr<GC::Root<Database>> Database::create_for_key_and_name(JS::Realm& realm, StorageAPI::StorageKey& key, String& name)
+ErrorOr<GC::Root<Database>> Database::create_for_key_and_name(JS::Realm& realm, StorageAPI::StorageKey const& key, String const& name)
 {
     auto database_mapping = TRY(m_databases.try_ensure(key, [] {
         return HashMap<String, GC::Root<Database>>();
@@ -92,7 +92,7 @@ ErrorOr<GC::Root<Database>> Database::create_for_key_and_name(JS::Realm& realm, 
     return value;
 }
 
-ErrorOr<void> Database::delete_for_key_and_name(StorageAPI::StorageKey& key, String& name)
+ErrorOr<void> Database::delete_for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
     // FIXME: Is a missing entry a failure?
     auto maybe_database_mapping = m_databases.get(key);
