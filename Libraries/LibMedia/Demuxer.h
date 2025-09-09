@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventReceiver.h>
 
@@ -16,7 +17,7 @@
 
 namespace Media {
 
-class Demuxer {
+class Demuxer : public AtomicRefCounted<Demuxer> {
 public:
     virtual ~Demuxer() = default;
 

@@ -114,7 +114,7 @@ public:
     static DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> from_data(ReadonlyBytes data);
     static DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> from_stream(NonnullOwnPtr<SeekableStream> stream);
 
-    PlaybackManager(NonnullOwnPtr<Demuxer>& demuxer, Track video_track, NonnullOwnPtr<VideoDecoder>&& decoder, VideoFrameQueue&& frame_queue);
+    PlaybackManager(NonnullRefPtr<Demuxer> const& demuxer, Track video_track, NonnullOwnPtr<VideoDecoder>&& decoder, VideoFrameQueue&& frame_queue);
     ~PlaybackManager();
 
     void resume_playback();
@@ -153,7 +153,7 @@ private:
     class SeekingStateHandler;
     class StoppedStateHandler;
 
-    static DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> create(NonnullOwnPtr<Demuxer> demuxer);
+    static DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> create(NonnullRefPtr<Demuxer> const& demuxer);
 
     void timer_callback();
     // This must be called with m_demuxer_mutex locked!
@@ -173,7 +173,7 @@ private:
 
     AK::Duration m_last_present_in_media_time = AK::Duration::zero();
 
-    NonnullOwnPtr<Demuxer> m_demuxer;
+    NonnullRefPtr<Demuxer> m_demuxer;
     Threading::Mutex m_decoder_mutex;
     Track m_selected_video_track;
 

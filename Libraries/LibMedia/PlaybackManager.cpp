@@ -41,8 +41,8 @@ DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::from_stream(Nonn
     return create(demuxer_or_error.release_value());
 }
 
-PlaybackManager::PlaybackManager(NonnullOwnPtr<Demuxer>& demuxer, Track video_track, NonnullOwnPtr<VideoDecoder>&& decoder, VideoFrameQueue&& frame_queue)
-    : m_demuxer(move(demuxer))
+PlaybackManager::PlaybackManager(NonnullRefPtr<Demuxer> const& demuxer, Track video_track, NonnullOwnPtr<VideoDecoder>&& decoder, VideoFrameQueue&& frame_queue)
+    : m_demuxer(demuxer)
     , m_selected_video_track(video_track)
     , m_frame_queue(move(frame_queue))
     , m_decoder(move(decoder))
@@ -696,7 +696,7 @@ private:
     PlaybackState get_state() const override { return PlaybackState::Stopped; }
 };
 
-DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::create(NonnullOwnPtr<Demuxer> demuxer)
+DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::create(NonnullRefPtr<Demuxer> const& demuxer)
 {
     auto optional_track = TRY(demuxer->get_preferred_track_for_type(TrackType::Video));
     if (!optional_track.has_value()) {
