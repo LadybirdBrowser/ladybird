@@ -344,7 +344,9 @@ void EventLoop::update_the_rendering()
         if (document.hidden())
             return false;
 
-        // FIXME: doc's rendering is suppressed for view transitions; or
+        // doc's rendering is suppressed for view transitions; or
+        if (document.rendering_suppression_for_view_transitions())
+            return false;
 
         auto navigable = document.navigable();
         if (!navigable)
