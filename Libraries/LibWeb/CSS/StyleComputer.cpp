@@ -760,8 +760,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
 
 void StyleComputer::cascade_declarations(
     CascadedProperties& cascaded_properties,
-    DOM::Element& element,
-    Optional<CSS::PseudoElement> pseudo_element,
+    DOM::AbstractElement abstract_element,
     Vector<MatchingRule const*> const& matching_rules,
     CascadeOrigin cascade_origin,
     Important important,
@@ -783,13 +782,13 @@ void StyleComputer::cascade_declarations(
             if (important != property.important)
                 continue;
 
-            if (pseudo_element.has_value() && !pseudo_element_supports_property(*pseudo_element, property.property_id))
+            if (abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property.property_id))
                 continue;
 
             auto property_value = property.value;
 
             if (property_value->is_unresolved())
-                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, DOM::AbstractElement { element, pseudo_element }, property.property_id, property_value->as_unresolved());
+                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, property.property_id, property_value->as_unresolved());
 
             if (property_value->is_guaranteed_invalid()) {
                 // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
@@ -843,8 +842,8 @@ void StyleComputer::cascade_declarations(
         cascade_style_declaration(match->declaration());
     }
 
-    if (cascade_origin == CascadeOrigin::Author && !pseudo_element.has_value()) {
-        if (auto const inline_style = element.inline_style()) {
+    if (cascade_origin == CascadeOrigin::Author && !abstract_element.pseudo_element().has_value()) {
+        if (auto const inline_style = abstract_element.element().inline_style()) {
             cascade_style_declaration(*inline_style);
         }
     }
@@ -1548,10 +1547,10 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
     }
 
     // Normal user agent declarations
-    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {}, logical_alias_mapping_context, properties_to_cascade);
+    cascade_declarations(*cascaded_properties, { element, pseudo_element }, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {}, logical_alias_mapping_context, properties_to_cascade);
 
     // Normal user declarations
-    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {}, logical_alias_mapping_context, properties_to_cascade);
+    cascade_declarations(*cascaded_properties, { element, pseudo_element }, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {}, logical_alias_mapping_context, properties_to_cascade);
 
     // Author presentational hints
     // The spec calls this a special "Author presentational hint origin":
@@ -1573,19 +1572,19 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
     for (auto const& layer : matching_rule_set.author_rules) {
-        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, logical_alias_mapping_context, properties_to_cascade);
+        cascade_declarations(cascaded_properties, { element, pseudo_element }, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, logical_alias_mapping_context, properties_to_cascade);
     }
 
     // Important author declarations, with un-@layer-ed rules first, followed by each @layer in reverse order.
     for (auto const& layer : matching_rule_set.author_rules.in_reverse()) {
-        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
+        cascade_declarations(cascaded_properties, { element, pseudo_element }, layer.rules, CascadeOrigin::Author, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
     }
 
     // Important user declarations
-    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
+    cascade_declarations(cascaded_properties, { element, pseudo_element }, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
 
     // Important user agent declarations
-    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
+    cascade_declarations(cascaded_properties, { element, pseudo_element }, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,

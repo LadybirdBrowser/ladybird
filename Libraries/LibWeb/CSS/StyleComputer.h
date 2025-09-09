@@ -253,8 +253,7 @@ private:
 
     void cascade_declarations(
         CascadedProperties&,
-        DOM::Element&,
-        Optional<CSS::PseudoElement>,
+        DOM::AbstractElement,
         Vector<MatchingRule const*> const&,
         CascadeOrigin,
         Important,
