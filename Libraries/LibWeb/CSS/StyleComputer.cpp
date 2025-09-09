@@ -1452,9 +1452,8 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
-void StyleComputer::start_needed_transitions(ComputedProperties const& previous_style, ComputedProperties& new_style, DOM::Element& element, Optional<PseudoElement> pseudo_element) const
+void StyleComputer::start_needed_transitions(ComputedProperties const& previous_style, ComputedProperties& new_style, DOM::AbstractElement abstract_element) const
 {
-
     // https://drafts.csswg.org/css-transitions/#transition-combined-duration
     auto combined_duration = [](Animations::Animatable::TransitionAttributes const& transition_attributes) {
         // Define the combined duration of the transition as the sum of max(matching transition duration, 0s) and the matching transition delay.
@@ -1463,6 +1462,10 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
 
     // For each element and property, the implementation must act as follows:
     auto style_change_event_time = m_document->timeline()->current_time().value();
+
+    // FIXME: Add some transition helpers to AbstractElement.
+    auto& element = abstract_element.element();
+    auto pseudo_element = abstract_element.pseudo_element();
 
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
@@ -1480,7 +1483,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             auto transition = CSSTransition::start_a_transition(element, pseudo_element, property_id,
                 document().transition_generation(), delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             // Immediately set the property's value to the transition's current value, to prevent single-frame jumps.
-            collect_animation_into({ element }, as<Animations::KeyframeEffect>(*transition->effect()), new_style);
+            collect_animation_into(abstract_element, as<Animations::KeyframeEffect>(*transition->effect()), new_style);
         };
 
         // 1. If all of the following are true:
@@ -2790,7 +2793,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(computed_style, abstract_element.element(), abstract_element.pseudo_element());
     if (auto previous_style = abstract_element.computed_properties()) {
-        start_needed_transitions(*previous_style, computed_style, abstract_element.element(), abstract_element.pseudo_element());
+        start_needed_transitions(*previous_style, computed_style, abstract_element);
     }
 
     return computed_style;
