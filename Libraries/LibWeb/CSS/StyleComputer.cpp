@@ -877,7 +877,7 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Pseud
     }
 }
 
-void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::PseudoElement> pseudo_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties) const
+void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties) const
 {
     auto animation = effect->associated_animation();
     if (!animation)
@@ -930,7 +930,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
     }
 
     // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
-    auto compute_keyframe_values = [&computed_properties, &element, &pseudo_element, this](auto const& keyframe_values) {
+    auto compute_keyframe_values = [&computed_properties, &abstract_element, this](auto const& keyframe_values) {
         HashMap<PropertyID, RefPtr<StyleValue const>> result;
         HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
         auto property_is_set_by_use_initial = MUST(Bitmap::create(number_of_longhand_properties, false));
@@ -972,7 +972,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             return camel_case_string_from_property_id(a) < camel_case_string_from_property_id(b);
         };
 
-        compute_font(computed_properties, DOM::AbstractElement { element, pseudo_element });
+        compute_font(computed_properties, abstract_element);
         compute_property_values(computed_properties);
         Length::FontMetrics font_metrics {
             computed_properties.font_size(),
@@ -1006,7 +1006,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 continue;
 
             if (style_value->is_unresolved())
-                style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, { element, pseudo_element }, property_id, style_value->as_unresolved());
+                style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, property_id, style_value->as_unresolved());
 
             for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
                 auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, LogicalAliasMappingContext { computed_properties.writing_mode(), computed_properties.direction() });
@@ -1022,10 +1022,10 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
 
                 auto const& specified_value_with_css_wide_keywords_applied = [&]() -> StyleValue const& {
                     if (longhand_value.is_inherit() || (longhand_value.is_unset() && is_inherited_property(longhand_id))) {
-                        if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, { element }); inherited_animated_value.has_value())
+                        if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, abstract_element); inherited_animated_value.has_value())
                             return inherited_animated_value.value();
 
-                        return get_inherit_value(longhand_id, { element });
+                        return get_inherit_value(longhand_id, abstract_element);
                     }
 
                     if (longhand_value.is_initial() || longhand_value.is_unset())
@@ -1338,7 +1338,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             auto transition = CSSTransition::start_a_transition(element, pseudo_element, property_id,
                 document().transition_generation(), delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             // Immediately set the property's value to the transition's current value, to prevent single-frame jumps.
-            collect_animation_into(element, {}, as<Animations::KeyframeEffect>(*transition->effect()), new_style);
+            collect_animation_into({ element }, as<Animations::KeyframeEffect>(*transition->effect()), new_style);
         };
 
         // 1. If all of the following are true:
@@ -2617,7 +2617,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
             if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
                 auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
                 if (keyframe_effect.pseudo_element_type() == pseudo_element)
-                    collect_animation_into(element, pseudo_element, keyframe_effect, computed_style);
+                    collect_animation_into(abstract_element, keyframe_effect, computed_style);
             }
         }
     }
