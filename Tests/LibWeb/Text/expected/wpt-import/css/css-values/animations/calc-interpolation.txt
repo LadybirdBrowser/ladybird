@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 140 tests
 
-136 Pass
-4 Fail
+140 Pass
 Pass	CSS Transitions: property <left> from [0px] to [calc(infinity * 1px)] at (-0.25) should be [-8.5070575e+37px]
 Pass	CSS Transitions: property <left> from [0px] to [calc(infinity * 1px)] at (0) should be [0px]
 Pass	CSS Transitions: property <left> from [0px] to [calc(infinity * 1px)] at (0.25) should be [8.5070575e+37px]
@@ -117,28 +116,28 @@ Pass	Web Animations: property <text-indent> from [0em] to [100px] at (0.75) shou
 Pass	Web Animations: property <text-indent> from [0em] to [100px] at (1) should be [100px]
 Pass	Web Animations: property <text-indent> from [0em] to [100px] at (1.25) should be [125px]
 Pass	CSS Transitions: property <text-indent> from [0%] to [100px] at (-0.25) should be [calc(0% + -25px)]
-Fail	CSS Transitions: property <text-indent> from [0%] to [100px] at (0) should be [0%]
+Pass	CSS Transitions: property <text-indent> from [0%] to [100px] at (0) should be [0%]
 Pass	CSS Transitions: property <text-indent> from [0%] to [100px] at (0.25) should be [calc(0% + 25px)]
 Pass	CSS Transitions: property <text-indent> from [0%] to [100px] at (0.5) should be [calc(0% + 50px)]
 Pass	CSS Transitions: property <text-indent> from [0%] to [100px] at (0.75) should be [calc(0% + 75px)]
 Pass	CSS Transitions: property <text-indent> from [0%] to [100px] at (1) should be [calc(0% + 100px)]
 Pass	CSS Transitions: property <text-indent> from [0%] to [100px] at (1.25) should be [calc(0% + 125px)]
 Pass	CSS Transitions with transition: all: property <text-indent> from [0%] to [100px] at (-0.25) should be [calc(0% + -25px)]
-Fail	CSS Transitions with transition: all: property <text-indent> from [0%] to [100px] at (0) should be [0%]
+Pass	CSS Transitions with transition: all: property <text-indent> from [0%] to [100px] at (0) should be [0%]
 Pass	CSS Transitions with transition: all: property <text-indent> from [0%] to [100px] at (0.25) should be [calc(0% + 25px)]
 Pass	CSS Transitions with transition: all: property <text-indent> from [0%] to [100px] at (0.5) should be [calc(0% + 50px)]
 Pass	CSS Transitions with transition: all: property <text-indent> from [0%] to [100px] at (0.75) should be [calc(0% + 75px)]
 Pass	CSS Transitions with transition: all: property <text-indent> from [0%] to [100px] at (1) should be [calc(0% + 100px)]
 Pass	CSS Transitions with transition: all: property <text-indent> from [0%] to [100px] at (1.25) should be [calc(0% + 125px)]
 Pass	CSS Animations: property <text-indent> from [0%] to [100px] at (-0.25) should be [calc(0% + -25px)]
-Fail	CSS Animations: property <text-indent> from [0%] to [100px] at (0) should be [0%]
+Pass	CSS Animations: property <text-indent> from [0%] to [100px] at (0) should be [0%]
 Pass	CSS Animations: property <text-indent> from [0%] to [100px] at (0.25) should be [calc(0% + 25px)]
 Pass	CSS Animations: property <text-indent> from [0%] to [100px] at (0.5) should be [calc(0% + 50px)]
 Pass	CSS Animations: property <text-indent> from [0%] to [100px] at (0.75) should be [calc(0% + 75px)]
 Pass	CSS Animations: property <text-indent> from [0%] to [100px] at (1) should be [calc(0% + 100px)]
 Pass	CSS Animations: property <text-indent> from [0%] to [100px] at (1.25) should be [calc(0% + 125px)]
 Pass	Web Animations: property <text-indent> from [0%] to [100px] at (-0.25) should be [calc(0% + -25px)]
-Fail	Web Animations: property <text-indent> from [0%] to [100px] at (0) should be [0%]
+Pass	Web Animations: property <text-indent> from [0%] to [100px] at (0) should be [0%]
 Pass	Web Animations: property <text-indent> from [0%] to [100px] at (0.25) should be [calc(0% + 25px)]
 Pass	Web Animations: property <text-indent> from [0%] to [100px] at (0.5) should be [calc(0% + 50px)]
 Pass	Web Animations: property <text-indent> from [0%] to [100px] at (0.75) should be [calc(0% + 75px)]
