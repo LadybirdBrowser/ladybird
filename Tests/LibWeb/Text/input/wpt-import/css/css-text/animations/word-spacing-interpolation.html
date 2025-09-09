@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#word-spacing-property">
+<meta name="test" content="word-spacing supports animation by computed value type">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  word-spacing: 30px;
+}
+.target {
+  font: 10px sans-serif;
+  word-spacing: 10px;
+}
+.expected {
+  color: green;
+}
+</style>
+
+<body>
+  <template id="target-template">A B C D</template>
+</body>
+
+<script>
+test_interpolation({
+  property: 'word-spacing',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_interpolation({
+  property: 'word-spacing',
+  from: 'initial',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '-6px'},
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '6px'},
+  {at: 0.6, expect: '12px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '30px'},
+]);
+
+test_interpolation({
+  property: 'word-spacing',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'word-spacing',
+  from: 'unset',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'word-spacing',
+  from: '-10px',
+  to: '40px'
+}, [
+  {at: -0.3, expect: '-25px'},
+  {at: 0, expect: '-10px'},
+  {at: 0.3, expect: '5px'},
+  {at: 0.6, expect: '20px'},
+  {at: 1, expect: '40px'},
+  {at: 1.5, expect: '65px'},
+]);
+test_interpolation({
+  property: 'word-spacing',
+  from: 'normal',
+  to: '10px'
+}, [
+  {at: -0.3, expect: '-3px'},
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '3px'},
+  {at: 0.6, expect: '6px'},
+  {at: 1, expect: '10px'},
+  {at: 1.5, expect: '15px'},
+]);
+</script>

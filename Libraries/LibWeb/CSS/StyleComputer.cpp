@@ -3136,6 +3136,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderTopStyle), computation_context);
     case PropertyID::OutlineWidth:
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::OutlineStyle), computation_context);
+    case PropertyID::LetterSpacing:
+    case PropertyID::WordSpacing:
+        if (specified_value->to_keyword() == Keyword::Normal)
+            return LengthStyleValue::create(Length::make_px(0));
+        return specified_value;
     case PropertyID::FillOpacity:
     case PropertyID::FloodOpacity:
     case PropertyID::Opacity:

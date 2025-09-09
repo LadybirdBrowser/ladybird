@@ -65,7 +65,7 @@ text-wrap-style: auto
 visibility: visible
 white-space-collapse: collapse
 word-break: normal
-word-spacing: normal
+word-spacing: 0px
 word-wrap: normal
 writing-mode: horizontal-tb
 align-content: normal
