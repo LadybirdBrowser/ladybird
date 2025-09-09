@@ -1362,13 +1362,16 @@ static void apply_dimension_attribute(CascadedProperties& cascaded_properties, D
     cascaded_properties.set_property_from_presentational_hint(property_id, parsed_value.release_nonnull());
 }
 
-static void compute_transitioned_properties(ComputedProperties const& style, DOM::Element& element, Optional<PseudoElement> pseudo_element)
+static void compute_transitioned_properties(ComputedProperties const& style, DOM::AbstractElement abstract_element)
 {
     auto const source_declaration = style.transition_property_source();
     if (!source_declaration)
         return;
-    if (!element.computed_properties())
+    if (!abstract_element.computed_properties())
         return;
+    // FIXME: Add transition helpers on AbstractElement.
+    auto& element = abstract_element.element();
+    auto pseudo_element = abstract_element.pseudo_element();
     if (source_declaration == element.cached_transition_property_source(pseudo_element))
         return;
     // Reparse this transition property
@@ -2789,7 +2792,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 
     // 8. Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
-    compute_transitioned_properties(computed_style, abstract_element.element(), abstract_element.pseudo_element());
+    compute_transitioned_properties(computed_style, abstract_element);
     if (auto previous_style = abstract_element.computed_properties()) {
         start_needed_transitions(*previous_style, computed_style, abstract_element);
     }
