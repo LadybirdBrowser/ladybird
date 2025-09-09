@@ -620,9 +620,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     if (auto word_spacing = computed_style.word_spacing(); word_spacing.has_value())
         computed_values.set_word_spacing(word_spacing.value());
 
-    auto letter_spacing = computed_style.letter_spacing();
-    if (letter_spacing.has_value())
-        computed_values.set_letter_spacing(letter_spacing.value());
+    computed_values.set_letter_spacing(computed_style.letter_spacing());
 
     computed_values.set_float(computed_style.float_());
 
