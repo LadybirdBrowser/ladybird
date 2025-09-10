@@ -503,6 +503,44 @@ public:
         update_metadata();
     }
 
+    /// The iterator pair identify a set of indices *in ascending order* to be removed.
+    template<typename It, IteratorPairWith<It> EndIt, typename ToIndex = decltype (*declval<It>()) (*)(It const&)>
+    void remove_all(It&& it, EndIt const& end, ToIndex const& to_index = [](It const& it) -> decltype(auto) { return *it; })
+    {
+        if (!(it != end))
+            return;
+        size_t write_index = to_index(it);
+        VERIFY(write_index < m_size);
+        raw_at(write_index).~StorageType();
+        ++it;
+        size_t next_remove_index = it != end ? to_index(it) : m_size;
+        for (auto read_index = write_index + 1; read_index < m_size; ++read_index) {
+            if (read_index == next_remove_index) {
+                raw_at(read_index).~StorageType();
+                ++it;
+                next_remove_index = it != end ? to_index(it) : m_size;
+            } else {
+                if constexpr (Traits<StorageType>::is_trivial()) {
+                    __builtin_memcpy(slot(write_index), slot(read_index), sizeof(StorageType));
+                } else {
+                    new (slot(write_index)) StorageType(move(raw_at(read_index)));
+                    raw_at(read_index).~StorageType();
+                }
+                ++write_index;
+            }
+        }
+
+        VERIFY(!(it != end));
+        m_size = write_index;
+        update_metadata();
+    }
+
+    template<IterableContainer Is, typename ToIndex = decltype (*declval<Is>().begin()) (*)(decltype(declval<Is>().begin()) const&)>
+    void remove_all(Is&& is, ToIndex const& to_index = [](auto const& it) -> decltype(auto) { return *it; })
+    {
+        remove_all(is.begin(), is.end(), to_index);
+    }
+
     template<typename TUnaryPredicate>
     bool remove_first_matching(TUnaryPredicate const& predicate)
     {
