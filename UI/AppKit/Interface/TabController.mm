@@ -151,24 +151,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self.window makeFirstResponder:[self tab].web_view];
 }
 
-- (void)zoomIn:(id)sender
-{
-    [[[self tab] web_view] zoomIn];
-    [self updateZoomButton];
-}
-
-- (void)zoomOut:(id)sender
-{
-    [[[self tab] web_view] zoomOut];
-    [self updateZoomButton];
-}
-
-- (void)resetZoom:(id)sender
-{
-    [[[self tab] web_view] resetZoom];
-    [self updateZoomButton];
-}
-
 - (void)clearHistory
 {
     // FIXME: Reimplement clearing history using WebContent's history.
@@ -257,17 +239,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     self.tab.titlebarAppearsTransparent = YES;
 }
 
-- (void)updateZoomButton
-{
-    auto zoom_level = [[[self tab] web_view] zoomLevel];
-
-    auto* zoom_level_text = [NSString stringWithFormat:@"%d%%", round_to<int>(zoom_level * 100.0f)];
-    [self.zoom_toolbar_item setTitle:zoom_level_text];
-
-    auto zoom_button_hidden = zoom_level == 1.0 ? YES : NO;
-    [[self.zoom_toolbar_item view] setHidden:zoom_button_hidden];
-}
-
 #pragma mark - Properties
 
 - (NSButton*)create_button:(NSImageName)image
@@ -340,11 +311,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)zoom_toolbar_item
 {
     if (!_zoom_toolbar_item) {
-        auto* button = [NSButton buttonWithTitle:@"100%"
-                                          target:self
-                                          action:@selector(resetZoom:)];
-        [button setToolTip:@"Reset zoom level"];
-        [button setHidden:YES];
+        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].reset_zoom_action(), nil);
 
         _zoom_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_ZOOM_IDENTIFIER];
         [_zoom_toolbar_item setView:button];

@@ -553,6 +553,18 @@ void ViewImplementation::did_allocate_iosurface_backing_stores(i32 front_id, Cor
 }
 #endif
 
+void ViewImplementation::update_zoom()
+{
+    if (m_zoom_level != 1.0f) {
+        m_reset_zoom_action->set_text(MUST(String::formatted("{}%", round_to<int>(m_zoom_level * 100))));
+        m_reset_zoom_action->set_visible(true);
+    } else {
+        m_reset_zoom_action->set_visible(false);
+    }
+
+    client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio * m_zoom_level);
+}
+
 void ViewImplementation::handle_resize()
 {
     client().async_set_viewport_size(page_id(), this->viewport_size());
@@ -806,6 +818,12 @@ void ViewImplementation::initialize_context_menus()
     });
     m_navigate_back_action->set_enabled(false);
     m_navigate_forward_action->set_enabled(false);
+
+    m_reset_zoom_action = Action::create("100%"sv, ActionID::ResetZoomViaToolbar, [this]() {
+        reset_zoom();
+    });
+    m_reset_zoom_action->set_tooltip("Reset zoom level"sv);
+    m_reset_zoom_action->set_visible(false);
 
     m_search_selected_text_action = Action::create("Search Selected Text"sv, ActionID::SearchSelectedText, [this]() {
         auto const& search_engine = Application::settings().search_engine();

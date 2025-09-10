@@ -99,7 +99,7 @@ Optional<WebViewBridge::Paintable> WebViewBridge::paintable()
 
 void WebViewBridge::update_zoom()
 {
-    client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio * m_zoom_level);
+    WebView::ViewImplementation::update_zoom();
 
     if (on_zoom_level_changed)
         on_zoom_level_changed();

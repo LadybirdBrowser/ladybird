@@ -205,26 +205,6 @@ struct HideCursor {
     m_web_view_bridge->find_in_page_previous_match();
 }
 
-- (void)zoomIn
-{
-    m_web_view_bridge->zoom_in();
-}
-
-- (void)zoomOut
-{
-    m_web_view_bridge->zoom_out();
-}
-
-- (void)resetZoom
-{
-    m_web_view_bridge->reset_zoom();
-}
-
-- (float)zoomLevel
-{
-    return m_web_view_bridge->zoom_level();
-}
-
 #pragma mark - Private methods
 
 static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_type)
@@ -795,11 +775,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
         auto* event = Ladybird::create_context_menu_mouse_event(self, content_position);
         [NSMenu popUpContextMenu:self.select_dropdown withEvent:event forView:self];
-    };
-
-    m_web_view_bridge->on_set_browser_zoom = [](double factor) {
-        (void)factor;
-        dbgln("FIXME: A test called `window.internals.setBrowserZoom()` which is not implemented in the AppKit UI");
     };
 
     m_web_view_bridge->on_restore_window = [weak_self]() {

@@ -370,6 +370,12 @@
     auto* menu = [[NSMenuItem alloc] init];
     auto* submenu = [[NSMenu alloc] initWithTitle:@"View"];
 
+    auto* zoom_menu = Ladybird::create_application_menu(WebView::Application::the().zoom_menu());
+    auto* zoom_menu_item = [[NSMenuItem alloc] initWithTitle:[zoom_menu title]
+                                                      action:nil
+                                               keyEquivalent:@""];
+    [zoom_menu_item setSubmenu:zoom_menu];
+
     auto* color_scheme_menu = Ladybird::create_application_menu(WebView::Application::the().color_scheme_menu());
     auto* color_scheme_menu_item = [[NSMenuItem alloc] initWithTitle:[color_scheme_menu title]
                                                               action:nil
@@ -388,26 +394,11 @@
                                                  keyEquivalent:@""];
     [motion_menu_item setSubmenu:motion_menu];
 
-    auto* zoom_menu = [[NSMenu alloc] init];
-    [zoom_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Zoom In"
-                                                  action:@selector(zoomIn:)
-                                           keyEquivalent:@"+"]];
-    [zoom_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Zoom Out"
-                                                  action:@selector(zoomOut:)
-                                           keyEquivalent:@"-"]];
-    [zoom_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Actual Size"
-                                                  action:@selector(resetZoom:)
-                                           keyEquivalent:@"0"]];
-
-    auto* zoom_menu_item = [[NSMenuItem alloc] initWithTitle:@"Zoom"
-                                                      action:nil
-                                               keyEquivalent:@""];
-    [zoom_menu_item setSubmenu:zoom_menu];
-
+    [submenu addItem:zoom_menu_item];
+    [submenu addItem:[NSMenuItem separatorItem]];
     [submenu addItem:color_scheme_menu_item];
     [submenu addItem:contrast_menu_item];
     [submenu addItem:motion_menu_item];
-    [submenu addItem:zoom_menu_item];
     [submenu addItem:[NSMenuItem separatorItem]];
 
     [menu setSubmenu:submenu];
