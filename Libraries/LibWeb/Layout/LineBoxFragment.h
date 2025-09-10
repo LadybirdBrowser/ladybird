@@ -10,7 +10,6 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Layout {
