@@ -790,6 +790,7 @@ class Database;
 class IDBCursor;
 class IDBCursorWithValue;
 class IDBDatabase;
+class IDBDatabaseObserver;
 class IDBFactory;
 class IDBIndex;
 class IDBKeyRange;
