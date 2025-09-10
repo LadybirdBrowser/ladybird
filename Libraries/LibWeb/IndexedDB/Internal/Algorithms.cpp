@@ -48,6 +48,32 @@ namespace Web::IndexedDB {
 constexpr double const MAX_KEY_GENERATOR_VALUE { __builtin_exp2(53) };
 #endif
 
+struct TaskCounterState final : public GC::Cell {
+    GC_CELL(TaskCounterState, GC::Cell);
+    GC_DECLARE_ALLOCATOR(TaskCounterState);
+
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(after_all);
+    }
+
+    void decrement_remaining_tasks()
+    {
+        VERIFY(remaining_tasks > 0);
+        --remaining_tasks;
+        if (remaining_tasks > 0)
+            return;
+
+        queue_a_database_task(after_all.as_nonnull());
+    }
+
+    size_t remaining_tasks { 0 };
+    GC::Ptr<GC::Function<void()>> after_all;
+};
+
+GC_DEFINE_ALLOCATOR(TaskCounterState);
+
 // https://w3c.github.io/IndexedDB/#open-a-database-connection
 void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage_key, String name, Optional<u64> maybe_version, GC::Ref<IDBRequest> request, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<GC::Ref<IDBDatabase>>)>> on_complete)
 {
@@ -106,79 +132,94 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
 
         // 10. If db’s version is less than version, then:
         if (db->version() < version) {
+            dbgln_if(IDB_DEBUG, "open_a_database_connection: Upgrading database from version {} to {}", db->version(), version);
+
             // 1. Let openConnections be the set of all connections, except connection, associated with db.
             auto open_connections = db->associated_connections_except(connection);
 
             // 2. For each entry of openConnections that does not have its close pending flag set to true,
             //    queue a database task to fire a version change event named versionchange at entry with db’s version and version.
-            IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_to_fire = open_connections.size();
-            IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_fired = 0;
+            GC::Ptr<TaskCounterState> task_counter_state;
             for (auto const& entry : open_connections) {
                 if (!entry->close_pending()) {
-                    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version, &events_fired]() {
+                    if (!task_counter_state) {
+                        task_counter_state = realm.heap().allocate<TaskCounterState>();
+                    }
+
+                    task_counter_state->remaining_tasks++;
+                    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version, task_counter_state] {
                         fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), version);
-                        events_fired++;
+                        task_counter_state->decrement_remaining_tasks();
                     }));
-                } else {
-                    events_fired++;
                 }
             }
 
             // 3. Wait for all of the events to be fired.
-            HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [&events_to_fire, &events_fired]() {
-                if constexpr (IDB_DEBUG) {
-                    dbgln("open_a_database_connection: waiting for step 10.3");
-                    dbgln("events_fired: {}, events_to_fire: {}", events_fired, events_to_fire);
-                }
-
-                return events_fired == events_to_fire;
-            }));
-
-            // 4. If any of the connections in openConnections are still not closed,
-            //    queue a database task to fire a version change event named blocked at request with db’s version and version.
-            for (auto const& entry : open_connections) {
-                if (entry->state() != IDBDatabase::ConnectionState::Closed) {
-                    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
-                        fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), version);
-                    }));
-                }
+            if constexpr (IDB_DEBUG) {
+                dbgln("open_a_database_connection: waiting for step 10.3");
+                dbgln("remaining tasks: {}", task_counter_state ? task_counter_state->remaining_tasks : 0);
             }
 
-            // 5. Wait until all connections in openConnections are closed.
-            HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [open_connections]() {
-                if constexpr (IDB_DEBUG) {
-                    dbgln("open_a_database_connection: waiting for step 10.5");
-                    dbgln("open connections: {}", open_connections.size());
-                    for (auto const& connection : open_connections) {
-                        dbgln("  - {}", connection->uuid());
-                    }
-                }
-
+            auto after_all = GC::create_function(realm.heap(), [&realm, open_connections = move(open_connections), db, version, connection, request, on_complete] {
+                // 4. If any of the connections in openConnections are still not closed,
+                //    queue a database task to fire a version change event named blocked at request with db’s version and version.
                 for (auto const& entry : open_connections) {
                     if (entry->state() != IDBDatabase::ConnectionState::Closed) {
-                        return false;
+                        queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
+                            fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), version);
+                        }));
                     }
                 }
 
-                return true;
-            }));
+                // 5. Wait until all connections in openConnections are closed.
+                HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [open_connections]() {
+                    if constexpr (IDB_DEBUG) {
+                        dbgln("open_a_database_connection: waiting for step 10.5");
+                        dbgln("open connections: {}", open_connections.size());
+                        for (auto const& connection : open_connections) {
+                            dbgln("  - {}", connection->uuid());
+                        }
+                    }
 
-            // 6. Run upgrade a database using connection, version and request.
-            upgrade_a_database(realm, connection, version, request);
+                    for (auto const& entry : open_connections) {
+                        if (entry->state() != IDBDatabase::ConnectionState::Closed) {
+                            return false;
+                        }
+                    }
 
-            // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
-            if (connection->state() == IDBDatabase::ConnectionState::Closed) {
-                on_complete->function()(WebIDL::AbortError::create(realm, "Connection was closed"_utf16));
-                return;
+                    return true;
+                }));
+
+                // 6. Run upgrade a database using connection, version and request.
+                upgrade_a_database(realm, connection, version, request);
+
+                // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
+                if (connection->state() == IDBDatabase::ConnectionState::Closed) {
+                    on_complete->function()(WebIDL::AbortError::create(realm, "Connection was closed"_utf16));
+                    return;
+                }
+
+                // 8. If request's error is set, run the steps to close a database connection with connection,
+                //    return a newly created "AbortError" DOMException and abort these steps.
+                if (request->has_error()) {
+                    close_a_database_connection(*connection);
+                    on_complete->function()(WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_utf16));
+                    return;
+                }
+
+                // 11. Return connection.
+                on_complete->function()(connection);
+            });
+
+            if (task_counter_state) {
+                task_counter_state->after_all = after_all;
+            } else {
+                queue_a_database_task(after_all);
             }
 
-            // 8. If request's error is set, run the steps to close a database connection with connection,
-            //    return a newly created "AbortError" DOMException and abort these steps.
-            if (request->has_error()) {
-                close_a_database_connection(*connection);
-                on_complete->function()(WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_utf16));
-                return;
-            }
+            // NOTE: Because of the async nature of this function, we return here and call the on_complete function
+            //       with the connection when necessary.
+            return;
         }
 
         // 11. Return connection.
@@ -470,69 +511,75 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
 
         // 6. For each entry of openConnections that does not have its close pending flag set to true,
         //    queue a database task to fire a version change event named versionchange at entry with db’s version and null.
-        IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_to_fire = open_connections.size();
-        IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_fired = 0;
+        GC::Ptr<TaskCounterState> task_counter_state;
         for (auto const& entry : open_connections) {
             if (!entry->close_pending()) {
-                queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, &events_fired]() {
+                if (!task_counter_state) {
+                    task_counter_state = realm.heap().allocate<TaskCounterState>();
+                }
+
+                task_counter_state->remaining_tasks++;
+                queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, task_counter_state] {
                     fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), {});
-                    events_fired++;
+                    task_counter_state->decrement_remaining_tasks();
                 }));
-            } else {
-                events_fired++;
             }
         }
 
         // 7. Wait for all of the events to be fired.
-        HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [&events_to_fire, &events_fired]() {
-            if constexpr (IDB_DEBUG) {
-                dbgln("delete_a_database: waiting for step 7");
-                dbgln("events_fired: {}, events_to_fire: {}", events_fired, events_to_fire);
-            }
-
-            return events_fired == events_to_fire;
-        }));
-
-        // 8. If any of the connections in openConnections are still not closed, queue a database task to fire a version change event named blocked at request with db’s version and null.
-        for (auto const& entry : open_connections) {
-            if (entry->state() != IDBDatabase::ConnectionState::Closed) {
-                queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db]() {
-                    fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), {});
-                }));
-            }
+        if constexpr (IDB_DEBUG) {
+            dbgln("delete_a_database: waiting for step 7");
+            dbgln("remaining tasks: {}", task_counter_state ? task_counter_state->remaining_tasks : 0);
         }
 
-        // 9. Wait until all connections in openConnections are closed.
-        HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [open_connections]() {
-            if constexpr (IDB_DEBUG) {
-                dbgln("delete_a_database: waiting for step 9");
-                dbgln("open connections: {}", open_connections.size());
-                for (auto const& connection : open_connections) {
-                    dbgln("  - {}", connection->uuid());
-                }
-            }
-
+        auto after_all = GC::create_function(realm.heap(), [&realm, open_connections, db, storage_key = move(storage_key), name = move(name), on_complete] {
+            // 8. If any of the connections in openConnections are still not closed, queue a database task to fire a version change event named blocked at request with db’s version and null.
             for (auto const& entry : open_connections) {
                 if (entry->state() != IDBDatabase::ConnectionState::Closed) {
-                    return false;
+                    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db]() {
+                        fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), {});
+                    }));
                 }
             }
 
-            return true;
-        }));
+            // 9. Wait until all connections in openConnections are closed.
+            HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [open_connections]() {
+                if constexpr (IDB_DEBUG) {
+                    dbgln("delete_a_database: waiting for step 9");
+                    dbgln("open connections: {}", open_connections.size());
+                    for (auto const& connection : open_connections) {
+                        dbgln("  - {}", connection->uuid());
+                    }
+                }
 
-        // 10. Let version be db’s version.
-        auto version = db->version();
+                for (auto const& entry : open_connections) {
+                    if (entry->state() != IDBDatabase::ConnectionState::Closed) {
+                        return false;
+                    }
+                }
 
-        // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. "QuotaExceededError" or "UnknownError" DOMException).
-        auto maybe_deleted = Database::delete_for_key_and_name(storage_key, name);
-        if (maybe_deleted.is_error()) {
-            on_complete->function()(WebIDL::OperationError::create(realm, "Unable to delete database"_utf16));
-            return;
+                return true;
+            }));
+
+            // 10. Let version be db’s version.
+            auto version = db->version();
+
+            // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. "QuotaExceededError" or "UnknownError" DOMException).
+            auto maybe_deleted = Database::delete_for_key_and_name(storage_key, name);
+            if (maybe_deleted.is_error()) {
+                on_complete->function()(WebIDL::OperationError::create(realm, "Unable to delete database"_utf16));
+                return;
+            }
+
+            // 12. Return version.
+            on_complete->function()(version);
+        });
+
+        if (task_counter_state) {
+            task_counter_state->after_all = after_all;
+        } else {
+            queue_a_database_task(after_all);
         }
-
-        // 12. Return version.
-        on_complete->function()(version);
     }));
 }
 
