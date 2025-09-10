@@ -16,7 +16,7 @@ class TextPaintable final : public Paintable {
     GC_DECLARE_ALLOCATOR(TextPaintable);
 
 public:
-    static GC::Ref<TextPaintable> create(Layout::TextNode const&, Utf16String text_for_rendering);
+    static GC::Ref<TextPaintable> create(Layout::TextNode const&);
 
     Layout::TextNode const& layout_node() const { return static_cast<Layout::TextNode const&>(Paintable::layout_node()); }
 
@@ -25,14 +25,10 @@ public:
     virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
 
-    Utf16String const& text_for_rendering() const { return m_text_for_rendering; }
-
 private:
     virtual bool is_text_paintable() const override { return true; }
 
-    TextPaintable(Layout::TextNode const&, Utf16String text_for_rendering);
-
-    Utf16String m_text_for_rendering;
+    TextPaintable(Layout::TextNode const&);
 };
 
 }
