@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Bitmap.h>
 #include <AK/ByteReader.h>
 #include <AK/Debug.h>
 #include <AK/Endian.h>
@@ -2767,18 +2768,18 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     // Remove all nops (that were either added by the above patterns or were already present in the original instructions),
     // and adjust jumps accordingly.
-    Vector<size_t> nops_to_remove;
+    RedBlackTree<size_t, Empty> nops_to_remove;
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
         if (result.dispatches[i].instruction->opcode() == Instructions::nop)
-            nops_to_remove.append(i);
+            nops_to_remove.insert(i, {});
     }
 
-    auto nops_to_remove_span = nops_to_remove.span();
+    auto nops_to_remove_it = nops_to_remove.begin();
     size_t offset_accumulated = 0;
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
         if (result.dispatches[i].instruction->opcode() == Instructions::nop) {
             offset_accumulated++;
-            nops_to_remove_span = nops_to_remove_span.slice(1);
+            ++nops_to_remove_it;
             continue;
         }
 
@@ -2786,11 +2787,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (auto ptr = args.get_pointer<Instruction::StructuredInstructionArgs>()) {
             auto offset_to = [&](InstructionPointer ip) {
                 size_t offset = 0;
-                for (auto nop_ip : nops_to_remove_span) {
-                    if (nop_ip < ip.value())
-                        ++offset;
-                    else
-                        break;
+                auto it = nops_to_remove_it;
+                while (it != nops_to_remove.end() && it.key() < ip.value()) {
+                    ++offset;
+                    ++it;
                 }
                 return offset;
             };
@@ -2808,8 +2808,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
         }
     }
-    for (auto index : nops_to_remove.in_reverse())
-        result.dispatches.remove(index);
+
+    result.dispatches.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
 
     // Allocate registers for instructions, meeting the following constraints:
     // - Any instruction that produces polymorphic stack, or requires its inputs on the stack must sink all active values to the stack.
@@ -2839,6 +2839,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     HashMap<IP, ValueID> instr_to_output_value;
     HashMap<IP, Vector<ValueID>> instr_to_input_values;
     HashMap<IP, Vector<ValueID>> instr_to_dependent_values;
+
+    instr_to_output_value.ensure_capacity(result.dispatches.size());
+    instr_to_input_values.ensure_capacity(result.dispatches.size());
+    instr_to_dependent_values.ensure_capacity(result.dispatches.size());
 
     Vector<ValueID> forced_stack_values;
 
@@ -3073,8 +3077,42 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         alias_groups.ensure(root).append(&interval);
     }
 
-    Array<Vector<LiveInterval const*>, Dispatch::CountRegisters> reg_intervals;
-    reg_intervals.fill({});
+    struct RegisterOccupancy {
+        Bitmap occupied;
+        Vector<ValueID> roots_at_position;
+
+        bool can_place(IP start, IP end, ValueID root) const
+        {
+            for (size_t i = start.value(); i <= end.value(); ++i) {
+                if (occupied.get(i)) {
+                    if (roots_at_position.size() > i && roots_at_position[i].value() != root.value())
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        void place(IP start, IP end, ValueID root)
+        {
+            if (roots_at_position.size() <= end.value())
+                roots_at_position.resize(end.value() + 1);
+
+            occupied.set_range<true>(start.value(), end.value() - start.value() + 1);
+            for (size_t i = start.value(); i <= end.value(); ++i)
+                roots_at_position[i] = root;
+        }
+    };
+
+    Array<RegisterOccupancy, Dispatch::CountRegisters> reg_occupancy;
+
+    for (u8 r = 0; r < Dispatch::CountRegisters; ++r) {
+        auto bitmap_result = Bitmap::create(result.dispatches.size(), false);
+        if (bitmap_result.is_error()) {
+            dbgln("Failed to allocate register bitmap of size {} ({}), bailing on register allocation", result.dispatches.size(), bitmap_result.error());
+            return {};
+        }
+        reg_occupancy[r].occupied = bitmap_result.release_value();
+    }
 
     for (auto& [key, group] : alias_groups) {
         IP group_start = NumericLimits<size_t>::max();
@@ -3100,33 +3138,16 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                     used_regs[to_underlying(active_entry.reg)] = true;
             }
 
+            auto group_root = final_roots[key.value()];
+
             for (u8 r = 0; r < Dispatch::CountRegisters; ++r) {
-                if (used_regs[r]) // There's no hope of using this register, it was already used earlier.
+                if (used_regs[r])
                     continue;
 
-                // We can assign to "live" registers, but only if we know there will be no overlap, or that they're aliasing values anyway.
-                auto can_assign = true;
-                for (auto* interval : group) {
-                    auto interval_root = final_roots[interval->value_id.value()];
-
-                    for (auto const* other_interval : reg_intervals[r]) {
-                        if (interval_root == final_roots[other_interval->value_id.value()])
-                            continue;
-                        if (interval->end >= other_interval->start && other_interval->end >= interval->start) {
-                            can_assign = false;
-                            break;
-                        }
-                    }
-                    if (!can_assign)
-                        break;
-                }
-
-                if (can_assign) {
+                if (reg_occupancy[r].can_place(group_start, group_end, group_root)) {
                     reg = static_cast<Dispatch::RegisterOrStack>(r);
                     active_by_end.insert(group_end.value(), { key, group_end, reg });
-
-                    for (auto* interval : group)
-                        reg_intervals[r].append(interval);
+                    reg_occupancy[r].place(group_start, group_end, group_root);
                     break;
                 }
             }
