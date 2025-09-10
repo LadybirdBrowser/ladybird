@@ -35,6 +35,7 @@ Each property will have some set of these fields on it:
 | `quirks`                          | No       | `[]`    | Array of strings. Some properties have special behavior in "quirks mode", which are listed here. See below. | `bool property_has_quirk(PropertyID, Quirk)`                                                                                                                                                |
 | `valid-identifiers`               | No       | `[]`    | Array of strings. Which keywords the property accepts. See below.                                           | `bool property_accepts_keyword(PropertyID, Keyword)`<br/>`Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword)`                                                                |
 | `valid-types`                     | No       | `[]`    | Array of strings. Which value types the property accepts. See below.                                        | `bool property_accepts_type(PropertyID, ValueType)`                                                                                                                                         |
+| `needs-layout-for-getcomputedstyle`                     | No       | `false`    | Boolean. Whether this property requires up-to-date layout before it could be queried by getComputedStyle() | `bool property_needs_layout_for_getcomputedstyle(PropertyID)`                                                                                                                                         |
 
 ### `animation-type`
 
