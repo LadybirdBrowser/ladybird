@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	hidden-ua-stylesheet
+Pass	div.removeAttribute('hidden')
+Pass	div.setAttribute('hidden', '')
+Pass	div.setAttribute('hidden', 'asdf')
+Pass	div.setAttribute('hidden', 'until-found')
+Pass	div.setAttribute('hidden', 'UNTIL-FOUND')
+Pass	div.setAttribute('hidden', 'UnTiL-FoUnD')
+Pass	div.setAttribute('hidden', '0')
