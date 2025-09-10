@@ -92,6 +92,7 @@
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/XML/XMLFragmentParser.h>
 
 namespace Web::DOM {
 
@@ -2054,9 +2055,9 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Stri
     // 1. Let algorithm be the HTML fragment parsing algorithm.
     auto algorithm = HTML::HTMLParser::parse_html_fragment;
 
-    // FIXME: 2. If context's node document is an XML document, then set algorithm to the XML fragment parsing algorithm.
+    // 2. If context's node document is an XML document, then set algorithm to the XML fragment parsing algorithm.
     if (document().is_xml_document()) {
-        dbgln("FIXME: Handle fragment parsing of XML documents");
+        algorithm = XMLFragmentParser::parse_xml_fragment;
     }
 
     // 3. Let newChildren be the result of invoking algorithm given context and markup.
