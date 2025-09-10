@@ -113,7 +113,7 @@ private:
     Store& m_store;
     Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
     Vector<Label, 64> m_label_stack;
-    DoublyLinkedList<Frame, 128> m_frame_stack;
+    DoublyLinkedList<Frame, 512> m_frame_stack;
     size_t m_depth { 0 };
     u64 m_ip { 0 };
     bool m_should_limit_instruction_count { false };
