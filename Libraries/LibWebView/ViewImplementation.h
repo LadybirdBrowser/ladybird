@@ -71,7 +71,7 @@ public:
     void zoom_out();
     void set_zoom(double zoom_level);
     void reset_zoom();
-    float zoom_level() const { return m_zoom_level; }
+
     float device_pixel_ratio() const { return m_device_pixel_ratio; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
 
@@ -219,7 +219,6 @@ public:
     Function<void(String const&)> on_test_finish;
     Function<void(double milliseconds)> on_set_test_timeout;
     Function<void(JsonValue)> on_reference_test_metadata;
-    Function<void(double factor)> on_set_browser_zoom;
     Function<void(size_t current_match_index, Optional<size_t> const& total_match_count)> on_find_in_page;
     Function<void(Gfx::Color)> on_theme_color_change;
     Function<void(Web::Clipboard::SystemClipboardRepresentation, String const&)> on_insert_clipboard_entry;
@@ -240,6 +239,7 @@ public:
 
     Action& navigate_back_action() { return *m_navigate_back_action; }
     Action& navigate_forward_action() { return *m_navigate_forward_action; }
+    Action& reset_zoom_action() { return *m_reset_zoom_action; }
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;
@@ -255,7 +255,8 @@ protected:
     WebContentClient& client();
     WebContentClient const& client() const;
     u64 page_id() const;
-    virtual void update_zoom() = 0;
+
+    virtual void update_zoom();
 
     void handle_resize();
 
@@ -307,6 +308,8 @@ protected:
 
     RefPtr<Action> m_navigate_back_action;
     RefPtr<Action> m_navigate_forward_action;
+
+    RefPtr<Action> m_reset_zoom_action;
 
     RefPtr<Action> m_search_selected_text_action;
     Optional<String> m_search_text;

@@ -190,31 +190,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     view_menu->addSeparator();
 
-    m_zoom_menu = view_menu->addMenu("&Zoom");
-
-    auto* zoom_in_action = new QAction("Zoom &In", this);
-    zoom_in_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-in.png"sv));
-    auto zoom_in_shortcuts = QKeySequence::keyBindings(QKeySequence::StandardKey::ZoomIn);
-    auto secondary_zoom_shortcut = QKeySequence(Qt::CTRL | Qt::Key_Equal);
-    if (!zoom_in_shortcuts.contains(secondary_zoom_shortcut))
-        zoom_in_shortcuts.append(AK::move(secondary_zoom_shortcut));
-
-    zoom_in_action->setShortcuts(zoom_in_shortcuts);
-    m_zoom_menu->addAction(zoom_in_action);
-    QObject::connect(zoom_in_action, &QAction::triggered, this, &BrowserWindow::zoom_in);
-
-    auto* zoom_out_action = new QAction("Zoom &Out", this);
-    zoom_out_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-out.png"sv));
-    zoom_out_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::ZoomOut));
-    m_zoom_menu->addAction(zoom_out_action);
-    QObject::connect(zoom_out_action, &QAction::triggered, this, &BrowserWindow::zoom_out);
-
-    auto* reset_zoom_action = new QAction("&Reset Zoom", this);
-    reset_zoom_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-reset.png"sv));
-    reset_zoom_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
-    m_zoom_menu->addAction(reset_zoom_action);
-    QObject::connect(reset_zoom_action, &QAction::triggered, this, &BrowserWindow::reset_zoom);
-
+    view_menu->addMenu(create_application_menu(*view_menu, Application::the().zoom_menu()));
     view_menu->addSeparator();
 
     view_menu->addMenu(create_application_menu(*view_menu, Application::the().color_scheme_menu()));
@@ -365,13 +341,6 @@ void BrowserWindow::devtools_enabled()
 
     auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
     statusBar()->showMessage(qstring_from_ak_string(message));
-}
-
-void BrowserWindow::set_current_tab(Tab* tab)
-{
-    m_current_tab = tab;
-    if (tab)
-        update_displayed_zoom_level();
 }
 
 Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
@@ -657,50 +626,12 @@ void BrowserWindow::open_previous_tab()
     m_tabs_container->setCurrentIndex(next_index);
 }
 
-void BrowserWindow::zoom_in()
-{
-    if (!m_current_tab)
-        return;
-    m_current_tab->view().zoom_in();
-    update_displayed_zoom_level();
-}
-
-void BrowserWindow::zoom_out()
-{
-    if (!m_current_tab)
-        return;
-    m_current_tab->view().zoom_out();
-    update_displayed_zoom_level();
-}
-
-void BrowserWindow::reset_zoom()
-{
-    if (!m_current_tab)
-        return;
-    m_current_tab->view().reset_zoom();
-    update_displayed_zoom_level();
-}
-
-void BrowserWindow::update_zoom_menu()
-{
-    VERIFY(m_zoom_menu);
-    auto zoom_level_text = MUST(String::formatted("&Zoom ({}%)", round_to<int>(m_current_tab->view().zoom_level() * 100)));
-    m_zoom_menu->setTitle(qstring_from_ak_string(zoom_level_text));
-}
-
 void BrowserWindow::show_find_in_page()
 {
     if (!m_current_tab)
         return;
 
     m_current_tab->show_find_in_page();
-}
-
-void BrowserWindow::update_displayed_zoom_level()
-{
-    VERIFY(m_current_tab);
-    update_zoom_menu();
-    m_current_tab->update_reset_zoom_button();
 }
 
 void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height)
@@ -750,11 +681,14 @@ void BrowserWindow::moveEvent(QMoveEvent* event)
 
 void BrowserWindow::wheelEvent(QWheelEvent* event)
 {
+    if (!m_current_tab)
+        return;
+
     if ((event->modifiers() & Qt::ControlModifier) != 0) {
         if (event->angleDelta().y() > 0)
-            zoom_in();
+            m_current_tab->view().zoom_in();
         else if (event->angleDelta().y() < 0)
-            zoom_out();
+            m_current_tab->view().zoom_out();
     }
 }
 

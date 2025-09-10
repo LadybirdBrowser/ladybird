@@ -112,17 +112,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_hamburger_button_action->setVisible(!show_menubar);
     });
 
-    m_reset_zoom_button = new QToolButton(m_toolbar);
-    m_reset_zoom_button->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    m_reset_zoom_button->setToolTip("Reset zoom level");
-    m_reset_zoom_button_action = m_toolbar->addWidget(m_reset_zoom_button);
-    m_reset_zoom_button_action->setVisible(false);
-
-    QObject::connect(m_reset_zoom_button, &QAbstractButton::clicked, [this] {
-        view().reset_zoom();
-        update_reset_zoom_button();
-        m_window->update_zoom_menu();
-    });
+    m_toolbar->addAction(create_application_action(*m_toolbar, view().reset_zoom_action()));
 
     view().on_activate_tab = [this] {
         m_window->activate_tab(tab_index());
@@ -474,18 +464,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 }
 
 Tab::~Tab() = default;
-
-void Tab::update_reset_zoom_button()
-{
-    auto zoom_level = view().zoom_level();
-    if (zoom_level != 1.0f) {
-        auto zoom_level_text = MUST(String::formatted("{}%", round_to<int>(zoom_level * 100)));
-        m_reset_zoom_button->setText(qstring_from_ak_string(zoom_level_text));
-        m_reset_zoom_button_action->setVisible(true);
-    } else {
-        m_reset_zoom_button_action->setVisible(false);
-    }
-}
 
 void Tab::focus_location_editor()
 {

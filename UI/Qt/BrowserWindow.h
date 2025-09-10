@@ -67,11 +67,6 @@ public slots:
     void open_next_tab();
     void open_previous_tab();
     void open_file();
-    void zoom_in();
-    void zoom_out();
-    void reset_zoom();
-    void update_zoom_menu();
-    void update_displayed_zoom_level();
     void show_find_in_page();
 
 protected:
@@ -87,7 +82,7 @@ private:
     Tab& create_new_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
     void initialize_tab(Tab*);
 
-    void set_current_tab(Tab* tab);
+    void set_current_tab(Tab* tab) { m_current_tab = tab; }
 
     template<typename Callback>
     void for_each_tab(Callback&& callback)
@@ -115,7 +110,6 @@ private:
 
     QTabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };
-    QMenu* m_zoom_menu { nullptr };
 
     QToolBar* m_new_tab_button_toolbar { nullptr };
 
