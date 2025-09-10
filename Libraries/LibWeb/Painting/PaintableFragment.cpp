@@ -208,7 +208,7 @@ Utf16View PaintableFragment::text() const
 {
     if (!is<TextPaintable>(paintable()))
         return {};
-    return static_cast<TextPaintable const&>(paintable()).text_for_rendering().substring_view(m_start_offset, m_length_in_code_units);
+    return as<TextPaintable>(paintable()).layout_node().text_for_rendering().substring_view(m_start_offset, m_length_in_code_units);
 }
 
 }
