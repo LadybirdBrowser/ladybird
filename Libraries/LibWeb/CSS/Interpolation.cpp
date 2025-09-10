@@ -28,6 +28,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/Transformation.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
@@ -1265,6 +1266,20 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         }
 
         return StyleValueList::create(move(interpolated_values), from_list.separator());
+    }
+    case StyleValue::Type::BorderRadius: {
+        auto const& from_horizontal_radius = from.as_border_radius().horizontal_radius();
+        auto const& to_horizontal_radius = to.as_border_radius().horizontal_radius();
+        auto const& from_vertical_radius = from.as_border_radius().vertical_radius();
+        auto const& to_vertical_radius = to.as_border_radius().vertical_radius();
+        auto const interpolated_horizontal_radius = interpolate_length_percentage(from_horizontal_radius, to_horizontal_radius, delta);
+        auto const interpolated_vertical_radius = interpolate_length_percentage(from_vertical_radius, to_vertical_radius, delta);
+        if (!interpolated_horizontal_radius.has_value() || !interpolated_vertical_radius.has_value())
+            return {};
+        return BorderRadiusStyleValue::create(
+            interpolated_horizontal_radius.value(),
+            interpolated_vertical_radius.value()
+        );
     }
     default:
         return {};

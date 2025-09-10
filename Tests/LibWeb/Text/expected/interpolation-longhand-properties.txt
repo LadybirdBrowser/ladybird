@@ -9,6 +9,7 @@ At time 400:
   box-shadow: rgb(153, 0, 102) 40.000001px 80.000001px 126.000002px 0px inset, rgba(0, 0, 102, 0.4) 20px 4px 8px 12px
   color: rgb(153, 0, 102)
   transform: matrix(1, 0, 0, 1, 40, 40)
+  border-radius: 40px
 
 At time 750:
   accent-color: rgb(147, 157, 168)
@@ -21,4 +22,5 @@ At time 750:
   box-shadow: rgb(64, 0, 191) 75px 150px 227.5px 0px, rgba(0, 0, 191, 0.75) 37.5px 7.5px 15px 22.5px
   color: rgb(64, 0, 191)
   transform: matrix(1, 0, 0, 1, 75, 75)
+  border-radius: 75px
 
