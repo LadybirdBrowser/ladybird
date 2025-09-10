@@ -1079,6 +1079,7 @@ set(SOURCES
     XHR/XMLHttpRequestUpload.cpp
     XLink/AttributeNames.cpp
     XML/XMLDocumentBuilder.cpp
+    XML/XMLFragmentParser.cpp
     XPath/XPath.cpp
     XPath/XPathEvaluator.cpp
     XPath/XPathExpression.cpp
