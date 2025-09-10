@@ -159,6 +159,40 @@ static void clear_test_callbacks(TestWebView& view)
     view.on_web_content_crashed = {};
 }
 
+static String generate_wait_for_test_string(StringView wait_class)
+{
+    return MUST(String::formatted(R"(
+function hasTestWaitClass() {{
+    return document.documentElement.classList.contains('{}');
+}}
+
+if (!hasTestWaitClass()) {{
+    document.fonts.ready.then(() => {{
+        requestAnimationFrame(function() {{
+            requestAnimationFrame(function() {{
+                internals.signalTestIsDone("PASS");
+            }});
+        }});
+    }});
+}} else {{
+    const observer = new MutationObserver(() => {{
+        if (!hasTestWaitClass()) {{
+            internals.signalTestIsDone("PASS");
+        }}
+    }});
+
+    observer.observe(document.documentElement, {{
+        attributes: true,
+        attributeFilter: ['class'],
+    }});
+}}
+)"sv,
+        wait_class));
+}
+
+static auto wait_for_crash_test_completion = generate_wait_for_test_string("test-wait"sv);
+static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest-wait"sv);
+
 static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
@@ -292,17 +326,10 @@ static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, in
             // We don't want subframe loads to trigger the test finish.
             if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
                 return;
+
             test.did_finish_loading = true;
-            static String wait_for_crash_test_completion = R"(
-   document.fonts.ready.then(() => {
-        requestAnimationFrame(function() {
-            requestAnimationFrame(function() {
-                internals.signalTestIsDone("PASS");
-            });
-        });
-    });
-)"_string;
             view.run_javascript(wait_for_crash_test_completion);
+
             if (test.did_finish_test)
                 on_test_complete();
         };
@@ -329,33 +356,6 @@ static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, in
     view.load(url);
     timer->start();
 }
-
-static String wait_for_reftest_completion = R"(
-function hasReftestWaitClass() {
-    return document.documentElement.classList.contains('reftest-wait');
-}
-
-if (!hasReftestWaitClass()) {
-    document.fonts.ready.then(() => {
-        requestAnimationFrame(function() {
-            requestAnimationFrame(function() {
-                internals.signalTestIsDone("PASS");
-            });
-        });
-    });
-} else {
-    const observer = new MutationObserver(() => {
-        if (!hasReftestWaitClass()) {
-            internals.signalTestIsDone("PASS");
-        }
-    });
-
-    observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['class'],
-    });
-}
-)"_string;
 
 static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
