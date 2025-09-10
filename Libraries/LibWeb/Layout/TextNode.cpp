@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,7 +11,6 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/TextPaintable.h>
@@ -261,7 +261,7 @@ static Utf16String apply_math_auto_text_transform(Utf16String const& string)
         }
     };
 
-    StringBuilder builder(StringBuilder::Mode::UTF16, string.length_in_code_units());
+    StringBuilder builder { StringBuilder::Mode::UTF16, string.length_in_code_units() };
 
     for (auto code_point : string)
         builder.append_code_point(map_code_point_to_italic(code_point));
@@ -280,16 +280,14 @@ static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTran
         return string;
     case CSS::TextTransform::MathAuto:
         return apply_math_auto_text_transform(string);
-    case CSS::TextTransform::Capitalize: {
+    case CSS::TextTransform::Capitalize:
         return string.to_titlecase(locale, TrailingCodePointTransformation::PreserveExisting);
-    }
     case CSS::TextTransform::FullSizeKana: {
-        // FIXME: Implement this!
+        dbgln("FIXME: Implement text-transform full-size-kana");
         return string;
     }
-    case CSS::TextTransform::FullWidth: {
+    case CSS::TextTransform::FullWidth:
         return string.to_fullwidth();
-    }
     }
 
     VERIFY_NOT_REACHED();
@@ -343,7 +341,7 @@ void TextNode::compute_text_for_rendering()
         return;
     }
 
-    StringBuilder builder(StringBuilder::Mode::UTF16, data.length_in_code_units());
+    StringBuilder builder { StringBuilder::Mode::UTF16, data.length_in_code_units() };
     size_t index = 0;
 
     auto skip_over_whitespace = [&] {
@@ -468,7 +466,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
     auto code_point = current_code_point();
     auto start_of_chunk = m_current_index;
 
-    Gfx::Font const& font = m_font_cascade_list.font_for_code_point(code_point);
+    auto const& font = m_font_cascade_list.font_for_code_point(code_point);
     auto text_type = text_type_for_code_point(code_point);
 
     auto broken_on_tab = false;
@@ -482,9 +480,8 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 
             broken_on_tab = true;
             // consume any consecutive tabs
-            while (m_current_index < m_view.length_in_code_units() && current_code_point() == '\t') {
+            while (m_current_index < m_view.length_in_code_units() && current_code_point() == '\t')
                 m_current_index = next_grapheme_boundary();
-            }
         }
 
         if (&font != &m_font_cascade_list.font_for_code_point(code_point)) {
@@ -507,17 +504,15 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 
         if (m_wrap_lines) {
             if (text_type != text_type_for_code_point(code_point)) {
-                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value()) {
+                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
                     return result.release_value();
-                }
             }
 
             if (is_ascii_space(code_point)) {
                 // Whitespace encountered, and we're allowed to break on whitespace.
                 // If we have accumulated some code points in the current chunk, commit them now and continue with the whitespace next time.
-                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value()) {
+                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
                     return result.release_value();
-                }
 
                 // Otherwise, commit the whitespace!
                 m_current_index = next_grapheme_boundary();
@@ -541,13 +536,13 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 
 Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, bool has_breaking_tab, Gfx::Font const& font, Gfx::GlyphRun::TextType text_type) const
 {
-    if (auto byte_length = end - start; byte_length > 0) {
-        auto chunk_view = m_view.substring_view(start, byte_length);
+    if (auto length_in_code_units = end - start; length_in_code_units > 0) {
+        auto chunk_view = m_view.substring_view(start, length_in_code_units);
         return Chunk {
             .view = chunk_view,
             .font = font,
             .start = start,
-            .length = byte_length,
+            .length = length_in_code_units,
             .has_breaking_newline = has_breaking_newline,
             .has_breaking_tab = has_breaking_tab,
             .is_all_whitespace = chunk_view.is_ascii_whitespace(),
