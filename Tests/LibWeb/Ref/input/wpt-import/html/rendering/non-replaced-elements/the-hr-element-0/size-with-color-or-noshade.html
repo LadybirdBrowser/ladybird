@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#the-hr-element-2" />
+<title>hr elements: Tests behaviour of a size attribute with color/noshade attributes present</title>
+<link rel="author" title="Simon Wülker" href="mailto:simon.wuelker@arcor.de">
+<link rel="match" href="../../../../../../expected/wpt-import//html/rendering/non-replaced-elements/the-hr-element-0/size-with-color-or-noshade-ref.html">
+<meta name="assert" content="This checks that the size attribute of a hr element changes the border widths when color/noshade attributes are present">
+<body>
+    <hr size=50 color="black">
+    <hr size=50 color="totally-not-a-color">
+    <hr size=50 noshade>
+    <hr size=50 color="black" noshade>
+</body>
+</html>
+
