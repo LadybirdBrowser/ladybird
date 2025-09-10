@@ -11,6 +11,7 @@
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
+#include <LibWeb/IndexedDB/Internal/IDBDatabaseObserver.h>
 
 namespace Web::IndexedDB {
 
@@ -239,6 +240,26 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
 
     // 9. Return an IDBTransaction object representing transaction.
     return transaction;
+}
+
+void IDBDatabase::register_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver& database_observer)
+{
+    auto result = m_database_observers.set(database_observer);
+    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+}
+
+void IDBDatabase::unregister_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver& database_observer)
+{
+    bool was_removed = m_database_observers.remove(database_observer);
+    VERIFY(was_removed);
+}
+
+void IDBDatabase::set_state(ConnectionState state)
+{
+    m_state = state;
+    notify_each_database_observer([](IDBDatabaseObserver const& request_observer) {
+        return request_observer.connection_state_changed_observer();
+    });
 }
 
 }
