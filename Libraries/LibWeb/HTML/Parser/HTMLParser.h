@@ -75,7 +75,8 @@ public:
         No,
         Yes,
     };
-    static Vector<GC::Root<DOM::Node>> parse_html_fragment(DOM::Element& context_element, StringView, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No);
+    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_html_fragment(DOM::Element& context_element, StringView, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No);
+
     enum class SerializableShadowRoots {
         No,
         Yes,

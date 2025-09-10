@@ -2116,7 +2116,7 @@ WebIDL::ExceptionOr<String> Node::serialize_fragment(HTML::RequireWellFormed req
 WebIDL::ExceptionOr<void> Node::unsafely_set_html(Element& context_element, StringView html)
 {
     // 1. Let newChildren be the result of the HTML fragment parsing algorithm given contextElement, html, and true.
-    auto new_children = HTML::HTMLParser::parse_html_fragment(context_element, html, HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
+    auto new_children = TRY(HTML::HTMLParser::parse_html_fragment(context_element, html, HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes));
 
     // 2. Let fragment be a new DocumentFragment whose node document is contextElement’s node document.
     auto fragment = realm().create<DocumentFragment>(context_element.document());
