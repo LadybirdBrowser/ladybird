@@ -324,12 +324,12 @@ void TextNode::compute_text_for_rendering()
 
     auto data = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang);
 
+    // NOTE: A couple fast returns to avoid unnecessarily allocating a StringBuilder.
     if (!collapse || data.is_empty()) {
         m_text_for_rendering = move(data);
         return;
     }
 
-    // NOTE: A couple fast returns to avoid unnecessarily allocating a StringBuilder.
     if (data.length_in_code_units() == 1) {
         if (data.is_ascii_whitespace())
             m_text_for_rendering = " "_utf16;
@@ -338,14 +338,7 @@ void TextNode::compute_text_for_rendering()
         return;
     }
 
-    bool contains_space = false;
-    for (auto code_point : data) {
-        if (is_ascii_space(code_point)) {
-            contains_space = true;
-            break;
-        }
-    }
-    if (!contains_space) {
+    if (!any_of(data, is_ascii_space)) {
         m_text_for_rendering = move(data);
         return;
     }
@@ -353,7 +346,7 @@ void TextNode::compute_text_for_rendering()
     StringBuilder builder(StringBuilder::Mode::UTF16, data.length_in_code_units());
     size_t index = 0;
 
-    auto skip_over_whitespace = [&]() {
+    auto skip_over_whitespace = [&] {
         while (index < data.length_in_code_units() && is_ascii_space(data.code_unit_at(index)))
             ++index;
     };
