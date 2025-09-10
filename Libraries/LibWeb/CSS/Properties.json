@@ -354,7 +354,7 @@
     ]
   },
   "background-blend-mode": {
-    "animation-type": "none",
+    "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
     "valid-types": [
@@ -2124,7 +2124,7 @@
     "max-values": 1
   },
   "isolation": {
-    "animation-type": "none",
+    "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
     "valid-types": [
@@ -2633,7 +2633,7 @@
     ]
   },
   "mix-blend-mode": {
-    "animation-type": "none",
+    "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
     "valid-types": [

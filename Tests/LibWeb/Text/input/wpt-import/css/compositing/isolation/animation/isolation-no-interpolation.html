@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://drafts.fxtf.org/compositing/#isolation">
+<link rel=help href="https://drafts.csswg.org/css-transitions-2/#transition-property-property">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/4441">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_no_interpolation({
+  property: 'isolation',
+  from: 'initial',
+  to: 'isolate'
+});
+</script>
