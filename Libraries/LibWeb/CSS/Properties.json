@@ -780,7 +780,8 @@
     ],
     "valid-identifiers": [
       "auto"
-    ]
+    ],
+    "percentages-resolve-to": "length"
   },
   "border-inline": {
     "inherited": false,
