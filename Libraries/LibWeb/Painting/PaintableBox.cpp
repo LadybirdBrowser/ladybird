@@ -1537,7 +1537,8 @@ void PaintableBox::resolve_paint_properties()
 
         // Section 2.11.2: If the computed value of background-image on the root element is none and its background-color is transparent,
         // user agents must instead propagate the computed values of the background properties from that element’s first HTML BODY child element.
-        if (document().html_element()->should_use_body_background_properties()) {
+        auto& html_element = as<HTML::HTMLHtmlElement>(*layout_node_with_style_and_box_metrics().dom_node());
+        if (html_element.should_use_body_background_properties()) {
             background_layers = document().background_layers();
             background_color = document().background_color();
         }
