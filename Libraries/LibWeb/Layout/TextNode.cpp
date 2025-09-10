@@ -555,7 +555,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start
 
 GC::Ptr<Painting::Paintable> TextNode::create_paintable() const
 {
-    return Painting::TextPaintable::create(*this, text_for_rendering());
+    return Painting::TextPaintable::create(*this);
 }
 
 }

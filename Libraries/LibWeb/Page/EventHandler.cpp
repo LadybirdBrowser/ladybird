@@ -986,7 +986,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
                 next_boundary = hit_dom_node.length_in_utf16_code_units();
             } else {
                 auto& segmenter = word_segmenter();
-                segmenter.set_segmented_text(hit_paintable.text_for_rendering());
+                segmenter.set_segmented_text(hit_paintable.layout_node().text_for_rendering());
 
                 previous_boundary = segmenter.previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
                 next_boundary = segmenter.next_boundary(result->index_in_node).value_or(hit_dom_node.length());
