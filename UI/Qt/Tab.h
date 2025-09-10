@@ -56,7 +56,6 @@ public:
     void load_html(StringView);
 
     void open_file();
-    void update_reset_zoom_button();
 
     void show_find_in_page();
     void find_previous();
@@ -94,8 +93,6 @@ private:
     QToolBar* m_toolbar { nullptr };
     QToolButton* m_hamburger_button { nullptr };
     QAction* m_hamburger_button_action { nullptr };
-    QToolButton* m_reset_zoom_button { nullptr };
-    QAction* m_reset_zoom_button_action { nullptr };
     LocationEdit* m_location_edit { nullptr };
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };

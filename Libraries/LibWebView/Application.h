@@ -77,6 +77,9 @@ public:
     Action& select_all_action() { return *m_select_all_action; }
     Action& view_source_action() { return *m_view_source_action; }
 
+    Menu& zoom_menu() { return *m_zoom_menu; }
+    Action& reset_zoom_action() { return *m_reset_zoom_action; }
+
     Menu& color_scheme_menu() { return *m_color_scheme_menu; }
     Menu& contrast_menu() { return *m_contrast_menu; }
     Menu& motion_menu() { return *m_motion_menu; }
@@ -175,6 +178,9 @@ private:
     RefPtr<Action> m_paste_action;
     RefPtr<Action> m_select_all_action;
     RefPtr<Action> m_view_source_action;
+
+    RefPtr<Menu> m_zoom_menu;
+    RefPtr<Action> m_reset_zoom_action;
 
     RefPtr<Menu> m_color_scheme_menu;
     Web::CSS::PreferredColorScheme m_color_scheme { Web::CSS::PreferredColorScheme::Auto };

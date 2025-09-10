@@ -135,6 +135,16 @@ static void initialize_native_control(WebView::Action& action, id control)
         [control setKeyEquivalent:@"u"];
         break;
 
+    case WebView::ActionID::ZoomIn:
+        [control setKeyEquivalent:@"+"];
+        break;
+    case WebView::ActionID::ZoomOut:
+        [control setKeyEquivalent:@"-"];
+        break;
+    case WebView::ActionID::ResetZoom:
+        [control setKeyEquivalent:@"0"];
+        break;
+
     default:
         break;
     }

@@ -69,9 +69,4 @@
 - (void)findInPageNextMatch;
 - (void)findInPagePreviousMatch;
 
-- (void)zoomIn;
-- (void)zoomOut;
-- (void)resetZoom;
-- (float)zoomLevel;
-
 @end

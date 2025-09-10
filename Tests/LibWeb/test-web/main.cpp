@@ -349,10 +349,6 @@ static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, in
         timer->start(milliseconds);
     };
 
-    view.on_set_browser_zoom = [&view](double factor) {
-        view.set_zoom(factor);
-    };
-
     view.load(url);
     timer->start();
 }
@@ -489,10 +485,6 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
             return;
         timer->stop();
         timer->start(milliseconds);
-    };
-
-    view.on_set_browser_zoom = [&view](double factor) {
-        view.set_zoom(factor);
     };
 
     view.load(url);

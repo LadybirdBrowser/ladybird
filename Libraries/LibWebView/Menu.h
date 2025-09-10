@@ -53,6 +53,11 @@ enum class ActionID {
     ToggleMediaControlsState,
     ToggleMediaLoopState,
 
+    ZoomIn,
+    ZoomOut,
+    ResetZoom,
+    ResetZoomViaToolbar,
+
     PreferredColorScheme,
     PreferredContrast,
     PreferredMotion,

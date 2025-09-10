@@ -668,6 +668,22 @@ void Application::initialize_actions()
             view->get_source();
     });
 
+    m_zoom_menu = Menu::create_group("Zoom"sv);
+    m_zoom_menu->add_action(Action::create("Zoom In"sv, ActionID::ZoomIn, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->zoom_in();
+    }));
+    m_zoom_menu->add_action(Action::create("Zoom Out"sv, ActionID::ZoomOut, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->zoom_out();
+    }));
+
+    m_reset_zoom_action = Action::create("Reset Zoom"sv, ActionID::ResetZoom, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->reset_zoom();
+    });
+    m_zoom_menu->add_action(*m_reset_zoom_action);
+
     auto set_color_scheme = [this](auto color_scheme) {
         return [this, color_scheme]() {
             m_color_scheme = color_scheme;

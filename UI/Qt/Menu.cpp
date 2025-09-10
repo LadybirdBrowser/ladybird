@@ -149,6 +149,27 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/audio-volume-high.png"sv));
         break;
 
+    case WebView::ActionID::ZoomIn: {
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/zoom-in.png"sv));
+
+        auto zoom_in_shortcuts = QKeySequence::keyBindings(QKeySequence::StandardKey::ZoomIn);
+        auto secondary_zoom_in_shortcut = QKeySequence(Qt::CTRL | Qt::Key_Equal);
+
+        if (!zoom_in_shortcuts.contains(secondary_zoom_in_shortcut))
+            zoom_in_shortcuts.append(move(secondary_zoom_in_shortcut));
+
+        qaction.setShortcuts(zoom_in_shortcuts);
+        break;
+    }
+    case WebView::ActionID::ZoomOut:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/zoom-out.png"sv));
+        qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::ZoomOut));
+        break;
+    case WebView::ActionID::ResetZoom:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/zoom-reset.png"sv));
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
+        break;
+
     case WebView::ActionID::DumpSessionHistoryTree:
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/history.png"sv));
         break;

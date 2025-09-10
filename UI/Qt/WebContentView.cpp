@@ -166,12 +166,6 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
         m_select_dropdown->exec(map_point_to_global_position(content_position));
     };
-
-    on_set_browser_zoom = [this](double factor) {
-        set_zoom(factor);
-        auto* window = static_cast<BrowserWindow*>(this->window());
-        window->update_displayed_zoom_level();
-    };
 }
 
 WebContentView::~WebContentView() = default;
@@ -564,7 +558,7 @@ void WebContentView::update_viewport_size()
 
 void WebContentView::update_zoom()
 {
-    client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio * m_zoom_level);
+    ViewImplementation::update_zoom();
     update_viewport_size();
 }
 
