@@ -489,7 +489,8 @@
       "mapping": "block-size"
     },
     "initial": "auto",
-    "max-values": 1
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
   },
   "border": {
     "inherited": false,
@@ -498,7 +499,8 @@
       "border-width",
       "border-style",
       "border-color"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-block": {
     "inherited": false,
@@ -507,7 +509,8 @@
       "border-block-width",
       "border-block-style",
       "border-block-color"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-block-color": {
     "inherited": false,
@@ -528,7 +531,8 @@
       "border-block-end-width",
       "border-block-end-style",
       "border-block-end-color"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-block-end-color": {
     "logical-alias-for": {
@@ -549,7 +553,8 @@
       "group": "border-width",
       "mapping": "block-end"
     },
-    "max-values": 1
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-block-start": {
     "inherited": false,
@@ -558,7 +563,8 @@
       "border-block-start-width",
       "border-block-start-style",
       "border-block-start-color"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-block-start-color": {
     "logical-alias-for": {
@@ -579,7 +585,8 @@
       "group": "border-width",
       "mapping": "block-start"
     },
-    "max-values": 1
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-block-style": {
     "inherited": false,
@@ -604,7 +611,8 @@
     "valid-types": [
       "length [0,∞]",
       "line-width"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-bottom": {
     "inherited": false,
@@ -613,7 +621,8 @@
       "border-bottom-width",
       "border-bottom-style",
       "border-bottom-color"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-bottom-color": {
     "affects-layout": false,
@@ -669,7 +678,8 @@
     ],
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-collapse": {
     "animation-type": "discrete",
@@ -753,7 +763,8 @@
     "valid-types": [
       "number [0,∞]",
       "percentage [0,∞]"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-image-source": {
     "affects-layout": false,
@@ -781,7 +792,8 @@
     "valid-identifiers": [
       "auto"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-inline": {
     "inherited": false,
@@ -790,7 +802,8 @@
       "border-inline-width",
       "border-inline-style",
       "border-inline-color"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-inline-color": {
     "inherited": false,
@@ -811,7 +824,8 @@
       "border-inline-end-width",
       "border-inline-end-style",
       "border-inline-end-color"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "border-inline-end-color": {
     "logical-alias-for": {
@@ -1124,7 +1138,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "box-shadow": {
     "affects-layout": false,
@@ -1966,7 +1981,8 @@
       "grid-template-areas",
       "grid-template-rows",
       "grid-template-columns"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "grid-template-areas": {
     "animation-type": "discrete",
@@ -1992,7 +2008,8 @@
       "percentage",
       "string"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "grid-template-rows": {
     "animation-type": "custom",
@@ -2007,7 +2024,8 @@
       "percentage",
       "string"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "height": {
     "animation-type": "by-computed-value",
@@ -2026,7 +2044,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "image-rendering": {
     "animation-type": "discrete",
@@ -2043,7 +2062,8 @@
       "mapping": "inline-size"
     },
     "initial": "auto",
-    "max-values": 1
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
   },
   "inset": {
     "inherited": false,
@@ -2062,7 +2082,8 @@
     "valid-identifiers": [
       "auto"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "inset-block": {
     "initial": "auto",
@@ -2078,21 +2099,24 @@
     "valid-identifiers": [
       "auto"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "inset-block-end": {
     "logical-alias-for": {
       "group": "inset",
       "mapping": "block-end"
     },
-    "max-values": 1
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
   },
   "inset-block-start": {
     "logical-alias-for": {
       "group": "inset",
       "mapping": "block-start"
     },
-    "max-values": 1
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
   },
   "inset-inline": {
     "initial": "auto",
@@ -2108,21 +2132,24 @@
     "valid-identifiers": [
       "auto"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "inset-inline-end": {
     "logical-alias-for": {
       "group": "inset",
       "mapping": "inline-end"
     },
-    "max-values": 1
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
   },
   "inset-inline-start": {
     "logical-alias-for": {
       "group": "inset",
       "mapping": "inline-start"
     },
-    "max-values": 1
+    "max-values": 1,
+    "needs-layout-for-getcomputedstyle": true
   },
   "isolation": {
     "animation-type": "discrete",
@@ -2171,7 +2198,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "letter-spacing": {
     "animation-type": "by-computed-value",
@@ -2201,7 +2229,8 @@
     "valid-identifiers": [
       "normal"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "list-style": {
     "inherited": true,
@@ -2260,7 +2289,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-block": {
     "initial": "0",
@@ -2276,19 +2306,22 @@
     "valid-identifiers": [
       "auto"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-block-end": {
     "logical-alias-for": {
       "group": "margin",
       "mapping": "block-end"
-    }
+    },
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-block-start": {
     "logical-alias-for": {
       "group": "margin",
       "mapping": "block-start"
-    }
+    },
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-bottom": {
     "animation-type": "by-computed-value",
@@ -2304,7 +2337,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-inline": {
     "initial": "0",
@@ -2320,19 +2354,22 @@
     "valid-identifiers": [
       "auto"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-inline-end": {
     "logical-alias-for": {
       "group": "margin",
       "mapping": "inline-end"
-    }
+    },
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-inline-start": {
     "logical-alias-for": {
       "group": "margin",
       "mapping": "inline-start"
-    }
+    },
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-left": {
     "animation-type": "by-computed-value",
@@ -2348,7 +2385,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-right": {
     "animation-type": "by-computed-value",
@@ -2364,7 +2402,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "margin-top": {
     "animation-type": "by-computed-value",
@@ -2380,7 +2419,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "mask": {
     "__comment": "FIXME: reset mask-border",
@@ -2778,7 +2818,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "padding-block": {
     "initial": "0",
@@ -2791,19 +2832,22 @@
       "length [0,∞]",
       "percentage [0,∞]"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "padding-block-end": {
     "logical-alias-for": {
       "group": "padding",
       "mapping": "block-end"
-    }
+    },
+    "needs-layout-for-getcomputedstyle": true
   },
   "padding-block-start": {
     "logical-alias-for": {
       "group": "padding",
       "mapping": "block-start"
-    }
+    },
+    "needs-layout-for-getcomputedstyle": true
   },
   "padding-bottom": {
     "animation-type": "by-computed-value",
@@ -2816,7 +2860,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "padding-inline": {
     "initial": "0",
@@ -2829,7 +2874,8 @@
       "length [0,∞]",
       "percentage [0,∞]"
     ],
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "padding-inline-end": {
     "logical-alias-for": {
@@ -2841,7 +2887,8 @@
     "logical-alias-for": {
       "group": "padding",
       "mapping": "inline-start"
-    }
+    },
+    "needs-layout-for-getcomputedstyle": true
   },
   "padding-left": {
     "animation-type": "by-computed-value",
@@ -2854,7 +2901,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "padding-right": {
     "animation-type": "by-computed-value",
@@ -2867,7 +2915,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "padding-top": {
     "animation-type": "by-computed-value",
@@ -2880,7 +2929,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "paint-order": {
     "animation-type": "discrete",
@@ -2975,7 +3025,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "rotate": {
     "animation-type": "custom",
@@ -3357,7 +3408,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "touch-action": {
     "animation-type": "discrete",
@@ -3577,7 +3629,8 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
-    ]
+    ],
+    "needs-layout-for-getcomputedstyle": true
   },
   "will-change": {
     "affects-layout": false,
