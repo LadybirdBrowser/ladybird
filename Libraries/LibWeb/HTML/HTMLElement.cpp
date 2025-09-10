@@ -852,13 +852,15 @@ GC::Ptr<DOM::NodeList> HTMLElement::labels()
     return m_labels;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-hidden
 Variant<bool, double, String> HTMLElement::hidden() const
 {
     // 1. If the hidden attribute is in the hidden until found state, then return "until-found".
-    if (get_attribute(HTML::AttributeNames::hidden) == "until-found")
+    auto const& hidden = get_attribute(HTML::AttributeNames::hidden);
+    if (hidden.has_value() && hidden->equals_ignoring_ascii_case("until-found"sv))
         return "until-found"_string;
     // 2. If the hidden attribute is set, then return true.
-    if (has_attribute(HTML::AttributeNames::hidden))
+    if (hidden.has_value())
         return true;
     // 3. Return false.
     return false;
