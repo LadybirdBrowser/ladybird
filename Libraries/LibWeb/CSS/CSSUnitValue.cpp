@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/CSSUnitValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/Units.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -93,6 +94,81 @@ String CSSUnitValue::serialize_unit_value(Optional<double> minimum, Optional<dou
 
     // 5. Return s.
     return s.to_string_without_validation();
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#convert-a-cssunitvalue
+GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) const
+{
+    // 1. Let old unit be the value of this’s unit internal slot, and old value be the value of this’s value internal
+    //    slot.
+    auto old_unit = m_unit;
+    auto old_value = m_value;
+
+    // 2. If old unit and unit are not compatible units, return failure.
+    double ratio = 1.0;
+    // NB: If the units are identical, they're always compatible. That also covers cases of `number` and `percent`
+    //     which aren't actually units.
+    if (old_unit != unit) {
+        auto old_dimension_type = dimension_for_unit(old_unit);
+        auto new_dimension_type = dimension_for_unit(unit);
+        if (!new_dimension_type.has_value() || old_dimension_type != new_dimension_type)
+            return {};
+
+        switch (*new_dimension_type) {
+        case DimensionType::Angle: {
+            auto from = string_to_angle_unit(old_unit).release_value();
+            auto to = string_to_angle_unit(unit).release_value();
+            if (!units_are_compatible(from, to))
+                return {};
+            ratio = ratio_between_units(from, to);
+            break;
+        }
+        case DimensionType::Flex: {
+            auto from = string_to_angle_unit(old_unit).release_value();
+            auto to = string_to_angle_unit(unit).release_value();
+            if (!units_are_compatible(from, to))
+                return {};
+            ratio = ratio_between_units(from, to);
+            break;
+        }
+        case DimensionType::Frequency: {
+            auto from = string_to_frequency_unit(old_unit).release_value();
+            auto to = string_to_frequency_unit(unit).release_value();
+            if (!units_are_compatible(from, to))
+                return {};
+            ratio = ratio_between_units(from, to);
+            break;
+        }
+        case DimensionType::Length: {
+            auto from = string_to_length_unit(old_unit).release_value();
+            auto to = string_to_length_unit(unit).release_value();
+            if (!units_are_compatible(from, to))
+                return {};
+            ratio = ratio_between_units(from, to);
+            break;
+        }
+        case DimensionType::Resolution: {
+            auto from = string_to_resolution_unit(old_unit).release_value();
+            auto to = string_to_resolution_unit(unit).release_value();
+            if (!units_are_compatible(from, to))
+                return {};
+            ratio = ratio_between_units(from, to);
+            break;
+        }
+        case DimensionType::Time: {
+            auto from = string_to_time_unit(old_unit).release_value();
+            auto to = string_to_time_unit(unit).release_value();
+            if (!units_are_compatible(from, to))
+                return {};
+            ratio = ratio_between_units(from, to);
+            break;
+        }
+        }
+    }
+
+    // 3. Return a new CSSUnitValue whose unit internal slot is set to unit, and whose value internal slot is set to
+    //    old value multiplied by the conversation ratio between old unit and unit.
+    return CSSUnitValue::create(realm(), old_value * ratio, unit);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#equal-numeric-value
