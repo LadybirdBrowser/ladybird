@@ -140,15 +140,6 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
         auto transfer_characteristics = static_cast<TransferCharacteristics>(m_frame->color_trc);
         auto matrix_coefficients = static_cast<MatrixCoefficients>(m_frame->colorspace);
         auto color_range = [&] {
-            switch (m_frame->format) {
-            case AV_PIX_FMT_YUVJ420P:
-            case AV_PIX_FMT_YUVJ422P:
-            case AV_PIX_FMT_YUVJ444P:
-                return VideoFullRangeFlag::Full;
-            default:
-                break;
-            }
-
             switch (m_frame->color_range) {
             case AVColorRange::AVCOL_RANGE_MPEG:
                 return VideoFullRangeFlag::Studio;
