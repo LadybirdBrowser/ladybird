@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 15 tests
+
+13 Pass
+2 Fail
+Pass	Property text-underline-offset value 'auto'
+Pass	Property text-underline-offset value 'calc(10px - 8px)'
+Pass	Property text-underline-offset value '32px'
+Pass	Property text-underline-offset value '2em'
+Pass	Property text-underline-offset value '200%'
+Pass	Property text-underline-offset value 'calc(2em - 0px)'
+Fail	Property text-underline-offset value 'calc(200% - 0px)'
+Pass	Property text-underline-offset value 'calc(0.5em - 0px)'
+Fail	Property text-underline-offset value 'calc(50% - 0px)'
+Pass	Property text-underline-offset value 'calc(2em - 8px)'
+Pass	Property text-underline-offset value 'calc(2em - 0.5em)'
+Pass	Property text-underline-offset value 'calc(2em - 50%)'
+Pass	Property text-underline-offset value 'calc(200% - 8px)'
+Pass	Property text-underline-offset value 'calc(200% - 0.5em)'
+Pass	Property text-underline-offset value 'calc(200% - 50%)'

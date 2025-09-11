@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['text-underline-offset'] = "auto" should set the property value
+Pass	e.style['text-underline-offset'] = "-10px" should set the property value
+Pass	e.style['text-underline-offset'] = "2001em" should set the property value
+Pass	e.style['text-underline-offset'] = "-49em" should set the property value
+Pass	e.style['text-underline-offset'] = "53px" should set the property value
+Pass	e.style['text-underline-offset'] = "5%" should set the property value
+Pass	e.style['text-underline-offset'] = "89%" should set the property value
+Pass	e.style['text-underline-offset'] = "-30%" should set the property value
+Pass	e.style['text-underline-offset'] = "187%" should set the property value
+Pass	e.style['text-underline-offset'] = "calc(45% - 0.3em)" should set the property value
+Pass	e.style['text-underline-offset'] = "calc(40em - 10px)" should set the property value
+Pass	e.style['text-underline-offset'] = "calc(-13em + 50px)" should set the property value
