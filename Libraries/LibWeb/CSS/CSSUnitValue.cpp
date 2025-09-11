@@ -186,4 +186,80 @@ bool CSSUnitValue::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
         && m_value == other_unit_value->m_value;
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-sum-value
+Optional<SumValue> CSSUnitValue::create_a_sum_value() const
+{
+    // 1. Let unit be the value of this’s unit internal slot, and value be the value of this’s value internal slot.
+    auto unit = m_unit;
+    auto value = m_value;
+
+    // 2. If unit is a member of a set of compatible units, and is not the set’s canonical unit, multiply value
+    //    by the conversion ratio between unit and the canonical unit, and change unit to the canonical unit.
+    if (auto dimension_type = dimension_for_unit(unit); dimension_type.has_value()) {
+        switch (*dimension_type) {
+        case DimensionType::Angle: {
+            auto angle_unit = string_to_angle_unit(unit).release_value();
+            auto canonical_unit = canonical_angle_unit();
+            if (angle_unit != canonical_unit && units_are_compatible(angle_unit, canonical_unit)) {
+                value *= ratio_between_units(angle_unit, canonical_unit);
+                unit = CSS::to_string(canonical_unit);
+            }
+            break;
+        }
+        case DimensionType::Flex: {
+            auto flex_unit = string_to_flex_unit(unit).release_value();
+            auto canonical_unit = canonical_flex_unit();
+            if (flex_unit != canonical_unit && units_are_compatible(flex_unit, canonical_unit)) {
+                value *= ratio_between_units(flex_unit, canonical_unit);
+                unit = CSS::to_string(canonical_unit);
+            }
+            break;
+        }
+        case DimensionType::Frequency: {
+            auto frequency_unit = string_to_frequency_unit(unit).release_value();
+            auto canonical_unit = canonical_frequency_unit();
+            if (frequency_unit != canonical_unit && units_are_compatible(frequency_unit, canonical_unit)) {
+                value *= ratio_between_units(frequency_unit, canonical_unit);
+                unit = CSS::to_string(canonical_unit);
+            }
+            break;
+        }
+        case DimensionType::Length: {
+            auto length_unit = string_to_length_unit(unit).release_value();
+            auto canonical_unit = canonical_length_unit();
+            if (length_unit != canonical_unit && units_are_compatible(length_unit, canonical_unit)) {
+                value *= ratio_between_units(length_unit, canonical_unit);
+                unit = CSS::to_string(canonical_unit);
+            }
+            break;
+        }
+        case DimensionType::Resolution: {
+            auto resolution_unit = string_to_resolution_unit(unit).release_value();
+            auto canonical_unit = canonical_resolution_unit();
+            if (resolution_unit != canonical_unit && units_are_compatible(resolution_unit, canonical_unit)) {
+                value *= ratio_between_units(resolution_unit, canonical_unit);
+                unit = CSS::to_string(canonical_unit);
+            }
+            break;
+        }
+        case DimensionType::Time: {
+            auto time_unit = string_to_time_unit(unit).release_value();
+            auto canonical_unit = canonical_time_unit();
+            if (time_unit != canonical_unit && units_are_compatible(time_unit, canonical_unit)) {
+                value *= ratio_between_units(time_unit, canonical_unit);
+                unit = CSS::to_string(canonical_unit);
+            }
+            break;
+        }
+        }
+    }
+
+    // 3. If unit is "number", return «(value, «[ ]»)».
+    if (unit == "number"_fly_string)
+        return SumValue { SumValueItem { value, {} } };
+
+    // 4. Otherwise, return «(value, «[unit → 1]»)».
+    return SumValue { SumValueItem { value, { { unit, 1 } } } };
+}
+
 }
