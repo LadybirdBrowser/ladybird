@@ -25,45 +25,81 @@ DecoderErrorOr<NonnullOwnPtr<MatroskaDemuxer>> MatroskaDemuxer::from_data(Readon
     return make<MatroskaDemuxer>(TRY(Reader::from_data(data)));
 }
 
-DecoderErrorOr<Vector<Track>> MatroskaDemuxer::get_tracks_for_type(TrackType type)
+static TrackEntry::TrackType matroska_track_type_from_track_type(TrackType type)
 {
-    TrackEntry::TrackType matroska_track_type;
-
     switch (type) {
     case TrackType::Video:
-        matroska_track_type = TrackEntry::TrackType::Video;
-        break;
+        return TrackEntry::TrackType::Video;
     case TrackType::Audio:
-        matroska_track_type = TrackEntry::TrackType::Audio;
-        break;
+        return TrackEntry::TrackType::Audio;
     case TrackType::Subtitles:
-        matroska_track_type = TrackEntry::TrackType::Subtitle;
+        return TrackEntry::TrackType::Subtitle;
+    case TrackType::Unknown:
+        return TrackEntry::TrackType::Invalid;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static TrackType track_type_from_matroska_track_type(TrackEntry::TrackType type)
+{
+    switch (type) {
+    case TrackEntry::TrackType::Video:
+        return TrackType::Video;
+    case TrackEntry::TrackType::Audio:
+        return TrackType::Audio;
+    case TrackEntry::TrackType::Subtitle:
+        return TrackType::Subtitles;
+    case TrackEntry::TrackType::Invalid:
+        return TrackType::Unknown;
+    case TrackEntry::TrackType::Complex:
+    case TrackEntry::TrackType::Logo:
+    case TrackEntry::TrackType::Buttons:
+    case TrackEntry::TrackType::Control:
+    case TrackEntry::TrackType::Metadata:
         break;
     }
+    VERIFY_NOT_REACHED();
+}
 
+static Track track_from_track_entry(TrackEntry const& track_entry)
+{
+    Track track(track_type_from_matroska_track_type(track_entry.track_type()), track_entry.track_number());
+
+    if (track.type() == TrackType::Video) {
+        auto video_track = track_entry.video_track();
+        if (video_track.has_value()) {
+            track.set_video_data({
+                .pixel_width = video_track->pixel_width,
+                .pixel_height = video_track->pixel_height,
+            });
+        }
+    }
+
+    return track;
+}
+
+DecoderErrorOr<Vector<Track>> MatroskaDemuxer::get_tracks_for_type(TrackType type)
+{
+    auto matroska_track_type = matroska_track_type_from_track_type(type);
     Vector<Track> tracks;
     TRY(m_reader.for_each_track_of_type(matroska_track_type, [&](TrackEntry const& track_entry) -> DecoderErrorOr<IterationDecision> {
         VERIFY(track_entry.track_type() == matroska_track_type);
-        Track track(type, track_entry.track_number());
-
-        switch (type) {
-        case TrackType::Video:
-            if (auto video_track = track_entry.video_track(); video_track.has_value()) {
-                track.set_video_data({
-                    .pixel_width = video_track->pixel_width,
-                    .pixel_height = video_track->pixel_height
-                });
-            }
-            break;
-        default:
-            break;
-        }
-
-        DECODER_TRY_ALLOC(tracks.try_append(track));
+        DECODER_TRY_ALLOC(tracks.try_append(track_from_track_entry(track_entry)));
         return IterationDecision::Continue;
     }));
-
     return tracks;
+}
+
+DecoderErrorOr<Optional<Track>> MatroskaDemuxer::get_preferred_track_for_type(TrackType type)
+{
+    auto matroska_track_type = matroska_track_type_from_track_type(type);
+    Optional<Track> result;
+    TRY(m_reader.for_each_track_of_type(matroska_track_type, [&](TrackEntry const& track_entry) -> DecoderErrorOr<IterationDecision> {
+        VERIFY(track_entry.track_type() == matroska_track_type);
+        result = track_from_track_entry(track_entry);
+        return IterationDecision::Break;
+    }));
+    return result;
 }
 
 DecoderErrorOr<MatroskaDemuxer::TrackStatus*> MatroskaDemuxer::get_track_status(Track track)

@@ -26,6 +26,7 @@ public:
     virtual ~FFmpegDemuxer() override;
 
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override;
+    virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) override;
 
     virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) override;
 
@@ -39,6 +40,7 @@ public:
 
 private:
     DecoderErrorOr<AK::Duration> duration_of_track(Track const& track);
+    DecoderErrorOr<Track> get_track_for_stream_index(u32 stream_index);
 
     NonnullOwnPtr<SeekableStream> m_stream;
     AVCodecContext* m_codec_context { nullptr };
