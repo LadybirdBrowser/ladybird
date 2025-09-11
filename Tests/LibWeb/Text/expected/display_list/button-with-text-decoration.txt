@@ -4,7 +4,7 @@ SaveLayer
       FillRect rect=[8,8 106x22] color=rgb(212, 208, 200)
       FillPath
       DrawGlyphRun rect=[13,10 96x18] translation=[13,23.796875] color=rgb(0, 0, 0) scale=1
-      DrawLine from=[13,26] to=[108,26] color=rgb(0, 0, 0) thickness=2
+      DrawLine from=[13,26] to=[109,26] color=rgb(0, 0, 0) thickness=2
     PopStackingContext
   PopStackingContext
 Restore
