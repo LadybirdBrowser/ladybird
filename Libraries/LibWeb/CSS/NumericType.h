@@ -51,7 +51,7 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    static Optional<NumericType> create_from_unit(StringView unit);
+    static Optional<NumericType> create_from_unit(FlyString const& unit);
     NumericType() = default;
     NumericType(BaseType type, i32 power)
     {

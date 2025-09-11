@@ -39,18 +39,18 @@ Optional<NumericType::BaseType> NumericType::base_type_from_value_type(ValueType
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-create-a-type
-Optional<NumericType> NumericType::create_from_unit(StringView unit)
+Optional<NumericType> NumericType::create_from_unit(FlyString const& unit)
 {
     // To create a type from a string unit, follow the appropriate branch of the following:
 
     // unit is "number"
-    if (unit == "number"sv) {
+    if (unit == "number"_fly_string) {
         // Return «[ ]» (empty map)
         return NumericType {};
     }
 
     // unit is "percent"
-    if (unit == "percent"sv) {
+    if (unit == "percent"_fly_string) {
         // Return «[ "percent" → 1 ]»
         return NumericType { BaseType::Percent, 1 };
     }
