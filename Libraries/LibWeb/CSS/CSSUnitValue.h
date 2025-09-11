@@ -29,6 +29,8 @@ public:
 
     String serialize_unit_value(Optional<double> minimum, Optional<double> maximum) const;
 
+    GC::Ptr<CSSUnitValue> converted_to_unit(FlyString const& unit) const;
+
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
 
 private:
