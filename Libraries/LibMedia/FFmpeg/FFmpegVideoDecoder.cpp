@@ -168,8 +168,9 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
             case AV_PIX_FMT_YUV422P12:
             case AV_PIX_FMT_YUV444P12:
                 return 12;
+            default:
+                VERIFY_NOT_REACHED();
             }
-            VERIFY_NOT_REACHED();
         }();
         size_t component_size = (bit_depth + 7) / 8;
 
@@ -190,7 +191,6 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
             case AV_PIX_FMT_YUV444P12:
             case AV_PIX_FMT_YUVJ444P:
                 return { false, false };
-
             default:
                 VERIFY_NOT_REACHED();
             }
