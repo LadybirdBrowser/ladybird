@@ -152,4 +152,46 @@ bool CSSMathProduct::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) cons
     return m_values->is_equal_numeric_values(other_product->m_values);
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-sum-value
+Optional<SumValue> CSSMathProduct::create_a_sum_value() const
+{
+    // 1. Let values initially be the sum value «(1, «[ ]»)». (I.e. what you’d get from 1.)
+    SumValue values {
+        SumValueItem { 1, {} }
+    };
+
+    // 2. For each item in this’s values internal slot:
+    for (auto const& item : m_values->values()) {
+        // 1. Let new values be the result of creating a sum value from item.
+        //    Let temp initially be an empty list.
+        auto new_values = item->create_a_sum_value();
+        SumValue temp;
+
+        // 2. If new values is failure, return failure.
+        if (!new_values.has_value())
+            return {};
+
+        // 3. For each item1 in values:
+        for (auto const& item1 : values) {
+            // 1. For each item2 in new values:
+            for (auto const& item2 : *new_values) {
+                // 1. Let item be a tuple with its value set to the product of the values of item1 and item2, and its
+                //    unit map set to the product of the unit maps of item1 and item2, with all entries with a zero
+                //    value removed.
+                auto unit_map = product_of_two_unit_maps(item1.unit_map, item2.unit_map);
+                unit_map.remove_all_matching([](auto&, auto& value) { return value == 0; });
+
+                // 2. Append item to temp.
+                temp.empend(item1.value * item2.value, move(unit_map));
+            }
+        }
+
+        // 4. Set values to temp.
+        values = move(temp);
+    }
+
+    // 3. Return values.
+    return values;
+}
+
 }
