@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 24 tests
 
-19 Pass
-5 Fail
-Fail	CSS Transitions: property <margin-block> from [10px] to [20px] at (-0.3) should be [7px]
-Fail	CSS Transitions: property <margin-block> from [10px] to [20px] at (0) should be [10px]
-Fail	CSS Transitions: property <margin-block> from [10px] to [20px] at (0.3) should be [13px]
-Fail	CSS Transitions: property <margin-block> from [10px] to [20px] at (0.6) should be [16px]
+24 Pass
+Pass	CSS Transitions: property <margin-block> from [10px] to [20px] at (-0.3) should be [7px]
+Pass	CSS Transitions: property <margin-block> from [10px] to [20px] at (0) should be [10px]
+Pass	CSS Transitions: property <margin-block> from [10px] to [20px] at (0.3) should be [13px]
+Pass	CSS Transitions: property <margin-block> from [10px] to [20px] at (0.6) should be [16px]
 Pass	CSS Transitions: property <margin-block> from [10px] to [20px] at (1) should be [20px]
-Fail	CSS Transitions: property <margin-block> from [10px] to [20px] at (1.5) should be [25px]
+Pass	CSS Transitions: property <margin-block> from [10px] to [20px] at (1.5) should be [25px]
 Pass	CSS Transitions with transition: all: property <margin-block> from [10px] to [20px] at (-0.3) should be [7px]
 Pass	CSS Transitions with transition: all: property <margin-block> from [10px] to [20px] at (0) should be [10px]
 Pass	CSS Transitions with transition: all: property <margin-block> from [10px] to [20px] at (0.3) should be [13px]
