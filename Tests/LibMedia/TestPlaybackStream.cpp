@@ -16,23 +16,28 @@
 #    include <LibMedia/Audio/PulseAudioWrappers.h>
 #endif
 
+// We are unable to create a playback stream on windows without an audio output device, so this would fail in CI
+#if !defined(AK_OS_WINDOWS)
+
 TEST_CASE(create_and_destroy_playback_stream)
 {
     Core::EventLoop event_loop;
 
     bool has_implementation = false;
-#if defined(HAVE_PULSEAUDIO) || defined(AK_OS_MACOS)
+#    if defined(HAVE_PULSEAUDIO) || defined(AK_OS_MACOS)
     has_implementation = true;
-#endif
+#    endif
 
     {
         auto stream_result = Audio::PlaybackStream::create(Audio::OutputState::Playing, 100, [](Audio::SampleSpecification) {}, [](Span<float> buffer) -> ReadonlySpan<float> { return buffer.trim(0); });
+        if (stream_result.is_error())
+            dbgln("Failed to create playback stream: {}", stream_result.error());
         EXPECT_EQ(!stream_result.is_error(), has_implementation);
         if (has_implementation)
             EXPECT_EQ(stream_result.value()->total_time_played(), AK::Duration::zero());
     }
 
-#if defined(HAVE_PULSEAUDIO)
+#    if defined(HAVE_PULSEAUDIO)
     // The PulseAudio context is kept alive by the PlaybackStream's control thread, which blocks on
     // some operations, so it won't necessarily be destroyed immediately.
     auto wait_start = MonotonicTime::now_coarse();
@@ -40,5 +45,6 @@ TEST_CASE(create_and_destroy_playback_stream)
         if (MonotonicTime::now_coarse() - wait_start > AK::Duration::from_milliseconds(100))
             VERIFY_NOT_REACHED();
     }
-#endif
+#    endif
 }
+#endif
