@@ -116,7 +116,6 @@ DecoderErrorOr<Vector<Track>> FFmpegDemuxer::get_tracks_for_type(TrackType type)
 
     if (type == TrackType::Video) {
         track.set_video_data({
-            .duration = TRY(duration_of_track(track)),
             .pixel_width = static_cast<u64>(stream->codecpar->width),
             .pixel_height = static_cast<u64>(stream->codecpar->height),
         });
