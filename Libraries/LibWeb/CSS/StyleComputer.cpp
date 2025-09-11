@@ -1255,7 +1255,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 
             auto transition_property = maybe_property.release_value();
             if (property_is_shorthand(transition_property)) {
-                for (auto const& prop : longhands_for_shorthand(transition_property))
+                for (auto const& prop : expanded_longhands_for_shorthand(transition_property))
                     properties_for_this_transition.append(prop);
             } else {
                 properties_for_this_transition.append(transition_property);
