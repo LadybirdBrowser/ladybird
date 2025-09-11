@@ -150,15 +150,20 @@ Optional<DimensionType> dimension_for_unit(StringView);
         enum_generator.append(R"~~~(
 enum class @dimension_name:titlecase@Unit : @enum_type@ {
 )~~~");
-        units.for_each_member([&](auto& unit_name, auto&) {
+        units.for_each_member([&](auto& unit_name, auto& unit_value) {
+            auto& unit = unit_value.as_object();
+            if (unit.get_bool("is-canonical-unit"sv) == true)
+                enum_generator.set("canonical_unit:titlecase", title_casify(unit_name));
             auto unit_generator = enum_generator.fork();
             unit_generator.set("unit_name:titlecase", title_casify(unit_name));
             unit_generator.appendln("    @unit_name:titlecase@,");
         });
         enum_generator.append(R"~~~(
 };
+constexpr @dimension_name:titlecase@Unit canonical_@dimension_name:snakecase@_unit() { return @dimension_name:titlecase@Unit::@canonical_unit:titlecase@; }
 Optional<@dimension_name:titlecase@Unit> string_to_@dimension_name:snakecase@_unit(StringView);
 FlyString to_string(@dimension_name:titlecase@Unit);
+bool units_are_compatible(@dimension_name:titlecase@Unit, @dimension_name:titlecase@Unit);
 double ratio_between_units(@dimension_name:titlecase@Unit, @dimension_name:titlecase@Unit);
 )~~~");
     });
@@ -261,6 +266,34 @@ FlyString to_string(@dimension_name:titlecase@Unit value)
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+bool units_are_compatible(@dimension_name:titlecase@Unit a, @dimension_name:titlecase@Unit b)
+{
+    auto is_absolute = [](@dimension_name:titlecase@Unit unit) -> bool {
+        switch (unit) {
+)~~~");
+        // https://drafts.csswg.org/css-values-4/#compatible-units
+        // NB: The spec describes two ways units can be compatible. Absolute ones always are, but it also lists em/px
+        //     as compatible at computed value time. We should already have absolutized the units by then, but perhaps
+        //     there is some case where we need to handle that here instead.
+        units.for_each_member([&](String const& unit_name, JsonValue const& unit_value) {
+            auto const& unit = unit_value.as_object();
+            if (unit.has("relative-to"sv))
+                return;
+            auto unit_generator = dimension_generator.fork();
+            unit_generator.set("unit_name:titlecase", title_casify(unit_name));
+            unit_generator.appendln("        case @dimension_name:titlecase@Unit::@unit_name:titlecase@:");
+        });
+
+        dimension_generator.append(R"~~~(
+            return true;
+        default:
+            return false;
+        }
+    };
+
+    return is_absolute(a) && is_absolute(b);
 }
 
 double ratio_between_units(@dimension_name:titlecase@Unit from, @dimension_name:titlecase@Unit to)
