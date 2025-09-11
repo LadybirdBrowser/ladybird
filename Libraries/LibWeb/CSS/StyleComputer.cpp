@@ -1240,6 +1240,13 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
         auto property_value = transition_properties[i];
         Vector<PropertyID> properties_for_this_transition;
 
+        auto const append_property_mapping_logical_aliases = [&](PropertyID property_id) {
+            if (property_is_logical_alias(property_id))
+                properties_for_this_transition.append(map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { style.writing_mode(), style.direction() }));
+            else
+                properties_for_this_transition.append(property_id);
+        };
+
         if (property_value->is_keyword()) {
             auto keyword = property_value->as_keyword().keyword();
             if (keyword == Keyword::None)
@@ -1254,9 +1261,9 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
             auto transition_property = maybe_property.release_value();
             if (property_is_shorthand(transition_property)) {
                 for (auto const& prop : expanded_longhands_for_shorthand(transition_property))
-                    properties_for_this_transition.append(prop);
+                    append_property_mapping_logical_aliases(prop);
             } else {
-                properties_for_this_transition.append(transition_property);
+                append_property_mapping_logical_aliases(transition_property);
             }
         }
 
