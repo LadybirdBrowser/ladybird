@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathmin
-class CSSMathMin : public CSSMathValue {
+class CSSMathMin final : public CSSMathValue {
     WEB_PLATFORM_OBJECT(CSSMathMin, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathMin);
 

@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathmax
-class CSSMathMax : public CSSMathValue {
+class CSSMathMax final : public CSSMathValue {
     WEB_PLATFORM_OBJECT(CSSMathMax, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathMax);
 
