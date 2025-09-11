@@ -5,6 +5,7 @@
  */
 
 #include "NumericType.h"
+#include <AK/HashMap.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
@@ -94,6 +95,53 @@ Optional<NumericType> NumericType::create_from_unit(FlyString const& unit)
     return {};
 
     // In all cases, the associated percent hint is null.
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-type-from-a-unit-map
+Optional<NumericType> NumericType::create_from_unit_map(UnitMap const& unit_map)
+{
+    // To create a type from a unit map unit map:
+
+    // 1. Let types be an initially empty list.
+    Vector<NumericType> types;
+
+    // 2. For each unit → power in unit map:
+    for (auto const& [unit, power] : unit_map) {
+        // 1. Let type be the result of creating a type from unit.
+        auto type = create_from_unit(unit).release_value();
+
+        // 2. Set type’s sole value to power.
+        auto sole_type = [&type] {
+            for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
+                auto base_type = static_cast<BaseType>(i);
+                if (type.exponent(base_type).has_value())
+                    return base_type;
+            }
+            VERIFY_NOT_REACHED();
+        }();
+        type.set_exponent(sole_type, power);
+
+        // 3. Append type to types.
+        types.empend(type);
+    }
+
+    // 3. Return the result of multiplying all the items of types.
+    if (types.is_empty())
+        return {};
+    auto result = types.first();
+    bool first = true;
+    for (auto const& type : types) {
+        if (first) {
+            first = false;
+            continue;
+        }
+        if (auto multiplied_type = result.multiplied_by(type); multiplied_type.has_value()) {
+            result = multiplied_type.release_value();
+        } else {
+            return {};
+        }
+    }
+    return result;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-add-two-types
