@@ -23,6 +23,29 @@ GC::Ref<CSSUnitValue> CSSUnitValue::create(JS::Realm& realm, double value, FlySt
     return realm.create<CSSUnitValue>(realm, value, move(unit), numeric_type.release_value());
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-cssunitvalue-from-a-sum-value-item
+GC::Ptr<CSSUnitValue> CSSUnitValue::create_from_sum_value_item(JS::Realm& realm, SumValueItem const& item)
+{
+    // 1. If item has more than one entry in its unit map, return failure.
+    if (item.unit_map.size() > 1)
+        return {};
+
+    // 2. If item has no entries in its unit map, return a new CSSUnitValue whose unit internal slot is set to
+    //    "number", and whose value internal slot is set to item’s value.
+    if (item.unit_map.is_empty())
+        return CSSUnitValue::create(realm, item.value, "number"_fly_string);
+
+    // 3. Otherwise, item has a single entry in its unit map. If that entry’s value is anything other than 1, return
+    //    failure.
+    auto single_type_entry = item.unit_map.begin();
+    if (single_type_entry->value != 1)
+        return {};
+
+    // 4. Otherwise, return a new CSSUnitValue whose unit internal slot is set to that entry’s key, and whose value
+    //    internal slot is set to item’s value.
+    return CSSUnitValue::create(realm, item.value, single_type_entry->key);
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunitvalue-cssunitvalue
 WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(JS::Realm& realm, double value, FlyString unit)
 {

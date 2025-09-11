@@ -52,6 +52,8 @@ public:
     bool equals_for_bindings(Vector<CSSNumberish>) const;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
 
+    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(FlyString const& unit) const;
+
     virtual Optional<SumValue> create_a_sum_value() const = 0;
 
     CSSNumericType type_for_bindings() const;
