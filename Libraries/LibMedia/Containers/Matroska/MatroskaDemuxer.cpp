@@ -108,7 +108,7 @@ DecoderErrorOr<MatroskaDemuxer::TrackStatus*> MatroskaDemuxer::get_track_status(
 {
     if (!m_track_statuses.contains(track)) {
         auto iterator = TRY(m_reader.create_sample_iterator(track.identifier()));
-        DECODER_TRY_ALLOC(m_track_statuses.try_set(track, { iterator }));
+        DECODER_TRY_ALLOC(m_track_statuses.try_set(track, TrackStatus(move(iterator))));
     }
 
     return &m_track_statuses.get(track).release_value();
