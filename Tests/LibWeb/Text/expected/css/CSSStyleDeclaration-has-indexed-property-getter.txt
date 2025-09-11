@@ -62,6 +62,7 @@ All properties associated with getComputedStyle(document.body):
     "text-rendering",
     "text-shadow",
     "text-transform",
+    "text-underline-offset",
     "text-wrap-mode",
     "text-wrap-style",
     "visibility",
