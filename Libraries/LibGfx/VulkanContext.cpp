@@ -100,13 +100,15 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
 
     VkPhysicalDeviceFeatures deviceFeatures {};
 #ifdef USE_VULKAN_IMAGES
+    dbgln("Using shareable Vulcan images");
     char const* device_extensions[] = {
         VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
         VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME
     };
     uint32_t device_extension_count = array_size(device_extensions);
 #else
-    const char** device_extensions = nullptr;
+    dbgln("Not using shareable Vulcan images");
+    char const** device_extensions = nullptr;
     uint32_t device_extension_count = 0;
 #endif
     VkDeviceCreateInfo create_device_info {};
