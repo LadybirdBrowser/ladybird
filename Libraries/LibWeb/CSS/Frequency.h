@@ -24,7 +24,7 @@ public:
 
     double raw_value() const { return m_value; }
     FrequencyUnit unit() const { return m_unit; }
-    StringView unit_name() const { return CSS::to_string(m_unit); }
+    FlyString unit_name() const { return CSS::to_string(m_unit); }
 
     bool operator==(Frequency const& other) const
     {
