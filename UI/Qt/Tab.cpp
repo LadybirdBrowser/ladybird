@@ -99,9 +99,11 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar->addAction(m_navigate_forward_action);
     m_toolbar->addAction(m_reload_action);
     m_toolbar->addWidget(m_location_edit);
-    m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
+    m_toolbar->addAction(create_application_action(*m_toolbar, view().reset_zoom_action()));
     m_hamburger_button_action = m_toolbar->addWidget(m_hamburger_button);
+
     m_toolbar->setIconSize({ 16, 16 });
+    m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
     // This is a little awkward, but without this Qt shrinks the button to the size of the icon.
     // Note: toolButtonStyle="0" -> ToolButtonIconOnly.
     m_toolbar->setStyleSheet("QToolButton[toolButtonStyle=\"0\"]{width:24px;height:24px}");
@@ -111,8 +113,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     QObject::connect(Settings::the(), &Settings::show_menubar_changed, this, [this](bool show_menubar) {
         m_hamburger_button_action->setVisible(!show_menubar);
     });
-
-    m_toolbar->addAction(create_application_action(*m_toolbar, view().reset_zoom_action()));
 
     view().on_activate_tab = [this] {
         m_window->activate_tab(tab_index());
