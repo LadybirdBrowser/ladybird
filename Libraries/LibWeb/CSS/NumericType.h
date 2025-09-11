@@ -13,6 +13,8 @@
 
 namespace Web::CSS {
 
+using UnitMap = HashMap<FlyString, i32>;
+
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type
 class NumericType {
 public:
@@ -52,6 +54,7 @@ public:
     }
 
     static Optional<NumericType> create_from_unit(FlyString const& unit);
+    static Optional<NumericType> create_from_unit_map(UnitMap const&);
     NumericType() = default;
     NumericType(BaseType type, i32 power)
     {
