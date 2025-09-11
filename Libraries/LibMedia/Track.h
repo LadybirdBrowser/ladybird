@@ -18,6 +18,7 @@ enum class TrackType : u32 {
     Video,
     Audio,
     Subtitles,
+    Unknown,
 };
 
 class Track {

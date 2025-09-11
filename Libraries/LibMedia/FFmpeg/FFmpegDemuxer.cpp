@@ -85,45 +85,46 @@ DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track
     return time_units_to_duration(m_format_context->duration, 1, AV_TIME_BASE);
 }
 
-DecoderErrorOr<Vector<Track>> FFmpegDemuxer::get_tracks_for_type(TrackType type)
+DecoderErrorOr<Track> FFmpegDemuxer::get_track_for_stream_index(u32 stream_index)
 {
-    AVMediaType media_type;
+    VERIFY(stream_index < m_format_context->nb_streams);
 
-    switch (type) {
-    case TrackType::Video:
-        media_type = AVMediaType::AVMEDIA_TYPE_VIDEO;
-        break;
-    case TrackType::Audio:
-        media_type = AVMediaType::AVMEDIA_TYPE_AUDIO;
-        break;
-    case TrackType::Subtitles:
-        media_type = AVMediaType::AVMEDIA_TYPE_SUBTITLE;
-        break;
-    }
-
-    // Find the best stream to play within the container
-    int best_stream_index = av_find_best_stream(m_format_context, media_type, -1, -1, nullptr, 0);
-    if (best_stream_index == AVERROR_STREAM_NOT_FOUND)
-        return DecoderError::format(DecoderErrorCategory::Unknown, "No stream for given type found in container");
-    if (best_stream_index == AVERROR_DECODER_NOT_FOUND)
-        return DecoderError::format(DecoderErrorCategory::Unknown, "No suitable decoder found for stream");
-    if (best_stream_index < 0)
-        return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to find a stream for the given type");
-
-    auto* stream = m_format_context->streams[best_stream_index];
-
-    Track track(type, best_stream_index);
+    auto& stream = *m_format_context->streams[stream_index];
+    auto type = track_type_from_ffmpeg_media_type(stream.codecpar->codec_type);
+    Track track(type, stream_index);
 
     if (type == TrackType::Video) {
         track.set_video_data({
-            .pixel_width = static_cast<u64>(stream->codecpar->width),
-            .pixel_height = static_cast<u64>(stream->codecpar->height),
+            .pixel_width = static_cast<u64>(stream.codecpar->width),
+            .pixel_height = static_cast<u64>(stream.codecpar->height),
         });
     }
 
-    Vector<Track> tracks;
-    tracks.append(move(track));
+    return track;
+}
+
+DecoderErrorOr<Vector<Track>> FFmpegDemuxer::get_tracks_for_type(TrackType type)
+{
+    auto media_type = ffmpeg_media_type_from_track_type(type);
+    Vector<Track> tracks = {};
+    for (u32 i = 0; i < m_format_context->nb_streams; i++) {
+        auto& stream = *m_format_context->streams[i];
+        if (stream.codecpar->codec_type != media_type)
+            continue;
+
+        tracks.append(TRY(get_track_for_stream_index(i)));
+    }
     return tracks;
+}
+
+DecoderErrorOr<Optional<Track>> FFmpegDemuxer::get_preferred_track_for_type(TrackType type)
+{
+    auto media_type = ffmpeg_media_type_from_track_type(type);
+    auto best_stream_index = av_find_best_stream(m_format_context, media_type, -1, -1, nullptr, 0);
+    if (best_stream_index < 0)
+        return OptionalNone();
+
+    return get_track_for_stream_index(best_stream_index);
 }
 
 DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample)
