@@ -183,7 +183,7 @@ public:
 
     operator T*() const { return m_ptr; }
 
-    Ref<T> as_nonnull()
+    Ref<T> as_nonnull() const
     {
         VERIFY(m_ptr);
         return *m_ptr;
