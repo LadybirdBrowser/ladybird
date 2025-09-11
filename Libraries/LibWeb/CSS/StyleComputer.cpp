@@ -1244,10 +1244,8 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
             auto keyword = property_value->as_keyword().keyword();
             if (keyword == Keyword::None)
                 continue;
-            if (keyword == Keyword::All) {
-                for (auto prop = first_property_id; prop != last_property_id; prop = static_cast<PropertyID>(to_underlying(prop) + 1))
-                    properties_for_this_transition.append(prop);
-            }
+            if (keyword == Keyword::All)
+                properties_for_this_transition = expanded_longhands_for_shorthand(PropertyID::All);
         } else {
             auto maybe_property = property_id_from_string(property_value->as_custom_ident().custom_ident());
             if (!maybe_property.has_value())
