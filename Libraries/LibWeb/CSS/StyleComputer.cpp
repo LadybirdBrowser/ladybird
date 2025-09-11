@@ -3153,6 +3153,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
     case PropertyID::StopOpacity:
     case PropertyID::StrokeOpacity:
         return compute_opacity(specified_value, computation_context);
+    case PropertyID::TextUnderlineOffset:
+        return compute_text_underline_offset(specified_value, computation_context);
     default:
         // FIXME: We should replace this with a VERIFY_NOT_REACHED() once all properties have their own handling.
         return specified_value;
@@ -3204,6 +3206,24 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<Sty
     // NOTE: We also support calc()'d percentages
     if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_percentage())
         return NumberStyleValue::create(clamp(specified_value->as_calculated().resolve_percentage({ .length_resolution_context = computation_context.length_resolution_context })->as_fraction(), 0, 1));
+
+    VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_text_underline_offset(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const& computation_context)
+{
+    // https://drafts.csswg.org/css-text-decor-4/#underline-offset
+    // as specified, with <length-percentage> values computed
+
+    // auto
+    // <percentage>
+    if (specified_value->to_keyword() == Keyword::Auto || specified_value->is_percentage())
+        return specified_value;
+
+    // <length>
+    // NOTE: We also support calc()'d <length-percentage>
+    if (specified_value->is_calculated() || specified_value->is_length())
+        return specified_value->absolutized(computation_context.length_resolution_context.viewport_rect, computation_context.length_resolution_context.font_metrics, computation_context.length_resolution_context.root_font_metrics);
 
     VERIFY_NOT_REACHED();
 }
