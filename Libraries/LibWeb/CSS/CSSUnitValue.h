@@ -18,6 +18,7 @@ class CSSUnitValue final : public CSSNumericValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSUnitValue> create(JS::Realm&, double value, FlyString unit);
+    static GC::Ptr<CSSUnitValue> create_from_sum_value_item(JS::Realm&, SumValueItem const&);
     static WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> construct_impl(JS::Realm&, double value, FlyString unit);
 
     virtual ~CSSUnitValue() override = default;
