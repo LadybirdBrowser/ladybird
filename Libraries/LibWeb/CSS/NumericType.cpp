@@ -16,6 +16,23 @@
 
 namespace Web::CSS {
 
+// https://drafts.css-houdini.org/css-typed-om-1/#product-of-two-unit-maps
+UnitMap product_of_two_unit_maps(UnitMap const& units1, UnitMap const& units2)
+{
+    // 1. Let result be a copy of units1.
+    auto result = units1;
+
+    // 2. For each unit → power in units2:
+    for (auto const& [unit, power] : units2) {
+        // 1. If result[unit] exists, increment result[unit] by power.
+        // 2. Otherwise, set result[unit] to power.
+        result.ensure(unit) += power;
+    }
+
+    // 3. Return result.
+    return result;
+}
+
 Optional<NumericType::BaseType> NumericType::base_type_from_value_type(ValueType value_type)
 {
     switch (value_type) {

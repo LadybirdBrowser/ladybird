@@ -14,6 +14,7 @@
 namespace Web::CSS {
 
 using UnitMap = HashMap<FlyString, i32>;
+UnitMap product_of_two_unit_maps(UnitMap const&, UnitMap const&);
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type
 class NumericType {
