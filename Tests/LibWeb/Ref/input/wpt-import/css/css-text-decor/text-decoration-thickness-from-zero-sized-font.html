@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>text-decoration-thickness: from-font with zero sized font</title>
+        <meta name="assert" content="text-decoration-thickness: from-font with a zero size font does not crash">
+        <link rel="author" title="Stephen Chenney" href="mailto:schenney@chromium.org">
+        <link rel="help" href="https://www.w3.org/TR/css-text-decor-4/#text-decoration-width-property">
+        <link rel="match" href="../../../../expected/wpt-import/css/css-text-decor/../reference/blank.html">
+        <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+        <style>
+            span {
+                font-size: 0px;
+                text-decoration: line-through;
+                text-decoration-thickness: from-font;
+            }
+        </style>
+    </head>
+    <body>
+        <span>This line has a zero sized font.</span>
+    </body>
+</html>

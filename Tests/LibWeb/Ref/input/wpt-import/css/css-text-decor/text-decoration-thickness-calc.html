@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>text-decoration-thickness calc() support</title>
+<link rel="author" title="ChangSeok Oh" href="mailto:changseok@webkit.org" />
+<link rel="help" href="https://www.w3.org/TR/css-text-decor-4/#text-decoration-thickness-property" />
+<link rel="match" href="../../../../expected/wpt-import/css/css-text-decor/text-decoration-thickness-calc-ref.html" />
+<link rel="stylesheet" type="text/css" href="../../../../../Text/input/wpt-import/fonts/ahem.css">
+<meta name="assert" content="Test checks whether text-decoration-thickness supports calc() values.">
+<style type="text/css">
+div {
+  display: flex;
+  font-family: Ahem;
+  font-size: 8px;
+}
+.underline {
+  text-decoration-color: green;
+  text-decoration-line: underline;
+  text-decoration-skip-ink: none;
+}
+.overline {
+  text-decoration-color: green;
+  text-decoration-line: overline;
+  text-decoration-skip-ink: none;
+}
+.line-through {
+  text-decoration-color: green;
+  text-decoration-line: line-through;
+  text-decoration-skip-ink: none;
+}
+.ref {
+  text-decoration-thickness: 8px;
+}
+.test1 {
+  text-decoration-thickness: calc(1em);
+}
+.test2 {
+  text-decoration-thickness: calc(100%);
+}
+.test3 {
+  text-decoration-thickness: calc(50% + 4px);
+}
+.test4 {
+  text-decoration-thickness: calc(50% + 0.5em);
+}
+.test5 {
+  text-decoration-thickness: calc(0.5em + 4px);
+}
+</style>
+<p>Test passes if black and green bar pairs are the same shape and size.</p>
+<div>
+  <span class="underline ref">X</span>
+  <span class="underline test1">X</span>
+  <span class="underline test2">X</span>
+  <span class="underline test3">X</span>
+  <span class="underline test4">X</span>
+  <span class="underline test5">X</span>
+</div>
+<br>
+<br>
+<div>
+  <span class="overline ref">X</span>
+  <span class="overline test1">X</span>
+  <span class="overline test2">X</span>
+  <span class="overline test3">X</span>
+  <span class="overline test4">X</span>
+  <span class="overline test5">X</span>
+</div>
+<br>
+<div>
+<span class="ref">XXXXXX</span>
+</div>
+<div>
+  <span class="line-through ref">X</span>
+  <span class="line-through test1">X</span>
+  <span class="line-through test2">X</span>
+  <span class="line-through test3">X</span>
+  <span class="line-through test4">X</span>
+  <span class="line-through test5">X</span>
+</div>

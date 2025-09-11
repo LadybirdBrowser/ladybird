@@ -841,16 +841,16 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
             return;
         case CSS::TextDecorationLine::Underline:
             line_start_point = context.rounded_device_point(fragment_box.top_left().translated(0, baseline + 2));
-            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(-1, baseline + 2));
+            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(0, baseline + 2));
             break;
         case CSS::TextDecorationLine::Overline:
             line_start_point = context.rounded_device_point(fragment_box.top_left().translated(0, baseline - glyph_height));
-            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(-1, baseline - glyph_height));
+            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(0, baseline - glyph_height));
             break;
         case CSS::TextDecorationLine::LineThrough: {
             auto x_height = font.x_height();
             line_start_point = context.rounded_device_point(fragment_box.top_left().translated(0, baseline - x_height * CSSPixels(0.5f)));
-            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(-1, baseline - x_height * CSSPixels(0.5f)));
+            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(0, baseline - x_height * CSSPixels(0.5f)));
             break;
         }
         case CSS::TextDecorationLine::Blink:
