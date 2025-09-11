@@ -22,7 +22,7 @@ public:
 
     double raw_value() const { return m_value; }
     ResolutionUnit unit() const { return m_unit; }
-    StringView unit_name() const { return CSS::to_string(m_unit); }
+    FlyString unit_name() const { return CSS::to_string(m_unit); }
 
     bool operator==(Resolution const& other) const
     {

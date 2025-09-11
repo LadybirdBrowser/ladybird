@@ -120,6 +120,7 @@ ErrorOr<void> generate_header_file(JsonObject& dimensions_data, Core::File& file
     generator.append(R"~~~(
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/Optional.h>
 
 namespace Web::CSS {
@@ -157,7 +158,7 @@ enum class @dimension_name:titlecase@Unit : @enum_type@ {
         enum_generator.append(R"~~~(
 };
 Optional<@dimension_name:titlecase@Unit> string_to_@dimension_name:snakecase@_unit(StringView);
-StringView to_string(@dimension_name:titlecase@Unit);
+FlyString to_string(@dimension_name:titlecase@Unit);
 double ratio_between_units(@dimension_name:titlecase@Unit, @dimension_name:titlecase@Unit);
 )~~~");
     });
@@ -181,7 +182,6 @@ ErrorOr<void> generate_implementation_file(JsonObject& dimensions_data, Core::Fi
     SourceGenerator generator { builder };
 
     generator.append(R"~~~(
-#include <AK/StringView.h>
 #include <LibWeb/CSS/Units.h>
 
 namespace Web::CSS {
@@ -244,7 +244,7 @@ Optional<@dimension_name:titlecase@Unit> string_to_@dimension_name:snakecase@_un
     return {};
 }
 
-StringView to_string(@dimension_name:titlecase@Unit value)
+FlyString to_string(@dimension_name:titlecase@Unit value)
 {
     switch (value) {)~~~");
 
@@ -254,7 +254,7 @@ StringView to_string(@dimension_name:titlecase@Unit value)
             unit_generator.set("unit_name:titlecase", title_casify(unit_name));
             unit_generator.append(R"~~~(
     case @dimension_name:titlecase@Unit::@unit_name:titlecase@:
-        return "@unit_name:lowercase@"sv;)~~~");
+        return "@unit_name:lowercase@"_fly_string;)~~~");
         });
 
         dimension_generator.append(R"~~~(
