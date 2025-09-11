@@ -71,6 +71,39 @@ bool CSSNumericValue::equals_for_bindings(Vector<CSSNumberish> values) const
     return true;
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-to
+WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(FlyString const& unit) const
+{
+    // The to(unit) method converts an existing CSSNumericValue this into another one with the specified unit, if
+    // possible. When called, it must perform the following steps:
+
+    // 1. Let type be the result of creating a type from unit. If type is failure, throw a SyntaxError.
+    auto maybe_type = NumericType::create_from_unit(unit);
+    if (!maybe_type.has_value())
+        return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Unrecognized unit '{}'", unit));
+
+    // 2. Let sum be the result of creating a sum value from this. If sum is failure, throw a TypeError.
+    auto sum = create_a_sum_value();
+    if (!sum.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create a sum from input '{}'", to_string())) };
+
+    // 3. If sum has more than one item, throw a TypeError.
+    //    Otherwise, let item be the result of creating a CSSUnitValue from the sole item in sum, then converting it to
+    //    unit. If item is failure, throw a TypeError.
+    if (sum->size() > 1)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Sum contains more than one item"sv };
+    auto item = CSSUnitValue::create_from_sum_value_item(realm(), sum->first());
+    if (!item)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create CSSUnitValue from input '{}'", to_string())) };
+
+    auto converted_item = item->converted_to_unit(unit);
+    if (!converted_item)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to convert input '{}' to unit '{}'", to_string(), unit)) };
+
+    // 4. Return item.
+    return converted_item.as_nonnull();
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-type
 CSSNumericType CSSNumericValue::type_for_bindings() const
 {
