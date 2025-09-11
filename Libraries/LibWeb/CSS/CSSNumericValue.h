@@ -28,6 +28,13 @@ struct CSSNumericType {
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
 using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
 
+// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-sum-value
+struct SumValueItem {
+    double value;
+    UnitMap unit_map;
+};
+using SumValue = Vector<SumValueItem>;
+
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
 class CSSNumericValue : public CSSStyleValue {
     WEB_PLATFORM_OBJECT(CSSNumericValue, CSSStyleValue);
@@ -44,6 +51,8 @@ public:
 
     bool equals_for_bindings(Vector<CSSNumberish>) const;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
+
+    virtual Optional<SumValue> create_a_sum_value() const = 0;
 
     CSSNumericType type_for_bindings() const;
     NumericType const& type() const { return m_type; }

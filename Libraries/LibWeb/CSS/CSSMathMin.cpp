@@ -130,4 +130,32 @@ bool CSSMathMin::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
     return m_values->is_equal_numeric_values(other_min->m_values);
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-sum-value
+Optional<SumValue> CSSMathMin::create_a_sum_value() const
+{
+    // 1. Let args be the result of creating a sum value for each item in this’s values internal slot.
+    Vector<Optional<SumValue>> args;
+    args.ensure_capacity(m_values->length());
+    for (auto const& value : m_values->values()) {
+        args.unchecked_append(value->create_a_sum_value());
+    }
+
+    Optional<SumValue> item_with_smallest_value = args.first();
+    for (auto const& item : args) {
+        // 2. If any item of args is failure, or has a length greater than one, return failure.
+        if (!item.has_value() || item->size() > 1)
+            return {};
+
+        // 3. If not all of the unit maps among the items of args are identical, return failure.
+        if (item->first().unit_map != item_with_smallest_value->first().unit_map)
+            return {};
+
+        if (item->first().value < item_with_smallest_value->first().value)
+            item_with_smallest_value = item;
+    }
+
+    // 4. Return the item of args whose sole item has the smallest value.
+    return item_with_smallest_value;
+}
+
 }
