@@ -90,7 +90,7 @@ AK::Duration PlaybackManager::duration()
 {
     auto duration_result = ({
         auto demuxer_locker = Threading::MutexLocker(m_decoder_mutex);
-        m_demuxer->duration(m_selected_video_track);
+        m_demuxer->duration_of_track(m_selected_video_track);
     });
     if (duration_result.is_error()) {
         dispatch_decoder_error(duration_result.release_error());

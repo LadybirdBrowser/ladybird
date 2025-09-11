@@ -68,6 +68,15 @@ static inline AK::Duration time_units_to_duration(i64 time_units, AVRational con
     return time_units_to_duration(time_units, time_base.num, time_base.den);
 }
 
+DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
+{
+    if (m_format_context->duration < 0) {
+        return DecoderError::format(DecoderErrorCategory::Unknown, "Negative stream duration");
+    }
+
+    return time_units_to_duration(m_format_context->duration, 1, AV_TIME_BASE);
+}
+
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)
 {
     VERIFY(track.identifier() < m_format_context->nb_streams);
@@ -78,11 +87,7 @@ DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track
     }
 
     // If the stream doesn't specify the duration, fallback to what the container says the duration is.
-    // If the container doesn't know the duration, then we're out of luck. Return an error.
-    if (m_format_context->duration < 0)
-        return DecoderError::format(DecoderErrorCategory::Unknown, "Negative stream duration");
-
-    return time_units_to_duration(m_format_context->duration, 1, AV_TIME_BASE);
+    return total_duration();
 }
 
 DecoderErrorOr<Track> FFmpegDemuxer::get_track_for_stream_index(u32 stream_index)
@@ -142,11 +147,6 @@ DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyfra
         return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to seek");
 
     return timestamp;
-}
-
-DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration(Track track)
-{
-    return duration_of_track(track);
 }
 
 DecoderErrorOr<CodecID> FFmpegDemuxer::get_codec_id_for_track(Track track)

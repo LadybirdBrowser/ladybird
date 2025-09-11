@@ -30,7 +30,8 @@ public:
 
     virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) override;
 
-    virtual DecoderErrorOr<AK::Duration> duration(Track track) override;
+    virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
+    virtual DecoderErrorOr<AK::Duration> total_duration() override;
 
     virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) override;
 
@@ -39,7 +40,6 @@ public:
     virtual DecoderErrorOr<Sample> get_next_sample_for_track(Track track) override;
 
 private:
-    DecoderErrorOr<AK::Duration> duration_of_track(Track const& track);
     DecoderErrorOr<Track> get_track_for_stream_index(u32 stream_index);
 
     NonnullOwnPtr<SeekableStream> m_stream;

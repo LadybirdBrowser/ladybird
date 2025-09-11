@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/Debug.h>
+#include <LibMedia/DecoderError.h>
 
 #include "MatroskaDemuxer.h"
 
@@ -192,10 +194,15 @@ DecoderErrorOr<Sample> MatroskaDemuxer::get_next_sample_for_track(Track track)
     return Sample(status.block->timestamp(), move(sample_data), VideoSampleData(cicp));
 }
 
-DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration(Track)
+DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
 {
     auto duration = TRY(m_reader.segment_information()).duration();
     return duration.value_or(AK::Duration::zero());
+}
+
+DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration_of_track(Track const&)
+{
+    return total_duration();
 }
 
 }
