@@ -354,7 +354,9 @@ The generated code provides:
 - `Optional<DimensionType> dimension_for_unit(StringView)` for querying which dimension a unit applies to, if any.
 - A `FooUnit` enum for each dimension "foo", which lists all the units of that dimension.
 - For each of those...
+  - `constexpr FooUnit canonical_foo_unit()` which is the canonical unit for that type.
   - `Optional<FooUnit> string_to_foo_unit(StringView)` for parsing a unit from a string.
   - `StringView to_string(FooUnit)` for serializing those units.
+  - `bool units_are_compatible(FooUnit, FooUnit)` which returns whether these are compatible - basically whether you can convert from one to the other.
   - `double ratio_between_units(FooUnit, FooUnit)` to get a multiplier for converting the first unit into the second.
 - `bool is_absolute(LengthUnit)`, `bool is_font_relative(LengthUnit)`, `bool is_viewport_relative(LengthUnit)`, and `bool is_relative(LengthUnit)` for checking the category of length units.
