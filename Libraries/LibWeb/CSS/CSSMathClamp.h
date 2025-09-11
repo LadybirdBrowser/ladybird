@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathclamp
-class CSSMathClamp : public CSSMathValue {
+class CSSMathClamp final : public CSSMathValue {
     WEB_PLATFORM_OBJECT(CSSMathClamp, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathClamp);
 

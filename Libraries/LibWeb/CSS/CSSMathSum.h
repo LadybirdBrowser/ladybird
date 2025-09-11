@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathsum
-class CSSMathSum : public CSSMathValue {
+class CSSMathSum final : public CSSMathValue {
     WEB_PLATFORM_OBJECT(CSSMathSum, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathSum);
 

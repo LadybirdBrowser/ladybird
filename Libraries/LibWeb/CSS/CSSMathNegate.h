@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathnegate
-class CSSMathNegate : public CSSMathValue {
+class CSSMathNegate final : public CSSMathValue {
     WEB_PLATFORM_OBJECT(CSSMathNegate, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathNegate);
 
