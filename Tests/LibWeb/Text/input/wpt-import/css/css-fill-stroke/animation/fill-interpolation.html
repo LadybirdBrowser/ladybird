@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>'fill' interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-color/#interpolation">
+<link rel="help" href="https://drafts.fxtf.org/fill-stroke/#fill-shorthand">
+<meta name="assert" content="'fill' supports animation by computed value type">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<style>
+.parent {
+  fill: blue;
+}
+.target {
+  display: inline-block;
+  font-size: 60pt;
+  fill: yellow;
+}
+.expected {
+  margin-right: 15px;
+}
+</style>
+<body>
+  <template id="target-template">T</template>
+</body>
+<script>
+test_interpolation({
+  property: 'fill',
+  from: neutralKeyframe,
+  to: 'green',
+}, [
+  {at: -0.3, expect: 'rgb(255, 255, 0)'},
+  {at: 0, expect: 'rgb(255, 255, 0)'},
+  {at: 0.3, expect: 'rgb(179, 217, 0)'},
+  {at: 0.6, expect: 'rgb(102, 179, 0)'},
+  {at: 1, expect: 'rgb(0, 128, 0)'},
+  {at: 1.5, expect: 'rgb(0, 65, 0)'},
+]);
+
+test_interpolation({
+  property: 'fill',
+  from: 'initial',
+  to: 'green',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0)'},
+  {at: 0, expect: 'rgb(0, 0, 0)'},
+  {at: 0.3, expect: 'rgb(0, 38, 0)'},
+  {at: 0.6, expect: 'rgb(0, 77, 0)'},
+  {at: 1, expect: 'rgb(0, 128, 0)'},
+  {at: 1.5, expect: 'rgb(0, 192, 0)'},
+]);
+
+test_interpolation({
+  property: 'fill',
+  from: 'inherit',
+  to: 'green',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 255)'},
+  {at: 0, expect: 'rgb(0, 0, 255)'},
+  {at: 0.3, expect: 'rgb(0, 38, 179)'},
+  {at: 0.6, expect: 'rgb(0, 77, 102)'},
+  {at: 1, expect: 'rgb(0, 128, 0)'},
+  {at: 1.5, expect: 'rgb(0, 192, 0)'},
+]);
+
+test_interpolation({
+  property: 'fill',
+  from: 'unset',
+  to: 'green',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 255)'},
+  {at: 0, expect: 'rgb(0, 0, 255)'},
+  {at: 0.3, expect: 'rgb(0, 38, 179)'},
+  {at: 0.6, expect: 'rgb(0, 77, 102)'},
+  {at: 1, expect: 'rgb(0, 128, 0)'},
+  {at: 1.5, expect: 'rgb(0, 192, 0)'},
+]);
+
+test_interpolation({
+  property: 'fill',
+  from: 'black',
+  to: 'orange',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0)'},
+  {at: 0, expect: 'rgb(0, 0, 0)'},
+  {at: 0.3, expect: 'rgb(77, 50, 0)'},
+  {at: 0.6, expect: 'rgb(153, 99, 0)'},
+  {at: 1, expect: 'rgb(255, 165, 0)'},
+  {at: 1.5, expect: 'rgb(255, 248, 0)'},
+]);
+
+test_interpolation({
+  property: 'fill',
+  from: 'rgb(0 0 0)',
+  to: 'color(srgb 1 1 1)',
+}, [
+  {at: -0.3, expect: 'oklab(0 0 0)'},
+  {at: 0, expect: 'oklab(0 0 0)'},
+  {at: 0.3, expect: 'oklab(0.3 0 0)'},
+  {at: 0.6, expect: 'oklab(0.6 0 0)'},
+  {at: 1, expect: 'oklab(1 0 0)'},
+  {at: 1.5, expect: 'oklab(1 0 0)'},
+]);
+
+test_interpolation({
+  property: 'fill',
+  from: 'color(srgb 0 0 0)',
+  to: 'rgb(255 255 255)',
+}, [
+  {at: -0.3, expect: 'oklab(0 0 0)'},
+  {at: 0, expect: 'oklab(0 0 0)'},
+  {at: 0.3, expect: 'oklab(0.3 0 0)'},
+  {at: 0.6, expect: 'oklab(0.6 0 0)'},
+  {at: 1, expect: 'oklab(1 0 0)'},
+  {at: 1.5, expect: 'oklab(1 0 0)'},
+]);
+
+test_interpolation({
+  property: 'fill',
+  from: 'color(srgb 0 0 0)',
+  to: 'color(srgb 1 1 1)',
+}, [
+  {at: -0.3, expect: 'oklab(0 0 0)'},
+  {at: 0, expect: 'oklab(0 0 0)'},
+  {at: 0.3, expect: 'oklab(0.3 0 0)'},
+  {at: 0.6, expect: 'oklab(0.6 0 0)'},
+  {at: 1, expect: 'oklab(1 0 0)'},
+  {at: 1.5, expect: 'oklab(1 0 0)'},
+]);
+</script>
