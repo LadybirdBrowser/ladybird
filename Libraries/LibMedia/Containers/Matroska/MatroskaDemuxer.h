@@ -44,8 +44,13 @@ public:
 private:
     struct TrackStatus {
         SampleIterator iterator;
-        Optional<Block> block {};
+        Optional<Block> block;
         size_t frame_index { 0 };
+
+        TrackStatus(SampleIterator&& iterator)
+            : iterator(iterator)
+        {
+        }
     };
 
     DecoderErrorOr<TrackStatus*> get_track_status(Track track);
