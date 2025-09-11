@@ -48,8 +48,12 @@ DecoderErrorOr<Vector<Track>> MatroskaDemuxer::get_tracks_for_type(TrackType typ
 
         switch (type) {
         case TrackType::Video:
-            if (auto video_track = track_entry.video_track(); video_track.has_value())
-                track.set_video_data({ TRY(duration(track)), video_track->pixel_width, video_track->pixel_height });
+            if (auto video_track = track_entry.video_track(); video_track.has_value()) {
+                track.set_video_data({
+                    .pixel_width = video_track->pixel_width,
+                    .pixel_height = video_track->pixel_height
+                });
+            }
             break;
         default:
             break;
