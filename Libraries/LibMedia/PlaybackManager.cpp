@@ -698,11 +698,12 @@ private:
 
 DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::create(NonnullOwnPtr<Demuxer> demuxer)
 {
-    auto video_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Video));
-    if (video_tracks.is_empty())
+    auto optional_track = TRY(demuxer->get_preferred_track_for_type(TrackType::Video));
+    if (!optional_track.has_value()) {
         return DecoderError::with_description(DecoderErrorCategory::Invalid, "No video track is present"sv);
-    auto track = video_tracks[0];
+    }
 
+    auto track = optional_track.release_value();
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "Selecting video track number {}", track.identifier());
 
     auto codec_id = TRY(demuxer->get_codec_id_for_track(track));

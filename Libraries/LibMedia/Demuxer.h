@@ -21,6 +21,9 @@ public:
     virtual ~Demuxer() = default;
 
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) = 0;
+    // Returns the container's preferred track for a given track type. This must return a value if any track of the
+    // given type is present.
+    virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) = 0;
 
     virtual DecoderErrorOr<Sample> get_next_sample_for_track(Track track) = 0;
 
