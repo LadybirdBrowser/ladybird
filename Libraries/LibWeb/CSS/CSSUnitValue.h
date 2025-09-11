@@ -12,7 +12,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunitvalue
-class CSSUnitValue : public CSSNumericValue {
+class CSSUnitValue final : public CSSNumericValue {
     WEB_PLATFORM_OBJECT(CSSUnitValue, CSSNumericValue);
     GC_DECLARE_ALLOCATOR(CSSUnitValue);
 

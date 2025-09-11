@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathproduct
-class CSSMathProduct : public CSSMathValue {
+class CSSMathProduct final : public CSSMathValue {
     WEB_PLATFORM_OBJECT(CSSMathProduct, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathProduct);
 
