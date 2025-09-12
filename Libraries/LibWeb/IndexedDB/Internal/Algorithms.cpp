@@ -181,10 +181,16 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
                 }
 
                 db->wait_for_connections_to_close(open_connections, GC::create_function(realm.heap(), [&realm, connection, version, request, on_complete] {
+                    dbgln_if(IDB_DEBUG, "open_a_database_connection: finished waiting for step 10.5");
+
                     // 6. Run upgrade a database using connection, version and request.
+                    dbgln_if(IDB_DEBUG, "open_a_database_connection: waiting for step 10.6");
                     upgrade_a_database(realm, connection, version, request, GC::create_function(realm.heap(), [&realm, connection, request, on_complete] {
+                        dbgln_if(IDB_DEBUG, "open_a_database_connection: finished waiting for step 10.6");
+
                         // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
                         if (connection->state() == ConnectionState::Closed) {
+                            dbgln_if(IDB_DEBUG, "open_a_database_connection: step 10.7: connection was closed, aborting");
                             on_complete->function()(WebIDL::AbortError::create(realm, "Connection was closed"_utf16));
                             return;
                         }
@@ -192,13 +198,16 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
                         // 8. If request's error is set, run the steps to close a database connection with connection,
                         //    return a newly created "AbortError" DOMException and abort these steps.
                         if (request->has_error()) {
+                            dbgln_if(IDB_DEBUG, "open_a_database_connection: step 10.8: request errored, waiting to close connection");
                             close_a_database_connection(*connection, GC::create_function(realm.heap(), [&realm, on_complete] {
+                                dbgln_if(IDB_DEBUG, "open_a_database_connection: step 10.8: connection closed, aborting");
                                 on_complete->function()(WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_utf16));
                             }));
                             return;
                         }
 
                         // 11. Return connection.
+                        dbgln_if(IDB_DEBUG, "open_a_database_connection: step 11: successfully upgraded database, completing with new connection");
                         on_complete->function()(connection);
                     }));
                 }));
@@ -216,6 +225,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
         }
 
         // 11. Return connection.
+        dbgln_if(IDB_DEBUG, "open_a_database_connection: step 11: no upgrade required, completing with new connection");
         on_complete->function()(connection);
     }));
 }
@@ -381,6 +391,7 @@ void close_a_database_connection(GC::Ref<IDBDatabase> connection, GC::Ptr<GC::Fu
     }
 
     connection->wait_for_transactions_to_finish(connection->transactions(), GC::create_function(realm.heap(), [&realm, connection, forced, on_complete] {
+        dbgln_if(IDB_DEBUG, "close_a_database_connection: finished waiting for step 3, closing database connection");
         connection->set_state(ConnectionState::Closed);
 
         // 4. If the forced flag is true, then fire an event named close at connection.
@@ -462,6 +473,7 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     // 11. Wait for transaction to finish.
     dbgln_if(IDB_DEBUG, "upgrade_a_database: waiting for step 11");
     connection->wait_for_transactions_to_finish({ &transaction, 1 }, GC::create_function(realm.heap(), [on_complete] {
+        dbgln_if(IDB_DEBUG, "upgrade_a_database: finished waiting for step 11, queuing completion task");
         queue_a_database_task(on_complete);
     }));
 }
@@ -1197,11 +1209,14 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
         }
 
         transaction->request_list().all_previous_requests_processed(realm.heap(), request, GC::create_function(realm.heap(), [&realm, transaction, operation, request] {
+            dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: finished waiting for step 5.1, executing request");
+
             // 2. Let result be the result of performing operation.
             auto result = operation->function()();
 
             // 3. If result is an error and transaction’s state is committing, then run abort a transaction with transaction and result, and terminate these steps.
             if (result.is_error() && transaction->state() == IDBTransaction::TransactionState::Committing) {
+                dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.3: request errored, aborting transaction");
                 abort_a_transaction(*transaction, result.exception().get<GC::Ref<WebIDL::DOMException>>());
                 return;
             }
@@ -1212,7 +1227,10 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
             request->set_processed(true);
 
             // 6. Queue a database task to run these steps:
+            dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.6: request finished without error, queuing task to finish up");
             queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
+                dbgln_if(IDB_DEBUG, "asynchronously_execute_a_request: step 5.6: finish up task executing");
+
                 // 1. Remove request from transaction’s request list.
                 transaction->request_list().remove_first_matching([&request](auto& entry) { return entry.ptr() == request.ptr(); });
 
