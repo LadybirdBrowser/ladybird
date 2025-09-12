@@ -33,6 +33,8 @@ namespace Web::Painting {
 struct StackingContextTransform {
     Gfx::FloatPoint origin;
     Gfx::FloatMatrix4x4 matrix;
+
+    StackingContextTransform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix, float scale);
 };
 
 class WEB_API DisplayListRecorder {

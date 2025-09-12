@@ -6541,6 +6541,10 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
 
     viewport_paintable.paint_all_phases(context);
 
+    if (highlighted_node() && highlighted_node()->paintable()) {
+        highlighted_node()->paintable()->paint_inspector_overlay(context);
+    }
+
     m_cached_display_list = display_list;
     m_cached_display_list_paint_config = config;
 
