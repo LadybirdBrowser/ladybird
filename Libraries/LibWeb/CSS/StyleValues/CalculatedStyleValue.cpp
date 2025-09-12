@@ -2877,7 +2877,46 @@ ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(
         .root_font_metrics = root_font_metrics
     };
 
-    return CalculatedStyleValue::create(simplify_a_calculation_tree(m_calculation, m_context, { .length_resolution_context = length_resolution_context }), m_resolved_type, m_context);
+    auto simplified_calculation_tree = simplify_a_calculation_tree(m_calculation, m_context, { .length_resolution_context = length_resolution_context });
+
+    auto const simplified_percentage_dimension_mix = [&]() -> Optional<ValueComparingNonnullRefPtr<StyleValue const>> {
+        // NOTE: A percentage dimension mix is a SumCalculationNode with two NumericCalculationNode children which have
+        //       matching base types - only the first of which has a percent hint.
+        if (simplified_calculation_tree->type() != CalculationNode::Type::Sum)
+            return {};
+
+        auto const& sum_node = as<SumCalculationNode>(*simplified_calculation_tree);
+
+        if (sum_node.children()[0]->type() != CalculationNode::Type::Numeric || sum_node.children()[1]->type() != CalculationNode::Type::Numeric)
+            return {};
+
+        auto const& first_node = as<NumericCalculationNode>(*sum_node.children()[0]);
+        auto const& second_node = as<NumericCalculationNode>(*sum_node.children()[1]);
+
+        auto first_base_type = first_node.numeric_type()->entry_with_value_1_while_all_others_are_0();
+        auto second_base_type = second_node.numeric_type()->entry_with_value_1_while_all_others_are_0();
+
+        if (!first_base_type.has_value() || first_base_type != second_base_type)
+            return {};
+
+        if (!first_node.numeric_type()->percent_hint().has_value() || second_node.numeric_type()->percent_hint().has_value())
+            return {};
+
+        auto dimension_component = try_get_value_with_canonical_unit(second_node, m_context, {});
+
+        // https://drafts.csswg.org/css-values-4/#combine-mixed
+        // The computed value of a percentage-dimension mix is defined as
+        //  - a computed percentage if the dimension component is zero
+        if (dimension_component->value() == 0)
+            return PercentageStyleValue::create(first_node.value().get<Percentage>());
+
+        return {};
+    }();
+
+    if (simplified_percentage_dimension_mix.has_value())
+        return simplified_percentage_dimension_mix.value();
+
+    return CalculatedStyleValue::create(simplified_calculation_tree, m_resolved_type, m_context);
 }
 
 bool CalculatedStyleValue::equals(StyleValue const& other) const
