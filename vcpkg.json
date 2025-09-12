@@ -113,6 +113,7 @@
       "platform": "freebsd",
       "default-features": false,
       "features": [
+        "dbus",
         "doubleconversion",
         "fontconfig",
         "freetype",
